@@ -1,0 +1,3 @@
+[submodule "keyvault/libnacl"]
+	path = keyvault/libnacl
+	url = https://github.com/saltstack/libnacl
