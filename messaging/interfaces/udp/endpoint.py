@@ -5,7 +5,7 @@ import sys
 import threading
 from time import time
 
-from messaging.interfaces.endpoint_interface import DataTooBigException, Endpoint, EndpointClosedException
+from messaging.interfaces.endpoint import DataTooBigException, Endpoint, EndpointClosedException
 
 if sys.platform == 'win32':
     SOCKET_BLOCK_ERRORCODE = 10035  # WSAEWOULDBLOCK

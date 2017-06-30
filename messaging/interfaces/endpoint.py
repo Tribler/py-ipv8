@@ -91,7 +91,7 @@ class EndpointListener(object):
         """
         Callback for when data is received on this endpoint.
 
-        :param packet: the received packet, in binary string format.
+        :param packet: the received packet, in (source, binary string) format.
         """
         pass
 
