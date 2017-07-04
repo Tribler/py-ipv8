@@ -127,7 +127,6 @@ class ECCrypto(object):
         assert isinstance(ec, Key), ec
         assert isinstance(data, str), type(data)
         assert isinstance(signature, str), type(signature)
-        assert len(signature) == self.get_signature_length(ec), [len(signature), self.get_signature_length(ec)]
 
         try:
             return ec.verify(signature, data)

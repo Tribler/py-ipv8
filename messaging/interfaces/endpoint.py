@@ -52,7 +52,7 @@ class Endpoint(object):
         pass
 
     @abc.abstractmethod
-    def send(self, peer, packet):
+    def send(self, socket_address, packet):
         pass
 
     @abc.abstractmethod

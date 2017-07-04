@@ -70,23 +70,69 @@ class VarLen(object):
     Paste/unpack from an encoded length + data string.
     """
 
-    def __init__(self, format):
+    def __init__(self, format, base=1):
         super(VarLen, self).__init__()
         self.format = format
         self.format_size = Struct(self.format).size
+        self.base = base
         self.size = 0
 
     def pack(self, *data):
         raw = ''.join(data)
-        length = len(raw)
-        self.size = self.format_size + length
+        length = len(raw)/self.base
+        self.size = self.format_size + len(raw)
         return pack('>%s%ds' % (self.format, length), length, raw)
 
     def unpack_from(self, data, offset=0):
-        length, = unpack_from('>%s' % self.format, data, offset)
+        length, = unpack_from('>%s' % self.format, data, offset) * self.base
         out, = unpack_from('>%ds' % length, data, offset + self.format_size)
-        self.size = self.format_size + length
+        self.size = self.format_size + length/self.base
         return out
+
+
+class DoubleVarLen(object):
+    """
+    Paste/unpack from an encoded length1, length2 + data string1, data string2.
+    """
+
+    def __init__(self, format1, format2, base1=1, base2=1):
+        super(DoubleVarLen, self).__init__()
+        self.format1 = format1
+        self.format1_size = Struct(self.format1).size
+        self.format2 = format2
+        self.format2_size = Struct(self.format1).size
+        self.base1 = base1
+        self.base2 = base2
+        self.size = 0
+
+    def pack(self, data1, data2):
+        length1 = len(data1)/self.base1
+        length2 = len(data2)/self.base2
+        self.size = self.format1_size + len(data1) + self.format2_size + len(data2)
+        return pack('>%s%s%ds%ds' % (self.format1, self.format2, length1, length2), length1, length2, data1, data2)
+
+    def unpack_from(self, data, offset=0):
+        length1, length2 = unpack_from('>%s%s' % (self.format1, self.format2), data, offset)
+        raw_length = length1 + length2
+        length1 *= self.base1
+        length2 *= self.base1
+        out1, out2 = unpack_from('>%ds%ds' % (length1, length2), data, offset + self.format1_size + self.format2_size)
+        self.size = self.format1_size + self.format2_size + raw_length
+        return [out1, out2]
+
+
+class DefaultStruct(Struct):
+
+    def __init__(self, format, single_value=False):
+        super(DefaultStruct, self).__init__(format)
+        self.single_value = single_value
+
+    def unpack_from(self, buffer, offset=0):
+        out = super(DefaultStruct, self).unpack_from(buffer, offset)
+        if self.single_value:
+            return out[0]
+        else:
+            return list(out)
 
 
 class Serializer(object):
@@ -94,21 +140,25 @@ class Serializer(object):
     def __init__(self):
         super(Serializer, self).__init__()
         self._packers = {
-            'B': Struct(">B"),
-            'BBH': Struct(">BBH"),
-            'BH': Struct(">BH"),
-            'H': Struct(">H"),
-            'HH': Struct(">HH"),
-            'LL': Struct(">LL"),
-            'Q': Struct(">Q"),
-            'QH': Struct(">QH"),
-            'QL': Struct(">QL"),
-            'QQHHBH': Struct(">QQHHBH"),
-            'ccB': Struct(">ccB"),
-            '4SH': Struct(">4sH"),
+            'B': DefaultStruct(">B", True),
+            'BBH': DefaultStruct(">BBH"),
+            'BH': DefaultStruct(">BH"),
+            'H': DefaultStruct(">H", True),
+            'HH': DefaultStruct(">HH"),
+            'LL': DefaultStruct(">LL"),
+            'Q': DefaultStruct(">Q", True),
+            'QH': DefaultStruct(">QH"),
+            'QL': DefaultStruct(">QL"),
+            'QQHHBH': DefaultStruct(">QQHHBH"),
+            'ccB': DefaultStruct(">ccB"),
+            '4SH': DefaultStruct(">4sH"),
+            '20s': DefaultStruct(">20s"),
+            'c20s': DefaultStruct(">c20s"),
             'bits': Bits(),
             'raw': Raw(),
-            'varlenH': VarLen('H')
+            'varlenBx2': VarLen('B', 2),
+            'varlenH': VarLen('H'),
+            'doublevarlenH': VarLen('H')
         }
 
     def get_available_formats(self):
@@ -168,7 +218,7 @@ class Serializer(object):
         """
         Unpack multiple variables from a data string.
 
-        Each of the tuples in the pack_list are built as (format, arg1, arg2, .., argn)
+        Each of the tuples in the unpack_list are built as (format, arg1, arg2, .., argn)
 
         :param unpack_list: the list of formats
         :param data: the data to unpack from
@@ -190,6 +240,53 @@ class Serializer(object):
                 out.append(self.unpack(format, data, current_offset))
             current_offset += self._packers[format].size
             index += 1
+        return out, current_offset
+
+    def unpack_multiple_as_list(self, unpack_list, data, offset=0):
+        """
+        Unpack repeated list elements from a data string.
+
+        Each of the tuples in the pack_list are built as (format, arg1, arg2, .., argn)
+
+        Note that this method cannot have any optional unpack_list arguments.
+
+        :param unpack_list: the list of formats
+        :param data: the data to unpack from
+        :param offset: the optional offset to unpack data from
+        """
+        current_offset = offset
+        out = []
+        index = 0
+        data_length = len(data)
+        while current_offset < data_length:
+            list_element = []
+            for format in unpack_list:
+                if format == 'bits':
+                    list_element.extend(self.unpack(format, data, current_offset))
+                else:
+                    list_element.append(self.unpack(format, data, current_offset))
+                current_offset += self._packers[format].size
+                index += 1
+            out.append(list_element)
+        return out, current_offset
+
+    def unpack_to_serializables(self, serializables, data):
+        """
+        Use the formats specified in a serializable object and unpack to it.
+
+        :param serializables: the serializable classes to get the format from and unpack to
+        :param data: the data to unpack from
+        """
+        offset = 0
+        out = []
+        for serializable in serializables:
+            if serializable.is_list_descriptor:
+                unpack_list, offset = self.unpack_multiple_as_list(serializable.format_list, data, offset)
+            else:
+                unpack_list, offset = self.unpack_multiple(serializable.format_list, data,
+                                                           serializable.optional_format_list, offset)
+            out.append(serializable.from_unpack_list(*unpack_list))
+        out.append(data[offset:])
         return out
 
 
@@ -202,6 +299,7 @@ class Serializable(object):
 
     format_list = []
     optional_format_list = []
+    is_list_descriptor = False
 
     @abc.abstractmethod
     def to_pack_list(self):

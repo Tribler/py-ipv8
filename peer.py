@@ -1,5 +1,6 @@
 from time import time
 
+from keyvault.crypto import ECCrypto
 from keyvault.keys import Key
 
 
@@ -9,16 +10,21 @@ class Peer(object):
         """
         Create a new Peer.
 
-        :param key: the peer's key (mostly public)
+        :param key: the peer's Key (mostly public) or public key bin
         :param address: the (IP, port) tuple of this peer
         :param intro: is this peer suggested to us (otherwise it contacted us)
         """
-        assert isinstance(key, Key)
-
-        self.key = key
+        if not isinstance(key, Key):
+            self.key = ECCrypto().key_from_public_bin(key)
+        else:
+            self.key = key
         self.address = address
         self.last_response = 0 if intro else time()
         self._lamport_timestamp = 0
+
+    @classmethod
+    def generate(cls):
+        return Peer(ECCrypto.generate_key(u'high'))
 
     def update_clock(self, timestamp):
         """
@@ -47,3 +53,11 @@ class Peer(object):
         Have we passed the time before we consider this peer to be inactive.
         """
         return time() > self.last_response + 27.5
+
+    @property
+    def mid(self):
+        return self.key.key_to_hash()
+
+    @property
+    def public_key(self):
+        return self.key.pub()

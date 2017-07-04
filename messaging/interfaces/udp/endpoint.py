@@ -58,12 +58,12 @@ class UDPEndpoint(Endpoint):
         self.assert_open()
         return self._socket.getsockname()
 
-    def send(self, peer, packet):
+    def send(self, socket_address, packet):
         """
-        Send a UDP packet to a peer.
+        Send a UDP packet to a socket_address.
 
-        :param peer: the peer to send the packet to
-        :param packet: the packet to send to the peer
+        :param socket_address: the socket_address to send the packet to
+        :param packet: the packet to send to the socket_address
         :return: whether sending was successful
         """
         self.assert_open()
@@ -72,11 +72,11 @@ class UDPEndpoint(Endpoint):
             raise DataTooBigException(len(packet), UDP_MAX_SIZE)
 
         try:
-            self._socket.sendto(packet, peer.address)
+            self._socket.sendto(packet, socket_address)
         except socket.error:
             with self._sendqueue_lock:
                 did_have_senqueue = bool(self._sendqueue)
-                self._sendqueue.append((time(), peer.address, packet))
+                self._sendqueue.append((time(), socket_address, packet))
 
             # If we did not have a sendqueue, then we need to call process_sendqueue in order send these messages
             if not did_have_senqueue:
@@ -178,8 +178,6 @@ class UDPEndpoint(Endpoint):
 
                 finally:
                     if packets:
-                        self._logger.debug('%d came in, %d bytes in total',
-                                           len(packets), sum(len(packet) for _, packet in packets))
                         for packet in packets:
                             self.notify_listeners(packet)
 
