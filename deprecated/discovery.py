@@ -1,4 +1,3 @@
-from random import choice
 from keyvault.crypto import ECCrypto
 from messaging.interfaces.udp.endpoint import UDPEndpoint
 from peer import Peer
@@ -30,15 +29,21 @@ class DiscoveryCommunity(Community):
     def __init__(self, my_peer, endpoint, database):
         super(DiscoveryCommunity, self).__init__(my_peer, endpoint, database)
 
-        self.register_task("walk_random_branch", LoopingCall(self.walk_random_branch)).start(1.0, False)
+        self.register_task("walk_random_branch", LoopingCall(self.walk_random_branch)).start(5.0, False)
 
         self.decode_map.update({
             chr(1): self.on_similarity_request
         })
 
     def walk_random_branch(self):
-        peer = choice(self.contacted_addresses)
-        self.send_introduction_request(peer, True)
+        from random import choice
+        address = None
+        known = self.network.get_walkable_addresses()
+        if known:
+            address = choice(known)
+            self.walk_to(address)
+        self.get_new_introduction()
+        self.network.draw()
 
     def bootstrap(self):
         for socket_address in _DEFAULT_ADDRESSES:

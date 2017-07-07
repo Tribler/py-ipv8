@@ -7,9 +7,11 @@ Community instance.
 @organization: Technical University Delft
 @contact: dispersy@frayja.com
 """
-from keyvault.crypto import ECCrypto
+from random import choice
 
+from keyvault.crypto import ECCrypto
 from overlay import Overlay
+from peer import Peer
 from .payload import IntroductionRequestPayload, IntroductionResponsePayload, PuncturePayload, PunctureRequestPayload
 from .payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 
@@ -130,7 +132,6 @@ class Community(EZPackOverlay):
 
     def send_introduction_request(self, socket_address, force=False):
         if socket_address not in self.contacted_addresses:
-            print "FOUND", socket_address
             self.contacted_addresses.append(socket_address)
             force = True
         if force:
@@ -170,6 +171,8 @@ class Community(EZPackOverlay):
     def on_introduction_request(self, source_address, data):
         auth, dist, payload = self._ez_unpack_auth(IntroductionRequestPayload, data)
 
+        self.network.add_verified_peer(Peer(auth.public_key_bin, source_address))
+
         packet = self.create_introduction_response(source_address, payload.identifier)
         self.endpoint.send(source_address, packet)
 
@@ -178,12 +181,14 @@ class Community(EZPackOverlay):
 
         self.my_estimated_wan = payload.destination_address
 
-        self.send_introduction_request(payload.wan_introduction_address)
+        self.network.add_verified_peer(Peer(auth.public_key_bin, source_address))
+        if payload.wan_introduction_address != ("0.0.0.0", 0):
+            self.network.discover_address(Peer(auth.public_key_bin, source_address), payload.wan_introduction_address)
 
     def on_puncture(self, source_address, data):
         auth, dist, payload = self._ez_unpack_auth(PuncturePayload, data)
 
-        self.send_introduction_request(payload.source_wan_address)
+        self.network.add_verified_peer(Peer(auth.public_key_bin, source_address))
 
     def on_puncture_request(self, source_address, data):
         dist, payload = self._ez_unpack_noauth(PunctureRequestPayload, data)
@@ -205,3 +210,11 @@ class Community(EZPackOverlay):
 
     def on_data(self, peer, data):
         pass
+
+    def walk_to(self, address):
+        self.send_introduction_request(address)
+
+    def get_new_introduction(self, from_peer=None):
+        if not from_peer:
+            from_peer = choice(self.contacted_addresses)
+        self.send_introduction_request(from_peer, True)

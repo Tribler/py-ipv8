@@ -5,6 +5,7 @@ from keyvault.crypto import ECCrypto
 from messaging.interfaces.endpoint import EndpointListener
 from messaging.serialization import Serializer
 from peer import Peer
+from peerdiscovery.network import Network
 from taskmanager import TaskManager
 
 
@@ -38,6 +39,7 @@ class Overlay(EndpointListener, TaskManager):
         self.logger = logging.getLogger(self.__class__.__name__)
 
         self.database = database
+        self.network = Network()
 
     def unload(self):
         """
@@ -95,3 +97,21 @@ class Overlay(EndpointListener, TaskManager):
         """
         if global_time > self.global_time:
             self.my_peer.update_clock(global_time)
+
+    @abc.abstractmethod
+    def walk_to(self, address):
+        """
+        Puncture the NAT of an address.
+
+        :param address: the address to walk to (ip, port)
+        """
+        pass
+
+    @abc.abstractmethod
+    def get_new_introduction(self, from_peer=None):
+        """
+        Get a new IP address to walk to from a random, or selected peer.
+
+        :param from_peer: the peer to ask for an introduction
+        """
+        pass
