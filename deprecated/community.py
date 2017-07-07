@@ -193,6 +193,8 @@ class Community(EZPackOverlay):
 
     def on_packet(self, packet):
         source_address, data = packet
+        if self._prefix != data[:22]:
+            return
         if data[22] in self.decode_map:
             self.decode_map[data[22]](source_address, data[23:])
         else:
