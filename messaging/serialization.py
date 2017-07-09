@@ -84,9 +84,10 @@ class VarLen(object):
         return pack('>%s%ds' % (self.format, length), length, raw)
 
     def unpack_from(self, data, offset=0):
-        length, = unpack_from('>%s' % self.format, data, offset) * self.base
+        length, = unpack_from('>%s' % self.format, data, offset)
+        length *= self.base
         out, = unpack_from('>%ds' % length, data, offset + self.format_size)
-        self.size = self.format_size + length/self.base
+        self.size = self.format_size + length
         return out
 
 
@@ -158,6 +159,7 @@ class Serializer(object):
             'raw': Raw(),
             'varlenBx2': VarLen('B', 2),
             'varlenH': VarLen('H'),
+            'varlenHx20': VarLen('H', 20),
             'doublevarlenH': VarLen('H')
         }
 

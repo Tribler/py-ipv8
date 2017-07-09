@@ -11,7 +11,8 @@ class Peer(object):
         Create a new Peer.
 
         :param key: the peer's Key (mostly public) or public key bin
-        :param address: the (IP, port) tuple of this peer
+        :param lan_address: the (IP, port) tuple of this peer on its LAN
+        :param wan_address: the (IP, port) tuple of this peer on its WAN
         :param intro: is this peer suggested to us (otherwise it contacted us)
         """
         if not isinstance(key, Key):

@@ -60,7 +60,7 @@ class SimilarityRequestPayload(Payload):
 
 class SimilarityResponsePayload(Payload):
 
-    format_list = ['H', 'varlenH', 'raw']
+    format_list = ['H', 'varlenHx20', 'raw']
 
     def __init__(self, identifier, preference_list, tb_overlap):
         super(SimilarityResponsePayload, self).__init__()
@@ -71,7 +71,7 @@ class SimilarityResponsePayload(Payload):
     def to_pack_list(self):
         encoded_tb_overlap = [pack(">20sI", *tb) for tb in self._tb_overlap]
         data = [('H', self._identifier),
-                ('varlenH', "".join(self._preference_list)),
+                ('varlenHx20', "".join(self._preference_list)),
                 ('raw', "".join(encoded_tb_overlap))]
 
         return data
@@ -134,7 +134,7 @@ class PingPayload(Payload):
         self._identifier = identifier
 
     def to_pack_list(self):
-        data = [self._identifier, ]
+        data = [('H', self._identifier), ]
 
         return data
 

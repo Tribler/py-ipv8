@@ -25,7 +25,7 @@ class Overlay(EndpointListener, TaskManager):
         :param endpoint: the endpoint to use for messaging
         :param database: the database to use for storage
         """
-        EndpointListener.__init__(self, True)
+        EndpointListener.__init__(self, endpoint, True)
         TaskManager.__init__(self)
         self.serializer = self.get_serializer()
         self.crypto = ECCrypto()
@@ -33,7 +33,6 @@ class Overlay(EndpointListener, TaskManager):
         self.master_peer = master_peer
         self.my_peer = my_peer
 
-        self.endpoint = endpoint
         self.endpoint.add_listener(self)
 
         self.logger = logging.getLogger(self.__class__.__name__)

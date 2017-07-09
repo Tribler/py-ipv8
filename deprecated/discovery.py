@@ -2,7 +2,8 @@ from keyvault.crypto import ECCrypto
 from messaging.interfaces.udp.endpoint import UDPEndpoint
 from peer import Peer
 from .community import Community
-from .discovery_payload import SimilarityRequestPayload
+from .discovery_payload import PingPayload, PongPayload, SimilarityRequestPayload, SimilarityResponsePayload
+from .payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 
 from twisted.internet.task import LoopingCall
 
@@ -32,18 +33,51 @@ class DiscoveryCommunity(Community):
         self.register_task("walk_random_branch", LoopingCall(self.walk_random_branch)).start(5.0, False)
 
         self.decode_map.update({
-            chr(1): self.on_similarity_request
+            chr(1): self.on_similarity_request,
+            chr(2): self.on_similarity_response,
+            chr(3): self.on_ping,
+            chr(4): self.on_pong
         })
+
+        self.known_community_ids = [self.master_peer.mid,]
+
+        self.peer_to_community_ids = {}
+        self._debug_previous_candidates = 0
+        self._debug_p2c_ids_updated = False
 
     def walk_random_branch(self):
         from random import choice
-        address = None
+
+        # Walk to random walkable peer
         known = self.network.get_walkable_addresses()
         if known:
             address = choice(known)
             self.walk_to(address)
-        self.get_new_introduction()
+
+        if len(known) == self._debug_previous_candidates:
+            self.get_new_introduction()
+        self._debug_previous_candidates = len(known)
+
         self.network.draw()
+
+        if self._debug_p2c_ids_updated:
+            self._debug_p2c_ids_updated = False
+            known_communities = {}
+            for peer in self.peer_to_community_ids:
+                ids = self.peer_to_community_ids[peer]
+                for cid in ids:
+                    if cid not in known_communities:
+                        known_communities[cid] = 1
+                    else:
+                        known_communities[cid] += 1
+            print "MEMBERS PER COMMUNITY:", known_communities
+
+        known = self.network.verified_peers
+        if known:
+            address = choice(list(set(known) - set(self.peer_to_community_ids.keys()))).address
+
+            packet = self.create_similarity_request()
+            self.endpoint.send(address, packet)
 
     def bootstrap(self):
         for socket_address in _DEFAULT_ADDRESSES:
@@ -51,6 +85,61 @@ class DiscoveryCommunity(Community):
 
     def on_similarity_request(self, source_address, data):
         auth, dist, payload = self._ez_unpack_auth(SimilarityRequestPayload, data)
+
+        packet = self.create_similarity_response(payload.identifier)
+        self.endpoint.send(source_address, packet)
+
+    def on_similarity_response(self, source_address, data):
+        auth, dist, payload = self._ez_unpack_auth(SimilarityResponsePayload, data)
+
+        if auth.public_key_bin not in self.peer_to_community_ids:
+            self.peer_to_community_ids[auth.public_key_bin] = set(payload.preference_list)
+        else:
+            self.peer_to_community_ids[auth.public_key_bin] |= set(payload.preference_list)
+
+        self._debug_p2c_ids_updated = True
+
+    def on_ping(self, source_address, data):
+        dist, payload = self._ez_unpack_noauth(PingPayload, data)
+
+        packet = self.create_pong(payload.identifier)
+        self.endpoint.send(source_address, packet)
+
+    def on_pong(self, source_address, data):
+        dist, payload = self._ez_unpack_noauth(PongPayload, data)
+
+    def create_similarity_request(self):
+        global_time = self.claim_global_time()
+        payload = SimilarityRequestPayload(global_time,
+                                           self.my_estimated_lan,
+                                           self.my_estimated_wan,
+                                           u"unknown",
+                                           self.known_community_ids).to_pack_list()
+        auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
+        dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
+
+        return self._ez_pack(self._prefix, 1, [auth, dist, payload])
+
+    def create_similarity_response(self, identifier):
+        global_time = self.claim_global_time()
+        payload = SimilarityResponsePayload(identifier, self.known_community_ids, []).to_pack_list()
+        auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
+        dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
+
+        return self._ez_pack(self._prefix, 2, [auth, dist, payload])
+
+    def create_ping(self):
+        global_time = self.claim_global_time()
+        payload = PingPayload(global_time).to_pack_list()
+        dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
+
+        return self._ez_pack(self._prefix, 3, [dist, payload])
+
+    def create_pong(self, identifier):
+        global_time = self.claim_global_time()
+        payload = PongPayload(identifier).to_pack_list()
+        dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
+        return self._ez_pack(self._prefix, 4, [dist, payload])
 
 
 if __name__ == '__main__':

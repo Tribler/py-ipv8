@@ -32,8 +32,6 @@ class Network(object):
 
         :param peer: the new peer
         """
-        assert peer.address
-
         if peer.address in self._all_addresses and self.graph.has_node(peer.address):
             introducer = self._all_addresses[peer.address]
             self.graph.remove_node(peer.address)

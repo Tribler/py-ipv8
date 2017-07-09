@@ -68,9 +68,6 @@ class Community(EZPackOverlay):
 
         self._prefix = '\x00' + self.version + self.master_peer.key.key_to_hash()
 
-        self.my_estimated_lan = ("127.0.0.1", self.endpoint._port)
-        self.my_estimated_wan = ("127.0.0.1", self.endpoint._port)
-
         self.contacted_addresses = []
 
         self.decode_map = {
@@ -138,18 +135,33 @@ class Community(EZPackOverlay):
             packet = self.create_introduction_request(socket_address)
             self.endpoint.send(socket_address, packet)
 
-    def create_introduction_response(self, socket_address, identifier):
+    def create_introduction_response(self, lan_socket_address, socket_address, identifier):
         global_time = self.claim_global_time()
+        introduction_lan = ("0.0.0.0",0)
+        introduction_wan = ("0.0.0.0",0)
+        introduced = False
+        if self.network.verified_peers:
+            introduction = choice(self.network.verified_peers).address
+            if self.address_is_lan(introduction[0]):
+                introduction_lan = introduction
+                introduction_wan = (self.my_estimated_wan[0], introduction_lan[1])
+            else:
+                introduction_wan = introduction
+            introduced = True
         payload = IntroductionResponsePayload(socket_address,
                                               self.my_estimated_lan,
                                               self.my_estimated_wan,
-                                              ('0.0.0.0', 0),
-                                              ('0.0.0.0', 0),
+                                              introduction_lan,
+                                              introduction_wan,
                                               u"unknown",
                                               False,
                                               identifier).to_pack_list()
         auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
         dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
+
+        if introduced:
+            packet = self.create_puncture_request(lan_socket_address, socket_address, identifier)
+            self.endpoint.send(introduction_wan if introduction_lan == ("0.0.0.0",0) else introduction_lan, packet)
 
         return self._ez_pack(self._prefix, 245, [auth, dist, payload])
 
@@ -173,7 +185,7 @@ class Community(EZPackOverlay):
 
         self.network.add_verified_peer(Peer(auth.public_key_bin, source_address))
 
-        packet = self.create_introduction_response(source_address, payload.identifier)
+        packet = self.create_introduction_response(payload.destination_address, source_address, payload.identifier)
         self.endpoint.send(source_address, packet)
 
     def on_introduction_response(self, source_address, data):
@@ -182,8 +194,13 @@ class Community(EZPackOverlay):
         self.my_estimated_wan = payload.destination_address
 
         self.network.add_verified_peer(Peer(auth.public_key_bin, source_address))
-        if payload.wan_introduction_address != ("0.0.0.0", 0):
-            self.network.discover_address(Peer(auth.public_key_bin, source_address), payload.wan_introduction_address)
+        if (payload.wan_introduction_address != ("0.0.0.0", 0)) and\
+                (payload.wan_introduction_address[0] != self.my_estimated_wan[0]):
+            self.network.discover_address(Peer(auth.public_key_bin, source_address),
+                                          payload.wan_introduction_address)
+        else:
+            self.network.discover_address(Peer(auth.public_key_bin, source_address),
+                                          payload.lan_introduction_address)
 
     def on_puncture(self, source_address, data):
         auth, dist, payload = self._ez_unpack_auth(PuncturePayload, data)
@@ -193,8 +210,12 @@ class Community(EZPackOverlay):
     def on_puncture_request(self, source_address, data):
         dist, payload = self._ez_unpack_noauth(PunctureRequestPayload, data)
 
+        target = payload.wan_walker_address
+        if payload.wan_walker_address[0] == self.my_estimated_wan[0]:
+            target = payload.lan_walker_address
+
         packet = self.create_puncture(self.my_estimated_lan, payload.wan_walker_address, payload.identifier)
-        self.endpoint.send(payload.wan_walker_address, packet)
+        self.endpoint.send(target, packet)
 
     def on_packet(self, packet):
         source_address, data = packet
