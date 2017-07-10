@@ -33,6 +33,8 @@ class DiscoveryCommunity(Community):
             chr(4): self.on_pong
         })
 
+        self.network.blacklist.extend(_DEFAULT_ADDRESSES)
+
         self.known_community_ids = [self.master_peer.mid,]
         self.peer_to_community_ids = {}
 

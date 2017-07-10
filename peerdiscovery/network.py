@@ -8,6 +8,7 @@ class Network(object):
         self._all_addresses = {}
         self.verified_peers = []
         self.graph = Graph()
+        self.blacklist = []
 
     def discover_address(self, peer, address):
         """
@@ -16,7 +17,7 @@ class Network(object):
         :param peer: the peer that performed the introduction
         :param address: the introduced address
         """
-        if address in self._all_addresses:
+        if (address in self._all_addresses) or (address in self.blacklist):
             return
 
         self._all_addresses[address] = b64encode(peer.mid)
@@ -39,7 +40,7 @@ class Network(object):
             self.graph.add_edge(introducer, b64encode(peer.mid), color='green')
             if peer not in self.verified_peers:
                 self.verified_peers.append(peer)
-        elif not self.graph.has_node(b64encode(peer.mid)):
+        elif (peer.address not in self.blacklist) and (not self.graph.has_node(b64encode(peer.mid))):
             self.graph.add_node(b64encode(peer.mid))
             if peer not in self.verified_peers:
                 self.verified_peers.append(peer)
@@ -61,6 +62,15 @@ class Network(object):
         for i in range(len(self.verified_peers)):
             if self.verified_peers[i].address == address:
                 return self.verified_peers[i]
+
+    def get_introductions_from(self, peer):
+        """
+        Get the addresses introduced to us by a certain peer.
+
+        :param peer: the peer to get the introductions for
+        :return: a list of the introduced addresses (ip, port)
+        """
+        return [k for k, v in self._all_addresses.iteritems() if v == b64encode(peer.mid)]
 
     def remove_by_address(self, address):
         """

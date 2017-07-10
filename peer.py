@@ -1,3 +1,5 @@
+from socket import inet_aton
+from struct import pack, unpack
 from time import time
 
 from keyvault.crypto import ECCrypto
@@ -62,3 +64,16 @@ class Peer(object):
     @property
     def public_key(self):
         return self.key.pub()
+
+    def __hash__(self):
+        address = inet_aton(self.address[0]) + pack(">I", self.address[1])
+        mid = self.mid[0:8]
+        out = ""
+        for i in range(8):
+            out += chr(ord(mid[i]) ^ ord(address[i]))
+        return unpack(">Q", out)[0]
+
+    def __eq__(self, other):
+        if not isinstance(other, Peer):
+            return False
+        return (self.public_key.key_to_bin() == other.public_key.key_to_bin()) and (self.address == other.address)
