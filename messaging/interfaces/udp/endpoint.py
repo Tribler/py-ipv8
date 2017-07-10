@@ -48,8 +48,14 @@ class UDPEndpoint(Endpoint):
 
         :raises: EndpointClosedException if the socket is closed
         """
-        if (not self._socket) or (not self._running):
+        if not self.is_open():
             raise EndpointClosedException()
+
+    def is_open(self):
+        """
+        Check if the underlying socket is open.
+        """
+        return self._socket and self._running
 
     def get_address(self):
         """

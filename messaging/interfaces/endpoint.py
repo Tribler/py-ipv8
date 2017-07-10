@@ -51,6 +51,10 @@ class Endpoint(object):
         pass
 
     @abc.abstractmethod
+    def is_open(self):
+        pass
+
+    @abc.abstractmethod
     def get_address(self):
         pass
 

@@ -127,14 +127,6 @@ class Community(EZPackOverlay):
 
         return self._ez_pack(self._prefix, 246, [auth, dist, payload])
 
-    def send_introduction_request(self, socket_address, force=False):
-        if socket_address not in self.contacted_addresses:
-            self.contacted_addresses.append(socket_address)
-            force = True
-        if force:
-            packet = self.create_introduction_request(socket_address)
-            self.endpoint.send(socket_address, packet)
-
     def create_introduction_response(self, lan_socket_address, socket_address, identifier):
         global_time = self.claim_global_time()
         introduction_lan = ("0.0.0.0",0)
@@ -233,9 +225,17 @@ class Community(EZPackOverlay):
         pass
 
     def walk_to(self, address):
-        self.send_introduction_request(address)
+        packet = self.create_introduction_request(address)
+        self.endpoint.send(address, packet)
 
     def get_new_introduction(self, from_peer=None):
         if not from_peer:
-            from_peer = choice(self.contacted_addresses)
-        self.send_introduction_request(from_peer, True)
+            available = self.network.get_walkable_addresses()
+            if available:
+                from_peer = choice(available)
+            else:
+                self.bootstrap()
+                return
+
+        packet = self.create_introduction_request(from_peer)
+        self.endpoint.send(from_peer, packet)

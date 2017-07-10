@@ -1,11 +1,7 @@
-from keyvault.crypto import ECCrypto
-from messaging.interfaces.udp.endpoint import UDPEndpoint
 from peer import Peer
 from .community import Community
 from .discovery_payload import PingPayload, PongPayload, SimilarityRequestPayload, SimilarityResponsePayload
 from .payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
-
-from twisted.internet.task import LoopingCall
 
 _DEFAULT_ADDRESSES = [
     ("130.161.119.206", 6421),
@@ -30,8 +26,6 @@ class DiscoveryCommunity(Community):
     def __init__(self, my_peer, endpoint, database):
         super(DiscoveryCommunity, self).__init__(my_peer, endpoint, database)
 
-        self.register_task("walk_random_branch", LoopingCall(self.walk_random_branch)).start(5.0, False)
-
         self.decode_map.update({
             chr(1): self.on_similarity_request,
             chr(2): self.on_similarity_response,
@@ -40,48 +34,11 @@ class DiscoveryCommunity(Community):
         })
 
         self.known_community_ids = [self.master_peer.mid,]
-
         self.peer_to_community_ids = {}
-        self._debug_previous_candidates = 0
-        self._debug_p2c_ids_updated = False
-
-    def walk_random_branch(self):
-        from random import choice
-
-        # Walk to random walkable peer
-        known = self.network.get_walkable_addresses()
-        if known:
-            address = choice(known)
-            self.walk_to(address)
-
-        if len(known) == self._debug_previous_candidates:
-            self.get_new_introduction()
-        self._debug_previous_candidates = len(known)
-
-        self.network.draw()
-
-        if self._debug_p2c_ids_updated:
-            self._debug_p2c_ids_updated = False
-            known_communities = {}
-            for peer in self.peer_to_community_ids:
-                ids = self.peer_to_community_ids[peer]
-                for cid in ids:
-                    if cid not in known_communities:
-                        known_communities[cid] = 1
-                    else:
-                        known_communities[cid] += 1
-            print "MEMBERS PER COMMUNITY:", known_communities
-
-        known = self.network.verified_peers
-        if known:
-            address = choice(list(set(known) - set(self.peer_to_community_ids.keys()))).address
-
-            packet = self.create_similarity_request()
-            self.endpoint.send(address, packet)
 
     def bootstrap(self):
         for socket_address in _DEFAULT_ADDRESSES:
-            self.send_introduction_request(socket_address)
+            self.walk_to(socket_address)
 
     def on_similarity_request(self, source_address, data):
         auth, dist, payload = self._ez_unpack_auth(SimilarityRequestPayload, data)
@@ -94,11 +51,9 @@ class DiscoveryCommunity(Community):
 
         if auth.public_key_bin not in self.peer_to_community_ids:
             self.peer_to_community_ids[auth.public_key_bin] = set(payload.preference_list)
-            self._debug_p2c_ids_updated = True
         else:
             if set(payload.preference_list) != self.peer_to_community_ids[auth.public_key_bin]:
                 self.peer_to_community_ids[auth.public_key_bin] |= set(payload.preference_list)
-                self._debug_p2c_ids_updated = True
 
     def on_ping(self, source_address, data):
         dist, payload = self._ez_unpack_noauth(PingPayload, data)
@@ -141,25 +96,3 @@ class DiscoveryCommunity(Community):
         payload = PongPayload(identifier).to_pack_list()
         dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
         return self._ez_pack(self._prefix, 4, [dist, payload])
-
-
-if __name__ == '__main__':
-    from twisted.internet import reactor
-    import logging
-
-    logging.basicConfig(level=logging.DEBUG)
-
-    my_peer = Peer(ECCrypto().generate_key(u"high"))
-
-    endpoint = UDPEndpoint(8090)
-    endpoint.open()
-
-    def wait_for_ep(endpoint):
-        while not endpoint._running:
-            import time
-            time.sleep(1)
-        community = DiscoveryCommunity(my_peer, endpoint, None)
-        community.bootstrap()
-
-    reactor.callLater(1.0, wait_for_ep, endpoint)
-    reactor.run()

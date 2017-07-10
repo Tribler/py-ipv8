@@ -51,6 +51,17 @@ class Network(object):
         verified = [peer.address for peer in self.verified_peers]
         return list(set(self._all_addresses.keys()) - set(verified))
 
+    def get_verified_by_address(self, address):
+        """
+        Get a verified Peer by its IP address.
+
+        :param address: the (IP, port) tuple to search for
+        :return: the Peer object for this address or None
+        """
+        for i in range(len(self.verified_peers)):
+            if self.verified_peers[i].address == address:
+                return self.verified_peers[i]
+
     def remove_by_address(self, address):
         """
         Remove all walkable addresses and verified peers using a certain IP address.

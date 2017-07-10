@@ -98,6 +98,13 @@ class Overlay(EndpointListener, TaskManager):
             self.my_peer.update_clock(global_time)
 
     @abc.abstractmethod
+    def bootstrap(self):
+        """
+        Perform introduction logic to get into the network.
+        """
+        pass
+
+    @abc.abstractmethod
     def walk_to(self, address):
         """
         Puncture the NAT of an address.
