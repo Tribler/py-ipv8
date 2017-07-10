@@ -94,10 +94,11 @@ class DiscoveryCommunity(Community):
 
         if auth.public_key_bin not in self.peer_to_community_ids:
             self.peer_to_community_ids[auth.public_key_bin] = set(payload.preference_list)
+            self._debug_p2c_ids_updated = True
         else:
-            self.peer_to_community_ids[auth.public_key_bin] |= set(payload.preference_list)
-
-        self._debug_p2c_ids_updated = True
+            if set(payload.preference_list) != self.peer_to_community_ids[auth.public_key_bin]:
+                self.peer_to_community_ids[auth.public_key_bin] |= set(payload.preference_list)
+                self._debug_p2c_ids_updated = True
 
     def on_ping(self, source_address, data):
         dist, payload = self._ez_unpack_noauth(PingPayload, data)

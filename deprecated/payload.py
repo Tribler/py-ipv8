@@ -119,7 +119,7 @@ class IntroductionRequestPayload(Payload):
                 [True, False][advice],
                 decode_connection_type(connection_type_0, connection_type_1)]
 
-        if sync:
+        if sync and prefix_bytes:
             bloomfilter = BloomFilter(prefix_bytes[1:], functions, prefix=prefix_bytes[0])
             args.append((time_low, time_high, modulo, modulo_offset, bloomfilter))
         else:
