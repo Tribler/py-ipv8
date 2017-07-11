@@ -6,6 +6,8 @@ import struct
 
 from twisted.internet import reactor
 
+from util import blockingCallFromThread
+
 
 class Endpoint(object):
     """
@@ -42,7 +44,7 @@ class Endpoint(object):
         """
         for listener in self._listeners:
             if listener.use_main_thread:
-                reactor.callFromThread(listener.on_packet, packet)
+                blockingCallFromThread(reactor, listener.on_packet, packet)
             else:
                 reactor.callInThread(listener.on_packet, packet)
 
