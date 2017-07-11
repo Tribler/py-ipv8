@@ -24,14 +24,32 @@ class RandomWalk(DiscoveryStrategy):
     Walk randomly through the network.
     """
 
+    NODE_TIMEOUT = 3.0
+
+    def __init__(self, overlay):
+        super(RandomWalk, self).__init__(overlay)
+        self.intro_timeouts = {}
+
     def take_step(self):
         """
         Walk to random walkable peer.
         """
+        # Sanitize unreachable nodes
+        to_remove = []
+        for node in self.intro_timeouts:
+            if self.intro_timeouts[node] + self.NODE_TIMEOUT < time():
+                to_remove.append(node)
+        for node in to_remove:
+            del self.intro_timeouts[node]
+            self.overlay.network.remove_by_address(node)
+        # Take step
         known = self.overlay.network.get_walkable_addresses()
+        available = list(set(known) - set(self.intro_timeouts.keys()))
 
-        if known:
-            self.overlay.walk_to(choice(known))
+        if available:
+            peer = choice(available)
+            self.overlay.walk_to(peer)
+            self.intro_timeouts[peer] = time()
         else:
             self.overlay.get_new_introduction()
 

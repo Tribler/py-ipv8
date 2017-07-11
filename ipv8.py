@@ -19,7 +19,7 @@ class IPV8(object):
         self.my_peer = Peer(ECCrypto().generate_key(u"high"))
 
         self.discovery_overlay = DiscoveryCommunity(self.my_peer, self.endpoint, self.database)
-        self.discovery_strategy = EdgeWalk(self.discovery_overlay)
+        self.discovery_strategy = RandomWalk(self.discovery_overlay)
 
         self.state_machine_lc = LoopingCall(self.on_tick).start(0.5, False)
 
