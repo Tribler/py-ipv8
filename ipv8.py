@@ -3,6 +3,7 @@ from deprecated.discovery import DiscoveryCommunity
 from keyvault.crypto import ECCrypto
 from messaging.interfaces.udp.endpoint import UDPEndpoint
 from peerdiscovery.discovery import EdgeWalk, RandomWalk
+from peerdiscovery.churn import RandomChurn
 from peer import Peer
 
 from twisted.internet.task import LoopingCall
@@ -20,6 +21,7 @@ class IPV8(object):
 
         self.discovery_overlay = DiscoveryCommunity(self.my_peer, self.endpoint, self.database)
         self.discovery_strategy = RandomWalk(self.discovery_overlay)
+        self.discovery_churn_strategy = RandomChurn(self.discovery_overlay)
 
         self.state_machine_lc = LoopingCall(self.on_tick).start(0.5, False)
 
@@ -29,6 +31,7 @@ class IPV8(object):
                 self.discovery_overlay.bootstrap()
             else:
                 self.discovery_strategy.take_step()
+                self.discovery_churn_strategy.take_step()
 
 if __name__ == '__main__':
     from twisted.internet import reactor

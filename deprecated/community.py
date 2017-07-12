@@ -8,6 +8,7 @@ Community instance.
 @contact: dispersy@frayja.com
 """
 from random import choice
+from time import time
 
 from keyvault.crypto import ECCrypto
 from overlay import Overlay
@@ -211,6 +212,9 @@ class Community(EZPackOverlay):
 
     def on_packet(self, packet):
         source_address, data = packet
+        probable_peer = self.network.get_verified_by_address(source_address)
+        if probable_peer:
+            probable_peer.last_response = time()
         if self._prefix != data[:22]:
             return
         if data[22] in self.decode_map:

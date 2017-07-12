@@ -49,13 +49,17 @@ class Peer(object):
         """
         Have we passed the time before we consider this peer to be unreachable.
         """
-        return time() > self.last_response + 57.5
+        if self.last_response == 0:
+            return False
+        return time() > (self.last_response + 57.5)
 
     def is_inactive(self):
         """
         Have we passed the time before we consider this peer to be inactive.
         """
-        return time() > self.last_response + 27.5
+        if self.last_response == 0:
+            return False
+        return time() > (self.last_response + 27.5)
 
     @property
     def mid(self):

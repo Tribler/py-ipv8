@@ -1,5 +1,6 @@
 import abc
 import logging
+from time import time
 
 from keyvault.crypto import ECCrypto
 from messaging.interfaces.endpoint import EndpointListener
@@ -59,6 +60,9 @@ class Overlay(EndpointListener, TaskManager):
         :param packet: the received packet, in (source, binary string) format.
         """
         source_address, data = packet
+        probable_peer = self.network.get_verified_by_address(source_address)
+        if probable_peer:
+            probable_peer.last_response = time()
         key_bin, data = self.split_key_data(data)
         key = self.crypto.key_from_public_bin(key_bin)
         self.on_data(Peer(key, source_address), data)
