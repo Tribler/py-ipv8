@@ -1,5 +1,5 @@
 from database import Database
-from deprecated.discovery import DiscoveryCommunity
+from peerdiscovery.deprecated.discovery import DiscoveryCommunity
 from keyvault.crypto import ECCrypto
 from messaging.interfaces.udp.endpoint import UDPEndpoint
 from peerdiscovery.discovery import EdgeWalk, RandomWalk

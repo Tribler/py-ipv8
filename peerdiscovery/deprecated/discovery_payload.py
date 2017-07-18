@@ -1,6 +1,6 @@
 from socket import inet_ntoa, inet_aton
 from struct import pack, unpack
-from .payload import decode_connection_type, encode_connection_type, IntroductionRequestPayload, Payload
+from deprecated.payload import decode_connection_type, encode_connection_type, Payload
 
 
 class SimilarityRequestPayload(Payload):

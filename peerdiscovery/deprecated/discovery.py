@@ -1,7 +1,7 @@
 from peer import Peer
-from .community import Community
+from deprecated.community import Community
 from .discovery_payload import PingPayload, PongPayload, SimilarityRequestPayload, SimilarityResponsePayload
-from .payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
+from deprecated.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 
 _DEFAULT_ADDRESSES = [
     ("130.161.119.206", 6421),
