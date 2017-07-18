@@ -176,7 +176,9 @@ class Community(EZPackOverlay):
     def on_introduction_request(self, source_address, data):
         auth, dist, payload = self._ez_unpack_auth(IntroductionRequestPayload, data)
 
-        self.network.add_verified_peer(Peer(auth.public_key_bin, source_address))
+        peer = Peer(auth.public_key_bin, source_address)
+        self.network.add_verified_peer(peer)
+        self.network.discover_services(peer, [self.master_peer.mid, ])
 
         packet = self.create_introduction_response(payload.destination_address, source_address, payload.identifier)
         self.endpoint.send(source_address, packet)
@@ -186,7 +188,9 @@ class Community(EZPackOverlay):
 
         self.my_estimated_wan = payload.destination_address
 
-        self.network.add_verified_peer(Peer(auth.public_key_bin, source_address))
+        peer = Peer(auth.public_key_bin, source_address)
+        self.network.add_verified_peer(peer)
+        self.network.discover_services(peer, [self.master_peer.mid, ])
         if (payload.wan_introduction_address != ("0.0.0.0", 0)) and\
                 (payload.wan_introduction_address[0] != self.my_estimated_wan[0]):
             self.network.discover_address(Peer(auth.public_key_bin, source_address),
@@ -198,7 +202,9 @@ class Community(EZPackOverlay):
     def on_puncture(self, source_address, data):
         auth, dist, payload = self._ez_unpack_auth(PuncturePayload, data)
 
-        self.network.add_verified_peer(Peer(auth.public_key_bin, source_address))
+        peer = Peer(auth.public_key_bin, source_address)
+        self.network.add_verified_peer(peer)
+        self.network.discover_services(peer, [self.master_peer.mid, ])
 
     def on_puncture_request(self, source_address, data):
         dist, payload = self._ez_unpack_noauth(PunctureRequestPayload, data)

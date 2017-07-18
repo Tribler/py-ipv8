@@ -5,10 +5,20 @@ from networkx import draw, Graph, spring_layout, get_edge_attributes, circular_l
 class Network(object):
 
     def __init__(self):
+        # All known IP:port addresses
         self._all_addresses = {}
+        # All verified Peer objects (Peer.address must be in _all_addresses)
         self.verified_peers = []
+        # The networkx graph containing the addresses and peers
         self.graph = Graph()
+        # Peers we should not add to the network
+        # For example, bootstrap peers
         self.blacklist = []
+
+        # Map of advertised services (set) per peer
+        self.services_per_peer = {}
+        # Map of service identifiers to local overlays
+        self.service_overlays = {}
 
     def discover_address(self, peer, address):
         """
@@ -27,6 +37,19 @@ class Network(object):
         if peer not in self.verified_peers:
             self.verified_peers.append(peer)
 
+    def discover_services(self, peer, services):
+        """
+        A peer has advertised some services he can use.
+
+        :param peer: the peer to update the services for
+        :param services: the list of services to register
+        """
+        if peer.public_key.key_to_bin() not in self.services_per_peer:
+            self.services_per_peer[peer.public_key.key_to_bin()] = set(services)
+        else:
+            if set(services) != self.services_per_peer[peer.public_key.key_to_bin()]:
+                self.services_per_peer[peer.public_key.key_to_bin()] |= set(services)
+
     def add_verified_peer(self, peer):
         """
         The holepunching layer has a new peer for us.
@@ -44,6 +67,29 @@ class Network(object):
             self.graph.add_node(b64encode(peer.mid))
             if peer not in self.verified_peers:
                 self.verified_peers.append(peer)
+
+    def register_service_provider(self, service_id, overlay):
+        """
+        Register an overlay to provide a certain service id.
+
+        :param service_id: the name/id of the service
+        :param overlay: the actual service
+        """
+        self.service_overlays[service_id] = overlay
+
+    def get_peers_for_service(self, service_id):
+        """
+        Get peers which support a certain service.
+
+        :param service_id: the service name/id to fetch peers for
+        """
+        out = []
+        for peer in self.verified_peers:
+            key_bin = peer.public_key.key_to_bin()
+            if key_bin in self.services_per_peer:
+                if service_id in self.services_per_peer[key_bin]:
+                    out.append(peer)
+        return out
 
     def get_walkable_addresses(self):
         """
@@ -84,6 +130,9 @@ class Network(object):
         for i in range(len(self.verified_peers)):
             if self.verified_peers[i].address == address:
                 to_remove.insert(0, i)
+                key_bin = self.verified_peers[i].public_key.key_to_bin()
+                if key_bin in self.services_per_peer:
+                    del self.services_per_peer[key_bin]
         for index in to_remove:
             self.verified_peers.pop(index)
 
@@ -97,6 +146,9 @@ class Network(object):
             del self._all_addresses[peer.address]
         if peer in self.verified_peers:
             self.verified_peers.remove(peer)
+        key_bin = peer.public_key.key_to_bin()
+        if key_bin in self.services_per_peer:
+            del self.services_per_peer[key_bin]
 
     def draw(self, filename="network_view.png"):
         """

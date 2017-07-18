@@ -35,8 +35,7 @@ class DiscoveryCommunity(Community):
 
         self.network.blacklist.extend(_DEFAULT_ADDRESSES)
 
-        self.known_community_ids = [self.master_peer.mid,]
-        self.peer_to_community_ids = {}
+        self.network.register_service_provider(self.master_peer.mid, self)
 
     def bootstrap(self):
         for socket_address in _DEFAULT_ADDRESSES:
@@ -51,11 +50,7 @@ class DiscoveryCommunity(Community):
     def on_similarity_response(self, source_address, data):
         auth, dist, payload = self._ez_unpack_auth(SimilarityResponsePayload, data)
 
-        if auth.public_key_bin not in self.peer_to_community_ids:
-            self.peer_to_community_ids[auth.public_key_bin] = set(payload.preference_list)
-        else:
-            if set(payload.preference_list) != self.peer_to_community_ids[auth.public_key_bin]:
-                self.peer_to_community_ids[auth.public_key_bin] |= set(payload.preference_list)
+        self.network.discover_services(Peer(auth.public_key_bin, source_address), payload.preference_list)
 
     def on_ping(self, source_address, data):
         dist, payload = self._ez_unpack_noauth(PingPayload, data)
