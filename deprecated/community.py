@@ -238,7 +238,7 @@ class Community(EZPackOverlay):
         packet = self.create_introduction_request(address)
         self.endpoint.send(address, packet)
 
-    def get_new_introduction(self, from_peer=None):
+    def get_new_introduction(self, from_peer=None, service_id=None):
         if not from_peer:
             available = self.network.get_walkable_addresses()
             if available:
@@ -248,4 +248,8 @@ class Community(EZPackOverlay):
                 return
 
         packet = self.create_introduction_request(from_peer)
+
+        if service_id:
+            packet = packet[:2] + service_id + packet[23:]
+
         self.endpoint.send(from_peer, packet)

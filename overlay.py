@@ -118,10 +118,11 @@ class Overlay(EndpointListener, TaskManager):
         pass
 
     @abc.abstractmethod
-    def get_new_introduction(self, from_peer=None):
+    def get_new_introduction(self, from_peer=None, service_id=None):
         """
         Get a new IP address to walk to from a random, or selected peer.
 
         :param from_peer: the peer to ask for an introduction
+        :param service_id: try to get a new introduction for a certain service
         """
         pass

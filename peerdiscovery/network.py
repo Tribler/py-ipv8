@@ -91,12 +91,31 @@ class Network(object):
                     out.append(peer)
         return out
 
-    def get_walkable_addresses(self):
+    def get_services_for_peer(self, peer):
+        """
+        Get the known services supported by a peer.
+
+        :param peer: the peer to check services for
+        """
+        return self.services_per_peer.get(peer.public_key.key_to_bin(), set())
+
+    def get_walkable_addresses(self, service_id=None):
         """
         Get all addresses ready to be walked to.
+
+        :param service_id: the service_id to filter on
         """
         verified = [peer.address for peer in self.verified_peers]
-        return list(set(self._all_addresses.keys()) - set(verified))
+        out = list(set(self._all_addresses.keys()) - set(verified))
+        if service_id:
+            new_out = []
+            for address in out:
+                b64mid_intro = self._all_addresses[address]
+                intro_peer = [peer for peer in self.verified_peers if b64encode(peer.mid) == b64mid_intro]
+                if intro_peer and self.get_services_for_peer(intro_peer[0]):
+                    new_out.append(address)
+            out = new_out
+        return out
 
     def get_verified_by_address(self, address):
         """

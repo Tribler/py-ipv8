@@ -15,7 +15,7 @@ class DiscoveryStrategy(object):
         self.overlay = overlay
 
     @abc.abstractmethod
-    def take_step(self):
+    def take_step(self, service_id=None):
         pass
 
 
@@ -30,7 +30,7 @@ class RandomWalk(DiscoveryStrategy):
         super(RandomWalk, self).__init__(overlay)
         self.intro_timeouts = {}
 
-    def take_step(self):
+    def take_step(self, service_id=None):
         """
         Walk to random walkable peer.
         """
@@ -43,7 +43,7 @@ class RandomWalk(DiscoveryStrategy):
             del self.intro_timeouts[node]
             self.overlay.network.remove_by_address(node)
         # Take step
-        known = self.overlay.network.get_walkable_addresses()
+        known = self.overlay.network.get_walkable_addresses(service_id)
         available = list(set(known) - set(self.intro_timeouts.keys()))
 
         if available:
@@ -51,7 +51,7 @@ class RandomWalk(DiscoveryStrategy):
             self.overlay.walk_to(peer)
             self.intro_timeouts[peer] = time()
         else:
-            self.overlay.get_new_introduction()
+            self.overlay.get_new_introduction(service_id=service_id)
 
 
 class EdgeWalk(DiscoveryStrategy):
@@ -81,21 +81,21 @@ class EdgeWalk(DiscoveryStrategy):
         available = list(set(self._neighborhood) - set(self.under_construction.keys()))
         return choice(available) if available else None
 
-    def take_step(self):
+    def take_step(self, service_id=None):
         """
         Attempt to grow an edge.
         """
         if not self._neighborhood or len(self._neighborhood) < 6:
             # Wait for our immediate neighborhood to be discovered
             self._neighborhood = self.overlay.network.verified_peers[:6]
-            self.overlay.get_new_introduction()
+            self.overlay.get_new_introduction(service_id=service_id)
         else:
             waiting_root = self.get_available_root()
             # Make sure we have as many outstanding/actively growing edges as roots
             if waiting_root:
                 self.under_construction[waiting_root] = []
                 self.last_edge_responses[waiting_root] = time()
-                self.overlay.get_new_introduction(waiting_root.address)
+                self.overlay.get_new_introduction(waiting_root.address, service_id=service_id)
             else:
                 # Check if our introduced peer has answered yet
                 completed = []
