@@ -4,6 +4,7 @@ from keyvault.crypto import ECCrypto
 from messaging.interfaces.udp.endpoint import UDPEndpoint
 from peerdiscovery.discovery import EdgeWalk, RandomWalk
 from peerdiscovery.churn import RandomChurn
+from peerdiscovery.network import Network
 from peer import Peer
 
 from twisted.internet.task import LoopingCall
@@ -17,9 +18,11 @@ class IPV8(object):
         self.endpoint = UDPEndpoint(8090)
         self.endpoint.open()
 
+        self.network = Network()
+
         self.my_peer = Peer(ECCrypto().generate_key(u"high"))
 
-        self.discovery_overlay = DiscoveryCommunity(self.my_peer, self.endpoint, self.database)
+        self.discovery_overlay = DiscoveryCommunity(self.my_peer, self.endpoint, self.database, self.network)
         self.discovery_strategy = RandomWalk(self.discovery_overlay)
         self.discovery_churn_strategy = RandomChurn(self.discovery_overlay)
 

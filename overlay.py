@@ -6,7 +6,6 @@ from keyvault.crypto import ECCrypto
 from messaging.interfaces.endpoint import EndpointListener
 from messaging.serialization import Serializer
 from peer import Peer
-from peerdiscovery.network import Network
 from taskmanager import TaskManager
 
 
@@ -17,7 +16,7 @@ class Overlay(EndpointListener, TaskManager):
 
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, master_peer, my_peer, endpoint, database):
+    def __init__(self, master_peer, my_peer, endpoint, database, network):
         """
         Create a new overlay for the Internet.
 
@@ -25,6 +24,7 @@ class Overlay(EndpointListener, TaskManager):
         :param my_peer: the (private key) peer of this peer
         :param endpoint: the endpoint to use for messaging
         :param database: the database to use for storage
+        :param network: the network graph backend
         """
         EndpointListener.__init__(self, endpoint, True)
         TaskManager.__init__(self)
@@ -39,7 +39,7 @@ class Overlay(EndpointListener, TaskManager):
         self.logger = logging.getLogger(self.__class__.__name__)
 
         self.database = database
-        self.network = Network()
+        self.network = network
 
     def unload(self):
         """

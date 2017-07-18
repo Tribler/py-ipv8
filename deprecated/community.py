@@ -64,8 +64,8 @@ class Community(EZPackOverlay):
     version = '\x00'
     master_peer = ""
 
-    def __init__(self, my_peer, endpoint, database):
-        super(Community, self).__init__(self.master_peer, my_peer, endpoint, database)
+    def __init__(self, my_peer, endpoint, database, network):
+        super(Community, self).__init__(self.master_peer, my_peer, endpoint, database, network)
 
         self._prefix = '\x00' + self.version + self.master_peer.key.key_to_hash()
 
