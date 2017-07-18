@@ -141,6 +141,7 @@ class Serializer(object):
     def __init__(self):
         super(Serializer, self).__init__()
         self._packers = {
+            '?': DefaultStruct(">?", True),
             'B': DefaultStruct(">B", True),
             'BBH': DefaultStruct(">BBH"),
             'BH': DefaultStruct(">BH"),
@@ -154,6 +155,7 @@ class Serializer(object):
             'ccB': DefaultStruct(">ccB"),
             '4SH': DefaultStruct(">4sH"),
             '20s': DefaultStruct(">20s"),
+            '32s': DefaultStruct(">32s"),
             'c20s': DefaultStruct(">c20s"),
             'bits': Bits(),
             'raw': Raw(),
