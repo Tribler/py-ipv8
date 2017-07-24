@@ -10,6 +10,7 @@ from twisted.internet.error import MessageLengthError
 from twisted.internet.protocol import DatagramProtocol
 from twisted.internet.defer import inlineCallbacks, maybeDeferred, returnValue, succeed
 
+from keyvault.public.libnacl import LibNaCLPK
 from taskmanager import TaskManager
 
 

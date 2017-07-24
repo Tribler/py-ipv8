@@ -67,7 +67,7 @@ class DiscoveryCommunity(Community):
                                            self.my_estimated_lan,
                                            self.my_estimated_wan,
                                            u"unknown",
-                                           self.known_community_ids).to_pack_list()
+                                           self.network.service_overlays.keys()).to_pack_list()
         auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
         dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
 
@@ -75,7 +75,7 @@ class DiscoveryCommunity(Community):
 
     def create_similarity_response(self, identifier):
         global_time = self.claim_global_time()
-        payload = SimilarityResponsePayload(identifier, self.known_community_ids, []).to_pack_list()
+        payload = SimilarityResponsePayload(identifier, self.network.service_overlays.keys(), []).to_pack_list()
         auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
         dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
 

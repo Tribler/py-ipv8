@@ -33,14 +33,14 @@ class EZPackOverlay(Overlay):
         signature_length = ec.get_signature_length(public_key)
         remainder = data[2 + len(auth.public_key_bin):-signature_length]
         signature = data[-signature_length:]
-        return ec.is_valid_signature(public_key, remainder, signature), remainder
+        return ec.is_valid_signature(public_key, data[:-signature_length], signature), remainder
 
     def _ez_unpack_auth(self, payload_class, data):
         # UNPACK
-        auth, remainder = self.serializer.unpack_to_serializables([BinMemberAuthenticationPayload, ], data)
+        auth, remainder = self.serializer.unpack_to_serializables([BinMemberAuthenticationPayload, ], data[23:])
         signature_valid, remainder = self._verify_signature(auth, data)
         format = [GlobalTimeDistributionPayload, payload_class]
-        dist, payload, unknown_data = self.serializer.unpack_to_serializables(format, remainder)
+        dist, payload, unknown_data = self.serializer.unpack_to_serializables(format, remainder[23:])
         # ASSERT
         assert len(unknown_data) == 0, "GOT EXTRA DATA: %s" % repr(unknown_data)
         assert signature_valid
@@ -51,7 +51,7 @@ class EZPackOverlay(Overlay):
     def _ez_unpack_noauth(self, payload_class, data):
         # UNPACK
         format = [GlobalTimeDistributionPayload, payload_class]
-        dist, payload, unknown_data = self.serializer.unpack_to_serializables(format, data)
+        dist, payload, unknown_data = self.serializer.unpack_to_serializables(format, data[23:])
         # ASSERT
         assert len(unknown_data) == 0, "GOT EXTRA DATA: %s" % repr(unknown_data)
         #print payload
@@ -96,8 +96,7 @@ class Community(EZPackOverlay):
             chr(235): self.on_deprecated_message
         }
 
-    def on_deprecated_message(self, source_address, data):
-        name_map = {
+        self.deprecated_message_names = {
             chr(255): "reserved-255",
             chr(253): "missing-proof",
             chr(252): "signature-request",
@@ -112,7 +111,10 @@ class Community(EZPackOverlay):
             chr(236): "dynamic-settings",
             chr(235): "missing-last-message"
         }
-        self.logger.warning("Received deprecated message: %s from (%s, %d)", name_map[data[22]], *source_address)
+
+    def on_deprecated_message(self, source_address, data):
+        self.logger.warning("Received deprecated message: %s from (%s, %d)",
+                            self.deprecated_message_names[data[22]], *source_address)
 
     def create_introduction_request(self, socket_address):
         global_time = self.claim_global_time()
@@ -224,7 +226,7 @@ class Community(EZPackOverlay):
         if self._prefix != data[:22]:
             return
         if data[22] in self.decode_map:
-            self.decode_map[data[22]](source_address, data[23:])
+            self.decode_map[data[22]](source_address, data)
         else:
             self.logger.warning("Received unknown message: %s from (%s, %d)", ord(data[22]), *source_address)
 

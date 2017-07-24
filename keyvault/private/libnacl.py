@@ -7,7 +7,7 @@ from keyvault.public.libnacl import LibNaCLPK
 from keyvault.keys import PrivateKey
 
 
-class LibNaCLSK(LibNaCLPK, PrivateKey):
+class LibNaCLSK(PrivateKey, LibNaCLPK):
     """
     A LibNaCL implementation of a secret key.
     """

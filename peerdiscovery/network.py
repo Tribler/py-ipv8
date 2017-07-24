@@ -128,6 +128,17 @@ class Network(object):
             if self.verified_peers[i].address == address:
                 return self.verified_peers[i]
 
+    def get_verified_by_public_key_bin(self, public_key_bin):
+        """
+        Get a verified Peer by its public key bin.
+
+        :param public_key_bin: the string representation of the public key
+        :return: the Peer object for this public_key_bin or None
+        """
+        for i in range(len(self.verified_peers)):
+            if self.verified_peers[i].public_key.key_to_bin() == public_key_bin:
+                return self.verified_peers[i]
+
     def get_introductions_from(self, peer):
         """
         Get the addresses introduced to us by a certain peer.

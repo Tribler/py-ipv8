@@ -30,7 +30,7 @@ class Payload(Serializable):
         for attribute in dir(self):
             if not (attribute.startswith('_') or callable(getattr(self, attribute))) \
                     and attribute not in ['format_list', 'optional_format_list', 'is_list_descriptor']:
-                out += '\n| %s: %s' % (attribute, str(getattr(self, attribute)))
+                out += '\n| %s: %s' % (attribute, repr(getattr(self, attribute)))
         return out
 
 

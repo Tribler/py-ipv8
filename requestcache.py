@@ -2,9 +2,8 @@ from random import random
 import logging
 
 from twisted.internet import reactor
-from twisted.python.threadable import isInIOThread
 
-from .taskmanager import TaskManager
+from taskmanager import TaskManager
 
 
 class NumberCache(object):
@@ -136,8 +135,6 @@ class RequestCache(TaskManager):
         """
         super(RequestCache, self).__init__()
 
-        assert isInIOThread(), "RequestCache must be used on the reactor's thread"
-
         self._logger = logging.getLogger(self.__class__.__name__)
 
         self._identifiers = dict()
@@ -148,7 +145,6 @@ class RequestCache(TaskManager):
 
         Returns CACHE when CACHE.identifier was not yet added, otherwise returns None.
         """
-        assert isInIOThread(), "RequestCache must be used on the reactor's thread"
         assert isinstance(cache, NumberCache), type(cache)
         assert isinstance(cache.number, (int, long)), type(cache.number)
         assert isinstance(cache.prefix, unicode), type(cache.prefix)
@@ -170,7 +166,6 @@ class RequestCache(TaskManager):
         """
         Returns True when IDENTIFIER is part of this RequestCache.
         """
-        assert isInIOThread(), "RequestCache must be used on the reactor's thread"
         assert isinstance(number, (int, long)), type(number)
         assert isinstance(prefix, unicode), type(prefix)
         return self._create_identifier(number, prefix) in self._identifiers
@@ -179,7 +174,6 @@ class RequestCache(TaskManager):
         """
         Returns the Cache associated with IDENTIFIER when it exists, otherwise returns None.
         """
-        assert isInIOThread(), "RequestCache must be used on the reactor's thread"
         assert isinstance(number, (int, long)), type(number)
         assert isinstance(prefix, unicode), type(prefix)
         return self._identifiers.get(self._create_identifier(number, prefix))
@@ -189,7 +183,6 @@ class RequestCache(TaskManager):
         Returns the Cache associated with IDENTIFIER, and removes it from this RequestCache, when it exists, otherwise
         raises a KeyError exception.
         """
-        assert isInIOThread(), "RequestCache must be used on the reactor's thread"
         assert isinstance(number, (int, long)), type(number)
         assert isinstance(prefix, unicode), type(prefix)
 
@@ -205,8 +198,6 @@ class RequestCache(TaskManager):
         _on_timeout is called for every Cache, except when it has been popped before the timeout expires.  When called
         _on_timeout will CACHE.on_timeout().
         """
-
-        assert isInIOThread(), "RequestCache must be used on the reactor's thread"
         assert isinstance(cache, NumberCache), type(cache)
 
         self._logger.debug("timeout on %s", cache)
@@ -227,8 +218,6 @@ class RequestCache(TaskManager):
         Clear the cache, canceling all pending tasks.
 
         """
-        assert isInIOThread(), "RequestCache must be used on the reactor's thread"
-
         self._logger.debug("Clearing %s [%s]", self, len(self._identifiers))
         self.cancel_all_pending_tasks()
         self._identifiers.clear()

@@ -1,6 +1,89 @@
-from socket import inet_aton, inet_ntoa
+import socket
+from struct import pack, unpack_from
 
 from deprecated.payload import Payload, IntroductionRequestPayload, IntroductionResponsePayload
+
+ADDRESS_TYPE_IPV4 = 0x01
+ADDRESS_TYPE_DOMAIN_NAME = 0x02
+
+
+def swap_circuit_id(packet, message_type, old_circuit_id, new_circuit_id):
+    circuit_id_pos = 0 if message_type == u"data" else 31
+    circuit_id, = unpack_from('!I', packet, circuit_id_pos)
+    assert circuit_id == old_circuit_id, circuit_id
+    packet = packet[:circuit_id_pos] + pack('!I', new_circuit_id) + packet[circuit_id_pos + 4:]
+    return packet
+
+
+def get_circuit_id(packet, message_type):
+    circuit_id_pos = 0 if message_type == u"data" else 31
+    circuit_id, = unpack_from('!I', packet, circuit_id_pos)
+    return circuit_id
+
+
+def split_encrypted_packet(packet, message_type):
+    encryped_pos = 4 if message_type == u"data" else 36
+    return packet[:encryped_pos], packet[encryped_pos:]
+
+
+def encode_data(circuit_id, dest_address, org_address, data):
+    assert org_address
+
+    def encode_address(host, port):
+        try:
+            ip = socket.inet_aton(host)
+            is_ip = True
+        except socket.error:
+            is_ip = False
+
+        if is_ip:
+            return pack("!B4sH", ADDRESS_TYPE_IPV4, ip, port)
+        else:
+            return pack("!BH", ADDRESS_TYPE_DOMAIN_NAME, len(host)) + host + pack("!H", port)
+
+    return pack("!I", circuit_id) + encode_address(*dest_address) + encode_address(*org_address) + data
+
+
+def decode_data(packet):
+    circuit_id, = unpack_from("!I", packet)
+    offset = 4
+
+    def decode_address(packet, offset):
+        addr_type, = unpack_from("!B", packet, offset)
+        offset += 1
+
+        if addr_type == ADDRESS_TYPE_IPV4:
+            host, port = unpack_from('!4sH', packet, offset)
+            offset += 6
+            return (socket.inet_ntoa(host), port), offset
+
+        elif addr_type == ADDRESS_TYPE_DOMAIN_NAME:
+            length, = unpack_from('!H', packet, offset)
+            offset += 2
+            host = packet[offset:offset + length]
+            offset += length
+            port, = unpack_from('!H', packet, offset)
+            offset += 2
+            return (host, port), offset
+
+        return None, offset
+
+    dest_address, offset = decode_address(packet, offset)
+    org_address, offset = decode_address(packet, offset)
+
+    data = packet[offset:]
+
+    return circuit_id, dest_address, org_address, data
+
+
+def convert_from_cell(packet):
+    header = packet[:22] + packet[35] + packet[23:31]
+    return header + packet[31:35] + packet[36:]
+
+
+def convert_to_cell(packet):
+    header = packet[:22] + '\x01' + packet[23:31]
+    return header + packet[31:35] + packet[22] + packet[35:]
 
 
 class TunnelIntroductionRequestPayload(IntroductionRequestPayload):
@@ -222,7 +305,7 @@ class ExtendPayload(Payload):
 
         if self.node_addr:
             host, port = self.node_addr
-            data.append(('4sH', inet_aton(host), port))
+            data.append(('4sH', socket.inet_aton(host), port))
 
         return data
 
@@ -230,6 +313,8 @@ class ExtendPayload(Payload):
     def from_unpack_list(cls, circuit_id, pubkey_len, key_len, node_id, pubkey_key, node_addr=None):
         node_public_key = pubkey_key[:pubkey_len]
         key = pubkey_key[pubkey_len:pubkey_len+key_len]
+        if node_addr:
+            node_addr = (socket.inet_ntoa(node_addr[0]), node_addr[1])
         return ExtendPayload(circuit_id, node_id, node_public_key, node_addr, key)
 
     @property
@@ -355,72 +440,6 @@ class DestroyPayload(Payload):
         return self._reason
 
 
-class StatsRequestPayload(Payload):
-
-    format_list = ['H']
-
-    def __init__(self, identifier):
-        super(StatsRequestPayload, self).__init__()
-        self._identifier = identifier
-
-    def to_pack_list(self):
-        data = [('H', self.identifier), ]
-
-        return data
-
-    @classmethod
-    def from_unpack_list(cls, identifier):
-        return StatsRequestPayload(identifier)
-
-    @property
-    def identifier(self):
-        return self._identifier
-
-
-class StatsResponsePayload(Payload):
-
-    format_list = ['H', 'I', 'Q', 'Q', 'Q', 'Q', 'Q', 'Q']
-
-    def __init__(self, identifier, stats):
-        super(StatsResponsePayload, self).__init__()
-        self._identifier = identifier
-        self._stats = stats
-
-    def to_pack_list(self):
-        data = [('H', self.identifier),
-                ('I', self.stats.get('uptime', 0)),
-                ('Q', self.stats.get('bytes_up', 0)),
-                ('Q', self.stats.get('bytes_down', 0)),
-                ('Q', self.stats.get('bytes_relay_up', 0)),
-                ('Q', self.stats.get('bytes_relay_down', 0)),
-                ('Q', self.stats.get('bytes_enter', 0)),
-                ('Q', self.stats.get('bytes_exit', 0))]
-
-        return data
-
-    @classmethod
-    def from_unpack_list(cls, identifier, uptime, bytes_up, bytes_down, bytes_relay_up, bytes_relay_down,
-                         bytes_enter, bytes_exit):
-        stats = {
-            'uptime': uptime,
-            'bytes_up': bytes_up,
-            'bytes_down': bytes_down,
-            'bytes_relay_up': bytes_relay_up,
-            'bytes_relay_down': bytes_relay_down,
-            'bytes_enter': bytes_enter,
-            'bytes_exit': bytes_exit
-        }
-        return StatsResponsePayload(identifier, stats)
-
-    @property
-    def identifier(self):
-        return self._identifier
-
-    @property
-    def stats(self):
-        return self._stats
-
-
 class EstablishIntroPayload(Payload):
 
     format_list = ['I', 'H', '20s']
@@ -531,13 +550,13 @@ class RendezvousEstablishedPayload(Payload):
         host, port = self.rendezvous_point_addr
         data = [('I', self.circuit_id),
                 ('H', self.identifier),
-                ('4sH', inet_aton(host), port)]
+                ('4sH', socket.inet_aton(host), port)]
 
         return data
 
     @classmethod
     def from_unpack_list(cls, circuit_id, identifier, address):
-        rendezvous_point_addr = (inet_ntoa(address[0]), address[1])
+        rendezvous_point_addr = (socket.inet_ntoa(address[0]), address[1])
         return RendezvousEstablishedPayload(circuit_id, identifier, rendezvous_point_addr)
 
     @property

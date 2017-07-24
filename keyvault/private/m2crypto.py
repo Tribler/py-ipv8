@@ -9,7 +9,7 @@ from keyvault.public.m2crypto import M2CryptoPK
 from keyvault.keys import PrivateKey
 
 
-class M2CryptoSK(M2CryptoPK, PrivateKey):
+class M2CryptoSK(PrivateKey, M2CryptoPK):
     """
     A pyca implementation of a secret key, backwards compatible with Dispersy M2Crypto secret keys.
     """
