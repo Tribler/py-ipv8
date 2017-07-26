@@ -284,3 +284,11 @@ class DataTooBigException(Exception):
 
     def __init__(self, size, max_size):
         super(DataTooBigException, self).__init__('Tried to send packet of size %s > MAX_SIZE(%d)' % (size, max_size))
+
+class IllegalDestination(Exception):
+    """
+    Exception raised when trying to send to the 0 address.
+    """
+
+    def __init__(self):
+        super(IllegalDestination, self).__init__('Attempted to send a message to 0.0.0.0:0.')

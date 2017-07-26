@@ -5,7 +5,7 @@ import sys
 import threading
 from time import time
 
-from messaging.interfaces.endpoint import DataTooBigException, Endpoint, EndpointClosedException
+from messaging.interfaces.endpoint import DataTooBigException, Endpoint, EndpointClosedException, IllegalDestination
 
 if sys.platform == 'win32':
     SOCKET_BLOCK_ERRORCODE = 10035  # WSAEWOULDBLOCK
@@ -76,6 +76,8 @@ class UDPEndpoint(Endpoint):
 
         if len(packet) > UDP_MAX_SIZE:
             raise DataTooBigException(len(packet), UDP_MAX_SIZE)
+        if socket_address == ('0.0.0.0', 0):
+            raise IllegalDestination()
 
         try:
             self._socket.sendto(packet, socket_address)
