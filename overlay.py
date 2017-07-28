@@ -26,7 +26,7 @@ class Overlay(EndpointListener, TaskManager):
         :param database: the database to use for storage
         :param network: the network graph backend
         """
-        EndpointListener.__init__(self, endpoint, True)
+        EndpointListener.__init__(self, endpoint, False)
         TaskManager.__init__(self)
         self.serializer = self.get_serializer()
         self.crypto = ECCrypto()
