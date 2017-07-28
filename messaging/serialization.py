@@ -148,6 +148,7 @@ class Serializer(object):
             'H': DefaultStruct(">H", True),
             'HH': DefaultStruct(">HH"),
             'I': DefaultStruct(">I", True),
+            'l': DefaultStruct(">l", True),
             'LL': DefaultStruct(">LL"),
             'Q': DefaultStruct(">Q", True),
             'QH': DefaultStruct(">QH"),
@@ -157,12 +158,15 @@ class Serializer(object):
             '4SH': DefaultStruct(">4sH"),
             '20s': DefaultStruct(">20s", True),
             '32s': DefaultStruct(">32s", True),
+            '64s': DefaultStruct(">64s", True),
+            '74s': DefaultStruct(">74s", True),
             'c20s': DefaultStruct(">c20s"),
             'bits': Bits(),
             'raw': Raw(),
             'varlenBx2': VarLen('B', 2),
             'varlenH': VarLen('H'),
             'varlenHx20': VarLen('H', 20),
+            'varlenI': VarLen('I'),
             'doublevarlenH': VarLen('H')
         }
 
