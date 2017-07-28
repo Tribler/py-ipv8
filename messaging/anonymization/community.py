@@ -436,7 +436,7 @@ class TunnelCommunity(Community):
         payload_pack_list = payload.to_pack_list()
         dist = GlobalTimeDistributionPayload(self.global_time).to_pack_list()
 
-        packet = self._ez_pack(self._prefix, message_id, [dist, payload_pack_list], sig=False)
+        packet = self._ez_pack(self._prefix, message_id, [dist, payload_pack_list], False)
         packet = convert_to_cell(packet)
 
         return self.send_message(candidates, message_type, packet, payload.circuit_id)

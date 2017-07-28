@@ -86,10 +86,10 @@ class DiscoveryCommunity(Community):
         payload = PingPayload(global_time).to_pack_list()
         dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
 
-        return self._ez_pack(self._prefix, 3, [dist, payload])
+        return self._ez_pack(self._prefix, 3, [dist, payload], False)
 
     def create_pong(self, identifier):
         global_time = self.claim_global_time()
         payload = PongPayload(identifier).to_pack_list()
         dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
-        return self._ez_pack(self._prefix, 4, [dist, payload])
+        return self._ez_pack(self._prefix, 4, [dist, payload], False)
