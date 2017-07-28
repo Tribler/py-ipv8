@@ -81,3 +81,6 @@ class Peer(object):
         if not isinstance(other, Peer):
             return False
         return (self.public_key.key_to_bin() == other.public_key.key_to_bin()) and (self.address == other.address)
+
+    def __str__(self):
+        return 'Peer<%s:%d, %s>' % (self.address + (self.mid.encode('base64')[:-1], ))
