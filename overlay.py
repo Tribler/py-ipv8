@@ -16,14 +16,13 @@ class Overlay(EndpointListener, TaskManager):
 
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, master_peer, my_peer, endpoint, database, network):
+    def __init__(self, master_peer, my_peer, endpoint, network):
         """
         Create a new overlay for the Internet.
 
         :param master_peer: the (public key) peer of the owner of this overlay.
         :param my_peer: the (private key) peer of this peer
         :param endpoint: the endpoint to use for messaging
-        :param database: the database to use for storage
         :param network: the network graph backend
         """
         EndpointListener.__init__(self, endpoint, False)
@@ -38,7 +37,6 @@ class Overlay(EndpointListener, TaskManager):
 
         self.logger = logging.getLogger(self.__class__.__name__)
 
-        self.database = database
         self.network = network
 
     def unload(self):

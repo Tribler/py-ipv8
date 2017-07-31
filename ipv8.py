@@ -1,4 +1,3 @@
-from database import Database
 from peerdiscovery.deprecated.discovery import DiscoveryCommunity
 from keyvault.crypto import ECCrypto
 from messaging.anonymization.community import TunnelCommunity
@@ -14,8 +13,6 @@ from twisted.internet.task import LoopingCall
 class IPV8(object):
 
     def __init__(self):
-        self.database = None # Database('ipv8')
-
         self.endpoint = UDPEndpoint(8090)
         self.endpoint.open()
 
@@ -24,11 +21,11 @@ class IPV8(object):
         self.my_peer = Peer(ECCrypto().generate_key(u"high"))
         self.my_anonymous_id = Peer(ECCrypto().generate_key(u"curve25519"))
 
-        self.discovery_overlay = DiscoveryCommunity(self.my_peer, self.endpoint, self.database, self.network)
+        self.discovery_overlay = DiscoveryCommunity(self.my_peer, self.endpoint, self.network)
         self.discovery_strategy = RandomWalk(self.discovery_overlay)
         self.discovery_churn_strategy = RandomChurn(self.discovery_overlay)
 
-        self.anonymization_overlay = TunnelCommunity(self.my_anonymous_id, self.endpoint, self.database, self.network)
+        self.anonymization_overlay = TunnelCommunity(self.my_anonymous_id, self.endpoint, self.network)
         self.anonymization_strategy = RandomWalk(self.anonymization_overlay)
         self.anonymization_overlay.build_tunnels(1)
 
