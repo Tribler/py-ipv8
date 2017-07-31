@@ -43,6 +43,18 @@ class HalfBlockPayload(Payload):
         self.signature = signature
         self.transaction = transaction
 
+    @classmethod
+    def from_block(cls, block):
+        return HalfBlockPayload(
+            block.public_key,
+            block.sequence_number,
+            block.link_public_key,
+            block.link_sequence_number,
+            block.previous_hash,
+            block.signature,
+            block.transaction
+        )
+
     def to_pack_list(self):
         data = [('74s', self.public_key),
                 ('I', self.sequence_number),
