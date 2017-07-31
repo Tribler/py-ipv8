@@ -238,23 +238,6 @@ class Circuit(Tunnel):
         """
         self.last_incoming = time.time()
 
-    def tunnel_data(self, destination, payload):
-        """
-        Convenience method to tunnel data over this circuit
-        @param (str, int) destination: the destination of the packet
-        @param str payload: the packet's payload
-        """
-
-        self.logger.info("Tunnel data (len %d) to end for circuit %s with ultimate destination %s", len(payload),
-                          self.circuit_id, destination)
-
-        num_bytes = self.overlay.send_data(self.sock_addr, self.circuit_id, destination, payload)
-        self.overlay.increase_bytes_sent(self, num_bytes)
-
-        if num_bytes == 0:
-            self.logger.warning("Should send %d bytes over circuit %s, zero bytes were sent",
-                                 len(payload), self.circuit_id)
-
     def destroy(self, reason='unknown'):
         """
         Destroys the circuit and calls the error callback of the circuit's

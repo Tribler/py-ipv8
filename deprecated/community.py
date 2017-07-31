@@ -218,7 +218,7 @@ class Community(EZPackOverlay):
         packet = self.create_puncture(self.my_estimated_lan, payload.wan_walker_address, payload.identifier)
         self.endpoint.send(target, packet)
 
-    def on_packet(self, packet):
+    def on_packet(self, packet, warn_unknown=True):
         source_address, data = packet
         probable_peer = self.network.get_verified_by_address(source_address)
         if probable_peer:
@@ -227,7 +227,7 @@ class Community(EZPackOverlay):
             return
         if data[22] in self.decode_map:
             self.decode_map[data[22]](source_address, data)
-        else:
+        elif warn_unknown:
             self.logger.warning("Received unknown message: %s from (%s, %d)", ord(data[22]), *source_address)
 
     def split_key_data(self, data):

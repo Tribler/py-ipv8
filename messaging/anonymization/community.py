@@ -111,26 +111,17 @@ class TunnelCommunity(Community):
 
         self.decode_map.update({
             chr(1): self.on_cell,
+            chr(10): self.on_destroy
+        })
+
+        self.decode_map_private = {
             chr(2): self.on_create,
             chr(3): self.on_created,
             chr(4): self.on_extend,
             chr(5): self.on_extended,
             chr(6): self.on_ping,
-            chr(7): self.on_pong,
-            chr(10): self.on_destroy,
-            #chr(11): self.on_establish_intro,
-            #chr(12): self.on_intro_established,
-            #chr(13): self.on_key_request,
-            #chr(14): self.on_key_response,
-            #chr(15): self.on_establish_rendezvous,
-            #chr(16): self.on_rendezvous_established,
-            #chr(17): self.on_create_e2e,
-            #chr(18): self.on_created_e2e,
-            #chr(19): self.on_link_e2e,
-            #chr(20): self.on_linked_e2e,
-            #chr(21): self.on_dht_request,
-            #chr(22): self.on_dht_response,
-        })
+            chr(7): self.on_pong
+        }
 
         self.deprecated_message_names.update({
             chr(8): "stats-request",
@@ -160,11 +151,13 @@ class TunnelCommunity(Community):
         self.register_task("do_circuits", LoopingCall(self.do_circuits)).start(5, now=True)
         self.register_task("do_ping", LoopingCall(self.do_ping)).start(PING_INTERVAL)
 
-    def on_packet(self, packet):
-        super(TunnelCommunity, self).on_packet(packet)
+    def on_packet(self, packet, warn_unknown=True, circuit_id=''):
+        super(TunnelCommunity, self).on_packet(packet, warn_unknown=False)
         source_address, data = packet
         if data.startswith("fffffffe".decode("HEX")):
             self.on_data(source_address, data[4:])
+        if (self._prefix == data[:22]) and (data[22] in self.decode_map_private) and circuit_id:
+            self.decode_map_private[data[22]](source_address, data, circuit_id)
 
     def bootstrap(self):
         pass
@@ -431,7 +424,7 @@ class TunnelCommunity(Community):
     def is_exit(self, circuit_id):
         return circuit_id > 0 and circuit_id in self.exit_sockets
 
-    def send_cell(self, candidates, message_type, payload):
+    def send_cell(self, candidates, message_type, payload, circuit_id=None):
         message_id, payload_cls = message_to_payload[message_type]
         payload_pack_list = payload.to_pack_list()
         dist = GlobalTimeDistributionPayload(self.global_time).to_pack_list()
@@ -439,7 +432,7 @@ class TunnelCommunity(Community):
         packet = self._ez_pack(self._prefix, message_id, [dist, payload_pack_list], False)
         packet = convert_to_cell(packet)
 
-        return self.send_message(candidates, message_type, packet, payload.circuit_id)
+        return self.send_message(candidates, message_type, packet, circuit_id if circuit_id else payload.circuit_id)
 
     def send_data(self, candidates, circuit_id, dest_address, source_address, data):
         packet = encode_data(circuit_id, dest_address, source_address, data)
@@ -759,13 +752,13 @@ class TunnelCommunity(Community):
                     # TODO: if crypto fails for other messages, call remove_circuit
                     return
 
-            self.endpoint.notify_listeners((source_address, convert_from_cell(data)))
+            self.on_packet((source_address, convert_from_cell(data)), circuit_id=u"circuit_%d" % circuit_id)
 
             if circuit:
                 circuit.beat_heart()
                 self.increase_bytes_received(circuit, len(data))
 
-    def on_create(self, source_address, data):
+    def on_create(self, source_address, data, _):
         dist, payload = self._ez_unpack_noauth(CreatePayload, data)
 
         if not self.check_create(payload):
@@ -792,7 +785,7 @@ class TunnelCommunity(Community):
                                                      *self.get_session_keys(self.relay_session_keys[circuit_id], EXIT_NODE))
         self.send_cell([Peer(payload.node_public_key, source_address)], u"created", CreatedPayload(circuit_id, Y, AUTH, candidate_list_enc))
 
-    def on_created(self, source_address, data):
+    def on_created(self, source_address, data, _):
         dist, payload = self._ez_unpack_noauth(CreatedPayload, data)
 
         if not self.check_created(payload):
@@ -828,7 +821,7 @@ class TunnelCommunity(Community):
             circuit = self.circuits[circuit_id]
             self._ours_on_created_extended(circuit, payload)
 
-    def on_extend(self, source_address, data):
+    def on_extend(self, source_address, data, _):
         dist, payload = self._ez_unpack_noauth(ExtendPayload, data)
 
         if not self.check_extend(payload):
@@ -874,7 +867,7 @@ class TunnelCommunity(Community):
                                      payload.node_public_key,
                                      payload.key))
 
-    def on_extended(self, source_address, data):
+    def on_extended(self, source_address, data, _):
         dist, payload = self._ez_unpack_noauth(ExtendedPayload, data)
 
         if not self.check_extended(payload):
@@ -926,13 +919,13 @@ class TunnelCommunity(Community):
                 else:
                     self.logger.warning("cannot exit data, destination is 0.0.0.0:0")
 
-    def on_ping(self, source_address, data):
+    def on_ping(self, source_address, data, _):
         dist, payload = self._ez_unpack_noauth(PingPayload, data)
 
         self.send_cell([source_address], u"pong", PongPayload(payload.circuit_id, payload.identifier))
         self.logger.info("Got ping from %s", source_address)
 
-    def on_pong(self, source_address, data):
+    def on_pong(self, source_address, data, _):
         dist, payload = self._ez_unpack_noauth(PongPayload, data)
 
         if not self.check_pong(payload):
