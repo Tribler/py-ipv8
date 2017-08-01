@@ -69,8 +69,6 @@ class Community(EZPackOverlay):
 
         self._prefix = '\x00' + self.version + self.master_peer.key.key_to_hash()
 
-        self.contacted_addresses = []
-
         self.decode_map = {
             #chr(254): self.on_missing_sequence,
             chr(250): self.on_puncture_request,

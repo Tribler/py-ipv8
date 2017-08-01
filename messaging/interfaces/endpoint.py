@@ -36,6 +36,13 @@ class Endpoint(object):
         """
         self._listeners = [l for l in self._listeners if l != listener]
 
+    def _deliver_later(self, listener, packet):
+        """
+        Ensure that the listener is still loaded when delivering the packet later.
+        """
+        if listener in self._listeners:
+            listener.on_packet(packet)
+
     def notify_listeners(self, packet):
         """
         Send data to all listeners.
@@ -44,9 +51,9 @@ class Endpoint(object):
         """
         for listener in self._listeners:
             if listener.use_main_thread:
-                blockingCallFromThread(reactor, listener.on_packet, packet)
+                blockingCallFromThread(reactor, self._deliver_later, listener, packet)
             else:
-                reactor.callInThread(listener.on_packet, packet)
+                reactor.callInThread(self._deliver_later, listener, packet)
 
     @abc.abstractmethod
     def assert_open(self):

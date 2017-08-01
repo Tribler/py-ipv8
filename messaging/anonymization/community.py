@@ -105,6 +105,8 @@ class TunnelCommunity(Community):
                         "7ee5fc51b35deb9a4fa7f097af79e715b0cecc1fb04b2ddd292137e690fc4a3c92e93e").decode("HEX"))
 
     def __init__(self, *args, **kwargs):
+        self.settings = kwargs.pop('settings', TunnelSettings())
+
         super(TunnelCommunity, self).__init__(*args, **kwargs)
 
         self.request_cache = RequestCache()
@@ -139,7 +141,6 @@ class TunnelCommunity(Community):
         self.selection_strategy = RoundRobin(self)
         self.creation_time = time.time()
 
-        self.settings = kwargs.get('settings', TunnelSettings())
         self.crypto = self.settings.crypto
 
         self.logger.info("TunnelCommunity: setting become_exitnode = %s" % self.settings.become_exitnode)
@@ -165,7 +166,6 @@ class TunnelCommunity(Community):
     def become_exitnode(self):
         return self.settings.become_exitnode
 
-    @inlineCallbacks
     def unload(self):
         # Remove all circuits/relays/exitsockets
         for circuit_id in self.circuits.keys():
@@ -175,7 +175,9 @@ class TunnelCommunity(Community):
         for circuit_id in self.exit_sockets.keys():
             self.remove_exit_socket(circuit_id, 'unload', destroy=True)
 
-        yield super(TunnelCommunity, self).unload()
+        self.request_cache.clear()
+
+        super(TunnelCommunity, self).unload()
 
     def get_session_keys(self, keys, direction):
         # increment salt_explicit
@@ -353,14 +355,13 @@ class TunnelCommunity(Community):
                 self.logger.error("Could not remove relay %d %s", circuit_id, additional_info)
 
     def remove_exit_socket(self, circuit_id, additional_info='', destroy=False):
+        exit_socket = self.exit_sockets.pop(circuit_id, None)
 
-        if circuit_id in self.exit_sockets:
+        if exit_socket:
             if destroy:
                 self.destroy_exit_socket(circuit_id)
 
             # Close socket
-            exit_socket = self.exit_sockets.pop(circuit_id)
-
             if exit_socket.enabled:
                 self.logger.info("Removing exit socket %d %s", circuit_id, additional_info)
 
@@ -946,7 +947,7 @@ class TunnelCommunity(Community):
     def on_destroy(self, source_address, data):
         auth, dist, payload = self._ez_unpack_auth(DestroyPayload, data)
 
-        if not self.check_destroy(payload):
+        if not self.check_destroy(source_address, payload):
             return
 
         circuit_id = payload.circuit_id

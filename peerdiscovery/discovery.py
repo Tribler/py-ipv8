@@ -64,7 +64,7 @@ class EdgeWalk(DiscoveryStrategy):
 
     EDGE_TIMEOUT = 3.0
 
-    def __init__(self, overlay, edge_length=4):
+    def __init__(self, overlay, edge_length=4, neighborhood_size=6):
         super(EdgeWalk, self).__init__(overlay)
         self._neighborhood = []
 
@@ -73,6 +73,7 @@ class EdgeWalk(DiscoveryStrategy):
         self.last_edge_responses = {}
 
         self.edge_length = edge_length
+        self.neighborhood_size = neighborhood_size
 
     def get_available_root(self):
         """
@@ -85,9 +86,9 @@ class EdgeWalk(DiscoveryStrategy):
         """
         Attempt to grow an edge.
         """
-        if not self._neighborhood or len(self._neighborhood) < 6:
+        if not self._neighborhood or len(self._neighborhood) < self.neighborhood_size:
             # Wait for our immediate neighborhood to be discovered
-            self._neighborhood = self.overlay.network.verified_peers[:6]
+            self._neighborhood = self.overlay.network.verified_peers[:self.neighborhood_size]
             self.overlay.get_new_introduction(service_id=service_id)
         else:
             waiting_root = self.get_available_root()

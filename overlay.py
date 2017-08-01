@@ -43,6 +43,7 @@ class Overlay(EndpointListener, TaskManager):
         """
         Called when this overlay needs to shut down.
         """
+        self.endpoint.remove_listener(self)
         self.cancel_all_pending_tasks()
 
     def get_serializer(self):

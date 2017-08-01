@@ -17,6 +17,8 @@ class MockEndpoint(Endpoint):
         self.lan_address = lan_address
         self.wan_address = wan_address
 
+        self._port = self.lan_address[1]
+
     def assert_open(self):
         pass
 
@@ -28,7 +30,7 @@ class MockEndpoint(Endpoint):
 
     def send(self, socket_address, packet):
         if socket_address in internet:
-            reactor.callInThread(internet[socket_address].notify_listeners, packet)
+            reactor.callInThread(internet[socket_address].notify_listeners, (self.wan_address, packet))
 
     def open(self):
         pass
