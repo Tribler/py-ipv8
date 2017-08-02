@@ -286,7 +286,6 @@ class CreatedPayload(Payload):
 class ExtendPayload(Payload):
 
     format_list = ['I', 'H', 'H', '20s', 'raw']
-    optional_format_list = ['4sH']
 
     def __init__(self, circuit_id, node_id, node_public_key, node_addr, key):
         super(ExtendPayload, self).__init__()
@@ -305,16 +304,18 @@ class ExtendPayload(Payload):
 
         if self.node_addr:
             host, port = self.node_addr
-            data.append(('4sH', socket.inet_aton(host), port))
+            data.append(('4SH', socket.inet_aton(host), port))
 
         return data
 
     @classmethod
-    def from_unpack_list(cls, circuit_id, pubkey_len, key_len, node_id, pubkey_key, node_addr=None):
-        node_public_key = pubkey_key[:pubkey_len]
-        key = pubkey_key[pubkey_len:pubkey_len+key_len]
-        if node_addr:
-            node_addr = (socket.inet_ntoa(node_addr[0]), node_addr[1])
+    def from_unpack_list(cls, circuit_id, pubkey_len, key_len, node_id, pubkey_key_node_addr):
+        node_public_key = pubkey_key_node_addr[:pubkey_len]
+        key = pubkey_key_node_addr[pubkey_len:pubkey_len+key_len]
+        node_addr = None
+        if pubkey_len+key_len < len(pubkey_key_node_addr):
+            host, port = unpack_from('>4sH', pubkey_key_node_addr, pubkey_len+key_len)
+            node_addr = (socket.inet_ntoa(host), port)
         return ExtendPayload(circuit_id, node_id, node_public_key, node_addr, key)
 
     @property
@@ -478,7 +479,7 @@ class IntroEstablishedPayload(Payload):
 
     format_list = ['I', 'H']
 
-    def __init__(self, meta, circuit_id, identifier):
+    def __init__(self, circuit_id, identifier):
         super(IntroEstablishedPayload, self).__init__()
         self._circuit_id = circuit_id
         self._identifier = identifier

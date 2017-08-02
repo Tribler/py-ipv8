@@ -2,7 +2,7 @@ import random
 
 from twisted.internet import reactor
 
-from messaging.interfaces.endpoint import Endpoint
+from messaging.interfaces.endpoint import Endpoint, EndpointListener
 
 internet = {}
 
@@ -60,3 +60,16 @@ class AutoMockEndpoint(MockEndpoint):
             address = self._generate_address()
 
         return address
+
+
+class MockEndpointListener(EndpointListener):
+
+    def __init__(self, endpoint, main_thread=False):
+        super(MockEndpointListener, self).__init__(endpoint, main_thread)
+
+        self.received_packets = []
+
+        endpoint.add_listener(self)
+
+    def on_packet(self, packet):
+        self.received_packets.append(packet)

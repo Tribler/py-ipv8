@@ -100,7 +100,8 @@ class Tunnel(object):
 class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
 
     def __init__(self, circuit_id, community, sock_addr, mid):
-        super(TunnelExitSocket, self).__init__(sock_addr=sock_addr, overlay=community, circuit_id=circuit_id, mid=mid)
+        Tunnel.__init__(self, sock_addr=sock_addr, overlay=community, circuit_id=circuit_id, mid=mid)
+        TaskManager.__init__(self)
 
         self.port = None
         self.ips = defaultdict(int)

@@ -4,7 +4,6 @@ from twisted.internet import reactor
 from twisted.internet.base import DelayedCall
 from twisted.internet.defer import Deferred, DeferredList
 from twisted.internet.task import LoopingCall
-from twisted.python.threadable import isInIOThread
 
 from util import blocking_call_on_reactor_thread
 
@@ -35,9 +34,6 @@ class TaskManager(object):
         """
         Register a task so it can be canceled at shutdown time or by name.
         """
-        # TODO(Martijn): this assert is necessary, however, we are calling register_task many times from a non-io
-        # thread in Tribler. So for now, I will comment it out until we fixed the calls to this method.
-        #assert isInIOThread()
         assert not self.is_pending_task_active(name), name
         assert isinstance(task, (Deferred, DelayedCall, LoopingCall)), (task, type(task) == type(Deferred))
 
@@ -92,7 +88,6 @@ class TaskManager(object):
         """
         Returns a deferred that will fire when all registered Deferreds are done.
         """
-        assert isInIOThread()
         self._maybe_clean_task_list()
         return DeferredList(self._iter_deferreds())
 

@@ -93,7 +93,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         cache = self.request_cache.add(DHTRequestCache(self, circuit, info_hash))
         self.send_cell([circuit.sock_addr],
                        u"dht-request",
-                       (circuit.circuit_id, cache.number, info_hash))
+                       DHTRequestPayload(circuit.circuit_id, cache.number, info_hash))
 
     def on_dht_request(self, source_address, data, circuit_id):
         dist, payload = self._ez_unpack_noauth(DHTRequestPayload, data)
@@ -418,7 +418,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
 
             cache = self.request_cache.add(IPRequestCache(self, circuit))
             self.send_cell([circuit.sock_addr],
-                           u'establish-intro', (circuit_id, cache.number, info_hash))
+                           u'establish-intro', EstablishIntroPayload(circuit_id, cache.number, info_hash))
             self.logger.info("Established introduction tunnel %s", circuit_id)
 
         for _ in range(amount):
@@ -446,7 +446,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         circuit = self.exit_sockets[int(circuit_id[8:])]
         self.intro_point_for[payload.info_hash] = circuit
 
-        self.send_cell([source_address], u"intro-established", (circuit.circuit_id, payload.identifier))
+        self.send_cell([source_address], u"intro-established", IntroEstablishedPayload(circuit.circuit_id, payload.identifier))
         self.dht_announce(payload.info_hash)
 
     def check_intro_established(self, payload):

@@ -47,8 +47,7 @@ class Network(object):
         if peer.public_key.key_to_bin() not in self.services_per_peer:
             self.services_per_peer[peer.public_key.key_to_bin()] = set(services)
         else:
-            if set(services) != self.services_per_peer[peer.public_key.key_to_bin()]:
-                self.services_per_peer[peer.public_key.key_to_bin()] |= set(services)
+            self.services_per_peer[peer.public_key.key_to_bin()] |= set(services)
 
     def add_verified_peer(self, peer):
         """

@@ -318,13 +318,13 @@ class TunnelCommunity(Community):
     def remove_circuit(self, circuit_id, additional_info='', destroy=False):
         assert isinstance(circuit_id, (long, int)), type(circuit_id)
 
-        if circuit_id in self.circuits:
+        circuit = self.circuits.pop(circuit_id, None)
+        if circuit:
             self.logger.info("removing circuit %d " + additional_info, circuit_id)
 
             if destroy:
                 self.destroy_circuit(circuit_id)
 
-            circuit = self.circuits.pop(circuit_id)
             circuit.destroy()
 
             return True
@@ -344,15 +344,13 @@ class TunnelCommunity(Community):
             self.destroy_relay(to_remove, got_destroy_from=got_destroy_from)
 
         for cid in to_remove:
-            if cid in self.relay_from_to:
-                self.logger.info("Removing relay %d %s", cid, additional_info)
-                # Remove the relay
-                relay = self.relay_from_to.pop(cid)
-                # Remove old session key
-                if cid in self.relay_session_keys:
-                    del self.relay_session_keys[cid]
-            else:
-                self.logger.error("Could not remove relay %d %s", circuit_id, additional_info)
+            # Remove the relay
+            self.logger.info("Removing relay %d %s", cid, additional_info)
+            relay = self.relay_from_to.pop(cid, None)
+
+            # Remove old session key
+            if cid in self.relay_session_keys:
+                del self.relay_session_keys[cid]
 
     def remove_exit_socket(self, circuit_id, additional_info='', destroy=False):
         exit_socket = self.exit_sockets.pop(circuit_id, None)
@@ -582,13 +580,13 @@ class TunnelCommunity(Community):
             ignore_candidates = [self.crypto.key_to_bin(hop.public_key) for hop in circuit.hops] + \
                                 [self.my_peer.public_key]
             if circuit.required_exit:
-                ignore_candidates.append(circuit.required_exit.public_key)
+                ignore_candidates.append(circuit.required_exit.public_key.key_to_bin())
 
             become_exit = circuit.goal_hops - 1 == len(circuit.hops)
             if become_exit and circuit.required_exit:
                 # Set the required exit according to the circuit setting (e.g. for linking e2e circuits)
-                extend_hop_public_bin = circuit.required_exit.public_key
-                extend_hop_addr = circuit.required_exit.sock_addr
+                extend_hop_public_bin = circuit.required_exit.public_key.key_to_bin()
+                extend_hop_addr = circuit.required_exit.address
 
             else:
                 # The next candidate is chosen from the returned list of possible candidates
@@ -835,6 +833,9 @@ class TunnelCommunity(Community):
             extend_candidate = request.candidates[payload.node_public_key]
         else:
             extend_candidate = self.network.get_verified_by_public_key_bin(payload.node_public_key)
+            if not extend_candidate:
+                extend_candidate = Peer(payload.node_public_key, payload.node_addr)
+                self.network.add_verified_peer(extend_candidate)
         extend_candidate_mid = extend_candidate.mid.encode('hex')
 
         self.logger.info("on_extend send CREATE for circuit (%s, %d) to %s:%d", source_address,
