@@ -153,11 +153,16 @@ class TunnelCommunity(Community):
         self.register_task("do_ping", LoopingCall(self.do_ping)).start(PING_INTERVAL)
 
     def on_packet(self, packet, warn_unknown=True, circuit_id=''):
-        super(TunnelCommunity, self).on_packet(packet, warn_unknown=False)
         source_address, data = packet
+        if data.startswith("ffffffff".decode("HEX")):
+            data = data[4:]
+        super(TunnelCommunity, self).on_packet(packet, warn_unknown=False)
         if data.startswith("fffffffe".decode("HEX")):
             self.on_data(source_address, data[4:])
-        if (self._prefix == data[:22]) and (data[22] in self.decode_map_private) and circuit_id:
+        elif data[22] in self.decode_map_private and not circuit_id:
+            self.logger.warning("INCOMING MESSAGE %d HAS NO CIRCUIT ID", ord(data[22]))
+            self.decode_map_private[data[22]](source_address, data, circuit_id)
+        elif (self._prefix == data[:22]) and (data[22] in self.decode_map_private) and circuit_id:
             self.decode_map_private[data[22]](source_address, data, circuit_id)
 
     def bootstrap(self):
@@ -318,12 +323,12 @@ class TunnelCommunity(Community):
     def remove_circuit(self, circuit_id, additional_info='', destroy=False):
         assert isinstance(circuit_id, (long, int)), type(circuit_id)
 
+        if destroy:
+            self.destroy_circuit(circuit_id)
+
         circuit = self.circuits.pop(circuit_id, None)
         if circuit:
             self.logger.info("removing circuit %d " + additional_info, circuit_id)
-
-            if destroy:
-                self.destroy_circuit(circuit_id)
 
             circuit.destroy()
 
@@ -911,7 +916,8 @@ class TunnelCommunity(Community):
 
                 if DataChecker.could_be_dispersy(data):
                     self.logger.debug("Giving incoming data packet to dispersy")
-                    self.endpoint.notify_listeners((origin, data))
+                    self.logger.debug("CIRCUIT ID = %d", circuit_id)
+                    self.on_packet((origin, data[4:]), circuit_id=u"circuit_%d" % circuit_id)
 
             # It is not our circuit so we got it from a relay, we need to EXIT it!
             else:

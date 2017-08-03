@@ -149,7 +149,7 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
 
     def tunnel_data(self, source, data):
         self.logger.debug("Tunnel data to origin %s for circuit %s", ('0.0.0.0', 0), self.circuit_id)
-        self.overlay.send_data(self.sock_addr, self.circuit_id, source, data)
+        self.overlay.send_data([self.sock_addr], self.circuit_id, ('0.0.0.0', 0), source, data)
 
     @inlineCallbacks
     def close(self):

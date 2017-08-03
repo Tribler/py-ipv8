@@ -125,10 +125,10 @@ class DHTRequestCache(RandomNumberCache):
         pass
 
 
-class KeyRelayCache(RandomNumberCache):
+class KeyRelayCache(KeyRequestCache):
 
-    def __init__(self, community, identifier, sock_addr):
-        super(KeyRelayCache, self).__init__(community.request_cache, u"key-request")
+    def __init__(self, community, circuit, identifier, sock_addr, info_hash):
+        super(KeyRelayCache, self).__init__(community, circuit, sock_addr, info_hash)
         self.identifier = identifier
         self.return_sock_addr = sock_addr
 

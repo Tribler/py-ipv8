@@ -539,7 +539,7 @@ class EstablishRendezvousPayload(Payload):
 
 class RendezvousEstablishedPayload(Payload):
 
-    format_list = ['I', 'H', '4sH']
+    format_list = ['I', 'H', '4SH']
 
     def __init__(self, circuit_id, identifier, rendezvous_point_addr):
         super(RendezvousEstablishedPayload, self).__init__()
@@ -551,7 +551,7 @@ class RendezvousEstablishedPayload(Payload):
         host, port = self.rendezvous_point_addr
         data = [('I', self.circuit_id),
                 ('H', self.identifier),
-                ('4sH', socket.inet_aton(host), port)]
+                ('4SH', socket.inet_aton(host), port)]
 
         return data
 
