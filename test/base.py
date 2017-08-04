@@ -1,3 +1,7 @@
+import sys
+import threading
+import time
+
 from twisted.internet import reactor
 from twisted.internet.defer import inlineCallbacks
 from twisted.internet.task import deferLater
@@ -11,6 +15,12 @@ from test.mocking.ipv8 import MockIPv8
 
 
 class TestBase(unittest.TestCase):
+
+    __testing__ = True
+    __lockup_timestamp__ = 0
+
+    # The time after which the whole test suite is os.exited
+    MAX_TEST_TIME = 10
 
     def __init__(self, methodName='runTest'):
         super(TestBase, self).__init__(methodName)
@@ -32,7 +42,11 @@ class TestBase(unittest.TestCase):
                 node.network.add_verified_peer(public_peer)
                 node.network.discover_services(public_peer, overlay_class.master_peer.mid)
 
-        self.base_calls = reactor.getDelayedCalls()
+        self.base_calls = len(reactor.getDelayedCalls())
+
+    def setUp(self):
+        super(TestBase, self).setUp()
+        self.__lockup_timestamp__ = time.time()
 
     def tearDown(self):
         super(TestBase, self).tearDown()
@@ -41,24 +55,30 @@ class TestBase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        import threading
-        import time
+        cls.__lockup_timestamp__ = time.time()
         def check_twisted():
-            timeout = 10
-            while (timeout > 0):
-                timeout -= 2
+            while time.time() - cls.__lockup_timestamp__ < cls.MAX_TEST_TIME:
                 time.sleep(2)
-            import os, sys, traceback
+                # If the test class completed normally, exit
+                if not cls.__testing__:
+                    return
+            # If we made it here, there is a serious issue which we cannot recover from.
+            # Most likely the Twisted threadpool got into a deadlock while shutting down.
+            import os, traceback
             print >> sys.stderr, "The test-suite locked up! Force quitting! Thread dump:"
             for tid, stack in sys._current_frames().items():
                 if tid != threading.currentThread().ident:
                     print >> sys.stderr, "THREAD#%d" % tid
                     for line in traceback.format_list(traceback.extract_stack(stack)):
-                        print >> sys.stderr, "|", line[:-1]
+                        print >> sys.stderr, "|", line[:-1].replace('\n', '\n|   ')
             os._exit(1)
         t = threading.Thread(target=check_twisted)
         t.daemon = True
         t.start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.__testing__ = False
 
     def create_node(self):
         return MockIPv8(u"low", self.overlay_class)
@@ -91,7 +111,7 @@ class TestBase(unittest.TestCase):
         while (time < timeout):
             yield self.sleep(.01)
             time += .01
-            if reactor.getDelayedCalls() == self.base_calls:
+            if len(reactor.getDelayedCalls()) <= self.base_calls:
                 if probable_exit:
                     break
                 probable_exit = True

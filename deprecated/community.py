@@ -42,7 +42,9 @@ class EZPackOverlay(Overlay):
         format = [GlobalTimeDistributionPayload, payload_class]
         dist, payload, unknown_data = self.serializer.unpack_to_serializables(format, remainder[23:])
         # ASSERT
-        assert len(unknown_data) == 0, "GOT EXTRA DATA: %s" % repr(unknown_data)
+        assert len(unknown_data) == 0, "Incoming packet %s (%s) has extra data: (%s), " % (payload_class.__name__,
+                                                                                           data.encode('HEX'),
+                                                                                           unknown_data.encode('HEX'))
         assert signature_valid
         #print payload
         # PRODUCE
@@ -53,7 +55,9 @@ class EZPackOverlay(Overlay):
         format = [GlobalTimeDistributionPayload, payload_class]
         dist, payload, unknown_data = self.serializer.unpack_to_serializables(format, data[23:])
         # ASSERT
-        assert len(unknown_data) == 0, "GOT EXTRA DATA: %s" % repr(unknown_data)
+        assert len(unknown_data) == 0, "Incoming packet %s (%s) has extra data: (%s), " % (payload_class.__name__,
+                                                                                           data.encode('HEX'),
+                                                                                           unknown_data.encode('HEX'))
         #print payload
         # PRODUCE
         return dist, payload

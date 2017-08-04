@@ -32,6 +32,8 @@ class Network(object):
 
         self._all_addresses[address] = b64encode(peer.mid)
 
+        if address in self.graph.node and address not in self.graph.adj:
+            del self.graph.node[address]
         self.graph.add_edge(b64encode(peer.mid), address, color='orange')
 
         if peer not in self.verified_peers:
