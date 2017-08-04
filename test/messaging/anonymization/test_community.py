@@ -203,7 +203,7 @@ class TestTunnelCommunity(TestBase):
     @twisted_test
     def test_three_hop_circuit(self):
         """
-        Test if a two hop circuit is correctly created.
+        Test if a three hop circuit is correctly created.
 
         Note that we avoid exit nodes in the relay path, so we explicitly set relay nodes to not be exits.
         """

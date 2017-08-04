@@ -57,7 +57,8 @@ class Network(object):
         """
         if peer.address in self._all_addresses and self.graph.has_node(peer.address):
             introducer = self._all_addresses[peer.address]
-            self.graph.remove_node(peer.address)
+            if self.graph.has_node(peer.address):
+                self.graph.remove_node(peer.address)
             self.graph.add_node(b64encode(peer.mid))
             self.graph.add_edge(introducer, b64encode(peer.mid), color='green')
             if peer not in self.verified_peers:

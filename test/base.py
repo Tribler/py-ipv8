@@ -60,17 +60,20 @@ class TestBase(unittest.TestCase):
 
         The strategy is as follows:
          1. Measure the amount of open calls in the Twisted reactor (including those of the test suite!!)
-         2. After 10 milliseconds, check if we are down to this amount again (no calls need to be handled)
+         2. After 10 milliseconds, check if we are down to this amount twice in a row (no calls need to be handled)
          3. If not, go back to handling calls (step 2) or return, if the timeout has been reached
 
         :param timeout: the maximum time to wait for messages to be delivered
         """
         time = 0
+        probable_exit = False
         while (time < timeout):
             yield self.sleep(.01)
             time += .01
             if reactor.getDelayedCalls() == self.base_calls:
-                break
+                if probable_exit:
+                    break
+                probable_exit = True
 
     @inlineCallbacks
     def sleep(self, time=.05):
