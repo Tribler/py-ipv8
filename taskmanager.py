@@ -56,7 +56,6 @@ class TaskManager(object):
             self._pending_tasks[name] = task
         return task
 
-    @blocking_call_on_reactor_thread
     def cancel_pending_task(self, name):
         """
         Cancels the named task

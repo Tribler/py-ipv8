@@ -39,6 +39,27 @@ class TestBase(unittest.TestCase):
         for node in self.nodes:
             node.overlay.unload()
 
+    @classmethod
+    def setUpClass(cls):
+        import threading
+        import time
+        def check_twisted():
+            timeout = 10
+            while (timeout > 0):
+                timeout -= 2
+                time.sleep(2)
+            import os, sys, traceback
+            print >> sys.stderr, "The test-suite locked up! Force quitting! Thread dump:"
+            for tid, stack in sys._current_frames().items():
+                if tid != threading.currentThread().ident:
+                    print >> sys.stderr, "THREAD#%d" % tid
+                    for line in traceback.format_list(traceback.extract_stack(stack)):
+                        print >> sys.stderr, "|", line[:-1]
+            os._exit(1)
+        t = threading.Thread(target=check_twisted)
+        t.daemon = True
+        t.start()
+
     def create_node(self):
         return MockIPv8(u"low", self.overlay_class)
 
