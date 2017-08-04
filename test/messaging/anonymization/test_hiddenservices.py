@@ -32,7 +32,8 @@ class MockDHTProvider(object):
 class TestHiddenServices(TestBase):
 
     def setUp(self):
-        super(TestHiddenServices, self).setUp(HiddenTunnelCommunity, 3)
+        super(TestHiddenServices, self).setUp()
+        self.initialize(HiddenTunnelCommunity, 3)
 
         self.private_nodes = []
         self.service = '0' * 20

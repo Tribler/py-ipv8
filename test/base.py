@@ -12,9 +12,13 @@ from test.mocking.ipv8 import MockIPv8
 
 class TestBase(unittest.TestCase):
 
-    def setUp(self, overlay_class, node_count):
-        super(TestBase, self).setUp()
+    def __init__(self, methodName='runTest'):
+        super(TestBase, self).__init__(methodName)
+        self.nodes = []
+        self.overlay_class = object
+        self.base_calls = []
 
+    def initialize(self, overlay_class, node_count):
         self.nodes = [self.create_node() for _ in range(node_count)]
         self.overlay_class = overlay_class
 
@@ -50,7 +54,7 @@ class TestBase(unittest.TestCase):
         self.nodes.append(node)
 
     @inlineCallbacks
-    def deliver_messages(self, timeout=.05):
+    def deliver_messages(self, timeout=.1):
         """
         Allow peers to communicate.
 

@@ -9,7 +9,8 @@ from test.util import twisted_test
 class TestTunnelCommunity(TestBase):
 
     def setUp(self):
-        super(TestTunnelCommunity, self).setUp(TunnelCommunity, 2)
+        super(TestTunnelCommunity, self).setUp()
+        self.initialize(TunnelCommunity, 2)
 
         # An actual UDPEndpoint, if needed by the test (for catching exited data)
         self.public_endpoint = None
