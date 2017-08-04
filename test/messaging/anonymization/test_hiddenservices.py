@@ -64,8 +64,9 @@ class TestHiddenServices(TestBase):
         """
         Create an 1 hop introduction point for some node for some service.
         """
-        self.nodes[node_nr].overlay.hops[service] = 1
-        self.nodes[node_nr].overlay.create_introduction_point(service)
+        lookup_service = self.nodes[node_nr].overlay.get_lookup_info_hash(service)
+        self.nodes[node_nr].overlay.hops[lookup_service] = 1
+        self.nodes[node_nr].overlay.create_introduction_point(lookup_service)
 
         yield self.deliver_messages()
 
@@ -101,9 +102,11 @@ class TestHiddenServices(TestBase):
         yield self.introduce_nodes()
         yield self.create_intro(0, self.service)
 
+        lookup_service = self.nodes[0].overlay.get_lookup_info_hash(self.service)
+
         intro_made = False
         for node_nr in range(1, len(self.nodes)):
-            intro_made |= self.service in self.nodes[node_nr].overlay.intro_point_for
+            intro_made |= lookup_service in self.nodes[node_nr].overlay.intro_point_for
 
         self.assertTrue(intro_made)
 
@@ -124,13 +127,12 @@ class TestHiddenServices(TestBase):
             callback.called = True
         callback.called = False
 
-        self.nodes[0].overlay.service_callbacks[self.service] = callback
+        self.nodes[0].overlay.register_service(self.service, 1, callback, 0)
 
         yield self.introduce_nodes()
         yield self.create_intro(2, self.service)
         yield self.assign_exit_node(0)
 
-        self.nodes[0].overlay.hops[self.service] = 1
         self.nodes[0].overlay.do_dht_lookup(self.service)
 
         yield self.deliver_messages()
@@ -148,12 +150,11 @@ class TestHiddenServices(TestBase):
 
         callback.called = False
 
-        self.nodes[0].overlay.service_callbacks[self.service] = callback
+        self.nodes[0].overlay.register_service(self.service, 1, callback, 0)
 
         yield self.introduce_nodes()
         yield self.assign_exit_node(0)
 
-        self.nodes[0].overlay.hops[self.service] = 1
         self.nodes[0].overlay.do_dht_lookup(self.service)
 
         yield self.deliver_messages()

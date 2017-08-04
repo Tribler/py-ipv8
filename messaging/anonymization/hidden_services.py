@@ -60,6 +60,25 @@ class HiddenTunnelCommunity(TunnelCommunity):
             chr(21): self.on_dht_request
         })
 
+    def register_service(self, service, hops, callback, create_intros=1):
+        """
+        Register a hidden service by assigning a callback to a service identifier.
+
+        :param service: the service identifier
+        :type service: str
+        :param hops: the amount of hops for our introduction circuit
+        :type hops: int
+        :param callback: the callback function to call when we receive data for our service
+        :param create_intros: the amount of introduction circuits to create for our service
+        """
+        lookup_service = self.get_lookup_info_hash(service)
+
+        self.hops[lookup_service] = hops
+        self.service_callbacks[lookup_service] = callback
+
+        if create_intros:
+            self.create_introduction_point(lookup_service, create_intros)
+
     def ip_to_circuit_id(self, ip_str):
         return struct.unpack("!I", socket.inet_aton(ip_str))[0]
 
@@ -92,6 +111,8 @@ class HiddenTunnelCommunity(TunnelCommunity):
             self.logger.info("removed rendezvous point %d" % circuit_id)
 
     def do_dht_lookup(self, info_hash):
+        info_hash = self.get_lookup_info_hash(info_hash)
+
         # Select a circuit from the pool of exit circuits
         self.logger.info("Do DHT request: select circuit")
         circuit = self.selection_strategy.select(None, self.hops[info_hash])
@@ -406,7 +427,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
             return
 
         cache = self.request_cache.pop(u"link-request", payload.identifier)
-        download = self.find_download(self.get_lookup_info_hash(cache.info_hash))
+        download = self.find_download(cache.info_hash)
         if download:
             download((self.circuit_id_to_ip(cache.circuit.circuit_id), CIRCUIT_ID_PORT))
         else:
@@ -414,7 +435,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
 
     def find_download(self, lookup_info_hash):
         for service in self.service_callbacks:
-            if lookup_info_hash == self.get_lookup_info_hash(service):
+            if lookup_info_hash == service:
                 return self.service_callbacks[service]
 
     def create_introduction_point(self, info_hash, amount=1):
