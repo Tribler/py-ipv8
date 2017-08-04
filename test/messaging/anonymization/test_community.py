@@ -39,7 +39,7 @@ class TestTunnelCommunity(TestBase):
     @twisted_test
     def test_introduction_as_exit(self):
         """
-        Test if introduction requests share the fact that nodes are exit nodes.
+        Check if introduction requests share the fact that nodes are exit nodes.
         """
         self.nodes[0].overlay.settings.become_exitnode = True
         self.nodes[1].overlay.settings.become_exitnode = False
@@ -52,7 +52,7 @@ class TestTunnelCommunity(TestBase):
     @twisted_test
     def test_introduction_as_exit_twoway(self):
         """
-        Test if two nodes can have each other as exit nodes.
+        Check if two nodes can have each other as exit nodes.
         """
         self.nodes[0].overlay.settings.become_exitnode = True
         self.nodes[1].overlay.settings.become_exitnode = True
@@ -65,7 +65,7 @@ class TestTunnelCommunity(TestBase):
     @twisted_test
     def test_introduction_as_exit_noway(self):
         """
-        Test if two nodes don't advertise themselves as exit node incorrectly.
+        Check if two nodes don't advertise themselves as exit node incorrectly.
         """
         self.nodes[0].overlay.settings.become_exitnode = False
         self.nodes[1].overlay.settings.become_exitnode = False
@@ -78,7 +78,7 @@ class TestTunnelCommunity(TestBase):
     @twisted_test
     def test_create_circuit(self):
         """
-        Test if 1 hop circuit creation works.
+        Check if 1 hop circuit creation works.
         """
         self.nodes[1].overlay.settings.become_exitnode = True
         yield self.introduce_nodes()
@@ -98,7 +98,7 @@ class TestTunnelCommunity(TestBase):
     @twisted_test
     def test_create_circuit_no_exit(self):
         """
-        Test if 1 hop circuit creation fails without exit nodes.
+        Check if 1 hop circuit creation fails without exit nodes.
         """
         self.nodes[1].overlay.settings.become_exitnode = False
         yield self.introduce_nodes()
@@ -115,7 +115,7 @@ class TestTunnelCommunity(TestBase):
     @twisted_test
     def test_destroy_circuit(self):
         """
-        Test if a 1 hop circuit can be destroyed.
+        Check if a 1 hop circuit can be destroyed.
         """
         self.nodes[1].overlay.settings.become_exitnode = True
         yield self.introduce_nodes()
@@ -134,7 +134,7 @@ class TestTunnelCommunity(TestBase):
     @twisted_test
     def test_destroy_circuit_bad_id(self):
         """
-        Test if the correct circuit gets destroyed.
+        Check if the correct circuit gets destroyed.
         """
         self.nodes[1].overlay.settings.become_exitnode = True
         yield self.introduce_nodes()
@@ -154,7 +154,7 @@ class TestTunnelCommunity(TestBase):
     @twisted_test
     def test_tunnel_data(self):
         """
-        Test if data is correctly exited.
+        Check if data is correctly exited.
         """
         # Listen in on communication of the target
         self.public_endpoint = UDPEndpoint(8080)
@@ -186,7 +186,7 @@ class TestTunnelCommunity(TestBase):
     @twisted_test
     def test_two_hop_circuit(self):
         """
-        Test if a two hop circuit is correctly created.
+        Check if a two hop circuit is correctly created.
 
         Note that we avoid exit nodes in the relay path, so we explicitly set relay nodes to not be exits.
         """
@@ -203,7 +203,7 @@ class TestTunnelCommunity(TestBase):
     @twisted_test
     def test_three_hop_circuit(self):
         """
-        Test if a three hop circuit is correctly created.
+        Check if a three hop circuit is correctly created.
 
         Note that we avoid exit nodes in the relay path, so we explicitly set relay nodes to not be exits.
         """
@@ -221,7 +221,7 @@ class TestTunnelCommunity(TestBase):
     @twisted_test
     def test_create_two_circuit(self):
         """
-        Test if multiple 1 hop circuit creation works.
+        Check if multiple 1 hop circuit creation works.
         """
         self.add_node_to_experiment(self.create_node())
         self.nodes[0].overlay.settings.min_circuits = 2
