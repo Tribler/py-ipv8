@@ -1,30 +1,61 @@
 #!/bin/bash
-test_files=""
-test_files="$test_files test/keyvault/test_serialization.py:TestSerialization"
-test_files="$test_files test/keyvault/test_signature.py:TestSignatures"
-test_files="$test_files test/messaging/anonymization/test_community.py:TestTunnelCommunity"
-test_files="$test_files test/messaging/anonymization/test_hiddenservices.py:TestHiddenServices"
+
+# 1. Read the classes which should be tested.
+test_files="$(grep ^[^#] test_classes_list.txt)"
+
+# 2. Figure out if the user has nosetests installed.
+#    Change the test command and parameters accordingly.
+tput bold
+echo -n "Starting IPv8 testsuite: "
+if nosetests --version >>/dev/null 2>&1; then
+echo "using test runner 'nosetests'!"
+test_command="nosetests -s -x -v"
+else
+echo "using test runner 'python -m unittest'!"
+test_command="python -m unittest --verbose"
+test_files="${test_files//\//.}"
+test_files="${test_files//.py:/.}"
+fi
+tput sgr0
+
+# 3. Set up the python path for test code execution
 export PYTHONPATH='.'
+
+# 4. Set up variables needed for test output collection
 TIMEFORMAT="Total time with overhead: %R seconds"
 unit_test_time=0
 total_test_count=0
 time {
+# 5. Loop over all of the input files and test them
 for f in $test_files; do
+# 5.a. Print the header
 echo "======================================================================"
 echo " $f"
 echo "======================================================================"
-set -o pipefail
+# 5.b. Pipe the output of the test command to a temporary file: we need to
+#      do this, otherwise we lose the real-time tester output.
 t=$(tempfile)
-nosetests -s -x -v "$f" 2> >(tee $t >&2)
+set -o pipefail
+$test_command "$f" 2> >(tee $t >&2)
 exit_status=$?
-if [ $exit_status -ne 0 ] ; then echo "CRITICAL FAILURE: ABORTING" ; break ; fi
+if [ $exit_status -ne 0 ] ; then tput rev; tput setaf 1; echo "CRITICAL FAILURE: ABORTING"; tput sgr0; break; fi
+# 5.c. Parse the command output and extract the test time and test count for
+#      this particular class. Then proceed to add them to the totals. Note that
+#      we need 'bc' for the time as these are floating point numbers.
 last_time=$(cat $t | grep "Ran [0-9]\+ tests in [0-9]\+\.[0-9]\+s" | grep -o "[0-9]\+\.[0-9]\+")
 unit_test_time=`echo $unit_test_time + $last_time | bc`
 last_test_count=$(cat $t | grep "Ran [0-9]\+ tests in [0-9]\+\.[0-9]\+s" | grep -o " [0-9]\+ ")
 total_test_count=$((total_test_count + last_test_count))
 done
+# 6. Show the totals. Note that '}' is the end of the 'time' command, which
+#    will print 'TIMEFORMAT'.
+tput bold
 echo ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
 }
 echo "Total time in tests:      $unit_test_time seconds"
 echo "Total amount of tests:    $total_test_count"
 echo "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
+tput sgr0
+
+# 7. Exit the script with the test runner status.
+exit $exit_status

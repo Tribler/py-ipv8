@@ -1,0 +1,9 @@
+# List of all test classes to run for the run_all_tests script.
+#
+#   <path>/<file_name>.py:<TestClass>
+
+test/keyvault/test_serialization.py:TestSerialization
+test/keyvault/test_signature.py:TestSignatures
+
+test/messaging/anonymization/test_community.py:TestTunnelCommunity
+test/messaging/anonymization/test_hiddenservices.py:TestHiddenServices
