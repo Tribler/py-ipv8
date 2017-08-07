@@ -124,4 +124,4 @@ class TestBase(unittest.TestCase):
     def introduce_nodes(self):
         for node in self.nodes:
             node.discovery.take_step()
-        yield self.deliver_messages()
+        yield self.sleep()
