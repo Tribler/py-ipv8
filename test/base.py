@@ -28,9 +28,9 @@ class TestBase(unittest.TestCase):
         self.overlay_class = object
         self.base_calls = []
 
-    def initialize(self, overlay_class, node_count):
-        self.nodes = [self.create_node() for _ in range(node_count)]
+    def initialize(self, overlay_class, node_count, *args, **kwargs):
         self.overlay_class = overlay_class
+        self.nodes = [self.create_node(*args, **kwargs) for _ in range(node_count)]
 
         # Add nodes to each other
         for node in self.nodes:
@@ -80,8 +80,8 @@ class TestBase(unittest.TestCase):
     def tearDownClass(cls):
         cls.__testing__ = False
 
-    def create_node(self):
-        return MockIPv8(u"low", self.overlay_class)
+    def create_node(self, *args, **kwargs):
+        return MockIPv8(u"low", self.overlay_class, *args, **kwargs)
 
     def add_node_to_experiment(self, node):
         """

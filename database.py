@@ -5,8 +5,11 @@ This module provides basic database functionalty and simple version control.
 @organization: Technical University Delft
 @contact: dispersy@frayja.com
 """
+from collections import defaultdict
 import logging
+import os
 import sys
+from threading import RLock
 from abc import ABCMeta, abstractmethod
 
 if sys.platform == "darwin":
@@ -24,6 +27,19 @@ def execute_or_script(cursor, statement):
         cursor.executescript(statement)
     else:
         cursor.execute(statement)
+
+
+db_locks = defaultdict(RLock)
+def db_call(f):
+    def wrapper(self, *args, **kwargs):
+        with db_locks[self._file_path]:
+            return f(self, *args, **kwargs)
+    return wrapper
+
+
+def _thread_safe_result_it(result, fetch_all=True):
+    rows = (result.fetchall() if fetch_all else result.fetchone()) or []
+    return (row for row in rows)
 
 
 class IgnoreCommits(Exception):
@@ -87,6 +103,8 @@ class Database(object):
         self._assert(self._connection is None, "Database.open() has already been called")
 
         self._logger.debug("open database [%s]", self._file_path)
+        if (not self._file_path.startswith(':')) and (not os.path.isfile(self._file_path)):
+            os.makedirs(os.path.dirname(self._file_path))
         self._connect()
         if initial_statements:
             self._initial_statements()
@@ -109,8 +127,10 @@ class Database(object):
         return True
 
     def _connect(self):
-        self._connection = sqlite3.Connection(self._file_path)
+        self._connection = sqlite3.connect(self._file_path, check_same_thread = False)
         self._cursor = self._connection.cursor()
+
+        assert self._cursor
 
     def _initial_statements(self):
         self._assert(self._cursor is not None,
@@ -248,7 +268,8 @@ class Database(object):
             # returning False to let Python reraise the exception.
             return False
 
-    def execute(self, statement, bindings=(), get_lastrowid=False):
+    @db_call
+    def execute(self, statement, bindings=(), get_lastrowid=False, fetch_all=True):
         """
         Execute one SQL statement.
 
@@ -276,9 +297,10 @@ class Database(object):
         result = self._cursor.execute(statement, bindings)
         if get_lastrowid:
             result = self._cursor.lastrowid
-        return result
+        return _thread_safe_result_it(result, fetch_all)
 
-    def executescript(self, statements):
+    @db_call
+    def executescript(self, statements, fetch_all=True):
         self._assert(self._cursor is not None,
                      "Database.close() has been called or Database.open() has not been called")
         self._assert(self._connection is not None,
@@ -286,9 +308,12 @@ class Database(object):
         self._assert(isinstance(statements, unicode), "The SQL statement must be given in unicode")
 
         self._logger.log(logging.NOTSET, "%s [%s]", statements, self._file_path)
-        return self._cursor.executescript(statements)
 
-    def executemany(self, statement, sequenceofbindings):
+        result = self._cursor.executescript(statements)
+        return _thread_safe_result_it(result, fetch_all)
+
+    @db_call
+    def executemany(self, statement, sequenceofbindings, fetch_all=True):
         """
         Execute one SQL statement several times.
 
@@ -321,8 +346,10 @@ class Database(object):
                      "Database.close() has been called or Database.open() has not been called")
 
         self._logger.log(logging.NOTSET, "%s [%s]", statement, self._file_path)
-        return self._cursor.executemany(statement, sequenceofbindings)
+        result = self._cursor.executemany(statement, sequenceofbindings)
+        return _thread_safe_result_it(result, fetch_all)
 
+    @db_call
     def commit(self, exiting=False):
         self._assert(self._cursor is not None,
                      "Database.close() has been called or Database.open() has not been called")

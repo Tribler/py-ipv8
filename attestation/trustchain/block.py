@@ -1,8 +1,7 @@
 from hashlib import sha256
 
-from Tribler.Core.Utilities.encoding import encode, decode
-from Tribler.dispersy.crypto import ECCrypto
-
+from keyvault.crypto import ECCrypto
+from messaging.deprecated.encoding import decode, encode
 from messaging.serialization import Serializer
 from .payload import HalfBlockPayload
 
@@ -71,7 +70,7 @@ class TrustChainBlock(object):
         """
         args = [self.public_key, self.sequence_number, self.link_public_key, self.link_sequence_number,
                 self.previous_hash, self.signature if signature else EMPTY_SIG, self.transaction]
-        return self.serializer.pack_multiple(HalfBlockPayload(*args))
+        return self.serializer.pack_multiple(HalfBlockPayload(*args).to_pack_list())
 
     def validate_transaction(self, database):
         """

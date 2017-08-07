@@ -42,9 +42,9 @@ if [ $exit_status -ne 0 ] ; then tput rev; tput setaf 1; echo "CRITICAL FAILURE:
 # 5.c. Parse the command output and extract the test time and test count for
 #      this particular class. Then proceed to add them to the totals. Note that
 #      we need 'bc' for the time as these are floating point numbers.
-last_time=$(cat $t | grep "Ran [0-9]\+ tests in [0-9]\+\.[0-9]\+s" | grep -o "[0-9]\+\.[0-9]\+")
+last_time=$(cat $t | grep "Ran [0-9]\+ tests\? in [0-9]\+\.[0-9]\+s" | grep -o "[0-9]\+\.[0-9]\+")
 unit_test_time=`echo $unit_test_time + $last_time | bc`
-last_test_count=$(cat $t | grep "Ran [0-9]\+ tests in [0-9]\+\.[0-9]\+s" | grep -o " [0-9]\+ ")
+last_test_count=$(cat $t | grep "Ran [0-9]\+ tests\? in [0-9]\+\.[0-9]\+s" | grep -o " [0-9]\+ ")
 total_test_count=$((total_test_count + last_test_count))
 done
 # 6. Show the totals. Note that '}' is the end of the 'time' command, which

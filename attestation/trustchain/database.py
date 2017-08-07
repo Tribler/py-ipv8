@@ -1,9 +1,11 @@
 """
 This file contains everything related to persistence for TrustChain.
 """
+from __future__ import absolute_import
+
 import os
 
-from ...database import Database
+from database import Database
 from .block import TrustChainBlock
 
 
@@ -25,7 +27,10 @@ class TrustChainDB(Database):
         that will contain the the db at working directory/DATABASE_PATH
         :param db_name: The name of the database
         """
-        db_path = os.path.join(working_directory, os.path.join(DATABASE_DIRECTORY, u"%s.db" % db_name))
+        if working_directory != u":memory:":
+            db_path = os.path.join(working_directory, os.path.join(DATABASE_DIRECTORY, u"%s.db" % db_name))
+        else:
+            db_path = working_directory
         super(TrustChainDB, self).__init__(db_path)
         self._logger.debug("TrustChain database path: %s", db_path)
         self.db_name = db_name
@@ -43,11 +48,11 @@ class TrustChainDB(Database):
         self.commit()
 
     def _get(self, query, params):
-        db_result = self.execute(self.get_sql_header() + query, params).fetchone()
+        db_result = list(self.execute(self.get_sql_header() + query, params, fetch_all=False))
         return TrustChainBlock(db_result) if db_result else None
 
     def _getall(self, query, params):
-        db_result = self.execute(self.get_sql_header() + query, params).fetchall()
+        db_result = list(self.execute(self.get_sql_header() + query, params, fetch_all=True))
         return [TrustChainBlock(db_item) for db_item in db_result]
 
     def get(self, public_key, sequence_number):
