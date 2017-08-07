@@ -51,7 +51,7 @@ class TestBase(unittest.TestCase):
     def tearDown(self):
         super(TestBase, self).tearDown()
         for node in self.nodes:
-            node.overlay.unload()
+            node.unload()
 
     @classmethod
     def setUpClass(cls):

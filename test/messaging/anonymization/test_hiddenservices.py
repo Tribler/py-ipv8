@@ -42,7 +42,7 @@ class TestHiddenServices(TestBase):
         super(TestHiddenServices, self).tearDown()
 
         for node in self.private_nodes:
-            node.overlay.unload()
+            node.unload()
 
     def create_node(self):
         # Initialize a HiddenTunnelCommunity without circuits or exit node functionality

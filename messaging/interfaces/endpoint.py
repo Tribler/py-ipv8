@@ -40,7 +40,7 @@ class Endpoint(object):
         """
         Ensure that the listener is still loaded when delivering the packet later.
         """
-        if listener in self._listeners:
+        if self.is_open() and listener in self._listeners:
             listener.on_packet(packet)
 
     def notify_listeners(self, packet):

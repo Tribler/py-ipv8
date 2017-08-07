@@ -15,3 +15,7 @@ class MockIPv8(object):
 
         self.overlay.my_estimated_wan = self.endpoint.wan_address
         self.overlay.my_estimated_lan = self.endpoint.lan_address
+
+    def unload(self):
+        self.endpoint.close()
+        self.overlay.unload()
