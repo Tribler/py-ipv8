@@ -40,7 +40,7 @@ class Endpoint(object):
         """
         Ensure that the listener is still loaded when delivering the packet later.
         """
-        if self.is_open() and listener in self._listeners:
+        if reactor.running and self.is_open() and listener in self._listeners:
             listener.on_packet(packet)
 
     def notify_listeners(self, packet):
@@ -52,7 +52,7 @@ class Endpoint(object):
         for listener in self._listeners:
             if listener.use_main_thread:
                 blockingCallFromThread(reactor, self._deliver_later, listener, packet)
-            else:
+            elif reactor.running:
                 reactor.callInThread(self._deliver_later, listener, packet)
 
     @abc.abstractmethod
