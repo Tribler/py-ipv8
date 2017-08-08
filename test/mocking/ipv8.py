@@ -8,6 +8,7 @@ class MockIPv8(object):
 
     def __init__(self, crypto_curve, overlay_class, *args, **kwargs):
         self.endpoint = AutoMockEndpoint()
+        self.endpoint.open()
         self.network = Network()
         self.my_peer = Peer(ECCrypto().generate_key(crypto_curve), self.endpoint.wan_address)
         self.overlay = overlay_class(self.my_peer, self.endpoint, self.network, *args, **kwargs)

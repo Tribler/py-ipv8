@@ -58,6 +58,14 @@ class TrustChainBlock(object):
             self.link_sequence_number,
             self.transaction)
 
+    def __hash__(self):
+        return self.hash
+
+    def __eq__(self, other):
+        if not isinstance(other, TrustChainBlock):
+            return False
+        return self.pack() == other.pack()
+
     @property
     def hash(self):
         return sha256(self.pack()).digest()
@@ -273,6 +281,7 @@ class TrustChainBlock(object):
         else:
             ret.transaction = transaction
             ret.link_public_key = link_pk
+            ret.link_sequence_number = UNKNOWN_SEQ
 
         if blk:
             ret.sequence_number = blk.sequence_number + 1

@@ -9,6 +9,7 @@ class MockTunnelExitSocket(TunnelExitSocket, EndpointListener):
 
     def __init__(self, parent):
         self.endpoint = AutoMockEndpoint()
+        self.endpoint.open()
 
         TunnelExitSocket.__init__(self, parent.circuit_id, parent.overlay, parent.sock_addr, parent.mid)
         parent.close()

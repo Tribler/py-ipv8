@@ -18,27 +18,30 @@ class MockEndpoint(Endpoint):
         self.wan_address = wan_address
 
         self._port = self.lan_address[1]
+        self._open = False
 
     def assert_open(self):
-        pass
+        assert self._open
 
     def is_open(self):
-        return True
+        return self._open
 
     def get_address(self):
         return self.wan_address
 
     def send(self, socket_address, packet):
+        if not self.is_open():
+            return
         if socket_address in internet:
             reactor.callInThread(internet[socket_address].notify_listeners, (self.wan_address, packet))
         else:
             raise AssertionError("Received data from unregistered address %s", repr(socket_address))
 
     def open(self):
-        pass
+        self._open = True
 
     def close(self, timeout=0.0):
-        pass
+        self._open = False
 
 
 class AutoMockEndpoint(MockEndpoint):

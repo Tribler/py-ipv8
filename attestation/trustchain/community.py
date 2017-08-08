@@ -3,8 +3,10 @@ The TrustChain Community is the first step in an incremental approach in buildin
 This reputation system builds a tamper proof interaction history contained in a chain data-structure.
 Every node has a chain and these chains intertwine by blocks shared by chains.
 """
+from collections import defaultdict
 import logging
 import time
+from threading import Lock
 
 from .block import TrustChainBlock, ValidationResult, EMPTY_PK, GENESIS_SEQ, UNKNOWN_SEQ
 from .database import TrustChainDB
@@ -15,6 +17,17 @@ from peer import Peer
 
 HALF_BLOCK = u"half_block"
 CRAWL = u"crawl"
+receive_block_lock = Lock()
+
+
+def synchronized(f):
+    """
+    Due to database inconsistencies, we can't allow multiple threads to handle a received_half_block at the same time.
+    """
+    def wrapper(self, *args, **kwargs):
+        with receive_block_lock:
+            return f(self, *args, **kwargs)
+    return wrapper
 
 
 class TrustChainCommunity(Community):
@@ -94,6 +107,7 @@ class TrustChainCommunity(Community):
             self.persistence.add_block(block)
             self.send_block(peer, block)
 
+    @synchronized
     def received_half_block(self, source_address, data):
         """
         We've received a half block, either because we sent a SIGNED message to some one or we are crawling
@@ -149,7 +163,7 @@ class TrustChainCommunity(Community):
 
         global_time = self.claim_global_time()
         auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
-        payload = CrawlRequestPayload(sq)
+        payload = CrawlRequestPayload(sq).to_pack_list()
         dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
 
         packet = self._ez_pack(self._prefix, 2, [auth, dist, payload])
