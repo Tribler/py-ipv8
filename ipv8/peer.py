@@ -25,10 +25,6 @@ class Peer(object):
         self.last_response = 0 if intro else time()
         self._lamport_timestamp = 0
 
-    @classmethod
-    def generate(cls):
-        return Peer(ECCrypto.generate_key(u'high'))
-
     def update_clock(self, timestamp):
         """
         Update the Lamport timestamp for this peer. The Lamport clock dictates that the current timestamp is
@@ -78,8 +74,6 @@ class Peer(object):
         return unpack(">Q", out)[0]
 
     def __eq__(self, other):
-        if not isinstance(other, Peer):
-            return False
         return (self.public_key.key_to_bin() == other.public_key.key_to_bin()) and (self.address == other.address)
 
     def __str__(self):

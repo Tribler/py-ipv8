@@ -1,14 +1,17 @@
 import time
 import unittest
 
+from ipv8.keyvault.crypto import ECCrypto
 from ipv8.peer import Peer
 
 
 class TestPeer(unittest.TestCase):
 
+    test_key = ECCrypto().generate_key(u"very-low")
+
     def setUp(self):
         super(TestPeer, self).setUp()
-        self.peer = Peer("", ("1.2.3.4", 5))
+        self.peer = Peer(TestPeer.test_key, ("1.2.3.4", 5))
 
     def test_default_timestamp(self):
         """
@@ -64,3 +67,33 @@ class TestPeer(unittest.TestCase):
 
         self.assertTrue(self.peer.is_inactive())
         self.assertTrue(self.peer.should_drop())
+
+    def test_peer_equality(self):
+        """
+        Check if peers with the same key and address are equal.
+        """
+        other = Peer(self.peer.key, self.peer.address)
+
+        self.assertEqual(self.peer, other)
+
+    def test_peer_inequality_key(self):
+        """
+        Check if peers with a different key and same address are not equal.
+        """
+        other = Peer(ECCrypto().generate_key(u"very-low"), self.peer.address)
+
+        self.assertNotEqual(self.peer, other)
+
+    def test_peer_inequality_address(self):
+        """
+        Check if peers with the same key and a different address are not equal.
+        """
+        other = Peer(self.peer.key)
+
+        self.assertNotEqual(self.peer, other)
+
+    def test_to_string(self):
+        """
+        Check if the __str__ method functions properly.
+        """
+        self.assertEqual(str(self.peer), "Peer<1.2.3.4:5, %s>" % self.peer.mid.encode('base64')[:-1])
