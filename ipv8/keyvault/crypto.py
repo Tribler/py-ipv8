@@ -57,8 +57,8 @@ class ECCrypto(object):
         @param security_level: Level of security {u'very-low', u'low', u'medium', or u'high'}.
         @type security_level: unicode
         """
-        assert isinstance(security_level, unicode)
-        assert security_level in _CURVES
+        if security_level not in _CURVES:
+            raise RuntimeError("Illegal curve for key generation: %s" % security_level)
 
         curve = _CURVES[security_level]
         if curve[1] == "M2Crypto":

@@ -61,3 +61,23 @@ class TestSignatures(unittest.TestCase):
         signature = key.signature(self.data)
 
         self.assertTrue(self.ec.is_valid_signature(key.pub(), self.data, signature))
+
+    def test_invalid_m2crypto(self):
+        """
+        Check if an M2Crypto key detects an invalid signature.
+        """
+        key = self.ec.generate_key(u"very-low")
+
+        signature = ""
+
+        self.assertFalse(self.ec.is_valid_signature(key.pub(), self.data, signature))
+
+    def test_invalid_nacl(self):
+        """
+        Check if an libnacl key detects an invalid signature.
+        """
+        key = self.ec.generate_key(u"curve25519")
+
+        signature = ""
+
+        self.assertFalse(self.ec.is_valid_signature(key.pub(), self.data, signature))
