@@ -1,8 +1,10 @@
+from __future__ import absolute_import
+
 import random
 
 from twisted.internet import reactor
 
-from messaging.interfaces.endpoint import Endpoint, EndpointListener
+from ipv8.messaging.interfaces.endpoint import Endpoint, EndpointListener
 
 internet = {}
 

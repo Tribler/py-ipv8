@@ -1,8 +1,8 @@
 from twisted.internet.defer import inlineCallbacks
 
-from messaging.anonymization.community import TunnelSettings
-from messaging.anonymization.hidden_services import HiddenTunnelCommunity
-from peer import Peer
+from ipv8.messaging.anonymization.community import TunnelSettings
+from ipv8.messaging.anonymization.hidden_services import HiddenTunnelCommunity
+from ipv8.peer import Peer
 from test.base import TestBase
 from test.mocking.exit_socket import MockTunnelExitSocket
 from test.mocking.ipv8 import MockIPv8

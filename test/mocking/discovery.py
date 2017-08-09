@@ -1,4 +1,6 @@
-from peerdiscovery.discovery import DiscoveryStrategy
+from __future__ import absolute_import
+
+from ipv8.peerdiscovery.discovery import DiscoveryStrategy
 
 
 class MockWalk(DiscoveryStrategy):

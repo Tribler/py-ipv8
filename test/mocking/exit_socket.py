@@ -1,7 +1,9 @@
+from __future__ import absolute_import
+
 from twisted.internet.defer import succeed
 
-from messaging.interfaces.endpoint import EndpointListener
-from messaging.anonymization.tunnel import DataChecker, TunnelExitSocket
+from ipv8.messaging.interfaces.endpoint import EndpointListener
+from ipv8.messaging.anonymization.tunnel import DataChecker, TunnelExitSocket
 from test.mocking.endpoint import AutoMockEndpoint
 
 

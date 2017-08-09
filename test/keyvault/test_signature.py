@@ -1,6 +1,6 @@
 import unittest
 
-from keyvault.crypto import ECCrypto
+from ipv8.keyvault.crypto import ECCrypto
 
 
 class TestSignatures(unittest.TestCase):

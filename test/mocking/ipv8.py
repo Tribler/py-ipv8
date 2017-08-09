@@ -1,6 +1,8 @@
-from keyvault.crypto import ECCrypto
-from peer import Peer
-from peerdiscovery.network import Network
+from __future__ import absolute_import
+
+from ipv8.keyvault.crypto import ECCrypto
+from ipv8.peer import Peer
+from ipv8.peerdiscovery.network import Network
 from test.mocking.endpoint import AutoMockEndpoint
 from test.mocking.discovery import MockWalk
 

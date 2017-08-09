@@ -1,5 +1,5 @@
-from messaging.anonymization.community import TunnelCommunity, TunnelSettings
-from messaging.interfaces.udp.endpoint import UDPEndpoint
+from ipv8.messaging.anonymization.community import TunnelCommunity, TunnelSettings
+from ipv8.messaging.interfaces.udp.endpoint import UDPEndpoint
 from test.base import TestBase
 from test.mocking.endpoint import MockEndpointListener
 from test.mocking.ipv8 import MockIPv8

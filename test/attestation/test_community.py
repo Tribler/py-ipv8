@@ -1,4 +1,4 @@
-from attestation.trustchain.community import TrustChainCommunity, UNKNOWN_SEQ
+from ipv8.attestation.trustchain.community import TrustChainCommunity, UNKNOWN_SEQ
 from test.base import TestBase
 from test.mocking.ipv8 import MockIPv8
 from test.util import twisted_test

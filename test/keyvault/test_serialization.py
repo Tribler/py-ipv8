@@ -1,8 +1,8 @@
 import unittest
 
-from keyvault.crypto import ECCrypto
-from keyvault.public.m2crypto import M2CryptoPK
-from keyvault.private.m2crypto import M2CryptoSK
+from ipv8.keyvault.crypto import ECCrypto
+from ipv8.keyvault.public.m2crypto import M2CryptoPK
+from ipv8.keyvault.private.m2crypto import M2CryptoSK
 
 
 class TestSerialization(unittest.TestCase):

@@ -1,7 +1,7 @@
 import time
 import unittest
 
-from peer import Peer
+from ipv8.peer import Peer
 
 
 class TestPeer(unittest.TestCase):
