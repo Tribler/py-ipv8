@@ -37,6 +37,7 @@ with open('test_classes_list.txt', 'r') as test_class_file:
         cov = coverage.Coverage(data_file=data_file, data_suffix=True, config_file=False,
                                 branch=True, source=['ipv8'], include=['*'], omit="ipv8/ipv8.py")
         cov.load()
+        cov.exclude('pass')
         cov.start()
 
         output_stream = StringIO()
