@@ -91,37 +91,6 @@ class VarLen(object):
         return out
 
 
-class DoubleVarLen(object):
-    """
-    Paste/unpack from an encoded length1, length2 + data string1, data string2.
-    """
-
-    def __init__(self, format1, format2, base1=1, base2=1):
-        super(DoubleVarLen, self).__init__()
-        self.format1 = format1
-        self.format1_size = Struct(self.format1).size
-        self.format2 = format2
-        self.format2_size = Struct(self.format1).size
-        self.base1 = base1
-        self.base2 = base2
-        self.size = 0
-
-    def pack(self, data1, data2):
-        length1 = len(data1)/self.base1
-        length2 = len(data2)/self.base2
-        self.size = self.format1_size + len(data1) + self.format2_size + len(data2)
-        return pack('>%s%s%ds%ds' % (self.format1, self.format2, length1, length2), length1, length2, data1, data2)
-
-    def unpack_from(self, data, offset=0):
-        length1, length2 = unpack_from('>%s%s' % (self.format1, self.format2), data, offset)
-        raw_length = length1 + length2
-        length1 *= self.base1
-        length2 *= self.base1
-        out1, out2 = unpack_from('>%ds%ds' % (length1, length2), data, offset + self.format1_size + self.format2_size)
-        self.size = self.format1_size + self.format2_size + raw_length
-        return [out1, out2]
-
-
 class DefaultStruct(Struct):
 
     def __init__(self, format, single_value=False):
