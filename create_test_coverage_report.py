@@ -27,18 +27,14 @@ clean_directory(prepare=True)
 
 with open('test_classes_list.txt', 'r') as test_class_file:
     lines = [line[:-1] for line in test_class_file.readlines() if line.strip() and not line.startswith('#')]
-    cov = None
-    for line in lines:
-        if cov:
-            cov.stop()
-            cov.save()
-            del cov
-        print "Measuring coverage for", line
-        cov = coverage.Coverage(data_file=data_file, data_suffix=True, config_file=False,
+
+    cov = coverage.Coverage(data_file=data_file, data_suffix=True, config_file=False,
                                 branch=True, source=['ipv8'], include=['*'], omit="ipv8/ipv8.py")
-        cov.load()
-        cov.exclude('pass')
-        cov.start()
+    cov.exclude('pass')
+    cov.start()
+
+    for line in lines:
+        print "Measuring coverage for", line
 
         output_stream = StringIO()
         formatted_line = line.replace('/', '.').replace('.py:', '.')
@@ -47,10 +43,9 @@ with open('test_classes_list.txt', 'r') as test_class_file:
         assert "\nOK\n" in output_stream.getvalue(), "ERROR: UNIT TESTS FAILED, PLEASE FIX BEFORE RUNNING COVERAGE"
         output_stream.close()
 
-    if cov:
-        cov.combine()
-        print "Generating HTML report"
-        cov.html_report(directory='coverage', omit="ipv8/keyvault/libnacl/*")
-        cov.stop()
+    cov.stop()
+    print "Generating HTML report"
+    cov.html_report(directory='coverage', omit="ipv8/keyvault/libnacl/*")
+    cov.erase()
 
 clean_directory()
