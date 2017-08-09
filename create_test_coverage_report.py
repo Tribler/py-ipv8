@@ -16,14 +16,14 @@ import unittest
 
 data_file = os.path.join('coverage', 'raw', 'coverage_file')
 
-def clean_directory():
+def clean_directory(prepare=False):
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'coverage', 'raw')
     if os.path.isdir(path):
         shutil.rmtree(path)
-    else:
+    if prepare:
         os.makedirs(path)
 
-clean_directory()
+clean_directory(prepare=True)
 
 with open('test_classes_list.txt', 'r') as test_class_file:
     lines = [line[:-1] for line in test_class_file.readlines() if line.strip() and not line.startswith('#')]
