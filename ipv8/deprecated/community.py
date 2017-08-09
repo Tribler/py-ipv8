@@ -236,12 +236,6 @@ class Community(EZPackOverlay):
         elif warn_unknown:
             self.logger.warning("Received unknown message: %s from (%s, %d)", ord(data[22]), *source_address)
 
-    def split_key_data(self, data):
-        pass
-
-    def on_data(self, peer, data):
-        pass
-
     def walk_to(self, address):
         packet = self.create_introduction_request(address)
         self.endpoint.send(address, packet)

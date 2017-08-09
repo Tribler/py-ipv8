@@ -57,9 +57,6 @@ class TrustChainCommunity(Community):
             chr(2): self.received_crawl_request
         })
 
-    def bootstrap(self):
-        pass
-
     def should_sign(self, payload):
         """
         Return whether we should sign the block in the passed message.

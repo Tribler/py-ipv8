@@ -165,9 +165,6 @@ class TunnelCommunity(Community):
         elif (self._prefix == data[:22]) and (data[22] in self.decode_map_private) and circuit_id:
             self.decode_map_private[data[22]](source_address, data, circuit_id)
 
-    def bootstrap(self):
-        pass
-
     def become_exitnode(self):
         return self.settings.become_exitnode
 

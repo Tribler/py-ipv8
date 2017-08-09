@@ -52,33 +52,12 @@ class Overlay(EndpointListener, TaskManager):
         """
         return Serializer()
 
+    @abc.abstractmethod
     def on_packet(self, packet):
         """
         Callback for when data is received on this endpoint.
 
         :param packet: the received packet, in (source, binary string) format.
-        """
-        source_address, data = packet
-        probable_peer = self.network.get_verified_by_address(source_address)
-        if probable_peer:
-            probable_peer.last_response = time()
-        key_bin, data = self.split_key_data(data)
-        key = self.crypto.key_from_public_bin(key_bin)
-        self.on_data(Peer(key, source_address), data)
-
-    @abc.abstractmethod
-    def split_key_data(self, data):
-        """
-        Split a data string into a key string and remaining data.
-
-        :return: (key_string, other_data)
-        """
-        pass
-
-    @abc.abstractmethod
-    def on_data(self, peer, data):
-        """
-        Callback for when a binary blob of data is received from a peer.
         """
         pass
 
@@ -100,7 +79,6 @@ class Overlay(EndpointListener, TaskManager):
         if global_time > self.global_time:
             self.my_peer.update_clock(global_time)
 
-    @abc.abstractmethod
     def bootstrap(self):
         """
         Perform introduction logic to get into the network.
