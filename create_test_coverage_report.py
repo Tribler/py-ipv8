@@ -35,7 +35,7 @@ with open('test_classes_list.txt', 'r') as test_class_file:
             del cov
         print "Measuring coverage for", line
         cov = coverage.Coverage(data_file=data_file, data_suffix=True, config_file=False,
-                                branch=True, source=['ipv8'], include=['*'])
+                                branch=True, source=['ipv8'], include=['*'], omit="ipv8/ipv8.py")
         cov.load()
         cov.start()
 
