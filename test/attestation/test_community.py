@@ -103,6 +103,34 @@ class TestTrustChainCommunity(TestBase):
         self.assertEqual(self.nodes[1].overlay.persistence.get(my_pubkey, 1).link_sequence_number, UNKNOWN_SEQ)
 
     @twisted_test
+    def test_crawl_default(self):
+        """
+        Check if the default crawl strategy produces blocks.
+        """
+        self.nodes[1].overlay.should_sign = lambda x: False
+
+        yield self.introduce_nodes()
+
+        self.nodes[0].endpoint.close()
+
+        my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
+        his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
+        self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
+                                         transaction={})
+
+        yield self.deliver_messages()
+
+        self.assertIsNone(self.nodes[1].overlay.persistence.get(my_pubkey, 1))
+
+        self.nodes[0].endpoint.open()
+        self.nodes[1].overlay.send_crawl_request(self.nodes[0].my_peer, my_pubkey)
+
+        yield self.deliver_messages()
+
+        self.assertIsNotNone(self.nodes[1].overlay.persistence.get(my_pubkey, 1))
+        self.assertEqual(self.nodes[1].overlay.persistence.get(my_pubkey, 1).link_sequence_number, UNKNOWN_SEQ)
+
+    @twisted_test
     def test_crawl_no_blocks(self):
         """
         Check if blocks don't magically appear.
@@ -173,3 +201,31 @@ class TestTrustChainCommunity(TestBase):
             # His second block -> my second block
             self.assertIsNotNone(self.nodes[node_nr].overlay.persistence.get(his_pubkey, 2))
             self.assertEqual(self.nodes[node_nr].overlay.persistence.get(his_pubkey, 2).link_sequence_number, second)
+
+    @twisted_test
+    def test_retrieve_missing_block(self):
+        """
+        Check if missing blocks are retrieved through a crawl request.
+        """
+        yield self.introduce_nodes()
+
+        his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
+        self.nodes[0].endpoint.close()
+        self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
+                                         transaction={})
+
+        yield self.deliver_messages()
+
+        self.nodes[0].endpoint.open()
+        self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
+                                         transaction={})
+
+        yield self.deliver_messages()
+
+        for node_nr in [0, 1]:
+            # His first block -> my first block
+            self.assertIsNotNone(self.nodes[node_nr].overlay.persistence.get(his_pubkey, 1))
+            self.assertEqual(self.nodes[node_nr].overlay.persistence.get(his_pubkey, 1).link_sequence_number, 1)
+            # His second block -> my second block
+            self.assertIsNotNone(self.nodes[node_nr].overlay.persistence.get(his_pubkey, 2))
+            self.assertEqual(self.nodes[node_nr].overlay.persistence.get(his_pubkey, 2).link_sequence_number, 2)
