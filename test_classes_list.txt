@@ -17,6 +17,7 @@ test/keyvault/test_signature.py:TestSignatures
 
 test/attestation/test_community.py:TestTrustChainCommunity
 
+test/messaging/deprecated/test_encoding.py:TestEncoding
 test/messaging/anonymization/test_community.py:TestTunnelCommunity
 test/messaging/anonymization/test_hiddenservices.py:TestHiddenServices
 
