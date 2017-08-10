@@ -34,6 +34,7 @@ class DiscoveryCommunity(Community):
         })
 
         self.network.blacklist.extend(_DEFAULT_ADDRESSES)
+        self.network.blacklist_mids.append(self.my_peer.mid)
 
         self.network.register_service_provider(self.master_peer.mid, self)
 

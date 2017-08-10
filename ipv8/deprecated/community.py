@@ -141,8 +141,10 @@ class Community(EZPackOverlay):
         introduction_lan = ("0.0.0.0",0)
         introduction_wan = ("0.0.0.0",0)
         introduced = False
-        if self.network.verified_peers:
-            introduction = choice(self.network.verified_peers).address
+        other = self.network.get_verified_by_address(socket_address)
+        available = [p for p in self.network.verified_peers if p != other]
+        if available:
+            introduction = choice(available).address
             if self.address_is_lan(introduction[0]):
                 introduction_lan = introduction
                 introduction_wan = (self.my_estimated_wan[0], introduction_lan[1])
@@ -203,7 +205,7 @@ class Community(EZPackOverlay):
                 (payload.wan_introduction_address[0] != self.my_estimated_wan[0]):
             self.network.discover_address(Peer(auth.public_key_bin, source_address),
                                           payload.wan_introduction_address)
-        else:
+        elif (payload.lan_introduction_address != ("0.0.0.0", 0)):
             self.network.discover_address(Peer(auth.public_key_bin, source_address),
                                           payload.lan_introduction_address)
 
@@ -242,9 +244,9 @@ class Community(EZPackOverlay):
 
     def get_new_introduction(self, from_peer=None, service_id=None):
         if not from_peer:
-            available = self.network.get_walkable_addresses()
+            available = self.network.verified_peers
             if available:
-                from_peer = choice(available)
+                from_peer = choice(available).address
             else:
                 self.bootstrap()
                 return

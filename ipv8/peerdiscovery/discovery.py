@@ -24,11 +24,10 @@ class RandomWalk(DiscoveryStrategy):
     Walk randomly through the network.
     """
 
-    NODE_TIMEOUT = 3.0
-
-    def __init__(self, overlay):
+    def __init__(self, overlay, timeout=3.0):
         super(RandomWalk, self).__init__(overlay)
         self.intro_timeouts = {}
+        self.node_timeout = timeout
 
     def take_step(self, service_id=None):
         """
@@ -37,7 +36,7 @@ class RandomWalk(DiscoveryStrategy):
         # Sanitize unreachable nodes
         to_remove = []
         for node in self.intro_timeouts:
-            if self.intro_timeouts[node] + self.NODE_TIMEOUT < time():
+            if self.intro_timeouts[node] + self.node_timeout < time():
                 to_remove.append(node)
         for node in to_remove:
             del self.intro_timeouts[node]

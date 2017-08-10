@@ -14,6 +14,8 @@ class Network(object):
         # Peers we should not add to the network
         # For example, bootstrap peers
         self.blacklist = []
+        # Excluded mids
+        self.blacklist_mids = []
 
         # Map of advertised services (set) per peer
         self.services_per_peer = {}
@@ -61,13 +63,15 @@ class Network(object):
 
         :param peer: the new peer
         """
+        if peer.mid in self.blacklist_mids:
+            return
         if peer.address in self._all_addresses and self.graph.has_node(peer.address):
             introducer = self._all_addresses[peer.address]
             self.graph.remove_node(peer.address)
             self.graph.add_node(b64encode(peer.mid))
             self.graph.add_edge(introducer, b64encode(peer.mid), color='green')
             if peer not in self.verified_peers:
-                # This should never happen, unless someone edits the verified_peers dict directly.
+                # This should always happen, unless someone edits the verified_peers dict directly.
                 # This would be a programmer 'error', but we will allow it.
                 self.verified_peers.append(peer)
         elif (peer.address not in self.blacklist):
