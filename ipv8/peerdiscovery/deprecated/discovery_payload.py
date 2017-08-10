@@ -97,34 +97,6 @@ class SimilarityResponsePayload(Payload):
         return self._tb_overlap
 
 
-class ExtendedIntroPayload(Payload):
-
-    optional_format_list = ['c20s']
-
-    def __init__(self, introduce_me_to=None):
-        self._introduce_me_to = introduce_me_to
-
-    def to_pack_list(self):
-        data = []
-        if self._introduce_me_to:
-            data.insert(0, ('c20s', 'Y', self._introduce_me_to))
-
-        return data
-
-    @classmethod
-    def from_unpack_list(cls, introduce_me_to=None):
-        args = [introduce_me_to]
-
-        return ExtendedIntroPayload(*args)
-
-    def set_introduce_me_to(self, introduce_me_to):
-        self._introduce_me_to = introduce_me_to
-
-    @property
-    def introduce_me_to(self):
-        return self._introduce_me_to
-
-
 class PingPayload(Payload):
 
     format_list = ['H']
