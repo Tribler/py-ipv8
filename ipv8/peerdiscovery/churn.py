@@ -7,13 +7,13 @@ class RandomChurn(DiscoveryStrategy):
     """
     Select random peers, ping them if inactive, remove them if unresponsive.
     """
+    NODE_REMOVE_TIME = 60.0
 
-    PING_INTERVAL = 10
-    SAMPLE_SIZE = 8
-
-    def __init__(self, overlay):
+    def __init__(self, overlay, sample_size=8, ping_interval=10.0):
         super(RandomChurn, self).__init__(overlay)
         self._pinged = {}
+        self.sample_size = sample_size
+        self.ping_interval = ping_interval
 
     def take_step(self):
         """
@@ -22,12 +22,12 @@ class RandomChurn(DiscoveryStrategy):
         # See if we need to clean our ping cache
         to_remove = []
         for address, timestamp in self._pinged.iteritems():
-            if time() > (timestamp + self.PING_INTERVAL):
+            if time() > (timestamp + self.ping_interval):
                 to_remove.append(address)
         for address in to_remove:
             del self._pinged[address]
         # Find an inactive or droppable peer
-        sample_size = min(len(self.overlay.network.verified_peers), self.SAMPLE_SIZE)
+        sample_size = min(len(self.overlay.network.verified_peers), self.sample_size)
         if sample_size:
             window = sample(self.overlay.network.verified_peers, sample_size)
 
