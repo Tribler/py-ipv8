@@ -61,9 +61,7 @@ class EdgeWalk(DiscoveryStrategy):
     When a certain depth is reached, we teleport home and start again from our neighborhood.
     """
 
-    EDGE_TIMEOUT = 3.0
-
-    def __init__(self, overlay, edge_length=4, neighborhood_size=6):
+    def __init__(self, overlay, edge_length=4, neighborhood_size=6, edge_timeout=3.0):
         super(EdgeWalk, self).__init__(overlay)
         self._neighborhood = []
 
@@ -73,6 +71,7 @@ class EdgeWalk(DiscoveryStrategy):
 
         self.edge_length = edge_length
         self.neighborhood_size = neighborhood_size
+        self.edge_timeout = edge_timeout
 
     def get_available_root(self):
         """
@@ -93,30 +92,35 @@ class EdgeWalk(DiscoveryStrategy):
             waiting_root = self.get_available_root()
             # Make sure we have as many outstanding/actively growing edges as roots
             if waiting_root:
-                self.under_construction[waiting_root] = []
+                self.under_construction[waiting_root] = [waiting_root]
                 self.last_edge_responses[waiting_root] = time()
                 self.overlay.get_new_introduction(waiting_root.address, service_id=service_id)
             else:
                 # Check if our introduced peer has answered yet
                 completed = []
                 for root in self.under_construction:
-                    last_verified = self.under_construction[root][-1] if self.under_construction[root] else root
-                    introductions = self.overlay.network.get_introductions_from(last_verified)
+                    last_verified = self.under_construction[root][-1]
+                    introductions = []
+                    for intro in self.overlay.network.get_introductions_from(last_verified):
+                        verified = self.overlay.network.get_verified_by_address(intro)
+                        if verified:
+                            introductions.append(verified)
                     if introductions:
                         # We got (multiple?) introductions from this peer, add it as verified
                         self.last_edge_responses[root] = time()
-                        self.under_construction[root].append(root if not last_verified else last_verified)
+                        next_in_edge = choice(introductions)
+                        self.under_construction[root].append(next_in_edge)
                         if len(self.under_construction[root]) == self.edge_length:
                             # We have crawled the maximum depth, teleport home
                             self.complete_edges.append(self.under_construction[root])
                             completed.append(root)
                         else:
                             # Take this edge a step further
-                            self.overlay.walk_to(choice(introductions))
-                    elif self.last_edge_responses[root] + self.EDGE_TIMEOUT < time():
+                            self.overlay.walk_to(next_in_edge.address)
+                    elif self.last_edge_responses[root] + self.edge_timeout < time():
                         # This edge isn't growing, mark it as complete
                         if len(self.under_construction[root]) > 1:
                             self.complete_edges.append(self.under_construction[root])
-                            completed.append(root)
+                        completed.append(root)
                 for root in completed:
                     del self.under_construction[root]

@@ -7,6 +7,7 @@ test/test_peer.py:TestPeer
 
 test/peerdiscovery/test_network.py:TestNetwork
 test/peerdiscovery/deprecated/test_discovery.py:TestDiscoveryCommunity
+test/peerdiscovery/test_edge_discovery.py:TestEdgeWalk
 test/peerdiscovery/test_random_discovery.py:TestRandomWalk
 test/peerdiscovery/test_churn.py:TestChurn
 
