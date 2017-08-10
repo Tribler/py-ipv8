@@ -74,6 +74,8 @@ class Peer(object):
         return unpack(">Q", out)[0]
 
     def __eq__(self, other):
+        if not isinstance(other, Peer):
+            return False
         return (self.public_key.key_to_bin() == other.public_key.key_to_bin()) and (self.address == other.address)
 
     def __str__(self):

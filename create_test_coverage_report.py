@@ -40,7 +40,8 @@ with open('test_classes_list.txt', 'r') as test_class_file:
         formatted_line = line.replace('/', '.').replace('.py:', '.')
         suite = unittest.TestLoader().loadTestsFromName(formatted_line)
         unittest.TextTestRunner(failfast=True, stream=output_stream, verbosity=0).run(suite)
-        assert "\nOK\n" in output_stream.getvalue(), "ERROR: UNIT TESTS FAILED, PLEASE FIX BEFORE RUNNING COVERAGE"
+        assert "\nOK\n" in output_stream.getvalue(),\
+            "ERROR: UNIT TESTS FAILED, PLEASE FIX BEFORE RUNNING COVERAGE:\n%s" % output_stream.getvalue()
         output_stream.close()
 
     cov.stop()

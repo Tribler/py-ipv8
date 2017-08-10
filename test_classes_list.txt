@@ -3,6 +3,8 @@
 #   <path>/<file_name>.py:<TestClass>
 test/test_peer.py:TestPeer
 
+test/peerdiscovery/test_network.py:TestNetwork
+
 test/keyvault/test_crypto.py:TestECCrypto
 test/keyvault/test_serialization.py:TestSerialization
 test/keyvault/test_signature.py:TestSignatures

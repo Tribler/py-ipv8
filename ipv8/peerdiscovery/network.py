@@ -27,17 +27,21 @@ class Network(object):
         :param peer: the peer that performed the introduction
         :param address: the introduced address
         """
-        if (address in self._all_addresses) or (address in self.blacklist):
+        if address in self.blacklist:
+            self.add_verified_peer(peer)
             return
 
-        self._all_addresses[address] = b64encode(peer.mid)
+        if (address not in self._all_addresses) or (not self.graph.has_node(self._all_addresses[address])):
+            # This is a new address, or our previous parent has been removed
+            self._all_addresses[address] = b64encode(peer.mid)
 
-        if address in self.graph.node and address not in self.graph.adj:
-            del self.graph.node[address]
-        self.graph.add_edge(b64encode(peer.mid), address, color='orange')
+        if not self.get_verified_by_address(address) and not self.graph.has_edge(self._all_addresses[address], address):
+            # Don't remap already verified peers and don't add an edge which already exists.
+            if address in self.graph.node and address not in self.graph.adj:
+                del self.graph.node[address]
+            self.graph.add_edge(b64encode(peer.mid), address, color='orange')
 
-        if peer not in self.verified_peers:
-            self.verified_peers.append(peer)
+        self.add_verified_peer(peer)
 
     def discover_services(self, peer, services):
         """
@@ -59,14 +63,18 @@ class Network(object):
         """
         if peer.address in self._all_addresses and self.graph.has_node(peer.address):
             introducer = self._all_addresses[peer.address]
-            if self.graph.has_node(peer.address):
-                self.graph.remove_node(peer.address)
+            self.graph.remove_node(peer.address)
             self.graph.add_node(b64encode(peer.mid))
             self.graph.add_edge(introducer, b64encode(peer.mid), color='green')
             if peer not in self.verified_peers:
+                # This should never happen, unless someone edits the verified_peers dict directly.
+                # This would be a programmer 'error', but we will allow it.
                 self.verified_peers.append(peer)
-        elif (peer.address not in self.blacklist) and (not self.graph.has_node(b64encode(peer.mid))):
-            self.graph.add_node(b64encode(peer.mid))
+        elif (peer.address not in self.blacklist):
+            if peer.address not in self._all_addresses:
+                self._all_addresses[peer.address] = ''
+            if not self.graph.has_node(b64encode(peer.mid)):
+                self.graph.add_node(b64encode(peer.mid))
             if peer not in self.verified_peers:
                 self.verified_peers.append(peer)
 
@@ -162,11 +170,16 @@ class Network(object):
         for i in range(len(self.verified_peers)):
             if self.verified_peers[i].address == address:
                 to_remove.insert(0, i)
+                graph_node = b64encode(self.verified_peers[i].mid)
+                if self.graph.has_node(graph_node):
+                    self.graph.remove_node(graph_node)
                 key_bin = self.verified_peers[i].public_key.key_to_bin()
                 if key_bin in self.services_per_peer:
                     del self.services_per_peer[key_bin]
         for index in to_remove:
             self.verified_peers.pop(index)
+        if self.graph.has_node(address):
+            self.graph.remove_node(address)
 
     def remove_peer(self, peer):
         """
@@ -178,6 +191,11 @@ class Network(object):
             del self._all_addresses[peer.address]
         if peer in self.verified_peers:
             self.verified_peers.remove(peer)
+        graph_node = b64encode(peer.mid)
+        if self.graph.has_node(graph_node):
+            self.graph.remove_node(graph_node)
+        if self.graph.has_node(peer.address):
+            self.graph.remove_node(peer.address)
         key_bin = peer.public_key.key_to_bin()
         if key_bin in self.services_per_peer:
             del self.services_per_peer[key_bin]
