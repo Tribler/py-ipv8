@@ -11,6 +11,7 @@ import twisted
 twisted.internet.base.DelayedCall.debug = True
 
 from ipv8.peer import Peer
+from test.mocking.endpoint import internet
 from test.mocking.ipv8 import MockIPv8
 
 
@@ -27,6 +28,7 @@ class TestBase(unittest.TestCase):
         self.nodes = []
         self.overlay_class = object
         self.base_calls = []
+        internet.clear()
 
     def initialize(self, overlay_class, node_count, *args, **kwargs):
         self.overlay_class = overlay_class
@@ -52,6 +54,7 @@ class TestBase(unittest.TestCase):
         super(TestBase, self).tearDown()
         for node in self.nodes:
             node.unload()
+        internet.clear()
 
     @classmethod
     def setUpClass(cls):
