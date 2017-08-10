@@ -42,6 +42,12 @@ class DiscoveryCommunity(Community):
         for socket_address in _DEFAULT_ADDRESSES:
             self.walk_to(socket_address)
 
+    def on_introduction_response(self, source_address, data):
+        super(DiscoveryCommunity, self).on_introduction_response(source_address, data)
+
+        packet = self.create_similarity_request()
+        self.endpoint.send(source_address, packet)
+
     def on_similarity_request(self, source_address, data):
         auth, dist, payload = self._ez_unpack_auth(SimilarityRequestPayload, data)
 

@@ -81,7 +81,7 @@ class VarLen(object):
         raw = ''.join(data)
         length = len(raw)/self.base
         self.size = self.format_size + len(raw)
-        return pack('>%s%ds' % (self.format, length), length, raw)
+        return pack('>%s%ds' % (self.format, len(raw)), length, raw)
 
     def unpack_from(self, data, offset=0):
         length, = unpack_from('>%s' % self.format, data, offset)
