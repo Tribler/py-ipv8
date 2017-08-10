@@ -2,8 +2,8 @@
 #
 #   <path>/<file_name>.py:<TestClass>
 test/test_util.py:TestUtil
-
 test/test_peer.py:TestPeer
+test/test_taskmanager.py:TestTaskManager
 
 test/peerdiscovery/test_network.py:TestNetwork
 test/peerdiscovery/deprecated/test_discovery.py:TestDiscoveryCommunity
