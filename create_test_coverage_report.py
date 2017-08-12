@@ -12,7 +12,8 @@ import coverage
 import os
 import shutil
 from StringIO import StringIO
-import unittest
+from twisted.trial.runner import TestLoader
+from twisted.trial.reporter import VerboseTextReporter
 
 data_file = os.path.join('coverage', 'raw', 'coverage_file')
 
@@ -38,10 +39,14 @@ with open('test_classes_list.txt', 'r') as test_class_file:
 
         output_stream = StringIO()
         formatted_line = line.replace('/', '.').replace('.py:', '.')
-        suite = unittest.TestLoader().loadTestsFromName(formatted_line)
-        unittest.TextTestRunner(failfast=True, stream=output_stream, verbosity=0).run(suite)
-        assert "\nOK\n" in output_stream.getvalue(),\
-            "ERROR: UNIT TESTS FAILED, PLEASE FIX BEFORE RUNNING COVERAGE:\n%s" % output_stream.getvalue()
+
+        suite = TestLoader().loadTestsFromName(formatted_line)
+        reporter = VerboseTextReporter(stream=output_stream)
+        reporter.failfast = True
+        suite.run(reporter)
+
+        assert len(reporter.errors) == 0,\
+            "ERROR: UNIT TESTS FAILED, PLEASE FIX BEFORE RUNNING COVERAGE:\n%s\n%s" % (output_stream.getvalue(), ''.join([repr(error) for error in reporter.errors]))
         output_stream.close()
 
     cov.stop()
