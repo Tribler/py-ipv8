@@ -113,7 +113,7 @@ class TestChurn(TestBase):
         peer = self.overlays[1].my_peer
         peer.last_response = time.time() - 30
         self.overlays[0].network.add_verified_peer(peer)
-        self.strategies[0].ping_interval = 0.0
+        self.strategies[0].ping_interval = -1.0
         # Hook up listener
         sniffer = MockEndpointListener(self.overlays[1].endpoint)
 
