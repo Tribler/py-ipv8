@@ -24,19 +24,19 @@ pip install -r requirements.txt
 The libsodium library will have to be installed manually.
 Please follow the instructions for your platform below:
 
-**Debian/Ubuntu**
+**Debian/Ubuntu:**
 ``sudo apt-get install libsodium18``
 
-**Mac**
+**Mac:**
 ``sudo port -N install libsodium`` or ``brew install libsodium``
 
-**Windows**
+**Windows:**
 Download [an MSVC binary release from the libsodium website](https://download.libsodium.org/libsodium/releases/).
 Open the archive and browse to the version applicable to your OS (x32 or x64).
 Extract the files in the `dynamic` folder to a location on your `PATH` (the folder containing `python.exe` for example).
 
 ### Tests
-The test suite can run without any external packages, but the `nosetests` package is recommended.
+The test suite can run without any external packages, but the `nosetests` package is recommended (`pip install nose`).
 The test suite will automatically detect your back-end when running the tests.
 Running tests can be done (**on UNIX**) by running:
 
