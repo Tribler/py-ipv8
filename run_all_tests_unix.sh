@@ -5,7 +5,7 @@ test_files="$(grep ^[^#] test_classes_list.txt)"
 
 # 2. Figure out if the user has nosetests installed.
 #    Change the test command and parameters accordingly.
-tput bold
+tty -s && tput bold
 echo -n "Starting IPv8 testsuite: "
 if nosetests --version >>/dev/null 2>&1; then
 echo "using test runner 'nosetests'!"
@@ -16,7 +16,7 @@ test_command="python -m unittest --verbose"
 test_files="${test_files//\//.}"
 test_files="${test_files//.py:/.}"
 fi
-tput sgr0
+tty -s && tput sgr0
 
 # 3. Set up the python path for test code execution
 export PYTHONPATH='.'
@@ -38,7 +38,7 @@ t=$(tempfile)
 set -o pipefail
 $test_command "$f" 2> >(tee $t >&2)
 exit_status=$?
-if [ $exit_status -ne 0 ] ; then tput rev; tput setaf 1; echo "CRITICAL FAILURE: ABORTING"; tput sgr0; break; fi
+if [ $exit_status -ne 0 ] ; then tty -s && tput rev; tty -s && tput setaf 1; echo "CRITICAL FAILURE: ABORTING"; tty -s && tput sgr0; break; fi
 # 5.c. Parse the command output and extract the test time and test count for
 #      this particular class. Then proceed to add them to the totals. Note that
 #      we need 'bc' for the time as these are floating point numbers.
@@ -49,13 +49,13 @@ total_test_count=$((total_test_count + last_test_count))
 done
 # 6. Show the totals. Note that '}' is the end of the 'time' command, which
 #    will print 'TIMEFORMAT'.
-tput bold
+tty -s && tput bold
 echo ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
 }
 echo "Total time in tests:      $unit_test_time seconds"
 echo "Total amount of tests:    $total_test_count"
 echo "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
-tput sgr0
+tty -s && tput sgr0
 
 # 7. Exit the script with the test runner status.
 exit $exit_status
