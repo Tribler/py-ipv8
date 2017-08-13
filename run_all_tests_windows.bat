@@ -22,10 +22,12 @@ set /A starttime=(1%starttime:~0,2%-100)*360000 + (1%starttime:~3,2%-100)*6000 +
 REM 4.  Loop over all of the input files and test them
 for /F "eol=#" %%A in (test_classes_list.txt) do (
 	call :runline %%A
-	if %failed%==1 (
+	setlocal EnableDelayedExpansion
+	if !failed!==1 (
 		echo CRITICAL FAILURE: ABORTING
 		exit /b 1
 	)
+	setlocal DisableDelayedExpansion
 )
 goto EOF
 
@@ -43,26 +45,36 @@ echo ======================================================================
 REM 5.b. Pipe the output of the test command  to a subroutine
 if %usenose%==1 (
 	for /f "tokens=1-5" %%G in ('nosetests -s -x -v %line% ^2^>^&^1') do (
-		if "%%G"=="FAILED" (
-			set failed=1
-		)
 		echo %%G %%H %%I %%J %%K
+		if "%%G"=="FAIL:" (
+			set failed=1
+			exit /b 1
+		)
+		if "%%G"=="ERROR:" (
+			set failed=1
+			exit /b 1
+		)
 		if "%%G"=="Ran" (
 			call :parseline "%%G" "%%H" "%%I" "%%J" "%%K"
 		)
 	)
 ) else (
 	for /f "tokens=1-5" %%G in ('python -m unittest --verbose %line% ^2^>^&^1') do (
-		if "%%G"=="FAILED" (
-			set failed=1
-		)
 		echo %%G %%H %%I %%J %%K
+		if "%%G"=="FAIL:" (
+			set failed=1
+			exit /b 1
+		)
+		if "%%G"=="ERROR:" (
+			set failed=1
+			exit /b 1
+		)
 		if "%%G"=="Ran" (
 			call :parseline "%%G" "%%H" "%%I" "%%J" "%%K"
 		)
 	)
 )
-exit /b failed
+exit /b
 
 :parseline
 REM 5.c. Parse the command output and extract the test time and test count for
