@@ -27,7 +27,6 @@ class TestBase(unittest.TestCase):
         super(TestBase, self).__init__(methodName)
         self.nodes = []
         self.overlay_class = object
-        self.base_calls = []
         internet.clear()
 
     def initialize(self, overlay_class, node_count, *args, **kwargs):
@@ -43,8 +42,6 @@ class TestBase(unittest.TestCase):
                 public_peer = Peer(private_peer.public_key, private_peer.address)
                 node.network.add_verified_peer(public_peer)
                 node.network.discover_services(public_peer, overlay_class.master_peer.mid)
-
-        self.base_calls = len(reactor.getDelayedCalls())
 
     def setUp(self):
         super(TestBase, self).setUp()
@@ -103,21 +100,23 @@ class TestBase(unittest.TestCase):
         Allow peers to communicate.
 
         The strategy is as follows:
-         1. Measure the amount of open calls in the Twisted reactor (including those of the test suite!!)
-         2. After 10 milliseconds, check if we are down to this amount twice in a row (no calls need to be handled)
+         1. Measure the amount of working threads in the threadpool
+         2. After 10 milliseconds, check if we are down to 0 twice in a row
          3. If not, go back to handling calls (step 2) or return, if the timeout has been reached
 
         :param timeout: the maximum time to wait for messages to be delivered
         """
-        time = 0
+        rtime = 0
         probable_exit = False
-        while (time < timeout):
+        while (rtime < timeout):
             yield self.sleep(.01)
-            time += .01
-            if len(reactor.getDelayedCalls()) <= self.base_calls:
+            rtime += .01
+            if len(reactor.getThreadPool().working) == 0:
                 if probable_exit:
                     break
                 probable_exit = True
+            else:
+                probable_exit = False
 
     @inlineCallbacks
     def sleep(self, time=.05):

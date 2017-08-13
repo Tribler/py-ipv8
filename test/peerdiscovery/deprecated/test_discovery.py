@@ -37,5 +37,8 @@ class TestDiscoveryCommunity(TestBase):
         self.overlays[1].bootstrap()
         yield self.deliver_messages()
 
-        self.assertEqual(len(self.overlays[0].network.verified_peers), 1)
-        self.assertEqual(len(self.overlays[1].network.verified_peers), 1)
+        for overlay in self.overlays:
+            intros = overlay.network.get_introductions_from(self.tracker.my_peer)
+            self.assertEqual(len(intros), 1)
+            self.assertNotIn(overlay.my_peer.mid, intros)
+            self.assertNotIn(self.tracker.my_peer.mid, intros)

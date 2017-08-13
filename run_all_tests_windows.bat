@@ -48,14 +48,14 @@ if %usenose%==1 (
 		echo %%G %%H %%I %%J %%K
 		if "%%G"=="FAIL:" (
 			set failed=1
-			exit /b 1
 		)
 		if "%%G"=="ERROR:" (
 			set failed=1
-			exit /b 1
 		)
 		if "%%G"=="Ran" (
-			call :parseline "%%G" "%%H" "%%I" "%%J" "%%K"
+			if /I %failed% NEQ 1 (
+				call :parseline "%%G" "%%H" "%%I" "%%J" "%%K"
+			)
 		)
 	)
 ) else (
@@ -63,14 +63,14 @@ if %usenose%==1 (
 		echo %%G %%H %%I %%J %%K
 		if "%%G"=="FAIL:" (
 			set failed=1
-			exit /b 1
 		)
 		if "%%G"=="ERROR:" (
 			set failed=1
-			exit /b 1
 		)
 		if "%%G"=="Ran" (
-			call :parseline "%%G" "%%H" "%%I" "%%J" "%%K"
+			if /I %failed% NEQ 1 (
+				call :parseline "%%G" "%%H" "%%I" "%%J" "%%K"
+			)
 		)
 	)
 )
