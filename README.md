@@ -1,4 +1,4 @@
-[![](http://jenkins.tribler.org/job/pers/job/test_ipv8_qstokkink/badge/icon)](https://jenkins.tribler.org/job/pers/job/test_ipv8_qstokkink/)
+**Linux**: [![](http://jenkins.tribler.org/job/pers/job/test_ipv8_qstokkink/badge/icon)](https://jenkins.tribler.org/job/pers/job/test_ipv8_qstokkink/) **Windows**: [![](http://jenkins.tribler.org/job/pers/job/test_ipv8_win_qstokkink/badge/icon)](https://jenkins.tribler.org/job/pers/job/test_ipv8_win_qstokkink/)
 
 This Python 2 package contains IPv8: an amalgamation of peer-to-peer communication functionality from [Dispersy](https://github.com/Tribler/dispersy) and [Tribler](https://github.com/Tribler/tribler), developed over the last 13 years by students and employees of the Delft University of Technology.
 The IPv8 library allows you to interface with the existing Dispersy network to build your own applications.
