@@ -55,3 +55,5 @@ python2 create_test_coverage_report.py
 An example file to load IPv8 has been provided [here](ipv8/ipv8.py).
 This file will load the bare minimum IPv8 stack for *signed messaging*, *anonymous messaging*, *public service discovery*, *peer discovery* and *peer keep-alive*.
 You can play around with it to get to know IPv8 better.
+
+Additional documentation is also available for the [TrustChain](doc/trustchain.md) and [anonymization](doc/anonymization.md) provided in IPv8.
