@@ -85,7 +85,7 @@ class IntroductionRequestPayload(Payload):
         self._source_wan_address = source_wan_address
         self._advice = advice
         self._connection_type = connection_type
-        self._identifier = identifier
+        self._identifier = identifier % 65536
         if sync:
             self._time_low, self._time_high, self._modulo, self._offset, self._bloom_filter = sync
         else:
@@ -231,7 +231,7 @@ class IntroductionResponsePayload(Payload):
         self._wan_introduction_address = wan_introduction_address
         self._connection_type = connection_type
         self._tunnel = tunnel
-        self._identifier = identifier
+        self._identifier = identifier % 65536
 
     def to_pack_list(self):
         encoded_connection_type = encode_connection_type(self._connection_type)
@@ -319,7 +319,7 @@ class PunctureRequestPayload(Payload):
         super(PunctureRequestPayload, self).__init__()
         self._lan_walker_address = lan_walker_address
         self._wan_walker_address = wan_walker_address
-        self._identifier = identifier
+        self._identifier = identifier % 65536
 
     def to_pack_list(self):
         data = [('4SH', inet_aton(self._lan_walker_address[0]), self._lan_walker_address[1]),
@@ -369,7 +369,7 @@ class PuncturePayload(Payload):
         super(PuncturePayload, self).__init__()
         self._source_lan_address = source_lan_address
         self._source_wan_address = source_wan_address
-        self._identifier = identifier
+        self._identifier = identifier % 65536
 
     def to_pack_list(self):
         data = [('4SH', inet_aton(self._source_lan_address[0]), self._source_lan_address[1]),

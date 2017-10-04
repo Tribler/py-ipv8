@@ -9,7 +9,7 @@ class SimilarityRequestPayload(Payload):
 
     def __init__(self, identifier, lan_address, wan_address, connection_type, preference_list):
         super(SimilarityRequestPayload, self).__init__()
-        self._identifier = identifier
+        self._identifier = identifier % 65536
         self._preference_list = preference_list
         self._lan_address = lan_address
         self._wan_address = wan_address
@@ -64,7 +64,7 @@ class SimilarityResponsePayload(Payload):
 
     def __init__(self, identifier, preference_list, tb_overlap):
         super(SimilarityResponsePayload, self).__init__()
-        self._identifier = identifier
+        self._identifier = identifier % 65536
         self._preference_list = preference_list
         self._tb_overlap = tb_overlap
 
@@ -103,7 +103,7 @@ class PingPayload(Payload):
 
     def __init__(self, identifier):
         super(PingPayload, self).__init__()
-        self._identifier = identifier
+        self._identifier = identifier % 65536
 
     def to_pack_list(self):
         data = [('H', self._identifier), ]
