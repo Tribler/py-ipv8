@@ -1,4 +1,6 @@
 from base64 import b64encode
+from threading import RLock
+
 from networkx import draw, Graph, circular_layout
 
 
@@ -11,6 +13,7 @@ class Network(object):
         self.verified_peers = []
         # The networkx graph containing the addresses and peers
         self.graph = Graph()
+        self.graph_lock = RLock()
         # Peers we should not add to the network
         # For example, bootstrap peers
         self.blacklist = []
@@ -33,6 +36,7 @@ class Network(object):
             self.add_verified_peer(peer)
             return
 
+        self.graph_lock.acquire()
         if (address not in self._all_addresses) or (not self.graph.has_node(self._all_addresses[address])):
             # This is a new address, or our previous parent has been removed
             self._all_addresses[address] = b64encode(peer.mid)
@@ -42,6 +46,7 @@ class Network(object):
             if address in self.graph.node and address not in self.graph.adj:
                 del self.graph.node[address]
             self.graph.add_edge(b64encode(peer.mid), address, color='orange')
+        self.graph_lock.release()
 
         self.add_verified_peer(peer)
 
@@ -52,10 +57,12 @@ class Network(object):
         :param peer: the peer to update the services for
         :param services: the list of services to register
         """
+        self.graph_lock.acquire()
         if peer.public_key.key_to_bin() not in self.services_per_peer:
             self.services_per_peer[peer.public_key.key_to_bin()] = set(services)
         else:
             self.services_per_peer[peer.public_key.key_to_bin()] |= set(services)
+        self.graph_lock.release()
 
     def add_verified_peer(self, peer):
         """
@@ -65,6 +72,7 @@ class Network(object):
         """
         if peer.mid in self.blacklist_mids:
             return
+        self.graph_lock.acquire()
         if peer.address in self._all_addresses and self.graph.has_node(peer.address):
             introducer = self._all_addresses[peer.address]
             self.graph.remove_node(peer.address)
@@ -81,6 +89,7 @@ class Network(object):
                 self.graph.add_node(b64encode(peer.mid))
             if peer not in self.verified_peers:
                 self.verified_peers.append(peer)
+        self.graph_lock.release()
 
     def register_service_provider(self, service_id, overlay):
         """
@@ -89,7 +98,9 @@ class Network(object):
         :param service_id: the name/id of the service
         :param overlay: the actual service
         """
+        self.graph_lock.acquire()
         self.service_overlays[service_id] = overlay
+        self.graph_lock.release()
 
     def get_peers_for_service(self, service_id):
         """
@@ -138,9 +149,12 @@ class Network(object):
         :param address: the (IP, port) tuple to search for
         :return: the Peer object for this address or None
         """
+        self.graph_lock.acquire()
         for i in range(len(self.verified_peers)):
             if self.verified_peers[i].address == address:
+                self.graph_lock.release()
                 return self.verified_peers[i]
+        self.graph_lock.release()
 
     def get_verified_by_public_key_bin(self, public_key_bin):
         """
@@ -149,9 +163,12 @@ class Network(object):
         :param public_key_bin: the string representation of the public key
         :return: the Peer object for this public_key_bin or None
         """
+        self.graph_lock.acquire()
         for i in range(len(self.verified_peers)):
             if self.verified_peers[i].public_key.key_to_bin() == public_key_bin:
+                self.graph_lock.release()
                 return self.verified_peers[i]
+        self.graph_lock.release()
 
     def get_introductions_from(self, peer):
         """
@@ -168,6 +185,7 @@ class Network(object):
 
         :param address: the (ip, port) address to remove
         """
+        self.graph_lock.acquire()
         if address in self._all_addresses:
             del self._all_addresses[address]
         to_remove = []
@@ -184,6 +202,7 @@ class Network(object):
             self.verified_peers.pop(index)
         if self.graph.has_node(address):
             self.graph.remove_node(address)
+        self.graph_lock.release()
 
     def remove_peer(self, peer):
         """
@@ -191,6 +210,7 @@ class Network(object):
 
         :param peer: the Peer to remove
         """
+        self.graph_lock.acquire()
         if peer.address in self._all_addresses:
             del self._all_addresses[peer.address]
         if peer in self.verified_peers:
@@ -203,6 +223,7 @@ class Network(object):
         key_bin = peer.public_key.key_to_bin()
         if key_bin in self.services_per_peer:
             del self.services_per_peer[key_bin]
+        self.graph_lock.release()
 
     def draw(self, filename="network_view.png"):
         """
