@@ -152,8 +152,9 @@ class Network(object):
         self.graph_lock.acquire()
         for i in range(len(self.verified_peers)):
             if self.verified_peers[i].address == address:
+                out = self.verified_peers[i]
                 self.graph_lock.release()
-                return self.verified_peers[i]
+                return out
         self.graph_lock.release()
 
     def get_verified_by_public_key_bin(self, public_key_bin):
@@ -166,8 +167,9 @@ class Network(object):
         self.graph_lock.acquire()
         for i in range(len(self.verified_peers)):
             if self.verified_peers[i].public_key.key_to_bin() == public_key_bin:
+                out = self.verified_peers[i]
                 self.graph_lock.release()
-                return self.verified_peers[i]
+                return out
         self.graph_lock.release()
 
     def get_introductions_from(self, peer):
