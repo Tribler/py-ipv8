@@ -5,6 +5,8 @@ Author(s): Egbert Bouman
 """
 import random
 from itertools import chain
+import sys
+from traceback import format_exception
 
 from cryptography.exceptions import InvalidTag
 from twisted.internet.task import LoopingCall
@@ -157,13 +159,17 @@ class TunnelCommunity(Community):
         if data.startswith("ffffffff".decode("HEX")):
             data = data[4:]
         super(TunnelCommunity, self).on_packet(packet, warn_unknown=False)
-        if data.startswith("fffffffe".decode("HEX")):
-            self.on_data(source_address, data[4:])
-        elif data[22] in self.decode_map_private and not circuit_id:
-            self.logger.warning("INCOMING MESSAGE %d HAS NO CIRCUIT ID", ord(data[22]))
-            self.decode_map_private[data[22]](source_address, data, circuit_id)
-        elif (self._prefix == data[:22]) and (data[22] in self.decode_map_private) and circuit_id:
-            self.decode_map_private[data[22]](source_address, data, circuit_id)
+        try:
+            if data.startswith("fffffffe".decode("HEX")):
+                self.on_data(source_address, data[4:])
+            elif data[22] in self.decode_map_private and not circuit_id:
+                self.logger.warning("INCOMING MESSAGE %d HAS NO CIRCUIT ID", ord(data[22]))
+                self.decode_map_private[data[22]](source_address, data, circuit_id)
+            elif (self._prefix == data[:22]) and (data[22] in self.decode_map_private) and circuit_id:
+                self.decode_map_private[data[22]](source_address, data, circuit_id)
+        except:
+            self.logger.error("Exception occurred while handling packet!\n" +
+                              ''.join(format_exception(*sys.exc_info())))
 
     def become_exitnode(self):
         return self.settings.become_exitnode

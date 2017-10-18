@@ -247,7 +247,8 @@ class Community(EZPackOverlay):
             try:
                 self.decode_map[data[22]](source_address, data)
             except:
-                self.logger.error("Exception occurred while handling packet!\n" + format_exception(*sys.exc_info()))
+                self.logger.error("Exception occurred while handling packet!\n" +
+                                  ''.join(format_exception(*sys.exc_info())))
         elif warn_unknown:
             self.logger.warning("Received unknown message: %s from (%s, %d)", ord(data[22]), *source_address)
 
