@@ -8,13 +8,19 @@ Community instance.
 @contact: dispersy@frayja.com
 """
 from random import choice
+import sys
 from time import time
+from traceback import format_exception
 
 from ..keyvault.crypto import ECCrypto
 from ..overlay import Overlay
 from ..peer import Peer
 from .payload import IntroductionRequestPayload, IntroductionResponsePayload, PuncturePayload, PunctureRequestPayload
 from .payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
+
+
+class PacketDecodingError(RuntimeError):
+    pass
 
 
 class EZPackOverlay(Overlay):
@@ -42,11 +48,14 @@ class EZPackOverlay(Overlay):
         format = [GlobalTimeDistributionPayload, payload_class]
         dist, payload, unknown_data = self.serializer.unpack_to_serializables(format, remainder[23:])
         # ASSERT
-        assert len(unknown_data) == 0, "Incoming packet %s (%s) has extra data: (%s), " % (payload_class.__name__,
-                                                                                           data.encode('HEX'),
-                                                                                           unknown_data.encode('HEX'))
-        assert signature_valid
-        #print payload
+        if len(unknown_data) != 0:
+            raise PacketDecodingError("Incoming packet %s (%s) has extra data: (%s)" %
+                                      (payload_class.__name__,
+                                       data.encode('HEX'),
+                                       unknown_data.encode('HEX')))
+
+        if not signature_valid:
+            raise PacketDecodingError("Incoming packet %s has an invalid signature" % payload_class.__name__)
         # PRODUCE
         return auth, dist, payload
 
@@ -55,10 +64,11 @@ class EZPackOverlay(Overlay):
         format = [GlobalTimeDistributionPayload, payload_class]
         dist, payload, unknown_data = self.serializer.unpack_to_serializables(format, data[23:])
         # ASSERT
-        assert len(unknown_data) == 0, "Incoming packet %s (%s) has extra data: (%s), " % (payload_class.__name__,
-                                                                                           data.encode('HEX'),
-                                                                                           unknown_data.encode('HEX'))
-        #print payload
+        if len(unknown_data) != 0:
+            raise PacketDecodingError("Incoming packet %s (%s) has extra data: (%s)" %
+                                      (payload_class.__name__,
+                                       data.encode('HEX'),
+                                       unknown_data.encode('HEX')))
         # PRODUCE
         return dist, payload
 
@@ -234,7 +244,10 @@ class Community(EZPackOverlay):
         if self._prefix != data[:22]:
             return
         if data[22] in self.decode_map:
-            self.decode_map[data[22]](source_address, data)
+            try:
+                self.decode_map[data[22]](source_address, data)
+            except:
+                self.logger.error("Exception occurred while handling packet!\n" + format_exception(*sys.exc_info()))
         elif warn_unknown:
             self.logger.warning("Received unknown message: %s from (%s, %d)", ord(data[22]), *source_address)
 
