@@ -163,12 +163,11 @@ class TunnelCommunity(Community):
             if data.startswith("fffffffe".decode("HEX")):
                 self.on_data(source_address, data[4:])
             elif data[22] in self.decode_map_private and not circuit_id:
-                self.logger.warning("INCOMING MESSAGE %d HAS NO CIRCUIT ID", ord(data[22]))
                 self.decode_map_private[data[22]](source_address, data, circuit_id)
             elif (self._prefix == data[:22]) and (data[22] in self.decode_map_private) and circuit_id:
                 self.decode_map_private[data[22]](source_address, data, circuit_id)
         except:
-            self.logger.error("Exception occurred while handling packet!\n" +
+            self.logger.debug("Exception occurred while handling packet!\n" +
                               ''.join(format_exception(*sys.exc_info())))
 
     def become_exitnode(self):
@@ -505,7 +504,7 @@ class TunnelCommunity(Community):
 
     def check_create(self, payload):
         if self.crypto.key and self.crypto.key.key_to_hash() != payload.node_id:
-            self.logger.warning("nodeids do not match")
+            self.logger.debug("nodeids do not match")
             return False
         if self.crypto.key and self.crypto.key.pub().key_to_bin() != payload.node_public_key:
             self.logger.warning("public keys do not match")

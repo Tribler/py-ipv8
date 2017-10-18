@@ -44,7 +44,7 @@ class IPV8(object):
 if __name__ == '__main__':
     from twisted.internet import reactor
     import logging
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
 
     ipv8 = IPV8()
 
