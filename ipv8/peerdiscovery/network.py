@@ -73,6 +73,12 @@ class Network(object):
         if peer.mid in self.blacklist_mids:
             return
         self.graph_lock.acquire()
+        # This may just be an address update
+        for known in self.verified_peers:
+            if known.mid == peer.mid:
+                known.address = peer.address
+                self.graph_lock.release()
+                return
         if peer.address in self._all_addresses and self.graph.has_node(peer.address):
             introducer = self._all_addresses[peer.address]
             self.graph.remove_node(peer.address)
