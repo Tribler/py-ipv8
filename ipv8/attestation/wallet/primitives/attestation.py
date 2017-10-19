@@ -2,6 +2,7 @@ from hashlib import sha512
 from random import randint, shuffle
 
 from .cryptosystem.boneh import decode, encode
+from .cryptosystem.value import FP2Value
 from .structs import Attestation, BitPairAttestation
 
 
@@ -121,6 +122,13 @@ def create_challenge(PK, bitpair):
     Create a challenge for a bitpair attestation of a certain public key.
     """
     return bitpair.compress() * encode(PK, 0)
+
+
+def create_challenge_response_from_pair(SK, pair):
+    """
+    Respond to a bitpair challenge.
+    """
+    return create_challenge_response(SK, FP2Value(SK.p, pair[0], pair[1]))
 
 
 def create_challenge_response(SK, challenge):

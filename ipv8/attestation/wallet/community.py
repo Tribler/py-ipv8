@@ -1,10 +1,12 @@
 from hashlib import sha1
 
+from .database import AttestationsDB
 from ...deprecated.community import Community
 from ...deprecated.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from .payload import *
-from .primitives.attestation import binary_relativity_certainty, create_challenge, create_challenge_response, create_empty_relativity_map, process_challenge_response
-from .primitives.structs import Attestation, pack_pair
+from .primitives.attestation import (binary_relativity_certainty, create_challenge, create_challenge_response_from_pair,
+                                     create_empty_relativity_map, process_challenge_response)
+from .primitives.structs import Attestation, BonehPrivateKey, pack_pair, unpack_pair
 from ...peer import Peer
 
 
@@ -21,11 +23,17 @@ class AttestationCommunity(Community):
                         "eca33e2e38277ea99c28d4c62f850f81b5eb3eb19fcb601747bd87aa0b04e360ae9").decode("HEX"))
 
     def __init__(self, *args, **kwargs):
+        working_directory = kwargs.pop('working_directory', '')
+        db_name = kwargs.pop('db_name', 'attestations')
+
         super(AttestationCommunity, self).__init__(*args, **kwargs)
 
-        # TODO: Load our Secret Key(s)
+        self.database = AttestationsDB(working_directory, db_name)
+
         # Map of attestation hash -> BonehPrivateKey
         self.attestation_keys = {}
+        for hash, _, key in self.database.get_all():
+            self.attestation_keys[hash] = BonehPrivateKey(key)
         # Map of attestation hash -> set((index, serialized attestation), )
         self.attestation_map = {}
         # List of ([proof hash, ], relativity map)
@@ -77,8 +85,9 @@ class AttestationCommunity(Community):
         """
         auth, dist, payload = self._ez_unpack_auth(VerifyAttestationRequestPayload, data)
 
-        # TODO: Fetch our Attestation from database/file based on hash
-        attestation_blob = "" # TODO: Actual data here
+        attestation_blob, = self.database.get_attestation_by_hash(payload.hash)
+        if not attestation_blob:
+            return
 
         # If we want to serve this request send the attestation in chunks of 800 bytes
         sequence_number = 0
@@ -158,7 +167,8 @@ class AttestationCommunity(Community):
         global_time = self.claim_global_time()
         auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
         payload = ChallengeResponsePayload(challenge_hash,
-                                           create_challenge_response(SK, payload.challenge)).to_pack_list()
+                                           create_challenge_response_from_pair(SK, unpack_pair(payload.challenge))
+                                           ).to_pack_list()
         dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
 
         packet = self._ez_pack(self._prefix, 4, [auth, dist, payload])
