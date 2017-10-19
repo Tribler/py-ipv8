@@ -46,6 +46,22 @@ def _unpack(s):
     return _str_to_num(s[1:l+1]), s[l+1:]
 
 
+def pack_pair(a, b):
+    """
+    Serialize a pair of two integers.
+    """
+    return _pack(a) + _pack(b)
+
+
+def unpack_pair(s):
+    """
+    Unserialize a pair of two integers.
+    """
+    a, r = _unpack(s)
+    b, r = _unpack(r)
+    return a, b, r
+
+
 class BonehPublicKey(object):
     """
     A public key for Boneh et al.'s cryptosystem.

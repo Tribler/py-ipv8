@@ -1,6 +1,25 @@
 from ...deprecated.payload import Payload
 
 
+class VerifyAttestationRequestPayload(Payload):
+    """
+    Request an attestation by hash (published with metadata somewhere).
+    """
+    format_list = ['20s']
+
+    def __init__(self, hash):
+        super(VerifyAttestationRequestPayload, self).__init__()
+        self.hash = hash
+
+    def to_pack_list(self):
+        data = [('20s', self.hash)]
+        return data
+
+    @classmethod
+    def from_unpack_list(cls, hash):
+        return cls(hash)
+
+
 class AttestationChunkPayload(Payload):
     """
     A chunk of Attestation.
@@ -29,18 +48,20 @@ class ChallengePayload(Payload):
     """
     A challenge for an Attestee by a Verifier
     """
-    format_list = ['raw']
+    format_list = ['20s', 'raw']
 
-    def __init__(self, challenge):
+    def __init__(self, attestation_hash, challenge):
+        self.attestation_hash = attestation_hash
         self.challenge = challenge
 
     def to_pack_list(self):
-        data = [('raw', self.challenge)]
+        data = [('20s', self.attestation_hash),
+                ('raw', self.challenge)]
         return data
 
     @classmethod
-    def from_unpack_list(cls, challenge):
-        return cls(challenge)
+    def from_unpack_list(cls, attestation_hash, challenge):
+        return cls(attestation_hash, challenge)
 
 
 class ChallengeResponsePayload(Payload):
