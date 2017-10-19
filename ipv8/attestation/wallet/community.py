@@ -1,12 +1,14 @@
+import json
 from hashlib import sha1
 
 from .database import AttestationsDB
 from ...deprecated.community import Community
 from ...deprecated.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from .payload import *
-from .primitives.attestation import (binary_relativity_certainty, create_challenge, create_challenge_response_from_pair,
-                                     create_empty_relativity_map, process_challenge_response)
-from .primitives.structs import Attestation, BonehPrivateKey, pack_pair, unpack_pair
+from .primitives.attestation import (attest_sha512, binary_relativity_certainty, create_challenge,
+                                     create_challenge_response_from_pair, create_empty_relativity_map,
+                                     process_challenge_response)
+from .primitives.structs import Attestation, BonehPrivateKey, BonehPublicKey, pack_pair, unpack_pair
 from ...peer import Peer
 
 
@@ -40,13 +42,74 @@ class AttestationCommunity(Community):
         self.proofs = []
         # Callbacks for when an attestation is complete
         self.attestation_callbacks = {}
+        # Pending keys for attestation requests
+        self.pending_keys = []
 
         self.decode_map.update({
             chr(1): self.on_verify_attestation_request,
             chr(2): self.on_attestation_chunk,
             chr(3): self.on_challenge,
-            chr(4): self.on_challenge_response
+            chr(4): self.on_challenge_response,
+            chr(5): self.on_request_attestation
         })
+
+    def request_attestation(self, socket_address, attribute_name, secret_key):
+        """
+        Request attestation of one of our attributes.
+
+        :param socket_address: address of the Attestor
+        :param attribute_name: the attribute we want attested
+        :param secret_key: the secret key we use for this attribute
+        """
+        public_key = secret_key.public_key()
+        self.pending_keys.append(secret_key)
+
+        metadata = json.dumps({
+            "attribute": attribute_name,
+            "public_key": public_key.serialize()
+        })
+
+        self.attestation_map[socket_address] = set()
+
+        global_time = self.claim_global_time()
+        auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
+        payload = RequestAttestationPayload(metadata).to_pack_list()
+        dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
+
+        packet = self._ez_pack(self._prefix, 5, [auth, dist, payload])
+        self.endpoint.send(socket_address, packet)
+
+    def on_request_attestation(self, source_address, data):
+        """
+        Someone wants us to attest their attribute.
+        """
+        auth, dist, payload = self._ez_unpack_auth(RequestAttestationPayload, data)
+        peer = Peer(auth.public_key_bin, source_address)
+
+        metadata = json.loads(payload.metadata)
+
+        # TODO: Decide if we want to attest this
+        # TODO: Retrieve the value for this attribute
+        value = metadata['attribute'] # Placeholder, attests the name not its value
+
+        PK = BonehPublicKey.unserialize(metadata['public_key'])
+        attestation_blob = attest_sha512(PK, value).serialize()
+
+        self.send_attestation(source_address, attestation_blob)
+
+    def on_attestation_complete(self, unserialized):
+        """
+        We got an Attestation delivered to us.
+        """
+        secret_key = None
+        for key in self.pending_keys:
+            if key.public_key().serialize() == unserialized.PK.serialize():
+                secret_key = key
+                break
+        del self.pending_keys[secret_key]
+        if not secret_key:
+            return
+        self.database.insert_attestation(unserialized, secret_key)
 
     def verify_attestation_values(self, socket_address, hash, values, callback):
         """
@@ -89,18 +152,21 @@ class AttestationCommunity(Community):
         if not attestation_blob:
             return
 
+        self.send_attestation(source_address, attestation_blob)
+
+    def send_attestation(self, socket_address, blob):
         # If we want to serve this request send the attestation in chunks of 800 bytes
         sequence_number = 0
-        for i in range (0, len(attestation_blob), 800):
-            blob_chunk = attestation_blob[i:i+800]
+        for i in range (0, len(blob), 800):
+            blob_chunk = blob[i:i+800]
 
             global_time = self.claim_global_time()
             auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
-            payload = AttestationChunkPayload(payload.hash, sequence_number, blob_chunk).to_pack_list()
+            payload = AttestationChunkPayload(sha1(blob).digest(), sequence_number, blob_chunk).to_pack_list()
             dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
 
             packet = self._ez_pack(self._prefix, 2, [auth, dist, payload])
-            self.endpoint.send(source_address, packet)
+            self.endpoint.send(socket_address, packet)
 
             sequence_number += 1
 
@@ -123,6 +189,20 @@ class AttestationCommunity(Community):
                     del self.attestation_map[payload.hash]
                     peer = Peer(auth.public_key_bin, source_address)
                     self.on_received_attestation(peer, unserialized)
+            except:
+                pass
+        elif source_address in self.attestation_map:
+            self.attestation_map[source_address] |= (payload.sequence_numer, payload.data)
+
+            serialized = ""
+            for (_, chunk) in sorted(self.attestation_map[source_address], key=lambda index, d: index):
+                serialized += chunk
+
+            try:
+                unserialized = Attestation.unserialize(serialized)
+                if sha1(serialized).digest() == payload.hash:
+                    del self.attestation_map[source_address]
+                    self.on_attestation_complete(unserialized)
             except:
                 pass
         else:

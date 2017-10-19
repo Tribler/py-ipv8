@@ -1,6 +1,25 @@
 from ...deprecated.payload import Payload
 
 
+class RequestAttestationPayload(Payload):
+    """
+    Request an attestation based on some meta data.
+    """
+    format_list = ['raw']
+
+    def __init__(self, metadata):
+        super(RequestAttestationPayload, self).__init__()
+        self.metadata = metadata
+
+    def to_pack_list(self):
+        data = [('raw', self.metadata)]
+        return data
+
+    @classmethod
+    def from_unpack_list(cls, metadata):
+        return cls(metadata)
+
+
 class VerifyAttestationRequestPayload(Payload):
     """
     Request an attestation by hash (published with metadata somewhere).
