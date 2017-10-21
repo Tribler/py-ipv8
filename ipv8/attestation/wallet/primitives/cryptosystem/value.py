@@ -15,11 +15,8 @@ def format_polynomial(a, b, c):
     out = ''
     for (v, s) in [(a, ''), (b, 'x'), (c, 'x^2')]:
         if v:
-            conj = ' + '
-            if v < 0:
-                conj = ' - '
             fmt_v = '' if abs(v) == 1 and s != '' else str(abs(v))
-            out += (conj if out else '') + fmt_v + s
+            out += (' + ' if out else '') + fmt_v + s
     if not out:
         out = '0'
     return out

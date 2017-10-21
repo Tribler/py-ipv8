@@ -34,16 +34,17 @@ def _pack(num):
     Serialize an integer.
     """
     pnum = _num_to_str(num)
-    l = len(pnum)
-    return _num_to_str(l) + pnum
+    l = _num_to_str(len(pnum))
+    return struct.pack(">B", len(l)) + l + pnum
 
 
 def _unpack(s):
     """
     Unserialize an integer from a str.
     """
-    l = struct.unpack(">B", s[0])[0]
-    return _str_to_num(s[1:l+1]), s[l+1:]
+    llen = struct.unpack(">B", s[0])[0]
+    l = _str_to_num(s[1:1+llen])
+    return _str_to_num(s[1+llen:llen+l+1]), s[llen+l+1:]
 
 
 def pack_pair(a, b):

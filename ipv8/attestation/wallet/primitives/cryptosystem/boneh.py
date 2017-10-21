@@ -63,9 +63,10 @@ def is_good_wp(n, wp):
     """
     A good pairing is not 0 and has order n.
     """
+    is_one = wp == FP2Value(wp.mod, 1)
     is_zero = wp == FP2Value(wp.mod)
     good_order = wp.intpow(n+1) == wp
-    return good_order and not is_zero
+    return good_order and not is_zero and not is_one
 
 
 def get_good_wp(n, p=None):
