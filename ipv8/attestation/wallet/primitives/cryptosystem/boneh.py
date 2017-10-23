@@ -46,7 +46,7 @@ def get_random_exponentiation(p, n):
     r = randint(4, n - 1)
     test = p.intpow(r)
     while test == FP2Value(p.mod, 1):
-        test = randint(4, n - 1)
+        test = p.intpow(randint(4, n - 1))
     return test
 
 

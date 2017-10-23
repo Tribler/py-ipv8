@@ -8,7 +8,7 @@ from .structs import Attestation, BitPairAttestation
 
 def generate_modular_additive_inverse(p, n):
     """
-    Generate a group of size n which is its own modular additive inverse module p.
+    Generate a group of size n which is its own modular additive inverse modulo p + 1.
     """
     R = [randint(1, p - 1) for _ in range(n - 1)]
     R.append(p - (sum(R) % (p + 1)) + 1)
