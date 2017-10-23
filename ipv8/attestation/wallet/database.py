@@ -29,7 +29,7 @@ class AttestationsDB(Database):
         return list(self.execute(query, params, fetch_all=False))
 
     def get_attestation_by_hash(self, hash):
-        return self._get("SELECT blob FROM %s WHERE hash = ?" % self.db_name, hash)
+        return self._get(u"SELECT blob FROM %s WHERE hash = ?" % self.db_name, (buffer(hash),))
 
     def get_all(self):
         return list(self.execute("SELECT * FROM %s" % self.db_name, (), fetch_all=True))

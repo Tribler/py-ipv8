@@ -136,7 +136,7 @@ class AttestationCommunity(Community):
         :param callback: the callback to call with the map of (hash, {value: certainty})
         """
         def on_complete(hash, relativity_map):
-            callback(hash, {binary_relativity_certainty(value, relativity_map) for value in values})
+            callback(hash, [binary_relativity_certainty(value, relativity_map) for value in values])
         self.attestation_callbacks[hash] = on_complete
         self.create_verify_attestation_request(socket_address, hash)
 
@@ -192,7 +192,7 @@ class AttestationCommunity(Community):
         auth, dist, payload = self._ez_unpack_auth(AttestationChunkPayload, data)
 
         if payload.hash in self.attestation_map:
-            self.attestation_map[payload.hash] |= {(payload.sequence_numer, payload.data), }
+            self.attestation_map[payload.hash] |= {(payload.sequence_number, payload.data), }
 
             serialized = ""
             for (_, chunk) in sorted(self.attestation_map[payload.hash], key=lambda item: item[0]):
@@ -203,7 +203,7 @@ class AttestationCommunity(Community):
                 if sha1(serialized).digest() == payload.hash:
                     del self.attestation_map[payload.hash]
                     peer = Peer(auth.public_key_bin, source_address)
-                    self.on_received_attestation(peer, unserialized)
+                    self.on_received_attestation(peer, unserialized, payload.hash)
             except:
                 pass
         elif source_address in self.attestation_map:
@@ -257,7 +257,7 @@ class AttestationCommunity(Community):
         auth, dist, payload = self._ez_unpack_auth(ChallengePayload, data)
 
         SK = self.attestation_keys[payload.attestation_hash]
-        challenge_hash = sha1(payload.challenge)
+        challenge_hash = sha1(payload.challenge).digest()
 
         global_time = self.claim_global_time()
         auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()

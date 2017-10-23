@@ -1,4 +1,7 @@
-from ipv8.attestation.wallet.community import AttestationCommunity, BonehPrivateKey
+import os
+
+from ipv8.attestation.wallet.primitives.attestation import binary_relativity_sha512
+from ipv8.attestation.wallet.community import Attestation, AttestationCommunity, BonehPrivateKey
 
 from test.base import MockIPv8, TestBase
 from test.util import twisted_test
@@ -57,3 +60,31 @@ class TestCommunity(TestBase):
 
         db_entries = self.nodes[1].overlay.database.get_all()
         self.assertEqual(1, len(db_entries))
+
+    @twisted_test(4)
+    def test_verify_attestation(self):
+        """
+        Check if an attestation can be verified.
+        """
+        serialized = ""
+        filename = os.path.join(os.path.dirname(__file__), 'attestation.txt')
+        with open(filename, 'rb') as f:
+            serialized = f.read()[:-1].decode('hex')
+        attestation = Attestation.unserialize(serialized)
+        hash = '0927415c9484638c38185dbac8df645404065df5'.decode('hex')
+        self.nodes[0].overlay.database.insert_attestation(attestation, TestCommunity.private_key)
+        self.nodes[0].overlay.attestation_keys[hash] = TestCommunity.private_key
+
+        def callback(rhash, values):
+            self.assertEqual(hash, rhash)
+            self.assertListEqual([1.0], values)
+            callback.called = True
+        callback.called = False
+        self.nodes[1].overlay.verify_attestation_values(self.nodes[0].endpoint.wan_address,
+                                                        hash,
+                                                        [binary_relativity_sha512("MyAttribute", )],
+                                                        callback)
+
+        yield self.deliver_messages(3)
+
+        self.assertTrue(callback.called)
