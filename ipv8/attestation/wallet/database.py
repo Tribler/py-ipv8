@@ -23,6 +23,7 @@ class AttestationsDB(Database):
             db_path = working_directory
         super(AttestationsDB, self).__init__(db_path)
         self.db_name = db_name
+        self.open()
 
     def _get(self, query, params):
         return list(self.execute(query, params, fetch_all=False))
@@ -34,11 +35,11 @@ class AttestationsDB(Database):
         return list(self.execute("SELECT * FROM %s" % self.db_name, (), fetch_all=True))
 
     def insert_attestation(self, attestation, secret_key):
-        blob = attestation.serialize()
-        hash = sha1(blob).digest()
+        blob = buffer(attestation.serialize())
+        hash = buffer(sha1(blob).digest())
         self.execute(
             u"INSERT INTO %s (hash, blob, key) VALUES(?,?,?)" % self.db_name,
-            hash, blob, secret_key.serialize())
+            (hash, blob, buffer(secret_key.serialize())))
         self.commit()
 
     def get_schema(self):
@@ -47,9 +48,9 @@ class AttestationsDB(Database):
         """
         return u"""
         CREATE TABLE IF NOT EXISTS %s(
-         hash                 TEXT NOT NULL,
-         blob                 TEXT NOT NULL,
-         key                  TEXT NOT NULL
+         hash                 BLOB,
+         blob                 LONGBLOB,
+         key                  MEDIUMBLOB,
 
          PRIMARY KEY (hash)
          );

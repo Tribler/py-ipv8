@@ -22,6 +22,7 @@ test/attestation/wallet/primitives/cryptosystem/test_primality.py:TestPrimality
 test/attestation/wallet/primitives/cryptosystem/test_value.py:TestFP2Value
 test/attestation/wallet/primitives/test_attestation.py:TestAttestation
 test/attestation/wallet/primitives/test_structs.py:TestStructs
+test/attestation/wallet/test_attestation_community.py:TestCommunity
 
 test/messaging/deprecated/test_encoding.py:TestEncoding
 test/messaging/anonymization/test_community.py:TestTunnelCommunity

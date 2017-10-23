@@ -78,7 +78,7 @@ class AttestationCommunity(Community):
 
         metadata = json.dumps({
             "attribute": attribute_name,
-            "public_key": public_key.serialize()
+            "public_key": public_key.serialize().encode('base64')
         })
 
         self.attestation_map[socket_address] = set()
@@ -104,7 +104,7 @@ class AttestationCommunity(Community):
         if value is None:
             return
 
-        PK = BonehPublicKey.unserialize(metadata['public_key'])
+        PK = BonehPublicKey.unserialize(metadata['public_key'].decode('base64'))
         attestation_blob = attest_sha512(PK, value).serialize()
 
         self.send_attestation(source_address, attestation_blob)
@@ -114,13 +114,16 @@ class AttestationCommunity(Community):
         We got an Attestation delivered to us.
         """
         secret_key = None
-        for key in self.pending_keys:
+        index = -1
+        for i in range(len(self.pending_keys)):
+            key = self.pending_keys[i]
             if key.public_key().serialize() == unserialized.PK.serialize():
                 secret_key = key
+                index = i
                 break
-        del self.pending_keys[secret_key]
-        if not secret_key:
+        if index == -1 or not secret_key:
             return
+        del self.pending_keys[index]
         self.database.insert_attestation(unserialized, secret_key)
 
     def verify_attestation_values(self, socket_address, hash, values, callback):
@@ -189,10 +192,10 @@ class AttestationCommunity(Community):
         auth, dist, payload = self._ez_unpack_auth(AttestationChunkPayload, data)
 
         if payload.hash in self.attestation_map:
-            self.attestation_map[payload.hash] |= (payload.sequence_numer, payload.data)
+            self.attestation_map[payload.hash] |= {(payload.sequence_numer, payload.data), }
 
             serialized = ""
-            for (_, chunk) in sorted(self.attestation_map[payload.hash], key=lambda index, d: index):
+            for (_, chunk) in sorted(self.attestation_map[payload.hash], key=lambda item: item[0]):
                 serialized += chunk
 
             try:
@@ -204,10 +207,10 @@ class AttestationCommunity(Community):
             except:
                 pass
         elif source_address in self.attestation_map:
-            self.attestation_map[source_address] |= (payload.sequence_numer, payload.data)
+            self.attestation_map[source_address] |= {(payload.sequence_number, payload.data), }
 
             serialized = ""
-            for (_, chunk) in sorted(self.attestation_map[source_address], key=lambda index, d: index):
+            for (_, chunk) in sorted(self.attestation_map[source_address], key=lambda item: item[0]):
                 serialized += chunk
 
             try:
