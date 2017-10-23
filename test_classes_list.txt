@@ -20,6 +20,7 @@ test/attestation/wallet/primitives/cryptosystem/test_boneh.py:TestBoneh
 test/attestation/wallet/primitives/cryptosystem/test_ec.py:TestPairing
 test/attestation/wallet/primitives/cryptosystem/test_primality.py:TestPrimality
 test/attestation/wallet/primitives/cryptosystem/test_value.py:TestFP2Value
+test/attestation/wallet/primitives/test_structs.py:TestStructs
 
 test/messaging/deprecated/test_encoding.py:TestEncoding
 test/messaging/anonymization/test_community.py:TestTunnelCommunity

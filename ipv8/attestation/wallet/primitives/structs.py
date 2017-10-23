@@ -3,6 +3,9 @@ import struct
 from .cryptosystem.value import FP2Value
 
 
+__all__ = ['pack_pair', 'unpack_pair', 'BonehPublicKey', 'BonehPrivateKey', 'BitPairAttestation', 'Attestation']
+
+
 def _num_to_str(num):
     """
     Convert an integer to a str.
@@ -67,6 +70,7 @@ class BonehPublicKey(object):
     """
     A public key for Boneh et al.'s cryptosystem.
     """
+    FIELDS = 6
 
     def __init__(self, n, p, g, h):
         self.n = n
@@ -78,17 +82,19 @@ class BonehPublicKey(object):
         return _pack(self.n) + _pack(self.p) + _pack(self.g.a) + _pack(self.g.b) + _pack(self.h.a) + _pack(self.h.b)
 
     @classmethod
-    def unserialize(cls, s, force_public=False):
+    def unserialize(cls, s):
         rem = s
         nums = []
-        while rem:
+        while rem and len(nums) < cls.FIELDS:
             unpacked, rem = _unpack(rem)
             nums.append(unpacked)
+        if len(nums) != cls.FIELDS:
+            return None
         inits = [nums[0],
                  nums[1],
                  FP2Value(nums[1], nums[2], nums[3]),
                  FP2Value(nums[1], nums[4], nums[5])]
-        if not force_public and len(nums) > 5:
+        if len(nums) > 6:
             inits.append(nums[6])
         return cls(*inits)
 
@@ -97,6 +103,7 @@ class BonehPrivateKey(BonehPublicKey):
     """
     A private key for Boneh et al.'s cryptosystem.
     """
+    FIELDS = 7
 
     def __init__(self, n, p, g, h, t1):
         super(BonehPrivateKey, self).__init__(n, p, g, h)
@@ -157,7 +164,7 @@ class Attestation(object):
 
     @classmethod
     def unserialize(cls, s):
-        PK = BonehPublicKey.unserialize(s, True)
+        PK = BonehPublicKey.unserialize(s)
         bitpairs = []
         rem = s[len(PK.serialize()):]
         while rem:
