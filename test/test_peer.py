@@ -43,31 +43,6 @@ class TestPeer(unittest.TestCase):
 
         self.assertEqual(self.peer.get_lamport_timestamp(), 0)
 
-    def test_intro_inactive(self):
-        """
-        Check if introduced Peers are not be immediately dropped.
-        """
-        self.assertFalse(self.peer.is_inactive())
-        self.assertFalse(self.peer.should_drop())
-
-    def test_inactive(self):
-        """
-        Check if Peers are marked inactive after 30 seconds.
-        """
-        self.peer.last_response = time.time() - 30
-
-        self.assertTrue(self.peer.is_inactive())
-        self.assertFalse(self.peer.should_drop())
-
-    def test_should_drop(self):
-        """
-        Check if Peers are marked should_drop after 60 seconds.
-        """
-        self.peer.last_response = time.time() - 60
-
-        self.assertTrue(self.peer.is_inactive())
-        self.assertTrue(self.peer.should_drop())
-
     def test_peer_equality(self):
         """
         Check if peers with the same key and address are equal.

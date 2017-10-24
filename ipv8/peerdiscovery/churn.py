@@ -58,7 +58,7 @@ class RandomChurn(DiscoveryStrategy):
             window = sample(self.overlay.network.verified_peers, sample_size)
 
             for peer in window:
-                if self.should_drop(peer) and peer.address in self._pinged:
+                if self.should_drop(peer):
                     self.overlay.network.remove_peer(peer)
                 elif self.is_inactive(peer):
                     if peer.address not in self._pinged:
