@@ -24,6 +24,7 @@ class IPV8(object):
         self.discovery_overlay = DiscoveryCommunity(self.my_peer, self.endpoint, self.network)
         self.discovery_strategy = RandomWalk(self.discovery_overlay)
         self.discovery_churn_strategy = RandomChurn(self.discovery_overlay)
+        self.discovery_overlay.resolve_dns_bootstrap_addresses()
 
         self.anonymization_overlay = TunnelCommunity(self.my_anonymous_id, self.endpoint, self.network)
         self.anonymization_strategy = RandomWalk(self.anonymization_overlay)

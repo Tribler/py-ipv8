@@ -1,3 +1,5 @@
+from twisted.names import client
+
 from ...peer import Peer
 from ...deprecated.community import Community
 from .discovery_payload import PingPayload, PongPayload, SimilarityRequestPayload, SimilarityResponsePayload
@@ -10,6 +12,18 @@ _DEFAULT_ADDRESSES = [
     ("83.149.70.6", 6424),
     ("95.211.155.142", 6427),
     ("95.211.155.131", 6428),
+]
+
+_DNS_ADDRESSES = [
+    (u"dispersy1.tribler.org", 6421),
+    (u"dispersy2.tribler.org", 6422),
+    (u"dispersy3.tribler.org", 6423),
+    (u"dispersy4.tribler.org", 6424),
+    (u"dispersy7.tribler.org", 6427),
+    (u"dispersy8.tribler.org", 6428),
+    (u"dispersy1.st.tudelft.nl", 6421),
+    (u"dispersy2.st.tudelft.nl", 6422),
+    (u"dispersy3.st.tudelft.nl", 6423)
 ]
 
 
@@ -41,6 +55,11 @@ class DiscoveryCommunity(Community):
     def bootstrap(self):
         for socket_address in _DEFAULT_ADDRESSES:
             self.walk_to(socket_address)
+
+    def resolve_dns_bootstrap_addresses(self):
+        for (address, port) in _DNS_ADDRESSES:
+            task = self.register_task("DNS-RESOLVE:" + address, client.getHostByName(address))
+            task.addCallback(lambda ip: _DEFAULT_ADDRESSES.append((ip, port)))
 
     def on_introduction_response(self, source_address, data):
         super(DiscoveryCommunity, self).on_introduction_response(source_address, data)
