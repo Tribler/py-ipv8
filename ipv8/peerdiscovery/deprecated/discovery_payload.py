@@ -80,7 +80,7 @@ class SimilarityResponsePayload(Payload):
     def from_unpack_list(cls, identifier, preference_list, tb_overlap):
         args = [identifier,
                 [preference_list[i:i+20] for i in range(0, len(preference_list), 20)],
-                [(tb_overlap[i:i+20], unpack(">I", tb_overlap[i+20:i+24])) for i in range(0, len(tb_overlap), 24)]]
+                [(tb_overlap[i:i+20], unpack(">I", tb_overlap[i+20:i+24])[0]) for i in range(0, len(tb_overlap), 24)]]
 
         return SimilarityResponsePayload(*args)
 
