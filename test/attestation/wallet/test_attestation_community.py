@@ -68,7 +68,7 @@ class TestCommunity(TestBase):
         """
         serialized = ""
         filename = os.path.join(os.path.dirname(__file__), 'attestation.txt')
-        with open(filename, 'rb') as f:
+        with open(filename, 'r') as f:
             serialized = f.read()[:-1].decode('hex')
         attestation = Attestation.unserialize(serialized)
         hash = '0927415c9484638c38185dbac8df645404065df5'.decode('hex')
