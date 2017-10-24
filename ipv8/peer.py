@@ -41,22 +41,6 @@ class Peer(object):
     def get_lamport_timestamp(self):
         return self._lamport_timestamp
 
-    def should_drop(self):
-        """
-        Have we passed the time before we consider this peer to be unreachable.
-        """
-        if self.last_response == 0:
-            return False
-        return time() > (self.last_response + 57.5)
-
-    def is_inactive(self):
-        """
-        Have we passed the time before we consider this peer to be inactive.
-        """
-        if self.last_response == 0:
-            return False
-        return time() > (self.last_response + 27.5)
-
     @property
     def mid(self):
         return self.key.key_to_hash()
