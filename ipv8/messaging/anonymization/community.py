@@ -149,8 +149,6 @@ class TunnelCommunity(Community):
 
         self.crypto.initialize(self.my_peer.key)
 
-        self.network.register_service_provider(self.master_peer.mid, self)
-
         self.register_task("do_circuits", LoopingCall(self.do_circuits)).start(5, now=True)
         self.register_task("do_ping", LoopingCall(self.do_ping)).start(PING_INTERVAL)
 

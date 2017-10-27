@@ -82,6 +82,7 @@ class Community(EZPackOverlay):
         super(Community, self).__init__(self.master_peer, my_peer, endpoint, network)
 
         self._prefix = '\x00' + self.version + self.master_peer.key.key_to_hash()
+        self.network.register_service_provider(self.master_peer.mid, self)
 
         self.decode_map = {
             chr(250): self.on_puncture_request,

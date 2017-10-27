@@ -86,7 +86,8 @@ class TestCommunity(TestBase):
 
         def callback(rhash, values):
             self.assertEqual(hash, rhash)
-            self.assertListEqual([1.0], values)
+            self.assertEqual(1, len(values))
+            self.assertLess(0.99, values[0])
             callback.called = True
         callback.called = False
         self.nodes[1].overlay.verify_attestation_values(self.nodes[0].endpoint.wan_address,
