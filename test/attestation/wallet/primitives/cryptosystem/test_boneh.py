@@ -6,25 +6,20 @@ from ipv8.attestation.wallet.primitives.structs import BonehPrivateKey
 
 class TestBoneh(unittest.TestCase):
 
-    private_key = BonehPrivateKey.unserialize('\x01@\xe2W\x0e\x1b\x9c\x86\xd8`w\xc9a\x90:\xb4\xc1\xb8\xb2\r\xe8%2' +
-                                              '\xafM0\xc0Q\x0e\xa8\xe0\xf4V\n&.\x1a\xce\x9e\xa2\xcc;\\\x0f2\x91\xda' +
-                                              '\x83*\x95\xc7k%\x87W\xc4\x05,\xe9\xa0\xe6p\x15D?\xff\x01A\xaf\x0fT' +
-                                              '\xe9[\x10KZ\x9c\xa5\xc1u\x8dg\xcd\xd4\xd9\xb6\xc1\x8c\xc53\x95\xb3' +
-                                              '\xb4\xbe\xb1V\x9d\xfc\xfa\x8b\xd9\x87\xa8\xbb\xce\xb1\xe9\xf5\xe93' +
-                                              '\xc1\x1c\xcf\x01r\xef\xd8<\xdf\x06\xad\xe1\x9c\x00\xbc\xb2r:\xb0r' +
-                                              '\xc9\x7f9\x01AT}d\xa4\xcf\xb4b\x89\xe8\x19\xac\xc1\x1b\xcf`)]=\xd5' +
-                                              '\x99I\x88H\xeb [\x8bb2\ta\xc9\xdb9\xe4\x1a\xffe\xd0TF\x05aA/\x9bDj' +
-                                              '\xb0|(;\xf1\xd4@R_D\xf4\x91\x1e\x14\xcf\x1b\xe0\x01A\xa2\x9f\x99%L' +
-                                              '\x1ap:\x1e\xe7\t\xf1\x08\xa9\xfc0l1\xd9\x012\xa5\xda\xa8Zr\xee\x19' +
-                                              '\xb5\x11\xc3oQ.\xfa\xad7\xbd\xde\xf84\x9e\xc2\xae^C\xfb=N\x0b\xe72' +
-                                              '\x1aNx\xa8uW\x8cO\x8f\xba\xee+\xad\x01A\x81CI\xc8:v\xd2\xc0S\xe8\xca' +
-                                              '\x17\xd6\xa6\x91]x4{\x16\xf8ak\xd9\x8f\xee\xacc\x85R\xe0\xd6M\x9a;k' +
-                                              '\xbf%\xf0P\x97\xbd4\xf0\\\x99a\x1a\x7f\xf1\x82qUi\x14z1\x05)\x99\xbc' +
-                                              'L\xf9\xb42\x01A\x10\x8a\x08\xeb\xdf\x07\x16\x00\xff\x8c`\x17_\xfc\xce' +
-                                              '\xad\xb7\xbct%P\x0c\x97V\xaeUf\x97\x0e0\xcc\xb4\x7f\xbf\x80\xc53D\x88' +
-                                              '\xc5\n\xdc\xa5?\xd9\xa7\xfaU\x1f\xb2;\xb1`\xdb\xdc\x8ba\xd7\xfabY\xb9' +
-                                              '\xc1\xbf\x9c\x01 \xe8\xc0\xb9\xbcx\xcf\xd6\xe5X\xcd\x85\xf1Un\x08\x165' +
-                                              '\x9apB\xf2\x9aC \xda!\x98\xb2\x8c\xe9\x7fI')
+    private_key = BonehPrivateKey.unserialize(("0142018eceb3e03820006219a5c5a959abfd40b042c381ff894f7c3d625ee9a02" +
+                                               "302dcdeda322aa8372b66c8d9b4df981e96eb1e4f7dacda5bca7399d864941a4b" +
+                                               "3ab55101415e009ff86a3288953321922929aaaaecdfba4663004f3b6caa1a32d" +
+                                               "f6af462659a7bb4659f2325eba7e8518b526be30b0002d304429b21643154f8ce" +
+                                               "c968d6156e0141608dd4640f02a8dd1b98c012df578840cabadbe985e50ba5481" +
+                                               "e4f5ea9640fb363c47729985405ee29cacc9786ba747d9a26a9e98752d728c459" +
+                                               "bd3b8214f302be014143286cfe8bf4b0b0283714068ced3bb6be72e5a913ecfe5" +
+                                               "827cbee71ce11a69f6a0ead8270430c3717606c1e93b7e60d2e426f26bf1ad9e8" +
+                                               "1fd260da09e47281fb0142017cdb49d11264889ce2d989f540196f3bfb0102021" +
+                                               "d0426667e137c76b5c993406681f6b2335b2734ee6c6e251706f6c2bf0c4fe53d" +
+                                               "0956410512f90465a3f777810140b6f72590286e1bb3e364d3cd3c6898e3df165" +
+                                               "f3361f76cf42e8361ae2a4547f73947a8e871e06bff71401841e0db916571eb94" +
+                                               "7f03d5b236dee592286b7d5a3f0120cd8489a2b149edce500b4357aa9ed0b6c22" +
+                                               "0d7a7c16706531671e30d03342ef3").decode('hex'))
 
     def test_generate_prime(self):
         """

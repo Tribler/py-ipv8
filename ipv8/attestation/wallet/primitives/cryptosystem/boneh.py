@@ -108,14 +108,14 @@ def generate_keypair(key_size=512):
     while not u or (u.intpow(t2) == FP2Value(p, 1)):
         _, u = get_good_wp(n, p)
     h = u.intpow(t2)
-    return BonehPublicKey(t1*t2, p, g, h), BonehPrivateKey(t1*t2, p, g, h, t1)
+    return BonehPublicKey(p, g, h), BonehPrivateKey(p, g, h, t1*t2, t1)
 
 
 def encode(pubkey, m):
     """
     Encode a message m given a public key.
     """
-    return pubkey.g.intpow(m) * get_random_exponentiation(pubkey.h, pubkey.n)
+    return pubkey.g.intpow(m) * get_random_exponentiation(pubkey.h, pubkey.p)
 
 
 def decode(privkey, msgspace, c):

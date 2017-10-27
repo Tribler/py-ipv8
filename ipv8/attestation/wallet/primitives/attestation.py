@@ -1,9 +1,12 @@
 from hashlib import sha512
 from random import randint, shuffle
+from threading import Lock
 
 from .cryptosystem.boneh import decode, encode
 from .cryptosystem.value import FP2Value
 from .structs import Attestation, BitPairAttestation
+
+multithread_update_lock = Lock()
 
 
 def generate_modular_additive_inverse(p, n):
@@ -143,4 +146,6 @@ def process_challenge_response(relativity_map, response):
     """
     Process a challenge response in a relativity map.
     """
+    multithread_update_lock.acquire()
     relativity_map[response] += 1
+    multithread_update_lock.release()

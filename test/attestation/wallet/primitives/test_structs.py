@@ -39,16 +39,14 @@ class TestStructs(unittest.TestCase):
         """
         Check if a BonehPublicKey can be serialized and unserialized correctly.
         """
-        n = 64684654546546463153164864
         p = 884546864135123153155516635631631
         g = FP2Value(p, 58468546584635416356, 51468468484864846451)
         h = FP2Value(p, 651465444864846456151, 31213216564)
-        key = BonehPublicKey(n, p, g, h)
+        key = BonehPublicKey(p, g, h)
 
         serialized = key.serialize()
         unserialized = BonehPublicKey.unserialize(serialized)
 
-        self.assertEqual(n, unserialized.n)
         self.assertEqual(p, unserialized.p)
         self.assertEqual(g, unserialized.g)
         self.assertEqual(h, unserialized.h)
@@ -65,16 +63,14 @@ class TestStructs(unittest.TestCase):
         """
         Check if a BonehPublicKey can be serialized and unserialized correctly with remainder.
         """
-        n = 9878416351551
         p = 69484635115151351513652987894784654156545665
         g = FP2Value(p, 68461115156531651631653163563, 132319884561841)
         h = FP2Value(p, 98781236511, 32185666658636546663635165635)
-        key = BonehPublicKey(n, p, g, h)
+        key = BonehPublicKey(p, g, h)
 
         serialized = key.serialize() + 'iejriq94u2305ijiqnfa'
         unserialized = BonehPublicKey.unserialize(serialized)
 
-        self.assertEqual(n, unserialized.n)
         self.assertEqual(p, unserialized.p)
         self.assertEqual(g, unserialized.g)
         self.assertEqual(h, unserialized.h)
@@ -88,7 +84,7 @@ class TestStructs(unittest.TestCase):
         g = FP2Value(p, 96874984765651564, 3216465486956184847984564)
         h = FP2Value(p, 987987984, 8794181684561484515646518456148156454544)
         t1 = 6848489484665156651566515665163565636663563
-        key = BonehPrivateKey(n, p, g, h, t1)
+        key = BonehPrivateKey(p, g, h, n, t1)
 
         serialized = key.serialize()
         unserialized = BonehPrivateKey.unserialize(serialized)
@@ -108,7 +104,7 @@ class TestStructs(unittest.TestCase):
         g = FP2Value(p, 86416515655841555261455, 84986446854656165)
         h = FP2Value(p, 156151352151313613651, 84686815661132515513313)
         t1 = 321321564645164653164687
-        key = BonehPrivateKey(n, p, g, h, t1)
+        key = BonehPrivateKey(p, g, h, n, t1)
 
         serialized = key.serialize() + ';k;mezrako;erjiragtijtgrioj'
         unserialized = BonehPrivateKey.unserialize(serialized)
@@ -177,18 +173,16 @@ class TestStructs(unittest.TestCase):
         """
         Check if an Attestation can be serialized and unserialized correctly with no bitpairs.
         """
-        n = 64684654546546463153164864
         p = 884546864135123153155516635631631
         g = FP2Value(p, 58468546584635416356, 51468468484864846451)
         h = FP2Value(p, 651465444864846456151, 31213216564)
-        key = BonehPublicKey(n, p, g, h)
+        key = BonehPublicKey(p, g, h)
         bitpairs = []
         attest = Attestation(key, bitpairs)
 
         serialized = attest.serialize()
         unserialized = Attestation.unserialize(serialized)
 
-        self.assertEqual(n, unserialized.PK.n)
         self.assertEqual(p, unserialized.PK.p)
         self.assertEqual(g, unserialized.PK.g)
         self.assertEqual(h, unserialized.PK.h)
@@ -198,7 +192,6 @@ class TestStructs(unittest.TestCase):
         """
         Check if an Attestation can be serialized and unserialized correctly with one bitpair.
         """
-        n = 64684654546546463153164864
         p = 884546864135123153155516635631631
         g = FP2Value(p, 58468546584635416356, 51468468484864846451)
         h = FP2Value(p, 651465444864846456151, 31213216564)
@@ -206,14 +199,13 @@ class TestStructs(unittest.TestCase):
         b = FP2Value(p, 32184987216545974, 987984116541354132132165464)
         c = FP2Value(p, 13265, 848464848609849840645102)
         bitpair  = BitPairAttestation(a, b, c)
-        key = BonehPublicKey(n, p, g, h)
+        key = BonehPublicKey(p, g, h)
         bitpairs = [bitpair]
         attest = Attestation(key, bitpairs)
 
         serialized = attest.serialize()
         unserialized = Attestation.unserialize(serialized)
 
-        self.assertEqual(n, unserialized.PK.n)
         self.assertEqual(p, unserialized.PK.p)
         self.assertEqual(g, unserialized.PK.g)
         self.assertEqual(h, unserialized.PK.h)
@@ -226,7 +218,6 @@ class TestStructs(unittest.TestCase):
         """
         Check if an Attestation can be serialized and unserialized correctly with twenty bitpairs.
         """
-        n = 64684654546546463153164864
         p = 884546864135123153155516635631631
         g = FP2Value(p, 58468546584635416356, 51468468484864846451)
         h = FP2Value(p, 651465444864846456151, 31213216564)
@@ -234,14 +225,13 @@ class TestStructs(unittest.TestCase):
         b = FP2Value(p, 32184987216545974, 987984116541354132132165464)
         c = FP2Value(p, 13265, 848464848609849840645102)
         bitpair  = BitPairAttestation(a, b, c)
-        key = BonehPublicKey(n, p, g, h)
+        key = BonehPublicKey(p, g, h)
         bitpairs = [bitpair] * 20
         attest = Attestation(key, bitpairs)
 
         serialized = attest.serialize()
         unserialized = Attestation.unserialize(serialized)
 
-        self.assertEqual(n, unserialized.PK.n)
         self.assertEqual(p, unserialized.PK.p)
         self.assertEqual(g, unserialized.PK.g)
         self.assertEqual(h, unserialized.PK.h)

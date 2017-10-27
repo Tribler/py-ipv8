@@ -70,16 +70,15 @@ class BonehPublicKey(object):
     """
     A public key for Boneh et al.'s cryptosystem.
     """
-    FIELDS = 6
+    FIELDS = 5
 
-    def __init__(self, n, p, g, h):
-        self.n = n
+    def __init__(self, p, g, h):
         self.p = p
         self.g = g
         self.h = h
 
     def serialize(self):
-        return _pack(self.n) + _pack(self.p) + _pack(self.g.a) + _pack(self.g.b) + _pack(self.h.a) + _pack(self.h.b)
+        return _pack(self.p) + _pack(self.g.a) + _pack(self.g.b) + _pack(self.h.a) + _pack(self.h.b)
 
     @classmethod
     def unserialize(cls, s):
@@ -91,10 +90,10 @@ class BonehPublicKey(object):
         if len(nums) != cls.FIELDS:
             return None
         inits = [nums[0],
-                 nums[1],
-                 FP2Value(nums[1], nums[2], nums[3]),
-                 FP2Value(nums[1], nums[4], nums[5])]
-        if len(nums) > 6:
+                 FP2Value(nums[0], nums[1], nums[2]),
+                 FP2Value(nums[0], nums[3], nums[4])]
+        if len(nums) > 5:
+            inits.append(nums[5])
             inits.append(nums[6])
         return cls(*inits)
 
@@ -105,15 +104,16 @@ class BonehPrivateKey(BonehPublicKey):
     """
     FIELDS = 7
 
-    def __init__(self, n, p, g, h, t1):
-        super(BonehPrivateKey, self).__init__(n, p, g, h)
+    def __init__(self, p, g, h, n, t1):
+        super(BonehPrivateKey, self).__init__(p, g, h)
+        self.n = n
         self.t1 = t1
 
     def serialize(self):
-        return super(BonehPrivateKey, self).serialize() + _pack(self.t1)
+        return super(BonehPrivateKey, self).serialize() + _pack(self.n) + _pack(self.t1)
 
     def public_key(self):
-        return BonehPublicKey(self.n, self.p, self.g, self.h)
+        return BonehPublicKey(self.p, self.g, self.h)
 
 
 class BitPairAttestation(object):

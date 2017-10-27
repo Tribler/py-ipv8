@@ -9,8 +9,8 @@ from test.util import twisted_test
 
 class TestCommunity(TestBase):
 
-    private_key = BonehPrivateKey.unserialize(('0106b5e9e99724e301073bb0c0a5981a7b01071125faddfe03f901070b4ad6668f' +
-                                               '4dad010716e5ee49d979f0010702522d2e41f7c201030f4291').decode('hex'))
+    private_key = BonehPrivateKey.unserialize(("01064c65dcb113f901064228da3ea57101064793a4f9c77901062b083e8690fb0" +
+                                               "106408293c67e9f010601d1a9d3744901030f4243").decode('hex'))
 
     def setUp(self):
         super(TestCommunity, self).setUp()
@@ -57,7 +57,7 @@ class TestCommunity(TestBase):
 
         yield self.introduce_nodes()
 
-        self.nodes[0].overlay.set_attestation_request_callback(lambda x, y: x)
+        self.nodes[0].overlay.set_attestation_request_callback(lambda x, y: y)
         self.nodes[0].overlay.set_attestation_request_complete_callback(f)
 
         self.nodes[1].overlay.request_attestation(self.nodes[0].endpoint.wan_address,
@@ -78,9 +78,9 @@ class TestCommunity(TestBase):
         serialized = ""
         filename = os.path.join(os.path.dirname(__file__), 'attestation.txt')
         with open(filename, 'r') as f:
-            serialized = f.read()[:-1].decode('hex')
+            serialized = f.read().decode('hex')
         attestation = Attestation.unserialize(serialized)
-        hash = '0927415c9484638c38185dbac8df645404065df5'.decode('hex')
+        hash = '470be47c5076348b497410b3f2741bba7a00d0f1'.decode('hex')
         self.nodes[0].overlay.database.insert_attestation(attestation, TestCommunity.private_key)
         self.nodes[0].overlay.attestation_keys[hash] = TestCommunity.private_key
 
@@ -92,7 +92,7 @@ class TestCommunity(TestBase):
         callback.called = False
         self.nodes[1].overlay.verify_attestation_values(self.nodes[0].endpoint.wan_address,
                                                         hash,
-                                                        [binary_relativity_sha512("MyAttribute", )],
+                                                        [binary_relativity_sha512("MyAttribute")],
                                                         callback)
 
         yield self.deliver_messages(3)

@@ -6,7 +6,7 @@ from ipv8.attestation.wallet.primitives.attestation import *
 
 class TestAttestation(unittest.TestCase):
 
-    private_key = BonehPrivateKey.unserialize('010204a50102539901021b1501020e3e01021bfb0102080e01011d'.decode('hex'))
+    private_key = BonehPrivateKey.unserialize('01011d01011401011101011c01011c01010f010103'.decode('hex'))
 
     def test_generate_minverse_group(self):
         """
