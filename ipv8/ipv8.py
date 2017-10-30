@@ -1,6 +1,14 @@
+import logging
+from os.path import isfile
+from twisted.internet import reactor
+
+from .attestation.identity.community import IdentityCommunity
+from .attestation.trustchain.community import TrustChainCommunity
+from .attestation.wallet.community import AttestationCommunity
 from .peerdiscovery.deprecated.discovery import DiscoveryCommunity
 from .keyvault.crypto import ECCrypto
 from .messaging.anonymization.community import TunnelCommunity
+from .messaging.anonymization.hidden_services import HiddenTunnelCommunity
 from .messaging.interfaces.udp.endpoint import UDPEndpoint
 from .peerdiscovery.discovery import EdgeWalk, RandomWalk
 from .peerdiscovery.churn import RandomChurn
@@ -10,43 +18,82 @@ from .peer import Peer
 from twisted.internet.task import LoopingCall
 
 
+_COMMUNITIES = {
+    'AttestationCommunity': AttestationCommunity,
+    'DiscoveryCommunity': DiscoveryCommunity,
+    'HiddenTunnelCommunity': HiddenTunnelCommunity,
+    'IdentityCommunity': IdentityCommunity,
+    'TrustChainCommunity': TrustChainCommunity,
+    'TunnelCommunity': TunnelCommunity
+}
+
+
+_WALKERS = {
+    'EdgeWalk': EdgeWalk,
+    'RandomChurn': RandomChurn,
+    'RandomWalk': RandomWalk
+}
+
+
 class IPV8(object):
 
-    def __init__(self):
-        self.endpoint = UDPEndpoint(8090)
+    def __init__(self, configuration):
+        self.endpoint = UDPEndpoint(configuration['port'])
         self.endpoint.open()
 
         self.network = Network()
 
-        self.my_peer = Peer(ECCrypto().generate_key(u"high"))
-        self.my_anonymous_id = Peer(ECCrypto().generate_key(u"curve25519"))
+        # Load/generate keys
+        self.keys = {}
+        for key_block in configuration['keys']:
+            if key_block['file'] and isfile(key_block['file']):
+                with open(key_block['file'], 'r') as f:
+                    self.keys[key_block['alias']] = Peer(ECCrypto().key_from_private_bin(f.read()))
+            else:
+                self.keys[key_block['alias']] = Peer(ECCrypto().generate_key(key_block['generation']))
+                if key_block['file']:
+                    with open(key_block['file'], 'w') as f:
+                        f.write(self.keys[key_block['alias']].key.key_to_bin())
 
-        self.discovery_overlay = DiscoveryCommunity(self.my_peer, self.endpoint, self.network)
-        self.discovery_strategy = RandomWalk(self.discovery_overlay)
-        self.discovery_churn_strategy = RandomChurn(self.discovery_overlay)
-        self.discovery_overlay.resolve_dns_bootstrap_addresses()
+        # Setup logging
+        logging.basicConfig(**configuration['logger'])
 
-        self.anonymization_overlay = TunnelCommunity(self.my_anonymous_id, self.endpoint, self.network)
-        self.anonymization_strategy = RandomWalk(self.anonymization_overlay)
-        self.anonymization_overlay.build_tunnels(1)
+        self.strategies = []
 
-        self.state_machine_lc = LoopingCall(self.on_tick).start(0.5, False)
+        for overlay in configuration['overlays']:
+            overlay_class = _COMMUNITIES[overlay['class']]
+            my_peer = self.keys[overlay['key']]
+            overlay_instance = overlay_class(my_peer, self.endpoint, self.network, **overlay['initialize'])
+            for walker in overlay['walkers']:
+                strategy_class = _WALKERS[walker['strategy']]
+                args = walker['init']
+                target_peers = walker['peers']
+                self.strategies.append((strategy_class(overlay_instance, **args), target_peers))
+            for config in overlay['on_start']:
+                reactor.callWhenRunning(getattr(overlay_instance, config[0]), *config[1:])
+
+        self.state_machine_lc = LoopingCall(self.on_tick).start(configuration['walker_interval'], False)
 
     def on_tick(self):
         if self.endpoint.is_open():
-            if not self.discovery_overlay.network.get_walkable_addresses():
-                self.discovery_overlay.bootstrap()
+            if not self.network.get_walkable_addresses():
+                for strategy, _ in self.strategies:
+                    overlay = strategy.overlay
+                    if hasattr(overlay, 'bootstrap') and callable(overlay.bootstrap):
+                        overlay.bootstrap()
             else:
-                self.discovery_strategy.take_step()
-                self.discovery_churn_strategy.take_step()
-                # TunnelCommunity overwrites intro. req./resp.
-                self.anonymization_strategy.take_step()
+                for strategy, target_peers in self.strategies:
+                    service = strategy.overlay.master_peer.mid
+                    peer_count = len(self.network.get_peers_for_service(service))
+                    if peer_count< target_peers:
+                        strategy.take_step(service)
+
+    def start(self):
+        reactor.run()
+
+    def stop(self):
+        reactor.callFromThread(reactor.stop)
 
 if __name__ == '__main__':
-    from twisted.internet import reactor
-    import logging
-    logging.basicConfig(level=logging.INFO)
-
-    ipv8 = IPV8()
-
-    reactor.run()
+    from .configuration import get_default_configuration
+    IPV8(get_default_configuration()).start()

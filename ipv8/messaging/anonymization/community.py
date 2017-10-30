@@ -108,6 +108,11 @@ class TunnelCommunity(Community):
 
     def __init__(self, *args, **kwargs):
         self.settings = kwargs.pop('settings', TunnelSettings())
+        if isinstance(self.settings, dict):
+            settings = TunnelSettings()
+            for k, v in self.settings.iteritems():
+                setattr(settings, k, v)
+            self.settings = settings
 
         super(TunnelCommunity, self).__init__(*args, **kwargs)
 

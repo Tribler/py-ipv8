@@ -104,7 +104,8 @@ class Database(object):
 
         self._logger.debug("open database [%s]", self._file_path)
         if (not self._file_path.startswith(':')) and (not os.path.isfile(self._file_path)):
-            os.makedirs(os.path.dirname(self._file_path))
+            if not os.path.exists(os.path.dirname(self._file_path)):
+                os.makedirs(os.path.dirname(self._file_path))
         self._connect()
         if initial_statements:
             self._initial_statements()
