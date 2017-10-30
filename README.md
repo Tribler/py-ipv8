@@ -15,8 +15,9 @@ Functionality included by IPv8 at this point is:
  - *TrustChain self-sovereign blockchain* 
  - *Peer discovery using random walks and (sybil resistant) edge walks*
  - *Peer keep-alive mechanisms*
+ - *Hidden attribute attestation*
  
-Implementations on the horizon of this library are *stream-based messaging* (instead of packet-based), *scalable TrustChain concensus*, *hidden attribute attestation* and *mixnet functionality*.
+Implementations on the horizon of this library are *stream-based messaging* (instead of packet-based), *scalable TrustChain concensus* and *mixnet functionality*.
 
 ### Dependencies
 The dependencies for IPv8 are collected in the `requirements.txt` file and can be installed using `pip`:
@@ -57,8 +58,8 @@ python2 create_test_coverage_report.py
 ```
 
 ### Getting started
-An example file to load IPv8 has been provided [here](ipv8/ipv8.py).
-This file will load the bare minimum IPv8 stack for *signed messaging*, *anonymous messaging*, *public service discovery*, *peer discovery* and *peer keep-alive*.
+IPv8 can be used as a library or as a service. It is easiest to start off with the service, which has been provided [here](ipv8/ipv8.py) (see the [configuration file](ipv8/configuration.py) for invocation options).
+This file will load the IPv8 stack for *signed messaging*, *anonymous messaging*, *attribute attestation*, *public service discovery*, *peer discovery* and *peer keep-alive*.
 You can play around with it to get to know IPv8 better.
 
 Additional documentation is also available for the [TrustChain](doc/trustchain.md) and [anonymization](doc/anonymization.md) provided in IPv8.
