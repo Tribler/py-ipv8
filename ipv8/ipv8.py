@@ -85,7 +85,7 @@ class IPV8(object):
                 for strategy, target_peers in self.strategies:
                     service = strategy.overlay.master_peer.mid
                     peer_count = len(self.network.get_peers_for_service(service))
-                    if peer_count< target_peers:
+                    if (target_peers == -1) or (peer_count < target_peers):
                         strategy.take_step(service)
 
     def start(self):
