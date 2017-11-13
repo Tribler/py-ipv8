@@ -1,4 +1,5 @@
 import logging
+import time
 
 from ...requestcache import NumberCache, RandomNumberCache
 from .tunnel import CIRCUIT_STATE_READY, PING_INTERVAL
