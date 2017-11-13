@@ -42,6 +42,8 @@ class TestCommunity(TestBase):
         yield self.deliver_messages()
 
         self.assertTrue(f.called)
+        # Request for attribute attestation goes unanswered
+        self.nodes[1].overlay.request_cache.clear()
 
     @twisted_test(4)
     def test_request_attestation(self):

@@ -62,7 +62,7 @@ class TaskManager(object):
         is_active, stopfn = self._get_isactive_stopper(name)
         if is_active and stopfn:
             stopfn()
-            self._pending_tasks.pop(name)
+            self._pending_tasks.pop(name, None)
 
     def cancel_all_pending_tasks(self):
         """
@@ -128,6 +128,6 @@ class TaskManager(object):
             self._cleaup_counter = CLEANUP_FREQUENCY
             for name in self._pending_tasks.keys():
                 if not self.is_pending_task_active(name):
-                    self._pending_tasks.pop(name)
+                    self._pending_tasks.pop(name, None)
 
 __all__ = ["TaskManager"]
