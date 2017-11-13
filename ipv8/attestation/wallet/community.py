@@ -1,5 +1,6 @@
-import json
 from hashlib import sha1
+import json
+import os
 from random import choice
 
 from .caches import *
@@ -9,10 +10,22 @@ from ...deprecated.payload_headers import BinMemberAuthenticationPayload, Global
 from .payload import *
 from .primitives.attestation import (attest_sha512, binary_relativity_certainty, create_challenge,
                                      create_challenge_response_from_pair, create_empty_relativity_map,
-                                     process_challenge_response)
+                                     create_honesty_check, process_challenge_response)
 from .primitives.structs import Attestation, BonehPrivateKey, BonehPublicKey, pack_pair, unpack_pair
 from ...peer import Peer
 from ...requestcache import RequestCache
+
+
+from threading import Lock
+receive_block_lock = Lock()
+def synchronized(f):
+    """
+    Due to database inconsistencies, we can't allow multiple threads to handle a received_half_block at the same time.
+    """
+    def wrapper(self, *args, **kwargs):
+        with receive_block_lock:
+            return f(self, *args, **kwargs)
+    return wrapper
 
 
 class AttestationCommunity(Community):
@@ -132,7 +145,7 @@ class AttestationCommunity(Community):
         """
         def on_complete(hash, relativity_map):
             callback(hash, [binary_relativity_certainty(value, relativity_map) for value in values])
-        self.request_cache.add(ProvingAttestationCache(self, hash, on_complete))
+        self.request_cache.add(ProvingAttestationCache(self, hash, on_complete=on_complete))
         self.create_verify_attestation_request(socket_address, hash)
 
     def create_verify_attestation_request(self, socket_address, hash):
@@ -233,6 +246,7 @@ class AttestationCommunity(Community):
         challenges = []
         hashed_challenges = []
         cache = self.request_cache.get(*HashCache.id_from_hash(u"proving-attestation", attestation_hash))
+        cache.public_key = attestation.PK
         for bitpair in attestation.bitpairs:
             challenge = create_challenge(attestation.PK, bitpair)
             serialized = pack_pair(challenge.a, challenge.b)
@@ -273,29 +287,60 @@ class AttestationCommunity(Community):
         packet = self._ez_pack(self._prefix, 4, [auth, dist, payload])
         self.endpoint.send(source_address, packet)
 
+    @synchronized
     def on_challenge_response(self, source_address, data):
         """
         We received a response to our challenge
         """
         auth, dist, payload = self._ez_unpack_auth(ChallengeResponsePayload, data)
 
-        cache = self.request_cache.pop(*HashCache.id_from_hash(u"proving-hash", payload.challenge_hash))
+        cache = self.request_cache.get(*HashCache.id_from_hash(u"proving-hash", payload.challenge_hash))
         if cache:
+            self.request_cache.pop(*HashCache.id_from_hash(u"proving-hash", payload.challenge_hash))
             proving_cache = cache.proving_cache
-            proving_cache.hashed_challenges.remove(payload.challenge_hash)
-            for challenge in proving_cache.challenges[:]:
-                if sha1(challenge).digest() == payload.challenge_hash:
-                    proving_cache.challenges.remove(challenge)
-                    break
-            process_challenge_response(proving_cache.relativity_map, payload.response)
+            pcache_prefix, pcache_id = HashCache.id_from_hash(u"proving-attestation", proving_cache.hash)
+            if payload.challenge_hash in proving_cache.hashed_challenges:
+                proving_cache.hashed_challenges.remove(payload.challenge_hash)
+                for challenge in proving_cache.challenges[:]:
+                    if sha1(challenge).digest() == payload.challenge_hash:
+                        proving_cache.challenges.remove(challenge)
+                        break
+            if cache.honesty_check < 0:
+                process_challenge_response(proving_cache.relativity_map, payload.response)
+            elif cache.honesty_check != payload.response:
+                self.logger.error("%s tried to cheat in the ZKP!", source_address[0])
+                # Liar, Completed
+                if self.request_cache.has(pcache_prefix, pcache_id):
+                    self.request_cache.pop(pcache_prefix, pcache_id)
+                proving_cache.attestation_callbacks(proving_cache.hash, create_empty_relativity_map())
             if len(proving_cache.hashed_challenges) == 0:
+                self.logger.info("Completed attestation verification")
                 # Completed
-                self.request_cache.pop(*HashCache.id_from_hash(u"proving-attestation", proving_cache.hash))
+                if self.request_cache.has(pcache_prefix, pcache_id):
+                    self.request_cache.pop(pcache_prefix, pcache_id)
                 proving_cache.attestation_callbacks(proving_cache.hash, proving_cache.relativity_map)
             else:
                 # Send another proving hash
-                challenge = choice(proving_cache.challenges)
-                self.request_cache.add(PendingChallengeCache(self, sha1(challenge).digest(), proving_cache))
+                honesty_check = (ord(os.urandom(1)[0]) < 38)
+                honesty_check_byte = choice(range(3)) if honesty_check else -1
+                challenge = None
+                if honesty_check:
+                    raw_challenge = create_honesty_check(proving_cache.public_key, honesty_check_byte)
+                    challenge = pack_pair(raw_challenge.a, raw_challenge.b)
+                if (not honesty_check) or (challenge and self.request_cache.has(*HashCache.id_from_hash(u"proving-hash",
+                                                                                sha1(challenge).digest()))):
+                    honesty_check_byte = -1
+                    challenge = None
+                    for c in proving_cache.challenges:
+                        if not self.request_cache.has(*HashCache.id_from_hash(u"proving-hash", sha1(c).digest())):
+                            challenge = c
+                            break
+                    if not challenge:
+                        self.logger.debug("No more bitpairs to challenge!")
+                        return
+                self.logger.debug("Sending challenge: %d (%d)", honesty_check_byte, len(proving_cache.hashed_challenges))
+                self.request_cache.add(PendingChallengeCache(self, sha1(challenge).digest(), proving_cache,
+                                                             honesty_check_byte))
 
                 global_time = self.claim_global_time()
                 auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()

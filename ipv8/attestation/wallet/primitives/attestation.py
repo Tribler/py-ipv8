@@ -127,6 +127,13 @@ def create_challenge(PK, bitpair):
     return bitpair.compress() * encode(PK, 0)
 
 
+def create_honesty_check(PK, value):
+    """
+    Create a honesty check challenge.
+    """
+    return encode(PK, value)
+
+
 def create_challenge_response_from_pair(SK, pair):
     """
     Respond to a bitpair challenge.

@@ -100,3 +100,4 @@ class TestCommunity(TestBase):
         yield self.deliver_messages(3)
 
         self.assertTrue(callback.called)
+        self.nodes[1].overlay.request_cache.clear()

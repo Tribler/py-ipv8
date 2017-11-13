@@ -72,9 +72,10 @@ class ProvingAttestationCache(HashCache):
     Pending attestation verification, stores expected relmap, hashed challenges and completion callback.
     """
 
-    def __init__(self, community, hash, on_complete=lambda x, y: None):
+    def __init__(self, community, hash, public_key=None, on_complete=lambda x, y: None):
         super(ProvingAttestationCache, self).__init__(community.request_cache, u"proving-attestation", hash)
         self.hash = hash
+        self.public_key = public_key
         self.relativity_map = {}
         self.hashed_challenges = []
         self.challenges = []
@@ -88,9 +89,10 @@ class PendingChallengeCache(HashCache):
     """
     Single pending challenge for a ProvingAttestationCache.
     """
-    def __init__(self, community, hash, proving_cache):
+    def __init__(self, community, hash, proving_cache, honesty_check=-1):
         super(PendingChallengeCache, self).__init__(community.request_cache, u"proving-hash", hash)
         self.proving_cache = proving_cache
+        self.honesty_check = honesty_check
 
     def on_timeout(self):
         pass
