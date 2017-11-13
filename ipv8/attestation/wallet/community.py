@@ -1,5 +1,6 @@
 import json
 from hashlib import sha1
+from random import choice
 
 from .caches import *
 from .database import AttestationsDB
@@ -238,12 +239,13 @@ class AttestationCommunity(Community):
             challenges.append(serialized)
             challenge_hash = sha1(serialized).digest()
             hashed_challenges.append(challenge_hash)
-            self.request_cache.add(PendingChallengeCache(self, challenge_hash, cache))
         cache.relativity_map = relativity_map
         cache.hashed_challenges = hashed_challenges
+        cache.challenges = challenges
 
-        # TODO: Don't send this all at once
-        for challenge in challenges:
+        for challenge in challenges[:10]:
+            self.request_cache.add(PendingChallengeCache(self, sha1(challenge).digest(), cache))
+
             global_time = self.claim_global_time()
             auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
             payload = ChallengePayload(attestation_hash, challenge).to_pack_list()
@@ -281,8 +283,24 @@ class AttestationCommunity(Community):
         if cache:
             proving_cache = cache.proving_cache
             proving_cache.hashed_challenges.remove(payload.challenge_hash)
+            for challenge in proving_cache.challenges[:]:
+                if sha1(challenge).digest() == payload.challenge_hash:
+                    proving_cache.challenges.remove(challenge)
+                    break
             process_challenge_response(proving_cache.relativity_map, payload.response)
             if len(proving_cache.hashed_challenges) == 0:
                 # Completed
                 self.request_cache.pop(*HashCache.id_from_hash(u"proving-attestation", proving_cache.hash))
                 proving_cache.attestation_callbacks(proving_cache.hash, proving_cache.relativity_map)
+            else:
+                # Send another proving hash
+                challenge = choice(proving_cache.challenges)
+                self.request_cache.add(PendingChallengeCache(self, sha1(challenge).digest(), proving_cache))
+
+                global_time = self.claim_global_time()
+                auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
+                payload = ChallengePayload(proving_cache.hash, challenge).to_pack_list()
+                dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
+
+                packet = self._ez_pack(self._prefix, 3, [auth, dist, payload])
+                self.endpoint.send(source_address, packet)

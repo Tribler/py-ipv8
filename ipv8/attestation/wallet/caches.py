@@ -1,7 +1,7 @@
 from socket import inet_aton
 from struct import pack, unpack
 
-from ...requestcache import NumberCache, RandomNumberCache
+from ...requestcache import NumberCache
 
 
 class HashCache(NumberCache):
@@ -77,6 +77,7 @@ class ProvingAttestationCache(HashCache):
         self.hash = hash
         self.relativity_map = {}
         self.hashed_challenges = []
+        self.challenges = []
         self.attestation_callbacks = on_complete
 
     def on_timeout(self):
