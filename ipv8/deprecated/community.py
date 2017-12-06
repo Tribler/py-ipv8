@@ -269,6 +269,6 @@ class Community(EZPackOverlay):
         packet = self.create_introduction_request(from_peer)
 
         if service_id:
-            packet = packet[:2] + service_id + packet[23:]
+            packet = packet[:2] + service_id + packet[22:]
 
         self.endpoint.send(from_peer, packet)
