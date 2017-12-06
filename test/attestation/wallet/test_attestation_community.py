@@ -45,7 +45,7 @@ class TestCommunity(TestBase):
         # Request for attribute attestation goes unanswered
         self.nodes[1].overlay.request_cache.clear()
 
-    @twisted_wrapper(4)
+    @twisted_wrapper(6)
     def test_request_attestation(self):
         """
         Check if the request_attestation callback is correctly called.
@@ -66,13 +66,13 @@ class TestCommunity(TestBase):
                                                   "MyAttribute",
                                                   TestCommunity.private_key)
 
-        yield self.deliver_messages(3)
+        yield self.deliver_messages(5)
 
         db_entries = self.nodes[1].overlay.database.get_all()
         self.assertEqual(1, len(db_entries))
         self.assertTrue(f.called)
 
-    @twisted_wrapper(4)
+    @twisted_wrapper(6)
     def test_verify_attestation(self):
         """
         Check if an attestation can be verified.
@@ -97,7 +97,7 @@ class TestCommunity(TestBase):
                                                         [binary_relativity_sha512("MyAttribute")],
                                                         callback)
 
-        yield self.deliver_messages(3)
+        yield self.deliver_messages(5)
 
         self.assertTrue(callback.called)
         self.nodes[1].overlay.request_cache.clear()
