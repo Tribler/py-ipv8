@@ -6,7 +6,7 @@ from ipv8.peer import Peer
 from test.base import TestBase
 from test.mocking.exit_socket import MockTunnelExitSocket
 from test.mocking.ipv8 import MockIPv8
-from test.util import twisted_test
+from test.util import twisted_wrapper
 
 # Map of info_hash -> peer list
 global_dht_services = {}
@@ -93,7 +93,7 @@ class TestHiddenServices(TestBase):
         for exit_socket in exit_sockets:
             exit_sockets[exit_socket] = MockTunnelExitSocket(exit_sockets[exit_socket])
 
-    @twisted_test
+    @twisted_wrapper
     def test_create_introduction_point(self):
         """
         Check if setting up an introduction point works.
@@ -110,7 +110,7 @@ class TestHiddenServices(TestBase):
 
         self.assertTrue(intro_made)
 
-    @twisted_test
+    @twisted_wrapper
     def test_dht_lookup_with_counterparty(self):
         """
         Check if a DHT lookup works.
@@ -139,7 +139,7 @@ class TestHiddenServices(TestBase):
 
         self.assertTrue(callback.called)
 
-    @twisted_test
+    @twisted_wrapper
     def test_dht_lookup_no_counterparty(self):
         """
         Check if a DHT lookup doesn't return on its own required service.

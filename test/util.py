@@ -158,7 +158,7 @@ def deferred(timeout=None):
     return decorate
 
 
-def twisted_test(arg):
+def twisted_wrapper(arg):
     """
     Wrap a twisted test. Optionally supply a test timeout.
 
@@ -166,4 +166,4 @@ def twisted_test(arg):
     """
     if isinstance(arg, (int, long)):
         return lambda x: deferred(arg)(inlineCallbacks(x))
-    return deferred(1)(inlineCallbacks(arg))
+    return deferred(timeout=1)(inlineCallbacks(arg))

@@ -5,7 +5,7 @@ from ipv8.peerdiscovery.deprecated.discovery import _DEFAULT_ADDRESSES
 from test.base import TestBase
 from test.mocking.community import MockCommunity
 from test.mocking.endpoint import MockEndpointListener
-from test.util import twisted_test
+from test.util import twisted_wrapper
 
 
 class TestChurn(TestBase):
@@ -22,7 +22,7 @@ class TestChurn(TestBase):
         for overlay in self.overlays:
             overlay.unload()
 
-    @twisted_test
+    @twisted_wrapper
     def test_keep_reachable(self):
         """
         Check if we don't remove reachable nodes.
@@ -43,7 +43,7 @@ class TestChurn(TestBase):
 
         self.assertEqual(len(self.overlays[0].network.verified_peers), 1)
 
-    @twisted_test
+    @twisted_wrapper
     def test_remove_unreachable(self):
         """
         Check if we remove unreachable nodes.
@@ -68,7 +68,7 @@ class TestChurn(TestBase):
 
         self.assertEqual(len(self.overlays[0].network.verified_peers), 0)
 
-    @twisted_test
+    @twisted_wrapper
     def test_no_nodes(self):
         """
         Nothing should happen if we have no nodes to check.
@@ -84,7 +84,7 @@ class TestChurn(TestBase):
 
         self.assertEqual(len(self.overlays[0].network.verified_peers), 1)
 
-    @twisted_test
+    @twisted_wrapper
     def test_ping_timeout(self):
         """
         Don't overload inactive nodes with pings, send it once within some timeout.
@@ -105,7 +105,7 @@ class TestChurn(TestBase):
 
         self.assertEqual(len(sniffer.received_packets), 1)
 
-    @twisted_test
+    @twisted_wrapper
     def test_ping_timeout_resend(self):
         """
         Don't overload inactive nodes with pings, send it again after some timeout.
