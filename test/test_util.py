@@ -4,12 +4,12 @@ from twisted.internet.threads import deferToThread
 
 from base import TestBase
 from ipv8.util import blocking_call_on_reactor_thread
-from util import reactor, twisted_test
+from util import reactor, twisted_wrapper
 
 
 class TestUtil(TestBase):
 
-    @twisted_test
+    @twisted_wrapper
     def test_blocking_call(self):
         """
         Check if the reactor thread is properly blocked by a function marked as such.
@@ -43,7 +43,7 @@ class TestUtil(TestBase):
         self.assertEqual(value, 2)
         self.assertEqual(value2, 3)
 
-    @twisted_test
+    @twisted_wrapper
     def test_blocking_call_in_thread(self):
         """
         Check if the reactor thread is properly blocked by a threaded function.
@@ -77,7 +77,7 @@ class TestUtil(TestBase):
         self.assertEqual(value, 2)
         self.assertEqual(value2, 3)
 
-    @twisted_test
+    @twisted_wrapper
     def test_blocking_call_in_thread_with_error(self):
         """
         Check if a blocking call propagates its errors from a thread.

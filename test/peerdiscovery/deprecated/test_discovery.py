@@ -1,7 +1,7 @@
 from ipv8.peerdiscovery.deprecated.discovery import _DEFAULT_ADDRESSES
 from test.base import TestBase
 from test.mocking.community import MockCommunity
-from test.util import twisted_test
+from test.util import twisted_wrapper
 
 
 class TestDiscoveryCommunity(TestBase):
@@ -20,7 +20,7 @@ class TestDiscoveryCommunity(TestBase):
         for overlay in self.overlays:
             overlay.unload()
 
-    @twisted_test
+    @twisted_wrapper
     def test_bootstrap(self):
         """
         Check if we can bootstrap our peerdiscovery.

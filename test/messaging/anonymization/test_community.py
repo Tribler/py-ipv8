@@ -3,7 +3,7 @@ from ipv8.messaging.interfaces.udp.endpoint import UDPEndpoint
 from test.base import TestBase
 from test.mocking.endpoint import MockEndpointListener
 from test.mocking.ipv8 import MockIPv8
-from test.util import twisted_test
+from test.util import twisted_wrapper
 
 
 class TestTunnelCommunity(TestBase):
@@ -36,7 +36,7 @@ class TestTunnelCommunity(TestBase):
         ipv8.overlay.settings.max_circuits = 1
         return ipv8
 
-    @twisted_test
+    @twisted_wrapper
     def test_introduction_as_exit(self):
         """
         Check if introduction requests share the fact that nodes are exit nodes.
@@ -49,7 +49,7 @@ class TestTunnelCommunity(TestBase):
         self.assertIn(self.nodes[0].my_peer.public_key.key_to_bin(), self.nodes[1].overlay.exit_candidates)
         self.assertNotIn(self.nodes[1].my_peer.public_key.key_to_bin(), self.nodes[0].overlay.exit_candidates)
 
-    @twisted_test
+    @twisted_wrapper
     def test_introduction_as_exit_twoway(self):
         """
         Check if two nodes can have each other as exit nodes.
@@ -62,7 +62,7 @@ class TestTunnelCommunity(TestBase):
         self.assertIn(self.nodes[0].my_peer.public_key.key_to_bin(), self.nodes[1].overlay.exit_candidates)
         self.assertIn(self.nodes[1].my_peer.public_key.key_to_bin(), self.nodes[0].overlay.exit_candidates)
 
-    @twisted_test
+    @twisted_wrapper
     def test_introduction_as_exit_noway(self):
         """
         Check if two nodes don't advertise themselves as exit node incorrectly.
@@ -75,7 +75,7 @@ class TestTunnelCommunity(TestBase):
         self.assertEqual(len(self.nodes[0].overlay.exit_candidates), 0)
         self.assertEqual(len(self.nodes[1].overlay.exit_candidates), 0)
 
-    @twisted_test
+    @twisted_wrapper
     def test_create_circuit(self):
         """
         Check if 1 hop circuit creation works.
@@ -95,7 +95,7 @@ class TestTunnelCommunity(TestBase):
         # Node 1 has an exit socket open
         self.assertEqual(len(self.nodes[1].overlay.exit_sockets), 1)
 
-    @twisted_test
+    @twisted_wrapper
     def test_create_circuit_no_exit(self):
         """
         Check if 1 hop circuit creation fails without exit nodes.
@@ -112,7 +112,7 @@ class TestTunnelCommunity(TestBase):
         # Node 1 should not have an exit socket open
         self.assertEqual(len(self.nodes[1].overlay.exit_sockets), 0)
 
-    @twisted_test
+    @twisted_wrapper
     def test_destroy_circuit(self):
         """
         Check if a 1 hop circuit can be destroyed.
@@ -131,7 +131,7 @@ class TestTunnelCommunity(TestBase):
         # Node 1 should not have an exit socket open
         self.assertEqual(len(self.nodes[1].overlay.exit_sockets), 0)
 
-    @twisted_test
+    @twisted_wrapper
     def test_destroy_circuit_bad_id(self):
         """
         Check if the correct circuit gets destroyed.
@@ -151,7 +151,7 @@ class TestTunnelCommunity(TestBase):
         # Node 1 still has an exit socket open
         self.assertEqual(len(self.nodes[1].overlay.exit_sockets), 1)
 
-    @twisted_test
+    @twisted_wrapper
     def test_tunnel_data(self):
         """
         Check if data is correctly exited.
@@ -183,7 +183,7 @@ class TestTunnelCommunity(TestBase):
         self.assertEqual(len(ep_listener.received_packets), 1)
         self.assertEqual(ep_listener.received_packets[0][1], data)
 
-    @twisted_test
+    @twisted_wrapper
     def test_two_hop_circuit(self):
         """
         Check if a two hop circuit is correctly created.
@@ -200,7 +200,7 @@ class TestTunnelCommunity(TestBase):
 
         self.assertEqual(self.nodes[0].overlay.tunnels_ready(2), 1.0)
 
-    @twisted_test
+    @twisted_wrapper
     def test_three_hop_circuit(self):
         """
         Check if a three hop circuit is correctly created.
@@ -218,7 +218,7 @@ class TestTunnelCommunity(TestBase):
 
         self.assertEqual(self.nodes[0].overlay.tunnels_ready(3), 1.0)
 
-    @twisted_test
+    @twisted_wrapper
     def test_create_two_circuit(self):
         """
         Check if multiple 1 hop circuit creation works.
