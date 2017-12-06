@@ -2,18 +2,18 @@ import logging
 from os.path import isfile
 from twisted.internet import reactor
 
-from .attestation.identity.community import IdentityCommunity
-from .attestation.trustchain.community import TrustChainCommunity
-from .attestation.wallet.community import AttestationCommunity
-from .peerdiscovery.deprecated.discovery import DiscoveryCommunity
-from .keyvault.crypto import ECCrypto
-from .messaging.anonymization.community import TunnelCommunity
-from .messaging.anonymization.hidden_services import HiddenTunnelCommunity
-from .messaging.interfaces.udp.endpoint import UDPEndpoint
-from .peerdiscovery.discovery import EdgeWalk, RandomWalk
-from .peerdiscovery.churn import RandomChurn
-from .peerdiscovery.network import Network
-from .peer import Peer
+from ipv8.attestation.identity.community import IdentityCommunity
+from ipv8.attestation.trustchain.community import TrustChainCommunity
+from ipv8.attestation.wallet.community import AttestationCommunity
+from ipv8.peerdiscovery.deprecated.discovery import DiscoveryCommunity
+from ipv8.keyvault.crypto import ECCrypto
+from ipv8.messaging.anonymization.community import TunnelCommunity
+from ipv8.messaging.anonymization.hidden_services import HiddenTunnelCommunity
+from ipv8.messaging.interfaces.udp.endpoint import UDPEndpoint
+from ipv8.peerdiscovery.discovery import EdgeWalk, RandomWalk
+from ipv8.peerdiscovery.churn import RandomChurn
+from ipv8.peerdiscovery.network import Network
+from ipv8.peer import Peer
 
 from twisted.internet.task import LoopingCall
 
@@ -95,5 +95,5 @@ class IPV8(object):
         reactor.callFromThread(reactor.stop)
 
 if __name__ == '__main__':
-    from .configuration import get_default_configuration
+    from ipv8.configuration import get_default_configuration
     IPV8(get_default_configuration()).start()
