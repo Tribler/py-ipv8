@@ -108,3 +108,9 @@ coverage/
 
 # Twistd
 twisted/plugins/dropin.cache
+
+# Key files
+*.pem
+
+# sqlite folder
+sqlite/
