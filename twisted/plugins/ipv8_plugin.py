@@ -101,6 +101,10 @@ class IPV8(object):
                         strategy.take_step(service)
 
     def stop(self):
+        self.state_machine_lc.cancel()
+        for strategy, _ in self.strategies:
+            overlay = strategy.overlay
+            overlay.unload()
         reactor.callFromThread(reactor.stop)
 
 
