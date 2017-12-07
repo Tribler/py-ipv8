@@ -329,11 +329,11 @@ class TunnelCommunity(Community):
     def remove_circuit(self, circuit_id, additional_info='', destroy=False):
         assert isinstance(circuit_id, (long, int)), type(circuit_id)
 
-        if destroy:
-            self.destroy_circuit(circuit_id)
-
         circuit = self.circuits.pop(circuit_id, None)
         if circuit:
+            if destroy:
+                self.destroy_circuit(circuit)
+
             self.logger.info("removing circuit %d " + additional_info, circuit_id)
 
             circuit.destroy()
@@ -384,13 +384,10 @@ class TunnelCommunity(Community):
         else:
             self.logger.error("could not remove exit socket %d %s", circuit_id, additional_info)
 
-    def destroy_circuit(self, circuit_id, reason=0):
-        if circuit_id in self.circuits:
-            sock_addr = self.circuits[circuit_id].sock_addr
-            self.send_destroy(sock_addr, circuit_id, reason)
-            self.logger.info("destroy_circuit %s %s", circuit_id, sock_addr)
-        else:
-            self.logger.error("could not destroy circuit %d %s", circuit_id, reason)
+    def destroy_circuit(self, circuit, reason=0):
+        sock_addr = circuit.sock_addr
+        self.send_destroy(sock_addr, circuit.circuit_id, reason)
+        self.logger.info("destroy_circuit %s %s", circuit.circuit_id, sock_addr)
 
     def destroy_relay(self, circuit_ids, reason=0, got_destroy_from=None):
         relays = {cid_from: (self.relay_from_to[cid_from].circuit_id,

@@ -139,7 +139,7 @@ class TestTunnelCommunity(TestBase):
         self.nodes[1].overlay.settings.become_exitnode = True
         yield self.introduce_nodes()
         self.nodes[0].overlay.build_tunnels(1)
-        yield self.sleep(0.1)
+        yield self.deliver_messages()
 
         # Destroy a circuit which does not exist (circuit_id + 1)
         # This should not affect other circuits
