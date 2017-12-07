@@ -25,6 +25,7 @@ test/attestation/wallet/primitives/test_attestation.py:TestAttestation
 test/attestation/wallet/primitives/test_structs.py:TestStructs
 test/attestation/wallet/test_attestation_community.py:TestCommunity
 
+test/messaging/test_serialization.py:TestSerializer
 test/messaging/deprecated/test_encoding.py:TestEncoding
 test/messaging/anonymization/test_community.py:TestTunnelCommunity
 test/messaging/anonymization/test_hiddenservices.py:TestHiddenServices

@@ -1,5 +1,10 @@
 import abc
 from struct import pack, unpack, unpack_from, Struct
+import sys
+
+
+class PackError(RuntimeError):
+    pass
 
 
 class Bits(object):
@@ -178,8 +183,16 @@ class Serializer(object):
         :param pack_list: the list of packable tuples
         """
         out = ""
+        index = 0
         for packable in pack_list:
-            out += self.pack(*packable)
+            try:
+                out += self.pack(*packable)
+            except Exception as e:
+                raise PackError("Could not pack item %d: %s\n%s: %s" % (index,
+                                                                        repr(packable),
+                                                                        type(e).__name__,
+                                                                        str(e))), None, sys.exc_info()[2]
+            index += 1
         return out
 
     def unpack(self, format, data, offset=0):
@@ -212,10 +225,16 @@ class Serializer(object):
             if index >= required_length and current_offset >= data_length:
                 # We can perform a clean break if we are in the optional set
                 break
-            if format == 'bits':
-                out.extend(self.unpack(format, data, current_offset))
-            else:
-                out.append(self.unpack(format, data, current_offset))
+            try:
+                if format == 'bits':
+                    out.extend(self.unpack(format, data, current_offset))
+                else:
+                    out.append(self.unpack(format, data, current_offset))
+            except Exception as e:
+                raise PackError("Could not unpack item %d: %s\n%s: %s" % (index,
+                                                                          format,
+                                                                          type(e).__name__,
+                                                                          str(e))), None, sys.exc_info()[2]
             current_offset += self._packers[format].size
             index += 1
         return out, current_offset
@@ -239,10 +258,18 @@ class Serializer(object):
         while current_offset < data_length:
             list_element = []
             for format in unpack_list:
-                if format == 'bits':
-                    list_element.extend(self.unpack(format, data, current_offset))
-                else:
-                    list_element.append(self.unpack(format, data, current_offset))
+                try:
+                    if format == 'bits':
+                        list_element.extend(self.unpack(format, data, current_offset))
+                    else:
+                        list_element.append(self.unpack(format, data, current_offset))
+                except Exception as e:
+                    raise PackError("Could not unpack #%d repetition of item %d: %s\n%s: %s" % (index+1,
+                                                                                                len(list_element),
+                                                                                                format,
+                                                                                                type(e).__name__,
+                                                                                                str(e))),\
+                        None, sys.exc_info()[2]
                 current_offset += self._packers[format].size
                 index += 1
             out.append(list_element)
@@ -258,11 +285,16 @@ class Serializer(object):
         offset = 0
         out = []
         for serializable in serializables:
-            if serializable.is_list_descriptor:
-                unpack_list, offset = self.unpack_multiple_as_list(serializable.format_list, data, offset)
-            else:
-                unpack_list, offset = self.unpack_multiple(serializable.format_list, data,
-                                                           serializable.optional_format_list, offset)
+            try:
+                if serializable.is_list_descriptor:
+                    unpack_list, offset = self.unpack_multiple_as_list(serializable.format_list, data, offset)
+                else:
+                    unpack_list, offset = self.unpack_multiple(serializable.format_list, data,
+                                                               serializable.optional_format_list, offset)
+            except Exception as e:
+                    raise PackError("Failed to unserialize %s\n%s: %s" % (serializable.__name__,
+                                                                          type(e).__name__,
+                                                                          str(e))), None, sys.exc_info()[2]
             out.append(serializable.from_unpack_list(*unpack_list))
         out.append(data[offset:])
         return out
