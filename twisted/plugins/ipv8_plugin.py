@@ -28,6 +28,7 @@ from ipv8.peerdiscovery.churn import RandomChurn
 from ipv8.peerdiscovery.deprecated.discovery import DiscoveryCommunity
 from ipv8.peerdiscovery.discovery import EdgeWalk, RandomWalk
 from ipv8.peerdiscovery.network import Network
+from REST.rest_manager import RESTManager
 
 _COMMUNITIES = {
     'AttestationCommunity': AttestationCommunity,
@@ -109,7 +110,7 @@ class IPV8(object):
 
 class Options(usage.Options):
     optParameters = []
-    optFlags = []
+    optFlags = [["no-rest-api", "a", "Autonomous: disable the REST api"], ]
 
 
 class IPV8ServiceMaker(object):
@@ -123,6 +124,7 @@ class IPV8ServiceMaker(object):
         Initialize the variables of the IPV8ServiceMaker and the logger.
         """
         self.ipv8 = IPV8(get_default_configuration())
+        self.restapi = None
         self._stopping = False
 
     def start_ipv8(self, options):
@@ -133,12 +135,18 @@ class IPV8ServiceMaker(object):
             msg("Received shut down signal %s" % sig)
             if not self._stopping:
                 self._stopping = True
+                if self.restapi:
+                    self.restapi.stop()
                 self.ipv8.stop()
 
         signal.signal(signal.SIGINT, signal_handler)
         signal.signal(signal.SIGTERM, signal_handler)
 
         msg("Starting IPv8")
+
+        if not options['no-rest-api']:
+            self.restapi = RESTManager(self.ipv8)
+            reactor.callLater(0.05, self.restapi.start)
 
     def makeService(self, options):
         """
