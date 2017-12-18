@@ -1,5 +1,6 @@
 from twisted.web import resource
 
+from .attestation_endpoint import AttestationEndpoint
 from .network_endpoint import NetworkEndpoint
 
 
@@ -16,14 +17,5 @@ class RootEndpoint(resource.Resource):
         """
         resource.Resource.__init__(self)
         self.session = session
+        self.putChild("attestation", AttestationEndpoint(session))
         self.putChild("network", NetworkEndpoint(session))
-
-    def start_endpoints(self):
-        """
-        This method is only called when started. It enables the remaining  endpoints.
-        """
-        child_handler_dict = {}
-
-        for path, child_cls in child_handler_dict.iteritems():
-            self.putChild(path, child_cls(self.session))
-

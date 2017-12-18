@@ -71,11 +71,13 @@ class IPV8(object):
         logging.basicConfig(**configuration['logger'])
 
         self.strategies = []
+        self.overlays = []
 
         for overlay in configuration['overlays']:
             overlay_class = _COMMUNITIES[overlay['class']]
             my_peer = self.keys[overlay['key']]
             overlay_instance = overlay_class(my_peer, self.endpoint, self.network, **overlay['initialize'])
+            self.overlays.append(overlay_instance)
             for walker in overlay['walkers']:
                 strategy_class = _WALKERS[walker['strategy']]
                 args = walker['init']
@@ -146,7 +148,7 @@ class IPV8ServiceMaker(object):
 
         if not options['no-rest-api']:
             self.restapi = RESTManager(self.ipv8)
-            reactor.callLater(0.05, self.restapi.start)
+            reactor.callLater(0.0, self.restapi.start)
 
     def makeService(self, options):
         """
