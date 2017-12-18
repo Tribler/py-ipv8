@@ -8,7 +8,6 @@ from os.path import isfile
 
 import logging
 from twisted.application.service import MultiService, IServiceMaker
-from twisted.conch import manhole_tap
 from twisted.internet import reactor
 from twisted.internet.task import LoopingCall
 from twisted.plugin import IPlugin
@@ -109,9 +108,7 @@ class IPV8(object):
 
 
 class Options(usage.Options):
-    optParameters = [
-        ["manhole", "m", 0, "Enable manhole telnet service listening at the specified port", int],
-    ]
+    optParameters = []
     optFlags = []
 
 
@@ -149,17 +146,6 @@ class IPV8ServiceMaker(object):
         """
         ipv8_service = MultiService()
         ipv8_service.setName("IPv8")
-
-        manhole_namespace = {}
-        if options["manhole"] > 0:
-            port = options["manhole"]
-            manhole = manhole_tap.makeService({
-                'namespace': manhole_namespace,
-                'telnetPort': 'tcp:%d:interface=127.0.0.1' % port,
-                'sshPort': None,
-                'passwd': os.path.join(os.path.dirname(__file__), 'passwd'),
-            })
-            ipv8_service.addService(manhole)
 
         reactor.callWhenRunning(self.start_ipv8, options)
 
