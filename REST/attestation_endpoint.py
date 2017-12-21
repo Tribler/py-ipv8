@@ -66,10 +66,10 @@ class AttestationEndpoint(resource.Resource):
 
     def render_GET(self, request):
         """
-        type=outstanding -> (mid_b64, attribute_name)
+        type=outstanding -> [(mid_b64, attribute_name)]
         type=verification_output -> {hash_b64: [(value_b64, match)]}
         type=peers -> [mid_b64]
-        type=attributes&mid=mid_b64 -> [attribute_name]
+        type=attributes&mid=mid_b64 -> [(attribute_name, attribute_hash)]
         """
         if not request.args or 'type' not in request.args:
             return ""
@@ -84,7 +84,8 @@ class AttestationEndpoint(resource.Resource):
             mid_b64 = request.args['mid'][0]
             peer = self.get_peer_from_mid(mid_b64)
             if peer:
-                return json.dumps(self.identity_overlay.persistence.get_latest_blocks(peer.public_key.key_to_bin(), 200))
+                blocks = self.identity_overlay.persistence.get_latest_blocks(peer.public_key.key_to_bin(), 200)
+                return json.dumps([(b.transaction["name"], b.transaction["hash"]) for b in blocks])
         return ""
 
     def render_POST(self, request):

@@ -1,5 +1,6 @@
 from time import time
 
+from ...deprecated.payload import IntroductionResponsePayload
 from ...messaging.deprecated.encoding import decode
 from ...peer import Peer
 from ..trustchain.community import TrustChainCommunity
@@ -57,3 +58,10 @@ class IdentityCommunity(TrustChainCommunity):
                                 "name": name,
                                 "date": time()
                             })
+
+    def on_introduction_response(self, source_address, data):
+        super(IdentityCommunity, self).on_introduction_response(source_address, data)
+
+        auth, _, _ = self._ez_unpack_auth(IntroductionResponsePayload, data)
+        peer = Peer(auth.public_key_bin, source_address)
+        self.send_crawl_request(peer, peer.public_key.key_to_bin())
