@@ -27,7 +27,8 @@ for /F "eol=#" %%A in (test_classes_list.txt) do (
 		echo CRITICAL FAILURE: ABORTING
 		exit /b 1
 	)
-	setlocal DisableDelayedExpansion
+	endlocal
+	REM setlocal DisableDelayedExpansion
 )
 goto EOF
 
