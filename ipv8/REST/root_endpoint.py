@@ -1,7 +1,10 @@
 from twisted.web import resource
 
 from .attestation_endpoint import AttestationEndpoint
+from .crawler_geo_endpoint import CrawlerGeoEndpoint
+from .crawler_peers_endpoint import CrawlerPeersEndpoint
 from .network_endpoint import NetworkEndpoint
+from .service_endpoint import ServiceEndpoint
 
 
 class RootEndpoint(resource.Resource):
@@ -18,4 +21,7 @@ class RootEndpoint(resource.Resource):
         resource.Resource.__init__(self)
         self.session = session
         self.putChild("attestation", AttestationEndpoint(session))
+        self.putChild("crawler_geo", CrawlerGeoEndpoint(session))
+        self.putChild("crawler_peers", CrawlerPeersEndpoint(session))
         self.putChild("network", NetworkEndpoint(session))
+        self.putChild("service", ServiceEndpoint(session))
