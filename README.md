@@ -23,7 +23,7 @@ Implementations on the horizon of this library are *stream-based messaging* (ins
 The dependencies for IPv8 are collected in the `requirements.txt` file and can be installed using `pip`:
 
 ```
-pip install -r requirements.txt
+pip install --upgrade -r requirements.txt
 ```
 
 The libsodium library will have to be installed manually.
