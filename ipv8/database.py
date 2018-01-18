@@ -15,7 +15,11 @@ from abc import ABCMeta, abstractmethod
 if sys.platform == "darwin":
     # Workaround for annoying MacOS Sierra bug: https://bugs.python.org/issue27126
     # As fix, we are using pysqlite2 so we can supply our own version of sqlite3.
-    import pysqlite2.dbapi2 as sqlite3
+    try:
+        import pysqlite2.dbapi2 as sqlite3
+    except ImportError:
+        # For newer installations, we can just import it
+        from sqlite3 import dbapi2 as sqlite3
 else:
     import sqlite3
 
