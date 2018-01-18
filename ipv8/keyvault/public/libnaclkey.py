@@ -1,4 +1,8 @@
-from .. import libnacl
+import libnacl
+import libnacl.encode
+import libnacl.public
+import libnacl.sign
+
 from ...keyvault.keys import PublicKey
 
 
@@ -18,7 +22,7 @@ class LibNaCLPK(PublicKey):
         """
         # Load the key, if specified
         if binarykey:
-            pk, vk = binarykey[:libnacl.crypto_box_SECRETKEYBYTES],\
+            pk, vk = binarykey[:libnacl.crypto_box_SECRETKEYBYTES], \
                      binarykey[libnacl.crypto_box_SECRETKEYBYTES:
                                libnacl.crypto_box_SECRETKEYBYTES + libnacl.crypto_sign_SEEDBYTES]
             hex_vk = libnacl.encode.hex_encode(vk)

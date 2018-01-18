@@ -1,5 +1,8 @@
-from .. import libnacl
-from ...keyvault.public.libnacl import LibNaCLPK
+import libnacl
+import libnacl.dual
+import libnacl.sign
+
+from ...keyvault.public.libnaclkey import LibNaCLPK
 from ...keyvault.keys import PrivateKey
 
 
@@ -17,7 +20,7 @@ class LibNaCLSK(PrivateKey, LibNaCLPK):
         """
         # Load the key, if specified
         if binarykey:
-            crypt, seed = binarykey[:libnacl.crypto_box_SECRETKEYBYTES],\
+            crypt, seed = binarykey[:libnacl.crypto_box_SECRETKEYBYTES], \
                           binarykey[libnacl.crypto_box_SECRETKEYBYTES :
                                     libnacl.crypto_box_SECRETKEYBYTES + libnacl.crypto_sign_SEEDBYTES]
             self.key = libnacl.dual.DualSecret(crypt, seed)

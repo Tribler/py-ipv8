@@ -3,9 +3,9 @@ import logging
 from cryptography.hazmat.primitives.asymmetric import ec
 
 from ..keyvault.keys import Key
-from .private.libnacl import LibNaCLSK
+from .private.libnaclkey import LibNaCLSK
 from .private.m2crypto import M2CryptoSK
-from .public.libnacl import LibNaCLPK
+from .public.libnaclkey import LibNaCLPK
 from .public.m2crypto import M2CryptoPK
 
 # We want to provide a few default curves.  We will change these curves as new become available and

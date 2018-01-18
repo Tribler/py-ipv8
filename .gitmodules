@@ -1,3 +1,0 @@
-[submodule "ipv8/keyvault/libnacl"]
-	path = ipv8/keyvault/libnacl
-	url = https://github.com/saltstack/libnacl

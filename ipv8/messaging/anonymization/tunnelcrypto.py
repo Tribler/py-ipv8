@@ -5,7 +5,8 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.hkdf import HKDFExpand
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
-from ...keyvault import libnacl
+import libnacl
+
 from ...keyvault.crypto import ECCrypto, LibNaCLPK
 
 

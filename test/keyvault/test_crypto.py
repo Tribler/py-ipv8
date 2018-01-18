@@ -3,7 +3,7 @@ import unittest
 from ipv8.keyvault.crypto import ECCrypto
 from ipv8.keyvault.keys import Key, PrivateKey, PublicKey
 from ipv8.keyvault.private.m2crypto import M2CryptoPK, M2CryptoSK
-from ipv8.keyvault.private.libnacl import LibNaCLPK, LibNaCLSK
+from ipv8.keyvault.private.libnaclkey import LibNaCLPK, LibNaCLSK
 
 
 class TestECCrypto(unittest.TestCase):
