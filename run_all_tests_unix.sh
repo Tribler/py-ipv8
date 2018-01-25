@@ -8,13 +8,19 @@ test_files="$(grep ^[^#] test_classes_list.txt)"
 tty -s && tput bold
 echo -n "Starting IPv8 testsuite: "
 if nosetests --version >>/dev/null 2>&1; then
-echo "using test runner 'nosetests'!"
-test_command="nosetests -s -x -v"
+    echo "using test runner 'nosetests'!"
+    # Use nosetests2 if available and if not, try version possibly incompatible with python2
+    if [ -x "$(command -v nosetests2)" ]; then
+        test_command="nosetests2"
+    else
+        test_command="nosetests"
+    fi
+    test_command+=" -s -x -v"
 else
-echo "using test runner 'python -m unittest'!"
-test_command="python -m unittest --verbose"
-test_files="${test_files//\//.}"
-test_files="${test_files//.py:/.}"
+    echo "using test runner 'python2 -m unittest'!"
+    test_command="python2 -m unittest --verbose"
+    test_files="${test_files//\//.}"
+    test_files="${test_files//.py:/.}"
 fi
 tty -s && tput sgr0
 
@@ -34,7 +40,7 @@ echo " $f"
 echo "======================================================================"
 # 5.b. Pipe the output of the test command to a temporary file: we need to
 #      do this, otherwise we lose the real-time tester output.
-t=$(tempfile)
+t=$(mktemp)
 set -o pipefail
 $test_command "$f" 2> >(tee $t >&2)
 exit_status=$?
