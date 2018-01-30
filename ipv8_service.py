@@ -79,7 +79,8 @@ class IPv8(object):
             for config in overlay['on_start']:
                 reactor.callWhenRunning(getattr(overlay_instance, config[0]), *config[1:])
 
-        self.state_machine_lc = LoopingCall(self.on_tick).start(configuration['walker_interval'], False)
+        self.state_machine_lc = LoopingCall(self.on_tick)
+        self.state_machine_lc.start(configuration['walker_interval'], False)
 
     def on_tick(self):
         if self.endpoint.is_open():
@@ -95,12 +96,13 @@ class IPv8(object):
                     if (target_peers == -1) or (peer_count < target_peers):
                         strategy.take_step(service)
 
-    def stop(self):
-        self.state_machine_lc.cancel()
+    def stop(self, stop_reactor=True):
+        self.state_machine_lc.stop()
         for strategy, _ in self.strategies:
             overlay = strategy.overlay
             overlay.unload()
-        reactor.callFromThread(reactor.stop)
+        if stop_reactor:
+            reactor.callFromThread(reactor.stop)
 
 
 if __name__ == '__main__':
