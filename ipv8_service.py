@@ -9,6 +9,7 @@ from ipv8.attestation.identity.community import IdentityCommunity
 from ipv8.attestation.trustchain.community import TrustChainCommunity
 from ipv8.attestation.wallet.community import AttestationCommunity
 from ipv8.keyvault.crypto import ECCrypto
+from ipv8.keyvault.private.m2crypto import M2CryptoSK
 from ipv8.messaging.anonymization.community import TunnelCommunity
 from ipv8.messaging.anonymization.hidden_services import HiddenTunnelCommunity
 from ipv8.messaging.interfaces.udp.endpoint import UDPEndpoint
@@ -17,7 +18,6 @@ from ipv8.peerdiscovery.churn import RandomChurn
 from ipv8.peerdiscovery.deprecated.discovery import DiscoveryCommunity
 from ipv8.peerdiscovery.discovery import EdgeWalk, RandomWalk
 from ipv8.peerdiscovery.network import Network
-
 
 
 _COMMUNITIES = {
@@ -53,7 +53,20 @@ class IPv8(object):
         for key_block in configuration['keys']:
             if key_block['file'] and isfile(key_block['file']):
                 with open(key_block['file'], 'r') as f:
-                    self.keys[key_block['alias']] = Peer(ECCrypto().key_from_private_bin(f.read()))
+                    content = f.read()
+                    try:
+                        # IPv8 Standardized bin format
+                        self.keys[key_block['alias']] = Peer(ECCrypto().key_from_private_bin(content))
+                    except ValueError:
+                        try:
+                            # Try old Tribler M2Crypto PEM format
+                            content = content[31:-30].replace('\n','').decode("BASE64")
+                            peer = Peer(M2CryptoSK(keystring=content))
+                            self.keys[key_block['alias']] = peer
+                        except:
+                            # Try old LibNacl format
+                            content = "LibNaCLSK:" + content
+                            self.keys[key_block['alias']] = Peer(ECCrypto().key_from_private_bin(content))
             else:
                 self.keys[key_block['alias']] = Peer(ECCrypto().generate_key(key_block['generation']))
                 if key_block['file']:
