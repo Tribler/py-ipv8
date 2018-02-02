@@ -1,5 +1,7 @@
 from hashlib import sha256
 
+import time
+
 from ...keyvault.crypto import ECCrypto
 from ...messaging.deprecated.encoding import decode, encode
 from ...messaging.serialization import Serializer
@@ -48,6 +50,16 @@ class TrustChainBlock(object):
                 self.signature = str(self.signature)
         self.serializer = serializer
 
+    @classmethod
+    def from_payload(cls, payload, serializer):
+        """
+        Create a block according to a given payload and serializer.
+        This method can be used when receiving a block from the network.
+        """
+        return cls([payload.transaction, payload.public_key, payload.sequence_number,
+                    payload.link_public_key, payload.link_sequence_number, payload.previous_hash,
+                    payload.signature, time.time()], serializer)
+
     def __str__(self):
         # This makes debugging and logging easier
         return "Block {0} from ...{1}:{2} links ...{3}:{4} for {5}".format(
@@ -69,6 +81,13 @@ class TrustChainBlock(object):
     @property
     def hash(self):
         return sha256(self.pack()).digest()
+
+    @property
+    def hash_number(self):
+        """
+        Return the hash of this block as a number (used as crawl ID).
+        """
+        return int(self.hash.encode('hex'), 16) % 100000000L
 
     def pack(self, signature=True):
         """

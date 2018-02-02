@@ -7,6 +7,10 @@ import logging
 import time
 from threading import Lock
 
+from twisted.internet.defer import Deferred
+
+from ipv8.attestation.trustchain.caches import CrawlRequestCache
+from ipv8.requestcache import RandomNumberCache, RequestCache
 from .block import TrustChainBlock, ValidationResult, EMPTY_PK, GENESIS_SEQ, UNKNOWN_SEQ
 from .database import TrustChainDB
 from ...deprecated.community import Community
@@ -46,6 +50,7 @@ class TrustChainCommunity(Community):
         working_directory = kwargs.pop('working_directory', '')
         db_name = kwargs.pop('db_name', self.DB_NAME)
         super(TrustChainCommunity, self).__init__(*args, **kwargs)
+        self.request_cache = RequestCache()
         self.logger = logging.getLogger(self.__class__.__name__)
         self.persistence = self.DB_CLASS(working_directory, db_name)
 
@@ -54,7 +59,8 @@ class TrustChainCommunity(Community):
 
         self.decode_map.update({
             chr(1): self.received_half_block,
-            chr(2): self.received_crawl_request
+            chr(2): self.received_crawl_request,
+            chr(3): self.received_crawl_response
         })
 
     def should_sign(self, payload):
@@ -112,9 +118,7 @@ class TrustChainCommunity(Community):
         dist, payload = self._ez_unpack_noauth(HalfBlockPayload, data)
         peer = Peer(payload.public_key, source_address)
 
-        blk = TrustChainBlock([payload.transaction, payload.public_key, payload.sequence_number,
-                               payload.link_public_key, payload.link_sequence_number, payload.previous_hash,
-                               payload.signature, time.time()], self.serializer)
+        blk = TrustChainBlock.from_payload(payload, self.serializer)
         validation = blk.validate(self.persistence)
         self.logger.debug("Block validation result %s, %s, (%s)", validation[0], validation[1], blk)
         if validation[0] == ValidationResult.invalid:
@@ -144,26 +148,40 @@ class TrustChainCommunity(Community):
             self.logger.info("Request block could not be validated sufficiently, crawling requester. %s",
                              validation)
             # Note that this code does not cover the scenario where we obtain this block indirectly.
-
-            self.send_crawl_request(peer, blk.public_key, max(GENESIS_SEQ, blk.sequence_number - 5))
+            if not self.request_cache.has(u"crawl", blk.hash_number):
+                crawl_deferred = self.send_crawl_request(peer,
+                                                         blk.public_key,
+                                                         max(GENESIS_SEQ, blk.sequence_number - 5),
+                                                         for_half_block=blk)
+                crawl_deferred.addCallback(lambda _: self.received_half_block(source_address, data))
         else:
             self.sign_block(peer, linked=blk)
 
-    def send_crawl_request(self, peer, public_key, sequence_number=None):
+    def send_crawl_request(self, peer, public_key, sequence_number=None, for_half_block=None):
+        """
+        Send a crawl request to a specific peer.
+        """
         sq = sequence_number
         if sequence_number is None:
             blk = self.persistence.get_latest(public_key)
             sq = blk.sequence_number if blk else GENESIS_SEQ
         sq = max(GENESIS_SEQ, sq) if sq >= 0 else sq
-        self.logger.info("Requesting crawl of node %s:%d", public_key.encode("hex")[-8:], sq)
+
+        crawl_id = for_half_block.hash_number if for_half_block else \
+            RandomNumberCache.find_unclaimed_identifier(self.request_cache, u"crawl")
+        crawl_deferred = Deferred()
+        self.request_cache.add(CrawlRequestCache(self, crawl_id, crawl_deferred))
+        self.logger.info("Requesting crawl of node %s:%d with id %d", public_key.encode("hex")[-8:], sq, crawl_id)
 
         global_time = self.claim_global_time()
         auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
-        payload = CrawlRequestPayload(sq).to_pack_list()
+        payload = CrawlRequestPayload(sq, crawl_id).to_pack_list()
         dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
 
         packet = self._ez_pack(self._prefix, 2, [auth, dist, payload])
         self.endpoint.send(peer.address, packet)
+
+        return crawl_deferred
 
     def received_crawl_request(self, source_address, data):
         auth, dist, payload = self._ez_unpack_auth(CrawlRequestPayload, data)
@@ -180,16 +198,36 @@ class TrustChainCommunity(Community):
             # Etc. until the genesis seq_nr
             sq = max(GENESIS_SEQ, last_block.sequence_number + (sq + 1)) if last_block else GENESIS_SEQ
         blocks = self.persistence.crawl(self.my_peer.public_key.key_to_bin(), sq)
-        count = len(blocks)
+        total_count = len(blocks)
 
-        for blk in blocks:
-            self.send_block(peer, blk)
-        self.logger.info("Sent %d blocks", count)
+        for ind in xrange(len(blocks)):
+            self.send_crawl_response(blocks[ind], payload.crawl_id, ind + 1, total_count, peer)
+        self.logger.info("Sent %d blocks", total_count)
+
+    def send_crawl_response(self, block, crawl_id, index, total_count, peer):
+        self.logger.debug("Sending block for crawl request to %s (%s)", peer, block)
+
+        global_time = self.claim_global_time()
+        payload = CrawlResponsePayload.from_crawl(block, crawl_id, index, total_count).to_pack_list()
+        dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
+
+        packet = self._ez_pack(self._prefix, 3, [dist, payload], False)
+        self.endpoint.send(peer.address, packet)
+
+    def received_crawl_response(self, source_address, data):
+        dist, payload = self._ez_unpack_noauth(CrawlResponsePayload, data)
+
+        cache = self.request_cache.get(u"crawl", payload.crawl_id)
+        block = TrustChainBlock.from_payload(payload, self.serializer)
+        cache.received_block(block, payload.total_count)
+        self.received_half_block(source_address, data[:-12])  # We cut off the last three bytes to make it a BlockPayload
 
     def unload(self):
         self.logger.debug("Unloading the TrustChain Community.")
 
         # Close the persistence layer
         self.persistence.close()
+
+        self.request_cache.clear()
 
         super(TrustChainCommunity, self).unload()
