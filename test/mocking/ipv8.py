@@ -6,6 +6,7 @@ from ipv8.peerdiscovery.network import Network
 from test.mocking.endpoint import AutoMockEndpoint
 from test.mocking.discovery import MockWalk
 
+
 class MockIPv8(object):
 
     def __init__(self, crypto_curve, overlay_class, *args, **kwargs):

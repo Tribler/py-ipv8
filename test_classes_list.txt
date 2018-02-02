@@ -14,6 +14,7 @@ test/keyvault/test_serialization.py:TestSerialization
 test/keyvault/test_signature.py:TestSignatures
 
 test/attestation/trustchain/test_community.py:TestTrustChainCommunity
+test/attestation/trustchain/test_block.py:TestTrustChainBlock
 test/attestation/identity/test_identity.py:TestIdentityCommunity
 test/attestation/wallet/primitives/cryptosystem/test_boneh.py:TestBoneh
 test/attestation/wallet/primitives/cryptosystem/test_ec.py:TestPairing
