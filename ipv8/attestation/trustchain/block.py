@@ -60,6 +60,20 @@ class TrustChainBlock(object):
                     payload.link_public_key, payload.link_sequence_number, payload.previous_hash,
                     payload.signature, time.time()], serializer)
 
+    @classmethod
+    def from_pair_payload(cls, payload, serializer):
+        """
+        Create two half blocks from a block pair message, according to a given payload and serializer.
+        Used to construct two blocks when receiving a block pair from the network.
+        """
+        block1 = cls([payload.transaction1, payload.public_key1, payload.sequence_number1,
+                      payload.link_public_key1, payload.link_sequence_number1, payload.previous_hash1,
+                      payload.signature1, time.time()], serializer)
+        block2 = cls([payload.transaction2, payload.public_key2, payload.sequence_number2,
+                      payload.link_public_key2, payload.link_sequence_number2, payload.previous_hash2,
+                      payload.signature2, time.time()], serializer)
+        return block1, block2
+
     def __str__(self):
         # This makes debugging and logging easier
         return "Block {0} from ...{1}:{2} links ...{3}:{4} for {5}".format(

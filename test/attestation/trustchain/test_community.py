@@ -1,4 +1,5 @@
 from ipv8.attestation.trustchain.community import TrustChainCommunity, UNKNOWN_SEQ
+from test.attestation.trustchain.test_block import TestBlock
 from test.base import TestBase
 from test.mocking.ipv8 import MockIPv8
 from test.util import twisted_wrapper
@@ -229,3 +230,19 @@ class TestTrustChainCommunity(TestBase):
             # His second block -> my second block
             self.assertIsNotNone(self.nodes[node_nr].overlay.persistence.get(his_pubkey, 2))
             self.assertEqual(self.nodes[node_nr].overlay.persistence.get(his_pubkey, 2).link_sequence_number, 2)
+
+    @twisted_wrapper
+    def test_send_block_pair(self):
+        """
+        Test sending and receiving a pair of blocks from one to another peer.
+        """
+        yield self.introduce_nodes()
+
+        block1 = TestBlock()
+        block2 = TestBlock()
+        self.nodes[0].overlay.send_block_pair(block1, block2, self.nodes[0].network.verified_peers[0])
+
+        yield self.deliver_messages()
+
+        self.assertTrue(self.nodes[1].overlay.persistence.get_latest(block1.public_key))
+        self.assertTrue(self.nodes[1].overlay.persistence.get_latest(block2.public_key))

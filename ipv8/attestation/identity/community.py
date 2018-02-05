@@ -27,15 +27,15 @@ class IdentityCommunity(TrustChainCommunity):
         """
         self.known_attestation_hashes[hash] = (name, time(), public_key)
 
-    def should_sign(self, payload):
-        _, transaction = decode(payload.transaction)
+    def should_sign(self, block):
+        transaction = block.transaction
         requested_keys = set(transaction.keys())
         if requested_keys != {"hash", "name", "date"}:
             return False
         hash = transaction['hash']
         if hash not in self.known_attestation_hashes:
             return False
-        if payload.public_key != self.known_attestation_hashes[hash][2]:
+        if block.public_key != self.known_attestation_hashes[hash][2]:
             return False
         # Refuse to sign blocks older than 5 minutes
         if time() > self.known_attestation_hashes[hash][1] + 300:

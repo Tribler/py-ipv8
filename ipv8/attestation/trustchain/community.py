@@ -60,13 +60,14 @@ class TrustChainCommunity(Community):
         self.decode_map.update({
             chr(1): self.received_half_block,
             chr(2): self.received_crawl_request,
-            chr(3): self.received_crawl_response
+            chr(3): self.received_crawl_response,
+            chr(4): self.received_half_block_pair,
         })
 
-    def should_sign(self, payload):
+    def should_sign(self, block):
         """
         Return whether we should sign the block in the passed message.
-        @param payload: the payload containing a block we want to sign or not.
+        @param block: the block we want to sign or not.
         """
         return True
 
@@ -74,10 +75,21 @@ class TrustChainCommunity(Community):
         self.logger.debug("Sending block to %s (%s)", peer, block)
 
         global_time = self.claim_global_time()
-        payload = HalfBlockPayload.from_block(block).to_pack_list()
+        payload = HalfBlockPayload.from_half_block(block).to_pack_list()
         dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
 
         packet = self._ez_pack(self._prefix, 1, [dist, payload], False)
+        self.endpoint.send(peer.address, packet)
+
+    def send_block_pair(self, block1, block2, peer):
+        """
+        Send a half block pair to a specific peer.
+        """
+        global_time = self.claim_global_time()
+        payload = HalfBlockPairPayload.from_half_blocks(block1, block2).to_pack_list()
+        dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
+
+        packet = self._ez_pack(self._prefix, 4, [dist, payload], False)
         self.endpoint.send(peer.address, packet)
 
     def sign_block(self, peer, public_key=EMPTY_PK, transaction=None, linked=None):
@@ -113,13 +125,44 @@ class TrustChainCommunity(Community):
     def received_half_block(self, source_address, data):
         """
         We've received a half block, either because we sent a SIGNED message to some one or we are crawling
-        :param messages The half block messages
         """
         dist, payload = self._ez_unpack_noauth(HalfBlockPayload, data)
         peer = Peer(payload.public_key, source_address)
+        block = TrustChainBlock.from_payload(payload, self.serializer)
+        self.process_half_block(block, peer)
 
-        blk = TrustChainBlock.from_payload(payload, self.serializer)
-        validation = blk.validate(self.persistence)
+    @synchronized
+    def received_half_block_pair(self, source_address, data):
+        """
+        We received a block pair message.
+        """
+        dist, payload = self._ez_unpack_noauth(HalfBlockPairPayload, data)
+        block1, block2 = TrustChainBlock.from_pair_payload(payload, self.serializer)
+        self.validate_persist_block(block1)
+        self.validate_persist_block(block2)
+
+    def validate_persist_block(self, block):
+        """
+        Validate a block and if it's valid, persist it. Return the validation result.
+        :param block: The block to validate and persist.
+        :return: [ValidationResult]
+        """
+        validation = block.validate(self.persistence)
+        self.logger.debug("Block validation result %s, %s, (%s)", validation[0], validation[1], block)
+        if validation[0] == ValidationResult.invalid:
+            return
+        elif not self.persistence.contains(block):
+            self.persistence.add_block(block)
+        else:
+            self.logger.debug("Received already known block (%s)", block)
+
+        return validation
+
+    def process_half_block(self, blk, peer):
+        """
+        Process a received half block.
+        """
+        validation = self.validate_persist_block(blk)
         self.logger.debug("Block validation result %s, %s, (%s)", validation[0], validation[1], blk)
         if validation[0] == ValidationResult.invalid:
             return
@@ -130,21 +173,21 @@ class TrustChainCommunity(Community):
 
         # Is this a request, addressed to us, and have we not signed it already?
         if blk.link_sequence_number != UNKNOWN_SEQ or \
-                blk.link_public_key != self.my_peer.public_key.key_to_bin() or \
-                self.persistence.get_linked(blk) is not None:
+                        blk.link_public_key != self.my_peer.public_key.key_to_bin() or \
+                        self.persistence.get_linked(blk) is not None:
             return
 
         self.logger.info("Received request block addressed to us (%s)", blk)
 
         # determine if we want to sign this block
-        if not self.should_sign(payload):
+        if not self.should_sign(blk):
             return
 
         # It is important that the request matches up with its previous block, gaps cannot be tolerated at
         # this point. We already dropped invalids, so here we delay this message if the result is partial,
         # partial_previous or no-info. We send a crawl request to the requester to (hopefully) close the gap
         if validation[0] == ValidationResult.partial_previous or validation[0] == ValidationResult.partial or \
-                validation[0] == ValidationResult.no_info:
+                        validation[0] == ValidationResult.no_info:
             self.logger.info("Request block could not be validated sufficiently, crawling requester. %s",
                              validation)
             # Note that this code does not cover the scenario where we obtain this block indirectly.
@@ -153,7 +196,7 @@ class TrustChainCommunity(Community):
                                                          blk.public_key,
                                                          max(GENESIS_SEQ, blk.sequence_number - 5),
                                                          for_half_block=blk)
-                crawl_deferred.addCallback(lambda _: self.received_half_block(source_address, data))
+                crawl_deferred.addCallback(lambda _: self.process_half_block(blk, peer))
         else:
             self.sign_block(peer, linked=blk)
 
