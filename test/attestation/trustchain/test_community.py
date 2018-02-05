@@ -246,3 +246,44 @@ class TestTrustChainCommunity(TestBase):
 
         self.assertTrue(self.nodes[1].overlay.persistence.get_latest(block1.public_key))
         self.assertTrue(self.nodes[1].overlay.persistence.get_latest(block2.public_key))
+
+    @twisted_wrapper
+    def test_broadcast_half_block(self):
+        """
+        Test broadcasting a half block
+        """
+        yield self.introduce_nodes()
+
+        # Let node 3 discover node 2.
+        node3 = self.create_node()
+        self.nodes[1].network.add_verified_peer(node3.my_peer)
+        self.nodes[1].discovery.take_step()
+
+        block = TestBlock()
+        self.nodes[0].overlay.send_block(block)
+
+        yield self.deliver_messages()
+
+        self.assertTrue(node3.overlay.relayed_broadcasts)
+
+    @twisted_wrapper
+    def test_broadcast_half_block_pair(self):
+        """
+        Test broadcasting a half block pair
+        """
+        yield self.introduce_nodes()
+
+        # Let node 3 discover node 2.
+        node3 = self.create_node()
+        self.nodes[1].network.add_verified_peer(node3.my_peer)
+        self.nodes[1].discovery.take_step()
+
+        block1 = TestBlock()
+        block2 = TestBlock()
+        self.nodes[0].overlay.send_block_pair(block1, block2)
+
+        yield self.deliver_messages()
+
+        for node_nr in [0, 1]:
+            self.assertIsNotNone(self.nodes[node_nr].overlay.persistence.get_latest(block1.public_key))
+            self.assertIsNotNone(self.nodes[node_nr].overlay.persistence.get_latest(block2.public_key))

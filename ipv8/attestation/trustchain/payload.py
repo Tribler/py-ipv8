@@ -72,6 +72,42 @@ class HalfBlockPayload(Payload):
         return HalfBlockPayload(*args)
 
 
+class HalfBlockBroadcastPayload(HalfBlockPayload):
+    """
+    Payload for a message that contains a half block and a TTL field for broadcasts.
+    """
+
+    format_list = ['74s', 'I', '74s', 'I', '32s', '64s', 'varlenI', 'I']
+
+    def __init__(self, public_key, sequence_number, link_public_key, link_sequence_number, previous_hash,
+                 signature, transaction, ttl):
+        super(HalfBlockBroadcastPayload, self).__init__(public_key, sequence_number, link_public_key,
+                                                        link_sequence_number, previous_hash, signature, transaction)
+        self.ttl = ttl
+
+    @classmethod
+    def from_half_block(cls, block, ttl):
+        return HalfBlockBroadcastPayload(
+            block.public_key,
+            block.sequence_number,
+            block.link_public_key,
+            block.link_sequence_number,
+            block.previous_hash,
+            block.signature,
+            block.transaction,
+            ttl
+        )
+
+    def to_pack_list(self):
+        data = super(HalfBlockBroadcastPayload, self).to_pack_list()
+        data.append(('I', self.ttl))
+        return data
+
+    @classmethod
+    def from_unpack_list(cls, *args):
+        return HalfBlockBroadcastPayload(*args)
+
+
 class CrawlResponsePayload(Payload):
     """
     Payload for the response to a crawl request.
@@ -194,3 +230,50 @@ class HalfBlockPairPayload(Payload):
     @classmethod
     def from_unpack_list(cls, *args):
         return HalfBlockPairPayload(*args)
+
+
+class HalfBlockPairBroadcastPayload(HalfBlockPairPayload):
+    """
+    Payload for a broadcast message that ships two half blocks
+    """
+
+    format_list = ['74s', 'I', '74s', 'I', '32s', '64s', 'varlenI'] * 2 + ['I']
+
+    def __init__(self, public_key1, sequence_number1, link_public_key1, link_sequence_number1, previous_hash1,
+                 signature1, transaction1, public_key2, sequence_number2, link_public_key2, link_sequence_number2,
+                 previous_hash2, signature2, transaction2, ttl):
+        super(HalfBlockPairBroadcastPayload, self).__init__(public_key1, sequence_number1, link_public_key1,
+                                                            link_sequence_number1, previous_hash1, signature1,
+                                                            transaction1, public_key2, sequence_number2,
+                                                            link_public_key2, link_sequence_number2, previous_hash2,
+                                                            signature2, transaction2)
+        self.ttl = ttl
+
+    @classmethod
+    def from_half_blocks(cls, block1, block2, ttl):
+        return HalfBlockPairBroadcastPayload(
+            block1.public_key,
+            block1.sequence_number,
+            block1.link_public_key,
+            block1.link_sequence_number,
+            block1.previous_hash,
+            block1.signature,
+            block1.transaction,
+            block2.public_key,
+            block2.sequence_number,
+            block2.link_public_key,
+            block2.link_sequence_number,
+            block2.previous_hash,
+            block2.signature,
+            block2.transaction,
+            ttl
+        )
+
+    def to_pack_list(self):
+        data = super(HalfBlockPairBroadcastPayload, self).to_pack_list()
+        data.append(('I', self.ttl))
+        return data
+
+    @classmethod
+    def from_unpack_list(cls, *args):
+        return HalfBlockPairBroadcastPayload(*args)
