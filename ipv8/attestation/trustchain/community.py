@@ -5,19 +5,18 @@ Every node has a chain and these chains intertwine by blocks shared by chains.
 """
 import logging
 import random
-import time
 from threading import Lock
 
 from twisted.internet.defer import Deferred
 
-from ipv8.attestation.trustchain.caches import CrawlRequestCache
-from ipv8.requestcache import RandomNumberCache, RequestCache
 from .block import TrustChainBlock, ValidationResult, EMPTY_PK, GENESIS_SEQ, UNKNOWN_SEQ
+from .caches import CrawlRequestCache
 from .database import TrustChainDB
 from ...deprecated.community import Community
 from ...deprecated.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from .payload import *
 from ...peer import Peer
+from ...requestcache import RandomNumberCache, RequestCache
 
 HALF_BLOCK = u"half_block"
 CRAWL = u"crawl"

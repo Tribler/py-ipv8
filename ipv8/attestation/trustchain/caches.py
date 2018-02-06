@@ -1,7 +1,7 @@
 import logging
 import sys
 
-from ipv8.requestcache import NumberCache
+from ...requestcache import NumberCache
 
 
 class CrawlRequestCache(NumberCache):
