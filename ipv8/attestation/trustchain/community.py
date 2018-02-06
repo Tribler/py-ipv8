@@ -207,7 +207,7 @@ class TrustChainCommunity(Community):
         validation = block.validate(self.persistence)
         self.logger.debug("Block validation result %s, %s, (%s)", validation[0], validation[1], block)
         if validation[0] == ValidationResult.invalid:
-            return
+            pass
         elif not self.persistence.contains(block):
             self.persistence.add_block(block)
         else:
