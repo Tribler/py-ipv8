@@ -149,6 +149,8 @@ class TrustChainCommunity(Community):
                 self.persistence.add_block(block)
             self.send_block(block, peer=peer)
 
+        return block
+
     @synchronized
     def received_half_block(self, source_address, data):
         """
