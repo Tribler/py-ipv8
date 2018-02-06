@@ -256,6 +256,7 @@ class TestTrustChainCommunity(TestBase):
 
         # Let node 3 discover node 2.
         node3 = self.create_node()
+        self.nodes.append(node3)
         self.nodes[1].network.add_verified_peer(node3.my_peer)
         self.nodes[1].discovery.take_step()
 
@@ -275,6 +276,7 @@ class TestTrustChainCommunity(TestBase):
 
         # Let node 3 discover node 2.
         node3 = self.create_node()
+        self.nodes.append(node3)
         self.nodes[1].network.add_verified_peer(node3.my_peer)
         self.nodes[1].discovery.take_step()
 
