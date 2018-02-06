@@ -97,6 +97,14 @@ class TrustChainBlock(object):
         return sha256(self.pack()).digest()
 
     @property
+    def block_id(self):
+        return "%s.%d" % (self.public_key.encode('hex'), self.sequence_number)
+
+    @property
+    def linked_block_id(self):
+        return "%s.%d" % (self.link_public_key.encode('hex'), self.link_sequence_number)
+
+    @property
     def hash_number(self):
         """
         Return the hash of this block as a number (used as crawl ID).

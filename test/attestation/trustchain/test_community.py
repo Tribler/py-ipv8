@@ -42,10 +42,8 @@ class TestTrustChainCommunity(TestBase):
         yield self.introduce_nodes()
 
         his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
-        self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
-                                         transaction={})
-
-        yield self.deliver_messages()
+        yield self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
+                                               transaction={})
 
         for node_nr in [0, 1]:
             self.assertIsNotNone(self.nodes[node_nr].overlay.persistence.get(his_pubkey, 1))
