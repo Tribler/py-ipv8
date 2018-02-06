@@ -11,8 +11,8 @@ import twisted
 twisted.internet.base.DelayedCall.debug = True
 
 from ipv8.peer import Peer
-from test.mocking.endpoint import internet
-from test.mocking.ipv8 import MockIPv8
+from .mocking.endpoint import internet
+from .mocking.ipv8 import MockIPv8
 
 
 class TestBase(unittest.TestCase):
