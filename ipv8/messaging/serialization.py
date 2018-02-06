@@ -119,6 +119,7 @@ class Serializer(object):
             'B': DefaultStruct(">B", True),
             'BBH': DefaultStruct(">BBH"),
             'BH': DefaultStruct(">BH"),
+            'f': DefaultStruct(">f", True),
             'H': DefaultStruct(">H", True),
             'HH': DefaultStruct(">HH"),
             'I': DefaultStruct(">I", True),
