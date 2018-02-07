@@ -240,7 +240,7 @@ class TestTrustChainCommunity(TestBase):
 
         block1 = TestBlock()
         block2 = TestBlock()
-        self.nodes[0].overlay.send_block_pair(block1, block2, self.nodes[0].network.verified_peers[0])
+        self.nodes[0].overlay.send_block_pair(block1, block2, self.nodes[0].network.verified_peers[0].address)
 
         yield self.deliver_messages()
 

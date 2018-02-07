@@ -75,18 +75,18 @@ class TrustChainCommunity(Community):
         """
         return True
 
-    def send_block(self, block, peer=None, ttl=2):
+    def send_block(self, block, address=None, ttl=2):
         """
-        Send a block to a specific peer, or do a broadcast to known peers if no peer is specified.
+        Send a block to a specific address, or do a broadcast to known peers if no peer is specified.
         """
         global_time = self.claim_global_time()
         dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
 
-        if peer:
-            self.logger.debug("Sending block to %s (%s)", peer, block)
+        if address:
+            self.logger.debug("Sending block to (%s:%d) (%s)", address[0], address[1], block)
             payload = HalfBlockPayload.from_half_block(block).to_pack_list()
             packet = self._ez_pack(self._prefix, 1, [dist, payload], False)
-            self.endpoint.send(peer.address, packet)
+            self.endpoint.send(address, packet)
         else:
             self.logger.debug("Broadcasting block %s", block)
             payload = HalfBlockBroadcastPayload.from_half_block(block, ttl).to_pack_list()
@@ -97,18 +97,18 @@ class TrustChainCommunity(Community):
             block_id = "%s.%s" % (block.public_key.encode('hex'), block.sequence_number)
             self.relayed_broadcasts.append(block_id)
 
-    def send_block_pair(self, block1, block2, peer=None, ttl=2):
+    def send_block_pair(self, block1, block2, address=None, ttl=2):
         """
-        Send a half block pair to a specific peer, or do a broadcast to known peers if no peer is specified.
+        Send a half block pair to a specific address, or do a broadcast to known peers if no peer is specified.
         """
         global_time = self.claim_global_time()
         dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
 
-        if peer:
-            self.logger.debug("Sending block pair to %s (%s and %s)", peer, block1, block2)
+        if address:
+            self.logger.debug("Sending block pair to (%s:%d) (%s and %s)", address[0], address[1], block1, block2)
             payload = HalfBlockPairPayload.from_half_blocks(block1, block2).to_pack_list()
             packet = self._ez_pack(self._prefix, 4, [dist, payload], False)
-            self.endpoint.send(peer.address, packet)
+            self.endpoint.send(address, packet)
         else:
             self.logger.debug("Broadcasting blocks %s and %s", block1, block2)
             payload = HalfBlockPairBroadcastPayload.from_half_blocks(block1, block2, ttl).to_pack_list()
@@ -147,7 +147,7 @@ class TrustChainCommunity(Community):
         else:
             if not self.persistence.contains(block):
                 self.persistence.add_block(block)
-            self.send_block(block, peer=peer)
+            self.send_block(block, address=peer.address)
 
         return block
 
