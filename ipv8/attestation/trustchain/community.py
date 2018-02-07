@@ -5,7 +5,7 @@ Every node has a chain and these chains intertwine by blocks shared by chains.
 """
 import logging
 import random
-from threading import Lock
+from threading import RLock
 
 from twisted.internet.defer import Deferred
 
@@ -20,7 +20,7 @@ from ...requestcache import RandomNumberCache, RequestCache
 
 HALF_BLOCK = u"half_block"
 CRAWL = u"crawl"
-receive_block_lock = Lock()
+receive_block_lock = RLock()
 
 
 def synchronized(f):
@@ -215,6 +215,7 @@ class TrustChainCommunity(Community):
 
         return validation
 
+    @synchronized
     def process_half_block(self, blk, peer):
         """
         Process a received half block.
@@ -283,6 +284,7 @@ class TrustChainCommunity(Community):
 
         return crawl_deferred
 
+    @synchronized
     def received_crawl_request(self, source_address, data):
         auth, dist, payload = self._ez_unpack_auth(CrawlRequestPayload, data)
         peer = Peer(auth.public_key_bin, source_address)
@@ -314,6 +316,7 @@ class TrustChainCommunity(Community):
         packet = self._ez_pack(self._prefix, 3, [dist, payload], False)
         self.endpoint.send(peer.address, packet)
 
+    @synchronized
     def received_crawl_response(self, source_address, data):
         dist, payload = self._ez_unpack_noauth(CrawlResponsePayload, data)
 
