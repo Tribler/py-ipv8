@@ -3,8 +3,8 @@ from __future__ import absolute_import
 from ipv8.keyvault.crypto import ECCrypto
 from ipv8.peer import Peer
 from ipv8.peerdiscovery.network import Network
-from test.mocking.endpoint import AutoMockEndpoint
-from test.mocking.discovery import MockWalk
+from .endpoint import AutoMockEndpoint
+from .discovery import MockWalk
 
 
 class MockIPv8(object):

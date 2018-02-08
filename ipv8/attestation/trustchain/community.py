@@ -5,23 +5,22 @@ Every node has a chain and these chains intertwine by blocks shared by chains.
 """
 import logging
 import random
-import time
-from threading import Lock
+from threading import RLock
 
-from twisted.internet.defer import Deferred
+from twisted.internet.defer import Deferred, succeed, fail
 
-from ipv8.attestation.trustchain.caches import CrawlRequestCache
-from ipv8.requestcache import RandomNumberCache, RequestCache
 from .block import TrustChainBlock, ValidationResult, EMPTY_PK, GENESIS_SEQ, UNKNOWN_SEQ
+from .caches import CrawlRequestCache, HalfBlockSignCache
 from .database import TrustChainDB
 from ...deprecated.community import Community
 from ...deprecated.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from .payload import *
 from ...peer import Peer
+from ...requestcache import RandomNumberCache, RequestCache
 
 HALF_BLOCK = u"half_block"
 CRAWL = u"crawl"
-receive_block_lock = Lock()
+receive_block_lock = RLock()
 
 
 def synchronized(f):
@@ -56,7 +55,6 @@ class TrustChainCommunity(Community):
         self.logger = logging.getLogger(self.__class__.__name__)
         self.persistence = self.DB_CLASS(working_directory, db_name)
         self.relayed_broadcasts = []
-
         self.logger.debug("The trustchain community started with Public Key: %s",
                           self.my_peer.public_key.key_to_bin().encode("hex"))
 
@@ -76,18 +74,18 @@ class TrustChainCommunity(Community):
         """
         return True
 
-    def send_block(self, block, peer=None, ttl=2):
+    def send_block(self, block, address=None, ttl=2):
         """
-        Send a block to a specific peer, or do a broadcast to known peers if no peer is specified.
+        Send a block to a specific address, or do a broadcast to known peers if no peer is specified.
         """
         global_time = self.claim_global_time()
         dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
 
-        if peer:
-            self.logger.debug("Sending block to %s (%s)", peer, block)
+        if address:
+            self.logger.debug("Sending block to (%s:%d) (%s)", address[0], address[1], block)
             payload = HalfBlockPayload.from_half_block(block).to_pack_list()
             packet = self._ez_pack(self._prefix, 1, [dist, payload], False)
-            self.endpoint.send(peer.address, packet)
+            self.endpoint.send(address, packet)
         else:
             self.logger.debug("Broadcasting block %s", block)
             payload = HalfBlockBroadcastPayload.from_half_block(block, ttl).to_pack_list()
@@ -95,21 +93,20 @@ class TrustChainCommunity(Community):
             for peer in random.sample(self.network.verified_peers, min(len(self.network.verified_peers),
                                                                        self.BROADCAST_FANOUT)):
                 self.endpoint.send(peer.address, packet)
-            block_id = "%s.%s" % (block.public_key.encode('hex'), block.sequence_number)
-            self.relayed_broadcasts.append(block_id)
+            self.relayed_broadcasts.append(block.block_id)
 
-    def send_block_pair(self, block1, block2, peer=None, ttl=2):
+    def send_block_pair(self, block1, block2, address=None, ttl=2):
         """
-        Send a half block pair to a specific peer, or do a broadcast to known peers if no peer is specified.
+        Send a half block pair to a specific address, or do a broadcast to known peers if no peer is specified.
         """
         global_time = self.claim_global_time()
         dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
 
-        if peer:
-            self.logger.debug("Sending block pair to %s (%s and %s)", peer, block1, block2)
+        if address:
+            self.logger.debug("Sending block pair to (%s:%d) (%s and %s)", address[0], address[1], block1, block2)
             payload = HalfBlockPairPayload.from_half_blocks(block1, block2).to_pack_list()
             packet = self._ez_pack(self._prefix, 4, [dist, payload], False)
-            self.endpoint.send(peer.address, packet)
+            self.endpoint.send(address, packet)
         else:
             self.logger.debug("Broadcasting blocks %s and %s", block1, block2)
             payload = HalfBlockPairBroadcastPayload.from_half_blocks(block1, block2, ttl).to_pack_list()
@@ -117,8 +114,7 @@ class TrustChainCommunity(Community):
             for peer in random.sample(self.network.verified_peers, min(len(self.network.verified_peers),
                                                                        self.BROADCAST_FANOUT)):
                 self.endpoint.send(peer.address, packet)
-            block_id = "%s.%s" % (block1.public_key.encode('hex'), block1.sequence_number)
-            self.relayed_broadcasts.append(block_id)
+            self.relayed_broadcasts.append(block1.block_id)
 
     def sign_block(self, peer, public_key=EMPTY_PK, transaction=None, linked=None):
         """
@@ -145,10 +141,20 @@ class TrustChainCommunity(Community):
                          block.link_public_key.encode("hex")[-8:], block, validation)
         if validation[0] != ValidationResult.partial_next and validation[0] != ValidationResult.valid:
             self.logger.error("Signed block did not validate?! Result %s", repr(validation))
+            return fail(RuntimeError("Signed block did not validate."))
+
+        if not self.persistence.contains(block):
+            self.persistence.add_block(block)
+        self.send_block(block, address=peer.address)
+
+        if not linked:
+            # We keep track of this outstanding sign request.
+            sign_deferred = Deferred()
+            self.request_cache.add(HalfBlockSignCache(self, block, sign_deferred))
+            return sign_deferred
         else:
-            if not self.persistence.contains(block):
-                self.persistence.add_block(block)
-            self.send_block(block, peer=peer)
+            # We return a deferred that fires immediately with both half blocks.
+            return succeed((linked, block))
 
     @synchronized
     def received_half_block(self, source_address, data):
@@ -167,10 +173,9 @@ class TrustChainCommunity(Community):
         """
         dist, payload = self._ez_unpack_noauth(HalfBlockBroadcastPayload, data)
         block = TrustChainBlock.from_payload(payload, self.serializer)
-        block_id = "%s.%s" % (block.public_key.encode('hex'), block.sequence_number)
         self.validate_persist_block(block)
 
-        if block_id not in self.relayed_broadcasts and payload.ttl > 0:
+        if block.block_id not in self.relayed_broadcasts and payload.ttl > 0:
             self.send_block(block, ttl=payload.ttl - 1)
 
     @synchronized
@@ -190,11 +195,10 @@ class TrustChainCommunity(Community):
         """
         dist, payload = self._ez_unpack_noauth(HalfBlockPairBroadcastPayload, data)
         block1, block2 = TrustChainBlock.from_pair_payload(payload, self.serializer)
-        block_id = "%s.%s" % (block1.public_key.encode('hex'), block1.sequence_number)
         self.validate_persist_block(block1)
         self.validate_persist_block(block2)
 
-        if block_id not in self.relayed_broadcasts and payload.ttl > 0:
+        if block1.block_id not in self.relayed_broadcasts and payload.ttl > 0:
             self.send_block_pair(block1, block2, ttl=payload.ttl - 1)
 
     def validate_persist_block(self, block):
@@ -206,7 +210,7 @@ class TrustChainCommunity(Community):
         validation = block.validate(self.persistence)
         self.logger.debug("Block validation result %s, %s, (%s)", validation[0], validation[1], block)
         if validation[0] == ValidationResult.invalid:
-            return
+            pass
         elif not self.persistence.contains(block):
             self.persistence.add_block(block)
         else:
@@ -214,6 +218,7 @@ class TrustChainCommunity(Community):
 
         return validation
 
+    @synchronized
     def process_half_block(self, blk, peer):
         """
         Process a received half block.
@@ -226,6 +231,12 @@ class TrustChainCommunity(Community):
             self.persistence.add_block(blk)
         else:
             self.logger.debug("Received already known block (%s)", blk)
+
+        # Check if we are waiting for this signature response
+        link_block_id_int = int(blk.linked_block_id.encode('hex'), 16) % 100000000L
+        if self.request_cache.has(u'sign', link_block_id_int):
+            cache = self.request_cache.pop(u'sign', link_block_id_int)
+            cache.sign_deferred.callback((blk, self.persistence.get_linked(blk)))
 
         # Is this a request, addressed to us, and have we not signed it already?
         if blk.link_sequence_number != UNKNOWN_SEQ or \
@@ -282,6 +293,7 @@ class TrustChainCommunity(Community):
 
         return crawl_deferred
 
+    @synchronized
     def received_crawl_request(self, source_address, data):
         auth, dist, payload = self._ez_unpack_auth(CrawlRequestPayload, data)
         peer = Peer(auth.public_key_bin, source_address)
@@ -313,6 +325,7 @@ class TrustChainCommunity(Community):
         packet = self._ez_pack(self._prefix, 3, [dist, payload], False)
         self.endpoint.send(peer.address, packet)
 
+    @synchronized
     def received_crawl_response(self, source_address, data):
         dist, payload = self._ez_unpack_noauth(CrawlResponsePayload, data)
 

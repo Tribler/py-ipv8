@@ -42,10 +42,8 @@ class TestTrustChainCommunity(TestBase):
         yield self.introduce_nodes()
 
         his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
-        self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
-                                         transaction={})
-
-        yield self.deliver_messages()
+        yield self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
+                                               transaction={})
 
         for node_nr in [0, 1]:
             self.assertIsNotNone(self.nodes[node_nr].overlay.persistence.get(his_pubkey, 1))
@@ -240,7 +238,7 @@ class TestTrustChainCommunity(TestBase):
 
         block1 = TestBlock()
         block2 = TestBlock()
-        self.nodes[0].overlay.send_block_pair(block1, block2, self.nodes[0].network.verified_peers[0])
+        self.nodes[0].overlay.send_block_pair(block1, block2, self.nodes[0].network.verified_peers[0].address)
 
         yield self.deliver_messages()
 
@@ -256,6 +254,7 @@ class TestTrustChainCommunity(TestBase):
 
         # Let node 3 discover node 2.
         node3 = self.create_node()
+        self.nodes.append(node3)
         self.nodes[1].network.add_verified_peer(node3.my_peer)
         self.nodes[1].discovery.take_step()
 
@@ -275,6 +274,7 @@ class TestTrustChainCommunity(TestBase):
 
         # Let node 3 discover node 2.
         node3 = self.create_node()
+        self.nodes.append(node3)
         self.nodes[1].network.add_verified_peer(node3.my_peer)
         self.nodes[1].discovery.take_step()
 

@@ -1,7 +1,35 @@
 import logging
 import sys
 
-from ipv8.requestcache import NumberCache
+from twisted.python.failure import Failure
+
+from ...requestcache import NumberCache
+
+
+class HalfBlockSignCache(NumberCache):
+    """
+    This request cache keeps track of outstanding half block signature requests.
+    """
+
+    def __init__(self, community, half_block, sign_deferred):
+        block_id_int = int(half_block.block_id.encode('hex'), 16) % 100000000L
+        super(HalfBlockSignCache, self).__init__(community.request_cache, u"sign", block_id_int)
+        self.logger = logging.getLogger(self.__class__.__name__)
+        self.community = community
+        self.half_block = half_block
+        self.sign_deferred = sign_deferred
+
+    @property
+    def timeout_delay(self):
+        """
+        Note that we use a very high timeout for a half block signature. Ideally, we would like to have a request
+        cache without any timeouts and just keep track of outstanding signature requests but this isn't possible (yet).
+        """
+        return 3600.0
+
+    def on_timeout(self):
+        self._logger.info("Timeout for sign request for half block %s, note that it can still arrive!", self.half_block)
+        self.sign_deferred.errback(Failure(RuntimeError("Signature request timeout")))
 
 
 class CrawlRequestCache(NumberCache):
