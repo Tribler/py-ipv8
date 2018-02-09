@@ -887,6 +887,13 @@ class TunnelCommunity(Community):
         circuit = self.circuits[circuit_id]
         self._ours_on_created_extended(circuit, payload)
 
+    def on_raw_data(self, circuit, origin, data):
+        """
+        Handle data, coming from a specific circuit and origin.
+        This method is usually implemented in subclasses of this community.
+        """
+        pass
+
     def on_data(self, sock_addr, packet):
         # If its our circuit, the messenger is the candidate assigned to that circuit and the DATA's destination
         # is set to the zero-address then the packet is from the outside world and addressed to us from.
@@ -921,6 +928,9 @@ class TunnelCommunity(Community):
                     self.logger.debug("Giving incoming data packet to dispersy")
                     self.logger.debug("CIRCUIT ID = %d", circuit_id)
                     self.on_packet((origin, data[4:]), circuit_id=u"circuit_%d" % circuit_id)
+                else:
+                    # We probably received raw data, handle it
+                    self.on_raw_data(circuit, origin, data)
 
             # It is not our circuit so we got it from a relay, we need to EXIT it!
             else:
