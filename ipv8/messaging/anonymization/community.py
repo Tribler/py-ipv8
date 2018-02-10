@@ -338,8 +338,9 @@ class TunnelCommunity(Community):
 
             circuit.destroy()
 
-            return True
-        return False
+        # Clean up the directions dictionary
+        if circuit_id in self.directions:
+            del self.directions[circuit_id]
 
     def remove_relay(self, circuit_id, additional_info='', destroy=False, got_destroy_from=None, both_sides=True):
         """
@@ -367,6 +368,9 @@ class TunnelCommunity(Community):
             # Remove old session key
             if cid in self.relay_session_keys:
                 del self.relay_session_keys[cid]
+
+            # Clean directions dictionary
+            self.directions.pop(cid, None)
 
         return removed_relays
 
