@@ -342,10 +342,12 @@ class TunnelCommunity(Community):
         return False
 
     def remove_relay(self, circuit_id, additional_info='', destroy=False, got_destroy_from=None, both_sides=True):
-
-        # Find other side of relay
+        """
+        Remove a relay and all information associated with the relay. Return the relays that have been removed.
+        """
         to_remove = [circuit_id]
         if both_sides:
+            # Find other side of relay
             for k, v in self.relay_from_to.iteritems():
                 if circuit_id == v.circuit_id:
                     to_remove.append(k)
@@ -354,14 +356,19 @@ class TunnelCommunity(Community):
         if destroy:
             self.destroy_relay(to_remove, got_destroy_from=got_destroy_from)
 
+        removed_relays = []
         for cid in to_remove:
             # Remove the relay
             self.logger.info("Removing relay %d %s", cid, additional_info)
             relay = self.relay_from_to.pop(cid, None)
+            if relay:
+                removed_relays.append(relay)
 
             # Remove old session key
             if cid in self.relay_session_keys:
                 del self.relay_session_keys[cid]
+
+        return removed_relays
 
     def remove_exit_socket(self, circuit_id, additional_info='', destroy=False):
         exit_socket = self.exit_sockets.pop(circuit_id, None)
