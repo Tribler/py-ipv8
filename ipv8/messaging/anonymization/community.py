@@ -657,13 +657,14 @@ class TunnelCommunity(Community):
         auth, dist, payload = self._ez_unpack_auth(TunnelIntroductionRequestPayload, data)
 
         peer = Peer(auth.public_key_bin, source_address)
-        self.network.add_verified_peer(peer)
-        self.network.discover_services(peer, [self.master_peer.mid, ])
+        if peer.mid != self.my_peer.mid:
+            self.network.add_verified_peer(peer)
+            self.network.discover_services(peer, [self.master_peer.mid, ])
 
-        packet = self.create_introduction_response(payload.destination_address, source_address, payload.identifier)
-        self.endpoint.send(source_address, packet)
+            packet = self.create_introduction_response(payload.destination_address, source_address, payload.identifier)
+            self.endpoint.send(source_address, packet)
 
-        self.update_exit_candidates(peer, payload.exitnode)
+            self.update_exit_candidates(peer, payload.exitnode)
 
     def create_introduction_request(self, socket_address):
         global_time = self.claim_global_time()
