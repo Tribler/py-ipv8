@@ -275,7 +275,7 @@ class TunnelCommunity(Community):
 
     def create_circuit(self, goal_hops, ctype=CIRCUIT_TYPE_DATA, callback=None, required_exit=None, info_hash=None):
 
-        self.logger.info("Creating a new circuit of length %d", goal_hops)
+        self.logger.info("Creating a new circuit of length %d (type: %s)", goal_hops, ctype)
 
         # Determine the last hop
         if not required_exit:
@@ -300,7 +300,7 @@ class TunnelCommunity(Community):
             self.logger.info("Look for a first hop that is not an exit node and is not used before")
             first_hops = set([c.sock_addr for c in self.circuits.values()])
             first_hop = next((c for c in self.compatible_candidates
-                              if c not in first_hops and c != required_exit), None)
+                              if c.address not in first_hops and c.address != required_exit.address), None)
 
         if not first_hop:
             self.logger.info("Could not create circuit, no first hop available")
