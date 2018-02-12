@@ -3,6 +3,7 @@ from os.path import isfile
 import sys
 
 from twisted.internet import reactor
+from twisted.internet.defer import inlineCallbacks
 from twisted.internet.task import LoopingCall
 
 from ipv8.attestation.identity.community import IdentityCommunity
@@ -109,11 +110,12 @@ class IPv8(object):
                     if (target_peers == -1) or (peer_count < target_peers):
                         strategy.take_step(service)
 
+    @inlineCallbacks
     def stop(self, stop_reactor=True):
         self.state_machine_lc.stop()
         for strategy, _ in self.strategies:
             overlay = strategy.overlay
-            overlay.unload()
+            yield overlay.unload()
         if stop_reactor:
             reactor.callFromThread(reactor.stop)
 
