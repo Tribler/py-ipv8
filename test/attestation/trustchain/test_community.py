@@ -219,7 +219,7 @@ class TestTrustChainCommunity(TestBase):
         self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
                                          transaction={})
 
-        yield self.sleep()
+        yield self.deliver_messages()
 
         for node_nr in [0, 1]:
             # His first block -> my first block
