@@ -210,16 +210,19 @@ class TestTrustChainCommunity(TestBase):
 
         his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
         self.nodes[0].endpoint.close()
-        self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
-                                         transaction={})
+        signed1 = self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
+                                                   transaction={})
 
         yield self.deliver_messages()
 
         self.nodes[0].endpoint.open()
-        self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
-                                         transaction={})
+        signed2 = self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
+                                                   transaction={})
 
         yield self.deliver_messages()
+
+        yield signed1
+        yield signed2
 
         for node_nr in [0, 1]:
             # His first block -> my first block
