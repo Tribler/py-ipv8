@@ -11,6 +11,7 @@ from twisted.internet.defer import inlineCallbacks, maybeDeferred, returnValue, 
 
 from ...keyvault.public.libnaclkey import LibNaCLPK
 from ...taskmanager import TaskManager
+from ...util import blocking_call_on_reactor_thread
 
 
 ORIGINATOR = 0
@@ -104,6 +105,7 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
         self.port = None
         self.ips = defaultdict(int)
 
+    @blocking_call_on_reactor_thread
     def enable(self):
         if not self.enabled:
             self.port = reactor.listenUDP(0, self)

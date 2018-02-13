@@ -23,10 +23,9 @@ TUNNEL_PREFIX = "ffffffff".decode("HEX")
 class HiddenTunnelCommunity(TunnelCommunity):
 
     def __init__(self, *args, **kwargs):
+        self.dht_provider = kwargs.pop('dht_provider', None)
+        self.service_callbacks = kwargs.pop('service_callbacks', {})
         super(HiddenTunnelCommunity, self).__init__(*args, **kwargs)
-
-        self.dht_provider = kwargs.get('dht_provider', None)
-        self.service_callbacks = kwargs.get('service_callbacks', {})
 
         self.session_keys = {}
 
@@ -152,7 +151,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
     def check_dht_response(self, payload):
         if not self.is_relay(payload.circuit_id):
             request = self.request_cache.get(u"dht-request", payload.identifier)
-            return not not request
+            return request
         return True
 
     def on_dht_response(self, source_address, data, circuit_id=''):
@@ -227,7 +226,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
                                                          source_address,
                                                          payload.info_hash))
 
-            self.tunnel_data(relay_circuit, source_address, u"key-request",
+            self.tunnel_data(relay_circuit, self.my_estimated_wan, u"key-request",
                              KeyRequestPayload(cache.number, payload.info_hash))
         else:
             # The seeder responds with keys back to the intropoint
@@ -250,6 +249,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         dist, payload = self._ez_unpack_noauth(KeyResponsePayload, data)
 
         if not self.check_key_response(payload):
+            self.logger.error("Key response packet invalid!")
             return
 
         if not circuit_id.startswith(u"circuit_"):
@@ -300,7 +300,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
             self.logger.info('On create e2e: forward message because received over socket')
             relay_circuit = self.intro_point_for[payload.info_hash]
 
-            self.tunnel_data(relay_circuit, self.my_estimated_wan, u'create-e2e', payload)
+            self.tunnel_data(relay_circuit, source_address, u'create-e2e', payload)
         else:
             self.logger.info('On create e2e: create rendezvous point')
             self.create_rendezvous_point(self.hops[payload.info_hash],
@@ -439,6 +439,8 @@ class HiddenTunnelCommunity(TunnelCommunity):
                 return self.service_callbacks[service]
 
     def create_introduction_point(self, info_hash, amount=1):
+        self.logger.info("Creating %d introduction point(s)", amount)
+
         # Create a separate key per infohash
         if info_hash not in self.session_keys:
             self.session_keys[info_hash] = self.crypto.generate_key(u"curve25519")

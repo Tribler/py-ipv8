@@ -347,7 +347,7 @@ class TrustChainBlock(object):
         :return: generator to iterate over all properties of this block
         """
         for key, value in self.__dict__.iteritems():
-            if key == 'key':
+            if key == 'key' or key == 'serializer':
                 continue
             if isinstance(value, basestring) and key != "insert_time":
                 yield key, value.encode("hex")

@@ -217,10 +217,15 @@ class TunnelCommunity(Community):
 
     def tunnels_ready(self, hops):
         if hops > 0:
+            if self.num_hops_by_downloads[hops] < 1 or self.circuits_needed[hops] < 1:
+                # if nothing sets the need for this number of tunnels they will eventually die. So the tunnels for this
+                # number of hops is not in fact ready, and build_tunnels should be called.
+                return 0
+
             if self.settings.min_circuits:
                 return min(1, len(self.active_data_circuits(hops)) / float(self.settings.min_circuits))
-            else:
-                return 1 if self.active_data_circuits(hops) else 0
+
+            return 1 if self.active_data_circuits(hops) else 0
         return 1
 
     def build_tunnels(self, hops):
@@ -270,7 +275,7 @@ class TunnelCommunity(Community):
 
     def create_circuit(self, goal_hops, ctype=CIRCUIT_TYPE_DATA, callback=None, required_exit=None, info_hash=None):
 
-        self.logger.info("Creating a new circuit of length %d", goal_hops)
+        self.logger.info("Creating a new circuit of length %d (type: %s)", goal_hops, ctype)
 
         # Determine the last hop
         if not required_exit:
@@ -295,7 +300,7 @@ class TunnelCommunity(Community):
             self.logger.info("Look for a first hop that is not an exit node and is not used before")
             first_hops = set([c.sock_addr for c in self.circuits.values()])
             first_hop = next((c for c in self.compatible_candidates
-                              if c not in first_hops and c != required_exit), None)
+                              if c.address not in first_hops and c.address != required_exit.address), None)
 
         if not first_hop:
             self.logger.info("Could not create circuit, no first hop available")
@@ -338,14 +343,17 @@ class TunnelCommunity(Community):
 
             circuit.destroy()
 
-            return True
-        return False
+        # Clean up the directions dictionary
+        if circuit_id in self.directions:
+            del self.directions[circuit_id]
 
     def remove_relay(self, circuit_id, additional_info='', destroy=False, got_destroy_from=None, both_sides=True):
-
-        # Find other side of relay
+        """
+        Remove a relay and all information associated with the relay. Return the relays that have been removed.
+        """
         to_remove = [circuit_id]
         if both_sides:
+            # Find other side of relay
             for k, v in self.relay_from_to.iteritems():
                 if circuit_id == v.circuit_id:
                     to_remove.append(k)
@@ -354,14 +362,22 @@ class TunnelCommunity(Community):
         if destroy:
             self.destroy_relay(to_remove, got_destroy_from=got_destroy_from)
 
+        removed_relays = []
         for cid in to_remove:
             # Remove the relay
             self.logger.info("Removing relay %d %s", cid, additional_info)
             relay = self.relay_from_to.pop(cid, None)
+            if relay:
+                removed_relays.append(relay)
 
             # Remove old session key
             if cid in self.relay_session_keys:
                 del self.relay_session_keys[cid]
+
+            # Clean directions dictionary
+            self.directions.pop(cid, None)
+
+        return removed_relays
 
     def remove_exit_socket(self, circuit_id, additional_info='', destroy=False):
         exit_socket = self.exit_sockets.pop(circuit_id, None)
@@ -657,13 +673,14 @@ class TunnelCommunity(Community):
         auth, dist, payload = self._ez_unpack_auth(TunnelIntroductionRequestPayload, data)
 
         peer = Peer(auth.public_key_bin, source_address)
-        self.network.add_verified_peer(peer)
-        self.network.discover_services(peer, [self.master_peer.mid, ])
+        if peer.mid != self.my_peer.mid:
+            self.network.add_verified_peer(peer)
+            self.network.discover_services(peer, [self.master_peer.mid, ])
 
-        packet = self.create_introduction_response(payload.destination_address, source_address, payload.identifier)
-        self.endpoint.send(source_address, packet)
+            packet = self.create_introduction_response(payload.destination_address, source_address, payload.identifier)
+            self.endpoint.send(source_address, packet)
 
-        self.update_exit_candidates(peer, payload.exitnode)
+            self.update_exit_candidates(peer, payload.exitnode)
 
     def create_introduction_request(self, socket_address):
         global_time = self.claim_global_time()
@@ -887,6 +904,13 @@ class TunnelCommunity(Community):
         circuit = self.circuits[circuit_id]
         self._ours_on_created_extended(circuit, payload)
 
+    def on_raw_data(self, circuit, origin, data):
+        """
+        Handle data, coming from a specific circuit and origin.
+        This method is usually implemented in subclasses of this community.
+        """
+        pass
+
     def on_data(self, sock_addr, packet):
         # If its our circuit, the messenger is the candidate assigned to that circuit and the DATA's destination
         # is set to the zero-address then the packet is from the outside world and addressed to us from.
@@ -921,6 +945,9 @@ class TunnelCommunity(Community):
                     self.logger.debug("Giving incoming data packet to dispersy")
                     self.logger.debug("CIRCUIT ID = %d", circuit_id)
                     self.on_packet((origin, data[4:]), circuit_id=u"circuit_%d" % circuit_id)
+                else:
+                    # We probably received raw data, handle it
+                    self.on_raw_data(circuit, origin, data)
 
             # It is not our circuit so we got it from a relay, we need to EXIT it!
             else:

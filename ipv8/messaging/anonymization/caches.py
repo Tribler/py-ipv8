@@ -24,6 +24,7 @@ class CircuitRequestCache(NumberCache):
 class ExtendRequestCache(NumberCache):
     def __init__(self, community, to_circuit_id, from_circuit_id, candidate_sock_addr, candidate_mid, to_candidate_sock_addr, to_candidate_mid):
         super(ExtendRequestCache, self).__init__(community.request_cache, u"anon-circuit", to_circuit_id)
+        self.community = community
         self.to_circuit_id = to_circuit_id
         self.from_circuit_id = from_circuit_id
         self.candidate_sock_addr = candidate_sock_addr
@@ -33,7 +34,9 @@ class ExtendRequestCache(NumberCache):
         self.should_forward = True
 
     def on_timeout(self):
-        pass
+        to_circuit = self.community.circuits.get(self.to_circuit_id)
+        if to_circuit and to_circuit.state != CIRCUIT_STATE_READY:
+            self.community.remove_relay(self.to_circuit_id)
 
 
 class CreatedRequestCache(NumberCache):
