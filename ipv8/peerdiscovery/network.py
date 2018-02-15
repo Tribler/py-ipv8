@@ -115,11 +115,12 @@ class Network(object):
         :param service_id: the service name/id to fetch peers for
         """
         out = []
-        for peer in self.verified_peers:
-            key_bin = peer.public_key.key_to_bin()
-            if key_bin in self.services_per_peer:
-                if service_id in self.services_per_peer[key_bin]:
-                    out.append(peer)
+        with self.graph_lock:
+            for peer in self.verified_peers:
+                key_bin = peer.public_key.key_to_bin()
+                if key_bin in self.services_per_peer:
+                    if service_id in self.services_per_peer[key_bin]:
+                        out.append(peer)
         return out
 
     def get_services_for_peer(self, peer):
@@ -128,7 +129,8 @@ class Network(object):
 
         :param peer: the peer to check services for
         """
-        return self.services_per_peer.get(peer.public_key.key_to_bin(), set())
+        with self.graph_lock:
+            return self.services_per_peer.get(peer.public_key.key_to_bin(), set())
 
     def get_walkable_addresses(self, service_id=None):
         """
@@ -185,7 +187,8 @@ class Network(object):
         :param peer: the peer to get the introductions for
         :return: a list of the introduced addresses (ip, port)
         """
-        return [k for k, v in self._all_addresses.iteritems() if v == b64encode(peer.mid)]
+        with self.graph_lock:
+            return [k for k, v in self._all_addresses.iteritems() if v == b64encode(peer.mid)]
 
     def remove_by_address(self, address):
         """
