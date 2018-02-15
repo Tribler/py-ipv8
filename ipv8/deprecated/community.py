@@ -83,6 +83,7 @@ class Community(EZPackOverlay):
 
         self._prefix = '\x00' + self.version + self.master_peer.key.key_to_hash()
         self.network.register_service_provider(self.master_peer.mid, self)
+        self.network.blacklist_mids.append(my_peer.mid)
 
         self.decode_map = {
             chr(250): self.on_puncture_request,
