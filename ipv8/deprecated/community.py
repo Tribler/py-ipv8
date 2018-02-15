@@ -12,11 +12,36 @@ import sys
 from time import time
 from traceback import format_exception
 
+from twisted.names import client
+
 from ..keyvault.crypto import ECCrypto
 from ..overlay import Overlay
 from ..peer import Peer
 from .payload import IntroductionRequestPayload, IntroductionResponsePayload, PuncturePayload, PunctureRequestPayload
 from .payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
+
+
+_DEFAULT_ADDRESSES = [
+    ("130.161.119.206", 6421),
+    ("130.161.119.206", 6422),
+    ("131.180.27.155", 6423),
+    ("83.149.70.6", 6424),
+    ("95.211.155.142", 6427),
+    ("95.211.155.131", 6428),
+]
+
+
+_DNS_ADDRESSES = [
+    (u"dispersy1.tribler.org", 6421),
+    (u"dispersy2.tribler.org", 6422),
+    (u"dispersy3.tribler.org", 6423),
+    (u"dispersy4.tribler.org", 6424),
+    (u"dispersy7.tribler.org", 6427),
+    (u"dispersy8.tribler.org", 6428),
+    (u"dispersy1.st.tudelft.nl", 6421),
+    (u"dispersy2.st.tudelft.nl", 6422),
+    (u"dispersy3.st.tudelft.nl", 6423)
+]
 
 
 class PacketDecodingError(RuntimeError):
@@ -84,6 +109,7 @@ class Community(EZPackOverlay):
         self._prefix = '\x00' + self.version + self.master_peer.key.key_to_hash()
         self.network.register_service_provider(self.master_peer.mid, self)
         self.network.blacklist_mids.append(my_peer.mid)
+        self.network.blacklist.extend(_DEFAULT_ADDRESSES)
 
         self.decode_map = {
             chr(250): self.on_puncture_request,
@@ -133,6 +159,15 @@ class Community(EZPackOverlay):
     def on_deprecated_message(self, source_address, data):
         self.logger.warning("Received deprecated message: %s from (%s, %d)",
                             self.deprecated_message_names[data[22]], *source_address)
+
+    def bootstrap(self):
+        for socket_address in _DEFAULT_ADDRESSES:
+            self.walk_to(socket_address)
+
+    def resolve_dns_bootstrap_addresses(self):
+        for (address, port) in _DNS_ADDRESSES:
+            task = self.register_task("DNS-RESOLVE:" + address, client.getHostByName(address))
+            task.addCallback(lambda ip: _DEFAULT_ADDRESSES.append((ip, port)))
 
     def create_introduction_request(self, socket_address):
         global_time = self.claim_global_time()
@@ -273,3 +308,6 @@ class Community(EZPackOverlay):
             packet = packet[:2] + service_id + packet[22:]
 
         self.endpoint.send(from_peer, packet)
+
+    def get_peers(self):
+        return self.network.get_peers_for_service(self.master_peer.key.key_to_hash())

@@ -109,6 +109,8 @@ class IPv8(object):
                     peer_count = len(self.network.get_peers_for_service(service))
                     if (target_peers == -1) or (peer_count < target_peers):
                         strategy.take_step(service)
+                        if peer_count < 6:
+                            strategy.overlay.bootstrap()
 
     @inlineCallbacks
     def stop(self, stop_reactor=True):

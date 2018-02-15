@@ -103,3 +103,12 @@ class Overlay(EndpointListener, TaskManager):
         :param service_id: try to get a new introduction for a certain service
         """
         pass
+
+    @abc.abstractmethod
+    def get_peers(self):
+        """
+        Get the peers for this specific overlay.
+
+        :return: the peers in the Network that use this overlay
+        """
+        pass
