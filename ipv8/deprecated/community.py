@@ -100,7 +100,7 @@ class EZPackOverlay(Overlay):
 
 class Community(EZPackOverlay):
 
-    version = '\x00'
+    version = '\x02'
     master_peer = ""
 
     def __init__(self, my_peer, endpoint, network):
