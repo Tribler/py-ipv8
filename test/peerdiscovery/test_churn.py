@@ -1,7 +1,7 @@
 import time
 
 from ipv8.peerdiscovery.churn import RandomChurn
-from ipv8.peerdiscovery.deprecated.discovery import _DEFAULT_ADDRESSES
+from ipv8.deprecated.community import _DEFAULT_ADDRESSES
 from test.base import TestBase
 from test.mocking.community import MockCommunity
 from test.mocking.endpoint import MockEndpointListener

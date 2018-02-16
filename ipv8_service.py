@@ -98,17 +98,13 @@ class IPv8(object):
 
     def on_tick(self):
         if self.endpoint.is_open():
-            if not self.network.get_walkable_addresses():
-                for strategy, _ in self.strategies:
-                    overlay = strategy.overlay
-                    if hasattr(overlay, 'bootstrap') and callable(overlay.bootstrap):
-                        overlay.bootstrap()
-            else:
-                for strategy, target_peers in self.strategies:
-                    service = strategy.overlay.master_peer.mid
-                    peer_count = len(self.network.get_peers_for_service(service))
-                    if (target_peers == -1) or (peer_count < target_peers):
-                        strategy.take_step(service)
+            for strategy, target_peers in self.strategies:
+                service = strategy.overlay.master_peer.mid
+                peer_count = len(self.network.get_peers_for_service(service))
+                if (target_peers == -1) or (peer_count < target_peers):
+                    strategy.take_step(service)
+                    if peer_count < 6:
+                        strategy.overlay.bootstrap()
 
     @inlineCallbacks
     def stop(self, stop_reactor=True):
