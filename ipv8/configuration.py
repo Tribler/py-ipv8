@@ -1,3 +1,5 @@
+import copy
+
 default = {
     'port': 8090,
     'keys': [
@@ -106,6 +108,6 @@ default = {
 }
 
 def get_default_configuration():
-    return default.copy()
+    return copy.deepcopy(default)
 
 __all__ = ['get_default_configuration']
