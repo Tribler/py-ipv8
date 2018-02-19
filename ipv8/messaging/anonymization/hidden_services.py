@@ -110,22 +110,23 @@ class HiddenTunnelCommunity(TunnelCommunity):
             self.logger.info("removed rendezvous point %d" % circuit_id)
 
     def do_dht_lookup(self, info_hash):
-        info_hash = self.get_lookup_info_hash(info_hash)
+        self.do_raw_dht_lookup(self.get_lookup_info_hash(info_hash))
 
+    def do_raw_dht_lookup(self, lookup_info_hash):
         # Select a circuit from the pool of exit circuits
         self.logger.info("Do DHT request: select circuit")
-        circuit = self.selection_strategy.select(None, self.hops[info_hash])
+        circuit = self.selection_strategy.select(None, self.hops[lookup_info_hash])
         if not circuit:
             self.logger.info("No circuit for dht-request")
             return False
 
         # Send a dht-request message over this circuit
         self.logger.info("Do DHT request: send dht request")
-        self.last_dht_lookup[info_hash] = time.time()
-        cache = self.request_cache.add(DHTRequestCache(self, circuit, info_hash))
+        self.last_dht_lookup[lookup_info_hash] = time.time()
+        cache = self.request_cache.add(DHTRequestCache(self, circuit, lookup_info_hash))
         self.send_cell([circuit.sock_addr],
                        u"dht-request",
-                       DHTRequestPayload(circuit.circuit_id, cache.number, info_hash))
+                       DHTRequestPayload(circuit.circuit_id, cache.number, lookup_info_hash))
 
     def on_dht_request(self, source_address, data, circuit_id):
         dist, payload = self._ez_unpack_noauth(DHTRequestPayload, data)
