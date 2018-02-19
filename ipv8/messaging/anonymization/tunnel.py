@@ -65,7 +65,7 @@ class DataChecker(object):
     @staticmethod
     def could_be_dht(data):
         try:
-            if len(data) > 1 and data[0] == 'd' and data[-1] == 'e' and any(dentry in data for dentry in ['1y1q', '1y1r', '1y1e']):
+            if len(data) > 1 and data[0] == 'd' and data[-1] == 'e':
                 return True
         except:
             pass
