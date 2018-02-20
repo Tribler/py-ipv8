@@ -8,11 +8,10 @@ Community instance.
 @contact: dispersy@frayja.com
 """
 from random import choice
+from socket import error, gethostbyname
 import sys
 from time import time
 from traceback import format_exception
-
-from twisted.names import client
 
 from ..keyvault.crypto import ECCrypto
 from ..overlay import Overlay
@@ -166,8 +165,10 @@ class Community(EZPackOverlay):
 
     def resolve_dns_bootstrap_addresses(self):
         for (address, port) in _DNS_ADDRESSES:
-            task = self.register_task("DNS-RESOLVE:" + address, client.getHostByName(address))
-            task.addCallback(lambda ip: _DEFAULT_ADDRESSES.append((ip, port)))
+            try:
+                _DEFAULT_ADDRESSES.append((gethostbyname(address), port))
+            except error:
+                self.logger.info("Unable to resolve (%s, %d)", address, port)
 
     def create_introduction_request(self, socket_address):
         global_time = self.claim_global_time()
