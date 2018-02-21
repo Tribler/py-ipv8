@@ -63,6 +63,7 @@ class IPv8(object):
                             # Try old Tribler M2Crypto PEM format
                             content = content[31:-30].replace('\n','').decode("BASE64")
                             peer = Peer(M2CryptoSK(keystring=content))
+                            peer.mid # This will error out if the keystring is not M2Crypto
                             self.keys[key_block['alias']] = peer
                         except:
                             # Try old LibNacl format
