@@ -45,22 +45,18 @@ class RandomChurn(DiscoveryStrategy):
         """
         Select a new (set of) peer(s) to investigate liveness for.
         """
-        # See if we need to clean our ping cache
-        to_remove = []
-        for address, timestamp in self._pinged.iteritems():
-            if time() > (timestamp + self.ping_interval):
-                to_remove.append(address)
-        for address in to_remove:
-            del self._pinged[address]
         # Find an inactive or droppable peer
         sample_size = min(len(self.overlay.network.verified_peers), self.sample_size)
         if sample_size:
             window = sample(self.overlay.network.verified_peers, sample_size)
 
             for peer in window:
-                if self.should_drop(peer):
+                if self.should_drop(peer) and peer.address in self._pinged:
                     self.overlay.network.remove_peer(peer)
+                    del self._pinged[peer.address]
                 elif self.is_inactive(peer):
+                    if (peer.address in self._pinged) and (time() > (self._pinged[peer.address] + self.ping_interval)):
+                        del self._pinged[peer.address]
                     if peer.address not in self._pinged:
                         self._pinged[peer.address] = time()
                         packet = self.overlay.create_ping()
