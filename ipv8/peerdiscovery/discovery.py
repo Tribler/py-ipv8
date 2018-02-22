@@ -40,7 +40,8 @@ class RandomWalk(DiscoveryStrategy):
                 to_remove.append(node)
         for node in to_remove:
             del self.intro_timeouts[node]
-            self.overlay.network.remove_by_address(node)
+            if not self.overlay.network.get_verified_by_address(node):
+                self.overlay.network.remove_by_address(node)
         # Take step
         known = self.overlay.network.get_walkable_addresses(service_id)
         available = list(set(known) - set(self.intro_timeouts.keys()))
