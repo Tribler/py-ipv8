@@ -1,7 +1,3 @@
-**Clone this respository recursively!** `git clone --recursive`
-
-**Otherwise, you can fix it later with** `git submodule update --init`
-
 **Linux**: [![](http://jenkins.tribler.org/job/ipv8/job/test_ipv8_linux/badge/icon)](http://jenkins.tribler.org/job/ipv8/job/test_ipv8_linux/) **Windows**: [![](http://jenkins.tribler.org/job/ipv8/job/test_ipv8_windows/badge/icon)](http://jenkins.tribler.org/job/ipv8/job/test_ipv8_windows/) **Mac**: [![](http://jenkins.tribler.org/job/ipv8/job/test_ipv8_mac/badge/icon)](http://jenkins.tribler.org/job/ipv8/job/test_ipv8_mac/)
 
 This Python 2 package contains IPv8: an amalgamation of peer-to-peer communication functionality from [Dispersy](https://github.com/Tribler/dispersy) and [Tribler](https://github.com/Tribler/tribler), developed over the last 13 years by students and employees of the Delft University of Technology.
