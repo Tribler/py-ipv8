@@ -1,5 +1,7 @@
 from base64 import b64encode
 from threading import RLock
+from socket import inet_aton, inet_ntoa
+from struct import pack, unpack
 
 from networkx import draw, Graph, circular_layout
 
@@ -235,6 +237,37 @@ class Network(object):
         if key_bin in self.services_per_peer:
             del self.services_per_peer[key_bin]
         self.graph_lock.release()
+
+    def snapshot(self):
+        """
+        Get a snapshot of all verified peers.
+
+        :return: the serialization (str) of all verified peers
+        """
+        with self.graph_lock:
+            out = ""
+            for peer in self.verified_peers:
+                if peer.address and peer.address != ('0.0.0.0', 0):
+                    out += inet_aton(peer.address[0]) + pack(">H", peer.address[1])
+            return out
+
+    def load_snapshot(self, snapshot):
+        """
+        Load a snapshot into the walkable addresses.
+
+        :param snapshot: the snapshot (created by snapshot())
+        """
+        snaplen = len(snapshot)
+        if (snaplen % 6) != 0:
+            import logging
+            logging.error("Snapshot has invalid length! Aborting snapshot load.")
+            return
+        with self.graph_lock:
+            for i in xrange(0, snaplen, 6):
+                sub = snapshot[i:i+6]
+                ip = inet_ntoa(sub[0:4])
+                port = unpack(">H", sub[4:])[0]
+                self._all_addresses[(ip, port)] = ''
 
     def draw(self, filename="network_view.png"):
         """
