@@ -709,7 +709,8 @@ class TunnelCommunity(Community):
                 (payload.wan_introduction_address[0] != self.my_estimated_wan[0]):
             self.network.discover_address(Peer(auth.public_key_bin, source_address),
                                           payload.wan_introduction_address)
-        else:
+        elif (payload.lan_introduction_address != ("0.0.0.0", 0)) and \
+                (payload.lan_introduction_address[0] != self.my_estimated_lan[0]):
             self.network.discover_address(Peer(auth.public_key_bin, source_address),
                                           payload.lan_introduction_address)
 
@@ -721,6 +722,7 @@ class TunnelCommunity(Community):
         introduction_wan = ("0.0.0.0", 0)
         introduced = False
         verified_peers = self.network.get_peers_for_service(self.master_peer.mid)
+        verified_peers = [p for p in verified_peers if p.address != socket_address]
         if verified_peers:
             introduction = random.choice(verified_peers).address
             if self.address_is_lan(introduction[0]):

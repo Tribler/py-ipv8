@@ -1,4 +1,5 @@
 from base64 import b64encode
+from hashlib import sha1
 from threading import RLock
 
 from networkx import draw, Graph, circular_layout
@@ -144,8 +145,10 @@ class Network(object):
             new_out = []
             for address in out:
                 b64mid_intro = self._all_addresses[address]
-                intro_peer = [peer for peer in self.verified_peers if b64encode(peer.mid) == b64mid_intro]
-                if intro_peer and self.get_services_for_peer(intro_peer[0]):
+                encoded_services_per_peer = {b64encode(sha1(k).digest()): v for k, v in
+                                             self.services_per_peer.iteritems()}
+                services = encoded_services_per_peer.get(b64mid_intro, [])
+                if service_id in services:
                     new_out.append(address)
             out = new_out
         return out
