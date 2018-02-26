@@ -328,3 +328,79 @@ class TestNetwork(unittest.TestCase):
         self.network.discover_services(self.peers[0], [service])
 
         self.assertEqual([self.peers[1].address], self.network.get_walkable_addresses(service))
+
+    def test_snapshot_only_verified(self):
+        """
+        Check if a snapshot poperly serializes verified peers.
+        """
+        for peer in self.peers:
+            self.network.add_verified_peer(peer)
+        snapshot = self.network.snapshot()
+
+        self.assertEqual(len(snapshot), 6*len(self.peers))
+
+    def test_snapshot_verified_and_unverified(self):
+        """
+        Check if a snapshot poperly serializes only verified peers.
+        """
+        self.network.add_verified_peer(self.peers[0])
+        self.network.discover_address(self.peers[0], self.peers[1].address)
+        snapshot = self.network.snapshot()
+
+        self.assertEqual(len(snapshot), 6)
+
+    def test_snapshot_only_unverified(self):
+        """
+        Check if a snapshot is empty without verified peers.
+        """
+        self.network.blacklist_mids.append(self.peers[0].mid)
+        for peer in self.peers[1:]:
+            self.network.discover_address(self.peers[0], peer)
+        snapshot = self.network.snapshot()
+
+        self.assertEqual(len(snapshot), 0)
+
+    def test_snapshot_no_peers(self):
+        """
+        Check if a snapshot is empty without verified peers.
+        """
+        snapshot = self.network.snapshot()
+
+        self.assertEqual(len(snapshot), 0)
+
+    def test_load_snapshot(self):
+        """
+        Check if peers can be properly loaded from a snapshot.
+        """
+        expected = {
+            ('54.226.56.113', 57674),
+            ('70.200.183.29', 60815),
+            ('194.116.42.174', 21882),
+            ('143.93.254.175', 41862)
+        }
+        snapshot = "36e23871e14a8f5dfeafa386c2742aae557a46c8b71ded8f".decode('hex')
+
+        self.network.load_snapshot(snapshot)
+        peers = set(self.network.get_walkable_addresses())
+
+        self.assertSetEqual(peers, expected)
+
+    def test_load_snapshot_empty(self):
+        """
+        Check if no peers are loaded from an empty snapshot.
+        """
+        self.network.load_snapshot("")
+        peers = set(self.network.get_walkable_addresses())
+
+        self.assertSetEqual(peers, set())
+
+    def test_load_snapshot_malformed(self):
+        """
+        Check if no peers are loaded from a malformed snapshot.
+        """
+        snapshot = "36e23871e14a8f5dfeafa386c2742aae557a46c8b71ded8f".decode('hex')
+
+        self.network.load_snapshot(snapshot[:-1])
+        peers = set(self.network.get_walkable_addresses())
+
+        self.assertSetEqual(peers, set())
