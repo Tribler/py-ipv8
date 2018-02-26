@@ -318,7 +318,6 @@ class TestNetwork(unittest.TestCase):
         self.assertEqual(previous_walkable, self.network.get_walkable_addresses())
         self.assertEqual(previous_verified, self.network.verified_peers)
 
-
     def test_get_walkable_by_service(self):
         """
         Check if we can retrieve walkable addresses by parent service id.
