@@ -24,10 +24,11 @@ class RandomWalk(DiscoveryStrategy):
     Walk randomly through the network.
     """
 
-    def __init__(self, overlay, timeout=3.0):
+    def __init__(self, overlay, timeout=3.0, window_size=5):
         super(RandomWalk, self).__init__(overlay)
         self.intro_timeouts = {}
         self.node_timeout = timeout
+        self.window_size = window_size
 
     def take_step(self, service_id=None):
         """
@@ -42,6 +43,9 @@ class RandomWalk(DiscoveryStrategy):
             del self.intro_timeouts[node]
             if not self.overlay.network.get_verified_by_address(node):
                 self.overlay.network.remove_by_address(node)
+        # If a valid window size (>0) is specified and we are waiting for (at least) this many pings: return
+        if self.window_size and self.window_size > 0 and len(self.intro_timeouts) >= self.window_size:
+            return
         # Take step
         known = self.overlay.network.get_walkable_addresses(service_id)
         available = list(set(known) - set(self.intro_timeouts.keys()))
