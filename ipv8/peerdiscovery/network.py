@@ -141,19 +141,20 @@ class Network(object):
 
         :param service_id: the service_id to filter on
         """
-        verified = [peer.address for peer in self.verified_peers]
-        out = list(set(self._all_addresses.keys()) - set(verified))
-        if service_id:
-            new_out = []
-            for address in out:
-                b64mid_intro = self._all_addresses[address]
-                encoded_services_per_peer = {b64encode(sha1(k).digest()): v for k, v in
-                                             self.services_per_peer.iteritems()}
-                services = encoded_services_per_peer.get(b64mid_intro, [])
-                if service_id in services:
-                    new_out.append(address)
-            out = new_out
-        return out
+        with self.graph_lock:
+            verified = [peer.address for peer in self.verified_peers]
+            out = list(set(self._all_addresses.keys()) - set(verified))
+            if service_id:
+                new_out = []
+                for address in out:
+                    b64mid_intro = self._all_addresses[address]
+                    encoded_services_per_peer = {b64encode(sha1(k).digest()): v for k, v in
+                                                 self.services_per_peer.iteritems()}
+                    services = encoded_services_per_peer.get(b64mid_intro, [])
+                    if service_id in services:
+                        new_out.append(address)
+                out = new_out
+            return out
 
     def get_verified_by_address(self, address):
         """
