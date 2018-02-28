@@ -51,7 +51,7 @@ class Endpoint(object):
         """
         for listener in self._listeners:
             if listener.use_main_thread:
-                blockingCallFromThread(reactor, self._deliver_later, listener, packet)
+                reactor.callFromThread(self._deliver_later, listener, packet)
             elif reactor.running:
                 reactor.callInThread(self._deliver_later, listener, packet)
 
