@@ -49,7 +49,7 @@ class UDPEndpoint(Endpoint):
         :raises: EndpointClosedException if the socket is closed
         """
         if not self.is_open():
-            raise EndpointClosedException()
+            raise EndpointClosedException(self)
 
     def is_open(self):
         """
