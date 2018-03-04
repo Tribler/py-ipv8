@@ -28,6 +28,7 @@ class TestTunnelCommunity(TestBase):
         settings.become_exitnode = False
         settings.min_circuits = 0
         settings.max_circuits = 0
+        settings.remove_tunnel_delay = 0
         ipv8 = MockIPv8(u"curve25519", TunnelCommunity, settings=settings)
         # Then kill all automated circuit creation
         ipv8.overlay.cancel_all_pending_tasks()

@@ -98,8 +98,8 @@ class HiddenTunnelCommunity(TunnelCommunity):
             pre = destination
         self.send_data([circuit.sock_addr], circuit.circuit_id, pre, post, TUNNEL_PREFIX + packet)
 
-    def remove_circuit(self, circuit_id, additional_info='', destroy=False):
-        super(HiddenTunnelCommunity, self).remove_circuit(circuit_id, additional_info, destroy)
+    def remove_circuit(self, circuit_id, additional_info='', remove_now=False, destroy=False):
+        super(HiddenTunnelCommunity, self).remove_circuit(circuit_id, additional_info, remove_now, destroy)
 
         circuit = self.my_intro_points.pop(circuit_id, None)
         if circuit:
