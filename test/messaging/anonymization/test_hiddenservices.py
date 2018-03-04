@@ -1,6 +1,6 @@
 from twisted.internet.defer import inlineCallbacks
 
-from ipv8.messaging.anonymization.community import TunnelSettings
+from ipv8.messaging.anonymization.community import TunnelSettings, CIRCUIT_TYPE_RENDEZVOUS
 from ipv8.messaging.anonymization.hidden_services import HiddenTunnelCommunity
 from ipv8.peer import Peer
 from test.base import TestBase
@@ -28,7 +28,6 @@ class MockDHTProvider(object):
             global_dht_services[info_hash] = [self.address]
 
 
-
 class TestHiddenServices(TestBase):
 
     def setUp(self):
@@ -43,6 +42,49 @@ class TestHiddenServices(TestBase):
 
         for node in self.private_nodes:
             node.unload()
+
+    def get_e2e_circuit_path(self):
+        """
+        Return the e2e circuit information which is extracted from the nodes.
+        Useful for debugging purposes or to verify whether the e2e circuit is correctly established.
+        """
+        path = []
+
+        # Find the first node of the e2e circuit
+        e2e_circuit = None
+        first_node = None
+        for node in self.nodes:
+            for circuit in node.overlay.circuits.itervalues():
+                if circuit.ctype == CIRCUIT_TYPE_RENDEZVOUS:
+                    first_node = node
+                    e2e_circuit = circuit
+                    break
+
+        if not e2e_circuit:
+            # We didn't find any e2e circuit.
+            return None
+
+        def get_node_with_sock_addr(sock_addr):
+            # Utility method to quickly return a node with a specific socket address.
+            for node in self.nodes:
+                if node.overlay.my_peer.address == sock_addr:
+                    return node
+            return None
+
+        # Add the first node to the path
+        path.append((first_node.overlay.my_peer.address, e2e_circuit.circuit_id))
+
+        cur_tunnel = e2e_circuit
+        while True:
+            next_node = get_node_with_sock_addr(cur_tunnel.sock_addr)
+            if cur_tunnel.circuit_id not in next_node.overlay.relay_from_to:
+                # We reached the end of our e2e circuit.
+                path.append((next_node.overlay.my_peer.address, cur_tunnel.circuit_id))
+                break
+            cur_tunnel = next_node.overlay.relay_from_to[cur_tunnel.circuit_id]
+            path.append((next_node.overlay.my_peer.address, cur_tunnel.circuit_id))
+
+        return path
 
     def create_node(self):
         # Initialize a HiddenTunnelCommunity without circuits or exit node functionality
@@ -138,6 +180,9 @@ class TestHiddenServices(TestBase):
         yield self.deliver_messages()
 
         self.assertTrue(callback.called)
+
+        # Verify the length of the e2e circuit
+        self.assertEqual(len(self.get_e2e_circuit_path()), 4)
 
     @twisted_wrapper
     def test_dht_lookup_no_counterparty(self):
