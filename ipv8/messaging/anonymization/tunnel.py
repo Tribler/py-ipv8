@@ -25,7 +25,7 @@ EXIT_NODE_SALT_EXPLICIT = 5
 CIRCUIT_TYPE_DATA = 'DATA'
 
 # The other circuits are supposed to end in a connectable node, not allowed to exit
-# anything else than dispersy messages, used for setting up end-to-end circuits
+# anything else than IPv8 messages, used for setting up end-to-end circuits
 CIRCUIT_TYPE_IP = 'IP'
 CIRCUIT_TYPE_RP = 'RP'
 CIRCUIT_TYPE_RENDEZVOUS = 'RENDEZVOUS'
@@ -72,7 +72,7 @@ class DataChecker(object):
         return False
 
     @staticmethod
-    def could_be_dispersy(data):
+    def could_be_ipv8(data):
         return data[:4] == "ffffffff".decode("HEX") and len(data) >= (23 + 4)
 
     @staticmethod
@@ -80,7 +80,7 @@ class DataChecker(object):
         return (DataChecker.could_be_utp(data) or
                 DataChecker.could_be_udp_tracker(data) or
                 DataChecker.could_be_dht(data) or
-                DataChecker.could_be_dispersy(data))
+                DataChecker.could_be_ipv8(data))
 
 
 class Tunnel(object):

@@ -943,8 +943,8 @@ class TunnelCommunity(Community):
                 circuit.beat_heart()
                 self.increase_bytes_received(circuit, len(packet))
 
-                if DataChecker.could_be_dispersy(data):
-                    self.logger.debug("Giving incoming data packet to dispersy")
+                if DataChecker.could_be_ipv8(data):
+                    self.logger.debug("Giving incoming data packet to IPv8")
                     self.logger.debug("CIRCUIT ID = %d", circuit_id)
                     self.on_packet((origin, data[4:]), circuit_id=u"circuit_%d" % circuit_id)
                 else:
@@ -1005,7 +1005,7 @@ class TunnelCommunity(Community):
             self.remove_circuit(circuit_id, "Got destroy")
 
     def exit_data(self, circuit_id, sock_addr, destination, data):
-        if not self.become_exitnode() and not DataChecker.could_be_dispersy(data):
+        if not self.become_exitnode() and not DataChecker.could_be_ipv8(data):
             self.logger.error("Dropping data packets, refusing to be an exit node for data")
 
         elif circuit_id in self.exit_sockets:
