@@ -309,7 +309,7 @@ class TunnelCommunity(Community):
         # Finally, construct the Circuit object and send the CREATE message
         circuit_id = self._generate_circuit_id(first_hop.address)
         circuit = Circuit(circuit_id, goal_hops, first_hop.address, self, ctype, callback,
-                          required_exit, first_hop.mid.encode('hex'), info_hash)
+                          required_exit, first_hop.mid, info_hash)
 
         self.request_cache.add(CircuitRequestCache(self, circuit))
 
@@ -863,7 +863,7 @@ class TunnelCommunity(Community):
             if not extend_candidate:
                 extend_candidate = Peer(payload.node_public_key, payload.node_addr)
                 self.network.add_verified_peer(extend_candidate)
-        extend_candidate_mid = extend_candidate.mid.encode('hex')
+        extend_candidate_mid = extend_candidate.mid
 
         self.logger.info("on_extend send CREATE for circuit (%s, %d) to %s:%d", source_address,
                          circuit_id,
