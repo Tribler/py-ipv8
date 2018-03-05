@@ -30,7 +30,8 @@ class IdentityCommunity(TrustChainCommunity):
     def should_sign(self, block):
         transaction = block.transaction
         requested_keys = set(transaction.keys())
-        if requested_keys != {"hash", "name", "date"}:
+        required_keys = set(["hash", "name", "date"])
+        if not required_keys.issubset(requested_keys):
             return False
         hash = transaction['hash']
         if hash not in self.known_attestation_hashes:

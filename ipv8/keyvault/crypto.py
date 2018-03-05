@@ -2,6 +2,7 @@ import logging
 
 from cryptography.hazmat.primitives.asymmetric import ec
 
+from ipv8.keyvault.doublesign import SECP256k1
 from ..keyvault.keys import Key
 from .private.libnaclkey import LibNaCLSK
 from .private.m2crypto import M2CryptoSK
@@ -31,6 +32,9 @@ class ECCrypto(object):
     However since then, most functionality was completely rewritten by:
         @author: Niels Zeilemaker
     """
+    def __init__(self):
+        super(ECCrypto, self).__init__()
+        self.ecdsa = SECP256k1()
 
     @property
     def security_levels(self):
@@ -132,3 +136,44 @@ class ECCrypto(object):
             return ec.verify(signature, data)
         except:
             return False
+
+    def is_valid_double_signature(self, data, signature):
+        """
+        Returns True if signature is valid
+        """
+        return self.ecdsa.custom_verify(data, signature)
+
+    def create_custom_signature(self, hex_private_key, msg, signing_seed):
+        """
+        Custom Secp256k1 signature for given key, message data and signing seed.
+        :param ec: ECCrypto instance for private key access
+        :param msg: Message
+        :param signing_seed: Secret seed for signing
+        :return: Secp256k1 elliptic curve signature
+        """
+        return self.ecdsa.custom_sign(hex_private_key, msg, signing_seed)
+
+    def verify_custom_signature(self, signature, msg):
+        """
+        Verifies the custom Secp256k1 signature of the given message.
+        :param signature: Signature (64 bytes)
+        :param msg: Signed message
+        :return: True if signature is valid
+        """
+        return self.ecdsa.custom_verify(msg, signature)
+
+    def recover_double_signature(self, signature1, signature2, msg1, msg2):
+        """
+        Recovers the private key and signing secret given two Secp256k1 signatures for two messages with common secret.
+        :param signature1: Signature 1 (64 bytes)
+        :param signature2: Signature 2 (64 bytes)
+        :param msg1: Signed message 1
+        :param msg2: Signed message 2
+        :return: (Signing_secret, Private_key); both strings
+        """
+        if len(signature1) != len(signature2):
+            logger.error("Invalid signature length [%d:%s], [%d: %s]",
+                         len(signature1), signature1, len(signature2), signature2)
+            return
+        (secret, private_key) = self.ecdsa.recover_from_double_signatures(msg1, msg2, signature1, signature2)
+        return (secret, private_key)

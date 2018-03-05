@@ -1,9 +1,10 @@
+import logging
 import random
 import unittest
 
 from hashlib import sha256
 
-from ipv8.attestation.trustchain.block import TrustChainBlock, GENESIS_HASH, GENESIS_SEQ, EMPTY_SIG
+from ipv8.attestation.trustchain.block import TrustChainBlock, GENESIS_HASH, GENESIS_SEQ, EMPTY_SIG, ValidationResult
 from ipv8.keyvault.crypto import ECCrypto
 from ipv8.messaging.deprecated.encoding import encode
 
@@ -157,3 +158,37 @@ class TestTrustChainBlock(unittest.TestCase):
         self.assertEqual(block.public_key, prev.public_key)
         self.assertEqual(block.link_public_key, link.public_key)
         self.assertEqual(block.link_sequence_number, link.sequence_number)
+
+    def test_double_spending(self):
+        """
+        Test double spending
+        """
+        key = ECCrypto().generate_key(u"curve25519")
+        db = MockDatabase()
+
+        # Adding 4 test blocks
+        block0 = TestBlock(key=key)
+        block0.sequence_number = GENESIS_SEQ
+        db.add_block(block0)
+
+        block1 = TestBlock(previous=block0)
+        db.add_block(block1)
+
+        block2 = TestBlock(previous=block1)
+        db.add_block(block2)
+
+        block3 = TestBlock(previous=block2)
+        db.add_block(block3)
+
+        # Double signed block; Previous block is same as for block3
+        new_block = TestBlock(previous=block2)
+
+        # Validation should detect double spend and recover the private key of the signer.
+        validation = new_block.validate(db)
+        self.assertEqual(validation[0], ValidationResult.double_spend)
+        self.assertIn("Double sign fraud", validation[1])
+
+        # Check equality of the private keys
+        recovered_private_key = validation[2][1]
+        self.assertEqual(key.key.sk, recovered_private_key, "Recovered private key did not match.")
+
