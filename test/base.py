@@ -95,7 +95,7 @@ class TestBase(unittest.TestCase):
         self.nodes.append(node)
 
     @inlineCallbacks
-    def deliver_messages(self, timeout=10):
+    def deliver_messages(self, timeout=0.1):
         """
         Allow peers to communicate.
 

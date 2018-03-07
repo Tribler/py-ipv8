@@ -12,6 +12,7 @@ test/peerdiscovery/test_churn.py:TestChurn
 test/keyvault/test_crypto.py:TestECCrypto
 test/keyvault/test_serialization.py:TestSerialization
 test/keyvault/test_signature.py:TestSignatures
+test/keyvault/test_doublesign.py:TestDoubleSign
 
 test/attestation/trustchain/test_community.py:TestTrustChainCommunity
 test/attestation/trustchain/test_block.py:TestTrustChainBlock
