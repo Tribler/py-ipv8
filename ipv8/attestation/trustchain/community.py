@@ -7,6 +7,7 @@ import logging
 import random
 from threading import RLock
 
+from twisted.internet import reactor
 from twisted.internet.defer import Deferred, succeed, fail
 
 from .block import TrustChainBlock, ValidationResult, EMPTY_PK, GENESIS_SEQ, UNKNOWN_SEQ
@@ -236,7 +237,9 @@ class TrustChainCommunity(Community):
         link_block_id_int = int(blk.linked_block_id.encode('hex'), 16) % 100000000L
         if self.request_cache.has(u'sign', link_block_id_int):
             cache = self.request_cache.pop(u'sign', link_block_id_int)
-            cache.sign_deferred.callback((blk, self.persistence.get_linked(blk)))
+
+            # We cannot guarantee that we're on a reactor thread so make sure we do this Twisted stuff on the reactor.
+            reactor.callFromThread(cache.sign_deferred.callback, (blk, self.persistence.get_linked(blk)))
 
         # Is this a request, addressed to us, and have we not signed it already?
         if blk.link_sequence_number != UNKNOWN_SEQ or \
