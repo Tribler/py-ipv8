@@ -51,11 +51,13 @@ class TrustChainCommunity(Community):
     def __init__(self, *args, **kwargs):
         working_directory = kwargs.pop('working_directory', '')
         db_name = kwargs.pop('db_name', self.DB_NAME)
+        double_sign = kwargs.pop('double_sign', False)
         super(TrustChainCommunity, self).__init__(*args, **kwargs)
         self.request_cache = RequestCache()
         self.logger = logging.getLogger(self.__class__.__name__)
         self.persistence = self.DB_CLASS(working_directory, db_name)
         self.relayed_broadcasts = []
+        self.double_sign = double_sign
         self.logger.debug("The trustchain community started with Public Key: %s",
                           self.my_peer.public_key.key_to_bin().encode("hex"))
 
@@ -136,7 +138,7 @@ class TrustChainCommunity(Community):
 
         block = self.BLOCK_CLASS.create(transaction, self.persistence, self.my_peer.public_key.key_to_bin(),
                                         link=linked, link_pk=public_key)
-        block.sign(self.my_peer.key)
+        block.sign(self.my_peer.key, double_sign=self.double_sign)
         validation = block.validate(self.persistence)
         self.logger.info("Signed block to %s (%s) validation result %s",
                          block.link_public_key.encode("hex")[-8:], block, validation)

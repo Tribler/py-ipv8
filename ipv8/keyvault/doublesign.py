@@ -5,12 +5,21 @@ Based on gist: https://gist.github.com/nlitsme/dda36eeef541de37d996
 """
 import logging
 from binascii import unhexlify, hexlify
+
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric.rsa import _modinv
 
 logger = logging.getLogger(__name__)
 
+try:
+    from gmpy2 import mpz
+    gmpy_present = True
+except ImportError:
+    gmpy_present = False
+
+def fastint(int_value):
+    return mpz(int_value)  if gmpy_present else int_value
 
 def sha256(msg):
     msg_hash = hashes.Hash(hashes.SHA256(), backend=default_backend())
@@ -163,7 +172,8 @@ class FiniteField(object):
         """
         Returns a plain integer
         """
-        return x.value if isinstance(x, FieldElement) else x
+        int_value = x.value if isinstance(x, FieldElement) else x
+        return fastint(int_value)
 
     def zero(self):
         """

@@ -291,7 +291,7 @@ class TrustChainBlock(object):
                 if linklinked is not None and linklinked.hash != self.hash:
                     err("Double countersign fraud")
                     if 'double_sig' in self.transaction and self.transaction['double_sig'] \
-                        and 'double_sig' in linklinked.transaction and linklinked.transactino['double_sig']:
+                        and 'double_sig' in linklinked.transaction and linklinked.transaction['double_sig']:
                         (sign_secret, private_key) = crypto.recover_double_signature(
                             self.transaction['double_sig'],
                             linklinked.transaction['double_sig'],
@@ -319,7 +319,7 @@ class TrustChainBlock(object):
 
         return result[0], errors, result[1]
 
-    def sign(self, key):
+    def sign(self, key, double_sign=False):
         """
         Signs this block with the given key
         :param key: the key to sign this block with
@@ -330,8 +330,9 @@ class TrustChainBlock(object):
 
         # Attach custom double signature to the transaction itself
         sign_secret = doublesign.sha256("%s%s" % (key, self.block_id))
-        if self.transaction and isinstance(self.transaction, dict):
-            self.transaction['double_sig'] = crypto.create_custom_signature(key.key.hex_sk(), data, sign_secret)
+        if double_sign and self.transaction and isinstance(self.transaction, dict):
+            signing_secret_key_hex = key.key.signer.sk[:32].encode('hex')
+            self.transaction['double_sig'] = crypto.create_custom_signature(signing_secret_key_hex, data, sign_secret)
 
     @classmethod
     def create(cls, transaction, database, public_key, link=None, link_pk=None):

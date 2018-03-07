@@ -12,7 +12,7 @@ class TestTrustChainCommunity(TestBase):
         self.initialize(TrustChainCommunity, 2)
 
     def create_node(self):
-        return MockIPv8(u"curve25519", TrustChainCommunity, working_directory=u":memory:")
+        return MockIPv8(u"curve25519", TrustChainCommunity, working_directory=u":memory:", double_sign=False)
 
     @twisted_wrapper
     def test_sign_half_block(self):

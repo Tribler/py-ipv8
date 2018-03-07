@@ -166,4 +166,4 @@ def twisted_wrapper(arg):
     """
     if isinstance(arg, (int, long)):
         return lambda x: deferred(arg)(inlineCallbacks(x))
-    return deferred(timeout=10)(inlineCallbacks(arg))
+    return deferred(timeout=1)(inlineCallbacks(arg))

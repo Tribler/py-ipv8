@@ -15,7 +15,7 @@ class TestBlock(TrustChainBlock):
     Also used in other test files for TrustChain.
     """
 
-    def __init__(self, transaction=None, previous=None, key=None):
+    def __init__(self, transaction=None, previous=None, key=None, double_sign=False):
         crypto = ECCrypto()
         other = crypto.generate_key(u"curve25519").pub().key_to_bin()
 
@@ -34,7 +34,7 @@ class TestBlock(TrustChainBlock):
             TrustChainBlock.__init__(self, (
                 encode(transaction), self.key.pub().key_to_bin(), random.randint(50, 100), other, 0,
                 sha256(str(random.randint(0, 100000))).digest(), 0, 0))
-        self.sign(self.key)
+        self.sign(self.key, double_sign=double_sign)
 
 
 class MockDatabase(object):
@@ -167,21 +167,21 @@ class TestTrustChainBlock(unittest.TestCase):
         db = MockDatabase()
 
         # Adding 4 test blocks
-        block0 = TestBlock(key=key)
+        block0 = TestBlock(key=key, double_sign=True)
         block0.sequence_number = GENESIS_SEQ
         db.add_block(block0)
 
-        block1 = TestBlock(previous=block0)
+        block1 = TestBlock(previous=block0, double_sign=True)
         db.add_block(block1)
 
-        block2 = TestBlock(previous=block1)
+        block2 = TestBlock(previous=block1, double_sign=True)
         db.add_block(block2)
 
-        block3 = TestBlock(previous=block2)
+        block3 = TestBlock(previous=block2, double_sign=True)
         db.add_block(block3)
 
         # Double signed block; Previous block is same as for block3
-        new_block = TestBlock(previous=block2)
+        new_block = TestBlock(previous=block2, double_sign=True)
 
         # Validation should detect double spend and recover the private key of the signer.
         validation = new_block.validate(db)
@@ -190,5 +190,6 @@ class TestTrustChainBlock(unittest.TestCase):
 
         # Check equality of the private keys
         recovered_private_key = validation[2][1]
-        self.assertEqual(key.key.sk, recovered_private_key, "Recovered private key did not match.")
+        original_signing_secret_key = key.key.signer.sk[:32]
+        self.assertEqual(original_signing_secret_key, recovered_private_key, "Recovered private key did not match.")
 
