@@ -28,7 +28,9 @@ class TestRandomWalk(TestBase):
           NODE0 <-> NODE1 <-> NODE2
         """
         self.overlays[0].network.add_verified_peer(self.overlays[1].my_peer)
+        self.overlays[0].network.discover_services(self.overlays[1].my_peer, [self.overlays[1].master_peer.mid, ])
         self.overlays[1].network.add_verified_peer(self.overlays[2].my_peer)
+        self.overlays[1].network.discover_services(self.overlays[2].my_peer, [self.overlays[2].master_peer.mid, ])
         # We expect NODE1 to introduce NODE0 to NODE2
         self.strategies[0].take_step()
 
@@ -47,6 +49,7 @@ class TestRandomWalk(TestBase):
         """
         self.overlays[0].network.add_verified_peer(self.overlays[1].my_peer)
         self.overlays[0].network.discover_address(self.overlays[1].my_peer, self.overlays[2].endpoint.wan_address)
+        self.overlays[0].network.discover_services(self.overlays[1].my_peer, [self.overlays[1].master_peer.mid, ])
         # We expect NODE0 to visit NODE2
         self.strategies[0].take_step()
 
@@ -65,6 +68,7 @@ class TestRandomWalk(TestBase):
         """
         self.overlays[0].network.add_verified_peer(self.overlays[1].my_peer)
         self.overlays[0].network.discover_address(self.overlays[1].my_peer, self.overlays[2].endpoint.wan_address)
+        self.overlays[0].network.discover_services(self.overlays[1].my_peer, [self.overlays[1].master_peer.mid, ])
         # Fail immediately when unreachable
         self.strategies[0].node_timeout = 0.0
 
@@ -93,6 +97,7 @@ class TestRandomWalk(TestBase):
         """
         self.overlays[0].network.add_verified_peer(self.overlays[1].my_peer)
         self.overlays[0].network.discover_address(self.overlays[1].my_peer, self.overlays[2].endpoint.wan_address)
+        self.overlays[0].network.discover_services(self.overlays[1].my_peer, [self.overlays[1].master_peer.mid, ])
         self.strategies[0].node_timeout = 100000.0
 
         # NODE0 attempts to reach NODE2
