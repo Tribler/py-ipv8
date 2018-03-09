@@ -190,7 +190,7 @@ class Community(EZPackOverlay):
         introduction_wan = ("0.0.0.0",0)
         introduced = False
         other = self.network.get_verified_by_address(socket_address)
-        available = [p for p in self.network.verified_peers if p != other]
+        available = [p for p in self.get_peers() if p != other]
         if available:
             introduction = choice(available).address
             if self.address_is_lan(introduction[0]):
