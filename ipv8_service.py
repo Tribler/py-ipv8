@@ -1,9 +1,9 @@
 import logging
 from os.path import isfile
 import sys
+from threading import RLock
 
-from twisted.internet import reactor
-from twisted.internet.defer import inlineCallbacks
+from twisted.internet.defer import DeferredList, inlineCallbacks
 from twisted.internet.task import LoopingCall
 
 from ipv8.attestation.identity.community import IdentityCommunity
@@ -78,6 +78,7 @@ class IPv8(object):
         # Setup logging
         logging.basicConfig(**configuration['logger'])
 
+        self.overlay_lock = RLock()
         self.strategies = []
         self.overlays = []
 
@@ -99,18 +100,26 @@ class IPv8(object):
 
     def on_tick(self):
         if self.endpoint.is_open():
-            for strategy, target_peers in self.strategies:
-                service = strategy.overlay.master_peer.mid
-                peer_count = len(self.network.get_peers_for_service(service))
-                if (target_peers == -1) or (peer_count < target_peers):
-                    strategy.take_step(service)
+            with self.overlay_lock:
+                for strategy, target_peers in self.strategies:
+                    service = strategy.overlay.master_peer.mid
+                    peer_count = len(self.network.get_peers_for_service(service))
+                    if (target_peers == -1) or (peer_count < target_peers):
+                        strategy.take_step(service)
+
+    def unload_overlay(self, instance):
+        with self.overlay_lock:
+            self.overlays = [overlay for overlay in self.overlays if overlay != instance]
+            self.strategies = [(strategy, target_peers) for (strategy, target_peers) in self.strategies
+                               if strategy.overlay != instance]
+            return instance.unload()
 
     @inlineCallbacks
     def stop(self, stop_reactor=True):
         self.state_machine_lc.stop()
-        for strategy, _ in self.strategies:
-            overlay = strategy.overlay
-            yield overlay.unload()
+        with self.overlay_lock:
+            unload_list = [self.unload_overlay(overlay) for overlay in self.overlays[:]]
+            yield DeferredList(unload_list)
         if stop_reactor:
             reactor.callFromThread(reactor.stop)
 
