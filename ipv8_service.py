@@ -3,7 +3,7 @@ from os.path import isfile
 import sys
 from threading import RLock
 
-from twisted.internet.defer import DeferredList, inlineCallbacks
+from twisted.internet.defer import DeferredList, inlineCallbacks, maybeDeferred
 from twisted.internet.task import LoopingCall
 
 from ipv8.attestation.identity.community import IdentityCommunity
@@ -112,7 +112,7 @@ class IPv8(object):
             self.overlays = [overlay for overlay in self.overlays if overlay != instance]
             self.strategies = [(strategy, target_peers) for (strategy, target_peers) in self.strategies
                                if strategy.overlay != instance]
-            return instance.unload()
+            return maybeDeferred(instance.unload)
 
     @inlineCallbacks
     def stop(self, stop_reactor=True):
