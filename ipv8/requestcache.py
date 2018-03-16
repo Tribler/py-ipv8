@@ -1,5 +1,6 @@
-from random import random
 import logging
+from random import random
+from threading import Lock
 
 from twisted.internet import reactor
 
@@ -72,6 +73,8 @@ class RequestCache(TaskManager):
         self._logger = logging.getLogger(self.__class__.__name__)
 
         self._identifiers = dict()
+        self.lock = Lock()
+        self._shutdown = False
 
     def add(self, cache):
         """
@@ -85,16 +88,21 @@ class RequestCache(TaskManager):
         assert isinstance(cache.timeout_delay, float), type(cache.timeout_delay)
         assert cache.timeout_delay > 0.0, cache.timeout_delay
 
-        identifier = self._create_identifier(cache.number, cache.prefix)
-        if identifier in self._identifiers:
-            self._logger.error("add with duplicate identifier \"%s\"", identifier)
-            return None
+        with self.lock:
+            if self._shutdown:
+                self._logger.warning("Dropping %s due to shutdown!", str(cache))
+                return None
 
-        else:
-            self._logger.debug("add %s", cache)
-            self._identifiers[identifier] = cache
-            self.register_task(cache, reactor.callLater(cache.timeout_delay, self._on_timeout, cache))
-            return cache
+            identifier = self._create_identifier(cache.number, cache.prefix)
+            if identifier in self._identifiers:
+                self._logger.error("add with duplicate identifier \"%s\"", identifier)
+                return None
+
+            else:
+                self._logger.debug("add %s", cache)
+                self._identifiers[identifier] = cache
+                self.register_task(cache, reactor.callLater(cache.timeout_delay, self._on_timeout, cache))
+                return cache
 
     def has(self, prefix, number):
         """
@@ -155,3 +163,11 @@ class RequestCache(TaskManager):
         self._logger.debug("Clearing %s [%s]", self, len(self._identifiers))
         self.cancel_all_pending_tasks()
         self._identifiers.clear()
+
+    def shutdown(self):
+        """
+        Clear the cache, cancel all pending tasks and disallow new caches being added.
+        """
+        with self.lock:
+            self._shutdown = True
+            self.clear()

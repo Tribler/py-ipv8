@@ -343,6 +343,6 @@ class TrustChainCommunity(Community):
         # Close the persistence layer
         self.persistence.close()
 
-        self.request_cache.clear()
+        self.request_cache.shutdown()
 
         super(TrustChainCommunity, self).unload()
