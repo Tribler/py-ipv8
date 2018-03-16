@@ -190,7 +190,7 @@ class TunnelCommunity(Community):
         for circuit_id in self.exit_sockets.keys():
             self.remove_exit_socket(circuit_id, 'unload', remove_now=True, destroy=True)
 
-        self.request_cache.clear()
+        self.request_cache.shutdown()
 
         super(TunnelCommunity, self).unload()
 

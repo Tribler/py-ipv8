@@ -1,6 +1,7 @@
 
 test/test_util.py:TestUtil
 test/test_peer.py:TestPeer
+test/test_requestcache.py:TestRequestCache
 test/test_taskmanager.py:TestTaskManager
 
 test/peerdiscovery/test_network.py:TestNetwork
