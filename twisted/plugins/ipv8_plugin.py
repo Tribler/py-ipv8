@@ -31,7 +31,7 @@ class IPV8ServiceMaker(object):
         """
         Initialize the variables of the IPV8ServiceMaker and the logger.
         """
-        self.ipv8 = IPv8(get_default_configuration())
+        self.ipv8 = None
         self.restapi = None
         self._stopping = False
 
@@ -39,6 +39,8 @@ class IPV8ServiceMaker(object):
         """
         Main method to startup IPv8.
         """
+        self.ipv8 = IPv8(get_default_configuration())
+
         def signal_handler(sig, _):
             msg("Received shut down signal %s" % sig)
             if not self._stopping:
