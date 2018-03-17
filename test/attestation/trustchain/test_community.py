@@ -137,11 +137,9 @@ class TestTrustChainCommunity(TestBase):
         yield self.introduce_nodes()
 
         my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
-        self.nodes[1].overlay.send_crawl_request(self.nodes[0].my_peer, my_pubkey, 1)
+        response = yield self.nodes[1].overlay.send_crawl_request(self.nodes[0].my_peer, my_pubkey, 1)
 
-        yield self.deliver_messages()
-
-        self.assertIsNone(self.nodes[1].overlay.persistence.get(my_pubkey, 0))
+        self.assertFalse(response)
 
     @twisted_wrapper
     def test_crawl_negative_index(self):
