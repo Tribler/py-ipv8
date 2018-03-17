@@ -331,11 +331,11 @@ class TrustChainCommunity(Community):
     @synchronized
     def received_crawl_response(self, source_address, data):
         dist, payload = self._ez_unpack_noauth(CrawlResponsePayload, data)
+        self.received_half_block(source_address, data[:-12])  # We cut off a few bytes to make it a BlockPayload
 
-        cache = self.request_cache.get(u"crawl", payload.crawl_id)
         block = TrustChainBlock.from_payload(payload, self.serializer)
+        cache = self.request_cache.get(u"crawl", payload.crawl_id)
         cache.received_block(block, payload.total_count)
-        self.received_half_block(source_address, data[:-12])  # We cut off the last three bytes to make it a BlockPayload
 
     def unload(self):
         self.logger.debug("Unloading the TrustChain Community.")

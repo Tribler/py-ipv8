@@ -1,6 +1,7 @@
 import logging
 import sys
 
+from twisted.internet import reactor
 from twisted.python.failure import Failure
 
 from ...requestcache import NumberCache
@@ -56,7 +57,7 @@ class CrawlRequestCache(NumberCache):
 
         if len(self.received_half_blocks) >= self.total_half_blocks_expected:
             self.community.request_cache.pop(u"crawl", self.number)
-            self.crawl_deferred.callback(self.received_half_blocks)
+            reactor.callFromThread(self.crawl_deferred.callback, self.received_half_blocks)
 
     def on_timeout(self):
         self._logger.info("Timeout for crawl with id %d", self.number)

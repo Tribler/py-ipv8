@@ -182,9 +182,7 @@ class TestTrustChainCommunity(TestBase):
         self.add_node_to_experiment(self.create_node())
 
         my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
-        self.nodes[2].overlay.send_crawl_request(self.nodes[0].my_peer, my_pubkey, -1)
-
-        yield self.deliver_messages()
+        yield self.nodes[2].overlay.send_crawl_request(self.nodes[0].my_peer, my_pubkey, -1)
 
         # Check whether we have both blocks now
         self.assertEqual(self.nodes[2].overlay.persistence.get(my_pubkey, 1).link_sequence_number, UNKNOWN_SEQ)
