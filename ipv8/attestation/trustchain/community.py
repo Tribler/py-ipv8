@@ -314,6 +314,13 @@ class TrustChainCommunity(Community):
         blocks = self.persistence.crawl(self.my_peer.public_key.key_to_bin(), sq)
         total_count = len(blocks)
 
+        if total_count == 0:
+            # If there are no blocks to send, send a dummy block back with an empty transaction.
+            # This is to inform the requester that he can't expect any blocks.
+            block = self.BLOCK_CLASS.create({}, self.persistence, self.my_peer.public_key.key_to_bin(),
+                                            link_pk=EMPTY_PK)
+            self.send_crawl_response(block, payload.crawl_id, 0, 0, peer)
+
         for ind in xrange(len(blocks)):
             self.send_crawl_response(blocks[ind], payload.crawl_id, ind + 1, total_count, peer)
         self.logger.info("Sent %d blocks", total_count)
@@ -331,11 +338,11 @@ class TrustChainCommunity(Community):
     @synchronized
     def received_crawl_response(self, source_address, data):
         dist, payload = self._ez_unpack_noauth(CrawlResponsePayload, data)
+        self.received_half_block(source_address, data[:-12])  # We cut off a few bytes to make it a BlockPayload
 
-        cache = self.request_cache.get(u"crawl", payload.crawl_id)
         block = TrustChainBlock.from_payload(payload, self.serializer)
+        cache = self.request_cache.get(u"crawl", payload.crawl_id)
         cache.received_block(block, payload.total_count)
-        self.received_half_block(source_address, data[:-12])  # We cut off the last three bytes to make it a BlockPayload
 
     def unload(self):
         self.logger.debug("Unloading the TrustChain Community.")

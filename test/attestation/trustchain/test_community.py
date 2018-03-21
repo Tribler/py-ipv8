@@ -137,11 +137,9 @@ class TestTrustChainCommunity(TestBase):
         yield self.introduce_nodes()
 
         my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
-        self.nodes[1].overlay.send_crawl_request(self.nodes[0].my_peer, my_pubkey, 1)
+        response = yield self.nodes[1].overlay.send_crawl_request(self.nodes[0].my_peer, my_pubkey, 1)
 
-        yield self.deliver_messages()
-
-        self.assertIsNone(self.nodes[1].overlay.persistence.get(my_pubkey, 0))
+        self.assertFalse(response)
 
     @twisted_wrapper
     def test_crawl_negative_index(self):
@@ -167,6 +165,26 @@ class TestTrustChainCommunity(TestBase):
 
         self.assertIsNotNone(self.nodes[1].overlay.persistence.get(my_pubkey, 1))
         self.assertEqual(self.nodes[1].overlay.persistence.get(my_pubkey, 1).link_sequence_number, UNKNOWN_SEQ)
+
+    @twisted_wrapper
+    def test_crawl_pair(self):
+        """
+        Test crawling a block pair.
+        """
+        yield self.introduce_nodes()
+
+        his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
+        yield self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
+                                               transaction={})
+
+        self.add_node_to_experiment(self.create_node())
+
+        my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
+        yield self.nodes[2].overlay.send_crawl_request(self.nodes[0].my_peer, my_pubkey, -1)
+
+        # Check whether we have both blocks now
+        self.assertEqual(self.nodes[2].overlay.persistence.get(my_pubkey, 1).link_sequence_number, UNKNOWN_SEQ)
+        self.assertEqual(self.nodes[2].overlay.persistence.get(his_pubkey, 1).link_sequence_number, 1)
 
     @twisted_wrapper
     def test_parallel_blocks(self):
