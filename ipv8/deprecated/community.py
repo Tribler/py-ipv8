@@ -106,6 +106,7 @@ class Community(EZPackOverlay):
         super(Community, self).__init__(self.master_peer, my_peer, endpoint, network)
 
         self._prefix = '\x00' + self.version + self.master_peer.key.key_to_hash()
+        self.logger.debug("Launching %s with prefix %s.", self.__class__.__name__, self._prefix.encode('hex'))
         self.network.register_service_provider(self.master_peer.mid, self)
         self.network.blacklist_mids.append(my_peer.mid)
         self.network.blacklist.extend(_DEFAULT_ADDRESSES)
