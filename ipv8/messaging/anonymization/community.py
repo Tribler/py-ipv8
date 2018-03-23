@@ -55,7 +55,7 @@ class TunnelSettings(object):
         self.crypto = TunnelCrypto()
 
         self.min_circuits = 1
-        self.max_circuits = 1
+        self.max_circuits = 8
         self.max_relays_or_exits = 100
 
         # Maximum number of seconds that a circuit should exist
