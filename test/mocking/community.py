@@ -15,3 +15,7 @@ class MockCommunity(DiscoveryCommunity):
         network = Network()
         peer = Peer(ECCrypto().generate_key(u"very-low"), endpoint.wan_address)
         super(MockCommunity, self).__init__(peer, endpoint, network)
+
+    def bootstrap(self):
+        super(MockCommunity, self).bootstrap()
+        self.last_bootstrap = 0

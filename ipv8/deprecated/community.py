@@ -43,6 +43,9 @@ _DNS_ADDRESSES = [
 ]
 
 
+BOOTSTRAP_TIMEOUT = 30.0 # Timeout before we bootstrap again (bootstrap kills performance)
+
+
 class PacketDecodingError(RuntimeError):
     pass
 
@@ -111,6 +114,8 @@ class Community(EZPackOverlay):
         self.network.blacklist_mids.append(my_peer.mid)
         self.network.blacklist.extend(_DEFAULT_ADDRESSES)
 
+        self.last_bootstrap = 0
+
         self.decode_map = {
             chr(250): self.on_puncture_request,
             chr(249): self.on_puncture,
@@ -161,6 +166,10 @@ class Community(EZPackOverlay):
                             self.deprecated_message_names[data[22]], *source_address)
 
     def bootstrap(self):
+        if time() - self.last_bootstrap < BOOTSTRAP_TIMEOUT:
+            return
+        self.logger.debug("Bootstrapping %s, current peers %d", self.__class__.__name__, len(self.get_peers()))
+        self.last_bootstrap = time()
         for socket_address in _DEFAULT_ADDRESSES:
             self.walk_to(socket_address)
 
