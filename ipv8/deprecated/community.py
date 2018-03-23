@@ -297,7 +297,7 @@ class Community(EZPackOverlay):
 
     def get_new_introduction(self, from_peer=None, service_id=None):
         if not from_peer:
-            available = self.network.verified_peers
+            available = self.get_peers()
             if available:
                 from_peer = choice(available).address
             else:
