@@ -37,7 +37,7 @@ class CrawlRequestCache(NumberCache):
     """
     This request cache keeps track of outstanding crawl requests.
     """
-    CRAWL_TIMEOUT = 5.0
+    CRAWL_TIMEOUT = 20.0
 
     def __init__(self, community, crawl_id, crawl_deferred):
         super(CrawlRequestCache, self).__init__(community.request_cache, u"crawl", crawl_id)

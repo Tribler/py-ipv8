@@ -342,7 +342,8 @@ class TrustChainCommunity(Community):
 
         block = TrustChainBlock.from_payload(payload, self.serializer)
         cache = self.request_cache.get(u"crawl", payload.crawl_id)
-        cache.received_block(block, payload.total_count)
+        if cache:
+            cache.received_block(block, payload.total_count)
 
     def unload(self):
         self.logger.debug("Unloading the TrustChain Community.")
