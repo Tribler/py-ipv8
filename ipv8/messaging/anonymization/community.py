@@ -407,7 +407,7 @@ class TunnelCommunity(Community):
             exit_socket = self.exit_sockets.pop(circuit_id, None)
             if exit_socket:
                 if destroy:
-                    self.destroy_exit_socket(circuit_id)
+                    self.destroy_exit_socket(exit_socket)
 
                 # Close socket
                 if exit_socket.enabled:
@@ -447,13 +447,10 @@ class TunnelCommunity(Community):
                 self.send_destroy(sock_addr, cid_to, reason)
                 self.logger.info("fw destroy to %s %s", cid_to, sock_addr)
 
-    def destroy_exit_socket(self, circuit_id, reason=0):
-        if circuit_id in self.exit_sockets:
-            sock_addr = self.exit_sockets[circuit_id].sock_addr
-            self.send_destroy(sock_addr, circuit_id, reason)
-            self.logger.info("destroy_exit_socket %s %s", circuit_id, sock_addr)
-        else:
-            self.logger.error("could not destroy exit socket %d %s", circuit_id, reason)
+    def destroy_exit_socket(self, exit_socket, reason=0):
+        sock_addr = exit_socket.sock_addr
+        self.send_destroy(sock_addr, exit_socket.circuit_id, reason)
+        self.logger.info("destroy_exit_socket %s %s", exit_socket.circuit_id, sock_addr)
 
     def data_circuits(self, hops=None):
         return {cid: c for cid, c in self.circuits.items()
