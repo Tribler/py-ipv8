@@ -988,6 +988,11 @@ class TunnelCommunity(Community):
     def on_ping(self, source_address, data, _):
         dist, payload = self._ez_unpack_noauth(PingPayload, data)
 
+        if not (payload.circuit_id in self.circuits
+                or payload.circuit_id in self.exit_sockets
+                or payload.circuit_id in self.relay_from_to):
+            return
+
         self.send_cell([source_address], u"pong", PongPayload(payload.circuit_id, payload.identifier))
         self.logger.info("Got ping from %s", source_address)
 
