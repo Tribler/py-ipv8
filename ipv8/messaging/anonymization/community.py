@@ -783,8 +783,7 @@ class TunnelCommunity(Community):
 
         if self.is_relay(circuit_id):
             if not self.relay_packet(circuit_id, message_type, data):
-                # TODO: if crypto fails for relay messages, call remove_relay
-                pass
+                self.send_destroy(source_address, circuit_id, 0)
 
         else:
             circuit = self.circuits.get(circuit_id, None)
@@ -797,8 +796,7 @@ class TunnelCommunity(Community):
 
                 except CryptoException, e:
                     self.logger.warning(str(e))
-
-                    # TODO: if crypto fails for other messages, call remove_circuit
+                    self.send_destroy(source_address, circuit_id, 0)
                     return
 
             self.on_packet((source_address, convert_from_cell(data)), circuit_id=u"circuit_%d" % circuit_id)
@@ -956,6 +954,7 @@ class TunnelCommunity(Community):
 
             except CryptoException, e:
                 self.logger.warning(str(e))
+                self.send_destroy(sock_addr, circuit_id, 0)
                 return
 
             packet = plaintext + encrypted
