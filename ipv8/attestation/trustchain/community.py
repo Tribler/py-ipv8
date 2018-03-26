@@ -14,6 +14,7 @@ from .block import TrustChainBlock, ValidationResult, EMPTY_PK, GENESIS_SEQ, UNK
 from .caches import CrawlRequestCache, HalfBlockSignCache
 from .database import TrustChainDB
 from ...deprecated.community import Community
+from ...deprecated.payload import IntroductionResponsePayload
 from ...deprecated.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from .payload import *
 from ...peer import Peer
@@ -56,6 +57,7 @@ class TrustChainCommunity(Community):
         self.logger = logging.getLogger(self.__class__.__name__)
         self.persistence = self.DB_CLASS(working_directory, db_name)
         self.relayed_broadcasts = []
+        self.crawling = False
         self.logger.debug("The trustchain community started with Public Key: %s",
                           self.my_peer.public_key.key_to_bin().encode("hex"))
 
@@ -344,6 +346,15 @@ class TrustChainCommunity(Community):
         cache = self.request_cache.get(u"crawl", payload.crawl_id)
         if cache:
             cache.received_block(block, payload.total_count)
+
+    def on_introduction_response(self, source_address, data):
+        super(TrustChainCommunity, self).on_introduction_response(source_address, data)
+
+        auth, _, _ = self._ez_unpack_auth(IntroductionResponsePayload, data)
+        peer = Peer(auth.public_key_bin, source_address)
+
+        if self.crawling:
+            self.send_crawl_request(peer, peer.public_key.key_to_bin())
 
     def unload(self):
         self.logger.debug("Unloading the TrustChain Community.")
