@@ -991,7 +991,7 @@ class TunnelCommunity(Community):
             return
 
         self.send_cell([source_address], u"pong", PongPayload(payload.circuit_id, payload.identifier))
-        self.logger.info("Got ping from %s", source_address)
+        self.logger.debug("Got ping from %s", source_address)
 
     def on_pong(self, source_address, data, _):
         dist, payload = self._ez_unpack_noauth(PongPayload, data)
@@ -1000,7 +1000,7 @@ class TunnelCommunity(Community):
             return
 
         self.request_cache.pop(u"ping", payload.identifier)
-        self.logger.info("Got pong from %s", source_address)
+        self.logger.debug("Got pong from %s", source_address)
 
     def do_ping(self):
         # Ping circuits. Pings are only sent to the first hop, subsequent hops will relay the ping.
