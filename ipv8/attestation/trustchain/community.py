@@ -91,8 +91,8 @@ class TrustChainCommunity(Community):
             self.logger.debug("Broadcasting block %s", block)
             payload = HalfBlockBroadcastPayload.from_half_block(block, ttl).to_pack_list()
             packet = self._ez_pack(self._prefix, 5, [dist, payload], False)
-            for peer in random.sample(self.network.verified_peers, min(len(self.network.verified_peers),
-                                                                       self.BROADCAST_FANOUT)):
+            verified_peers = self.network.get_peers_for_service(self.master_peer.mid)
+            for peer in random.sample(verified_peers, min(len(verified_peers), self.BROADCAST_FANOUT)):
                 self.endpoint.send(peer.address, packet)
             self.relayed_broadcasts.append(block.block_id)
 
