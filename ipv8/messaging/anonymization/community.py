@@ -351,8 +351,7 @@ class TunnelCommunity(Community):
                 circuit.destroy()
 
             # Clean up the directions dictionary
-            if circuit_id in self.directions:
-                del self.directions[circuit_id]
+            self.directions.pop(circuit_id, None)
 
         if self.settings.remove_tunnel_delay == 0 or remove_now:
             remove_circuit_info()
@@ -387,8 +386,7 @@ class TunnelCommunity(Community):
                     removed_relays.append(relay)
 
                 # Remove old session key
-                if cid_to_remove in self.relay_session_keys:
-                    del self.relay_session_keys[cid_to_remove]
+                self.relay_session_keys.pop(cid_to_remove, None)
 
                 # Clean directions dictionary
                 self.directions.pop(cid_to_remove, None)
@@ -415,8 +413,7 @@ class TunnelCommunity(Community):
 
                     def on_exit_socket_closed(_):
                         # Remove old session key
-                        if circuit_id in self.relay_session_keys:
-                            del self.relay_session_keys[circuit_id]
+                        self.relay_session_keys.pop(circuit_id, None)
 
                     exit_socket.close().addCallback(on_exit_socket_closed)
 
@@ -512,7 +509,6 @@ class TunnelCommunity(Community):
         dist = GlobalTimeDistributionPayload(self.global_time).to_pack_list()
 
         packet = self._ez_pack(self._prefix, 10, [auth, dist, payload])
-
         self.send_packet([candidate], u"destroy", packet)
 
     def relay_packet(self, circuit_id, message_type, packet):
