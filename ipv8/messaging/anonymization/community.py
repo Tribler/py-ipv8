@@ -169,11 +169,8 @@ class TunnelCommunity(Community):
         try:
             if data.startswith("fffffffe".decode("HEX")):
                 self.on_data(source_address, data[4:])
-            elif self._prefix == data[:22]:
-                if data[22] in self.decode_map_private and not circuit_id:
-                    self.decode_map_private[data[22]](source_address, data, circuit_id)
-                elif data[22] in self.decode_map_private:
-                    self.decode_map_private[data[22]](source_address, data, circuit_id)
+            elif self._prefix == data[:22] and data[22] in self.decode_map_private:
+                self.decode_map_private[data[22]](source_address, data, circuit_id)
         except:
             self.logger.debug("Exception occurred while handling packet!\n" +
                               ''.join(format_exception(*sys.exc_info())))
