@@ -64,5 +64,4 @@ class CrawlRequestCache(NumberCache):
 
     def on_timeout(self):
         self._logger.info("Timeout for crawl with id %d", self.number)
-        self.community.request_cache.pop(u"crawl", self.number)
         self.crawl_deferred.callback(self.received_half_blocks)
