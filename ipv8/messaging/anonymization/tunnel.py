@@ -115,6 +115,7 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
         return self.port is not None
 
     def sendto(self, data, destination):
+        self.last_incoming = time.time()
         if self.check_num_packets(destination, False):
             if DataChecker.is_allowed(data):
                 def on_error(failure):
@@ -139,6 +140,7 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
                                          self.circuit_id)
 
     def datagramReceived(self, data, source):
+        self.last_incoming = time.time()
         self.overlay.increase_bytes_received(self, len(data))
         if self.check_num_packets(source, True):
             if DataChecker.is_allowed(data):

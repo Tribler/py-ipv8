@@ -169,11 +169,8 @@ class TunnelCommunity(Community):
         try:
             if data.startswith("fffffffe".decode("HEX")):
                 self.on_data(source_address, data[4:])
-            elif self._prefix == data[:22]:
-                if data[22] in self.decode_map_private and not circuit_id:
-                    self.decode_map_private[data[22]](source_address, data, circuit_id)
-                elif data[22] in self.decode_map_private:
-                    self.decode_map_private[data[22]](source_address, data, circuit_id)
+            elif self._prefix == data[:22] and data[22] in self.decode_map_private:
+                self.decode_map_private[data[22]](source_address, data, circuit_id)
         except:
             self.logger.debug("Exception occurred while handling packet!\n" +
                               ''.join(format_exception(*sys.exc_info())))
@@ -259,7 +256,9 @@ class TunnelCommunity(Community):
 
         # Remove exit sockets that are too old / have transferred too many bytes.
         for circuit_id, exit_socket in self.exit_sockets.items():
-            if exit_socket.creation_time < time.time() - self.settings.max_time:
+            if exit_socket.last_incoming < time.time() - self.settings.max_time_inactive:
+                self.remove_exit_socket(circuit_id, 'no activity')
+            elif exit_socket.creation_time < time.time() - self.settings.max_time:
                 self.remove_exit_socket(circuit_id, 'too old')
             elif exit_socket.bytes_up + exit_socket.bytes_down > self.settings.max_traffic:
                 self.remove_exit_socket(circuit_id, 'traffic limit exceeded')
@@ -349,8 +348,7 @@ class TunnelCommunity(Community):
                 circuit.destroy()
 
             # Clean up the directions dictionary
-            if circuit_id in self.directions:
-                del self.directions[circuit_id]
+            self.directions.pop(circuit_id, None)
 
         if self.settings.remove_tunnel_delay == 0 or remove_now:
             remove_circuit_info()
@@ -385,8 +383,7 @@ class TunnelCommunity(Community):
                     removed_relays.append(relay)
 
                 # Remove old session key
-                if cid_to_remove in self.relay_session_keys:
-                    del self.relay_session_keys[cid_to_remove]
+                self.relay_session_keys.pop(cid_to_remove, None)
 
                 # Clean directions dictionary
                 self.directions.pop(cid_to_remove, None)
@@ -405,7 +402,7 @@ class TunnelCommunity(Community):
             exit_socket = self.exit_sockets.pop(circuit_id, None)
             if exit_socket:
                 if destroy:
-                    self.destroy_exit_socket(circuit_id)
+                    self.destroy_exit_socket(exit_socket)
 
                 # Close socket
                 if exit_socket.enabled:
@@ -413,8 +410,7 @@ class TunnelCommunity(Community):
 
                     def on_exit_socket_closed(_):
                         # Remove old session key
-                        if circuit_id in self.relay_session_keys:
-                            del self.relay_session_keys[circuit_id]
+                        self.relay_session_keys.pop(circuit_id, None)
 
                     exit_socket.close().addCallback(on_exit_socket_closed)
 
@@ -445,13 +441,10 @@ class TunnelCommunity(Community):
                 self.send_destroy(sock_addr, cid_to, reason)
                 self.logger.info("fw destroy to %s %s", cid_to, sock_addr)
 
-    def destroy_exit_socket(self, circuit_id, reason=0):
-        if circuit_id in self.exit_sockets:
-            sock_addr = self.exit_sockets[circuit_id].sock_addr
-            self.send_destroy(sock_addr, circuit_id, reason)
-            self.logger.info("destroy_exit_socket %s %s", circuit_id, sock_addr)
-        else:
-            self.logger.error("could not destroy exit socket %d %s", circuit_id, reason)
+    def destroy_exit_socket(self, exit_socket, reason=0):
+        sock_addr = exit_socket.sock_addr
+        self.send_destroy(sock_addr, exit_socket.circuit_id, reason)
+        self.logger.info("destroy_exit_socket %s %s", exit_socket.circuit_id, sock_addr)
 
     def data_circuits(self, hops=None):
         return {cid: c for cid, c in self.circuits.items()
@@ -513,7 +506,6 @@ class TunnelCommunity(Community):
         dist = GlobalTimeDistributionPayload(self.global_time).to_pack_list()
 
         packet = self._ez_pack(self._prefix, 10, [auth, dist, payload])
-
         self.send_packet([candidate], u"destroy", packet)
 
     def relay_packet(self, circuit_id, message_type, packet):
@@ -784,8 +776,7 @@ class TunnelCommunity(Community):
 
         if self.is_relay(circuit_id):
             if not self.relay_packet(circuit_id, message_type, data):
-                # TODO: if crypto fails for relay messages, call remove_relay
-                pass
+                self.send_destroy(source_address, circuit_id, 0)
 
         else:
             circuit = self.circuits.get(circuit_id, None)
@@ -798,8 +789,7 @@ class TunnelCommunity(Community):
 
                 except CryptoException, e:
                     self.logger.warning(str(e))
-
-                    # TODO: if crypto fails for other messages, call remove_circuit
+                    self.send_destroy(source_address, circuit_id, 0)
                     return
 
             self.on_packet((source_address, convert_from_cell(data)), circuit_id=u"circuit_%d" % circuit_id)
@@ -957,6 +947,7 @@ class TunnelCommunity(Community):
 
             except CryptoException, e:
                 self.logger.warning(str(e))
+                self.send_destroy(sock_addr, circuit_id, 0)
                 return
 
             packet = plaintext + encrypted
@@ -986,8 +977,13 @@ class TunnelCommunity(Community):
     def on_ping(self, source_address, data, _):
         dist, payload = self._ez_unpack_noauth(PingPayload, data)
 
+        if not (payload.circuit_id in self.circuits
+                or payload.circuit_id in self.exit_sockets
+                or payload.circuit_id in self.relay_from_to):
+            return
+
         self.send_cell([source_address], u"pong", PongPayload(payload.circuit_id, payload.identifier))
-        self.logger.info("Got ping from %s", source_address)
+        self.logger.debug("Got ping from %s", source_address)
 
     def on_pong(self, source_address, data, _):
         dist, payload = self._ez_unpack_noauth(PongPayload, data)
@@ -996,7 +992,7 @@ class TunnelCommunity(Community):
             return
 
         self.request_cache.pop(u"ping", payload.identifier)
-        self.logger.info("Got pong from %s", source_address)
+        self.logger.debug("Got pong from %s", source_address)
 
     def do_ping(self):
         # Ping circuits. Pings are only sent to the first hop, subsequent hops will relay the ping.
