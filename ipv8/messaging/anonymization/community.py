@@ -273,8 +273,8 @@ class TunnelCommunity(Community):
 
     @property
     def compatible_candidates(self):
-        return (p for p in self.network.get_peers_for_service(self.master_peer.mid)
-                if self.crypto.is_key_compatible(p.public_key))
+        return [p for p in self.network.get_peers_for_service(self.master_peer.mid)
+                if self.crypto.is_key_compatible(p.public_key)]
 
     def create_circuit(self, goal_hops, ctype=CIRCUIT_TYPE_DATA, callback=None, required_exit=None, info_hash=None):
 
@@ -283,12 +283,14 @@ class TunnelCommunity(Community):
         # Determine the last hop
         if not required_exit:
             if ctype == CIRCUIT_TYPE_DATA:
-                required_exit = next(self.exit_candidates.itervalues(), None)
+                required_exit = random.choice(self.exit_candidates.values()) if self.exit_candidates else None
             else:
                 # For exit nodes that don't exit actual data, we prefer verified candidates,
                 # but we also consider exit candidates.
-                required_exit = next((c for c in chain(self.compatible_candidates, self.exit_candidates.itervalues())),
-                                     None)
+                if self.compatible_candidates:
+                    required_exit = random.choice(self.compatible_candidates)
+                elif self.exit_candidates:
+                    required_exit = random.choice(self.exit_candidates.values())
 
         if not required_exit:
             self.logger.info("Could not create circuit, no available exit-nodes")
