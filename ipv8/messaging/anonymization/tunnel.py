@@ -162,7 +162,7 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
         # The resolution deferreds can't be cancelled, so we need to wait for
         # them to finish.
         yield self.wait_for_deferred_tasks()
-        self.cancel_all_pending_tasks()
+        self.shutdown_task_manager()
         done_closing_deferred = succeed(None)
         if self.enabled:
             done_closing_deferred = maybeDeferred(self.port.stopListening)
