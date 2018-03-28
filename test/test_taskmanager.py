@@ -31,7 +31,7 @@ class TestTaskManager(TestBase):
         self.counter = 0
 
     def tearDown(self):
-        self.tm.cancel_all_pending_tasks()
+        self.tm.shutdown_task_manager()
 
     @twisted_wrapper
     @untwisted_wrapper

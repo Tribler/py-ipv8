@@ -1,3 +1,4 @@
+import logging
 from threading import Lock
 
 from twisted.internet import reactor
@@ -20,6 +21,8 @@ class TaskManager(object):
         self._pending_tasks = {}
         self._cleanup_counter = CLEANUP_FREQUENCY
         self._task_lock = Lock()
+        self._shutdown = False
+        self._logger = logging.getLogger(self.__class__.__name__)
 
     def replace_task(self, name, task):
         """
@@ -34,6 +37,13 @@ class TaskManager(object):
         """
         assert not self.is_pending_task_active(name), name
         assert isinstance(task, (Deferred, DelayedCall, LoopingCall)), (task, type(task) == type(Deferred))
+
+        if self._shutdown:
+            self._logger.warning("Not adding task %s due to shutdown!", str(task))
+            is_active, stopfn = self._get_isactive_stopper(task)
+            if is_active and stopfn:
+                stopfn()
+            return task
 
         if delay is not None:
             if isinstance(task, Deferred):
@@ -59,7 +69,12 @@ class TaskManager(object):
         Cancels the named task
         """
         self._maybe_clean_task_list()
-        is_active, stopfn = self._get_isactive_stopper(name)
+
+        task = self._pending_tasks.get(name, None)
+        if not task:
+            return
+
+        is_active, stopfn = self._get_isactive_stopper(task)
         if is_active and stopfn:
             stopfn()
             self._pending_tasks.pop(name, None)
@@ -79,7 +94,8 @@ class TaskManager(object):
         """
         Return a boolean determining if a task is active.
         """
-        return self._get_isactive_stopper(name)[0]
+        task = self._pending_tasks.get(name, None)
+        return self._get_isactive_stopper(task)[0] if task else False
 
     def wait_for_deferred_tasks(self):
         """
@@ -93,30 +109,25 @@ class TaskManager(object):
             if isinstance(task, Deferred):
                 yield task
 
-    def _get_isactive_stopper(self, name):
+    def _get_isactive_stopper(self, task):
         """
         Return a boolean determining if a task is active and its cancel/stop method if the task is registered.
         """
-        task = self._pending_tasks.get(name, None)
-
-        def do_get(task):
-            if isinstance(task, Deferred):
-                # Have in mind that any deferred in the pending tasks list should have been constructed with a
-                # canceller function.
-                return not task.called, getattr(task, 'cancel', None)
-            elif isinstance(task, DelayedCall):
-                return task.active(), task.cancel
-            elif isinstance(task, LoopingCall):
-                return task.running, task.stop
-            elif isinstance(task, tuple):
-                if task[0].active():
-                    return task[0].active(), task[0].cancel
-                else:
-                    return do_get(task[1])
+        if isinstance(task, Deferred):
+            # Have in mind that any deferred in the pending tasks list should have been constructed with a
+            # canceller function.
+            return not task.called, getattr(task, 'cancel', None)
+        elif isinstance(task, DelayedCall):
+            return task.active(), task.cancel
+        elif isinstance(task, LoopingCall):
+            return task.running, task.stop
+        elif isinstance(task, tuple):
+            if task[0].active():
+                return task[0].active(), task[0].cancel
             else:
-                return False, None
-
-        return do_get(task)
+                return self._get_isactive_stopper(task[1])
+        else:
+            return False, None
 
     def _maybe_clean_task_list(self):
         """
@@ -129,5 +140,13 @@ class TaskManager(object):
             for name in self._pending_tasks.keys():
                 if not self.is_pending_task_active(name):
                     self._pending_tasks.pop(name, None)
+
+    def shutdown_task_manager(self):
+        """
+        Clear the task manager, cancel all pending tasks and disallow new tasks being added.
+        """
+        with self._task_lock:
+            self._shutdown = True
+            self.cancel_all_pending_tasks()
 
 __all__ = ["TaskManager"]
