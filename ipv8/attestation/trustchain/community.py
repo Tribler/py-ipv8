@@ -59,6 +59,7 @@ class TrustChainCommunity(Community):
         self.relayed_broadcasts = []
         self.logger.debug("The trustchain community started with Public Key: %s",
                           self.my_peer.public_key.key_to_bin().encode("hex"))
+        self.broadcast_block = True  # Whether we broadcast a full block after constructing it
 
         self.decode_map.update({
             chr(1): self.received_half_block,
@@ -156,6 +157,9 @@ class TrustChainCommunity(Community):
             return sign_deferred
         else:
             # We return a deferred that fires immediately with both half blocks.
+            if self.broadcast_block:
+                self.send_block_pair(linked, block)
+
             return succeed((linked, block))
 
     @synchronized
