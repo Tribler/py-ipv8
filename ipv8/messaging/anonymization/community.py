@@ -739,15 +739,14 @@ class TunnelCommunity(Community):
         introduction_lan = ("0.0.0.0", 0)
         introduction_wan = ("0.0.0.0", 0)
         introduced = False
-        verified_peers = self.network.get_peers_for_service(self.master_peer.mid)
-        verified_peers = [p for p in verified_peers if p.address != socket_address]
-        if verified_peers:
-            introduction = random.choice(verified_peers).address
-            if self.address_is_lan(introduction[0]):
-                introduction_lan = introduction
+        other = self.network.get_verified_by_address(socket_address)
+        introduction = self.get_peer_for_introduction(exclude=other)
+        if introduction:
+            if self.address_is_lan(introduction.address[0]):
+                introduction_lan = introduction.address
                 introduction_wan = (self.my_estimated_wan[0], introduction_lan[1])
             else:
-                introduction_wan = introduction
+                introduction_wan = introduction.address
             introduced = True
         payload = TunnelIntroductionResponsePayload(socket_address,
                                                     self.my_estimated_lan,

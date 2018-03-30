@@ -200,14 +200,13 @@ class Community(EZPackOverlay):
         introduction_wan = ("0.0.0.0",0)
         introduced = False
         other = self.network.get_verified_by_address(socket_address)
-        available = [p for p in self.get_peers() if p != other]
-        if available:
-            introduction = choice(available).address
-            if self.address_is_lan(introduction[0]):
-                introduction_lan = introduction
+        introduction = self.get_peer_for_introduction(exclude=other)
+        if introduction:
+            if self.address_is_lan(introduction.address[0]):
+                introduction_lan = introduction.address
                 introduction_wan = (self.my_estimated_wan[0], introduction_lan[1])
             else:
-                introduction_wan = introduction
+                introduction_wan = introduction.address
             introduced = True
         payload = IntroductionResponsePayload(socket_address,
                                               self.my_estimated_lan,
@@ -304,7 +303,21 @@ class Community(EZPackOverlay):
         packet = self.create_introduction_request(address)
         self.endpoint.send(address, packet)
 
+    def send_introduction_request(self, peer, service_id=None):
+        """
+        Send an introduction request to a specific peer.
+        """
+        packet = self.create_introduction_request(peer.address)
+
+        if service_id:
+            packet = packet[:2] + service_id + packet[22:]
+
+        self.endpoint.send(peer.address, packet)
+
     def get_new_introduction(self, from_peer=None, service_id=None):
+        """
+        Get a new introduction, or bootstrap if there are no available peers.
+        """
         if not from_peer:
             available = self.get_peers()
             if available:
@@ -319,6 +332,13 @@ class Community(EZPackOverlay):
             packet = packet[:2] + service_id + packet[22:]
 
         self.endpoint.send(from_peer, packet)
+
+    def get_peer_for_introduction(self, exclude=None):
+        """
+        Return a random peer to send an introduction request to.
+        """
+        available = [p for p in self.get_peers() if p != exclude]
+        return choice(available) if available else None
 
     def get_peers(self):
         return self.network.get_peers_for_service(self.master_peer.key.key_to_hash())

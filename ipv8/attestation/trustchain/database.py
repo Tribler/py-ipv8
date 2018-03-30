@@ -100,6 +100,17 @@ class TrustChainDB(Database):
         return self._get(u"WHERE sequence_number < ? AND public_key = ? ORDER BY sequence_number DESC",
                          (block.sequence_number, buffer(block.public_key)))
 
+    def get_lowest_sequence_number_unknown(self, public_key):
+        """
+        Return the lowest sequence number that we don't have a block of in the chain of a specific peer.
+        :param public_key: The public key
+        """
+        query = u"SELECT b1.sequence_number FROM blocks b1 WHERE b1.public_key = ? AND NOT EXISTS " \
+                u"(SELECT b2.sequence_number FROM blocks b2 WHERE b2.sequence_number = b1.sequence_number + 1 " \
+                u"AND b2.public_key = ?) ORDER BY b1.sequence_number LIMIT 1"
+        db_result = list(self.execute(query, (buffer(public_key), buffer(public_key)), fetch_all=True))
+        return db_result[0][0] + 1 if db_result else 1
+
     def get_linked(self, block):
         """
         Get the block that is linked to the given block
