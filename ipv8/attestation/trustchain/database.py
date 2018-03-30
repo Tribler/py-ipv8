@@ -147,6 +147,11 @@ class TrustChainDB(Database):
 
         CREATE TABLE option(key TEXT PRIMARY KEY, value BLOB);
         INSERT INTO option(key, value) VALUES('database_version', '%s');
+
+        CREATE INDEX pub_key_ind ON blocks (public_key);
+        CREATE INDEX link_pub_key_ind ON blocks (link_public_key);
+        CREATE INDEX seq_num_ind ON blocks (sequence_number);
+        CREATE INDEX link_seq_num_ind ON blocks (link_sequence_number);
         """ % str(self.LATEST_DB_VERSION)
 
     def get_upgrade_script(self, current_version):
