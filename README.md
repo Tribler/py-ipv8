@@ -60,6 +60,6 @@ python2 create_test_coverage_report.py
 ### Getting started
 IPv8 can be used as a library or as a service. It is easiest to start off with the service, which has been provided [here](ipv8/ipv8.py) (see the [configuration file](ipv8/configuration.py) for invocation options).
 This file will load the IPv8 stack for *signed messaging*, *anonymous messaging*, *attribute attestation*, *public service discovery*, *peer discovery* and *peer keep-alive*.
-You can play around with it to get to know IPv8 better.
+You can start creating your first network overlay by following [the overlay creation tutorial](doc/overlay_tutorial.md).
 
 Additional documentation is also available for the [TrustChain](doc/trustchain.md) and [anonymization](doc/anonymization.md) provided in IPv8.
