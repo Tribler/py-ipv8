@@ -4,8 +4,7 @@ This file contains everything related to persistence for TrustChain.
 import os
 
 from ...database import Database
-from .block import TrustChainBlock
-
+from .block import TrustChainBlock, EMPTY_PK
 
 DATABASE_DIRECTORY = os.path.join(u"sqlite")
 
@@ -112,10 +111,18 @@ class TrustChainDB(Database):
 
     def crawl(self, public_key, sequence_number, limit=100):
         assert limit <= 100, "Don't fetch too much"
-        return self._getall(u"WHERE insert_time >= (SELECT MAX(insert_time) FROM blocks WHERE public_key = ? AND "
-                            u"sequence_number <= ?) AND (public_key = ? OR link_public_key = ?) "
+        return self._getall(u"WHERE sequence_number >= ? AND (public_key = ? OR link_public_key = ?) "
                             u"ORDER BY insert_time ASC LIMIT ?",
-                            (buffer(public_key), sequence_number, buffer(public_key), buffer(public_key), limit))
+                            (sequence_number, buffer(public_key), buffer(public_key), limit))
+
+    def get_all_public_keys(self):
+        """
+        Return a list with all unique public keys of known blocks.
+        :return: a list of all known public keys
+        """
+        keys_list = list(self.execute(u"SELECT DISTINCT public_key FROM blocks UNION "
+                                      u"SELECT DISTINCT link_public_key FROM blocks"))
+        return [str(key_tup[0]) for key_tup in keys_list if str(key_tup[0]) != EMPTY_PK]
 
     def get_sql_header(self):
         """

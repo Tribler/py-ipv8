@@ -251,6 +251,23 @@ class TestTrustChainCommunity(TestBase):
             self.assertEqual(self.nodes[node_nr].overlay.persistence.get(his_pubkey, 2).link_sequence_number, 2)
 
     @twisted_wrapper
+    def test_crawl_other_peers(self):
+        """
+        Test crawling others for unrelated blocks
+        """
+        yield self.introduce_nodes()
+
+        block1 = TestBlock()
+        self.nodes[0].overlay.persistence.add_block(block1)
+
+        self.nodes[1].overlay.send_known_peers_query(self.nodes[0].overlay.my_peer)
+
+        yield self.deliver_messages()
+
+        # Check whether this block is now in the possession of node 1
+        self.assertIsNotNone(self.nodes[1].overlay.persistence.get(block1.public_key, block1.sequence_number))
+
+    @twisted_wrapper
     def test_send_block_pair(self):
         """
         Test sending and receiving a pair of blocks from one to another peer.

@@ -14,6 +14,7 @@ from .block import TrustChainBlock, ValidationResult, EMPTY_PK, GENESIS_SEQ, UNK
 from .caches import CrawlRequestCache, HalfBlockSignCache
 from .database import TrustChainDB
 from ...deprecated.community import Community
+from ...deprecated.payload import IntroductionResponsePayload
 from ...deprecated.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from .payload import *
 from ...peer import Peer
@@ -56,6 +57,7 @@ class TrustChainCommunity(Community):
         self.logger = logging.getLogger(self.__class__.__name__)
         self.persistence = self.DB_CLASS(working_directory, db_name)
         self.relayed_broadcasts = []
+        self.crawling = False
         self.logger.debug("The trustchain community started with Public Key: %s",
                           self.my_peer.public_key.key_to_bin().encode("hex"))
 
@@ -65,7 +67,11 @@ class TrustChainCommunity(Community):
             chr(3): self.received_crawl_response,
             chr(4): self.received_half_block_pair,
             chr(5): self.received_half_block_broadcast,
-            chr(6): self.received_half_block_pair_broadcast
+            chr(6): self.received_half_block_pair_broadcast,
+
+            chr(50): self.received_known_peers_query,
+            chr(51): self.received_known_peers_response,
+            chr(52): self.received_known_peer
         })
 
     def should_sign(self, block):
@@ -91,8 +97,8 @@ class TrustChainCommunity(Community):
             self.logger.debug("Broadcasting block %s", block)
             payload = HalfBlockBroadcastPayload.from_half_block(block, ttl).to_pack_list()
             packet = self._ez_pack(self._prefix, 5, [dist, payload], False)
-            for peer in random.sample(self.network.verified_peers, min(len(self.network.verified_peers),
-                                                                       self.BROADCAST_FANOUT)):
+            verified_peers = self.network.get_peers_for_service(self.master_peer.mid)
+            for peer in random.sample(verified_peers, min(len(verified_peers), self.BROADCAST_FANOUT)):
                 self.endpoint.send(peer.address, packet)
             self.relayed_broadcasts.append(block.block_id)
 
@@ -288,7 +294,7 @@ class TrustChainCommunity(Community):
 
         global_time = self.claim_global_time()
         auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
-        payload = CrawlRequestPayload(sq, crawl_id).to_pack_list()
+        payload = CrawlRequestPayload(public_key, sq, crawl_id).to_pack_list()
         dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
 
         packet = self._ez_pack(self._prefix, 2, [auth, dist, payload])
@@ -301,8 +307,9 @@ class TrustChainCommunity(Community):
         auth, dist, payload = self._ez_unpack_auth(CrawlRequestPayload, data)
         peer = Peer(auth.public_key_bin, source_address)
 
-        self.logger.info("Received crawl request from node %s for sequence number %d",
+        self.logger.info("Received crawl request from node %s for key %s and sequence number %d",
                          peer.public_key.key_to_bin().encode("hex")[-8:],
+                         payload.public_key.encode("hex")[-8:],
                          payload.requested_sequence_number)
         sq = payload.requested_sequence_number
         if sq < 0:
@@ -311,7 +318,7 @@ class TrustChainCommunity(Community):
             # The -2 element is the last_block.seq_nr - 1
             # Etc. until the genesis seq_nr
             sq = max(GENESIS_SEQ, last_block.sequence_number + (sq + 1)) if last_block else GENESIS_SEQ
-        blocks = self.persistence.crawl(self.my_peer.public_key.key_to_bin(), sq)
+        blocks = self.persistence.crawl(payload.public_key, sq)
         total_count = len(blocks)
 
         if total_count == 0:
@@ -344,6 +351,103 @@ class TrustChainCommunity(Community):
         cache = self.request_cache.get(u"crawl", payload.crawl_id)
         if cache:
             cache.received_block(block, payload.total_count)
+
+    @synchronized
+    def get_peers_bloomfilter(self):
+        """
+        Get a bloomfilter that contains the peers of which you have blocks.
+        """
+        peer_keys = [str(peer_key) for peer_key in self.persistence.get_all_public_keys()]
+        keys_bloom_filter = BloomFilter(0.005, max(len(peer_keys), 1), prefix=' ')
+        if peer_keys:
+            keys_bloom_filter.add_keys(peer_keys)
+        return keys_bloom_filter
+
+    @synchronized
+    def send_known_peers_query(self, peer):
+        """
+        Send a known peers query to a specific peer. This peer will return with a list of known peers and a bloomfilter
+        with the peers in his possession.
+        """
+        global_time = self.claim_global_time()
+        auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
+        payload = BloomfilterPayload(self.get_peers_bloomfilter()).to_pack_list()
+        dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
+
+        packet = self._ez_pack(self._prefix, 50, [auth, dist, payload])
+        self.endpoint.send(peer.address, packet)
+
+    @synchronized
+    def received_known_peers_query(self, source_address, data):
+        auth, dist, payload = self._ez_unpack_auth(BloomfilterPayload, data)
+        peer = Peer(auth.public_key_bin, source_address)
+
+        self.logger.info("Received known peers query from %s", peer)
+
+        # Find out which keys the other party does not have in it's possession
+        all_keys = self.persistence.get_all_public_keys()
+        for key in all_keys:
+            if key not in payload.bloomfilter:
+                self.send_known_peer(peer, key)
+
+        # Also send a bloomfilter back with peers that we know
+        global_time = self.claim_global_time()
+        auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
+        payload = BloomfilterPayload(self.get_peers_bloomfilter()).to_pack_list()
+        dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
+
+        packet = self._ez_pack(self._prefix, 51, [auth, dist, payload])
+        self.endpoint.send(peer.address, packet)
+
+    def send_known_peer(self, destination_peer, public_key):
+        """
+        Send a packet with the public key of the peer that we have blocks of, but the destination_peer not.
+        """
+        global_time = self.claim_global_time()
+        auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
+        payload = KeyPayload(public_key).to_pack_list()
+        dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
+
+        packet = self._ez_pack(self._prefix, 52, [auth, dist, payload])
+        self.endpoint.send(destination_peer.address, packet)
+
+    @synchronized
+    def received_known_peers_response(self, source_address, data):
+        """
+        We received a bloomfilter response with known peers. Match against our database and optionally send
+        crawl requests.
+        """
+        auth, _, payload = self._ez_unpack_auth(BloomfilterPayload, data)
+        peer = Peer(auth.public_key_bin, source_address)
+
+        all_keys = self.persistence.get_all_public_keys()
+        other_knows = []
+        for key in all_keys:
+            if key in payload.bloomfilter:
+                other_knows.append(key)
+
+        # Send a crawl request to a select subset of peers
+        for key in random.sample(other_knows, min(len(other_knows), 10)):
+            self.send_crawl_request(peer, key)
+
+    @synchronized
+    def received_known_peer(self, source_address, data):
+        """
+        We received a public key we don't have blocks of. Send a crawl request to fetch blocks with this public key.
+        """
+        auth, _, payload = self._ez_unpack_auth(KeyPayload, data)
+        peer = Peer(auth.public_key_bin, source_address)
+
+        self.send_crawl_request(peer, payload.public_key)
+
+    def on_introduction_response(self, source_address, data):
+        super(TrustChainCommunity, self).on_introduction_response(source_address, data)
+
+        auth, _, _ = self._ez_unpack_auth(IntroductionResponsePayload, data)
+        peer = Peer(auth.public_key_bin, source_address)
+
+        if self.crawling:
+            self.send_crawl_request(peer, peer.public_key.key_to_bin())
 
     def unload(self):
         self.logger.debug("Unloading the TrustChain Community.")
