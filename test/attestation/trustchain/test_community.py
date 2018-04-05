@@ -167,6 +167,29 @@ class TestTrustChainCommunity(TestBase):
         self.assertEqual(self.nodes[1].overlay.persistence.get(my_pubkey, 1).link_sequence_number, UNKNOWN_SEQ)
 
     @twisted_wrapper
+    def test_crawl_lowest_unknown(self):
+        """
+        Test crawling the lowest unknown block of a specific peer.
+        """
+        yield self.introduce_nodes()
+
+        my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
+        his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
+        for _ in xrange(0, 3):
+            self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
+                                             transaction={})
+
+        yield self.deliver_messages()
+
+        self.nodes[1].overlay.persistence.execute(u"DELETE FROM blocks WHERE sequence_number=2", tuple())
+        self.assertIsNone(self.nodes[1].overlay.persistence.get(my_pubkey, 2))
+
+        yield self.nodes[1].overlay.crawl_lowest_unknown(self.nodes[0].my_peer)
+        yield self.deliver_messages()
+
+        self.assertIsNotNone(self.nodes[1].overlay.persistence.get(my_pubkey, 2))
+
+    @twisted_wrapper
     def test_crawl_pair(self):
         """
         Test crawling a block pair.

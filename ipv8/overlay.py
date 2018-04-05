@@ -112,3 +112,18 @@ class Overlay(EndpointListener, TaskManager):
         :return: the peers in the Network that use this overlay
         """
         pass
+
+    def get_peer_for_introduction(self, exclude=None):
+        """
+        Get a peer for introduction.
+
+        :param: exclude: optionally specify a peer that is not considered eligible for introduction
+        :return: a Peer to send an introduction request to, or None if there are no available
+        """
+        pass
+
+    def get_trust(self, peer):
+        """
+        Get the trust score for a specific peer. This defaults to 1
+        """
+        return 1

@@ -14,6 +14,7 @@ from .block import TrustChainBlock, ValidationResult, EMPTY_PK, GENESIS_SEQ, UNK
 from .caches import CrawlRequestCache, HalfBlockSignCache
 from .database import TrustChainDB
 from ...deprecated.community import Community
+from ...deprecated.payload import IntroductionResponsePayload
 from ...deprecated.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from .payload import *
 from ...peer import Peer
@@ -58,6 +59,7 @@ class TrustChainCommunity(Community):
         self.relayed_broadcasts = []
         self.logger.debug("The trustchain community started with Public Key: %s",
                           self.my_peer.public_key.key_to_bin().encode("hex"))
+        self.broadcast_block = True  # Whether we broadcast a full block after constructing it
 
         self.decode_map.update({
             chr(1): self.received_half_block,
@@ -155,6 +157,9 @@ class TrustChainCommunity(Community):
             return sign_deferred
         else:
             # We return a deferred that fires immediately with both half blocks.
+            if self.broadcast_block:
+                self.send_block_pair(linked, block)
+
             return succeed((linked, block))
 
     @synchronized
@@ -209,13 +214,10 @@ class TrustChainCommunity(Community):
         :return: [ValidationResult]
         """
         validation = block.validate(self.persistence)
-        self.logger.debug("Block validation result %s, %s, (%s)", validation[0], validation[1], block)
         if validation[0] == ValidationResult.invalid:
             pass
         elif not self.persistence.contains(block):
             self.persistence.add_block(block)
-        else:
-            self.logger.debug("Received already known block (%s)", block)
 
         return validation
 
@@ -269,6 +271,13 @@ class TrustChainCommunity(Community):
                 crawl_deferred.addCallback(lambda _: self.process_half_block(blk, peer))
         else:
             self.sign_block(peer, linked=blk)
+
+    def crawl_lowest_unknown(self, peer):
+        """
+        Crawl the lowest unknown block of a specific peer.
+        """
+        sq = self.persistence.get_lowest_sequence_number_unknown(peer.public_key.key_to_bin())
+        return self.send_crawl_request(peer, peer.public_key.key_to_bin(), sequence_number=sq)
 
     def send_crawl_request(self, peer, public_key, sequence_number=None, for_half_block=None):
         """
@@ -344,6 +353,45 @@ class TrustChainCommunity(Community):
         cache = self.request_cache.get(u"crawl", payload.crawl_id)
         if cache:
             cache.received_block(block, payload.total_count)
+
+    def get_trust(self, peer):
+        """
+        Return the trust score for a specific peer. For the basic Trustchain, this is the length of their chain.
+        """
+        block = self.persistence.get_latest(peer.public_key)
+        if block:
+            return block.sequence_number
+        else:
+            # We need a minimum of 1 trust to have a chance to be selected in the categorical distribution.
+            return 1
+
+    def get_peer_for_introduction(self, exclude=None):
+        """
+        Choose a trusted peer to introduce you to someone else.
+        The more trust you have for someone, the higher the chance is to forward them.
+        """
+        eligible = [p for p in self.get_peers() if p != exclude]
+        if not eligible:
+            return None
+
+        total_trust = sum([self.get_trust(peer) for peer in eligible])
+        random_trust_i = random.randint(0, total_trust - 1)
+        current_trust_i = 0
+        for i in xrange(0, len(eligible)):
+            next_trust_i = self.get_trust(eligible[i])
+            if current_trust_i + next_trust_i > random_trust_i:
+                return eligible[i]
+            else:
+                current_trust_i += next_trust_i
+
+        return eligible[-1]
+
+    def on_introduction_response(self, source_address, data):
+        super(TrustChainCommunity, self).on_introduction_response(source_address, data)
+
+        auth, _, _ = self._ez_unpack_auth(IntroductionResponsePayload, data)
+        peer = Peer(auth.public_key_bin, source_address)
+        self.crawl_lowest_unknown(peer)
 
     def unload(self):
         self.logger.debug("Unloading the TrustChain Community.")
