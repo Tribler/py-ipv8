@@ -16,7 +16,7 @@ class TrustChainDB(Database):
     Connection layer to SQLiteDB.
     Ensures a proper DB schema on startup.
     """
-    LATEST_DB_VERSION = 1
+    LATEST_DB_VERSION = 2
 
     def __init__(self, working_directory, db_name):
         """
@@ -40,8 +40,8 @@ class TrustChainDB(Database):
         :param block: The data that will be saved.
         """
         self.execute(
-            u"INSERT INTO blocks (tx, public_key, sequence_number, link_public_key,"
-            u"link_sequence_number, previous_hash, signature, block_timestamp, block_hash) VALUES(?,?,?,?,?,?,?,?,?)",
+            u"INSERT INTO blocks (type, tx, public_key, sequence_number, link_public_key,"
+            u"link_sequence_number, previous_hash, signature, block_timestamp, block_hash) VALUES(?,?,?,?,?,?,?,?,?,?)",
             block.pack_db_insert())
         self.commit()
 
@@ -54,9 +54,9 @@ class TrustChainDB(Database):
         :param block: The data that will be removed.
         """
         self.execute(
-            u"DELETE FROM blocks WHERE tx = ? AND public_key = ? AND sequence_number = ? AND link_public_key = ? AND "
-            u"link_sequence_number = ? AND previous_hash = ? AND signature = ? AND block_timestamp = ? " \
-            u"AND block_hash = ?",
+            u"DELETE FROM blocks WHERE type = ? AND tx = ? AND public_key = ? AND sequence_number = ? AND "
+            u"link_public_key = ? AND link_sequence_number = ? AND previous_hash = ? AND signature = ? "
+            u"AND block_timestamp = ? AND block_hash = ?",
             block.pack_db_insert())
         self.commit()
 
@@ -77,6 +77,31 @@ class TrustChainDB(Database):
         """
         return self._get(u"WHERE public_key = ? AND sequence_number = ?", (buffer(public_key), sequence_number))
 
+    def get_all_blocks(self):
+        """
+        Return all blocks in the database.
+        :return: all blocks in the database
+        """
+        return self._getall(u"", ())
+
+    def get_block_with_hash(self, block_hash):
+        """
+        Return the block with a specific hash or None if it's not available in the database.
+        :param block_hash: the hash of the block to search for.
+        """
+        return self._get(u"WHERE block_hash = ?", (buffer(block_hash),))
+
+    def get_blocks_with_type(self, block_type, public_key=None):
+        """
+        Return all blocks with a specific type.
+        :param block_type: the type of the block we want to fetch.
+        :param public_key: specify if we want only blocks of a specific peer.
+        :return: All blocks with a specific type, optionally of a specific peer.
+        """
+        if public_key:
+            return self._getall(u"WHERE type = ? and public_key = ?", (block_type, buffer(public_key)))
+        return self._getall(u"WHERE type = ?", (block_type,))
+
     def contains(self, block):
         """
         Check if a block is existent in the persistence layer.
@@ -85,35 +110,50 @@ class TrustChainDB(Database):
         """
         return self.get(block.public_key, block.sequence_number) is not None
 
-    def get_latest(self, public_key):
+    def get_latest(self, public_key, block_type=None):
         """
         Get the latest block for a given public key
         :param public_key: The public_key for which the latest block has to be found.
+        :param block_type: A block type (optional). When specified, it returned the latest block of this type.
         :return: the latest block or None if it is not known
         """
-        return self._get(u"WHERE public_key = ? AND sequence_number = (SELECT MAX(sequence_number) FROM blocks "
-                         u"WHERE public_key = ?)", (buffer(public_key), buffer(public_key)))
+        if block_type:
+            return self._get(u"WHERE public_key = ? AND type = ? AND sequence_number = (SELECT MAX(sequence_number) "
+                             u"FROM blocks WHERE public_key = ? AND type = ?)",
+                             (buffer(public_key), block_type, buffer(public_key), block_type))
+        else:
+            return self._get(u"WHERE public_key = ? AND sequence_number = (SELECT MAX(sequence_number) FROM blocks "
+                             u"WHERE public_key = ?)", (buffer(public_key), buffer(public_key)))
 
     def get_latest_blocks(self, public_key, limit=25):
         return self._getall(u"WHERE public_key = ? ORDER BY sequence_number DESC LIMIT ?", (buffer(public_key), limit))
 
-    def get_block_after(self, block):
+    def get_block_after(self, block, block_type=None):
         """
         Returns database block with the lowest sequence number higher than the block's sequence_number
         :param block: The block who's successor we want to find
+        :param block_type: A block type (optional). When specified, it only considers blocks of this type
         :return A block
         """
-        return self._get(u"WHERE sequence_number > ? AND public_key = ? ORDER BY sequence_number ASC",
-                         (block.sequence_number, buffer(block.public_key)))
+        if block_type:
+            return self._get(u"WHERE sequence_number > ? AND public_key = ? AND type = ? ORDER BY sequence_number ASC",
+                             (block.sequence_number, buffer(block.public_key), block_type))
+        else:
+            return self._get(u"WHERE sequence_number > ? AND public_key = ? ORDER BY sequence_number ASC",
+                             (block.sequence_number, buffer(block.public_key)))
 
-    def get_block_before(self, block):
+    def get_block_before(self, block, block_type=None):
         """
         Returns database block with the highest sequence number lower than the block's sequence_number
         :param block: The block who's predecessor we want to find
         :return A block
         """
-        return self._get(u"WHERE sequence_number < ? AND public_key = ? ORDER BY sequence_number DESC",
-                         (block.sequence_number, buffer(block.public_key)))
+        if block_type:
+            return self._get(u"WHERE sequence_number < ? AND public_key = ? AND type = ? ORDER BY sequence_number DESC",
+                             (block.sequence_number, buffer(block.public_key), block_type))
+        else:
+            return self._get(u"WHERE sequence_number < ? AND public_key = ? ORDER BY sequence_number DESC",
+                             (block.sequence_number, buffer(block.public_key)))
 
     def get_lowest_sequence_number_unknown(self, public_key):
         """
@@ -147,7 +187,7 @@ class TrustChainDB(Database):
         """
         Return the first part of a generic sql select query.
         """
-        _columns = u"tx, public_key, sequence_number, link_public_key, link_sequence_number, " \
+        _columns = u"type, tx, public_key, sequence_number, link_public_key, link_sequence_number, " \
                    u"previous_hash, signature, block_timestamp, insert_time"
         return u"SELECT " + _columns + u" FROM blocks "
 
@@ -157,6 +197,7 @@ class TrustChainDB(Database):
         """
         return u"""
         CREATE TABLE IF NOT EXISTS blocks(
+         type                 TEXT NOT NULL,
          tx                   TEXT NOT NULL,
          public_key           TEXT NOT NULL,
          sequence_number      INTEGER NOT NULL,
@@ -185,7 +226,11 @@ class TrustChainDB(Database):
         Return the upgrade script for a specific version.
         :param current_version: the version of the script to return.
         """
-        return None
+        if current_version == 1:
+            return u"""
+            DROP TABLE IF EXISTS blocks;
+            DROP TABLE IF EXISTS option;
+            """
 
     def open(self, initial_statements=True, prepare_visioning=True):
         return super(TrustChainDB, self).open(initial_statements, prepare_visioning)

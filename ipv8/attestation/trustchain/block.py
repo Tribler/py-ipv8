@@ -24,6 +24,7 @@ class TrustChainBlock(object):
         super(TrustChainBlock, self).__init__()
         if data is None:
             # data
+            self.type = 'unknown'
             self.transaction = {}
             # identity
             self.public_key = EMPTY_PK
@@ -38,10 +39,11 @@ class TrustChainBlock(object):
             # debug stuff
             self.insert_time = None
         else:
-            _, self.transaction = decode(str(data[0]))
-            (self.public_key, self.sequence_number, self.link_public_key, self.link_sequence_number, self.previous_hash,
-             self.signature, self.timestamp, self.insert_time) = (data[1], data[2], data[3], data[4], data[5],
-                                                                  data[6], data[7], data[8])
+            _, self.transaction = decode(str(data[1]))
+            (self.type, self.public_key, self.sequence_number, self.link_public_key, self.link_sequence_number,
+             self.previous_hash, self.signature, self.timestamp, self.insert_time) = (data[0], data[2], data[3],
+                                                                                      data[4], data[5], data[6],
+                                                                                      data[7], data[8], data[9])
             if isinstance(self.public_key, buffer):
                 self.public_key = str(self.public_key)
             if isinstance(self.link_public_key, buffer):
@@ -59,7 +61,7 @@ class TrustChainBlock(object):
         Create a block according to a given payload and serializer.
         This method can be used when receiving a block from the network.
         """
-        return cls([payload.transaction, payload.public_key, payload.sequence_number,
+        return cls([payload.type, payload.transaction, payload.public_key, payload.sequence_number,
                     payload.link_public_key, payload.link_sequence_number, payload.previous_hash,
                     payload.signature, payload.timestamp, time.time()], serializer)
 
@@ -69,23 +71,24 @@ class TrustChainBlock(object):
         Create two half blocks from a block pair message, according to a given payload and serializer.
         Used to construct two blocks when receiving a block pair from the network.
         """
-        block1 = cls([payload.transaction1, payload.public_key1, payload.sequence_number1,
+        block1 = cls([payload.type1, payload.transaction1, payload.public_key1, payload.sequence_number1,
                       payload.link_public_key1, payload.link_sequence_number1, payload.previous_hash1,
                       payload.signature1, payload.timestamp1, time.time()], serializer)
-        block2 = cls([payload.transaction2, payload.public_key2, payload.sequence_number2,
+        block2 = cls([payload.type2, payload.transaction2, payload.public_key2, payload.sequence_number2,
                       payload.link_public_key2, payload.link_sequence_number2, payload.previous_hash2,
                       payload.signature2, payload.timestamp2, time.time()], serializer)
         return block1, block2
 
     def __str__(self):
         # This makes debugging and logging easier
-        return "Block {0} from ...{1}:{2} links ...{3}:{4} for {5}".format(
+        return "Block {0} from ...{1}:{2} links ...{3}:{4} for {5} type {6}".format(
             self.hash.encode("hex")[-8:],
             self.public_key.encode("hex")[-8:],
             self.sequence_number,
             self.link_public_key.encode("hex")[-8:],
             self.link_sequence_number,
-            self.transaction)
+            self.transaction,
+            self.type)
 
     def __hash__(self):
         return self.hash
@@ -125,7 +128,8 @@ class TrustChainBlock(object):
         :return: the buffer the data was packed into
         """
         args = [self.public_key, self.sequence_number, self.link_public_key, self.link_sequence_number,
-                self.previous_hash, self.signature if signature else EMPTY_SIG, self.transaction, self.timestamp]
+                self.previous_hash, self.signature if signature else EMPTY_SIG, self.type, self.transaction,
+                self.timestamp]
         return self.serializer.pack_multiple(HalfBlockPayload(*args).to_pack_list())
 
     def validate_transaction(self, database):
@@ -372,11 +376,12 @@ class TrustChainBlock(object):
         self.signature = self.crypto.create_signature(key, self.pack(signature=False))
 
     @classmethod
-    def create(cls, transaction, database, public_key, link=None, link_pk=None):
+    def create(cls, block_type, transaction, database, public_key, link=None, link_pk=None):
         """
         Create an empty next block.
-        :param database: the database to use as information source
+        :param block_type: the type of the block to be constructed
         :param transaction: the transaction to use in this block
+        :param database: the database to use as information source
         :param public_key: the public key to use for this block
         :param link: optionally create the block as a linked block to this block
         :param link_pk: the public key of the counterparty in this transaction
@@ -385,10 +390,12 @@ class TrustChainBlock(object):
         blk = database.get_latest(public_key)
         ret = cls()
         if link:
+            ret.type = link.type
             ret.transaction = link.transaction
             ret.link_public_key = link.public_key
             ret.link_sequence_number = link.sequence_number
         else:
+            ret.type = block_type
             ret.transaction = transaction
             ret.link_public_key = link_pk
             ret.link_sequence_number = UNKNOWN_SEQ
@@ -406,9 +413,9 @@ class TrustChainBlock(object):
         Prepare a tuple to use for inserting into the database
         :return: A database insertable tuple
         """
-        return (buffer(encode(self.transaction)), buffer(self.public_key), self.sequence_number,
-                buffer(self.link_public_key), self.link_sequence_number, buffer(self.previous_hash),
-                buffer(self.signature), self.timestamp, buffer(self.hash))
+        return (self.type, buffer(encode(self.transaction)), buffer(self.public_key),
+                self.sequence_number, buffer(self.link_public_key), self.link_sequence_number,
+                buffer(self.previous_hash), buffer(self.signature), self.timestamp, buffer(self.hash))
 
     def __iter__(self):
         """
@@ -418,7 +425,7 @@ class TrustChainBlock(object):
         for key, value in self.__dict__.iteritems():
             if key == 'key' or key == 'serializer':
                 continue
-            if isinstance(value, basestring) and key != "insert_time":
+            if isinstance(value, basestring) and key != "insert_time" and key != "type":
                 yield key, value.encode("hex")
             else:
                 yield key, value

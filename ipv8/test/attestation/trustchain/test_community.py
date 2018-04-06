@@ -1,9 +1,22 @@
 from ....attestation.trustchain.caches import CrawlRequestCache
 from ....attestation.trustchain.community import TrustChainCommunity, UNKNOWN_SEQ
+from ....attestation.trustchain.listener import BlockListener
 from ...attestation.trustchain.test_block import TestBlock
 from ...base import TestBase
 from ...mocking.ipv8 import MockIPv8
 from ...util import twisted_wrapper
+
+
+class TestBlockListener(BlockListener):
+    """
+    This block listener simply signs all blocks it receives.
+    """
+
+    def should_sign(self, block):
+        return True
+
+    def received_block(self, block):
+        pass
 
 
 class TestTrustChainCommunity(TestBase):
@@ -11,6 +24,9 @@ class TestTrustChainCommunity(TestBase):
     def setUp(self):
         super(TestTrustChainCommunity, self).setUp()
         self.initialize(TrustChainCommunity, 2)
+
+        for node in self.nodes:
+            node.overlay.add_listener(TestBlockListener(), ['test'])
 
     def create_node(self):
         return MockIPv8(u"curve25519", TrustChainCommunity, working_directory=u":memory:")
@@ -27,7 +43,7 @@ class TestTrustChainCommunity(TestBase):
         my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
         his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
         self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
-                                         transaction={})
+                                         block_type='test', transaction={})
 
         yield self.deliver_messages()
 
@@ -44,7 +60,7 @@ class TestTrustChainCommunity(TestBase):
 
         his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
         yield self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
-                                               transaction={})
+                                               block_type='test', transaction={})
 
         for node_nr in [0, 1]:
             self.assertIsNotNone(self.nodes[node_nr].overlay.persistence.get(his_pubkey, 1))
@@ -60,7 +76,7 @@ class TestTrustChainCommunity(TestBase):
         my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
         his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
         self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
-                                         transaction={})
+                                         block_type='test', transaction={})
 
         yield self.deliver_messages()
 
@@ -88,7 +104,7 @@ class TestTrustChainCommunity(TestBase):
         my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
         his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
         self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
-                                         transaction={})
+                                         block_type='test', transaction={})
 
         yield self.deliver_messages()
 
@@ -116,7 +132,7 @@ class TestTrustChainCommunity(TestBase):
         my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
         his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
         self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
-                                         transaction={})
+                                         block_type='test', transaction={})
 
         yield self.deliver_messages()
 
@@ -154,7 +170,7 @@ class TestTrustChainCommunity(TestBase):
         my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
         his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
         self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
-                                         transaction={})
+                                         block_type='test', transaction={})
 
         yield self.deliver_messages()
         self.assertIsNone(self.nodes[1].overlay.persistence.get(my_pubkey, 1))
@@ -178,7 +194,7 @@ class TestTrustChainCommunity(TestBase):
         his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
         for _ in xrange(0, 3):
             self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
-                                             transaction={})
+                                             block_type='test', transaction={})
 
         yield self.deliver_messages()
 
@@ -199,7 +215,7 @@ class TestTrustChainCommunity(TestBase):
 
         his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
         yield self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
-                                               transaction={})
+                                               block_type='test', transaction={})
 
         self.add_node_to_experiment(self.create_node())
 
@@ -219,9 +235,9 @@ class TestTrustChainCommunity(TestBase):
 
         his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
         self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
-                                         transaction={})
+                                         block_type='test', transaction={})
         self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
-                                         transaction={})
+                                         block_type='test', transaction={})
 
         yield self.deliver_messages()
 
@@ -253,13 +269,13 @@ class TestTrustChainCommunity(TestBase):
         his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
         self.nodes[0].endpoint.close()
         signed1 = self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
-                                                   transaction={})
+                                                   block_type='test', transaction={})
 
         yield self.deliver_messages()
 
         self.nodes[0].endpoint.open()
         signed2 = self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
-                                                   transaction={})
+                                                   block_type='test', transaction={})
 
         yield self.deliver_messages()
 
@@ -348,6 +364,7 @@ class TestTrustChainCommunity(TestBase):
             node 1 and 3.
         """
         node3 = self.create_node()
+        node3.overlay.add_listener(TestBlockListener(), ['test'])
         node3.my_peer.address = node3.endpoint.wan_address
         self.nodes.append(node3)
         # Disable broadcasting to others on signing (we don't want to test that here)
@@ -358,7 +375,7 @@ class TestTrustChainCommunity(TestBase):
         his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
         node3_pubkey = self.nodes[2].overlay.my_peer.public_key.key_to_bin()
         yield self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
-                                               transaction={})
+                                               block_type='test', transaction={})
 
         # Perform the first crawl with all nodes
         yield self.introduce_nodes()
@@ -369,7 +386,8 @@ class TestTrustChainCommunity(TestBase):
                              UNKNOWN_SEQ)
 
         # Perform a transaction between node 1 and 3
-        yield self.nodes[0].overlay.sign_block(node3.my_peer, public_key=node3_pubkey, transaction={})
+        yield self.nodes[0].overlay.sign_block(node3.my_peer, public_key=node3_pubkey,
+                                               block_type='test', transaction={})
 
         # Perform the second crawl with all nodes
         yield self.introduce_nodes()
@@ -402,7 +420,7 @@ class TestTrustChainCommunity(TestBase):
         my_pubkey = self.nodes[0].overlay.my_peer.public_key.key_to_bin()
         his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
         yield self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
-                                               transaction={})
+                                               block_type='test', transaction={})
 
         yield self.deliver_messages()
 
@@ -418,7 +436,7 @@ class TestTrustChainCommunity(TestBase):
         yield self.introduce_nodes()
 
         my_pubkey = self.nodes[0].overlay.my_peer.public_key.key_to_bin()
-        yield self.nodes[0].overlay.self_sign_block(transaction={})
+        yield self.nodes[0].overlay.self_sign_block(block_type='test', transaction={})
 
         yield self.deliver_messages()
 

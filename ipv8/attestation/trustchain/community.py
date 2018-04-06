@@ -39,7 +39,6 @@ class TrustChainCommunity(Community):
     """
     Community for reputation based on TrustChain tamper proof interaction history.
     """
-    BLOCK_CLASS = TrustChainBlock
     DB_CLASS = TrustChainDB
     DB_NAME = 'trustchain'
     BROADCAST_FANOUT = 10
@@ -60,6 +59,8 @@ class TrustChainCommunity(Community):
         self.logger.debug("The trustchain community started with Public Key: %s",
                           self.my_peer.public_key.key_to_bin().encode("hex"))
         self.broadcast_block = True  # Whether we broadcast a full block after constructing it
+        self.shutting_down = False
+        self.listeners_map = {}  # Map of block_type -> [callbacks]
 
         self.decode_map.update({
             chr(1): self.received_half_block,
@@ -70,12 +71,42 @@ class TrustChainCommunity(Community):
             chr(6): self.received_half_block_pair_broadcast
         })
 
+    def add_listener(self, listener, block_types):
+        """
+        Add a listener for specific block types.
+        """
+        for block_type in block_types:
+            if block_type not in self.listeners_map:
+                self.listeners_map[block_type] = []
+            self.listeners_map[block_type].append(listener)
+
+    def remove_listener(self, listener, block_types):
+        for block_type in block_types:
+            if block_type in self.listeners_map and listener in self.listeners_map[block_type]:
+                self.listeners_map[block_type].remove(listener)
+
+    def get_block_class(self, block_type):
+        """
+        Get the block class for a specific block type.
+        """
+        if block_type not in self.listeners_map or not self.listeners_map[block_type]:
+            return TrustChainBlock
+
+        return self.listeners_map[block_type][0].BLOCK_CLASS
+
     def should_sign(self, block):
         """
         Return whether we should sign the block in the passed message.
         @param block: the block we want to sign or not.
         """
-        return True
+        if block.type not in self.listeners_map:
+            return False  # There are no listeners for this block
+
+        for listener in self.listeners_map[block.type]:
+            if listener.should_sign(block):
+                return True
+
+        return False
 
     def send_block(self, block, address=None, ttl=2):
         """
@@ -119,13 +150,15 @@ class TrustChainCommunity(Community):
                 self.endpoint.send(peer.address, packet)
             self.relayed_broadcasts.append(block1.block_id)
 
-    def self_sign_block(self, transaction=None):
-        self.sign_block(self.my_peer, transaction=transaction)
+    def self_sign_block(self, block_type='unknown', transaction=None):
+        self.sign_block(self.my_peer, block_type=block_type, transaction=transaction)
 
-    def sign_block(self, peer, public_key=EMPTY_PK, transaction=None, linked=None):
+    def sign_block(self, peer, public_key=EMPTY_PK, block_type='unknown', transaction=None, linked=None):
         """
         Create, sign, persist and send a block signed message
-        :param peer: The peer with whom you have interacted, as a dispersy candidate
+        :param peer: The peer with whom you have interacted, as a IPv8 peer
+        :param public_key: The public key of the other party you transact with
+        :param block_type: The type of the block to be constructed, as a string
         :param transaction: A string describing the interaction in this block
         :param linked: The block that the requester is asking us to sign
         """
@@ -138,9 +171,12 @@ class TrustChainCommunity(Community):
         assert linked is None or linked.link_sequence_number == UNKNOWN_SEQ, \
             "Cannot counter sign block that is not a request"
         assert transaction is None or isinstance(transaction, dict), "Transaction should be a dictionary"
+
         self.persistence_integrity_check()
-        block = self.BLOCK_CLASS.create(transaction, self.persistence, self.my_peer.public_key.key_to_bin(),
-                                        link=linked, link_pk=public_key)
+        block_type = linked.type if linked else block_type
+        block = self.get_block_class(block_type).create(block_type, transaction, self.persistence,
+                                                        self.my_peer.public_key.key_to_bin(),
+                                                        link=linked, link_pk=public_key)
         block.sign(self.my_peer.key)
         validation = block.validate(self.persistence)
         self.logger.info("Signed block to %s (%s) validation result %s",
@@ -151,6 +187,7 @@ class TrustChainCommunity(Community):
 
         if not self.persistence.contains(block):
             self.persistence.add_block(block)
+            self.notify_listeners(block)
         self.send_block(block, address=peer.address)
 
         if peer == self.my_peer and public_key == EMPTY_PK:
@@ -236,8 +273,19 @@ class TrustChainCommunity(Community):
             pass
         elif not self.persistence.contains(block):
             self.persistence.add_block(block)
+            self.notify_listeners(block)
 
         return validation
+
+    def notify_listeners(self, block):
+        """
+        Notify listeners of a specific new block.
+        """
+        if block.type not in self.listeners_map or self.shutting_down:
+            return
+
+        for listener in self.listeners_map[block.type]:
+            listener.received_block(block)
 
     @synchronized
     def process_half_block(self, blk, peer):
@@ -248,10 +296,6 @@ class TrustChainCommunity(Community):
         self.logger.debug("Block validation result %s, %s, (%s)", validation[0], validation[1], blk)
         if validation[0] == ValidationResult.invalid:
             return
-        elif not self.persistence.contains(blk):
-            self.persistence.add_block(blk)
-        else:
-            self.logger.debug("Received already known block (%s)", blk)
 
         # Check if we are waiting for this signature response
         link_block_id_int = int(blk.linked_block_id.encode('hex'), 16) % 100000000L
@@ -343,8 +387,8 @@ class TrustChainCommunity(Community):
         if total_count == 0:
             # If there are no blocks to send, send a dummy block back with an empty transaction.
             # This is to inform the requester that he can't expect any blocks.
-            block = self.BLOCK_CLASS.create({}, self.persistence, self.my_peer.public_key.key_to_bin(),
-                                            link_pk=EMPTY_PK)
+            block = self.get_block_class("unknown").create('noblocks', {}, self.persistence,
+                                                           self.my_peer.public_key.key_to_bin(), link_pk=EMPTY_PK)
             self.send_crawl_response(block, payload.crawl_id, 0, 0, peer)
 
         for ind in xrange(len(blocks)):
@@ -465,6 +509,7 @@ class TrustChainCommunity(Community):
 
     def unload(self):
         self.logger.debug("Unloading the TrustChain Community.")
+        self.shutting_down = True
 
         self.request_cache.shutdown()
 
