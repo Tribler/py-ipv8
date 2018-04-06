@@ -4,10 +4,10 @@ import json
 from twisted.internet.defer import Deferred, inlineCallbacks, returnValue
 from twisted.web import resource
 
-from ipv8.attestation.identity.community import IdentityCommunity
-from ipv8.attestation.wallet.community import AttestationCommunity
-from ipv8.attestation.wallet.primitives.attestation import binary_relativity_sha512
-from ipv8.attestation.wallet.primitives.cryptosystem.boneh import generate_keypair
+from ..ipv8.attestation.identity.community import IdentityCommunity
+from ..ipv8.attestation.wallet.community import AttestationCommunity
+from ..ipv8.attestation.wallet.primitives.attestation import binary_relativity_sha512
+from ..ipv8.attestation.wallet.primitives.cryptosystem.boneh import generate_keypair
 
 
 class AttestationEndpoint(resource.Resource):
@@ -79,7 +79,7 @@ class AttestationEndpoint(resource.Resource):
             return json.dumps(self.verification_output)
         if request.args['type'][0] == 'peers':
             peers = self.session.network.get_peers_for_service(self.identity_overlay.master_peer.mid)
-            return json.dumps([p.mid for p in peers])
+            return json.dumps([b64encode(p.mid) for p in peers])
         if request.args['type'][0] == 'attributes':
             mid_b64 = request.args['mid'][0]
             peer = self.get_peer_from_mid(mid_b64)

@@ -9,7 +9,6 @@ from ..trustchain.community import TrustChainCommunity
 class IdentityCommunity(TrustChainCommunity):
 
     DB_NAME = 'identity'
-    version = '\x01'
     master_peer = Peer(("3081a7301006072a8648ce3d020106052b810400270381920004009ad2a2e35c328a3e92019873820d70b53b" +
                         "82a752490febbce8bbbe2531a06a165121b8068e674236f26055a59b12c2139445f14dd86c4c3c9598e8c999" +
                         "109f184556dac595f69001b5b16d2c14fe5f641f1a25227152df1989f0c8fb71a107ec55e8e67f464391491c" +
@@ -58,10 +57,3 @@ class IdentityCommunity(TrustChainCommunity):
                                 "name": name,
                                 "date": time()
                             })
-
-    def on_introduction_response(self, source_address, data):
-        super(IdentityCommunity, self).on_introduction_response(source_address, data)
-
-        auth, _, _ = self._ez_unpack_auth(IntroductionResponsePayload, data)
-        peer = Peer(auth.public_key_bin, source_address)
-        self.send_crawl_request(peer, peer.public_key.key_to_bin())

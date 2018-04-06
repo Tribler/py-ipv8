@@ -57,11 +57,12 @@ class ReceiveAttestationRequestCache(PeerCache):
     Stores one-time key for this attribute attestation.
     """
 
-    def __init__(self, community, socket_address, key):
+    def __init__(self, community, socket_address, key, name):
         super(ReceiveAttestationRequestCache, self).__init__(community.request_cache, u"receive-request-attestation",
                                                              socket_address)
         self.attestation_map = set()
         self.key = key
+        self.name = name
 
     def on_timeout(self):
         pass
