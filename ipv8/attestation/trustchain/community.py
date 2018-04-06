@@ -43,10 +43,10 @@ class TrustChainCommunity(Community):
     DB_NAME = 'trustchain'
     BROADCAST_FANOUT = 10
     version = '\x02'
-    master_peer = Peer(("3081a7301006072a8648ce3d020106052b81040027038192000403428b0fa33d3ed62dd39852481f535e2161714" +
-                        "4a95e682ad5733b9a739b27051dc6ad1da743a463821fc8d3d1849191d5fb84fab1f3fe3ad44fb2b83f07d0c78a" +
-                        "13b7ad1d311063069f49070cad7dc15620996cdd625c1abcdbfabf750727f1dec706f6f16cb28ce6946fdf39887" +
-                        "a84fc457a5f9edc660adbe0a72ea5219f9578dd6432de825c167e80987ca4c6a2bf").decode("HEX"))
+    master_peer = Peer(("3081a7301006072a8648ce3d020106052b810400270381920004057a1c4c4f8422b328209d99724bd30cf08d1f81"
+                        "a2961b003affd2964f92c457572f2f79de0968c42698e2d1cfb371dd71b275332a0a4c19f35f16166272baae8e23"
+                        "0bba377cc5c40643b83206088075559ec2f13a090e8786d04d84802268bef12e52983978da360589a2b7e293ce4f"
+                        "16d02f37da2c3256f4703b9623d3750f7af437befebc8935c0f0726f58c1c1e9").decode("HEX"))
 
     def __init__(self, *args, **kwargs):
         working_directory = kwargs.pop('working_directory', '')
