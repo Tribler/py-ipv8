@@ -358,7 +358,7 @@ class TrustChainCommunity(Community):
         """
         Return the trust score for a specific peer. For the basic Trustchain, this is the length of their chain.
         """
-        block = self.persistence.get_latest(peer.public_key)
+        block = self.persistence.get_latest(peer.public_key.key_to_bin())
         if block:
             return block.sequence_number
         else:

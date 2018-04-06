@@ -3,6 +3,8 @@ import json
 import os
 from random import choice
 
+from twisted.internet.defer import inlineCallbacks
+
 from .caches import *
 from .database import AttestationsDB
 from ...deprecated.community import Community
@@ -34,7 +36,6 @@ class AttestationCommunity(Community):
 
     Note that the logic for giving out Attestations is in the TrustChain.
     """
-    version = '\x01'
     master_peer = Peer(("3081a7301006072a8648ce3d020106052b810400270381920004057a009787f66ea54d5082ea2f56a842488e319" +
                         "c14c98967c39286433233f769a73e9c894149cf9053a9a0c2548f07171df9c46c3bdb106afa9e9a8a06926e0ec3" +
                         "5871c91f2ab1a20651d0a7b5fda209a3500a09b630a193b281a266230472ef0cc0622c793dc18eed6c57d7bcd1e" +
@@ -93,7 +94,7 @@ class AttestationCommunity(Community):
         :param secret_key: the secret key we use for this attribute
         """
         public_key = secret_key.public_key()
-        self.request_cache.add(ReceiveAttestationRequestCache(self, socket_address, secret_key))
+        self.request_cache.add(ReceiveAttestationRequestCache(self, socket_address, secret_key, attribute_name))
 
         metadata = json.dumps({
             "attribute": attribute_name,
@@ -108,6 +109,7 @@ class AttestationCommunity(Community):
         packet = self._ez_pack(self._prefix, 5, [auth, dist, payload])
         self.endpoint.send(socket_address, packet)
 
+    @inlineCallbacks
     def on_request_attestation(self, source_address, data):
         """
         Someone wants us to attest their attribute.
@@ -117,7 +119,7 @@ class AttestationCommunity(Community):
 
         metadata = json.loads(payload.metadata)
 
-        value = self.attestation_request_callbacks[0](peer, metadata['attribute'])
+        value = yield self.attestation_request_callbacks[0](peer, metadata['attribute'])
         if value is None:
             return
 
@@ -187,7 +189,6 @@ class AttestationCommunity(Community):
             auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
             payload = AttestationChunkPayload(sha1(blob).digest(), sequence_number, blob_chunk).to_pack_list()
             dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
-
             packet = self._ez_pack(self._prefix, 2, [auth, dist, payload])
             self.endpoint.send(socket_address, packet)
 

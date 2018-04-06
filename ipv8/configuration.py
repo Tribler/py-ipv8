@@ -92,14 +92,14 @@ default = {
         },
         {
             'class': 'AttestationCommunity',
-            'key': "my peer",
+            'key': "anonymous id",
             'walkers': [],
             'initialize': {},
             'on_start': []
         },
         {
             'class': 'IdentityCommunity',
-            'key': "my peer",
+            'key': "anonymous id",
             'walkers': [],
             'initialize': {},
             'on_start': []
