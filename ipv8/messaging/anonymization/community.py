@@ -4,7 +4,6 @@ The tunnel community.
 Author(s): Egbert Bouman
 """
 import random
-from itertools import chain
 import sys
 from traceback import format_exception
 
@@ -45,6 +44,7 @@ message_to_payload = {
     u"dispersy-introduction-request": (246, TunnelIntroductionRequestPayload),
     u"dispersy-introduction-response": (245, TunnelIntroductionResponsePayload)
 }
+SINGLE_HOP_ENC_PACKETS = [u'create', u'created']
 
 
 class TunnelSettings(object):
@@ -56,7 +56,7 @@ class TunnelSettings(object):
 
         self.min_circuits = 1
         self.max_circuits = 8
-        self.max_relays_or_exits = 100
+        self.max_joined_circuits = 100
 
         # Maximum number of seconds that a circuit should exist
         self.max_time = 10 * 60
@@ -483,7 +483,7 @@ class TunnelCommunity(Community):
     def send_message(self, candidates, message_type, packet, circuit_id):
         is_data = message_type == u"data"
 
-        if message_type not in [u'create', u'created']:
+        if message_type not in SINGLE_HOP_ENC_PACKETS:
             plaintext, encrypted = split_encrypted_packet(packet, message_type)
             try:
                 encrypted = self.crypto_out(circuit_id, encrypted, is_data=is_data)
@@ -543,9 +543,6 @@ class TunnelCommunity(Community):
             return False
         if self.crypto.key and self.crypto.key.pub().key_to_bin() != payload.node_public_key:
             self.logger.warning("public keys do not match")
-            return False
-        if self.settings.max_relays_or_exits <= len(self.relay_from_to) + len(self.exit_sockets):
-            self.logger.warning("too many relays %d" % (len(self.relay_from_to) + len(self.exit_sockets)))
             return False
         if self.request_cache.has(u"anon-created", payload.circuit_id):
             self.logger.warning("already have a request for this circuit_id")
@@ -782,7 +779,7 @@ class TunnelCommunity(Community):
         else:
             circuit = self.circuits.get(circuit_id, None)
 
-            if message_type not in [u'create', u'created']:
+            if message_type not in SINGLE_HOP_ENC_PACKETS:
                 plaintext, encrypted = split_encrypted_packet(data, message_type)
                 try:
                     encrypted = self.crypto_in(circuit_id, encrypted)
@@ -799,32 +796,56 @@ class TunnelCommunity(Community):
                 circuit.beat_heart()
                 self.increase_bytes_received(circuit, len(data))
 
+    def should_join_circuit(self, create_payload, previous_node_address):
+        """
+        Check whether we should join a circuit.
+        Returns a deferred that fires with a boolean.
+        """
+        if self.settings.max_joined_circuits <= len(self.relay_from_to) + len(self.exit_sockets):
+            self.logger.warning("too many relays (%d)", (len(self.relay_from_to) + len(self.exit_sockets)))
+            return succeed(False)
+
+        return succeed(True)
+
+    def join_circuit(self, create_payload, previous_node_address):
+        """
+        Actively join a circuit and send a created message back
+        """
+        circuit_id = create_payload.circuit_id
+
+        self.directions[circuit_id] = EXIT_NODE
+        self.logger.info('TunnelCommunity: we joined circuit %d with neighbour %s',
+                         circuit_id, previous_node_address)
+
+        shared_secret, key, auth = self.crypto.generate_diffie_shared_secret(create_payload.key)
+        self.relay_session_keys[circuit_id] = self.crypto.generate_session_keys(shared_secret)
+
+        peers_list = [peer for peer in self.compatible_candidates
+                      if peer.public_key.key_to_bin() not in self.exit_candidates][:4]
+        peers_keys = {c.public_key.key_to_bin(): c for c in peers_list}
+
+        peer = Peer(create_payload.node_public_key, previous_node_address)
+        self.request_cache.add(CreatedRequestCache(self, circuit_id, peer, peers_keys))
+        self.exit_sockets[circuit_id] = TunnelExitSocket(circuit_id, self, previous_node_address, peer.mid)
+
+        keys_list_enc = self.crypto.encrypt_str(encode(peers_keys.keys()),
+                                                *self.get_session_keys(self.relay_session_keys[circuit_id], EXIT_NODE))
+        self.send_cell([Peer(create_payload.node_public_key, previous_node_address)], u"created",
+                       CreatedPayload(circuit_id, key, auth, keys_list_enc))
+
     def on_create(self, source_address, data, _):
-        dist, payload = self._ez_unpack_noauth(CreatePayload, data)
+        _, payload = self._ez_unpack_noauth(CreatePayload, data)
 
         if not self.check_create(payload):
             return
 
-        circuit_id = payload.circuit_id
+        def determined_to_join(result):
+            if result:
+                self.join_circuit(payload, source_address)
+            else:
+                self.logger.warning("We're not joining circuit with ID %s", payload.circuit_id)
 
-        self.directions[circuit_id] = EXIT_NODE
-        self.logger.info('TunnelCommunity: we joined circuit %d with neighbour %s',
-                                circuit_id, source_address)
-
-        shared_secret, Y, AUTH = self.crypto.generate_diffie_shared_secret(payload.key)
-        self.relay_session_keys[circuit_id] = self.crypto.generate_session_keys(shared_secret)
-
-        candidates_list = [c for c in self.compatible_candidates
-                           if c.public_key.key_to_bin() not in self.exit_candidates][:4]
-        candidates = {c.public_key.key_to_bin():c for c in candidates_list}
-
-        peer = Peer(payload.node_public_key, source_address)
-        self.request_cache.add(CreatedRequestCache(self, circuit_id, peer, candidates))
-        self.exit_sockets[circuit_id] = TunnelExitSocket(circuit_id, self, source_address, peer.mid)
-
-        candidate_list_enc = self.crypto.encrypt_str(encode(candidates.keys()),
-                                                     *self.get_session_keys(self.relay_session_keys[circuit_id], EXIT_NODE))
-        self.send_cell([Peer(payload.node_public_key, source_address)], u"created", CreatedPayload(circuit_id, Y, AUTH, candidate_list_enc))
+        self.should_join_circuit(payload, source_address).addCallback(determined_to_join)
 
     def on_created(self, source_address, data, _):
         dist, payload = self._ez_unpack_noauth(CreatedPayload, data)
