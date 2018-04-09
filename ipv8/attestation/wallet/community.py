@@ -78,23 +78,23 @@ class AttestationCommunity(Community):
 
     def set_attestation_request_complete_callback(self, f):
         """
-        f should accept a (Peer, attribute_name, hash), it is called when an Attestation
+        f should accept a (Peer, attribute_name, hash, Peer=None), it is called when an Attestation
         has been made for another peer
 
         :param f: the function to call when an Attestation has been completed
         """
         self.attestation_request_callbacks[1] = f
 
-    def request_attestation(self, socket_address, attribute_name, secret_key):
+    def request_attestation(self, peer, attribute_name, secret_key):
         """
         Request attestation of one of our attributes.
 
-        :param socket_address: address of the Attestor
+        :param peer: Peer of the Attestor
         :param attribute_name: the attribute we want attested
         :param secret_key: the secret key we use for this attribute
         """
         public_key = secret_key.public_key()
-        self.request_cache.add(ReceiveAttestationRequestCache(self, socket_address, secret_key, attribute_name))
+        self.request_cache.add(ReceiveAttestationRequestCache(self, peer.mid, secret_key, attribute_name))
 
         metadata = json.dumps({
             "attribute": attribute_name,
@@ -107,7 +107,7 @@ class AttestationCommunity(Community):
         dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
 
         packet = self._ez_pack(self._prefix, 5, [auth, dist, payload])
-        self.endpoint.send(socket_address, packet)
+        self.endpoint.send(peer.address, packet)
 
     @inlineCallbacks
     def on_request_attestation(self, source_address, data):
@@ -130,11 +130,12 @@ class AttestationCommunity(Community):
 
         self.send_attestation(source_address, attestation_blob)
 
-    def on_attestation_complete(self, unserialized, secret_key):
+    def on_attestation_complete(self, unserialized, secret_key, peer, name, hash):
         """
         We got an Attestation delivered to us.
         """
         self.database.insert_attestation(unserialized, secret_key)
+        self.attestation_request_callbacks[1](self.my_peer, name, hash, peer)
 
     def verify_attestation_values(self, socket_address, hash, values, callback):
         """
@@ -199,9 +200,9 @@ class AttestationCommunity(Community):
         We received a chunk of an Attestation.
         """
         auth, dist, payload = self._ez_unpack_auth(AttestationChunkPayload, data)
-
+        peer = Peer(auth.public_key_bin, source_address)
         hash_id = HashCache.id_from_hash(u"receive-verify-attestation", payload.hash)
-        peer_id = PeerCache.id_from_address(u"receive-request-attestation", source_address)
+        peer_id = PeerCache.id_from_address(u"receive-request-attestation", peer.mid)
         if self.request_cache.has(*hash_id):
             cache = self.request_cache.get(*hash_id)
             cache.attestation_map |= {(payload.sequence_number, payload.data), }
@@ -214,7 +215,6 @@ class AttestationCommunity(Community):
                 unserialized = Attestation.unserialize(serialized)
                 if sha1(serialized).digest() == payload.hash:
                     self.request_cache.pop(*hash_id)
-                    peer = Peer(auth.public_key_bin, source_address)
                     self.on_received_attestation(peer, unserialized, payload.hash)
             except:
                 pass
@@ -230,7 +230,7 @@ class AttestationCommunity(Community):
                 unserialized = Attestation.unserialize(serialized)
                 if sha1(serialized).digest() == payload.hash:
                     cache = self.request_cache.pop(*peer_id)
-                    self.on_attestation_complete(unserialized, cache.key)
+                    self.on_attestation_complete(unserialized, cache.key, peer, cache.name, payload.hash)
             except:
                 pass
         else:

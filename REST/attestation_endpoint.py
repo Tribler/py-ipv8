@@ -38,12 +38,15 @@ class AttestationEndpoint(resource.Resource):
         out = yield deferred
         returnValue(out)
 
-    def on_attestation_complete(self, peer, attribute_name, hash):
+    def on_attestation_complete(self, peer, attribute_name, hash, signer=None):
         """
         Callback for when an attestation has been completed for another peer.
         We can now sign for it.
         """
-        self.identity_overlay.add_known_hash(hash, attribute_name, peer.public_key.key_to_bin())
+        if peer.mid == self.identity_overlay.my_peer.mid:
+            self.identity_overlay.request_attestation_advertisement(signer, hash, attribute_name)
+        else:
+            self.identity_overlay.add_known_hash(hash, attribute_name, peer.public_key.key_to_bin())
 
     def on_verification_results(self, hash, values):
         """
@@ -85,7 +88,7 @@ class AttestationEndpoint(resource.Resource):
             peer = self.get_peer_from_mid(mid_b64)
             if peer:
                 blocks = self.identity_overlay.persistence.get_latest_blocks(peer.public_key.key_to_bin(), 200)
-                return json.dumps([(b.transaction["name"], b.transaction["hash"]) for b in blocks])
+                return json.dumps([(b.transaction["name"], b64encode(b.transaction["hash"])) for b in blocks])
         return ""
 
     def render_POST(self, request):
@@ -102,7 +105,7 @@ class AttestationEndpoint(resource.Resource):
             peer = self.get_peer_from_mid(mid_b64)
             if peer:
                 _, key = generate_keypair()
-                self.attestation_overlay.request_attestation(peer.address, attribute_name, key)
+                self.attestation_overlay.request_attestation(peer, attribute_name, key)
             return ""
         if request.args['type'][0] == 'attest':
             mid_b64 = request.args['mid'][0]

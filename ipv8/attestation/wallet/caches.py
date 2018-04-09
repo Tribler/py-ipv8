@@ -1,5 +1,4 @@
-from socket import inet_aton
-from struct import pack, unpack
+from struct import unpack
 
 from ...requestcache import NumberCache
 
@@ -25,16 +24,20 @@ class HashCache(NumberCache):
 
 class PeerCache(NumberCache):
     """
-    Cache tied to a peer (socket_address).
+    Cache tied to a peer (mid).
     """
 
-    def __init__(self, request_cache, prefix, socket_address):
-        prefix, number = self.id_from_address(prefix, socket_address)
+    def __init__(self, request_cache, prefix, mid):
+        prefix, number = self.id_from_address(prefix, mid)
         super(PeerCache, self).__init__(request_cache, prefix, number)
 
     @classmethod
-    def id_from_address(cls, prefix, socket_address):
-        return HashCache.id_from_hash(prefix, inet_aton(socket_address[0]) + pack('>H', socket_address[1]))
+    def id_from_address(cls, prefix, mid):
+        return HashCache.id_from_hash(prefix, mid)
+
+    @property
+    def timeout_delay(self):
+        return 120.0
 
 
 class ReceiveAttestationVerifyCache(HashCache):
@@ -57,15 +60,15 @@ class ReceiveAttestationRequestCache(PeerCache):
     Stores one-time key for this attribute attestation.
     """
 
-    def __init__(self, community, socket_address, key, name):
+    def __init__(self, community, mid, key, name):
         super(ReceiveAttestationRequestCache, self).__init__(community.request_cache, u"receive-request-attestation",
-                                                             socket_address)
+                                                             mid)
         self.attestation_map = set()
         self.key = key
         self.name = name
 
     def on_timeout(self):
-        pass
+        print "ERROR ERROR ERROR!!"
 
 
 class ProvingAttestationCache(HashCache):
