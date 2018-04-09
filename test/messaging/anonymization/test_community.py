@@ -37,6 +37,15 @@ class TestTunnelCommunity(TestBase):
         ipv8.overlay.settings.max_circuits = 1
         return ipv8
 
+    def assert_no_more_tunnels(self):
+        """
+        Utility method to check whether there are no more tunnels left
+        """
+        for node in self.nodes:
+            self.assertFalse(node.overlay.exit_sockets)
+            self.assertFalse(node.overlay.relay_from_to)
+            self.assertFalse(node.overlay.circuits)
+
     @twisted_wrapper
     def test_introduction_as_exit(self):
         """
@@ -114,23 +123,53 @@ class TestTunnelCommunity(TestBase):
         self.assertEqual(len(self.nodes[1].overlay.exit_sockets), 0)
 
     @twisted_wrapper
-    def test_destroy_circuit(self):
+    def test_destroy_circuit_from_originator(self):
         """
-        Check if a 1 hop circuit can be destroyed.
+        Check if a 2 hop circuit can be destroyed (by the exit node)
         """
-        self.nodes[1].overlay.settings.become_exitnode = True
+        self.add_node_to_experiment(self.create_node())
+        self.nodes[2].overlay.settings.become_exitnode = True
         yield self.introduce_nodes()
-        self.nodes[0].overlay.build_tunnels(1)
+        self.nodes[0].overlay.build_tunnels(2)
         yield self.deliver_messages()
 
         # Destroy the circuit we just created using a destroy message
         self.nodes[0].overlay.remove_circuit(self.nodes[0].overlay.circuits.keys()[0], destroy=True)
         yield self.deliver_messages()
 
-        # Node 0 should now have no 1 hop circuits (0.0/0%)
-        self.assertEqual(self.nodes[0].overlay.tunnels_ready(1), 0.0)
-        # Node 1 should not have an exit socket open
-        self.assertEqual(len(self.nodes[1].overlay.exit_sockets), 0)
+        self.assert_no_more_tunnels()
+
+    @twisted_wrapper
+    def test_destroy_circuit_from_exit(self):
+        """
+        Check if a 2 hop circuit can be destroyed (by the exit node)
+        """
+        self.add_node_to_experiment(self.create_node())
+        self.nodes[2].overlay.settings.become_exitnode = True
+        yield self.introduce_nodes()
+        self.nodes[0].overlay.build_tunnels(2)
+        yield self.deliver_messages()
+
+        self.nodes[2].overlay.remove_exit_socket(self.nodes[2].overlay.exit_sockets.keys()[0], destroy=True)
+        yield self.deliver_messages()
+
+        self.assert_no_more_tunnels()
+
+    @twisted_wrapper
+    def test_destroy_circuit_from_relay(self):
+        """
+        Check if a 2 hop circuit can be destroyed (by the relay node)
+        """
+        self.add_node_to_experiment(self.create_node())
+        self.nodes[2].overlay.settings.become_exitnode = True
+        yield self.introduce_nodes()
+        self.nodes[0].overlay.build_tunnels(2)
+        yield self.deliver_messages()
+
+        self.nodes[1].overlay.remove_relay(self.nodes[1].overlay.relay_from_to.keys()[0], destroy=True)
+        yield self.deliver_messages()
+
+        self.assert_no_more_tunnels()
 
     @twisted_wrapper
     def test_destroy_circuit_bad_id(self):

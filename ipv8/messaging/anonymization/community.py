@@ -337,16 +337,17 @@ class TunnelCommunity(Community):
         return circuit_id
 
     def remove_circuit(self, circuit_id, additional_info='', remove_now=False, destroy=False):
-        assert isinstance(circuit_id, (long, int)), type(circuit_id)
+        """
+        Remove a circuit. Optionally send a destroy message.
+        """
+        circuit_to_remove = self.circuits.get(circuit_id, None)
+        if circuit_to_remove and destroy:
+            self.destroy_circuit(circuit_to_remove)
 
         def remove_circuit_info():
             circuit = self.circuits.pop(circuit_id, None)
             if circuit:
-                if destroy:
-                    self.destroy_circuit(circuit)
-
                 self.logger.info("removing circuit %d " + additional_info, circuit_id)
-
                 circuit.destroy()
 
             # Clean up the directions dictionary
@@ -400,12 +401,16 @@ class TunnelCommunity(Community):
         return removed_relays
 
     def remove_exit_socket(self, circuit_id, additional_info='', remove_now=False, destroy=False):
+        """
+        Remove an exit socket. Send a destroy message if necessary.
+        """
+        exit_socket_to_destroy = self.exit_sockets.get(circuit_id, None)
+        if exit_socket_to_destroy and destroy:
+            self.destroy_exit_socket(exit_socket_to_destroy)
+
         def remove_exit_socket_info():
             exit_socket = self.exit_sockets.pop(circuit_id, None)
             if exit_socket:
-                if destroy:
-                    self.destroy_exit_socket(exit_socket)
-
                 # Close socket
                 if exit_socket.enabled:
                     self.logger.info("Removing exit socket %d %s", circuit_id, additional_info)
@@ -1036,7 +1041,7 @@ class TunnelCommunity(Community):
         self.logger.info("Got destroy from %s for circuit %s", source_address, circuit_id)
 
         if circuit_id in self.relay_from_to:
-            self.remove_relay(circuit_id, "Got destroy", True, (circuit_id, cand_sock_addr))
+            self.remove_relay(circuit_id, "Got destroy", destroy=True, got_destroy_from=(circuit_id, cand_sock_addr))
 
         elif circuit_id in self.exit_sockets:
             self.logger.info("Got an exit socket %s %s", circuit_id, cand_sock_addr)
