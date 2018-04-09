@@ -35,7 +35,7 @@ class TestCommunity(TestBase):
 
         self.nodes[0].overlay.set_attestation_request_callback(f)
 
-        self.nodes[1].overlay.request_attestation(self.nodes[0].endpoint.wan_address,
+        self.nodes[1].overlay.request_attestation(self.nodes[0].overlay.my_peer,
                                                   "MyAttribute",
                                                   TestCommunity.private_key)
 
@@ -62,7 +62,7 @@ class TestCommunity(TestBase):
         self.nodes[0].overlay.set_attestation_request_callback(lambda x, y: y)
         self.nodes[0].overlay.set_attestation_request_complete_callback(f)
 
-        self.nodes[1].overlay.request_attestation(self.nodes[0].endpoint.wan_address,
+        self.nodes[1].overlay.request_attestation(self.nodes[0].overlay.my_peer,
                                                   "MyAttribute",
                                                   TestCommunity.private_key)
 
