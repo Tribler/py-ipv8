@@ -13,7 +13,7 @@ from zope.interface import implements
 
 from ipv8.configuration import get_default_configuration
 from ipv8_service import IPv8
-from REST.rest_manager import RESTManager
+from ipv8.REST.rest_manager import RESTManager
 
 
 class Options(usage.Options):

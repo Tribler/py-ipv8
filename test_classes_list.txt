@@ -1,33 +1,33 @@
 
-test/test_util.py:TestUtil
-test/test_peer.py:TestPeer
-test/test_requestcache.py:TestRequestCache
-test/test_taskmanager.py:TestTaskManager
+ipv8/test/test_util.py:TestUtil
+ipv8/test/test_peer.py:TestPeer
+ipv8/test/test_requestcache.py:TestRequestCache
+ipv8/test/test_taskmanager.py:TestTaskManager
 
-test/peerdiscovery/test_network.py:TestNetwork
-test/peerdiscovery/deprecated/test_discovery.py:TestDiscoveryCommunity
-test/peerdiscovery/test_edge_discovery.py:TestEdgeWalk
-test/peerdiscovery/test_random_discovery.py:TestRandomWalk
-test/peerdiscovery/test_churn.py:TestChurn
+ipv8/test/peerdiscovery/test_network.py:TestNetwork
+ipv8/test/peerdiscovery/deprecated/test_discovery.py:TestDiscoveryCommunity
+ipv8/test/peerdiscovery/test_edge_discovery.py:TestEdgeWalk
+ipv8/test/peerdiscovery/test_random_discovery.py:TestRandomWalk
+ipv8/test/peerdiscovery/test_churn.py:TestChurn
 
-test/keyvault/test_crypto.py:TestECCrypto
-test/keyvault/test_serialization.py:TestSerialization
-test/keyvault/test_signature.py:TestSignatures
+ipv8/test/keyvault/test_crypto.py:TestECCrypto
+ipv8/test/keyvault/test_serialization.py:TestSerialization
+ipv8/test/keyvault/test_signature.py:TestSignatures
 
-test/attestation/trustchain/test_community.py:TestTrustChainCommunity
-test/attestation/trustchain/test_block.py:TestTrustChainBlock
-test/attestation/identity/test_identity.py:TestIdentityCommunity
-test/attestation/wallet/primitives/cryptosystem/test_boneh.py:TestBoneh
-test/attestation/wallet/primitives/cryptosystem/test_ec.py:TestPairing
-test/attestation/wallet/primitives/cryptosystem/test_primality.py:TestPrimality
-test/attestation/wallet/primitives/cryptosystem/test_value.py:TestFP2Value
-test/attestation/wallet/primitives/test_attestation.py:TestAttestation
-test/attestation/wallet/primitives/test_structs.py:TestStructs
-test/attestation/wallet/test_attestation_community.py:TestCommunity
+ipv8/test/attestation/trustchain/test_community.py:TestTrustChainCommunity
+ipv8/test/attestation/trustchain/test_block.py:TestTrustChainBlock
+ipv8/test/attestation/identity/test_identity.py:TestIdentityCommunity
+ipv8/test/attestation/wallet/primitives/cryptosystem/test_boneh.py:TestBoneh
+ipv8/test/attestation/wallet/primitives/cryptosystem/test_ec.py:TestPairing
+ipv8/test/attestation/wallet/primitives/cryptosystem/test_primality.py:TestPrimality
+ipv8/test/attestation/wallet/primitives/cryptosystem/test_value.py:TestFP2Value
+ipv8/test/attestation/wallet/primitives/test_attestation.py:TestAttestation
+ipv8/test/attestation/wallet/primitives/test_structs.py:TestStructs
+ipv8/test/attestation/wallet/test_attestation_community.py:TestCommunity
 
-test/messaging/test_serialization.py:TestSerializer
-test/messaging/deprecated/test_encoding.py:TestEncoding
-test/messaging/anonymization/test_community.py:TestTunnelCommunity
-test/messaging/anonymization/test_hiddenservices.py:TestHiddenServices
+ipv8/test/messaging/test_serialization.py:TestSerializer
+ipv8/test/messaging/deprecated/test_encoding.py:TestEncoding
+ipv8/test/messaging/anonymization/test_community.py:TestTunnelCommunity
+ipv8/test/messaging/anonymization/test_hiddenservices.py:TestHiddenServices
 
-test/deprecated/test_bloomfilter.py:TestBloomFilter
+ipv8/test/deprecated/test_bloomfilter.py:TestBloomFilter
