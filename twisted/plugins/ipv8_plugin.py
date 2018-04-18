@@ -2,7 +2,11 @@
 This twistd plugin enables to start IPv8 headless using the twistd command.
 """
 
+import os
 import signal
+import sys
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 from twisted.application.service import MultiService, IServiceMaker
 from twisted.internet import reactor
