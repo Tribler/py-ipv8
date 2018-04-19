@@ -96,3 +96,16 @@ class TestBoneh(unittest.TestCase):
         PK = TestBoneh.private_key.public_key()
 
         self.assertIsNone(decode(TestBoneh.private_key, [0], encode(PK, 1)))
+
+    def test_generate_keypair(self):
+        """
+        Check if we can create a new keypair.
+        """
+        PK, SK = generate_keypair(32)
+
+        self.assertEqual(PK.p, SK.p)
+        self.assertEqual(PK.g, SK.g)
+        self.assertEqual(PK.h, SK.h)
+        self.assertEqual(decode(SK, [0, 1, 2], encode(PK, 0)), 0)
+        self.assertEqual(decode(SK, [0, 1, 2], encode(PK, 1)), 1)
+        self.assertEqual(decode(SK, [0, 1, 2], encode(PK, 2)), 2)

@@ -86,18 +86,23 @@ def get_good_wp(n, p=None):
     return p, wp
 
 
-def generate_primes(key_size=512):
+def generate_primes(key_size=128):
     """
-    Generate some primes. Key size in bits (minimum 512).
+    Generate some primes. Key size in bits.
     """
-    from cryptography.hazmat.backends import default_backend
-    from cryptography.hazmat.primitives.asymmetric import rsa
-    private_key = rsa.generate_private_key(public_exponent=65537,key_size=key_size,backend=default_backend())
-    private_numbers = private_key.private_numbers()
-    return min(private_numbers.p, private_numbers.q), max(private_numbers.p, private_numbers.q)
+    if key_size >= 512:
+        from cryptography.hazmat.backends import default_backend
+        from cryptography.hazmat.primitives.asymmetric import rsa
+        private_key = rsa.generate_private_key(public_exponent=65537, key_size=key_size, backend=default_backend())
+        private_numbers = private_key.private_numbers()
+        p, q = private_numbers.p, private_numbers.q
+    else:
+        import gensafeprime
+        p, q = gensafeprime.generate(key_size), gensafeprime.generate(key_size)
+    return min(p, q), max(p, q)
 
 
-def generate_keypair(key_size=512):
+def generate_keypair(key_size=128):
     """
     Generate a keypair for a certain prime bit space.
     """

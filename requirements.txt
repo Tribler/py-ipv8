@@ -4,3 +4,4 @@ netifaces
 networkx
 Twisted
 pyOpenSSL
+gensafeprime
