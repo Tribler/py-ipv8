@@ -1,6 +1,8 @@
 from socket import inet_ntoa, inet_aton
 from struct import pack, unpack
-from ...deprecated.payload import decode_connection_type, encode_connection_type, Payload
+
+from ...deprecated.bloomfilter import BloomFilter
+from ...deprecated.payload import decode_connection_type, encode_connection_type, IntroductionRequestPayload, Payload
 
 
 class SimilarityRequestPayload(Payload):
@@ -121,3 +123,42 @@ class PingPayload(Payload):
 
 class PongPayload(PingPayload):
     pass
+
+
+class DiscoveryIntroductionRequestPayload(IntroductionRequestPayload):
+
+    format_list = ['c20s', '4SH', '4SH', '4SH', 'bits', 'H']
+
+    def __init__(self, introduce_to, destination_address, source_lan_address, source_wan_address, advice,
+                 connection_type, sync, identifier):
+        super(DiscoveryIntroductionRequestPayload, self).__init__(destination_address, source_lan_address,
+                                                                  source_wan_address, advice, connection_type, sync,
+                                                                  identifier)
+        self.introduce_to = introduce_to
+
+    def to_pack_list(self):
+        data = super(DiscoveryIntroductionRequestPayload, self).to_pack_list()
+        data.insert(0, ('c20s', 'Y', self.introduce_to))
+        return data
+
+    @classmethod
+    def from_unpack_list(cls, introduce_to, destination_address, source_lan_address, source_wan_address,
+                         connection_type_0, connection_type_1, dflag0, dflag1, dflag2, tunnel, sync, advice,
+                         identifier, time_low=None, time_high=None, modulo=None, modulo_offset=None,
+                         functions=None, size=None, prefix_bytes=None):
+        args = [introduce_to[1:],
+                (inet_ntoa(destination_address[0]), destination_address[1]),
+                (inet_ntoa(source_lan_address[0]), source_lan_address[1]),
+                (inet_ntoa(source_wan_address[0]), source_wan_address[1]),
+                [True, False][advice],
+                decode_connection_type(connection_type_0, connection_type_1)]
+
+        if sync and prefix_bytes:
+            bloomfilter = BloomFilter(prefix_bytes[1:], functions, prefix=prefix_bytes[0])
+            args.append((time_low, time_high, modulo, modulo_offset, bloomfilter))
+        else:
+            args.append(None)
+
+        args.append(identifier)
+
+        return DiscoveryIntroductionRequestPayload(*args)
