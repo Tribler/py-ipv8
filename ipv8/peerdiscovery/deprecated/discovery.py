@@ -1,7 +1,10 @@
 from ...peer import Peer
-from ...deprecated.community import Community
-from .discovery_payload import PingPayload, PongPayload, SimilarityRequestPayload, SimilarityResponsePayload
+from ...deprecated.community import Community, PacketDecodingError
+from ...deprecated.payload import IntroductionRequestPayload
 from ...deprecated.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
+from .discovery_payload import PingPayload, PongPayload, SimilarityRequestPayload, SimilarityResponsePayload, \
+    DiscoveryIntroductionRequestPayload
+from ...messaging.serialization import PackError
 
 
 class DiscoveryCommunity(Community):
@@ -23,6 +26,26 @@ class DiscoveryCommunity(Community):
             chr(3): self.on_ping,
             chr(4): self.on_pong
         })
+
+    def on_introduction_request(self, source_address, data):
+        try:
+            auth, dist, payload = self._ez_unpack_auth(DiscoveryIntroductionRequestPayload, data)
+        except (PacketDecodingError, PackError):
+            auth, dist, payload = self._ez_unpack_auth(IntroductionRequestPayload, data)
+
+        peer = Peer(auth.public_key_bin, source_address)
+        self.network.add_verified_peer(peer)
+        self.network.discover_services(peer, [self.master_peer.mid, ])
+
+        introduce_to = getattr(payload, 'introduce_to', None)
+        introduction = None
+        if introduce_to:
+            peers = self.network.verified_peers[:]
+            matches = [p for p in peers if p.mid == introduce_to]
+            introduction = matches[0] if matches else None
+        packet = self.create_introduction_response(payload.destination_address, source_address, payload.identifier,
+                                                   introduction=introduction)
+        self.endpoint.send(source_address, packet)
 
     def on_introduction_response(self, source_address, data):
         super(DiscoveryCommunity, self).on_introduction_response(source_address, data)

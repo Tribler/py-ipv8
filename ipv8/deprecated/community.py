@@ -194,13 +194,14 @@ class Community(EZPackOverlay):
 
         return self._ez_pack(self._prefix, 246, [auth, dist, payload])
 
-    def create_introduction_response(self, lan_socket_address, socket_address, identifier):
+    def create_introduction_response(self, lan_socket_address, socket_address, identifier, introduction=None):
         global_time = self.claim_global_time()
         introduction_lan = ("0.0.0.0",0)
         introduction_wan = ("0.0.0.0",0)
         introduced = False
         other = self.network.get_verified_by_address(socket_address)
-        introduction = self.get_peer_for_introduction(exclude=other)
+        if not introduction:
+            introduction = self.get_peer_for_introduction(exclude=other)
         if introduction:
             if self.address_is_lan(introduction.address[0]):
                 introduction_lan = introduction.address
