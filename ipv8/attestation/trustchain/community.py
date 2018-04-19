@@ -396,9 +396,9 @@ class TrustChainCommunity(Community):
     def unload(self):
         self.logger.debug("Unloading the TrustChain Community.")
 
-        # Close the persistence layer
-        self.persistence.close()
-
         self.request_cache.shutdown()
 
         super(TrustChainCommunity, self).unload()
+
+        # Close the persistence layer
+        self.persistence.close()
