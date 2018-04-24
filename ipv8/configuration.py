@@ -93,14 +93,26 @@ default = {
         {
             'class': 'AttestationCommunity',
             'key': "anonymous id",
-            'walkers': [],
+            'walkers': [{
+                'strategy': "RandomWalk",
+                'peers': 4,
+                'init': {
+                    'timeout': 60.0
+                }
+            }],
             'initialize': {},
             'on_start': []
         },
         {
             'class': 'IdentityCommunity',
             'key': "anonymous id",
-            'walkers': [],
+            'walkers': [{
+                'strategy': "RandomWalk",
+                'peers': 4,
+                'init': {
+                    'timeout': 60.0
+                }
+            }],
             'initialize': {},
             'on_start': []
         }
