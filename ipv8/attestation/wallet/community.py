@@ -53,7 +53,7 @@ class AttestationCommunity(Community):
         # Map of attestation hash -> BonehPrivateKey
         self.attestation_keys = {}
         for hash, _, key in self.database.get_all():
-            self.attestation_keys[hash] = BonehPrivateKey(key)
+            self.attestation_keys[hash] = BonehPrivateKey.unserialize(key)
 
         self.request_cache = RequestCache()
 
