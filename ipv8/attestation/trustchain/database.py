@@ -45,6 +45,20 @@ class TrustChainDB(Database):
             block.pack_db_insert())
         self.commit()
 
+    def remove_block(self, block):
+        """
+        DANGER! USING THIS WILL LIKELY CAUSE A DOUBLE-SPEND IN THE NETWORK.
+                ONLY USE IF YOU KNOW WHAT YOU ARE DOING.
+        Remove a block from the database.
+
+        :param block: The data that will be removed.
+        """
+        self.execute(
+            u"DELETE FROM blocks WHERE tx = ? AND public_key = ? AND sequence_number = ? AND link_public_key = ? AND "
+            u"link_sequence_number = ? AND previous_hash = ? AND signature = ? AND block_hash = ?",
+            block.pack_db_insert())
+        self.commit()
+
     def _get(self, query, params):
         db_result = list(self.execute(self.get_sql_header() + query, params, fetch_all=False))
         return TrustChainBlock(db_result) if db_result else None

@@ -135,7 +135,7 @@ class TrustChainCommunity(Community):
         assert linked is None or linked.link_sequence_number == UNKNOWN_SEQ, \
             "Cannot counter sign block that is not a request"
         assert transaction is None or isinstance(transaction, dict), "Transaction should be a dictionary"
-
+        self.persistence_integrity_check()
         block = self.BLOCK_CLASS.create(transaction, self.persistence, self.my_peer.public_key.key_to_bin(),
                                         link=linked, link_pk=public_key)
         block.sign(self.my_peer.key)
@@ -264,11 +264,10 @@ class TrustChainCommunity(Community):
                              validation)
             # Note that this code does not cover the scenario where we obtain this block indirectly.
             if not self.request_cache.has(u"crawl", blk.hash_number):
-                crawl_deferred = self.send_crawl_request(peer,
-                                                         blk.public_key,
-                                                         max(GENESIS_SEQ, blk.sequence_number - 5),
-                                                         for_half_block=blk)
-                crawl_deferred.addCallback(lambda _: self.process_half_block(blk, peer))
+                self.send_crawl_request(peer,
+                                        blk.public_key,
+                                        max(GENESIS_SEQ, blk.sequence_number - 5),
+                                        for_half_block=blk)
         else:
             self.sign_block(peer, linked=blk)
 
@@ -334,8 +333,53 @@ class TrustChainCommunity(Community):
             self.send_crawl_response(blocks[ind], payload.crawl_id, ind + 1, total_count, peer)
         self.logger.info("Sent %d blocks", total_count)
 
+    @synchronized
+    def sanitize_database(self):
+        """
+        DANGER! USING THIS MAY CAUSE DOUBLE SPENDING IN THE NETWORK.
+                ONLY USE IF YOU KNOW WHAT YOU ARE DOING.
+
+        This method removes all of the invalid blocks in our own chain.
+        """
+        self.logger.error("Attempting to recover %s", self.DB_CLASS.__name__)
+        block = self.persistence.get_latest(self.my_peer.public_key.key_to_bin())
+        if not block:
+            # There is nothing to corrupt, we're at the genesis block.
+            self.logger.debug("No latest block found when trying to recover database!")
+            return
+        validation = self.validate_persist_block(block)
+        while validation[0] != ValidationResult.partial_next and validation[0] != ValidationResult.valid:
+            # The latest block is invalid, remove it.
+            self.persistence.remove_block(block)
+            self.logger.error("Removed invalid block %d from our chain", block.sequence_number)
+            block = self.persistence.get_latest(self.my_peer.public_key.key_to_bin())
+            if not block:
+                # Back to the genesis
+                break
+            validation = self.validate_persist_block(block)
+        self.logger.error("Recovered database, our last block is now %d", block.sequence_number if block else 0)
+
+    def persistence_integrity_check(self):
+        """
+        Perform an integrity check of our own chain. Recover it if needed.
+        """
+        block = self.persistence.get_latest(self.my_peer.public_key.key_to_bin())
+        if not block:
+            return
+        validation = self.validate_persist_block(block)
+        if validation[0] != ValidationResult.partial_next and validation[0] != ValidationResult.valid:
+            self.logger.error("Our chain did not validate. Result %s", repr(validation))
+            self.sanitize_database()
+
     def send_crawl_response(self, block, crawl_id, index, total_count, peer):
         self.logger.debug("Sending block for crawl request to %s (%s)", peer, block)
+
+        # Don't answer with any invalid blocks.
+        validation = self.validate_persist_block(block)
+        if validation[0] != ValidationResult.partial_next and validation[0] != ValidationResult.valid:
+            self.logger.error("Not sending crawl response, the block is invalid. Result %s", repr(validation))
+            self.persistence_integrity_check()
+            return
 
         global_time = self.claim_global_time()
         payload = CrawlResponsePayload.from_crawl(block, crawl_id, index, total_count).to_pack_list()
