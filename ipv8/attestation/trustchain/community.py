@@ -11,7 +11,7 @@ from twisted.internet import reactor
 from twisted.internet.defer import Deferred, succeed, fail
 
 from .block import TrustChainBlock, ValidationResult, EMPTY_PK, GENESIS_SEQ, UNKNOWN_SEQ
-from .caches import CrawlRequestCache, HalfBlockSignCache
+from .caches import CrawlRequestCache, HalfBlockSignCache, IntroCrawlTimeout
 from .database import TrustChainDB
 from ...deprecated.community import Community
 from ...deprecated.payload import IntroductionResponsePayload
@@ -386,12 +386,18 @@ class TrustChainCommunity(Community):
 
         return eligible[-1]
 
+    @synchronized
     def on_introduction_response(self, source_address, data):
         super(TrustChainCommunity, self).on_introduction_response(source_address, data)
 
         auth, _, _ = self._ez_unpack_auth(IntroductionResponsePayload, data)
         peer = Peer(auth.public_key_bin, source_address)
-        self.crawl_lowest_unknown(peer)
+        if self.request_cache.has(u"introcrawltimeout", IntroCrawlTimeout.get_number_for(peer)):
+            self.logger.debug("Not crawling %s, as we have already crawled it in the last %d seconds!",
+                              peer.mid.encode('hex'), IntroCrawlTimeout.__new__(IntroCrawlTimeout).timeout_delay)
+        else:
+            self.request_cache.add(IntroCrawlTimeout(self, peer))
+            self.crawl_lowest_unknown(peer)
 
     def unload(self):
         self.logger.debug("Unloading the TrustChain Community.")

@@ -7,6 +7,39 @@ from twisted.python.failure import Failure
 from ...requestcache import NumberCache
 
 
+class IntroCrawlTimeout(NumberCache):
+    """
+    A crawl request is sent with every introduction response. This can happen quite a lot of times per second.
+    We wish to slow down the amount of crawls we do to not overload any node with database IO.
+    """
+
+    def __init__(self, community, peer):
+        super(IntroCrawlTimeout, self).__init__(community.request_cache, u"introcrawltimeout",
+                                                self.get_number_for(peer))
+
+    @classmethod
+    def get_number_for(cls, peer):
+        """
+        Convert a Peer into an int. To do this we shift every byte of the mid into an integer.
+        """
+        return reduce(lambda a, b: ((a << 8) | b), [ord(c) for c in peer.mid], 0)
+
+    @property
+    def timeout_delay(self):
+        """
+        We crawl the same peer, at most once every 60 seconds.
+        :return:
+        """
+        return 60.0
+
+    def on_timeout(self):
+        """
+        This is expected, the super class will now remove itself from the request cache.
+        The node is then allowed to be crawled again.
+        """
+        pass
+
+
 class HalfBlockSignCache(NumberCache):
     """
     This request cache keeps track of outstanding half block signature requests.
