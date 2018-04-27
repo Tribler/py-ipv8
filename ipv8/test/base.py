@@ -1,3 +1,5 @@
+import os
+import shutil
 import sys
 import threading
 import time
@@ -49,10 +51,14 @@ class TestBase(unittest.TestCase):
         self.__lockup_timestamp__ = time.time()
 
     def tearDown(self):
-        super(TestBase, self).tearDown()
-        for node in self.nodes:
-            node.unload()
-        internet.clear()
+        try:
+            super(TestBase, self).tearDown()
+            for node in self.nodes:
+                node.unload()
+            internet.clear()
+        finally:
+            shutil.rmtree("temp", ignore_errors=True)
+
 
     @classmethod
     def setUpClass(cls):
@@ -128,3 +134,8 @@ class TestBase(unittest.TestCase):
         for node in self.nodes:
             node.discovery.take_step()
         yield self.sleep()
+
+    def temporary_directory(self):
+        d = os.path.join("temp", self.__class__.__name__ + str(int(time.time())))
+        os.makedirs(d)
+        return d

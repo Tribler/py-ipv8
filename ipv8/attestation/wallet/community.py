@@ -48,12 +48,12 @@ class AttestationCommunity(Community):
         super(AttestationCommunity, self).__init__(*args, **kwargs)
 
         self.database = AttestationsDB(working_directory, db_name)
-        self.attestation_request_callbacks = [lambda x, y: None, lambda x, y, z: None]
+        self.attestation_request_callbacks = [lambda x, y: None, lambda x, y, z, w=None: None]
 
         # Map of attestation hash -> BonehPrivateKey
         self.attestation_keys = {}
         for hash, _, key in self.database.get_all():
-            self.attestation_keys[hash] = BonehPrivateKey.unserialize(key)
+            self.attestation_keys[str(hash)] = BonehPrivateKey.unserialize(str(key))
 
         self.request_cache = RequestCache()
 
