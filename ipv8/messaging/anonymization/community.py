@@ -794,7 +794,8 @@ class TunnelCommunity(Community):
 
                 except CryptoException, e:
                     self.logger.warning(str(e))
-                    self.send_destroy(circuit.sock_addr, circuit_id, 0)
+                    if circuit:
+                        self.send_destroy(circuit.sock_addr, circuit_id, 0)
                     return
 
             self.on_packet((source_address, convert_from_cell(data)), circuit_id=u"circuit_%d" % circuit_id)
