@@ -1,5 +1,6 @@
 import os
 
+from ....attestation.wallet.database import AttestationsDB
 from ....attestation.wallet.primitives.attestation import binary_relativity_sha512
 from ....attestation.wallet.community import Attestation, AttestationCommunity, BonehPrivateKey
 
@@ -50,7 +51,7 @@ class TestCommunity(TestBase):
         """
         Check if the request_attestation callback is correctly called.
         """
-        def f(peer, attribute_name, _):
+        def f(peer, attribute_name, _, __=None):
             self.assertEqual(peer.address, self.nodes[1].endpoint.wan_address)
             self.assertEqual(attribute_name, "MyAttribute")
 
@@ -101,3 +102,26 @@ class TestCommunity(TestBase):
 
         self.assertTrue(callback.called)
         self.nodes[1].overlay.request_cache.clear()
+
+    def test_load_key(self):
+        """
+        Check if we can load the community correctly after shut down.
+        """
+        # Write to a temporary folder.
+        overlay = self.nodes[0].overlay
+        temp_folder = self.temporary_directory()
+        overlay.database = AttestationsDB(temp_folder, "test")
+
+        # Create an attestation and write it to file.
+        # Then close the database.
+        attestation = Attestation(TestCommunity.private_key.public_key(), [])
+        overlay.on_attestation_complete(attestation, TestCommunity.private_key, None, "test", "a"*20)
+        overlay.database.close(True)
+
+        # Reload the community with the same database.
+        self.nodes[0].overlay.__init__(self.nodes[0].my_peer, self.nodes[0].endpoint, self.nodes[0].network,
+                                       working_directory=temp_folder, db_name="test")
+
+        # The attestation should persist
+        db_entries = self.nodes[0].overlay.database.get_all()
+        self.assertEqual(1, len(db_entries))
