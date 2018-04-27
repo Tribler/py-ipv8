@@ -331,3 +331,42 @@ class TestTrustChainCommunity(TestBase):
         for node_nr in [0, 1]:
             self.assertIsNotNone(self.nodes[node_nr].overlay.persistence.get_latest(block1.public_key))
             self.assertIsNotNone(self.nodes[node_nr].overlay.persistence.get_latest(block2.public_key))
+
+    @twisted_wrapper
+    def test_intro_response_crawl(self):
+        """
+        Test if we crawl a node on introduction response and if we respect the crawl timeout.
+
+        This test does the following:
+
+         1. Node 1 and 2 are introduced to each other and subsequently crawl each other.
+         2. Node 1 and 3 perform a transaction.
+         3. Node 1 and 2 are introduced to each other again.
+         4. As we are still in the crawl timeout and node 2 is not involved in any transaction with node 1,
+            there should be no crawl request and therefore node 2 does not know about the transaction between
+            node 1 and 3.
+        """
+        node3 = self.create_node()
+        node3.my_peer.address = node3.endpoint.wan_address
+        self.nodes.append(node3)
+        my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
+        his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
+        node3_pubkey = self.nodes[2].overlay.my_peer.public_key.key_to_bin()
+        yield self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
+                                               transaction={})
+
+        # Perform the first crawl with all nodes
+        yield self.introduce_nodes()
+
+        for node_nr in [0, 1]:
+            self.assertIsNotNone(self.nodes[node_nr].overlay.persistence.get(my_pubkey, 1))
+            self.assertEqual(self.nodes[node_nr].overlay.persistence.get(my_pubkey, 1).link_sequence_number,
+                             UNKNOWN_SEQ)
+
+        # Perform a transaction between node 1 and 3
+        yield self.nodes[0].overlay.sign_block(node3.my_peer, public_key=node3_pubkey, transaction={})
+
+        # Perform the second crawl with all nodes
+        yield self.introduce_nodes()
+
+        self.assertIsNone(self.nodes[1].overlay.persistence.get(my_pubkey, 2))
