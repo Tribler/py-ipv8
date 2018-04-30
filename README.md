@@ -8,7 +8,7 @@ IPv8 aims to provide authenticated communication with privacy.
 
 - **Authentication**. We offer mutual authentication using strong cryptography. During an IPv8 communication session, both parties can be sure of the other party’s identity. IPv8 users are identified by their public key. The initial key exchange is designed that secrets are never transmitted across the Internet, not even in encrypted form. We use a standard challenge/response protocol with protection against spoofing, man-in-the-middle, and replay attacks.
 - **Privacy**. IPv8 is specifically designed for strong privacy protection and end-to-end encryption with perfect forward secrecy. We enhanced the industry standard onion routing protocol, Tor, for usage in a trustless environment (e.g. no trusted central directory servers).
-- **No infrastructure dependancy**. Everybody is equal in the world of IPv8. No central web server, discovery server, or support foundation is needed.
+- **No infrastructure dependency**. Everybody is equal in the world of IPv8. No central web server, discovery server, or support foundation is needed.
 - **NAT traversal**. IPv8 includes a simple and effective NAT traversal technique. This is essential when offering privacy without infrastructure and consumer-grade donated resources.
 - **Trust**. You can enhance your security if you tell IPv8 which people you know and trust. It tries to build a web-of-trust automatically.
 
