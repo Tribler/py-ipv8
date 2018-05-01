@@ -84,8 +84,11 @@ class AttestationEndpoint(resource.Resource):
             peers = self.session.network.get_peers_for_service(self.identity_overlay.master_peer.mid)
             return json.dumps([b64encode(p.mid) for p in peers])
         if request.args['type'][0] == 'attributes':
-            mid_b64 = request.args['mid'][0]
-            peer = self.get_peer_from_mid(mid_b64)
+            if 'mid' in request.args:
+                mid_b64 = request.args['mid'][0]
+                peer = self.get_peer_from_mid(mid_b64)
+            else:
+                peer = self.identity_overlay.my_peer
             if peer:
                 blocks = self.identity_overlay.persistence.get_latest_blocks(peer.public_key.key_to_bin(), 200)
                 return json.dumps([(b.transaction["name"], b64encode(b.transaction["hash"])) for b in blocks])
