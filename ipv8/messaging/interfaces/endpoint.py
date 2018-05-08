@@ -87,7 +87,7 @@ class EndpointListener(object):
 
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, endpoint, main_thread=False):
+    def __init__(self, endpoint, main_thread=True):
         """
         Create a new listener.
 
