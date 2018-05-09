@@ -1,5 +1,5 @@
 from twisted.internet import protocol, reactor, error
-from ..endpoint import Endpoint, EndpointClosedException, IllegalDestination
+from ..endpoint import Endpoint, EndpointClosedException
 
 UDP_MAX_SIZE = 2 ** 16 - 60
 
@@ -13,8 +13,8 @@ class UDPEndpoint(Endpoint, protocol.DatagramProtocol):
         self._running = False
         self._listening_port = False
 
-    def datagramReceived(self, data, src):
-        self.notify_listeners((src, data))
+    def datagramReceived(self, datagram, addr):
+        self.notify_listeners((addr, datagram))
 
     def send(self, socket_address, packet):
         self.assert_open()
@@ -24,7 +24,6 @@ class UDPEndpoint(Endpoint, protocol.DatagramProtocol):
         for _ in xrange(10000):
             try:
                 self._listening_port = reactor.listenUDP(self._port, self, self._ip, UDP_MAX_SIZE)
-                #self._listening_port.startListening() 
                 self._logger.debug("Listening at %d", self._port)
                 break
             except error.CannotListenError:
@@ -38,11 +37,9 @@ class UDPEndpoint(Endpoint, protocol.DatagramProtocol):
         if not self._running:
             raise EndpointClosedException(self)
 
-    def close(self, timeout=10.0):
+    def close(self):
         self._running = False
-        result = True
-        #FIXME: this thing returns Deferred, need to account for that
-        self._listening_port.stopListening()
+        return self._listening_port.stopListening()
 
     def get_address(self):
         """

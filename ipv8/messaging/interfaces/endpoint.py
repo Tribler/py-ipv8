@@ -76,7 +76,7 @@ class Endpoint(object):
         pass
 
     @abc.abstractmethod
-    def close(self, timeout=0.0):
+    def close(self):
         pass
 
 

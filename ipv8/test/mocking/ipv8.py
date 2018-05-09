@@ -15,6 +15,7 @@ class MockIPv8(object):
         self.network = Network()
         self.my_peer = Peer(ECCrypto().generate_key(crypto_curve), self.endpoint.wan_address)
         self.overlay = overlay_class(self.my_peer, self.endpoint, self.network, *args, **kwargs)
+        self.overlay._use_main_thread = False
         self.discovery = MockWalk(self.overlay)
 
         self.overlay.my_estimated_wan = self.endpoint.wan_address
