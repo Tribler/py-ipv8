@@ -15,7 +15,7 @@ class MockTunnelExitSocket(TunnelExitSocket, EndpointListener):
 
         TunnelExitSocket.__init__(self, parent.circuit_id, parent.overlay, parent.sock_addr, parent.mid)
         parent.close()
-        EndpointListener.__init__(self, self.endpoint)
+        EndpointListener.__init__(self, self.endpoint, main_thread=False)
 
         self.endpoint.add_listener(self)
 
