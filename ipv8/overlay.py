@@ -25,7 +25,7 @@ class Overlay(EndpointListener, TaskManager):
         :param endpoint: the endpoint to use for messaging
         :param network: the network graph backend
         """
-        EndpointListener.__init__(self, endpoint, False)
+        EndpointListener.__init__(self, endpoint)
         TaskManager.__init__(self)
         self.serializer = self.get_serializer()
         self.crypto = ECCrypto()
