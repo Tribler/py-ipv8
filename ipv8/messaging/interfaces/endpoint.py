@@ -26,8 +26,9 @@ class Endpoint(object):
 
         :raises: IllegalEndpointListenerError if the provided listener is not an EndpointListener
         """
-        if not isinstance(listener, EndpointListener):
-            raise IllegalEndpointListenerError(listener)
+        # TODO: bring this check back when we get rid of Dispersy !!!
+        #if not isinstance(listener, EndpointListener):
+            #raise IllegalEndpointListenerError(listener)
         self._listeners.append(listener)
 
     def remove_listener(self, listener):
