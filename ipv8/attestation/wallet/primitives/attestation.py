@@ -1,4 +1,4 @@
-from hashlib import sha512
+from hashlib import sha256, sha512
 from random import randint, shuffle
 from threading import Lock
 
@@ -69,6 +69,38 @@ def attest_sha512(PK, value):
     return attest(PK, sha512_as_int(value), 512)
 
 
+def binary_relativity_sha512(value):
+    """
+    Create the inter-bitpair relativity map of a value using the SHA512 hash.
+    """
+    return binary_relativity(sha512_as_int(value), 512)
+
+
+def sha256_as_int(value):
+    """
+    Convert a SHA256 hash to an integer.
+    """
+    out = 0
+    for c in sha256(str(value)).digest():
+        out <<= 8
+        out |= ord(c)
+    return out
+
+
+def attest_sha256(PK, value):
+    """
+    Create an attestation for a value using a SHA256 hash.
+    """
+    return attest(PK, sha256_as_int(value), 256)
+
+
+def binary_relativity_sha256(value):
+    """
+    Create the inter-bitpair relativity map of a value using the SHA256 hash.
+    """
+    return binary_relativity(sha256_as_int(value), 256)
+
+
 def create_empty_relativity_map():
     """
     Construct a map of possible challenge responses.
@@ -88,13 +120,6 @@ def binary_relativity(value, bitspace):
         out[A[i] + A[i + 1]] += 1
     out[3] = 0
     return out
-
-
-def binary_relativity_sha512(value):
-    """
-    Create the inter-bitpair relativity map of a value using the SHA512 hash.
-    """
-    return binary_relativity(sha512_as_int(value), 512)
 
 
 def binary_relativity_match(expected, value):

@@ -6,7 +6,7 @@ from twisted.web import resource
 
 from ..attestation.identity.community import IdentityCommunity
 from ..attestation.wallet.community import AttestationCommunity
-from ..attestation.wallet.primitives.attestation import binary_relativity_sha512
+from ..attestation.wallet.primitives.attestation import binary_relativity_sha256
 from ..attestation.wallet.primitives.cryptosystem.boneh import generate_keypair
 
 
@@ -119,7 +119,8 @@ class AttestationEndpoint(resource.Resource):
         if request.args['type'][0] == 'verify':
             mid_b64 = request.args['mid'][0]
             attribute_hash = b64decode(request.args['attribute_hash'][0])
-            reference_values = [binary_relativity_sha512(b64decode(v)) for v in request.args['attribute_values'][0].split(',')]
+            reference_values = [binary_relativity_sha256(b64decode(v))
+                                for v in request.args['attribute_values'][0].split(',')]
             peer = self.get_peer_from_mid(mid_b64)
             if peer:
                 self.verification_output[request.args['attribute_hash'][0]] = request.args['attribute_values'][0].split(',')
