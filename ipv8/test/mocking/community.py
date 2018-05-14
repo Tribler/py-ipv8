@@ -15,6 +15,8 @@ class MockCommunity(DiscoveryCommunity):
         network = Network()
         peer = Peer(ECCrypto().generate_key(u"very-low"), endpoint.wan_address)
         super(MockCommunity, self).__init__(peer, endpoint, network)
+        # workaround for race conditions in deliver_messages
+        self._use_main_thread = False
 
     def bootstrap(self):
         super(MockCommunity, self).bootstrap()
