@@ -395,7 +395,8 @@ class TrustChainCommunity(Community):
         if self.request_cache.has(u"introcrawltimeout", IntroCrawlTimeout.get_number_for(peer)):
             self.logger.debug("Not crawling %s, as we have already crawled it in the last %d seconds!",
                               peer.mid.encode('hex'), IntroCrawlTimeout.__new__(IntroCrawlTimeout).timeout_delay)
-        else:
+        elif source_address not in self.network.blacklist:
+            # Do not crawl addresses in our blacklist (trackers)
             self.request_cache.add(IntroCrawlTimeout(self, peer))
             self.crawl_lowest_unknown(peer)
 
