@@ -10,7 +10,7 @@ from .database import AttestationsDB
 from ...deprecated.community import Community
 from ...deprecated.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from .payload import *
-from .primitives.attestation import (attest_sha256, binary_relativity_certainty, create_challenge,
+from .primitives.attestation import (attest_sha256_4, binary_relativity_certainty, create_challenge,
                                      create_challenge_response_from_pair, create_empty_relativity_map,
                                      create_honesty_check, process_challenge_response)
 from .primitives.structs import Attestation, BonehPrivateKey, BonehPublicKey, pack_pair, unpack_pair
@@ -124,7 +124,7 @@ class AttestationCommunity(Community):
             return
 
         PK = BonehPublicKey.unserialize(metadata['public_key'].decode('base64'))
-        attestation_blob = attest_sha256(PK, value).serialize()
+        attestation_blob = attest_sha256_4(PK, value).serialize()
 
         self.attestation_request_callbacks[1](peer, metadata['attribute'], sha1(attestation_blob).digest())
 

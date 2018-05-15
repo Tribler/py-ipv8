@@ -101,6 +101,31 @@ def binary_relativity_sha256(value):
     return binary_relativity(sha256_as_int(value), 256)
 
 
+def sha256_4_as_int(value):
+    """
+    Convert a SHA256 4 byte hash to an integer.
+    """
+    out = 0
+    for c in sha256(str(value)).digest()[:4]:
+        out <<= 8
+        out |= ord(c)
+    return out
+
+
+def attest_sha256_4(PK, value):
+    """
+    Create an attestation for a value using a SHA256 4 byte hash.
+    """
+    return attest(PK, sha256_4_as_int(value), 32)
+
+
+def binary_relativity_sha256_4(value):
+    """
+    Create the inter-bitpair relativity map of a value using the SHA256 4 byte hash.
+    """
+    return binary_relativity(sha256_4_as_int(value), 32)
+
+
 def create_empty_relativity_map():
     """
     Construct a map of possible challenge responses.

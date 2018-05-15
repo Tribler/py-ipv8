@@ -102,7 +102,7 @@ def generate_primes(key_size=128):
     return min(p, q), max(p, q)
 
 
-def generate_keypair(key_size=128):
+def generate_keypair(key_size=32):
     """
     Generate a keypair for a certain prime bit space.
     """
