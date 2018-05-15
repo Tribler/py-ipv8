@@ -121,6 +121,7 @@ class IPv8(object):
         with self.overlay_lock:
             unload_list = [self.unload_overlay(overlay) for overlay in self.overlays[:]]
             yield DeferredList(unload_list)
+            yield self.endpoint.close()
         if stop_reactor:
             reactor.callFromThread(reactor.stop)
 
