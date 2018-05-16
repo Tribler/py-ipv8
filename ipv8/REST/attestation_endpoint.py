@@ -55,7 +55,7 @@ class AttestationEndpoint(resource.Resource):
         references = self.verification_output[hash]
         out = []
         for i in range(len(references)):
-            out[i] = (references[i], values[i])
+            out.append((references[i][0] if isinstance(references[i], tuple) else references[i], values[i]))
         self.verification_output[hash] = out
 
     def get_peer_from_mid(self, mid_b64):
@@ -79,7 +79,10 @@ class AttestationEndpoint(resource.Resource):
         if request.args['type'][0] == 'outstanding':
             return json.dumps(self.attestation_requests.keys())
         if request.args['type'][0] == 'verification_output':
-            return json.dumps(self.verification_output)
+            formatted = {}
+            for k, v in self.verification_output.iteritems():
+                formatted[b64encode(k)] = [(b64encode(a), m) for a, m in v]
+            return json.dumps(formatted)
         if request.args['type'][0] == 'peers':
             peers = self.session.network.get_peers_for_service(self.identity_overlay.master_peer.mid)
             return json.dumps([b64encode(p.mid) for p in peers])
@@ -123,7 +126,8 @@ class AttestationEndpoint(resource.Resource):
                                 for v in request.args['attribute_values'][0].split(',')]
             peer = self.get_peer_from_mid(mid_b64)
             if peer:
-                self.verification_output[request.args['attribute_hash'][0]] = request.args['attribute_values'][0].split(',')
+                self.verification_output[b64decode(request.args['attribute_hash'][0])] =\
+                    [b64decode(v) for v in request.args['attribute_values'][0].split(',')]
                 self.attestation_overlay.verify_attestation_values(peer.address, attribute_hash, reference_values, self.on_verification_results)
             return ""
         return ""

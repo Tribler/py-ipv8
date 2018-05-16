@@ -134,6 +134,7 @@ class AttestationCommunity(Community):
         """
         We got an Attestation delivered to us.
         """
+        self.attestation_keys[str(hash)] = secret_key
         self.database.insert_attestation(unserialized, secret_key)
         self.attestation_request_callbacks[1](self.my_peer, name, hash, peer)
 
