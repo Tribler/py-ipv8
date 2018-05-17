@@ -29,12 +29,12 @@ class AttestationEndpoint(resource.Resource):
         self.verification_output = {}
 
     @inlineCallbacks
-    def on_request_attestation(self, peer, attribute_name):
+    def on_request_attestation(self, peer, attribute_name, metadata):
         """
         Return the measurement of an attribute for a certain peer.
         """
         deferred = Deferred()
-        self.attestation_requests[(b64encode(peer.mid), attribute_name)] = deferred
+        self.attestation_requests[(b64encode(peer.mid), attribute_name)] = (deferred, b64encode(json.dumps(metadata)))
         out = yield deferred
         returnValue(out)
 
@@ -77,7 +77,10 @@ class AttestationEndpoint(resource.Resource):
         if not request.args or 'type' not in request.args:
             return ""
         if request.args['type'][0] == 'outstanding':
-            return json.dumps(self.attestation_requests.keys())
+            formatted = []
+            for k, v in self.attestation_requests.iteritems():
+                formatted.append(k + (v[1], ))
+            return json.dumps(formatted)
         if request.args['type'][0] == 'verification_output':
             formatted = {}
             for k, v in self.verification_output.iteritems():
@@ -111,13 +114,16 @@ class AttestationEndpoint(resource.Resource):
             peer = self.get_peer_from_mid(mid_b64)
             if peer:
                 _, key = generate_keypair()
-                self.attestation_overlay.request_attestation(peer, attribute_name, key)
+                metadata = {}
+                if 'metadata' in request.args:
+                    metadata = json.loads(b64decode(request.args['metadata'][0]))
+                self.attestation_overlay.request_attestation(peer, attribute_name, key, metadata)
             return ""
         if request.args['type'][0] == 'attest':
             mid_b64 = request.args['mid'][0]
             attribute_name = request.args['attribute_name'][0]
             attribute_value_b64 = request.args['attribute_value'][0]
-            self.attestation_requests[(mid_b64, attribute_name)].callback(b64decode(attribute_value_b64))
+            self.attestation_requests[(mid_b64, attribute_name)][0].callback(b64decode(attribute_value_b64))
             return ""
         if request.args['type'][0] == 'verify':
             mid_b64 = request.args['mid'][0]

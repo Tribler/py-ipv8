@@ -48,7 +48,7 @@ class AttestationCommunity(Community):
         super(AttestationCommunity, self).__init__(*args, **kwargs)
 
         self.database = AttestationsDB(working_directory, db_name)
-        self.attestation_request_callbacks = [lambda x, y: None, lambda x, y, z, w=None: None]
+        self.attestation_request_callbacks = [lambda x, y, z: None, lambda x, y, z, w=None: None]
 
         # Map of attestation hash -> BonehPrivateKey
         self.attestation_keys = {}
@@ -85,7 +85,7 @@ class AttestationCommunity(Community):
         """
         self.attestation_request_callbacks[1] = f
 
-    def request_attestation(self, peer, attribute_name, secret_key):
+    def request_attestation(self, peer, attribute_name, secret_key, metadata={}):
         """
         Request attestation of one of our attributes.
 
@@ -96,10 +96,12 @@ class AttestationCommunity(Community):
         public_key = secret_key.public_key()
         self.request_cache.add(ReceiveAttestationRequestCache(self, peer.mid, secret_key, attribute_name))
 
-        metadata = json.dumps({
+        meta_dict = {
             "attribute": attribute_name,
             "public_key": public_key.serialize().encode('base64')
-        })
+        }
+        meta_dict.update(metadata)
+        metadata = json.dumps(meta_dict)
 
         global_time = self.claim_global_time()
         auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
@@ -118,15 +120,17 @@ class AttestationCommunity(Community):
         peer = Peer(auth.public_key_bin, source_address)
 
         metadata = json.loads(payload.metadata)
+        attribute = metadata.pop('attribute')
+        pubkey_b64 = metadata.pop('public_key')
 
-        value = yield self.attestation_request_callbacks[0](peer, metadata['attribute'])
+        value = yield self.attestation_request_callbacks[0](peer, attribute, metadata)
         if value is None:
             return
 
-        PK = BonehPublicKey.unserialize(metadata['public_key'].decode('base64'))
+        PK = BonehPublicKey.unserialize(pubkey_b64.decode('base64'))
         attestation_blob = attest_sha256_4(PK, value).serialize()
 
-        self.attestation_request_callbacks[1](peer, metadata['attribute'], sha1(attestation_blob).digest())
+        self.attestation_request_callbacks[1](peer, attribute, sha1(attestation_blob).digest())
 
         self.send_attestation(source_address, attestation_blob)
 
