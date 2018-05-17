@@ -25,9 +25,10 @@ class TestCommunity(TestBase):
         """
         Check if the request_attestation callback is correctly called.
         """
-        def f(peer, attribute_name):
+        def f(peer, attribute_name, metadata):
             self.assertEqual(peer.address, self.nodes[1].endpoint.wan_address)
             self.assertEqual(attribute_name, "MyAttribute")
+            self.assertDictEqual(metadata, {})
 
             f.called = True
         f.called = False
@@ -39,6 +40,36 @@ class TestCommunity(TestBase):
         self.nodes[1].overlay.request_attestation(self.nodes[0].overlay.my_peer,
                                                   "MyAttribute",
                                                   TestCommunity.private_key)
+
+        yield self.deliver_messages()
+
+        self.assertTrue(f.called)
+        # Request for attribute attestation goes unanswered
+        self.nodes[1].overlay.request_cache.clear()
+
+    @twisted_wrapper
+    def test_request_attestation_callback_metadata(self):
+        """
+        Check if the request_attestation callback is correctly called with metadata.
+        """
+
+        def f(peer, attribute_name, metadata):
+            self.assertEqual(peer.address, self.nodes[1].endpoint.wan_address)
+            self.assertEqual(attribute_name, "MyAttribute")
+            self.assertDictEqual(metadata, {'test': 123})
+
+            f.called = True
+
+        f.called = False
+
+        yield self.introduce_nodes()
+
+        self.nodes[0].overlay.set_attestation_request_callback(f)
+
+        self.nodes[1].overlay.request_attestation(self.nodes[0].overlay.my_peer,
+                                                  "MyAttribute",
+                                                  TestCommunity.private_key,
+                                                  {'test': 123})
 
         yield self.deliver_messages()
 
@@ -60,7 +91,7 @@ class TestCommunity(TestBase):
 
         yield self.introduce_nodes()
 
-        self.nodes[0].overlay.set_attestation_request_callback(lambda x, y: y)
+        self.nodes[0].overlay.set_attestation_request_callback(lambda x, y, z: y)
         self.nodes[0].overlay.set_attestation_request_complete_callback(f)
 
         self.nodes[1].overlay.request_attestation(self.nodes[0].overlay.my_peer,
