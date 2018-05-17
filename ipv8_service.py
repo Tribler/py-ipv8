@@ -45,7 +45,7 @@ class IPv8(object):
         if endpoint_override:
             self.endpoint = endpoint_override
         else:
-            self.endpoint = UDPEndpoint(configuration['port'])
+            self.endpoint = UDPEndpoint(port=configuration['port'], ip=configuration['address'])
             self.endpoint.open()
 
         self.network = Network()
