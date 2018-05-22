@@ -69,6 +69,7 @@ class AttestationEndpoint(resource.Resource):
 
     def render_GET(self, request):
         """
+        type=drop_identity
         type=outstanding -> [(mid_b64, attribute_name)]
         type=verification_output -> {hash_b64: [(value_b64, match)]}
         type=peers -> [mid_b64]
@@ -98,6 +99,11 @@ class AttestationEndpoint(resource.Resource):
             if peer:
                 blocks = self.identity_overlay.persistence.get_latest_blocks(peer.public_key.key_to_bin(), 200)
                 return json.dumps([(b.transaction["name"], b64encode(b.transaction["hash"])) for b in blocks])
+        if request.args['type'][0] == 'drop_identity':
+            self.identity_overlay.persistence.execute('DELETE FROM blocks')
+            self.identity_overlay.persistence.commit()
+            self.attestation_overlay.database.execute('DELETE FROM %s' % self.attestation_overlay.database.db_name)
+            self.attestation_overlay.database.commit()
         return ""
 
     def render_POST(self, request):
