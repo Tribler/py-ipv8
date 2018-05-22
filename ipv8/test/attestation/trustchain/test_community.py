@@ -349,6 +349,10 @@ class TestTrustChainCommunity(TestBase):
         node3 = self.create_node()
         node3.my_peer.address = node3.endpoint.wan_address
         self.nodes.append(node3)
+        # Disable broadcasting to others on signing (we don't want to test that here)
+        for node in self.nodes:
+            node.overlay.broadcast_block = False
+
         my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
         his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
         node3_pubkey = self.nodes[2].overlay.my_peer.public_key.key_to_bin()
