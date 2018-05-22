@@ -132,8 +132,10 @@ class TestBase(unittest.TestCase):
     @inlineCallbacks
     def introduce_nodes(self):
         for node in self.nodes:
-            node.discovery.take_step()
-        yield self.sleep()
+            for other in self.nodes:
+                if other != node:
+                    node.overlay.walk_to(other.endpoint.wan_address)
+        yield self.deliver_messages()
 
     def temporary_directory(self):
         d = os.path.join("temp", self.__class__.__name__ + str(int(time.time())))
