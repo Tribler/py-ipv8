@@ -88,6 +88,7 @@ class AttestationEndpoint(resource.Resource):
                 formatted[b64encode(k)] = [(b64encode(a), m) for a, m in v]
             return json.dumps(formatted)
         if request.args['type'][0] == 'peers':
+            print("################# HERE IN THE ATTESTATION ENDPOINT #################")
             peers = self.session.network.get_peers_for_service(self.identity_overlay.master_peer.mid)
             return json.dumps([b64encode(p.mid) for p in peers])
         if request.args['type'][0] == 'attributes':
