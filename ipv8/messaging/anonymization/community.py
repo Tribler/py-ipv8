@@ -207,7 +207,7 @@ class TunnelCommunity(Community):
 
     def do_circuits(self):
         for circuit_length, num_circuits in self.circuits_needed.items():
-            num_to_build = num_circuits - len(self.data_circuits(circuit_length))
+            num_to_build = max(0, num_circuits - len(self.data_circuits(circuit_length)))
             self.logger.info("want %d data circuits of length %d", num_to_build, circuit_length)
             for _ in range(num_to_build):
                 if not self.create_circuit(circuit_length):
