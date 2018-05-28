@@ -1,5 +1,5 @@
-
 from twisted.internet import reactor
+from twisted.internet.defer import inlineCallbacks
 from twisted.web.client import Agent, readBody
 from ipv8.test.REST.rtest.peer_communication import GetStyleRequests, RequestException, PostStyleRequests
 from twisted.web.http_headers import Headers
@@ -13,6 +13,7 @@ class HTTPRequester(object):
     def __init__(self):
         self._agent = Agent(reactor)
 
+    @inlineCallbacks
     def make_request(self, url, request_type, arguments=None, on_complete_callback=None):
         """
         Forward an HTTP request of the specified type to a url, with the specified set of arguments.
@@ -39,7 +40,7 @@ class HTTPRequester(object):
             Headers({'User-Agent': ['Twisted Web Client Example'],
                      'Content-Type': ['text/x-greeting']}),
             None)
-        return d.addCallback(on_complete_callback)
+        yield d.addCallback(on_complete_callback)
 
     @staticmethod
     def get_access_parameters(param_dict):
@@ -76,8 +77,10 @@ class HTTPGetRequester(GetStyleRequests, HTTPRequester):
     """
 
     def __init__(self):
-        super(HTTPGetRequester, self).__init__()
+        GetStyleRequests.__init__(self)
+        HTTPRequester.__init__(self)
 
+    @inlineCallbacks
     def make_outstanding(self, param_dict):
         """
         Forward a request for outstanding attestation requests.
@@ -94,12 +97,13 @@ class HTTPGetRequester(GetStyleRequests, HTTPRequester):
         """
         interface, port, endpoint = HTTPRequester.get_access_parameters(param_dict)
 
-        self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
-                          'GET',
-                          {'type': 'outstanding'},
-                          param_dict.get('callback', None)
-                          )
+        yield self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
+                                'GET',
+                                {'type': 'outstanding'},
+                                param_dict.get('callback', None)
+                                )
 
+    @inlineCallbacks
     def make_verification_output(self, param_dict):
         """
         Forward a request for the verification outputs.
@@ -116,12 +120,13 @@ class HTTPGetRequester(GetStyleRequests, HTTPRequester):
         """
         interface, port, endpoint = HTTPRequester.get_access_parameters(param_dict)
 
-        self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
-                          'GET',
-                          {'type': 'verification_output'},
-                          param_dict.get('callback', None)
-                          )
+        yield self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
+                                'GET',
+                                {'type': 'verification_output'},
+                                param_dict.get('callback', None)
+                                )
 
+    @inlineCallbacks
     def make_peers(self, param_dict):
         """
         Forward a request for the known peers in the network.
@@ -138,12 +143,13 @@ class HTTPGetRequester(GetStyleRequests, HTTPRequester):
         """
         interface, port, endpoint = HTTPRequester.get_access_parameters(param_dict)
 
-        self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
-                          'GET',
-                          {'type': 'peers'},
-                          param_dict.get('callback', None)
-                          )
+        yield self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
+                                'GET',
+                                {'type': 'peers'},
+                                param_dict.get('callback', None)
+                                )
 
+    @inlineCallbacks
     def make_attributes(self, param_dict):
         """
         Forward a request for the known peers in the network.
@@ -164,20 +170,21 @@ class HTTPGetRequester(GetStyleRequests, HTTPRequester):
         request_parameters = param_dict.get('request_parameters', dict())
         request_parameters.update({'type': 'attributes'})
 
-        self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
-                          'GET',
-                          request_parameters,
-                          param_dict.get('callback', None)
-                          )
+        yield self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
+                                'GET',
+                                request_parameters,
+                                param_dict.get('callback', None)
+                                )
 
+    @inlineCallbacks
     def make_drop_identity(self, param_dict):
         interface, port, endpoint = HTTPRequester.get_access_parameters(param_dict)
 
-        self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
-                          'GET',
-                          {'type': 'drop_identity'},
-                          param_dict.get('callback', None)
-                          )
+        yield self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
+                                'GET',
+                                {'type': 'drop_identity'},
+                                param_dict.get('callback', None)
+                                )
 
 
 class HTTPPostRequester(PostStyleRequests, HTTPRequester):
@@ -186,8 +193,10 @@ class HTTPPostRequester(PostStyleRequests, HTTPRequester):
     """
 
     def __init__(self):
-        super(HTTPPostRequester, self).__init__()
+        PostStyleRequests.__init__(self)
+        HTTPRequester.__init__(self)
 
+    @inlineCallbacks
     def make_attestation_request(self, param_dict):
         """
         Forward a request for the attestation of an attribute.
@@ -212,23 +221,25 @@ class HTTPPostRequester(PostStyleRequests, HTTPRequester):
 
         # Add the request parameters one-by-one; if required parameter is missing, then raise error
         if 'attribute_name' in param_dict:
-            request_parameters.update(param_dict.get('attribute_name', dict()))
+            request_parameters['attribute_name'] = param_dict['attribute_name']
         else:
             raise RequestException("Malformed request: did not specify the attribute_name")
 
         if 'mid' in param_dict:
-            request_parameters.update(param_dict.get('mid', dict()))
+            request_parameters['mid'] = param_dict['mid']
         else:
             raise RequestException("Malformed request: did not specify the attester's mid")
 
-        request_parameters.update(param_dict.get('metadata', dict()))
+        if 'metadata' in param_dict:
+            request_parameters['metadata'] = param_dict['metadata']
 
-        self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
-                          'POST',
-                          request_parameters,
-                          param_dict.get('callback', None)
-                          )
+        yield self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
+                                'POST',
+                                request_parameters,
+                                param_dict.get('callback', None)
+                                )
 
+    @inlineCallbacks
     def make_attest(self, param_dict):
         """
         Forward a request which attests an attestation request.
@@ -253,27 +264,28 @@ class HTTPPostRequester(PostStyleRequests, HTTPRequester):
 
         # Add the request parameters one-by-one; if required parameter is missing, then raise error
         if 'attribute_name' in param_dict:
-            request_parameters.update(param_dict.get('attribute_name', dict()))
+            request_parameters['attribute_name'] = param_dict['attribute_name']
         else:
             raise RequestException("Malformed request: did not specify the attribute_name")
 
         if 'mid' in param_dict:
-            request_parameters.update(param_dict.get('mid', dict()))
+            request_parameters['mid'] = param_dict['mid']
         else:
             raise RequestException("Malformed request: did not specify the attestee's mid")
 
         if 'attribute_value' in param_dict:
-            request_parameters.update(param_dict.get('attribute_value', dict()))
+            request_parameters['attribute_value'] = param_dict['attribute_value']
         else:
             raise RequestException("Malformed request: did not specify the attribute_value, i.e. the attestation"
                                    "blob hash")
 
-        self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
-                          'POST',
-                          request_parameters,
-                          param_dict.get('callback', None)
-                          )
+        yield self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
+                                'POST',
+                                request_parameters,
+                                param_dict.get('callback', None)
+                                )
 
+    @inlineCallbacks
     def make_verify(self, param_dict):
         """
         Forward a request which demands the verification of an attestation
@@ -299,22 +311,22 @@ class HTTPPostRequester(PostStyleRequests, HTTPRequester):
 
         # Add the request parameters one-by-one; if required parameter is missing, then raise error
         if 'attribute_hash' in param_dict:
-            request_parameters.update(param_dict.get('attribute_hash', dict()))
+            request_parameters['attribute_hash'] = param_dict['attribute_hash']
         else:
             raise RequestException("Malformed request: did not specify the attribute_hash")
 
         if 'mid' in param_dict:
-            request_parameters.update(param_dict.get('mid', dict()))
+            request_parameters['mid'] = param_dict['mid']
         else:
             raise RequestException("Malformed request: did not specify the verifier's mid")
 
         if 'attribute_values' in param_dict:
-            request_parameters.update(param_dict.get('attribute_values', dict()))
+            request_parameters['attribute_values'] = param_dict['attribute_values']
         else:
             raise RequestException("Malformed request: did not specify the attribute_values")
 
-        self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
-                          'POST',
-                          request_parameters,
-                          param_dict.get('callback', None)
-                          )
+        yield self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
+                                'POST',
+                                request_parameters,
+                                param_dict.get('callback', None)
+                                )

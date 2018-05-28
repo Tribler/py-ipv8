@@ -1,6 +1,7 @@
 import logging
 import os
 import time
+from twisted.internet.defer import inlineCallbacks
 from twisted.internet.defer import returnValue
 from twisted.trial import unittest
 
@@ -8,6 +9,7 @@ from ipv8.configuration import get_default_configuration
 from ipv8.test.REST.rtest.peer_communication import GetStyleRequests, PostStyleRequests
 from ipv8.test.REST.rtest.rest_peer_communication import HTTPGetRequester, HTTPPostRequester
 from ipv8.test.REST.rtest.test_rest_api_server import RestAPITestWrapper
+from ipv8.test.util import twisted_wrapper
 from ipv8_service import IPv8
 
 
@@ -109,6 +111,7 @@ class SingleServerSetup(unittest.TestCase):
         self.rest_manager = RestAPITestWrapper(ipv8, self._port, self._interface)
         self.rest_manager.start()
 
+
     def tearDown(self):
         # Call super method
         super(SingleServerSetup, self).tearDown()
@@ -162,6 +165,7 @@ class RequestTest(SingleServerSetup):
         # Return the peer list
         returnValue(outstanding_requests)
 
+    @twisted_wrapper
     def test_during_development(self):
         param_dict = {
             'port': 8086,
@@ -170,4 +174,5 @@ class RequestTest(SingleServerSetup):
         }
 
         print("HERE")
-        self._get_style_requests.make_peers(param_dict)
+        yield self._get_style_requests.make_peers(param_dict)
+        # reactor.run()

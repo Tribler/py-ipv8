@@ -1,5 +1,6 @@
 
 from abc import abstractmethod
+from twisted.internet.defer import inlineCallbacks
 
 
 class PostStyleRequests:
@@ -8,6 +9,7 @@ class PostStyleRequests:
         pass
 
     @abstractmethod
+    @inlineCallbacks
     def make_attestation_request(self, param_dict):
         """
         Generate an attestation request
@@ -18,6 +20,7 @@ class PostStyleRequests:
         pass
 
     @abstractmethod
+    @inlineCallbacks
     def make_attest(self, param_dict):
         """
         Generate an attestation
@@ -28,6 +31,7 @@ class PostStyleRequests:
         pass
 
     @abstractmethod
+    @inlineCallbacks
     def make_verify(self, param_dict):
         """
         Generate an attestation verification request
@@ -44,6 +48,7 @@ class GetStyleRequests:
         pass
 
     @abstractmethod
+    @inlineCallbacks
     def make_outstanding(self, param_dict):
         """
         Generate a request asking for the outstanding attestation requests
@@ -54,6 +59,7 @@ class GetStyleRequests:
         pass
 
     @abstractmethod
+    @inlineCallbacks
     def make_verification_output(self, param_dict):
         """
         Generate a request asking for the outputs of the verification processes
@@ -64,6 +70,7 @@ class GetStyleRequests:
         pass
 
     @abstractmethod
+    @inlineCallbacks
     def make_peers(self, param_dict):
         """
         Generate a request asking for the known peers in the network
@@ -74,6 +81,7 @@ class GetStyleRequests:
         pass
 
     @abstractmethod
+    @inlineCallbacks
     def make_attributes(self, param_dict):
         """
         Generate a request asking for the known peers in the network
@@ -84,6 +92,7 @@ class GetStyleRequests:
         pass
 
     @abstractmethod
+    @inlineCallbacks
     def make_drop_identity(self, param_dict):
         """
         Generate a request for dropping an identity
