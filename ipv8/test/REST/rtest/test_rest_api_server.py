@@ -16,26 +16,26 @@ class RestAPITestWrapper(TaskManager):
     def __init__(self, session, port=8085, interface='127.0.0.1'):
         super(RestAPITestWrapper, self).__init__()
         self._logger = logging.getLogger(self.__class__.__name__)
-        self.session = session
-        self.site = None
-        self.root_endpoint = None
-        self.port = port
-        self.interface = interface
+        self._session = session
+        self._site = None
+        self._root_endpoint = None
+        self._port = port
+        self._interface = interface
 
     def start(self):
         """
         Starts the HTTP API with the listen port as specified in the session configuration.
         """
-        self.root_endpoint = RootEndpoint(self.session)
-        site_aux = server.Site(resource=self.root_endpoint)
-        site_aux.requestFactory = RESTRequest
-        self.site = reactor.listenTCP(8085, site_aux, interface='localhost')
+        self._root_endpoint = RootEndpoint(self._session)
+        self._site = server.Site(resource=self._root_endpoint)
+        self._site.requestFactory = RESTRequest
+        self._site = reactor.listenTCP(self._port, self._site, interface=self._interface)
 
     def stop(self):
         """
         Stop the HTTP API and return a deferred that fires when the server has shut down.
         """
-        return maybeDeferred(self.site.stopListening)
+        return maybeDeferred(self._site.stopListening)
 
     def get_access_parameters(self):
         """
@@ -44,7 +44,7 @@ class RestAPITestWrapper(TaskManager):
         :return: the dictionary of parameters used to access the peer
         """
         return {
-            'port': self.port,
-            'interface': self.interface,
-            'url': 'http://{0}:{1}/attestation'.format(self.interface, self.port)
+            'port': self._port,
+            'interface': self._interface,
+            'url': 'http://{0}:{1}/attestation'.format(self._interface, self._port)
         }
