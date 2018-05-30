@@ -1,23 +1,20 @@
-import logging
-import os
 import time
 import unittest
 from base64 import b64encode
 from twisted.internet.defer import returnValue, inlineCallbacks
 from urllib import quote
 
-from ipv8.configuration import get_default_configuration
 from ipv8.test.REST.rtest.peer_communication import GetStyleRequests, PostStyleRequests
+from ipv8.test.REST.rtest.peer_interactive_behavior import AndroidTestPeer
 from ipv8.test.REST.rtest.rest_peer_communication import HTTPGetRequester, HTTPPostRequester
-from ipv8.test.REST.rtest.test_peer import TemporaryPeer
-from ipv8.test.REST.rtest.test_rest_api_server import RestAPITestWrapper
+from ipv8.test.REST.rtest.test_rest_api_peer import TestPeer
 from ipv8.test.util import twisted_wrapper
-from ipv8_service import IPv8
 
 
 class SingleServerSetup(unittest.TestCase):
     """
-    Test class which defines an environment with one well-known server
+    Test class which defines an environment with one well-known peer. This should be extended by other subclasses,
+    which implement specific test cases.
     """
 
     def __init__(self, *args, **kwargs):
@@ -45,33 +42,9 @@ class SingleServerSetup(unittest.TestCase):
         :param get_style_requests: a subclass of the
         :param post_style_requests:
         """
-        self._logger = logging.getLogger(self.__class__.__name__)
 
-        self._rest_manager = None
-
-        self._port = port
-        self._interface = interface
-
-        self._path = path
-        self._configuration = configuration
-
-        # Check to see if we've received a custom configuration
-        if configuration is None:
-            # Create a default configuration
-            self._configuration = get_default_configuration()
-
-            self._configuration['logger'] = {'level': "ERROR"}
-
-            overlays = ['AttestationCommunity', 'IdentityCommunity']
-            self._configuration['overlays'] = [o for o in self._configuration['overlays'] if o['class'] in overlays]
-            for o in self._configuration['overlays']:
-                o['walkers'] = [{
-                    'strategy': "RandomWalk",
-                    'peers': 20,
-                    'init': {
-                        'timeout': 60.0
-                    }
-                }]
+        # Create a so called master (well-known) peer, which should be the peer to which the requests are directed
+        self._master_peer = TestPeer(path, port, interface, configuration)
 
         # Check to see if the user has provided request generators
         if get_style_requests:
@@ -90,36 +63,16 @@ class SingleServerSetup(unittest.TestCase):
             # If no post style request provided, default to the HTTP implementation
             self._post_style_requests = HTTPPostRequester()
 
-    @staticmethod
-    def _create_working_directory(path):
-        """
-        Creates a dir at the specified path, if not previously there; otherwise deletes the dir, and makes a new one.
-
-        :param path: the location at which the dir is created
-        :return: None
-        """
-        if os.path.isdir(path):
-            import shutil
-            shutil.rmtree(path)
-        os.mkdir(path)
-
     def setUp(self):
         # Call super method
         super(SingleServerSetup, self).setUp()
-
-        SingleServerSetup._create_working_directory(self._path)
-        os.chdir(self._path)
-
-        ipv8 = IPv8(self._configuration)
-        os.chdir(os.path.dirname(__file__))
-        self._rest_manager = RestAPITestWrapper(ipv8, self._port, self._interface)
-        self._rest_manager.start()
 
     def tearDown(self):
         # Call super method
         super(SingleServerSetup, self).tearDown()
 
-        self._rest_manager.stop()
+        # Stop the master peer
+        self._master_peer.stop()
 
 
 class RequestTest(SingleServerSetup):
@@ -171,14 +124,14 @@ class RequestTest(SingleServerSetup):
     def test_general_scenario(self):
         from json import loads
 
-        temp_peer = TemporaryPeer()
-        temp_peer.start()
-
         param_dict = {
             'port': 8086,
             'interface': '127.0.0.1',
             'endpoint': 'attestation'
         }
+
+        client_peer = AndroidTestPeer(param_dict, 'client_peer', 9876)
+        client_peer.start()
 
         try:
             value = yield self.wait_for_peers(param_dict)
