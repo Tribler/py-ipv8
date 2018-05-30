@@ -127,8 +127,7 @@ class TestHiddenServices(TestBase):
         self.nodes[node_nr].network.add_verified_peer(public_peer)
         self.nodes[node_nr].network.discover_services(public_peer, exit_node.overlay.master_peer.mid)
         self.nodes[node_nr].overlay.update_exit_candidates(public_peer, True)
-        self.nodes[node_nr].overlay.build_tunnels(1)
-        yield self.deliver_messages()
+        yield self.nodes[node_nr].overlay.build_tunnels(1)
         exit_sockets = exit_node.overlay.exit_sockets
         for exit_socket in exit_sockets:
             exit_sockets[exit_socket] = MockTunnelExitSocket(exit_sockets[exit_socket])

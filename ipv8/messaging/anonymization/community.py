@@ -8,7 +8,7 @@ import random
 
 from traceback import format_exception
 from cryptography.exceptions import InvalidTag
-from twisted.internet.defer import Deferred
+from twisted.internet.defer import fail, DeferredList
 from twisted.internet.task import LoopingCall
 
 from .caches import *
@@ -178,7 +178,6 @@ class TunnelCommunity(Community):
         self.relay_session_keys = {}
         self.exit_sockets = {}
         self.circuits_needed = defaultdict(int)
-        self.num_hops_by_downloads = defaultdict(int)  # Keeps track of the number of hops required by downloads
         self.exit_candidates = {}  # Keeps track of the candidates that want to be an exit node
         self.selection_strategy = RoundRobin(self)
         self.creation_time = time.time()
@@ -223,19 +222,18 @@ class TunnelCommunity(Community):
         return circuit_id
 
     def do_circuits(self):
+        create_deferreds = []
         for circuit_length, num_circuits in self.circuits_needed.items():
             num_to_build = max(0, num_circuits - len(self.data_circuits(circuit_length)))
             self.logger.info("Want %d data circuits of length %d", num_to_build, circuit_length)
             for _ in range(num_to_build):
-                if not self.create_circuit(circuit_length):
-                    self.logger.info("circuit creation of %d circuits failed, no need to continue" %
-                                             num_to_build)
-                    break
+                create_deferreds.append(self.create_circuit(circuit_length).addErrback(lambda _: None))
         self.do_remove()
+        return create_deferreds
 
     def tunnels_ready(self, hops):
         if hops > 0:
-            if self.num_hops_by_downloads[hops] < 1 or self.circuits_needed[hops] < 1:
+            if self.circuits_needed[hops] < 1:
                 # if nothing sets the need for this number of tunnels they will eventually die. So the tunnels for this
                 # number of hops is not in fact ready, and build_tunnels should be called.
                 return 0
@@ -246,11 +244,17 @@ class TunnelCommunity(Community):
             return 1 if self.active_data_circuits(hops) else 0
         return 1
 
-    def build_tunnels(self, hops):
+    def build_tunnels(self, hops, return_list=False):
+        """
+        Trigger tunnel creation for a specified amount of hops.
+        Optionally return a list of deferreds (not a DeferredList!) to be able to perform actions on these
+        individual deferreds.
+        """
         if hops > 0:
-            self.num_hops_by_downloads[hops] += 1
             self.circuits_needed[hops] = max(1, self.settings.max_circuits, self.circuits_needed[hops])
-            self.do_circuits()
+            deferreds = self.do_circuits()
+            return deferreds if return_list else DeferredList(deferreds, consumeErrors=True)
+        return succeed(None)
 
     def do_remove(self):
         # Remove circuits that are inactive / are too old / have transferred too many bytes.
@@ -293,8 +297,14 @@ class TunnelCommunity(Community):
         return [p for p in self.network.get_peers_for_service(self.master_peer.mid)
                 if self.crypto.is_key_compatible(p.public_key)]
 
-    def create_circuit(self, goal_hops, ctype=CIRCUIT_TYPE_DATA, callback=None, required_exit=None, info_hash=None):
-
+    def create_circuit(self, goal_hops, ctype=CIRCUIT_TYPE_DATA, required_exit=None):
+        """
+        Create a circuit of a given length.
+        @param goal_hops: the number of hops in the circuit, including the exit node
+        @param ctype: the type of the circuit
+        @param required_exit: optional required exit candidate
+        @return: a deferred that fires when the circuit is constructed
+        """
         self.logger.info("Creating a new circuit of length %d (type: %s)", goal_hops, ctype)
 
         # Determine the last hop
@@ -311,7 +321,7 @@ class TunnelCommunity(Community):
 
         if not required_exit:
             self.logger.info("Could not create circuit, no available exit-nodes")
-            return False
+            return fail(RuntimeError("No exit nodes available"))
 
         # Determine the first hop
         if goal_hops == 1 and required_exit:
@@ -326,11 +336,11 @@ class TunnelCommunity(Community):
 
         if not first_hop:
             self.logger.info("Could not create circuit, no first hop available")
-            return False
+            return fail(RuntimeError("No first hop available"))
 
         # Finally, construct the Circuit object and send the CREATE message
         circuit_id = self._generate_circuit_id(first_hop.address)
-        circuit = Circuit(circuit_id, first_hop, goal_hops, ctype, callback, required_exit, info_hash)
+        circuit = Circuit(circuit_id, first_hop, goal_hops, ctype, required_exit)
 
         self.request_cache.add(CircuitRequestCache(self, circuit))
 
@@ -349,7 +359,7 @@ class TunnelCommunity(Community):
                                                                        self.my_peer.public_key.key_to_bin(),
                                                                        circuit.unverified_hop.dh_first_part)))
 
-        return circuit_id
+        return circuit.created_deferred
 
     def remove_circuit(self, circuit_id, additional_info='', remove_now=False, destroy=False):
         """
@@ -632,13 +642,7 @@ class TunnelCommunity(Community):
 
         elif circuit.state == CIRCUIT_STATE_READY:
             self.request_cache.pop(u"anon-circuit", circuit.circuit_id)
-
-            # Execute callback
-            if circuit.callback:
-                circuit.callback(circuit)
-                circuit.callback = None
-        else:
-            return
+            reactor.callFromThread(circuit.created_deferred.callback, circuit)
 
     def update_exit_candidates(self, peer, become_exit):
         public_key = peer.public_key

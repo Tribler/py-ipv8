@@ -7,7 +7,7 @@ import time
 from twisted.internet import reactor
 from twisted.internet.error import MessageLengthError
 from twisted.internet.protocol import DatagramProtocol
-from twisted.internet.defer import inlineCallbacks, maybeDeferred, returnValue, succeed
+from twisted.internet.defer import inlineCallbacks, maybeDeferred, returnValue, succeed, Deferred
 
 from ...keyvault.public.libnaclkey import LibNaCLPK
 from ...taskmanager import TaskManager
@@ -189,14 +189,13 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
 
 class Circuit(Tunnel):
 
-    def __init__(self, circuit_id, peer, goal_hops=0, ctype=CIRCUIT_TYPE_DATA,
-                 callback=None, required_exit=None, info_hash=None):
+    def __init__(self, circuit_id, peer, goal_hops=0, ctype=CIRCUIT_TYPE_DATA, required_exit=None):
         super(Circuit, self).__init__(circuit_id, peer)
         self.goal_hops = goal_hops
         self.ctype = ctype
-        self.callback = callback
+        self.created_deferred = Deferred()
         self.required_exit = required_exit
-        self.info_hash = info_hash
+        self.hs_session_keys = None
 
         self._closing = False
         self._hops = []

@@ -96,10 +96,7 @@ class TestTunnelCommunity(TestBase):
 
         # Let node 0 build tunnels of 1 hop (settings.min_circuits = settings.max_circuits = 1)
         # It should use node 1 for this
-        self.nodes[0].overlay.build_tunnels(1)
-
-        # Let the circuit creation commence
-        yield self.deliver_messages()
+        yield self.nodes[0].overlay.build_tunnels(1)
 
         # Node 0 should now have all of its required 1 hop circuits (1.0/100%)
         self.assertEqual(self.nodes[0].overlay.tunnels_ready(1), 1.0)
@@ -113,10 +110,7 @@ class TestTunnelCommunity(TestBase):
         """
         self.nodes[1].overlay.settings.become_exitnode = False
         yield self.introduce_nodes()
-        self.nodes[0].overlay.build_tunnels(1)
-
-        # Attempt circuit creation
-        yield self.deliver_messages()
+        yield self.nodes[0].overlay.build_tunnels(1)
 
         # Node 0 should now have no 1 hop circuits (0.0/0%)
         self.assertEqual(self.nodes[0].overlay.tunnels_ready(1), 0.0)
@@ -152,8 +146,7 @@ class TestTunnelCommunity(TestBase):
         self.add_node_to_experiment(self.create_node())
         self.nodes[2].overlay.settings.become_exitnode = True
         yield self.introduce_nodes()
-        self.nodes[0].overlay.build_tunnels(2)
-        yield self.deliver_messages()
+        yield self.nodes[0].overlay.build_tunnels(2)
 
         # Destroy the circuit we just created using a destroy message
         yield self.nodes[0].overlay.remove_circuit(self.nodes[0].overlay.circuits.keys()[0], destroy=True)
@@ -169,8 +162,7 @@ class TestTunnelCommunity(TestBase):
         self.add_node_to_experiment(self.create_node())
         self.nodes[2].overlay.settings.become_exitnode = True
         yield self.introduce_nodes()
-        self.nodes[0].overlay.build_tunnels(2)
-        yield self.deliver_messages()
+        yield self.nodes[0].overlay.build_tunnels(2)
 
         self.nodes[2].overlay.remove_exit_socket(self.nodes[2].overlay.exit_sockets.keys()[0], destroy=True)
         yield self.deliver_messages()
@@ -185,8 +177,7 @@ class TestTunnelCommunity(TestBase):
         self.add_node_to_experiment(self.create_node())
         self.nodes[2].overlay.settings.become_exitnode = True
         yield self.introduce_nodes()
-        self.nodes[0].overlay.build_tunnels(2)
-        yield self.deliver_messages()
+        yield self.nodes[0].overlay.build_tunnels(2)
 
         self.nodes[1].overlay.remove_relay(self.nodes[1].overlay.relay_from_to.keys()[0], destroy=True)
         yield self.deliver_messages()
@@ -200,8 +191,7 @@ class TestTunnelCommunity(TestBase):
         """
         self.nodes[1].overlay.settings.become_exitnode = True
         yield self.introduce_nodes()
-        self.nodes[0].overlay.build_tunnels(1)
-        yield self.deliver_messages()
+        yield self.nodes[0].overlay.build_tunnels(1)
 
         # Destroy a circuit which does not exist (circuit_id + 1)
         # This should not affect other circuits
@@ -226,8 +216,7 @@ class TestTunnelCommunity(TestBase):
         # Build a tunnel
         self.nodes[1].overlay.settings.become_exitnode = True
         yield self.introduce_nodes()
-        self.nodes[0].overlay.build_tunnels(1)
-        yield self.deliver_messages()
+        yield self.nodes[0].overlay.build_tunnels(1)
 
         # Construct a data packet
         prefix = '\x00' * 23
@@ -257,8 +246,7 @@ class TestTunnelCommunity(TestBase):
         # Build a tunnel
         self.nodes[1].overlay.settings.become_exitnode = True
         yield self.introduce_nodes()
-        self.nodes[0].overlay.build_tunnels(2)
-        yield self.deliver_messages()
+        yield self.nodes[0].overlay.build_tunnels(2)
 
         self.assertEqual(self.nodes[0].overlay.tunnels_ready(2), 1.0)
 
@@ -275,8 +263,7 @@ class TestTunnelCommunity(TestBase):
         # Build a tunnel
         self.nodes[1].overlay.settings.become_exitnode = True
         yield self.introduce_nodes()
-        self.nodes[0].overlay.build_tunnels(3)
-        yield self.deliver_messages()
+        yield self.nodes[0].overlay.build_tunnels(3)
 
         self.assertEqual(self.nodes[0].overlay.tunnels_ready(3), 1.0)
 
@@ -294,10 +281,7 @@ class TestTunnelCommunity(TestBase):
 
         # Let node 0 build tunnels of 1 hop (settings.min_circuits = settings.max_circuits = 2)
         # It should use node 1 and 2 for this
-        self.nodes[0].overlay.build_tunnels(1)
-
-        # Let the circuit creation commence
-        yield self.deliver_messages()
+        yield self.nodes[0].overlay.build_tunnels(1)
 
         # Node 0 should now have all of its required 1 hop circuits (1.0/100%)
         self.assertEqual(self.nodes[0].overlay.tunnels_ready(1), 1.0)

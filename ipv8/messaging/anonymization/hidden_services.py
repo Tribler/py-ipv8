@@ -31,7 +31,6 @@ class HiddenTunnelCommunity(TunnelCommunity):
 
         self.intro_point_for = {}
         self.rendezvous_point_for = {}
-        self.infohash_rp_circuits = defaultdict(list)
         self.infohash_ip_circuits = defaultdict(list)
         self.infohash_pex = defaultdict(set)
 
@@ -320,16 +319,12 @@ class HiddenTunnelCommunity(TunnelCommunity):
         # Since it is the seeder that chose the rendezvous_point, we're essentially losing 1 hop of anonymity
         # at the downloader end. To compensate we add an extra hop.
         required_exit = Peer(rp_info[2], rp_info[:2])
-        self.create_circuit(self.hops[cache.info_hash] + 1,
-                            CIRCUIT_TYPE_RENDEZVOUS,
-                            callback=lambda circuit, cookie=cookie, session_keys=session_keys,
-                            info_hash=cache.info_hash, sock_addr=cache.sock_addr: self.create_link_e2e(circuit,
-                                                                                                       cookie,
-                                                                                                       session_keys,
-                                                                                                       info_hash,
-                                                                                                       sock_addr),
-                            required_exit=required_exit,
-                            info_hash=cache.info_hash)
+
+        def on_rendezvous_circuit_created(circuit):
+            self.create_link_e2e(circuit, cookie, session_keys, cache.info_hash, cache.sock_addr)
+
+        self.create_circuit(self.hops[cache.info_hash] + 1, CIRCUIT_TYPE_RENDEZVOUS, required_exit=required_exit)\
+            .addCallback(on_rendezvous_circuit_created)
 
     def create_link_e2e(self, circuit, cookie, session_keys, info_hash, sock_addr):
         self.my_download_points[circuit.circuit_id] = (info_hash, circuit.goal_hops, sock_addr)
@@ -385,8 +380,9 @@ class HiddenTunnelCommunity(TunnelCommunity):
         if info_hash not in self.session_keys:
             self.session_keys[info_hash] = self.crypto.generate_key(u"curve25519")
 
-        def callback(circuit):
+        def on_ip_circuit_created(circuit):
             # We got a circuit, now let's create an introduction point
+            self.infohash_ip_circuits[info_hash].append((circuit.circuit_id, time.time()))
             circuit_id = circuit.circuit_id
             self.my_intro_points[circuit_id].append((info_hash))
 
@@ -398,11 +394,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         for _ in range(amount):
             # Create a circuit to the introduction point + 1 hop, to prevent the introduction
             # point from knowing what the seeder is seeding
-            circuit_id = self.create_circuit(self.hops[info_hash] + 1,
-                                             CIRCUIT_TYPE_IP,
-                                             callback,
-                                             info_hash=info_hash)
-            self.infohash_ip_circuits[info_hash].append((circuit_id, time.time()))
+            self.create_circuit(self.hops[info_hash] + 1, CIRCUIT_TYPE_IP).addCallback(on_ip_circuit_created)
 
     @tc_lazy_wrapper_unsigned(EstablishIntroPayload)
     def on_establish_intro(self, source_address, payload, circuit_id):
@@ -422,7 +414,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         self.logger.info("Got intro-established from %s", source_address)
 
     def create_rendezvous_point(self, hops, finished_callback, info_hash):
-        def callback(circuit):
+        def on_rp_circuit_created(circuit):
             # We got a circuit, now let's create a rendezvous point
             circuit_id = circuit.circuit_id
             rp = RendezvousPoint(circuit, os.urandom(20), finished_callback)
@@ -433,11 +425,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
                            u'establish-rendezvous', EstablishRendezvousPayload(circuit_id, cache.number, rp.cookie))
 
         # create a new circuit to be used for transferring data
-        circuit_id = self.create_circuit(hops,
-                                         CIRCUIT_TYPE_RP,
-                                         callback,
-                                         info_hash=info_hash)
-        self.infohash_rp_circuits[info_hash].append(circuit_id)
+        self.create_circuit(hops, CIRCUIT_TYPE_RP).addCallback(on_rp_circuit_created)
 
     @tc_lazy_wrapper_unsigned(EstablishRendezvousPayload)
     def on_establish_rendezvous(self, source_address, payload, circuit_id):
