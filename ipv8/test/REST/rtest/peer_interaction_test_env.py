@@ -1,9 +1,11 @@
 import logging
 import os
 import time
+import unittest
+from base64 import b64encode
 from twisted.internet.defer import inlineCallbacks
 from twisted.internet.defer import returnValue
-from twisted.trial import unittest
+from urllib import quote
 
 from ipv8.configuration import get_default_configuration
 from ipv8.test.REST.rtest.peer_communication import GetStyleRequests, PostStyleRequests
@@ -44,6 +46,8 @@ class SingleServerSetup(unittest.TestCase):
         :param post_style_requests:
         """
         self._logger = logging.getLogger(self.__class__.__name__)
+
+        self._rest_manager = None
 
         self._port = port
         self._interface = interface
@@ -108,18 +112,14 @@ class SingleServerSetup(unittest.TestCase):
 
         ipv8 = IPv8(self._configuration)
         os.chdir(os.path.dirname(__file__))
-        self.rest_manager = RestAPITestWrapper(ipv8, self._port, self._interface)
-        self.rest_manager.start()
-
+        self._rest_manager = RestAPITestWrapper(ipv8, self._port, self._interface)
+        self._rest_manager.start()
 
     def tearDown(self):
         # Call super method
         super(SingleServerSetup, self).tearDown()
 
-        self.rest_manager.stop()
-
-    def test_example(self):
-        pass
+        self._rest_manager.stop()
 
 
 class RequestTest(SingleServerSetup):
@@ -166,6 +166,36 @@ class RequestTest(SingleServerSetup):
         returnValue(outstanding_requests)
 
     @twisted_wrapper
+    def test_general_scenario(self):
+        from json import loads
+
+        param_dict = {
+            'port': 8086,
+            'interface': '127.0.0.1',
+            'endpoint': 'attestation'
+        }
+
+        try:
+            value = yield self.wait_for_peers(param_dict)
+            print "Known peers:", value
+            done = False
+            while not done:
+                value = yield self.wait_for_attestation_request(param_dict)
+                value = loads(value)
+                print "Pending attestation request for attester:", value
+                raw_input('PRESS ANY KEY TO CONTINUE')
+                for (identifier, attribute) in value:
+                    param_dict['mid'] = str(identifier).replace("+", "%2B")
+                    param_dict['attribute_name'] = str(attribute)
+                    param_dict['attribute_value'] = quote(b64encode('binarydata')).replace("+", "%2B")
+
+                    yield self._post_style_requests.make_attest(param_dict)
+                    done = True
+        except:
+            import traceback
+            traceback.print_exc()
+
+    @twisted_wrapper
     def test_during_development(self):
         param_dict = {
             'port': 8086,
@@ -173,6 +203,5 @@ class RequestTest(SingleServerSetup):
             'endpoint': 'attestation'
         }
 
-        print("HERE")
-        yield self._get_style_requests.make_peers(param_dict)
-        # reactor.run()
+        result = yield self._get_style_requests.make_peers(param_dict)
+        print "The response body:", result

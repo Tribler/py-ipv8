@@ -1,5 +1,5 @@
 from twisted.internet import reactor
-from twisted.internet.defer import inlineCallbacks
+from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.web.client import Agent, readBody
 from ipv8.test.REST.rtest.peer_communication import GetStyleRequests, RequestException, PostStyleRequests
 from twisted.web.http_headers import Headers
@@ -40,7 +40,9 @@ class HTTPRequester(object):
             Headers({'User-Agent': ['Twisted Web Client Example'],
                      'Content-Type': ['text/x-greeting']}),
             None)
-        yield d.addCallback(on_complete_callback)
+
+        response = yield d.addCallback(on_complete_callback)
+        returnValue(response)
 
     @staticmethod
     def get_access_parameters(param_dict):
@@ -97,11 +99,12 @@ class HTTPGetRequester(GetStyleRequests, HTTPRequester):
         """
         interface, port, endpoint = HTTPRequester.get_access_parameters(param_dict)
 
-        yield self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
-                                'GET',
-                                {'type': 'outstanding'},
-                                param_dict.get('callback', None)
-                                )
+        response = yield self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
+                                           'GET',
+                                           {'type': 'outstanding'},
+                                           param_dict.get('callback', None)
+                                           )
+        returnValue(response)
 
     @inlineCallbacks
     def make_verification_output(self, param_dict):
@@ -120,11 +123,12 @@ class HTTPGetRequester(GetStyleRequests, HTTPRequester):
         """
         interface, port, endpoint = HTTPRequester.get_access_parameters(param_dict)
 
-        yield self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
-                                'GET',
-                                {'type': 'verification_output'},
-                                param_dict.get('callback', None)
-                                )
+        response = yield self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
+                                           'GET',
+                                           {'type': 'verification_output'},
+                                           param_dict.get('callback', None)
+                                           )
+        returnValue(response)
 
     @inlineCallbacks
     def make_peers(self, param_dict):
@@ -143,11 +147,12 @@ class HTTPGetRequester(GetStyleRequests, HTTPRequester):
         """
         interface, port, endpoint = HTTPRequester.get_access_parameters(param_dict)
 
-        yield self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
-                                'GET',
-                                {'type': 'peers'},
-                                param_dict.get('callback', None)
-                                )
+        response = yield self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
+                                           'GET',
+                                           {'type': 'peers'},
+                                           param_dict.get('callback', None)
+                                           )
+        returnValue(response)
 
     @inlineCallbacks
     def make_attributes(self, param_dict):
@@ -170,21 +175,23 @@ class HTTPGetRequester(GetStyleRequests, HTTPRequester):
         request_parameters = param_dict.get('request_parameters', dict())
         request_parameters.update({'type': 'attributes'})
 
-        yield self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
-                                'GET',
-                                request_parameters,
-                                param_dict.get('callback', None)
-                                )
+        response = yield self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
+                                           'GET',
+                                           request_parameters,
+                                           param_dict.get('callback', None)
+                                           )
+        returnValue(response)
 
     @inlineCallbacks
     def make_drop_identity(self, param_dict):
         interface, port, endpoint = HTTPRequester.get_access_parameters(param_dict)
 
-        yield self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
-                                'GET',
-                                {'type': 'drop_identity'},
-                                param_dict.get('callback', None)
-                                )
+        response = yield self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
+                                           'GET',
+                                           {'type': 'drop_identity'},
+                                           param_dict.get('callback', None)
+                                           )
+        returnValue(response)
 
 
 class HTTPPostRequester(PostStyleRequests, HTTPRequester):
@@ -233,11 +240,12 @@ class HTTPPostRequester(PostStyleRequests, HTTPRequester):
         if 'metadata' in param_dict:
             request_parameters['metadata'] = param_dict['metadata']
 
-        yield self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
-                                'POST',
-                                request_parameters,
-                                param_dict.get('callback', None)
-                                )
+        response = yield self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
+                                           'POST',
+                                           request_parameters,
+                                           param_dict.get('callback', None)
+                                           )
+        returnValue(response)
 
     @inlineCallbacks
     def make_attest(self, param_dict):
@@ -279,11 +287,12 @@ class HTTPPostRequester(PostStyleRequests, HTTPRequester):
             raise RequestException("Malformed request: did not specify the attribute_value, i.e. the attestation"
                                    "blob hash")
 
-        yield self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
-                                'POST',
-                                request_parameters,
-                                param_dict.get('callback', None)
-                                )
+        response = yield self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
+                                           'POST',
+                                           request_parameters,
+                                           param_dict.get('callback', None)
+                                           )
+        returnValue(response)
 
     @inlineCallbacks
     def make_verify(self, param_dict):
@@ -325,8 +334,10 @@ class HTTPPostRequester(PostStyleRequests, HTTPRequester):
         else:
             raise RequestException("Malformed request: did not specify the attribute_values")
 
-        yield self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
-                                'POST',
-                                request_parameters,
-                                param_dict.get('callback', None)
-                                )
+        response = yield self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
+                                           'POST',
+                                           request_parameters,
+                                           param_dict.get('callback', None)
+                                           )
+
+        returnValue(response)
