@@ -3,13 +3,13 @@ import os
 import time
 import unittest
 from base64 import b64encode
-from twisted.internet.defer import inlineCallbacks
-from twisted.internet.defer import returnValue
+from twisted.internet.defer import returnValue, inlineCallbacks
 from urllib import quote
 
 from ipv8.configuration import get_default_configuration
 from ipv8.test.REST.rtest.peer_communication import GetStyleRequests, PostStyleRequests
 from ipv8.test.REST.rtest.rest_peer_communication import HTTPGetRequester, HTTPPostRequester
+from ipv8.test.REST.rtest.test_peer import TemporaryPeer
 from ipv8.test.REST.rtest.test_rest_api_server import RestAPITestWrapper
 from ipv8.test.util import twisted_wrapper
 from ipv8_service import IPv8
@@ -91,7 +91,7 @@ class SingleServerSetup(unittest.TestCase):
             self._post_style_requests = HTTPPostRequester()
 
     @staticmethod
-    def create_working_directory(path):
+    def _create_working_directory(path):
         """
         Creates a dir at the specified path, if not previously there; otherwise deletes the dir, and makes a new one.
 
@@ -107,7 +107,7 @@ class SingleServerSetup(unittest.TestCase):
         # Call super method
         super(SingleServerSetup, self).setUp()
 
-        SingleServerSetup.create_working_directory(self._path)
+        SingleServerSetup._create_working_directory(self._path)
         os.chdir(self._path)
 
         ipv8 = IPv8(self._configuration)
@@ -124,6 +124,7 @@ class SingleServerSetup(unittest.TestCase):
 
 class RequestTest(SingleServerSetup):
 
+    @inlineCallbacks
     def wait_for_peers(self, dict_param):
         """
         Wait until this peer receives a non-empty list of fellow peers in the network
@@ -135,7 +136,7 @@ class RequestTest(SingleServerSetup):
         peer_list = yield self._get_style_requests.make_peers(dict_param)
 
         # Keep iterating until peer_list is non-empty
-        while peer_list is "[]":
+        while peer_list == "[]":
             # Wait for 4 seconds before trying again
             time.sleep(4)
 
@@ -145,6 +146,7 @@ class RequestTest(SingleServerSetup):
         # Return the peer list
         returnValue(peer_list)
 
+    @inlineCallbacks
     def wait_for_attestation_request(self, dict_param):
         """
         Wait until this peer receives a non-empty list of outstanding attestation requests
@@ -155,7 +157,7 @@ class RequestTest(SingleServerSetup):
         outstanding_requests = yield self._get_style_requests.make_outstanding(dict_param)
 
         # Keep iterating until peer_list is non-empty
-        while outstanding_requests is "[]":
+        while outstanding_requests == "[]":
             # Wait for 4 seconds before trying again
             time.sleep(4)
 
@@ -165,9 +167,12 @@ class RequestTest(SingleServerSetup):
         # Return the peer list
         returnValue(outstanding_requests)
 
-    @twisted_wrapper
+    @twisted_wrapper(40)
     def test_general_scenario(self):
         from json import loads
+
+        temp_peer = TemporaryPeer()
+        temp_peer.start()
 
         param_dict = {
             'port': 8086,
