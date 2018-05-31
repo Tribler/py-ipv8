@@ -104,6 +104,7 @@ class AttestationEndpoint(resource.Resource):
             self.identity_overlay.persistence.commit()
             self.attestation_overlay.database.execute('DELETE FROM %s' % self.attestation_overlay.database.db_name)
             self.attestation_overlay.database.commit()
+            self.attestation_requests.clear()
         return ""
 
     def render_POST(self, request):
