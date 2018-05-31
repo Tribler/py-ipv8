@@ -1,4 +1,5 @@
-from json import load
+import threading
+from twisted.internet.defer import inlineCallbacks
 
 from ipv8.test.REST.rtest.test_rest_api_peer import InteractiveTestPeer
 
@@ -16,20 +17,27 @@ class AndroidTestPeer(InteractiveTestPeer):
                  configuration=None,
                  get_style_requests=None,
                  post_style_requests=None):
-        super(AndroidTestPeer, self).__init__(path,
-                                              port,
-                                              interface,
-                                              configuration,
-                                              get_style_requests,
-                                              post_style_requests)
+        InteractiveTestPeer.__init__(self, path,
+                                     port,
+                                     interface,
+                                     configuration,
+                                     get_style_requests,
+                                     post_style_requests)
+        threading.Thread.__init__(self)
 
         self._param_dict = param_dict
-        self._param_dict['attribute'] = 'QR'
+        self._param_dict['attribute_name'] = 'QR'
 
+    @inlineCallbacks
     def run(self):
         peer_list = yield self.wait_for_peers(self._param_dict)
 
-        for peer in load(peer_list):
-            print "HERE", peer
+        import ast
+        peer_list = ast.literal_eval(peer_list)
+
+        for peer in peer_list:
             self._param_dict['mid'] = peer.replace('+', '%2B')
-            self.wait_for_attestation_request(self._param_dict)
+
+            self._logger.info("Sending an attestation request to %s" % peer)
+            print "AndroidTestPeer: Sending an attestation request to", peer
+            response = yield self._post_style_requests.make_attestation_request(self._param_dict)

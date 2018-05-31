@@ -63,6 +63,7 @@ class SingleServerSetup(unittest.TestCase):
             # If no post style request provided, default to the HTTP implementation
             self._post_style_requests = HTTPPostRequester()
 
+
     def setUp(self):
         # Call super method
         super(SingleServerSetup, self).setUp()
@@ -120,9 +121,100 @@ class RequestTest(SingleServerSetup):
         # Return the peer list
         returnValue(outstanding_requests)
 
-    @twisted_wrapper(40)
-    def test_general_scenario(self):
-        from json import loads
+    @twisted_wrapper
+    def test_get_peers_request(self):
+        """
+        Test the GET: peers request type
+        :return: None
+        """
+        param_dict = {
+            'port': 8086,
+            'interface': '127.0.0.1',
+            'endpoint': 'attestation'
+        }
+
+        result = yield self._get_style_requests.make_peers(param_dict)
+        print "The response body:", result
+
+    @twisted_wrapper
+    def test_get_outstanding_requests(self):
+        """
+        Test the GET: outstanding request type
+        :return: None
+        """
+        param_dict = {
+            'port': 8086,
+            'interface': '127.0.0.1',
+            'endpoint': 'attestation'
+        }
+
+        result = yield self._get_style_requests.make_outstanding(param_dict)
+        print "The response body:", result
+
+    @twisted_wrapper
+    def test_get_verification_output(self):
+        """
+        Test the GET: verification output request type
+        :return: None
+        """
+        param_dict = {
+            'port': 8086,
+            'interface': '127.0.0.1',
+            'endpoint': 'attestation'
+        }
+
+        result = yield self._get_style_requests.make_verification_output(param_dict)
+        print "The response body:", result
+
+    @twisted_wrapper
+    def test_get_attributes(self):
+        """
+        Test the GET: attributes request type
+        :return: None
+        """
+        param_dict = {
+            'port': 8086,
+            'interface': '127.0.0.1',
+            'endpoint': 'attestation'
+        }
+
+        result = yield self._get_style_requests.make_attributes(param_dict)
+        print "The response body:", result
+
+    @twisted_wrapper
+    def test_get_drop_identity(self):
+        """
+        Test the GET: drop identity request type
+        :return: None
+        """
+        param_dict = {
+            'port': 8086,
+            'interface': '127.0.0.1',
+            'endpoint': 'attestation'
+        }
+
+        result = yield self._get_style_requests.make_drop_identity(param_dict)
+        print "The response body:", result
+
+    @twisted_wrapper
+    def test_post_attestation_request(self):
+        """
+        Test the POST: request request type
+        :return: None
+        """
+        param_dict = {
+            'port': 8086,
+            'interface': '127.0.0.1',
+            'endpoint': 'attestation',
+            'attribute_name': 'QR',
+            'mid': '4AFiooDqnS0xnCOHq8npGmwUXXY='
+        }
+
+        result = yield self._post_style_requests.make_attestation_request(param_dict)
+        print "The response body:", result
+
+    @twisted_wrapper(300)
+    def test_post_attest(self):
 
         param_dict = {
             'port': 8086,
@@ -133,9 +225,11 @@ class RequestTest(SingleServerSetup):
         client_peer = AndroidTestPeer(param_dict, 'client_peer', 9876)
         client_peer.start()
 
+        from json import loads
+
         try:
             value = yield self.wait_for_peers(param_dict)
-            print "Known peers:", value
+            # print "Known peers:", value
             done = False
             while not done:
                 value = yield self.wait_for_attestation_request(param_dict)
@@ -153,13 +247,30 @@ class RequestTest(SingleServerSetup):
             import traceback
             traceback.print_exc()
 
+        client_peer.join()
+
     @twisted_wrapper
-    def test_during_development(self):
+    def test_post_verify(self):
+        """
+        Test the POST: verify request type
+        :return: None
+        """
+
+        values = ""
+
+        for i in range(10):
+            values = values + ',' + b64encode(str(i))
+
+        values = values[1:]
+
         param_dict = {
             'port': 8086,
             'interface': '127.0.0.1',
-            'endpoint': 'attestation'
+            'endpoint': 'attestation',
+            'mid': '4AFiooDqnS0xnCOHq8npGmwUXXY=',
+            'attribute_hash': quote(b64encode('binarydata')).replace("+", "%2B"),
+            'attribute_values': values
         }
 
-        result = yield self._get_style_requests.make_peers(param_dict)
+        result = yield self._post_style_requests.make_verify(param_dict)
         print "The response body:", result

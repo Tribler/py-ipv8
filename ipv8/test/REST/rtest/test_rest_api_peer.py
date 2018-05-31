@@ -25,6 +25,7 @@ class TestPeer(object):
                  interface='127.0.0.1',
                  configuration=None):
         self._logger = logging.getLogger(self.__class__.__name__)
+        self._logger.info("Peer starting-up.")
 
         self._rest_manager = None
 
@@ -53,12 +54,14 @@ class TestPeer(object):
                 }]
 
         self._create_working_directory(self._path)
+        self._logger.info("Created working directory.")
         os.chdir(self._path)
 
         ipv8 = IPv8(self._configuration)
         os.chdir(os.path.dirname(__file__))
         self._rest_manager = TestPeer.RestAPITestWrapper(ipv8, self._port, self._interface)
         self._rest_manager.start()
+        self._logger.info("Peer started up.")
 
     def stop(self):
         """
@@ -66,6 +69,7 @@ class TestPeer(object):
 
         :return: None
         """
+        self._logger.info("Shutting down the peer")
         self._rest_manager.stop()
 
     @staticmethod
@@ -156,6 +160,8 @@ class InteractiveTestPeer(TestPeer, threading.Thread):
             # If no post style request provided, default to the HTTP implementation
             self._post_style_requests = HTTPPostRequester()
 
+        self._logger.info("Successfully acquired request generators.")
+
     @inlineCallbacks
     def wait_for_peers(self, dict_param):
         """
@@ -164,11 +170,12 @@ class InteractiveTestPeer(TestPeer, threading.Thread):
         :param dict_param: the required parameters by the GET request generator for the peers request type
         :return: a list of currently known peers in the network
         """
-
+        self._logger.info("Attempting to acquire a list of peers...")
         peer_list = yield self._get_style_requests.make_peers(dict_param)
 
         # Keep iterating until peer_list is non-empty
         while peer_list == "[]":
+            self._logger.info("Could not acquire a list of peers. Will wait 4 seconds and retry.")
             # Wait for 4 seconds before trying again
             time.sleep(4)
 
@@ -176,6 +183,7 @@ class InteractiveTestPeer(TestPeer, threading.Thread):
             peer_list = yield self._get_style_requests.make_peers(dict_param)
 
         # Return the peer list
+        self._logger.info("Have found a non-empty list of peers. Returning it.")
         returnValue(peer_list)
 
     @inlineCallbacks
@@ -186,10 +194,12 @@ class InteractiveTestPeer(TestPeer, threading.Thread):
         :param dict_param: the required parameters by the GET request generator for the outstanding request type
         :return: a list of outstanding attestation requests
         """
+        self._logger.info("Attempting to acquire a list of outstanding requests...")
         outstanding_requests = yield self._get_style_requests.make_outstanding(dict_param)
 
         # Keep iterating until peer_list is non-empty
         while outstanding_requests == "[]":
+            self._logger.info("Could not acquire a list of outstanding requests. Will wait 4 seconds and retry.")
             # Wait for 4 seconds before trying again
             time.sleep(4)
 
@@ -197,4 +207,5 @@ class InteractiveTestPeer(TestPeer, threading.Thread):
             outstanding_requests = yield self._get_style_requests.make_outstanding(dict_param)
 
         # Return the peer list
+        self._logger.info("Have found a non-empty list of outstanding requests. Returning it.")
         returnValue(outstanding_requests)
