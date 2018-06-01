@@ -99,7 +99,8 @@ class HiddenTunnelCommunity(TunnelCommunity):
         self.send_data([circuit.sock_addr], circuit.circuit_id, pre, post, TUNNEL_PREFIX + packet)
 
     def remove_circuit(self, circuit_id, additional_info='', remove_now=False, destroy=False):
-        super(HiddenTunnelCommunity, self).remove_circuit(circuit_id, additional_info, remove_now, destroy)
+        destroy_deferred = super(HiddenTunnelCommunity, self)\
+            .remove_circuit(circuit_id, additional_info, remove_now, destroy)
 
         circuit = self.my_intro_points.pop(circuit_id, None)
         if circuit:
@@ -108,6 +109,8 @@ class HiddenTunnelCommunity(TunnelCommunity):
         circuit = self.my_download_points.pop(circuit_id, None)
         if circuit:
             self.logger.info("removed rendezvous point %d" % circuit_id)
+
+        return destroy_deferred
 
     def do_dht_lookup(self, info_hash):
         self.do_raw_dht_lookup(self.get_lookup_info_hash(info_hash))

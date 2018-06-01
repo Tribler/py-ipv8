@@ -134,7 +134,7 @@ class TestTunnelCommunity(TestBase):
         yield self.deliver_messages()
 
         # Destroy the circuit we just created using a destroy message
-        self.nodes[0].overlay.remove_circuit(self.nodes[0].overlay.circuits.keys()[0], destroy=True)
+        yield self.nodes[0].overlay.remove_circuit(self.nodes[0].overlay.circuits.keys()[0], destroy=True)
         yield self.deliver_messages()
 
         self.assert_no_more_tunnels()
@@ -183,7 +183,7 @@ class TestTunnelCommunity(TestBase):
 
         # Destroy a circuit which does not exist (circuit_id + 1)
         # This should not affect other circuits
-        self.nodes[0].overlay.remove_circuit(self.nodes[0].overlay.circuits.keys()[0] + 1, destroy=True)
+        yield self.nodes[0].overlay.remove_circuit(self.nodes[0].overlay.circuits.keys()[0] + 1, destroy=True)
         yield self.deliver_messages()
 
         # Node 0 should still have all of its required 1 hop circuits (1.0/100%)
