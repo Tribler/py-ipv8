@@ -8,6 +8,7 @@ import sys
 from traceback import format_exception
 
 from cryptography.exceptions import InvalidTag
+from twisted.internet.defer import Deferred
 from twisted.internet.task import LoopingCall
 
 from .caches import *
@@ -207,7 +208,7 @@ class TunnelCommunity(Community):
 
     def do_circuits(self):
         for circuit_length, num_circuits in self.circuits_needed.items():
-            num_to_build = num_circuits - len(self.data_circuits(circuit_length))
+            num_to_build = max(0, num_circuits - len(self.data_circuits(circuit_length)))
             self.logger.info("want %d data circuits of length %d", num_to_build, circuit_length)
             for _ in range(num_to_build):
                 if not self.create_circuit(circuit_length):
@@ -338,8 +339,10 @@ class TunnelCommunity(Community):
 
     def remove_circuit(self, circuit_id, additional_info='', remove_now=False, destroy=False):
         """
-        Remove a circuit. Optionally send a destroy message.
+        Remove a circuit and return a deferred that fires when all data associated with the circuit is destroyed.
+        Optionally send a destroy message.
         """
+        destroy_deferred = Deferred()
         circuit_to_remove = self.circuits.get(circuit_id, None)
         if circuit_to_remove and destroy:
             self.destroy_circuit(circuit_to_remove)
@@ -353,11 +356,15 @@ class TunnelCommunity(Community):
             # Clean up the directions dictionary
             self.directions.pop(circuit_id, None)
 
+            destroy_deferred.callback(circuit_id)
+
         if self.settings.remove_tunnel_delay == 0 or remove_now:
             remove_circuit_info()
         elif not self.is_pending_task_active("remove_circuit_%s" % circuit_id):
             self.register_task("remove_circuit_%s" % circuit_id,
                                reactor.callLater(self.settings.remove_tunnel_delay, remove_circuit_info))
+
+        return destroy_deferred
 
     def remove_relay(self, circuit_id, additional_info='', remove_now=False, destroy=False,
                      got_destroy_from=None, both_sides=True):

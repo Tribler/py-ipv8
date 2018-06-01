@@ -1,3 +1,4 @@
+from ....attestation.trustchain.caches import CrawlRequestCache
 from ....attestation.trustchain.community import TrustChainCommunity, UNKNOWN_SEQ
 from ...attestation.trustchain.test_block import TestBlock
 from ...base import TestBase
@@ -137,8 +138,8 @@ class TestTrustChainCommunity(TestBase):
         yield self.introduce_nodes()
 
         my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
+        CrawlRequestCache.CRAWL_TIMEOUT = 0.1
         response = yield self.nodes[1].overlay.send_crawl_request(self.nodes[0].my_peer, my_pubkey, 1)
-
         self.assertFalse(response)
 
     @twisted_wrapper
@@ -374,3 +375,29 @@ class TestTrustChainCommunity(TestBase):
         yield self.introduce_nodes()
 
         self.assertIsNone(self.nodes[1].overlay.persistence.get(my_pubkey, 2))
+
+    @twisted_wrapper
+    def test_invalid_block(self):
+        """
+        See if we can recover from database corruption.
+        """
+        yield self.introduce_nodes()
+
+        # Create an invalid block
+        invalid_block = TestBlock(key=self.nodes[0].overlay.my_peer.key)
+        invalid_block.signature = 'a' * 64
+        self.nodes[0].overlay.persistence.add_block(invalid_block)
+
+        # We will attempt to add a new block to our chain.
+        # We should see that we have database corruption and clean up our chain.
+        # Afterward we continue the signing as usual
+        my_pubkey = self.nodes[0].overlay.my_peer.public_key.key_to_bin()
+        his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
+        yield self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
+                                               transaction={})
+
+        yield self.deliver_messages()
+
+        # Both nodes should have this newly signed block added correctly to their database
+        self.assertIsNotNone(self.nodes[0].overlay.persistence.get(my_pubkey, 1))
+        self.assertIsNotNone(self.nodes[1].overlay.persistence.get(my_pubkey, 1))
