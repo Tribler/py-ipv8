@@ -462,12 +462,12 @@ class TunnelCommunity(Community):
 
     def data_circuits(self, hops=None):
         return {cid: c for cid, c in self.circuits.items()
-                if c.ctype == CIRCUIT_TYPE_DATA and (hops is None or hops == len(c.hops))}
+                if c.ctype == CIRCUIT_TYPE_DATA and (hops is None or hops == c.goal_hops)}
 
     def active_data_circuits(self, hops=None):
         return {cid: c for cid, c in self.circuits.items()
                 if c.state == CIRCUIT_STATE_READY and c.ctype == CIRCUIT_TYPE_DATA and
-                (hops is None or hops == len(c.hops))}
+                (hops is None or hops == c.goal_hops)}
 
     def is_relay(self, circuit_id):
         return circuit_id > 0 and circuit_id in self.relay_from_to
