@@ -376,7 +376,8 @@ class TrustChainCommunity(Community):
 
         # Don't answer with any invalid blocks.
         validation = self.validate_persist_block(block)
-        if validation[0] != ValidationResult.partial_next and validation[0] != ValidationResult.valid:
+        if validation[0] != ValidationResult.partial_next and validation[0] != ValidationResult.valid \
+                and total_count > 0:  # We send an empty block to the crawl requester if no blocks should be sent back
             self.logger.error("Not sending crawl response, the block is invalid. Result %s", repr(validation))
             self.persistence_integrity_check()
             return

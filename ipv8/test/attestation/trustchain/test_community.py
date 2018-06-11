@@ -377,6 +377,14 @@ class TestTrustChainCommunity(TestBase):
         self.assertIsNone(self.nodes[1].overlay.persistence.get(my_pubkey, 2))
 
     @twisted_wrapper
+    def test_empty_crawl(self):
+        """
+        Test a crawl request to a peer without any blocks
+        """
+        my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
+        yield self.nodes[1].overlay.send_crawl_request(self.nodes[0].my_peer, my_pubkey, 1)
+
+    @twisted_wrapper
     def test_invalid_block(self):
         """
         See if we can recover from database corruption.
