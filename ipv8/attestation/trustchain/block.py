@@ -34,12 +34,14 @@ class TrustChainBlock(object):
             # validation
             self.previous_hash = GENESIS_HASH
             self.signature = EMPTY_SIG
+            self.timestamp = int(round(time.time() * 1000))
             # debug stuff
             self.insert_time = None
         else:
             _, self.transaction = decode(str(data[0]))
             (self.public_key, self.sequence_number, self.link_public_key, self.link_sequence_number, self.previous_hash,
-             self.signature, self.insert_time) = (data[1], data[2], data[3], data[4], data[5], data[6], data[7])
+             self.signature, self.timestamp, self.insert_time) = (data[1], data[2], data[3], data[4], data[5],
+                                                                  data[6], data[7], data[8])
             if isinstance(self.public_key, buffer):
                 self.public_key = str(self.public_key)
             if isinstance(self.link_public_key, buffer):
@@ -59,7 +61,7 @@ class TrustChainBlock(object):
         """
         return cls([payload.transaction, payload.public_key, payload.sequence_number,
                     payload.link_public_key, payload.link_sequence_number, payload.previous_hash,
-                    payload.signature, time.time()], serializer)
+                    payload.signature, payload.timestamp, time.time()], serializer)
 
     @classmethod
     def from_pair_payload(cls, payload, serializer):
@@ -69,10 +71,10 @@ class TrustChainBlock(object):
         """
         block1 = cls([payload.transaction1, payload.public_key1, payload.sequence_number1,
                       payload.link_public_key1, payload.link_sequence_number1, payload.previous_hash1,
-                      payload.signature1, time.time()], serializer)
+                      payload.signature1, payload.timestamp1, time.time()], serializer)
         block2 = cls([payload.transaction2, payload.public_key2, payload.sequence_number2,
                       payload.link_public_key2, payload.link_sequence_number2, payload.previous_hash2,
-                      payload.signature2, time.time()], serializer)
+                      payload.signature2, payload.timestamp2, time.time()], serializer)
         return block1, block2
 
     def __str__(self):
@@ -123,7 +125,7 @@ class TrustChainBlock(object):
         :return: the buffer the data was packed into
         """
         args = [self.public_key, self.sequence_number, self.link_public_key, self.link_sequence_number,
-                self.previous_hash, self.signature if signature else EMPTY_SIG, self.transaction]
+                self.previous_hash, self.signature if signature else EMPTY_SIG, self.transaction, self.timestamp]
         return self.serializer.pack_multiple(HalfBlockPayload(*args).to_pack_list())
 
     def validate_transaction(self, database):
@@ -245,6 +247,8 @@ class TrustChainBlock(object):
             result.err("Sequence number is prior to genesis")
         if self.link_sequence_number < GENESIS_SEQ and self.link_sequence_number != UNKNOWN_SEQ:
             result.err("Link sequence number not empty and is prior to genesis")
+        if self.timestamp < 0:
+            result.err("Timestamp cannot be negative")
         if not self.crypto.is_valid_public_bin(self.public_key):
             result.err("Public key is not valid")
         else:
@@ -404,7 +408,7 @@ class TrustChainBlock(object):
         """
         return (buffer(encode(self.transaction)), buffer(self.public_key), self.sequence_number,
                 buffer(self.link_public_key), self.link_sequence_number, buffer(self.previous_hash),
-                buffer(self.signature), buffer(self.hash))
+                buffer(self.signature), self.timestamp, buffer(self.hash))
 
     def __iter__(self):
         """

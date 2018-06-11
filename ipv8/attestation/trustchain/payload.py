@@ -31,10 +31,10 @@ class HalfBlockPayload(Payload):
     Payload for message that ships a half block
     """
 
-    format_list = ['74s', 'I', '74s', 'I', '32s', '64s', 'varlenI']
+    format_list = ['74s', 'I', '74s', 'I', '32s', '64s', 'varlenI', 'Q']
 
     def __init__(self, public_key, sequence_number, link_public_key, link_sequence_number, previous_hash,
-                 signature, transaction):
+                 signature, transaction, timestamp):
         super(HalfBlockPayload, self).__init__()
         self.public_key = public_key
         self.sequence_number = sequence_number
@@ -43,6 +43,7 @@ class HalfBlockPayload(Payload):
         self.previous_hash = previous_hash
         self.signature = signature
         self.transaction = transaction
+        self.timestamp = timestamp
 
     @classmethod
     def from_half_block(cls, block):
@@ -53,7 +54,8 @@ class HalfBlockPayload(Payload):
             block.link_sequence_number,
             block.previous_hash,
             block.signature,
-            block.transaction
+            block.transaction,
+            block.timestamp
         )
 
     def to_pack_list(self):
@@ -63,7 +65,8 @@ class HalfBlockPayload(Payload):
                 ('I', self.link_sequence_number),
                 ('32s', self.previous_hash),
                 ('64s', self.signature),
-                ('varlenI', encode(self.transaction))]
+                ('varlenI', encode(self.transaction)),
+                ('Q', self.timestamp)]
 
         return data
 
@@ -77,12 +80,13 @@ class HalfBlockBroadcastPayload(HalfBlockPayload):
     Payload for a message that contains a half block and a TTL field for broadcasts.
     """
 
-    format_list = ['74s', 'I', '74s', 'I', '32s', '64s', 'varlenI', 'I']
+    format_list = ['74s', 'I', '74s', 'I', '32s', '64s', 'varlenI', 'Q', 'I']
 
     def __init__(self, public_key, sequence_number, link_public_key, link_sequence_number, previous_hash,
-                 signature, transaction, ttl):
+                 signature, transaction, timestamp, ttl):
         super(HalfBlockBroadcastPayload, self).__init__(public_key, sequence_number, link_public_key,
-                                                        link_sequence_number, previous_hash, signature, transaction)
+                                                        link_sequence_number, previous_hash, signature,
+                                                        transaction, timestamp)
         self.ttl = ttl
 
     @classmethod
@@ -95,6 +99,7 @@ class HalfBlockBroadcastPayload(HalfBlockPayload):
             block.previous_hash,
             block.signature,
             block.transaction,
+            block.timestamp,
             ttl
         )
 
@@ -113,10 +118,10 @@ class CrawlResponsePayload(Payload):
     Payload for the response to a crawl request.
     """
 
-    format_list = ['74s', 'I', '74s', 'I', '32s', '64s', 'varlenI', 'I', 'I', 'I']
+    format_list = ['74s', 'I', '74s', 'I', '32s', '64s', 'varlenI', 'Q', 'I', 'I', 'I']
 
     def __init__(self, public_key, sequence_number, link_public_key, link_sequence_number, previous_hash, signature,
-                 transaction, crawl_id, cur_count, total_count):
+                 transaction, timestamp, crawl_id, cur_count, total_count):
         super(CrawlResponsePayload, self).__init__()
         self.public_key = public_key
         self.sequence_number = sequence_number
@@ -125,6 +130,7 @@ class CrawlResponsePayload(Payload):
         self.previous_hash = previous_hash
         self.signature = signature
         self.transaction = transaction
+        self.timestamp = timestamp
         self.crawl_id = crawl_id
         self.cur_count = cur_count
         self.total_count = total_count
@@ -139,6 +145,7 @@ class CrawlResponsePayload(Payload):
             block.previous_hash,
             block.signature,
             block.transaction,
+            block.timestamp,
             crawl_id,
             cur_count,
             total_count,
@@ -152,6 +159,7 @@ class CrawlResponsePayload(Payload):
                 ('32s', self.previous_hash),
                 ('64s', self.signature),
                 ('varlenI', encode(self.transaction)),
+                ('Q', self.timestamp),
                 ('I', self.crawl_id),
                 ('I', self.cur_count),
                 ('I', self.total_count)]
@@ -168,11 +176,11 @@ class HalfBlockPairPayload(Payload):
     Payload for message that ships two half blocks
     """
 
-    format_list = ['74s', 'I', '74s', 'I', '32s', '64s', 'varlenI'] * 2
+    format_list = ['74s', 'I', '74s', 'I', '32s', '64s', 'varlenI', 'Q'] * 2
 
     def __init__(self, public_key1, sequence_number1, link_public_key1, link_sequence_number1, previous_hash1,
-                 signature1, transaction1, public_key2, sequence_number2, link_public_key2, link_sequence_number2,
-                 previous_hash2, signature2, transaction2):
+                 signature1, transaction1, timestamp1, public_key2, sequence_number2, link_public_key2,
+                 link_sequence_number2, previous_hash2, signature2, transaction2, timestamp2):
         super(HalfBlockPairPayload, self).__init__()
         self.public_key1 = public_key1
         self.sequence_number1 = sequence_number1
@@ -181,6 +189,7 @@ class HalfBlockPairPayload(Payload):
         self.previous_hash1 = previous_hash1
         self.signature1 = signature1
         self.transaction1 = transaction1
+        self.timestamp1 = timestamp1
 
         self.public_key2 = public_key2
         self.sequence_number2 = sequence_number2
@@ -189,6 +198,7 @@ class HalfBlockPairPayload(Payload):
         self.previous_hash2 = previous_hash2
         self.signature2 = signature2
         self.transaction2 = transaction2
+        self.timestamp2 = timestamp2
 
     @classmethod
     def from_half_blocks(cls, block1, block2):
@@ -200,13 +210,15 @@ class HalfBlockPairPayload(Payload):
             block1.previous_hash,
             block1.signature,
             block1.transaction,
+            block1.timestamp,
             block2.public_key,
             block2.sequence_number,
             block2.link_public_key,
             block2.link_sequence_number,
             block2.previous_hash,
             block2.signature,
-            block2.transaction
+            block2.transaction,
+            block2.timestamp
         )
 
     def to_pack_list(self):
@@ -217,13 +229,15 @@ class HalfBlockPairPayload(Payload):
                 ('32s', self.previous_hash1),
                 ('64s', self.signature1),
                 ('varlenI', encode(self.transaction1)),
+                ('Q', self.timestamp1),
                 ('74s', self.public_key2),
                 ('I', self.sequence_number2),
                 ('74s', self.link_public_key2),
                 ('I', self.link_sequence_number2),
                 ('32s', self.previous_hash2),
                 ('64s', self.signature2),
-                ('varlenI', encode(self.transaction2))]
+                ('varlenI', encode(self.transaction2)),
+                ('Q', self.timestamp2)]
 
         return data
 
@@ -237,16 +251,16 @@ class HalfBlockPairBroadcastPayload(HalfBlockPairPayload):
     Payload for a broadcast message that ships two half blocks
     """
 
-    format_list = ['74s', 'I', '74s', 'I', '32s', '64s', 'varlenI'] * 2 + ['I']
+    format_list = ['74s', 'I', '74s', 'I', '32s', '64s', 'varlenI', 'Q'] * 2 + ['I']
 
     def __init__(self, public_key1, sequence_number1, link_public_key1, link_sequence_number1, previous_hash1,
-                 signature1, transaction1, public_key2, sequence_number2, link_public_key2, link_sequence_number2,
-                 previous_hash2, signature2, transaction2, ttl):
+                 signature1, transaction1, timestamp1, public_key2, sequence_number2, link_public_key2,
+                 link_sequence_number2, previous_hash2, signature2, transaction2, timestamp2, ttl):
         super(HalfBlockPairBroadcastPayload, self).__init__(public_key1, sequence_number1, link_public_key1,
                                                             link_sequence_number1, previous_hash1, signature1,
-                                                            transaction1, public_key2, sequence_number2,
+                                                            transaction1, timestamp1, public_key2, sequence_number2,
                                                             link_public_key2, link_sequence_number2, previous_hash2,
-                                                            signature2, transaction2)
+                                                            signature2, transaction2, timestamp2)
         self.ttl = ttl
 
     @classmethod
@@ -259,6 +273,7 @@ class HalfBlockPairBroadcastPayload(HalfBlockPairPayload):
             block1.previous_hash,
             block1.signature,
             block1.transaction,
+            block1.timestamp,
             block2.public_key,
             block2.sequence_number,
             block2.link_public_key,
@@ -266,6 +281,7 @@ class HalfBlockPairBroadcastPayload(HalfBlockPairPayload):
             block2.previous_hash,
             block2.signature,
             block2.transaction,
+            block2.timestamp,
             ttl
         )
 
