@@ -1,4 +1,8 @@
+import socket
+
 from twisted.internet import protocol, reactor, error
+from twisted.internet.error import MessageLengthError
+
 from ..endpoint import Endpoint, EndpointClosedException
 
 UDP_MAX_SIZE = 2 ** 16 - 60
@@ -7,7 +11,7 @@ UDP_MAX_SIZE = 2 ** 16 - 60
 class UDPEndpoint(Endpoint, protocol.DatagramProtocol):
 
     def __init__(self, port, ip="0.0.0.0"):
-        super(UDPEndpoint, self).__init__()
+        Endpoint.__init__(self)
         self._port = port
         self._ip = ip
         self._running = False
@@ -17,8 +21,18 @@ class UDPEndpoint(Endpoint, protocol.DatagramProtocol):
         self.notify_listeners((addr, datagram))
 
     def send(self, socket_address, packet):
+        """
+        Send a packet to a given address.
+        :param socket_address: Tuple of (IP, port) which indicates the destination of the packet.
+        :param packet: The packet to send.
+        """
         self.assert_open()
-        self.transport.write(packet, socket_address)
+        try:
+            self.transport.write(packet, socket_address)
+        except socket.error as exc:
+            self._logger.warning("Dropping packet due to socket error: %s", exc)
+        except MessageLengthError:
+            self._logger.error("Sending a packet that is too big (length: %d)", len(packet))
 
     def open(self):
         for _ in xrange(10000):
