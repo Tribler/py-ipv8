@@ -1,4 +1,5 @@
 from ....messaging.anonymization.community import TunnelCommunity, TunnelSettings
+from ....messaging.anonymization.tunnel import CIRCUIT_STATE_EXTENDING
 from ....messaging.interfaces.udp.endpoint import UDPEndpoint
 from ...base import TestBase
 from ...mocking.endpoint import MockEndpointListener
@@ -121,6 +122,24 @@ class TestTunnelCommunity(TestBase):
         self.assertEqual(self.nodes[0].overlay.tunnels_ready(1), 0.0)
         # Node 1 should not have an exit socket open
         self.assertEqual(len(self.nodes[1].overlay.exit_sockets), 0)
+
+    @twisted_wrapper
+    def test_create_circuit_multiple_calls(self):
+        """
+        Check if circuit creation is aborted when it's already building the requested circuit.
+        """
+        self.nodes[1].overlay.settings.become_exitnode = True
+        yield self.introduce_nodes()
+        self.nodes[0].overlay.build_tunnels(1)
+
+        # Node 0 should have 1 circuit in the CIRCUIT_STATE_EXTENDING state
+        self.assertEqual(len(self.nodes[0].overlay.data_circuits()), 1)
+        self.assertEqual(next(self.nodes[0].overlay.circuits.itervalues()).state, CIRCUIT_STATE_EXTENDING)
+
+        # Subsequent calls to build_circuits should not change this
+        self.nodes[0].overlay.build_tunnels(1)
+        self.assertEqual(len(self.nodes[0].overlay.data_circuits()), 1)
+        self.assertEqual(next(self.nodes[0].overlay.circuits.itervalues()).state, CIRCUIT_STATE_EXTENDING)
 
     @twisted_wrapper
     def test_destroy_circuit_from_originator(self):
