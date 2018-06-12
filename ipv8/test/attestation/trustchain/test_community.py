@@ -277,8 +277,6 @@ class TestTrustChainCommunity(TestBase):
         signed2 = self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
                                                    block_type='test', transaction={})
 
-        yield self.deliver_messages()
-
         yield signed1
         yield signed2
 
