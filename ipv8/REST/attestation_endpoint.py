@@ -76,28 +76,22 @@ class AttestationEndpoint(resource.Resource):
         type=attributes&mid=mid_b64 -> [(attribute_name, attribute_hash)]
         """
 
-        print request.args
-
         if not request.args or 'type' not in request.args:
             return ""
         if request.args['type'][0] == 'outstanding':
-            print("################# HERE(outstanding) IN THE ATTESTATION ENDPOINT #################")
             formatted = []
             for k, v in self.attestation_requests.iteritems():
                 formatted.append(k + (v[1], ))
             return json.dumps(formatted)
         if request.args['type'][0] == 'verification_output':
-            print("################# HERE(verification_output) IN THE ATTESTATION ENDPOINT #################")
             formatted = {}
             for k, v in self.verification_output.iteritems():
                 formatted[b64encode(k)] = [(b64encode(a), m) for a, m in v]
             return json.dumps(formatted)
         if request.args['type'][0] == 'peers':
-            print("################# HERE(peers) IN THE ATTESTATION ENDPOINT #################")
             peers = self.session.network.get_peers_for_service(self.identity_overlay.master_peer.mid)
             return json.dumps([b64encode(p.mid) for p in peers])
         if request.args['type'][0] == 'attributes':
-            print("################# HERE(attributes) IN THE ATTESTATION ENDPOINT #################")
             if 'mid' in request.args:
                 mid_b64 = request.args['mid'][0]
                 peer = self.get_peer_from_mid(mid_b64)
@@ -107,7 +101,6 @@ class AttestationEndpoint(resource.Resource):
                 blocks = self.identity_overlay.persistence.get_latest_blocks(peer.public_key.key_to_bin(), 200)
                 return json.dumps([(b.transaction["name"], b64encode(b.transaction["hash"])) for b in blocks])
         if request.args['type'][0] == 'drop_identity':
-            print("################# HERE(drop_identity) IN THE ATTESTATION ENDPOINT #################")
             self.identity_overlay.persistence.execute('DELETE FROM blocks')
             self.identity_overlay.persistence.commit()
             self.attestation_overlay.database.execute('DELETE FROM %s' % self.attestation_overlay.database.db_name)
@@ -121,8 +114,6 @@ class AttestationEndpoint(resource.Resource):
         type=attest&mid=mid_b64&attribute_name=attribute_name&attribute_value=attribute_value_b64
         type=verify&mid=mid_b64&attribute_hash=attribute_hash_b64&attribute_values=attribute_value_b64,...
         """
-
-        print request.args
 
         if not request.args or 'type' not in request.args:
             return ""
