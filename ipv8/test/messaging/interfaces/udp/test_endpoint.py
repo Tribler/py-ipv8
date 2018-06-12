@@ -1,3 +1,5 @@
+import socket
+
 from .....messaging.interfaces.endpoint import EndpointListener
 from .....messaging.interfaces.udp.endpoint import UDPEndpoint, UDP_MAX_SIZE
 from .....test.util import twisted_wrapper
@@ -31,14 +33,15 @@ class TestUDPEndpoint(TestBase):
         self.endpoint2_listener = DummyEndpointListener(self.endpoint2)
         self.endpoint2.add_listener(self.endpoint2_listener)
 
+    @twisted_wrapper
     def tearDown(self):
         super(TestUDPEndpoint, self).tearDown()
 
         # If an endpoint was used, close it
         if self.endpoint1:
-            self.endpoint1.close()
+            yield self.endpoint1.close()
         if self.endpoint2:
-            self.endpoint2.close()
+            yield self.endpoint2.close()
 
     @twisted_wrapper
     def test_send_message(self):
@@ -70,3 +73,55 @@ class TestUDPEndpoint(TestBase):
         Test sending a message with an invalid destination through the UDP endpoint.
         """
         self.endpoint1.send(("0.0.0.0", 0), 'a' * 10)
+
+    @twisted_wrapper
+    def test_blocking_endpoint_resend(self):
+        """
+        Test rescheduling on blocking socket in Windows.
+        """
+        # Raise an error on socket send()
+        def cb_err_sendto(data, sock_addr):
+            raise socket.error(10035, "Fake WSAEWOULDBLOCK")
+        real_sendto = self.endpoint1.transport.socket.sendto
+        self.endpoint1.transport.socket.sendto = cb_err_sendto
+
+        # The following send raises a WSAEWOULDBLOCK and should queue the packet
+        self.endpoint1.send(("127.0.0.1", 8081), 'a' * 20)
+        self.endpoint1.transport.socket.sendto = real_sendto
+        yield self.sleep(0.05)
+        # Nothing should have arrived
+        self.assertEqual(len(self.endpoint2_listener.incoming), 0)
+
+        # Now that the socket no longer errors, both messages should be delivered
+        self.endpoint1.send(("127.0.0.1", 8081), 'a' * 20)
+        yield self.sleep(0.05)
+        self.assertEqual(len(self.endpoint2_listener.incoming), 2)
+
+    @twisted_wrapper
+    def test_blocking_endpoint_resend_limit(self):
+        """
+        Test not rescheduling more than 100 packets.
+        """
+
+        # Raise an error on socket send()
+        def cb_err_sendto(data, sock_addr):
+            raise socket.error(10035, "Fake WSAEWOULDBLOCK")
+
+        real_sendto = self.endpoint1.transport.socket.sendto
+        self.endpoint1.transport.socket.sendto = cb_err_sendto
+
+        # The following send raises a WSAEWOULDBLOCK and should queue the packet
+        for i in xrange(102):
+            self.endpoint1.send(("127.0.0.1", 8081), str(i))
+        self.endpoint1.transport.socket.sendto = real_sendto
+        yield self.sleep(0.05)
+        # Nothing should have arrived
+        self.assertEqual(len(self.endpoint2_listener.incoming), 0)
+
+        # Now that the socket no longer errors, messages should be delivered
+        # The first two messages ('0' and '1') should have been bumped out of the queue
+        self.endpoint1.send(("127.0.0.1", 8081), '102')
+        yield self.sleep(0.05)
+        self.assertEqual(len(self.endpoint2_listener.incoming), 101)
+        self.assertSetEqual({data for _, data in self.endpoint2_listener.incoming},
+                            {str(i) for i in xrange(2, 103)})
