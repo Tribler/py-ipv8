@@ -1,4 +1,7 @@
+import errno
+from collections import deque
 import socket
+import sys
 
 from twisted.internet import protocol, reactor, error
 from twisted.internet.error import MessageLengthError
@@ -16,6 +19,9 @@ class UDPEndpoint(Endpoint, protocol.DatagramProtocol):
         self._ip = ip
         self._running = False
         self._listening_port = False
+        # If the outbound network buffer is blocked, buffer up to 100 packets
+        # Pop from the left and append to the right side of the double-ended queue
+        self._delayed_packets = deque(maxlen=min(100, max(0, sys.getrecursionlimit() - 2)))
 
     def datagramReceived(self, datagram, addr):
         self.notify_listeners((addr, datagram))
@@ -29,8 +35,16 @@ class UDPEndpoint(Endpoint, protocol.DatagramProtocol):
         self.assert_open()
         try:
             self.transport.write(packet, socket_address)
+            # If the write succeeded, try sending one of our previously blocked packets
+            if self._delayed_packets:
+                self.send(*self._delayed_packets.popleft())
         except socket.error as exc:
-            self._logger.warning("Dropping packet due to socket error: %s", exc)
+            # Not all OSes have WSAEWOULDBLOCK: Windows may have a blocked output buffer
+            if exc[0] == getattr(errno, 'WSAEWOULDBLOCK', 10035):
+                self._logger.info("Rescheduling packet (due to blocked socket) outbound to %s", str(socket_address))
+                self._delayed_packets.append((socket_address, packet))
+            else:
+                self._logger.warning("Dropping packet due to socket error: %s", exc)
         except MessageLengthError:
             self._logger.error("Sending a packet that is too big (length: %d)", len(packet))
 
