@@ -37,7 +37,9 @@ db_locks = defaultdict(RLock)
 def db_call(f):
     def wrapper(self, *args, **kwargs):
         with db_locks[self._file_path]:
-            return f(self, *args, **kwargs)
+            if self._cursor:
+                return f(self, *args, **kwargs)
+            return None
     return wrapper
 
 
