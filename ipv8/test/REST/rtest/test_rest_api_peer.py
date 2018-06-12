@@ -57,9 +57,9 @@ class TestPeer(object):
         self._logger.info("Created working directory.")
         os.chdir(self._path)
 
-        ipv8 = IPv8(self._configuration)
+        self._ipv8 = IPv8(self._configuration)
         os.chdir(os.path.dirname(__file__))
-        self._rest_manager = TestPeer.RestAPITestWrapper(ipv8, self._port, self._interface)
+        self._rest_manager = TestPeer.RestAPITestWrapper(self._ipv8, self._port, self._interface)
         self._rest_manager.start()
         self._logger.info("Peer started up.")
 
@@ -84,6 +84,9 @@ class TestPeer(object):
             import shutil
             shutil.rmtree(path)
         os.mkdir(path)
+
+    def get_keys(self):
+        return self._ipv8.keys
 
     class RestAPITestWrapper(TaskManager):
         """

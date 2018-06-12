@@ -1,3 +1,4 @@
+import json
 import time
 import unittest
 from base64 import b64encode
@@ -227,15 +228,18 @@ class RequestTest(SingleServerSetup):
 
         from json import loads
 
+        for peer in self._master_peer.get_keys().iteritems():
+            print peer[0], b64encode(peer[1].mid)
+
         try:
             value = yield self.wait_for_peers(param_dict)
-            # print "Known peers:", value
+            print "Known peers:", value
             done = False
             while not done:
                 value = yield self.wait_for_attestation_request(param_dict)
                 value = loads(value)
                 print "Pending attestation request for attester:", value
-                raw_input('PRESS ANY KEY TO CONTINUE')
+                # raw_input('PRESS ANY KEY TO CONTINUE')
                 for (identifier, attribute) in value:
                     param_dict['mid'] = str(identifier).replace("+", "%2B")
                     param_dict['attribute_name'] = str(attribute)
