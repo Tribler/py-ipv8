@@ -47,11 +47,13 @@ class AttestationCommunity(Community):
 
         super(AttestationCommunity, self).__init__(*args, **kwargs)
 
-        self.database = AttestationsDB(working_directory, db_name)
-        self.attestation_request_callbacks = [lambda x, y, z: None, lambda x, y, z, w=None: None]
+        self.attestation_request_callback = lambda peer, attribute_name, metadata: None
+        self.attestation_request_complete_callback = (lambda for_peer, attribute_name,
+                                                             attribute_hash, from_peer=None: None)
 
         # Map of attestation hash -> BonehPrivateKey
         self.attestation_keys = {}
+        self.database = AttestationsDB(working_directory, db_name)
         for hash, _, key in self.database.get_all():
             self.attestation_keys[str(hash)] = BonehPrivateKey.unserialize(str(key))
 
@@ -69,12 +71,12 @@ class AttestationCommunity(Community):
         """
         Set the callback to be called when someone requests an attestation from us.
 
-        f should accept a (Peer, attribute name) and return a str()-able value.
+        f should accept a (Peer, attribute name, metadata) and return a str()-able value.
         If it f returns None, no attestation is made.
 
         :param f: the callback function providing the value
         """
-        self.attestation_request_callbacks[0] = f
+        self.attestation_request_callback = f
 
     def set_attestation_request_complete_callback(self, f):
         """
@@ -83,7 +85,7 @@ class AttestationCommunity(Community):
 
         :param f: the function to call when an Attestation has been completed
         """
-        self.attestation_request_callbacks[1] = f
+        self.attestation_request_complete_callback = f
 
     def request_attestation(self, peer, attribute_name, secret_key, metadata={}):
         """
@@ -123,14 +125,14 @@ class AttestationCommunity(Community):
         attribute = metadata.pop('attribute')
         pubkey_b64 = metadata.pop('public_key')
 
-        value = yield self.attestation_request_callbacks[0](peer, attribute, metadata)
+        value = yield self.attestation_request_callback(peer, attribute, metadata)
         if value is None:
             return
 
         PK = BonehPublicKey.unserialize(pubkey_b64.decode('base64'))
         attestation_blob = attest_sha256_4(PK, value).serialize()
 
-        self.attestation_request_callbacks[1](peer, attribute, sha1(attestation_blob).digest())
+        self.attestation_request_complete_callback(peer, attribute, sha1(attestation_blob).digest())
 
         self.send_attestation(source_address, attestation_blob)
 
@@ -140,7 +142,7 @@ class AttestationCommunity(Community):
         """
         self.attestation_keys[str(hash)] = secret_key
         self.database.insert_attestation(unserialized, secret_key)
-        self.attestation_request_callbacks[1](self.my_peer, name, hash, peer)
+        self.attestation_request_complete_callback(self.my_peer, name, hash, peer)
 
     def verify_attestation_values(self, socket_address, hash, values, callback):
         """
