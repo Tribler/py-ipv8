@@ -1,9 +1,11 @@
 import json
 import time
 import unittest
-from base64 import b64encode
-from twisted.internet.defer import returnValue, inlineCallbacks
 from urllib import quote
+from base64 import b64encode
+
+from twisted.internet.defer import returnValue, inlineCallbacks
+from twisted.web.error import SchemeNotSupported
 
 from ipv8.test.REST.rtest.peer_communication import GetStyleRequests, PostStyleRequests
 from ipv8.test.REST.rtest.peer_interactive_behavior import AndroidTestPeer
@@ -13,7 +15,7 @@ from ipv8.test.util import twisted_wrapper
 
 
 class SingleServerSetup(unittest.TestCase):
-    """
+    """AndroidTestPeer
     Test class which defines an environment with one well-known peer. This should be extended by other subclasses,
     which implement specific test cases.
     """
@@ -24,25 +26,27 @@ class SingleServerSetup(unittest.TestCase):
         # Call the method which sets up the environment
         self.initialize()
 
-    def initialize(self,
-                   port=8086,
-                   interface='127.0.0.1',
-                   path='test_env',
-                   configuration=None,
-                   get_style_requests=None,
-                   post_style_requests=None):
+    def initialize(self, **kwargs):
         """
         An initializer method for the Single Server test environment
 
-        :param port: the port at which the Well Known peer will serve requests
-        :param interface: the address of the interface at which the Well Known peer will serve requests
-        :param path: the path where a local working directory will be created
-        :param configuration: a configuration object for the initialization of the well-known peer
-        be a unit test. That is, it should be a short method that calls some of
-        the assert* methods.
-        :param get_style_requests: a subclass of the
-        :param post_style_requests:
+        :param kwargs: a dictionary containing additional configuration parameters:
+        {
+            'port': the master peer's port. Defaults to 8086
+            '8086': the master peer's path to the working directory. Defaults to 'test_env'
+            'interface': IP or alias of the peer. Defaults to '127.0.0.1'
+            'configuration': IPv8 configuration object. Defaults to None
+            'get_style_requests': GET style request generator. Defaults to None
+            'post_style_requests': POST style request generator. Defaults to None
+        }
         """
+
+        port = kwargs.get('port', 8086)
+        path = kwargs.get('path', 'test_env')
+        interface = kwargs.get('interface', '127.0.0.1')
+        configuration = kwargs.get('configuration', None)
+        get_style_requests = kwargs.get('get_style_requests', None)
+        post_style_requests = kwargs.get('post_style_requests', None)
 
         # Create a so called master (well-known) peer, which should be the peer to which the requests are directed
         self._master_peer = TestPeer(path, port, interface, configuration)
@@ -64,10 +68,9 @@ class SingleServerSetup(unittest.TestCase):
             # If no post style request provided, default to the HTTP implementation
             self._post_style_requests = HTTPPostRequester()
 
-
     def setUp(self):
         # Call super method
-        super(SingleServerSetup, self).setUp()
+        pass
 
     def tearDown(self):
         # Call super method
@@ -247,7 +250,7 @@ class RequestTest(SingleServerSetup):
 
                     yield self._post_style_requests.make_attest(param_dict)
                     done = True
-        except:
+        except SchemeNotSupported:
             import traceback
             traceback.print_exc()
 

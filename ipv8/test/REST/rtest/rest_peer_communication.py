@@ -1,8 +1,9 @@
 from twisted.internet import reactor
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.web.client import Agent, readBody
-from ipv8.test.REST.rtest.peer_communication import GetStyleRequests, RequestException, PostStyleRequests
 from twisted.web.http_headers import Headers
+
+from ipv8.test.REST.rtest.peer_communication import GetStyleRequests, RequestException, PostStyleRequests
 
 
 class HTTPRequester(object):
@@ -18,7 +19,7 @@ class HTTPRequester(object):
         """
         Forward an HTTP request of the specified type to a url, with the specified set of arguments.
 
-        :param url: the destination of the request
+        :param url: the destination of the request is not declared in __all__
         :param request_type: the type of request (GET, POST, PUT, DELETE, etc.)
         :param arguments: the arguments to be attached to the request
         :param on_complete_callback:
@@ -27,10 +28,6 @@ class HTTPRequester(object):
         # If no arguments are sent, then assign default empty arguments
         if arguments is None:
             arguments = {}
-
-        # If no callback is supplied, then assign a standard callback
-        if not on_complete_callback:
-            on_complete_callback = (lambda x: readBody(x))
 
         request_url = url + '?' + '&'.join("%s=%s" % (k, v) for k, v in arguments.iteritems())
         print "\t[HTTP-%s] %s" % (request_type, request_url)
@@ -41,7 +38,7 @@ class HTTPRequester(object):
                      'Content-Type': ['text/x-greeting']}),
             None)
 
-        response = yield d.addCallback(on_complete_callback)
+        response = yield d.addCallback(on_complete_callback if on_complete_callback else readBody)
         returnValue(response)
 
     @staticmethod
@@ -102,8 +99,7 @@ class HTTPGetRequester(GetStyleRequests, HTTPRequester):
         response = yield self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
                                            'GET',
                                            {'type': 'outstanding'},
-                                           param_dict.get('callback', None)
-                                           )
+                                           param_dict.get('callback', None))
         returnValue(response)
 
     @inlineCallbacks
@@ -126,8 +122,7 @@ class HTTPGetRequester(GetStyleRequests, HTTPRequester):
         response = yield self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
                                            'GET',
                                            {'type': 'verification_output'},
-                                           param_dict.get('callback', None)
-                                           )
+                                           param_dict.get('callback', None))
         returnValue(response)
 
     @inlineCallbacks
@@ -150,8 +145,7 @@ class HTTPGetRequester(GetStyleRequests, HTTPRequester):
         response = yield self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
                                            'GET',
                                            {'type': 'peers'},
-                                           param_dict.get('callback', None)
-                                           )
+                                           param_dict.get('callback', None))
         returnValue(response)
 
     @inlineCallbacks
@@ -178,8 +172,7 @@ class HTTPGetRequester(GetStyleRequests, HTTPRequester):
         response = yield self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
                                            'GET',
                                            request_parameters,
-                                           param_dict.get('callback', None)
-                                           )
+                                           param_dict.get('callback', None))
         returnValue(response)
 
     @inlineCallbacks
@@ -189,8 +182,7 @@ class HTTPGetRequester(GetStyleRequests, HTTPRequester):
         response = yield self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
                                            'GET',
                                            {'type': 'drop_identity'},
-                                           param_dict.get('callback', None)
-                                           )
+                                           param_dict.get('callback', None))
         returnValue(response)
 
 
@@ -243,8 +235,7 @@ class HTTPPostRequester(PostStyleRequests, HTTPRequester):
         response = yield self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
                                            'POST',
                                            request_parameters,
-                                           param_dict.get('callback', None)
-                                           )
+                                           param_dict.get('callback', None))
         returnValue(response)
 
     @inlineCallbacks
@@ -290,8 +281,7 @@ class HTTPPostRequester(PostStyleRequests, HTTPRequester):
         response = yield self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
                                            'POST',
                                            request_parameters,
-                                           param_dict.get('callback', None)
-                                           )
+                                           param_dict.get('callback', None))
         returnValue(response)
 
     @inlineCallbacks
@@ -337,7 +327,6 @@ class HTTPPostRequester(PostStyleRequests, HTTPRequester):
         response = yield self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
                                            'POST',
                                            request_parameters,
-                                           param_dict.get('callback', None)
-                                           )
+                                           param_dict.get('callback', None))
 
         returnValue(response)

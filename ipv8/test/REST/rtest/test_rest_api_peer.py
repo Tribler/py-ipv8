@@ -2,19 +2,19 @@ import os
 import threading
 import time
 
+import logging
+
 from ipv8.REST.rest_manager import RESTRequest
 from ipv8.REST.root_endpoint import RootEndpoint
 from ipv8.configuration import get_default_configuration
 from ipv8.taskmanager import TaskManager
-from twisted.web import server
-from twisted.internet.defer import maybeDeferred, inlineCallbacks, returnValue
-from twisted.internet import reactor
-
-import logging
-
 from ipv8.test.REST.rtest.peer_communication import GetStyleRequests, PostStyleRequests
 from ipv8.test.REST.rtest.rest_peer_communication import HTTPGetRequester, HTTPPostRequester
 from ipv8_service import IPv8
+
+from twisted.web import server
+from twisted.internet.defer import maybeDeferred, inlineCallbacks, returnValue
+from twisted.internet import reactor
 
 
 class TestPeer(object):
@@ -24,6 +24,7 @@ class TestPeer(object):
                  port,
                  interface='127.0.0.1',
                  configuration=None):
+
         self._logger = logging.getLogger(self.__class__.__name__)
         self._logger.info("Peer starting-up.")
 
@@ -139,10 +140,26 @@ class InteractiveTestPeer(TestPeer, threading.Thread):
     def __init__(self,
                  path,
                  port,
-                 interface='127.0.0.1',
-                 configuration=None,
-                 get_style_requests=None,
-                 post_style_requests=None):
+                 **kwargs):
+        """
+        InteractiveTestPeer initializer
+
+        :param path: the for the working directory of this peer
+        :param port: this peer's port
+        :param kwargs: a dictionary containing additional configuration parameters:
+        {
+            'interface': IP or alias of the peer. Defaults to '127.0.0.1'
+            'configuration': IPv8 configuration object. Defaults to None
+            'get_style_requests': GET style request generator. Defaults to None
+            'post_style_requests': POST style request generator. Defaults to None
+        }
+        """
+
+        interface = kwargs.get('interface', '127.0.0.1')
+        configuration = kwargs.get('configuration', None)
+        get_style_requests = kwargs.get('get_style_requests', None)
+        post_style_requests = kwargs.get('post_style_requests', None)
+
         TestPeer.__init__(self, path, port, interface, configuration)
         threading.Thread.__init__(self)
 

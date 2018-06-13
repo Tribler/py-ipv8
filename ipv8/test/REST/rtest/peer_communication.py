@@ -2,10 +2,7 @@
 from abc import abstractmethod
 
 
-class PostStyleRequests:
-
-    def __init__(self):
-        pass
+class PostStyleRequests(object):
 
     @abstractmethod
     def make_attestation_request(self, param_dict):
@@ -38,10 +35,7 @@ class PostStyleRequests:
         pass
 
 
-class GetStyleRequests:
-
-    def __init__(self):
-        pass
+class GetStyleRequests(object):
 
     @abstractmethod
     def make_outstanding(self, param_dict):
@@ -98,6 +92,3 @@ class RequestException(Exception):
     """
     Custom exception used to model request errors
     """
-    def __init__(self, message = "Request not properly formatted"):
-        super(RequestException, self).__init__(message)
-
