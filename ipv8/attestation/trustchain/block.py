@@ -49,6 +49,7 @@ class TrustChainBlock(object):
             if isinstance(self.signature, buffer):
                 self.signature = str(self.signature)
         self.serializer = serializer
+        self.crypto = ECCrypto()
 
     @classmethod
     def from_payload(cls, payload, serializer):
@@ -105,6 +106,10 @@ class TrustChainBlock(object):
         return "%s.%d" % (self.link_public_key.encode('hex'), self.link_sequence_number)
 
     @property
+    def is_genesis(self):
+        return self.sequence_number == GENESIS_SEQ or self.previous_hash == GENESIS_HASH
+
+    @property
     def hash_number(self):
         """
         Return the hash of this block as a number (used as crawl ID).
@@ -136,85 +141,112 @@ class TrustChainBlock(object):
         :return: A tuple consisting of a ValidationResult and a list of user string errors
         """
 
-        # we start off thinking everything is hunky dory
-        result = [ValidationResult.valid]
-        errors = []
-        crypto = ECCrypto()
+        # Start with a valid result.
+        result = ValidationResult()
 
-        # short cut for invalidating so we don't have repeating similar code for every error.
-        # this is also the reason result is a list, we need a mutable container. Assignments in err are limited to its
-        # scope. So setting result directly is not possible.
-        def err(reason):
-            result[0] = ValidationResult.invalid
-            errors.append(reason)
-
-        # Step 1: get all related blocks from the database.
-        # The validity of blocks is immutable. Once they are accepted they cannot change validation result. In such
-        # cases subsequent blocks can get validation errors and will not get inserted into the database. Thus we can
-        # assume that all retrieved blocks are not invalid themselves. Blocks can get inserted into the database in any
-        # order, so we need to find successors, predecessors as well as the block itself and its linked block.
+        # The validity of blocks is immutable. Once they are accepted they cannot change validation result. Blocks can
+        # get inserted into the database in any order, so we need to find successors, predecessors as well as the block
+        # itself and its linked block.
         blk = database.get(self.public_key, self.sequence_number)
         link = database.get_linked(self)
         prev_blk = database.get_block_before(self)
         next_blk = database.get_block_after(self)
 
-        # Step 2: determine the maximum validation level
-        # Depending on the blocks we get from the database, we can decide to reduce the validation level. We must do
-        # this prior to flagging any errors. This way we are only ever reducing the validation level without having to
-        # resort to min()/max() every time we set it. We first determine some booleans to make everything readable.
-        is_genesis = self.sequence_number == GENESIS_SEQ or self.previous_hash == GENESIS_HASH
+        # Update the validation result to reflect the achievable validation level.
+        self.update_validation_level(prev_blk, next_blk, result)
+
+        # Update the validation result through checking the block invariant.
+        self.update_block_invariant(database, result)
+
+        # Check if this block as retrieved from our database is the same as this block.
+        self.update_block_consistency(blk, result)
+
+        # Check if the linked block as retrieved from our database is the same as the one linked by this block.
+        self.update_linked_consistency(database, link, result)
+
+        # Check if the chain of blocks is properly hooked up.
+        self.update_chain_consistency(prev_blk, next_blk, result)
+
+        return result.state, result.errors
+
+    def update_validation_level(self, prev_blk, next_blk, result):
+        """
+        Determine the maximum validation level.
+
+        Depending on the blocks we get from the database, we can decide to reduce the validation level. We must do
+        this prior to flagging any errors. This way we are only ever reducing the validation level without having to
+        resort to min()/max() every time we set it. We first determine some booleans to make everything readable.
+
+        :param prev_blk: the previous block in the chain
+        :type prev_blk: TrustChainBlock or None
+        :param next_blk: the next block in the chain
+        :type next_blk: TrustChainBlock or None
+        :param result: the result to update
+        :type result: ValidationResult
+        :returns: None
+        """
         is_prev_gap = prev_blk.sequence_number != self.sequence_number - 1 if prev_blk else True
         is_next_gap = next_blk.sequence_number != self.sequence_number + 1 if next_blk else True
         if not prev_blk and not next_blk:
             # Is this block a non genesis block? If so, we know nothing about this public key, else pretend the
             # prev_blk exists
-            if not is_genesis:
-                result[0] = ValidationResult.no_info
+            if not self.is_genesis:
+                result.state = ValidationResult.no_info
             else:
                 # We pretend prev_blk exists. This leaves us with next missing, which means partial-next at best.
-                result[0] = ValidationResult.partial_next
+                result.state = ValidationResult.partial_next
         elif not prev_blk and next_blk:
             # Is this block a non genesis block?
-            if not is_genesis:
+            if not self.is_genesis:
                 # We are really missing prev_blk. So now partial-prev at best.
-                result[0] = ValidationResult.partial_previous
+                result.state = ValidationResult.partial_previous
                 if is_next_gap:
                     # Both sides are unknown or non-contiguous return a full partial result.
-                    result[0] = ValidationResult.partial
+                    result.state = ValidationResult.partial
             elif is_next_gap:
                 # This is a genesis block, so the missing previous is expected. If there is a gap to the next block
                 # this reduces the validation result to partial-next
-                result[0] = ValidationResult.partial_next
+                result.state = ValidationResult.partial_next
         elif prev_blk and not next_blk:
             # We are missing next_blk, so now partial-next at best.
-            result[0] = ValidationResult.partial_next
+            result.state = ValidationResult.partial_next
             if is_prev_gap:
                 # Both sides are unknown or non-contiguous return a full partial result.
-                result[0] = ValidationResult.partial
+                result.state = ValidationResult.partial
         else:
             # both sides have known blocks, see if there are gaps
             if is_prev_gap and is_next_gap:
-                result[0] = ValidationResult.partial
+                result.state = ValidationResult.partial
             elif is_prev_gap:
-                result[0] = ValidationResult.partial_previous
+                result.state = ValidationResult.partial_previous
             elif is_next_gap:
-                result[0] = ValidationResult.partial_next
+                result.state = ValidationResult.partial_next
 
-        # Step 3: validate that the block is sane, including the validity of the transaction
-        # Some basic self tests. It is possible to violate these when constructing a block in code or getting a block
-        # from the database. The wire format is such that it impossible to hit many of these for blocks that went over
-        # the network.
+    def update_block_invariant(self, database, result):
+        """
+        Validate that the block is sane, including the validity of the transaction.
+
+        Some basic self tests. It is possible to violate these when constructing a block in code or getting a block
+        from the database. The wire format is such that it impossible to hit many of these for blocks that went over
+        the network.
+
+        :param database: the database to use
+        :type database: TrustChainDB
+        :param result: the result to update
+        :type result: ValidationResult
+        :returns: None
+        """
         tx_validate_res, tx_errors = self.validate_transaction(database)
         if tx_validate_res != ValidationResult.valid:
-            result[0] = tx_validate_res
-            errors += tx_errors
+            result.state = tx_validate_res
+            result.errors += tx_errors
 
         if self.sequence_number < GENESIS_SEQ:
-            err("Sequence number is prior to genesis")
+            result.err("Sequence number is prior to genesis")
         if self.link_sequence_number < GENESIS_SEQ and self.link_sequence_number != UNKNOWN_SEQ:
-            err("Link sequence number not empty and is prior to genesis")
-        if not crypto.is_valid_public_bin(self.public_key):
-            err("Public key is not valid")
+            result.err("Link sequence number not empty and is prior to genesis")
+        if not self.crypto.is_valid_public_bin(self.public_key):
+            result.err("Public key is not valid")
         else:
             # If the public key is valid, we can use it to check the signature. We want just a yes/no answer here, and
             # we want to keep checking for more errors, so just catch all packing exceptions and err() if any happen.
@@ -222,85 +254,118 @@ class TrustChainBlock(object):
                 pck = self.pack(signature=False)
             except:
                 pck = None
-            if pck is None or not crypto.is_valid_signature(
-                    crypto.key_from_public_bin(self.public_key), pck, self.signature):
-                err("Invalid signature")
-        if not crypto.is_valid_public_bin(self.link_public_key):
-            err("Linked public key is not valid")
+            if pck is None or not self.crypto.is_valid_signature(
+                    self.crypto.key_from_public_bin(self.public_key), pck, self.signature):
+                result.err("Invalid signature")
+        if not self.crypto.is_valid_public_bin(self.link_public_key):
+            result.err("Linked public key is not valid")
         if self.public_key == self.link_public_key:
             # Blocks to self serve no purpose and are thus invalid.
-            err("Self signed block")
-        if is_genesis:
+            result.err("Self signed block")
+        if self.is_genesis:
             if self.sequence_number == GENESIS_SEQ and self.previous_hash != GENESIS_HASH:
-                err("Sequence number implies previous hash should be Genesis ID")
+                result.err("Sequence number implies previous hash should be Genesis ID")
             if self.sequence_number != GENESIS_SEQ and self.previous_hash == GENESIS_HASH:
-                err("Sequence number implies previous hash should not be Genesis ID")
+                result.err("Sequence number implies previous hash should not be Genesis ID")
 
-        # Step 4: does the database already know about this block? If so it should be equal or else we caught a
-        # branch in someones trustchain.
+    def update_block_consistency(self, blk, result):
+        """
+        Check if a given block is consistent with this block.
+
+        If so it should be equal or else we caught a branch in someones trustchain.
+
+        :param blk: the block to check for consistency with this block
+        :type blk: TrustChainBlock or None
+        :param result: the result to update
+        :type result: ValidationResult
+        :returns: None
+        """
         if blk:
-            # Sanity check to see if the database returned the expected block, we want to cover all our bases before
-            # crying wolf and making a fraud claim.
-            assert blk.public_key == self.public_key and blk.sequence_number == self.sequence_number, \
-                "Database returned unexpected block"
             if blk.link_public_key != self.link_public_key:
-                err("Link public key does not match known block")
+                result.err("Link public key does not match known block")
             if blk.link_sequence_number != self.link_sequence_number:
-                err("Link sequence number does not match known block")
+                result.err("Link sequence number does not match known block")
             if blk.previous_hash != self.previous_hash:
-                err("Previous hash does not match known block")
+                result.err("Previous hash does not match known block")
             if blk.signature != self.signature:
-                err("Signature does not match known block")
+                result.err("Signature does not match known block")
             # if the known block is not equal, and the signatures are valid, we have a double signed PK/seq. Fraud!
-            if self.hash != blk.hash and "Invalid signature" not in errors and "Public key is not valid" not in errors:
-                err("Double sign fraud")
+            if self.hash != blk.hash and "Invalid signature" not in result.errors and\
+               "Public key is not valid" not in result.errors:
+                result.err("Double sign fraud")
 
-        # Step 5: does the database have the linked block? If so do the values match up? If the values do not match up
-        # someone comitted fraud, but it is impossible to decide who. So we just invalidate the block that is the latter
-        # to get validated. We can also detect double counter sign fraud at this point.
+    def update_linked_consistency(self, database, link, result):
+        """
+        If the database has a linked block check if the values match up.
+
+        If the values do not match up someone comitted fraud, but it is impossible to decide who. So we just invalidate
+        the block that is the latter to get validated. We can also detect double counter sign fraud at this point.
+
+        :param database: the database to use
+        :type database: TrustChainDB
+        :param link: the linked block
+        :type link: TrustChainBlock or None
+        :param result: the result to update
+        :type result: ValidationResult
+        :returns: None
+        """
         if link:
-            # Sanity check to see if the database returned the expected block, we want to cover all our bases before
-            # crying wolf and making a fraud claim.
-            assert link.public_key == self.link_public_key and \
-                   (link.link_sequence_number == self.sequence_number or
-                    link.sequence_number == self.link_sequence_number), \
-                   "Database returned unexpected block"
-            if self.public_key != link.link_public_key:
-                err("Public key mismatch on linked block")
+            if link.public_key != self.link_public_key:
+                result.err("Known link public key does not match this block")
+            elif (link.link_sequence_number != self.sequence_number and
+                  link.sequence_number != self.link_sequence_number):
+                result.err("No link to linked block")
+            elif self.public_key != link.link_public_key:
+                result.err("Public key mismatch on linked block")
             elif self.link_sequence_number != UNKNOWN_SEQ:
                 # self counter signs another block (link). If link has a linked block that is not equal to self,
                 # then self is fraudulent, since it tries to countersign a block that is already countersigned
                 linklinked = database.get_linked(link)
                 if linklinked is not None and linklinked.hash != self.hash:
-                    err("Double countersign fraud")
+                    result.err("Double countersign fraud")
 
-        # Step 6: Did we get blocks from the database before or after self? They should be checked for violations too.
+    def update_chain_consistency(self, prev_blk, next_blk, result):
+        """
+        Check for chain order consistency.
+
+        The previous block should point to us and this block should point to the next block.
+
+        :param prev_blk: the previous block in the chain
+        :type prev_blk: TrustChainBlock or None
+        :param next_blk: the next block in the chain
+        :type next_blk: TrustChainBlock or None
+        :param result: the result to update
+        :type result: ValidationResult
+        :returns: None
+        """
+        is_prev_gap = prev_blk.sequence_number != self.sequence_number - 1 if prev_blk else True
+        is_next_gap = next_blk.sequence_number != self.sequence_number + 1 if next_blk else True
+
         if prev_blk:
-            # Sanity check of the block the database gave us.
-            assert prev_blk.public_key == self.public_key and prev_blk.sequence_number < self.sequence_number,\
-                "Database returned unexpected block"
+            if prev_blk.public_key != self.public_key:
+                result.err("Previous block public key mismatch")
+            if prev_blk.sequence_number >= self.sequence_number:
+                result.err("Previous block sequence number mismatch")
             if not is_prev_gap and prev_blk.hash != self.previous_hash:
-                err("Previous hash is not equal to the hash id of the previous block")
+                result.err("Previous hash is not equal to the hash id of the previous block")
                 # Is this fraud? It is certainly an error, but fixing it would require a different signature on the same
                 # sequence number which is fraud.
 
         if next_blk:
-            # Sanity check of the block the database gave us.
-            assert next_blk.public_key == self.public_key and next_blk.sequence_number > self.sequence_number,\
-                "Database returned unexpected block"
+            if next_blk.public_key != self.public_key:
+                result.err("Next block public key mismatch")
+            if next_blk.sequence_number <= self.sequence_number:
+                result.err("Next block sequence number mismatch")
             if not is_next_gap and next_blk.previous_hash != self.hash:
-                err("Next hash is not equal to the hash id of the block")
+                result.err("Next hash is not equal to the hash id of the block")
                 # Again, this might not be fraud, but fixing it can only result in fraud.
-
-        return result[0], errors
 
     def sign(self, key):
         """
         Signs this block with the given key
         :param key: the key to sign this block with
         """
-        crypto = ECCrypto()
-        self.signature = crypto.create_signature(key, self.pack(signature=False))
+        self.signature = self.crypto.create_signature(key, self.pack(signature=False))
 
     @classmethod
     def create(cls, transaction, database, public_key, link=None, link_pk=None):
@@ -409,3 +474,21 @@ class ValidationResult(object):
         The block violates at least one validation rule
         """
         pass
+
+    def __init__(self):
+        """
+        Create a new ValidationResult instance with valid state and no errors.
+        """
+        self.state = ValidationResult.valid
+        self.errors = []
+
+    def err(self, reason):
+        """
+        Invalidate this result and give a reason for the invalidation.
+
+        :param reason: the reason for invalidation
+        :type reason: str
+        :return: None
+        """
+        self.state = ValidationResult.invalid
+        self.errors.append(reason)
