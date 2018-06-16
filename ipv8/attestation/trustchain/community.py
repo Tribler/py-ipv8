@@ -39,18 +39,26 @@ class TrustChainCommunity(Community):
     """
     Community for reputation based on TrustChain tamper proof interaction history.
     """
+    TESTNET_PEER = Peer(("3081a7301006072a8648ce3d020106052b810400270381920004017aa18185c6c8a3741aed970f5476d50932980"
+                         "66670c6557f9d2519a77c2abe293f9438444fdb73d9e36d0b43a4a254f96c563c0da7915def980270d88da4079e"
+                         "83a6039ce97f2205528c69087f88a6d6f35d83b93b3fb8a360260114729d4cfb5acc4b190e067695b4ae5e240a3"
+                         "939a1f45520e87a459ed0f358bf5e66371a748daa041997da69cab227596948bffd").decode("HEX"))
+    MAINNET_PEER = Peer(("3081a7301006072a8648ce3d020106052b810400270381920004057a1c4c4f8422b328209d99724bd30cf08d1f8"
+                         "1a2961b003affd2964f92c457572f2f79de0968c42698e2d1cfb371dd71b275332a0a4c19f35f16166272baae8e"
+                         "230bba377cc5c40643b83206088075559ec2f13a090e8786d04d84802268bef12e52983978da360589a2b7e293c"
+                         "e4f16d02f37da2c3256f4703b9623d3750f7af437befebc8935c0f0726f58c1c1e9").decode("HEX"))
+
     DB_CLASS = TrustChainDB
     DB_NAME = 'trustchain'
     BROADCAST_FANOUT = 10
     version = '\x02'
-    master_peer = Peer(("3081a7301006072a8648ce3d020106052b810400270381920004057a1c4c4f8422b328209d99724bd30cf08d1f81"
-                        "a2961b003affd2964f92c457572f2f79de0968c42698e2d1cfb371dd71b275332a0a4c19f35f16166272baae8e23"
-                        "0bba377cc5c40643b83206088075559ec2f13a090e8786d04d84802268bef12e52983978da360589a2b7e293ce4f"
-                        "16d02f37da2c3256f4703b9623d3750f7af437befebc8935c0f0726f58c1c1e9").decode("HEX"))
+    master_peer = None  # Determined at runtime
 
     def __init__(self, *args, **kwargs):
         working_directory = kwargs.pop('working_directory', '')
         db_name = kwargs.pop('db_name', self.DB_NAME)
+        self.testnet = kwargs.pop('testnet', False)
+        TrustChainCommunity.master_peer = self.TESTNET_PEER if self.testnet else self.MAINNET_PEER
         super(TrustChainCommunity, self).__init__(*args, **kwargs)
         self.request_cache = RequestCache()
         self.logger = logging.getLogger(self.__class__.__name__)
