@@ -8,7 +8,7 @@ from twisted.internet.defer import DeferredList, inlineCallbacks, maybeDeferred
 from twisted.internet.task import LoopingCall
 
 from ipv8.attestation.identity.community import IdentityCommunity
-from ipv8.attestation.trustchain.community import TrustChainCommunity
+from ipv8.attestation.trustchain.community import TrustChainCommunity, TrustChainTestnetCommunity
 from ipv8.attestation.wallet.community import AttestationCommunity
 from ipv8.keyvault.crypto import ECCrypto
 from ipv8.keyvault.private.m2crypto import M2CryptoSK
@@ -30,7 +30,8 @@ _COMMUNITIES = {
     'IdentityCommunity': IdentityCommunity,
     'TrustChainCommunity': TrustChainCommunity,
     'TunnelCommunity': TunnelCommunity,
-    'DHTDiscoveryCommunity': DHTDiscoveryCommunity
+    'DHTDiscoveryCommunity': DHTDiscoveryCommunity,
+    'TrustChainTestnetCommunity': TrustChainTestnetCommunity,
 }
 
 

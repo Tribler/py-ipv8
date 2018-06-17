@@ -22,14 +22,14 @@ class RESTManager(TaskManager):
         self.site = None
         self.root_endpoint = None
 
-    def start(self):
+    def start(self, port=8085):
         """
         Starts the HTTP API with the listen port as specified in the session configuration.
         """
         self.root_endpoint = RootEndpoint(self.session)
         site = server.Site(resource=self.root_endpoint)
         site.requestFactory = RESTRequest
-        self.site = reactor.listenTCP(8085, site, interface="127.0.0.1")
+        self.site = reactor.listenTCP(port, site, interface="127.0.0.1")
 
     def stop(self):
         """
