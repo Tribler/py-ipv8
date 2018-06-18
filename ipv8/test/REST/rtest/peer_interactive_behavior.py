@@ -58,4 +58,4 @@ class AndroidTestPeer(InteractiveTestPeer):
 
             self._logger.info("Sending an attestation request to %s", self._param_dict['mid'])
             print "AndroidTestPeer: Sending an attestation request to", self._param_dict['mid']
-            # response = yield self._post_style_requests.make_attestation_request(self._param_dict)
+            yield self._post_style_requests.make_attestation_request(self._param_dict)

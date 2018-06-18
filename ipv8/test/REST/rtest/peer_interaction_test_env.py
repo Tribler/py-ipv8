@@ -1,14 +1,12 @@
+import ast
 import json
 import time
 import unittest
 from urllib import quote
 from base64 import b64encode
-
 from twisted.internet.defer import returnValue, inlineCallbacks
-from twisted.web.error import SchemeNotSupported
 
 from ipv8.test.REST.rtest.peer_communication import GetStyleRequests, PostStyleRequests
-from ipv8.test.REST.rtest.peer_interactive_behavior import AndroidTestPeer
 from ipv8.test.REST.rtest.rest_peer_communication import HTTPGetRequester, HTTPPostRequester
 from ipv8.test.REST.rtest.test_rest_api_peer import TestPeer
 from ipv8.test.util import twisted_wrapper
@@ -125,6 +123,74 @@ class RequestTest(SingleServerSetup):
         # Return the peer list
         returnValue(outstanding_requests)
 
+    @inlineCallbacks
+    def send_attestation_requests_to_all(self, param_dict):
+        """
+        Request an attestation from each of the known peers in the system
+
+        :param param_dict: the parameters required to contact a peer for the GET: peers request
+        :return: a list of the peers and their (empty if successful) request responses
+        """
+        assert 'attribute_name' in param_dict, "No attribute name was specified"
+
+        known_peers = yield self.wait_for_peers(param_dict)
+
+        known_peers = ast.literal_eval(known_peers)
+
+        responses = []
+
+        for peer in known_peers:
+            param_dict['mid'] = peer.replace('+', '%2B')
+            intermediate_response = yield self._post_style_requests.make_attestation_request(param_dict)
+            responses.append(intermediate_response)
+
+        returnValue((known_peers, responses))
+
+    @inlineCallbacks
+    def attest_all_outstanding_requests(self, param_dict):
+        """
+        Forward an attestation for each of the outstanding attestation requests
+
+        :param param_dict: the parameters required to contact a well-known peer for the POST and GET requests
+        :return: a list of the outstanding requests and their (empty if successful) request responses
+        """
+        assert 'attribute_name' in param_dict, "No attribute name was specified"
+        assert 'attribute_value' in param_dict, "No attribute value was specified"
+
+        outstanding_requests = yield self.wait_for_attestation_request(param_dict)
+        outstanding_requests = ast.literal_eval(outstanding_requests)
+        response_list = []
+
+        for request in outstanding_requests:
+            param_dict['mid'] = str(request[0]).replace("+", "%2B")
+            param_dict['attribute_name'] = str(request[1])
+            response = yield self._post_style_requests.make_attest(param_dict)
+            response_list.append(response)
+
+        returnValue((outstanding_requests, response_list))
+
+    @inlineCallbacks
+    def verify_all_attestations(self, attestations, param_dict):
+        """
+        Forward an attestation verification for a set of attestations
+
+        :param attestations: the set of attestations which will be verified
+        :param param_dict: the parameters required to contact a well-known peer for the POST: verify request
+        :return: the verification responses, as returned by the well-known peer. Ideally these should be all empty
+        """
+        assert attestations, "Attestation list is empty"
+        assert 'attribute_hash' in param_dict, "No attestation hash was specified"
+        assert 'attribute_values' in param_dict, "No attestation values were specified"
+
+        verification_responses = []
+
+        for attestation in attestations:
+            param_dict['mid'] = attestation[0].replace("+", "%2B")
+            intermediary_response = yield self._post_style_requests.make_verify(param_dict)
+            verification_responses.append(intermediary_response)
+
+        returnValue(verification_responses)
+
     @twisted_wrapper
     def test_get_peers_request(self):
         """
@@ -137,8 +203,13 @@ class RequestTest(SingleServerSetup):
             'endpoint': 'attestation'
         }
 
-        result = yield self._get_style_requests.make_peers(param_dict)
-        print "The response body:", result
+        # Create a dummy peer which will be used towards peer discovery; there is no need to start() it
+        TestPeer('android_peer', 9876)
+
+        # result = yield self._get_style_requests.make_peers(param_dict)
+        result = yield self.wait_for_peers(param_dict)
+
+        self.assertNotEqual(result, "[]", "The request received an empty peer list, instead of a populated one.")
 
     @twisted_wrapper
     def test_get_outstanding_requests(self):
@@ -153,22 +224,37 @@ class RequestTest(SingleServerSetup):
         }
 
         result = yield self._get_style_requests.make_outstanding(param_dict)
-        print "The response body:", result
+        self.assertEqual(result, "[]", "The response was not []. This would suggest that something went wrong with "
+                                       "the outstanding request.")
 
-    @twisted_wrapper
+    @twisted_wrapper(30)
     def test_get_verification_output(self):
         """
         Test the GET: verification output request type
         :return: None
         """
+        attestation_value = quote(b64encode('binarydata')).replace("+", "%2B")
+
         param_dict = {
             'port': 8086,
             'interface': '127.0.0.1',
-            'endpoint': 'attestation'
+            'endpoint': 'attestation',
+            'attribute_name': 'QR',
+            'attribute_hash': attestation_value,
+            'attribute_value': attestation_value,
+            'attribute_values': 'YXNk,YXNkMg==',
+            'metadata': b64encode(json.dumps({'psn': '1234567890'}))
         }
 
+        yield self.send_attestation_requests_to_all(param_dict)
+        attestation_responses = yield self.attest_all_outstanding_requests(param_dict)
+
+        yield self.verify_all_attestations(attestation_responses[0], param_dict)
+
         result = yield self._get_style_requests.make_verification_output(param_dict)
-        print "The response body:", result
+        print result
+        self.assertFalse(not result, "The response was not an empty dictionary. This would suggest that something went "
+                                     "wrong with the verification output request.")
 
     @twisted_wrapper
     def test_get_attributes(self):
@@ -183,7 +269,8 @@ class RequestTest(SingleServerSetup):
         }
 
         result = yield self._get_style_requests.make_attributes(param_dict)
-        print "The response body:", result
+        self.assertEqual(result, "[]", "The response was not []. This would suggest that something went wrong with "
+                                       "the attributes request.")
 
     @twisted_wrapper
     def test_get_drop_identity(self):
@@ -198,9 +285,9 @@ class RequestTest(SingleServerSetup):
         }
 
         result = yield self._get_style_requests.make_drop_identity(param_dict)
-        print "The response body:", result
+        self.assertEqual(result, "", "The identity could not be dropped. Received non-empty response.")
 
-    @twisted_wrapper
+    @twisted_wrapper(30)
     def test_post_attestation_request(self):
         """
         Test the POST: request request type
@@ -211,73 +298,54 @@ class RequestTest(SingleServerSetup):
             'interface': '127.0.0.1',
             'endpoint': 'attestation',
             'attribute_name': 'QR',
-            'mid': '4AFiooDqnS0xnCOHq8npGmwUXXY='
+            'attribute_value': quote(b64encode('binarydata')).replace("+", "%2B"),
+            'metadata': b64encode(json.dumps({'psn': '1234567890'}))
         }
 
-        result = yield self._post_style_requests.make_attestation_request(param_dict)
-        print "The response body:", result
+        result = yield self.send_attestation_requests_to_all(param_dict)
+        self.assertTrue(all(x == "" for x in result[1]), "At least one of the attestation request "
+                                                         "responses was non-empty.")
 
-    @twisted_wrapper(300)
+    @twisted_wrapper(30)
     def test_post_attest(self):
-
         param_dict = {
             'port': 8086,
             'interface': '127.0.0.1',
-            'endpoint': 'attestation'
+            'endpoint': 'attestation',
+            'attribute_name': 'QR',
+            'attribute_value': quote(b64encode('binarydata')).replace("+", "%2B"),
+            'metadata': b64encode(json.dumps({'psn': '1234567890'}))
         }
 
-        client_peer = AndroidTestPeer(param_dict, 'client_peer', 9876)
-        client_peer.start()
+        yield self.send_attestation_requests_to_all(param_dict)
 
-        from json import loads
+        response = yield self.attest_all_outstanding_requests(param_dict)
 
-        for peer in self._master_peer.get_keys().iteritems():
-            print peer[0], b64encode(peer[1].mid)
+        self.assertTrue(all(x == "" for x in response[1]), "At least one of the attestation responses was non-empty.")
 
-        try:
-            value = yield self.wait_for_peers(param_dict)
-            print "Known peers:", value
-            done = False
-            while not done:
-                value = yield self.wait_for_attestation_request(param_dict)
-                value = loads(value)
-                print "Pending attestation request for attester:", value
-                # raw_input('PRESS ANY KEY TO CONTINUE')
-                for (identifier, attribute) in value:
-                    param_dict['mid'] = str(identifier).replace("+", "%2B")
-                    param_dict['attribute_name'] = str(attribute)
-                    param_dict['attribute_value'] = quote(b64encode('binarydata')).replace("+", "%2B")
-
-                    yield self._post_style_requests.make_attest(param_dict)
-                    done = True
-        except SchemeNotSupported:
-            import traceback
-            traceback.print_exc()
-
-        client_peer.join()
-
-    @twisted_wrapper
+    @twisted_wrapper(30)
     def test_post_verify(self):
         """
         Test the POST: verify request type
         :return: None
         """
-
-        values = ""
-
-        for i in range(10):
-            values = values + ',' + b64encode(str(i))
-
-        values = values[1:]
+        attestation_value = quote(b64encode('binarydata')).replace("+", "%2B")
 
         param_dict = {
             'port': 8086,
             'interface': '127.0.0.1',
             'endpoint': 'attestation',
-            'mid': '4AFiooDqnS0xnCOHq8npGmwUXXY=',
-            'attribute_hash': quote(b64encode('binarydata')).replace("+", "%2B"),
-            'attribute_values': values
+            'attribute_name': 'QR',
+            'attribute_hash': attestation_value,
+            'attribute_value': attestation_value,
+            'attribute_values': 'YXNk,YXNkMg==',
+            'metadata': b64encode(json.dumps({'psn': '1234567890'}))
         }
 
-        result = yield self._post_style_requests.make_verify(param_dict)
-        print "The response body:", result
+        yield self.send_attestation_requests_to_all(param_dict)
+        attestation_responses = yield self.attest_all_outstanding_requests(param_dict)
+
+        verification_responses = yield self.verify_all_attestations(attestation_responses[0], param_dict)
+
+        self.assertTrue(all(x == "" for x in verification_responses), "At least one of the verification "
+                                                                      "responses was non-empty.")
