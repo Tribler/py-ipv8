@@ -5,6 +5,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
 
+from .. import NEW_CRYPTOGRAPHY_SIGN_VERSION
 from ...keyvault.public.m2crypto import M2CryptoPK
 from ...keyvault.keys import PrivateKey
 
@@ -67,9 +68,12 @@ class M2CryptoSK(PrivateKey, M2CryptoPK):
         :param msg: the message to sign
         """
         # Create the pyca signature
-        signer = self.ec.signer(ec.ECDSA(hashes.SHA1()))
-        signer.update(msg)
-        signature = signer.finalize()
+        if NEW_CRYPTOGRAPHY_SIGN_VERSION:
+            signature = self.ec.sign(msg, ec.ECDSA(hashes.SHA1()))
+        else:
+            signer = self.ec.signer(ec.ECDSA(hashes.SHA1()))
+            signer.update(msg)
+            signature = signer.finalize()
         # Decode the DSS r and s variables from the pyca signature
         # We are going to turn these longs into (binary) string format
         r, s = decode_dss_signature(signature)

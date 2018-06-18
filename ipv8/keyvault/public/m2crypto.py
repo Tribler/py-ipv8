@@ -7,6 +7,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.utils import encode_dss_signature
 
+from .. import NEW_CRYPTOGRAPHY_SIGN_VERSION
 from ...keyvault.keys import PublicKey
 
 
@@ -81,7 +82,10 @@ class M2CryptoPK(PublicKey):
         s = int(hexlify(s), 16)
         # verify
         try:
-            self.ec.verifier(encode_dss_signature(r, s), ec.ECDSA(hashes.SHA1()))
+            if NEW_CRYPTOGRAPHY_SIGN_VERSION:
+                self.ec.verify(encode_dss_signature(r, s), msg, ec.ECDSA(hashes.SHA1()))
+            else:
+                self.ec.verifier(encode_dss_signature(r, s), ec.ECDSA(hashes.SHA1()))
             return True
         except InvalidSignature:
             return False
