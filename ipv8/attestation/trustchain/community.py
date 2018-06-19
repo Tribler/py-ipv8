@@ -160,6 +160,16 @@ class TrustChainCommunity(Community):
             if self.broadcast_block:
                 self.send_block_pair(linked, block)
 
+            # See https://github.com/Tribler/py-ipv8/issues/160
+            # If we receive responses from received_crawl_request out of order we can desync:
+            #  1. We need to sign block 2, but can't as we are still missing block 1.
+            #  2. We receive block 1 and sign it.
+            #  3.a. Nothing will happen until the next time we randomly encounter block 2.
+            #  3.b. The counterparty is still waiting for block 2 to be signed.
+            self.send_crawl_request(peer,
+                                    linked.public_key,
+                                    linked.sequence_number + 1)
+
             return succeed((linked, block))
 
     @synchronized
