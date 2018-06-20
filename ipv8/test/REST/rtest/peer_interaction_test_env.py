@@ -6,9 +6,13 @@ from urllib import quote
 from base64 import b64encode
 from twisted.internet.defer import returnValue, inlineCallbacks
 
+from ipv8.attestation.trustchain.block import TrustChainBlock
+from ipv8.keyvault.crypto import ECCrypto
 from ipv8.test.REST.rtest.peer_communication import GetStyleRequests, PostStyleRequests
+from ipv8.test.REST.rtest.peer_interactive_behavior import AndroidTestPeer
 from ipv8.test.REST.rtest.rest_peer_communication import HTTPGetRequester, HTTPPostRequester
 from ipv8.test.REST.rtest.test_rest_api_peer import TestPeer
+from ipv8.test.attestation.trustchain.test_block import MockDatabase
 from ipv8.test.util import twisted_wrapper
 
 
@@ -103,7 +107,7 @@ class RequestTest(SingleServerSetup):
         returnValue(peer_list)
 
     @inlineCallbacks
-    def wait_for_attestation_request(self, dict_param):
+    def wait_for_outstanding_requests(self, dict_param):
         """
         Wait until this peer receives a non-empty list of outstanding attestation requests
 
@@ -157,7 +161,7 @@ class RequestTest(SingleServerSetup):
         assert 'attribute_name' in param_dict, "No attribute name was specified"
         assert 'attribute_value' in param_dict, "No attribute value was specified"
 
-        outstanding_requests = yield self.wait_for_attestation_request(param_dict)
+        outstanding_requests = yield self.wait_for_outstanding_requests(param_dict)
         outstanding_requests = ast.literal_eval(outstanding_requests)
         response_list = []
 
@@ -211,7 +215,7 @@ class RequestTest(SingleServerSetup):
 
         self.assertNotEqual(result, "[]", "The request received an empty peer list, instead of a populated one.")
 
-    @twisted_wrapper
+    @twisted_wrapper(20)
     def test_get_outstanding_requests(self):
         """
         Test the GET: outstanding request type
@@ -220,12 +224,15 @@ class RequestTest(SingleServerSetup):
         param_dict = {
             'port': 8086,
             'interface': '127.0.0.1',
-            'endpoint': 'attestation'
+            'endpoint': 'attestation',
+            'attribute_name': 'QR'
         }
 
-        result = yield self._get_style_requests.make_outstanding(param_dict)
-        self.assertEqual(result, "[]", "The response was not []. This would suggest that something went wrong with "
-                                       "the outstanding request.")
+        yield self.send_attestation_requests_to_all(param_dict)
+        result = yield self.wait_for_outstanding_requests(param_dict)
+
+        self.assertNotEqual(result[0], "[]", "The response was []. This would suggest that something went wrong with "
+                                             "the outstanding request.")
 
     @twisted_wrapper(30)
     def test_get_verification_output(self):
@@ -252,9 +259,28 @@ class RequestTest(SingleServerSetup):
         yield self.verify_all_attestations(attestation_responses[0], param_dict)
 
         result = yield self._get_style_requests.make_verification_output(param_dict)
-        print result
         self.assertFalse(not result, "The response was not an empty dictionary. This would suggest that something went "
                                      "wrong with the verification output request.")
+
+    @twisted_wrapper(60)
+    def test_second_attestation(self):
+        param_dict = {
+            'port': 8086,
+            'interface': '127.0.0.1',
+            'endpoint': 'attestation',
+            'attribute_name': 'QR',
+            'attribute_value': quote(b64encode('binarydata')).replace("+", "%2B"),
+            'metadata': b64encode(json.dumps({'psn': '1234567890'}))
+        }
+
+        AndroidTestPeer(param_dict, 'peer_file_5', 8767).start()
+
+        peers = yield self.wait_for_peers(param_dict)
+        peers = ast.literal_eval(peers)
+
+        for peer in peers:
+            param_dict['mid'] = peer
+            yield self._post_style_requests.make_attestation_request(param_dict)
 
     @twisted_wrapper
     def test_get_attributes(self):
@@ -268,9 +294,15 @@ class RequestTest(SingleServerSetup):
             'endpoint': 'attestation'
         }
 
+        block = TrustChainBlock()
+        block.public_key = self._master_peer._ipv8.overlays[1].my_peer.public_key.key_to_bin()
+        block.transaction = {'name': 123, 'hash': '123'}
+
+        self._master_peer._ipv8.overlays[1].persistence.add_block(block)
+
         result = yield self._get_style_requests.make_attributes(param_dict)
-        self.assertEqual(result, "[]", "The response was not []. This would suggest that something went wrong with "
-                                       "the attributes request.")
+        self.assertEqual(result, '[[123, "MTIz"]]', "The response was not []. This would suggest that something went "
+                                                    "wrong with the attributes request.")
 
     @twisted_wrapper
     def test_get_drop_identity(self):
@@ -338,7 +370,7 @@ class RequestTest(SingleServerSetup):
             'attribute_name': 'QR',
             'attribute_hash': attestation_value,
             'attribute_value': attestation_value,
-            'attribute_values': 'YXNk,YXNkMg==',
+            'attribute_values': 'YXNk,YXNkMg==',  # Some random b64 encoded values
             'metadata': b64encode(json.dumps({'psn': '1234567890'}))
         }
 
