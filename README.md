@@ -70,4 +70,4 @@ IPv8 can be used as a library or as a service. It is easiest to start off with t
 This file will load the IPv8 stack for *signed messaging*, *anonymous messaging*, *attribute attestation*, *public service discovery*, *peer discovery* and *peer keep-alive*.
 You can start creating your first network overlay by following [the overlay creation tutorial](doc/overlay_tutorial.md).
 
-Additional documentation is also available for the [TrustChain](doc/trustchain.md) and [anonymization](doc/anonymization.md) provided in IPv8.
+Additional documentation is also available for the [TrustChain](doc/trustchain.md) and [anonymous overlay](doc/anonymization.md) provided in IPv8.

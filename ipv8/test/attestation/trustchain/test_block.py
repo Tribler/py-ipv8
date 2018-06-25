@@ -14,7 +14,7 @@ class TestBlock(TrustChainBlock):
     Also used in other test files for TrustChain.
     """
 
-    def __init__(self, transaction=None, previous=None, key=None):
+    def __init__(self, transaction=None, previous=None, key=None, block_type='test'):
         crypto = ECCrypto()
         other = crypto.generate_key(u"curve25519").pub().key_to_bin()
 
@@ -22,17 +22,17 @@ class TestBlock(TrustChainBlock):
 
         if previous:
             self.key = previous.key
-            TrustChainBlock.__init__(self, (encode(transaction), previous.public_key, previous.sequence_number + 1,
-                                            other, 0, previous.hash, 0, 0))
+            TrustChainBlock.__init__(self, block_type, (encode(transaction), previous.public_key,
+                                                        previous.sequence_number + 1, other, 0, previous.hash, 0, 0, 0))
         else:
             if key:
                 self.key = key
             else:
                 self.key = crypto.generate_key(u"curve25519")
 
-            TrustChainBlock.__init__(self, (
-                encode(transaction), self.key.pub().key_to_bin(), random.randint(50, 100), other, 0,
-                sha256(str(random.randint(0, 100000))).digest(), 0, 0))
+            TrustChainBlock.__init__(self, (block_type,
+                                            encode(transaction), self.key.pub().key_to_bin(), random.randint(50, 100),
+                                            other, 0, sha256(str(random.randint(0, 100000))).digest(), 0, 0, 0))
         self.sign(self.key)
 
         self.transaction_validation_result = (ValidationResult.valid, [])
@@ -95,8 +95,9 @@ class TestTrustChainBlock(unittest.TestCase):
         Test the empty hash of a block
         """
         block = TrustChainBlock()
-        self.assertEqual(block.hash, '\x1f\x1bp\x90\xe3>\x83\xf6\xcd\xafd\xd9\xee\xfb"&|<ZLsyB:Z\r'
-                                     '<\xc5\xb0\x97\xa3\xaf')
+        block.timestamp = 0  # To make the hash the same between runs
+        self.assertEqual(block.hash, '9X\xdeb\x92g\x10W\t\xdf\xf6\x98\xc46\xdaU\x19+6\x1b\xf4\xaei'
+                                     '\x96Jz\x04\x91F@\xc0\xd8')
 
     def test_sign(self):
         """
@@ -112,11 +113,12 @@ class TestTrustChainBlock(unittest.TestCase):
         """
         key = ECCrypto().generate_key(u"curve25519")
         db = MockDatabase()
-        block = TrustChainBlock.create({'id': 42}, db, key.pub().key_to_bin(), link=None)
+        block = TrustChainBlock.create('test', {'id': 42}, db, key.pub().key_to_bin(), link=None)
         self.assertEqual(block.previous_hash, GENESIS_HASH)
         self.assertEqual(block.sequence_number, GENESIS_SEQ)
         self.assertEqual(block.public_key, key.pub().key_to_bin())
         self.assertEqual(block.signature, EMPTY_SIG)
+        self.assertEqual(block.type, 'test')
 
     def test_create_next(self):
         """
@@ -126,7 +128,7 @@ class TestTrustChainBlock(unittest.TestCase):
         prev = TestBlock()
         prev.sequence_number = GENESIS_SEQ
         db.add_block(prev)
-        block = TrustChainBlock.create({'id': 42}, db, prev.public_key, link=None)
+        block = TrustChainBlock.create('test', {'id': 42}, db, prev.public_key, link=None)
         self.assertEqual(block.previous_hash, prev.hash)
         self.assertEqual(block.sequence_number, 2)
         self.assertEqual(block.public_key, prev.public_key)
@@ -139,7 +141,7 @@ class TestTrustChainBlock(unittest.TestCase):
         db = MockDatabase()
         link = TestBlock()
         db.add_block(link)
-        block = TrustChainBlock.create({'id': 42}, db, key.pub().key_to_bin(), link=link)
+        block = TrustChainBlock.create('test', {'id': 42}, db, key.pub().key_to_bin(), link=link)
         self.assertEqual(block.previous_hash, GENESIS_HASH)
         self.assertEqual(block.sequence_number, GENESIS_SEQ)
         self.assertEqual(block.public_key, key.pub().key_to_bin())
@@ -156,7 +158,7 @@ class TestTrustChainBlock(unittest.TestCase):
         db.add_block(prev)
         link = TestBlock()
         db.add_block(link)
-        block = TrustChainBlock.create({'id': 42}, db, prev.public_key, link=link)
+        block = TrustChainBlock.create('test', {'id': 42}, db, prev.public_key, link=link)
         self.assertEqual(block.previous_hash, prev.hash)
         self.assertEqual(block.sequence_number, 2)
         self.assertEqual(block.public_key, prev.public_key)
