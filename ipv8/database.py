@@ -119,6 +119,7 @@ class Database(object):
             self._prepare_version()
         return True
 
+    @db_call
     def close(self, commit=True):
         self._assert(self._cursor is not None,
                      "Database.close() has been called or Database.open() has not been called")
