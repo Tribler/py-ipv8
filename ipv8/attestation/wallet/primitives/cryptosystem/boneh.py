@@ -3,8 +3,8 @@ Implementation of the Boneh 2-DNF scheme ("Evaluating 2-DNF Formulas on Cipherte
 """
 from random import randint
 
+from .cryptography_wrapper import generate_safe_prime, is_prime
 from ..structs import BonehPrivateKey, BonehPublicKey
-from .primality import isLucasPseudoprime
 from .value import FP2Value
 from .ec import weilpairing
 
@@ -18,7 +18,7 @@ def generate_prime(n):
     """
     p = 1
     l = 0
-    while (p % 3) != 2 or not isLucasPseudoprime(p):
+    while (p % 3) != 2 or not is_prime(p):
         l += 1
         p = l * n - 1
     return p
@@ -97,8 +97,7 @@ def generate_primes(key_size=128):
         private_numbers = private_key.private_numbers()
         p, q = private_numbers.p, private_numbers.q
     else:
-        import gensafeprime
-        p, q = gensafeprime.generate(key_size), gensafeprime.generate(key_size)
+        p, q = generate_safe_prime(key_size), generate_safe_prime(key_size)
     return min(p, q), max(p, q)
 
 
