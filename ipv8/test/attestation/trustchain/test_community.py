@@ -409,3 +409,19 @@ class TestTrustChainCommunity(TestBase):
         # Both nodes should have this newly signed block added correctly to their database
         self.assertIsNotNone(self.nodes[0].overlay.persistence.get(my_pubkey, 1))
         self.assertIsNotNone(self.nodes[1].overlay.persistence.get(my_pubkey, 1))
+
+    @twisted_wrapper
+    def test_half_block_self_signed(self):
+        """
+        Test creating and disseminating a half block, signed by yourself
+        """
+        yield self.introduce_nodes()
+
+        my_pubkey = self.nodes[0].overlay.my_peer.public_key.key_to_bin()
+        yield self.nodes[0].overlay.self_sign_block(transaction={})
+
+        yield self.deliver_messages()
+
+        # The other node should now have the self-signed block
+        self.assertIsNotNone(self.nodes[0].overlay.persistence.get(my_pubkey, 1))
+        self.assertIsNotNone(self.nodes[1].overlay.persistence.get(my_pubkey, 1))
