@@ -330,7 +330,7 @@ int-import-graph=
 [DESIGN]
 
 # Maximum number of arguments for function / method
-max-args=6
+max-args=8
 
 # Argument names that match this expression will be ignored. Default to name
 # with leading underscore
@@ -349,7 +349,7 @@ max-branches=12
 max-statements=50
 
 # Maximum number of parents for a class (see R0901).
-max-parents=7
+max-parents=8
 
 # Maximum number of attributes for a class (see R0902).
 max-attributes=10
