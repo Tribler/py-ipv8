@@ -257,7 +257,7 @@ class TrustChainBlock(object):
             if pck is None or not self.crypto.is_valid_signature(
                     self.crypto.key_from_public_bin(self.public_key), pck, self.signature):
                 result.err("Invalid signature")
-        if not self.crypto.is_valid_public_bin(self.link_public_key):
+        if not self.crypto.is_valid_public_bin(self.link_public_key) and self.link_public_key != EMPTY_PK:
             result.err("Linked public key is not valid")
         if self.public_key == self.link_public_key:
             # Blocks to self serve no purpose and are thus invalid.

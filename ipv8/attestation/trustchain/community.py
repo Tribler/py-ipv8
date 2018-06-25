@@ -119,6 +119,9 @@ class TrustChainCommunity(Community):
                 self.endpoint.send(peer.address, packet)
             self.relayed_broadcasts.append(block1.block_id)
 
+    def self_sign_block(self, transaction=None):
+        self.sign_block(self.my_peer, transaction=transaction)
+
     def sign_block(self, peer, public_key=EMPTY_PK, transaction=None, linked=None):
         """
         Create, sign, persist and send a block signed message
@@ -150,7 +153,12 @@ class TrustChainCommunity(Community):
             self.persistence.add_block(block)
         self.send_block(block, address=peer.address)
 
-        if not linked:
+        if peer == self.my_peer and public_key == EMPTY_PK:
+            # We created a half-signed block
+            if self.broadcast_block:
+                self.send_block(block)
+            return succeed((block, None))
+        elif not linked:
             # We keep track of this outstanding sign request.
             sign_deferred = Deferred()
             self.request_cache.add(HalfBlockSignCache(self, block, sign_deferred))
