@@ -301,7 +301,7 @@ class TrustChainCommunity(Community):
         Process a received half block.
         """
         validation = self.validate_persist_block(blk)
-        self.logger.debug("Block validation result %s, %s, (%s)", validation[0], validation[1], blk)
+        self.logger.info("Block validation result %s, %s, (%s)", validation[0], validation[1], blk)
         if validation[0] == ValidationResult.invalid:
             return
 
