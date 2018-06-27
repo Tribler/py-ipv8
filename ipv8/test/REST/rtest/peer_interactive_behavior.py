@@ -1,6 +1,8 @@
 import json
+import time
 from base64 import b64encode
 from twisted.internet.defer import inlineCallbacks
+from urllib import quote
 
 from ipv8.test.REST.rtest.test_rest_api_peer import InteractiveTestPeer
 
@@ -43,11 +45,14 @@ class AndroidTestPeer(InteractiveTestPeer):
                                      post_style_requests=post_style_requests)
 
         self._param_dict = param_dict
-        self._param_dict['attribute_name'] = 'QR'
+        self._param_dict['port'] = port
+        self._param_dict['attribute_value'] = quote(b64encode('binarydata')).replace("+", "%2B")
         self._param_dict['metadata'] = b64encode(json.dumps({'psn': '1234567890'}))
 
     @inlineCallbacks
     def run(self):
+        time.sleep(1)
+
         peer_list = yield self.wait_for_peers(self._param_dict)
 
         import ast
@@ -57,5 +62,4 @@ class AndroidTestPeer(InteractiveTestPeer):
             self._param_dict['mid'] = peer.replace('+', '%2B')
 
             self._logger.info("Sending an attestation request to %s", self._param_dict['mid'])
-            print "AndroidTestPeer: Sending an attestation request to", self._param_dict['mid']
             yield self._post_style_requests.make_attestation_request(self._param_dict)

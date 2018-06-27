@@ -2,17 +2,15 @@ import ast
 import json
 import time
 import unittest
-from urllib import quote
 from base64 import b64encode
 from twisted.internet.defer import returnValue, inlineCallbacks
+from urllib import quote
 
 from ipv8.attestation.trustchain.block import TrustChainBlock
-from ipv8.keyvault.crypto import ECCrypto
 from ipv8.test.REST.rtest.peer_communication import GetStyleRequests, PostStyleRequests
 from ipv8.test.REST.rtest.peer_interactive_behavior import AndroidTestPeer
 from ipv8.test.REST.rtest.rest_peer_communication import HTTPGetRequester, HTTPPostRequester
 from ipv8.test.REST.rtest.test_rest_api_peer import TestPeer
-from ipv8.test.attestation.trustchain.test_block import MockDatabase
 from ipv8.test.util import twisted_wrapper
 
 
@@ -128,29 +126,6 @@ class RequestTest(SingleServerSetup):
         returnValue(outstanding_requests)
 
     @inlineCallbacks
-    def send_attestation_requests_to_all(self, param_dict):
-        """
-        Request an attestation from each of the known peers in the system
-
-        :param param_dict: the parameters required to contact a peer for the GET: peers request
-        :return: a list of the peers and their (empty if successful) request responses
-        """
-        assert 'attribute_name' in param_dict, "No attribute name was specified"
-
-        known_peers = yield self.wait_for_peers(param_dict)
-
-        known_peers = ast.literal_eval(known_peers)
-
-        responses = []
-
-        for peer in known_peers:
-            param_dict['mid'] = peer.replace('+', '%2B')
-            intermediate_response = yield self._post_style_requests.make_attestation_request(param_dict)
-            responses.append(intermediate_response)
-
-        returnValue((known_peers, responses))
-
-    @inlineCallbacks
     def attest_all_outstanding_requests(self, param_dict):
         """
         Forward an attestation for each of the outstanding attestation requests
@@ -162,16 +137,19 @@ class RequestTest(SingleServerSetup):
         assert 'attribute_value' in param_dict, "No attribute value was specified"
 
         outstanding_requests = yield self.wait_for_outstanding_requests(param_dict)
-        outstanding_requests = ast.literal_eval(outstanding_requests)
-        response_list = []
+        self.assertNotEqual(outstanding_requests, '[]', "Something went wrong, no request was received.")
+        outstanding_requests = json.loads(outstanding_requests)
 
-        for request in outstanding_requests:
-            param_dict['mid'] = str(request[0]).replace("+", "%2B")
-            param_dict['attribute_name'] = str(request[1])
+        # Collect the responses of the attestations; if functioning properly, this should be a list of empty strings
+        responses = []
+
+        for outstanding_request in outstanding_requests:
+            # The attestation value is already computed, so don't bother recomputing it here
+            param_dict['mid'] = str(outstanding_request[0]).replace("+", "%2B")
             response = yield self._post_style_requests.make_attest(param_dict)
-            response_list.append(response)
+            responses.append(response)
 
-        returnValue((outstanding_requests, response_list))
+        returnValue((outstanding_requests, responses))
 
     @inlineCallbacks
     def verify_all_attestations(self, attestations, param_dict):
@@ -189,13 +167,13 @@ class RequestTest(SingleServerSetup):
         verification_responses = []
 
         for attestation in attestations:
-            param_dict['mid'] = attestation[0].replace("+", "%2B")
+            param_dict['mid'] = str(attestation[0]).replace("+", "%2B")
             intermediary_response = yield self._post_style_requests.make_verify(param_dict)
             verification_responses.append(intermediary_response)
 
         returnValue(verification_responses)
 
-    @twisted_wrapper
+    @twisted_wrapper(30)
     def test_get_peers_request(self):
         """
         Test the GET: peers request type
@@ -208,14 +186,16 @@ class RequestTest(SingleServerSetup):
         }
 
         # Create a dummy peer which will be used towards peer discovery; there is no need to start() it
-        TestPeer('android_peer', 9876)
+        other_peer = TestPeer('local_peer', 7869)
+        other_peer_mids = [b64encode(x.mid) for x in other_peer.get_keys().values()]
 
         # result = yield self._get_style_requests.make_peers(param_dict)
         result = yield self.wait_for_peers(param_dict)
+        result = ast.literal_eval(result)
 
-        self.assertNotEqual(result, "[]", "The request received an empty peer list, instead of a populated one.")
+        self.assertTrue(any(x in other_peer_mids for x in result), "Could not find the second peer.")
 
-    @twisted_wrapper(20)
+    @twisted_wrapper(30)
     def test_get_outstanding_requests(self):
         """
         Test the GET: outstanding request type
@@ -228,11 +208,15 @@ class RequestTest(SingleServerSetup):
             'attribute_name': 'QR'
         }
 
-        yield self.send_attestation_requests_to_all(param_dict)
+        other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', 7869)
+        other_peer_mids = [b64encode(x.mid) for x in other_peer.get_keys().values()]
+        other_peer.start()
+
         result = yield self.wait_for_outstanding_requests(param_dict)
 
-        self.assertNotEqual(result[0], "[]", "The response was []. This would suggest that something went wrong with "
-                                             "the outstanding request.")
+        self.assertTrue(any((x[0] == y and x[1] == param_dict['attribute_name'] for x in result)
+                            for y in other_peer_mids),
+                        "Could not find the outstanding request forwarded by the second peer")
 
     @twisted_wrapper(30)
     def test_get_verification_output(self):
@@ -253,34 +237,23 @@ class RequestTest(SingleServerSetup):
             'metadata': b64encode(json.dumps({'psn': '1234567890'}))
         }
 
-        yield self.send_attestation_requests_to_all(param_dict)
-        attestation_responses = yield self.attest_all_outstanding_requests(param_dict)
+        # Forward the attestations to the well-known peer
+        AndroidTestPeer(param_dict.copy(), 'local_peer', 7869).start()
+        attestation_responses = yield self.attest_all_outstanding_requests(param_dict.copy())
 
-        yield self.verify_all_attestations(attestation_responses[0], param_dict)
+        # Send the verifications to the other peer
+        # param_dict['port'] = 7869
+        verification_responses = yield self.verify_all_attestations(attestation_responses[0], param_dict.copy())
 
-        result = yield self._get_style_requests.make_verification_output(param_dict)
-        self.assertFalse(not result, "The response was not an empty dictionary. This would suggest that something went "
-                                     "wrong with the verification output request.")
+        self.assertTrue(all(x == "" for x in verification_responses), "At least one of the verification "
+                                                                      "responses was non-empty.")
 
-    @twisted_wrapper(60)
-    def test_second_attestation(self):
-        param_dict = {
-            'port': 8086,
-            'interface': '127.0.0.1',
-            'endpoint': 'attestation',
-            'attribute_name': 'QR',
-            'attribute_value': quote(b64encode('binarydata')).replace("+", "%2B"),
-            'metadata': b64encode(json.dumps({'psn': '1234567890'}))
-        }
+        verification_output = yield self._get_style_requests.make_verification_output(param_dict)
+        print verification_output
 
-        AndroidTestPeer(param_dict, 'peer_file_5', 8767).start()
-
-        peers = yield self.wait_for_peers(param_dict)
-        peers = ast.literal_eval(peers)
-
-        for peer in peers:
-            param_dict['mid'] = peer
-            yield self._post_style_requests.make_attestation_request(param_dict)
+        param_dict['port'] = 7869
+        verification_output = yield self._get_style_requests.make_verification_output(param_dict)
+        print verification_output
 
     @twisted_wrapper
     def test_get_attributes(self):
@@ -304,7 +277,7 @@ class RequestTest(SingleServerSetup):
         self.assertEqual(result, '[[123, "MTIz"]]', "The response was not []. This would suggest that something went "
                                                     "wrong with the attributes request.")
 
-    @twisted_wrapper
+    @twisted_wrapper(30)
     def test_get_drop_identity(self):
         """
         Test the GET: drop identity request type
@@ -313,11 +286,38 @@ class RequestTest(SingleServerSetup):
         param_dict = {
             'port': 8086,
             'interface': '127.0.0.1',
-            'endpoint': 'attestation'
+            'endpoint': 'attestation',
+            'attribute_name': 'QR'
         }
 
+        # Send a random attestation request to the well-known peer
+        AndroidTestPeer(param_dict.copy(), 'local_peer', 7869).start()
+        outstanding_requests = yield self.wait_for_outstanding_requests(param_dict)
+
+        self.assertNotEqual(outstanding_requests, '[]', "The attestation requests were not received.")
+
+        block = TrustChainBlock()
+        block.public_key = self._master_peer._ipv8.overlays[1].my_peer.public_key.key_to_bin()
+        block.transaction = {'name': 123, 'hash': '123'}
+
+        # Add a dummy block to the block DB
+        self._master_peer._ipv8.overlays[1].persistence.add_block(block)
+
+        # Make sure it was added
+        result = yield self._get_style_requests.make_attributes(param_dict)
+        self.assertEqual(result, '[[123, "MTIz"]]', "The response was not []. This would suggest that something went "
+                                                    "wrong with the attributes request.")
+
+        # Drop the identity
         result = yield self._get_style_requests.make_drop_identity(param_dict)
         self.assertEqual(result, "", "The identity could not be dropped. Received non-empty response.")
+
+        # Make sure the identity was successfully dropped
+        result = yield self._get_style_requests.make_attributes(param_dict)
+        self.assertEqual(result, '[]', 'The identity could not be dropped. Block DB still populated.')
+
+        result = yield self._get_style_requests.make_outstanding(param_dict)
+        self.assertEqual(result, '[]', 'The identity could not be dropped. Outstanding requests still remaining.')
 
     @twisted_wrapper(30)
     def test_post_attestation_request(self):
@@ -330,15 +330,22 @@ class RequestTest(SingleServerSetup):
             'interface': '127.0.0.1',
             'endpoint': 'attestation',
             'attribute_name': 'QR',
-            'attribute_value': quote(b64encode('binarydata')).replace("+", "%2B"),
             'metadata': b64encode(json.dumps({'psn': '1234567890'}))
         }
 
-        result = yield self.send_attestation_requests_to_all(param_dict)
-        self.assertTrue(all(x == "" for x in result[1]), "At least one of the attestation request "
-                                                         "responses was non-empty.")
+        # This should return an empty response
+        outstanding_requests = yield self._get_style_requests.make_outstanding(param_dict)
 
-    @twisted_wrapper(30)
+        self.assertEqual(outstanding_requests, '[]', "Something went wrong, there should be no outstanding requests.")
+
+        AndroidTestPeer(param_dict.copy(), 'local_peer', 7869).start()
+
+        # This should return a non-empty response
+        outstanding_requests = yield self.wait_for_outstanding_requests(param_dict)
+
+        self.assertNotEqual(outstanding_requests, '[]', "Something went wrong, no request was received.")
+
+    @twisted_wrapper(300)
     def test_post_attest(self):
         param_dict = {
             'port': 8086,
@@ -349,11 +356,18 @@ class RequestTest(SingleServerSetup):
             'metadata': b64encode(json.dumps({'psn': '1234567890'}))
         }
 
-        yield self.send_attestation_requests_to_all(param_dict)
+        other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', 7869)
+        other_peer.start()
 
-        response = yield self.attest_all_outstanding_requests(param_dict)
+        # attestation = other_peer.get_attestation_by_hash(b64encode('binarydata').replace("+", "%2B"))
+        # attestation = other_peer.get_all_attestations()
+        # print attestation
 
-        self.assertTrue(all(x == "" for x in response[1]), "At least one of the attestation responses was non-empty.")
+        responses = yield self.attest_all_outstanding_requests(param_dict.copy())
+
+        param_dict['port'] = 7869
+
+        self.assertTrue(all(x == "" for x in responses[1]), "Something went wrong, not all responses were empty.")
 
     @twisted_wrapper(30)
     def test_post_verify(self):
@@ -374,10 +388,13 @@ class RequestTest(SingleServerSetup):
             'metadata': b64encode(json.dumps({'psn': '1234567890'}))
         }
 
-        yield self.send_attestation_requests_to_all(param_dict)
-        attestation_responses = yield self.attest_all_outstanding_requests(param_dict)
+        # Forward the attestations to the well-known peer
+        AndroidTestPeer(param_dict.copy(), 'local_peer', 7869).start()
+        attestation_responses = yield self.attest_all_outstanding_requests(param_dict.copy())
 
-        verification_responses = yield self.verify_all_attestations(attestation_responses[0], param_dict)
+        # Send the verifications to the other peer
+        param_dict['port'] = 7869
+        verification_responses = yield self.verify_all_attestations(attestation_responses[0], param_dict.copy())
 
         self.assertTrue(all(x == "" for x in verification_responses), "At least one of the verification "
                                                                       "responses was non-empty.")

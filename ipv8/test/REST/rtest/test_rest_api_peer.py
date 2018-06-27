@@ -130,6 +130,12 @@ class TestPeer(object):
                 'url': 'http://{0}:{1}/attestation'.format(self._interface, self._port)
             }
 
+    def get_attestation_by_hash(self, attestation_hash):
+        return self._ipv8.overlays[0].database.get_attestation_by_hash(attestation_hash)
+
+    def get_all_attestations(self):
+        return self._ipv8.overlays[0].database.get_all()
+
 
 class InteractiveTestPeer(TestPeer, threading.Thread):
     """
