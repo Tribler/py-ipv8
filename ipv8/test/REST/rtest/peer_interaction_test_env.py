@@ -21,9 +21,6 @@ class SingleServerSetup(unittest.TestCase):
     which implement specific test cases.
     """
 
-    def __init__(self, *args, **kwargs):
-        super(SingleServerSetup, self).__init__(*args, **kwargs)
-
     def initialize(self, **kwargs):
         """
         An initializer method for the Single Server test environment
