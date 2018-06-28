@@ -38,25 +38,25 @@ class AttestationEndpoint(resource.Resource):
         out = yield deferred
         returnValue(out)
 
-    def on_attestation_complete(self, peer, attribute_name, hash, signer=None):
+    def on_attestation_complete(self, for_peer, attribute_name, attribute_hash, from_peer=None):
         """
         Callback for when an attestation has been completed for another peer.
         We can now sign for it.
         """
-        if peer.mid == self.identity_overlay.my_peer.mid:
-            self.identity_overlay.request_attestation_advertisement(signer, hash, attribute_name)
+        if for_peer.mid == self.identity_overlay.my_peer.mid:
+            self.identity_overlay.request_attestation_advertisement(from_peer, attribute_hash, attribute_name)
         else:
-            self.identity_overlay.add_known_hash(hash, attribute_name, peer.public_key.key_to_bin())
+            self.identity_overlay.add_known_hash(attribute_hash, attribute_name, for_peer.public_key.key_to_bin())
 
-    def on_verification_results(self, hash, values):
+    def on_verification_results(self, attribute_hash, values):
         """
         Callback for when verification has concluded.
         """
-        references = self.verification_output[hash]
+        references = self.verification_output[attribute_hash]
         out = []
         for i in range(len(references)):
             out.append((references[i][0] if isinstance(references[i], tuple) else references[i], values[i]))
-        self.verification_output[hash] = out
+        self.verification_output[attribute_hash] = out
 
     def get_peer_from_mid(self, mid_b64):
         """

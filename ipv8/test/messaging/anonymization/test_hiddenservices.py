@@ -1,4 +1,4 @@
-from twisted.internet.defer import inlineCallbacks
+from twisted.internet.defer import inlineCallbacks, Deferred
 
 from ....messaging.anonymization.community import TunnelSettings, CIRCUIT_TYPE_RENDEZVOUS
 from ....messaging.anonymization.hidden_services import HiddenTunnelCommunity
@@ -165,9 +165,9 @@ class TestHiddenServices(TestBase):
          5. Link the circuit e2e
          6. Callback the service handler
         """
+        callback_called = Deferred()
         def callback(_):
-            callback.called = True
-        callback.called = False
+            callback_called.callback(None)
 
         self.nodes[0].overlay.register_service(self.service, 1, callback, 0)
 
@@ -179,7 +179,7 @@ class TestHiddenServices(TestBase):
 
         yield self.deliver_messages()
 
-        self.assertTrue(callback.called)
+        yield callback_called
 
         # Verify the length of the e2e circuit
         self.assertEqual(len(self.get_e2e_circuit_path()), 4)

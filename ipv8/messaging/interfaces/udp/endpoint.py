@@ -23,7 +23,11 @@ class UDPEndpoint(Endpoint, protocol.DatagramProtocol):
         # Pop from the left and append to the right side of the double-ended queue
         self._delayed_packets = deque(maxlen=min(100, max(0, sys.getrecursionlimit() - 2)))
 
+        self.bytes_up = 0
+        self.bytes_down = 0
+
     def datagramReceived(self, datagram, addr):
+        self.bytes_down += len(datagram)
         self.notify_listeners((addr, datagram))
 
     def send(self, socket_address, packet):
@@ -35,6 +39,7 @@ class UDPEndpoint(Endpoint, protocol.DatagramProtocol):
         self.assert_open()
         try:
             self.transport.write(packet, socket_address)
+            self.bytes_up += len(packet)
             # If the write succeeded, try sending one of our previously blocked packets
             if self._delayed_packets:
                 self.send(*self._delayed_packets.popleft())

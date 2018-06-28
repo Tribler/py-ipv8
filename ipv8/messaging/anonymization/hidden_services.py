@@ -438,9 +438,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
             self.logger.error('On linked e2e: could not find download for %s!', cache.info_hash)
 
     def find_download(self, lookup_info_hash):
-        for service in self.service_callbacks:
-            if lookup_info_hash == service:
-                return self.service_callbacks[service]
+        return self.service_callbacks.get(lookup_info_hash, None)
 
     def create_introduction_point(self, info_hash, amount=1):
         self.logger.info("Creating %d introduction point(s)", amount)
