@@ -3,8 +3,9 @@ import json
 import time
 import unittest
 from base64 import b64encode
-from twisted.internet.defer import returnValue, inlineCallbacks
 from urllib import quote
+
+from twisted.internet.defer import returnValue, inlineCallbacks
 
 from ipv8.attestation.trustchain.block import TrustChainBlock
 from ipv8.test.REST.rtest.peer_communication import GetStyleRequests, PostStyleRequests
@@ -22,9 +23,6 @@ class SingleServerSetup(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
         super(SingleServerSetup, self).__init__(*args, **kwargs)
-
-        # Call the method which sets up the environment
-        self.initialize()
 
     def initialize(self, **kwargs):
         """
@@ -69,8 +67,8 @@ class SingleServerSetup(unittest.TestCase):
             self._post_style_requests = HTTPPostRequester()
 
     def setUp(self):
-        # Call super method
-        pass
+        # Call the method which sets up the environment
+        self.initialize()
 
     def tearDown(self):
         # Call super method
@@ -152,22 +150,22 @@ class RequestTest(SingleServerSetup):
         returnValue((outstanding_requests, responses))
 
     @inlineCallbacks
-    def verify_all_attestations(self, attestations, param_dict):
+    def verify_all_attestations(self, peer_mids, param_dict):
         """
         Forward an attestation verification for a set of attestations
 
-        :param attestations: the set of attestations which will be verified
+        :param peer_mids: the set of peer mids to which a verification request will be sent
         :param param_dict: the parameters required to contact a well-known peer for the POST: verify request
         :return: the verification responses, as returned by the well-known peer. Ideally these should be all empty
         """
-        assert attestations, "Attestation list is empty"
+        assert peer_mids, "Attestation list is empty"
         assert 'attribute_hash' in param_dict, "No attestation hash was specified"
         assert 'attribute_values' in param_dict, "No attestation values were specified"
 
         verification_responses = []
 
-        for attestation in attestations:
-            param_dict['mid'] = str(attestation[0]).replace("+", "%2B")
+        for mid in peer_mids:
+            param_dict['mid'] = str(mid).replace("+", "%2B")
             intermediary_response = yield self._post_style_requests.make_verify(param_dict)
             verification_responses.append(intermediary_response)
 
@@ -195,6 +193,8 @@ class RequestTest(SingleServerSetup):
 
         self.assertTrue(any(x in other_peer_mids for x in result), "Could not find the second peer.")
 
+        other_peer.stop()
+
     @twisted_wrapper(30)
     def test_get_outstanding_requests(self):
         """
@@ -218,42 +218,50 @@ class RequestTest(SingleServerSetup):
                             for y in other_peer_mids),
                         "Could not find the outstanding request forwarded by the second peer")
 
+        other_peer.stop()
+        other_peer.join()
+
     @twisted_wrapper(30)
     def test_get_verification_output(self):
         """
         Test the GET: verification output request type
         :return: None
         """
-        attestation_value = quote(b64encode('binarydata')).replace("+", "%2B")
-
         param_dict = {
             'port': 8086,
             'interface': '127.0.0.1',
             'endpoint': 'attestation',
             'attribute_name': 'QR',
-            'attribute_hash': attestation_value,
-            'attribute_value': attestation_value,
+            'attribute_value': quote(b64encode('binarydata')).replace("+", "%2B"),
             'attribute_values': 'YXNk,YXNkMg==',
             'metadata': b64encode(json.dumps({'psn': '1234567890'}))
         }
 
         # Forward the attestations to the well-known peer
-        AndroidTestPeer(param_dict.copy(), 'local_peer', 7869).start()
-        attestation_responses = yield self.attest_all_outstanding_requests(param_dict.copy())
+        other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', 7869)
+        other_peer.start()
 
-        # Send the verifications to the other peer
-        # param_dict['port'] = 7869
-        verification_responses = yield self.verify_all_attestations(attestation_responses[0], param_dict.copy())
+        yield self.attest_all_outstanding_requests(param_dict.copy())
+
+        # Get the mids of the other peer
+        other_peer_mids = [b64encode(x.mid).replace("+", "%2B") for x in other_peer.get_keys().values()]
+
+        # Get the hash of the attestation to be validated (the one which was just attested)
+        param_dict['attribute_hash'] = quote(b64encode(other_peer.get_all_attestations()[0][0]).replace("+", "%2B"))
+
+        # Forward the actual verification
+        verification_responses = yield self.verify_all_attestations(other_peer_mids, param_dict.copy())
 
         self.assertTrue(all(x == "" for x in verification_responses), "At least one of the verification "
                                                                       "responses was non-empty.")
 
         verification_output = yield self._get_style_requests.make_verification_output(param_dict)
-        print verification_output
+        verification_output = ast.literal_eval(verification_output)
+        self.assertTrue([["YXNk", 0.0], ["YXNkMg==", 0.0]] in verification_output.values(),
+                        "Something went wrong with the verification. Unexpected output values.")
 
-        param_dict['port'] = 7869
-        verification_output = yield self._get_style_requests.make_verification_output(param_dict)
-        print verification_output
+        other_peer.stop()
+        other_peer.join()
 
     @twisted_wrapper
     def test_get_attributes(self):
@@ -268,10 +276,10 @@ class RequestTest(SingleServerSetup):
         }
 
         block = TrustChainBlock()
-        block.public_key = self._master_peer._ipv8.overlays[1].my_peer.public_key.key_to_bin()
+        block.public_key = self._master_peer.get_overlays()[1].my_peer.public_key.key_to_bin()
         block.transaction = {'name': 123, 'hash': '123'}
 
-        self._master_peer._ipv8.overlays[1].persistence.add_block(block)
+        self._master_peer.get_overlays()[1].persistence.add_block(block)
 
         result = yield self._get_style_requests.make_attributes(param_dict)
         self.assertEqual(result, '[[123, "MTIz"]]', "The response was not []. This would suggest that something went "
@@ -291,17 +299,18 @@ class RequestTest(SingleServerSetup):
         }
 
         # Send a random attestation request to the well-known peer
-        AndroidTestPeer(param_dict.copy(), 'local_peer', 7869).start()
+        other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', 7869)
+        other_peer.start()
         outstanding_requests = yield self.wait_for_outstanding_requests(param_dict)
 
         self.assertNotEqual(outstanding_requests, '[]', "The attestation requests were not received.")
 
         block = TrustChainBlock()
-        block.public_key = self._master_peer._ipv8.overlays[1].my_peer.public_key.key_to_bin()
+        block.public_key = self._master_peer.get_overlays()[1].my_peer.public_key.key_to_bin()
         block.transaction = {'name': 123, 'hash': '123'}
 
         # Add a dummy block to the block DB
-        self._master_peer._ipv8.overlays[1].persistence.add_block(block)
+        self._master_peer.get_overlays()[1].persistence.add_block(block)
 
         # Make sure it was added
         result = yield self._get_style_requests.make_attributes(param_dict)
@@ -318,6 +327,9 @@ class RequestTest(SingleServerSetup):
 
         result = yield self._get_style_requests.make_outstanding(param_dict)
         self.assertEqual(result, '[]', 'The identity could not be dropped. Outstanding requests still remaining.')
+
+        other_peer.stop()
+        other_peer.join()
 
     @twisted_wrapper(30)
     def test_post_attestation_request(self):
@@ -359,15 +371,17 @@ class RequestTest(SingleServerSetup):
         other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', 7869)
         other_peer.start()
 
-        # attestation = other_peer.get_attestation_by_hash(b64encode('binarydata').replace("+", "%2B"))
-        # attestation = other_peer.get_all_attestations()
-        # print attestation
+        attestation = other_peer.get_all_attestations()
+        self.assertTrue(len(attestation) == 0, "There mustn't already be any attestations in the other peer.")
 
         responses = yield self.attest_all_outstanding_requests(param_dict.copy())
-
-        param_dict['port'] = 7869
-
         self.assertTrue(all(x == "" for x in responses[1]), "Something went wrong, not all responses were empty.")
+
+        attestation = other_peer.get_all_attestations()
+        self.assertTrue(len(attestation) == 1, "There should be only one attestation in the other peer's DB.")
+
+        other_peer.stop()
+        other_peer.join()
 
     @twisted_wrapper(30)
     def test_post_verify(self):
@@ -375,26 +389,33 @@ class RequestTest(SingleServerSetup):
         Test the POST: verify request type
         :return: None
         """
-        attestation_value = quote(b64encode('binarydata')).replace("+", "%2B")
-
         param_dict = {
             'port': 8086,
             'interface': '127.0.0.1',
             'endpoint': 'attestation',
             'attribute_name': 'QR',
-            'attribute_hash': attestation_value,
-            'attribute_value': attestation_value,
-            'attribute_values': 'YXNk,YXNkMg==',  # Some random b64 encoded values
+            'attribute_value': quote(b64encode('binarydata')).replace("+", "%2B"),
+            'attribute_values': 'YXNk,YXNkMg==',
             'metadata': b64encode(json.dumps({'psn': '1234567890'}))
         }
 
         # Forward the attestations to the well-known peer
-        AndroidTestPeer(param_dict.copy(), 'local_peer', 7869).start()
-        attestation_responses = yield self.attest_all_outstanding_requests(param_dict.copy())
+        other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', 7869)
+        other_peer.start()
 
-        # Send the verifications to the other peer
-        param_dict['port'] = 7869
-        verification_responses = yield self.verify_all_attestations(attestation_responses[0], param_dict.copy())
+        yield self.attest_all_outstanding_requests(param_dict.copy())
+
+        # Get the mids of the other peer
+        other_peer_mids = [b64encode(x.mid).replace("+", "%2B") for x in other_peer.get_keys().values()]
+
+        # Get the hash of the attestation to be validated (the one which was just attested)
+        param_dict['attribute_hash'] = quote(b64encode(other_peer.get_all_attestations()[0][0]).replace("+", "%2B"))
+
+        # Forward the actual verification
+        verification_responses = yield self.verify_all_attestations(other_peer_mids, param_dict.copy())
 
         self.assertTrue(all(x == "" for x in verification_responses), "At least one of the verification "
                                                                       "responses was non-empty.")
+
+        other_peer.stop()
+        other_peer.join()

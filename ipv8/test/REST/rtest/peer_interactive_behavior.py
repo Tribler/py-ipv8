@@ -1,8 +1,8 @@
 import json
 import time
 from base64 import b64encode
-from twisted.internet.defer import inlineCallbacks
 from urllib import quote
+from twisted.internet.defer import inlineCallbacks
 
 from ipv8.test.REST.rtest.test_rest_api_peer import InteractiveTestPeer
 

@@ -87,7 +87,20 @@ class TestPeer(object):
         os.mkdir(path)
 
     def get_keys(self):
+        """
+        Get the peer's keys
+
+        :return: the peer's keys
+        """
         return self._ipv8.keys
+
+    def get_overlays(self):
+        """
+        Get the peer's overlays
+
+        :return: the peer's overlays
+        """
+        return self._ipv8.overlays
 
     class RestAPITestWrapper(TaskManager):
         """
