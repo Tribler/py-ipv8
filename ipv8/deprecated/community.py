@@ -7,7 +7,7 @@ Community instance.
 @organization: Technical University Delft
 @contact: dispersy@frayja.com
 """
-from random import choice
+from random import choice, random
 from socket import error, gethostbyname
 import sys
 from time import time
@@ -322,7 +322,11 @@ class Community(EZPackOverlay):
         if not from_peer:
             available = self.get_peers()
             if available:
-                from_peer = choice(available).address
+                # With a small chance, try to remedy any disconnected network phenomena.
+                if random() < 0.05:
+                    from_peer = choice(_DEFAULT_ADDRESSES)
+                else:
+                    from_peer = choice(available).address
             else:
                 self.bootstrap()
                 return
