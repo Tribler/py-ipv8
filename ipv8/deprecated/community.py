@@ -46,6 +46,48 @@ _DNS_ADDRESSES = [
 BOOTSTRAP_TIMEOUT = 30.0 # Timeout before we bootstrap again (bootstrap kills performance)
 
 
+def lazy_wrapper(*payloads):
+    """
+    Sometimes you just don't want to write 3 lines of code.
+    In these cases you can unwrap your payloads using a single line.
+    This function wrapper will unpack the BinMemberAuthenticationPayload for you.
+
+    You can now write your authenticated and signed functions as follows:
+
+    ::
+
+        @lazy_wrapper(GlobalTimeDistributionPayload, IntroductionRequestPayload, IntroductionResponsePayload)
+        def on_message(peer, payload1, payload2):
+            '''
+            :type peer: Peer
+            :type payload1: IntroductionRequestPayload
+            :type payload2: IntroductionResponsePayload
+            '''
+            pass
+    """
+    def decorator(func):
+        def wrapper(self, source_address, data):
+            # UNPACK
+            auth, remainder = self.serializer.unpack_to_serializables([BinMemberAuthenticationPayload, ], data[23:])
+            signature_valid, remainder = self._verify_signature(auth, data)
+            unpacked = self.serializer.unpack_to_serializables(payloads, remainder[23:])
+            output, unknown_data = unpacked[:-1], unpacked[-1]
+            # ASSERT
+            if len(unknown_data) != 0:
+                raise PacketDecodingError("Incoming packet %s (%s) has extra data: (%s)" %
+                                          (str([payload_class.__name__ for payload_class in payloads]),
+                                           data.encode('HEX'),
+                                           unknown_data.encode('HEX')))
+
+            if not signature_valid:
+                raise PacketDecodingError("Incoming packet %s has an invalid signature" % \
+                                          str([payload_class.__name__ for payload_class in payloads]))
+            # PRODUCE
+            return func(self, Peer(auth.public_key_bin, source_address), *output)
+        return wrapper
+    return decorator
+
+
 class PacketDecodingError(RuntimeError):
     pass
 
@@ -241,36 +283,28 @@ class Community(EZPackOverlay):
 
         return self._ez_pack(self._prefix, 250, [dist, payload], False)
 
-    def on_introduction_request(self, source_address, data):
-        auth, dist, payload = self._ez_unpack_auth(IntroductionRequestPayload, data)
-
-        peer = Peer(auth.public_key_bin, source_address)
+    @lazy_wrapper(GlobalTimeDistributionPayload, IntroductionRequestPayload)
+    def on_introduction_request(self, peer, dist, payload):
         self.network.add_verified_peer(peer)
         self.network.discover_services(peer, [self.master_peer.mid, ])
 
-        packet = self.create_introduction_response(payload.destination_address, source_address, payload.identifier)
-        self.endpoint.send(source_address, packet)
+        packet = self.create_introduction_response(payload.destination_address, peer.address, payload.identifier)
+        self.endpoint.send(peer.address, packet)
 
-    def on_introduction_response(self, source_address, data):
-        auth, dist, payload = self._ez_unpack_auth(IntroductionResponsePayload, data)
-
+    @lazy_wrapper(GlobalTimeDistributionPayload, IntroductionResponsePayload)
+    def on_introduction_response(self, peer, dist, payload):
         self.my_estimated_wan = payload.destination_address
 
-        peer = Peer(auth.public_key_bin, source_address)
         self.network.add_verified_peer(peer)
         self.network.discover_services(peer, [self.master_peer.mid, ])
-        if (payload.wan_introduction_address != ("0.0.0.0", 0)) and\
+        if (payload.wan_introduction_address != ("0.0.0.0", 0)) and \
                 (payload.wan_introduction_address[0] != self.my_estimated_wan[0]):
-            self.network.discover_address(Peer(auth.public_key_bin, source_address),
-                                          payload.wan_introduction_address)
-        elif (payload.lan_introduction_address != ("0.0.0.0", 0)):
-            self.network.discover_address(Peer(auth.public_key_bin, source_address),
-                                          payload.lan_introduction_address)
+            self.network.discover_address(peer, payload.wan_introduction_address)
+        elif payload.lan_introduction_address != ("0.0.0.0", 0):
+            self.network.discover_address(peer, payload.lan_introduction_address)
 
-    def on_puncture(self, source_address, data):
-        auth, dist, payload = self._ez_unpack_auth(PuncturePayload, data)
-
-        peer = Peer(auth.public_key_bin, source_address)
+    @lazy_wrapper(GlobalTimeDistributionPayload, PuncturePayload)
+    def on_puncture(self, peer, _, __):
         self.network.add_verified_peer(peer)
         self.network.discover_services(peer, [self.master_peer.mid, ])
 
