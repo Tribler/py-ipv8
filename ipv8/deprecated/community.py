@@ -323,7 +323,7 @@ class Community(EZPackOverlay):
             available = self.get_peers()
             if available:
                 # With a small chance, try to remedy any disconnected network phenomena.
-                if random() < 0.05:
+                if _DEFAULT_ADDRESSES and random() < 0.05:
                     from_peer = choice(_DEFAULT_ADDRESSES)
                 else:
                     from_peer = choice(available).address

@@ -20,11 +20,11 @@ class IdentityCommunity(TrustChainCommunity, BlockListener):
         # Dict of hash -> (attribute_name, date, public_key)
         self.known_attestation_hashes = {}
 
-    def add_known_hash(self, hash, name, public_key):
+    def add_known_hash(self, attribute_hash, name, public_key, metadata=None):
         """
         We know about this hash+peer combination. Thus we can handle sign requests for it.
         """
-        self.known_attestation_hashes[hash] = (name, time(), public_key)
+        self.known_attestation_hashes[attribute_hash] = (name, time(), public_key, metadata)
 
     def received_block(self, block):
         pass
@@ -32,7 +32,9 @@ class IdentityCommunity(TrustChainCommunity, BlockListener):
     def should_sign(self, block):
         transaction = block.transaction
         requested_keys = set(transaction.keys())
-        if requested_keys != {"hash", "name", "date"}:
+        if requested_keys - {"hash", "name", "date", "metadata"} != set():
+            return False
+        if requested_keys - {"metadata"} != {"hash", "name", "date"}:
             return False
         hash = transaction['hash']
         if hash not in self.known_attestation_hashes:
@@ -44,20 +46,24 @@ class IdentityCommunity(TrustChainCommunity, BlockListener):
             return False
         if transaction['name'] != self.known_attestation_hashes[hash][0]:
             return False
+        if (self.known_attestation_hashes[hash][3] and
+                transaction.get('metadata', None) != self.known_attestation_hashes[hash][3]):
+            return False
         return True
 
-    def request_attestation_advertisement(self, peer, hash, name):
+    def request_attestation_advertisement(self, peer, attribute_hash, name, metadata=None):
         """
         Request a peer to sign for our attestation advertisement.
         :param peer: the attestor of our block
-        :param hash: the hash of the attestation
+        :param attribute_hash: the hash of the attestation
         :param name: the name of the attribute (metadata)
         """
         self.sign_block(peer,
                         public_key=peer.public_key.key_to_bin(),
                         block_type="id_metadata",
                         transaction={
-                            "hash": hash,
+                            "hash": attribute_hash,
                             "name": name,
-                            "date": time()
+                            "date": time(),
+                            "metadata": metadata or {}
                         })
