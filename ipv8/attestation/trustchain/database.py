@@ -32,7 +32,17 @@ class TrustChainDB(Database):
         super(TrustChainDB, self).__init__(db_path)
         self._logger.debug("TrustChain database path: %s", db_path)
         self.db_name = db_name
+        self.block_types = {}
         self.open()
+
+    def get_block_class(self, block_type):
+        """
+        Get the block class for a specific block type.
+        """
+        if block_type not in self.block_types:
+            return TrustChainBlock
+
+        return self.block_types[block_type]
 
     def add_block(self, block):
         """
@@ -62,11 +72,11 @@ class TrustChainDB(Database):
 
     def _get(self, query, params):
         db_result = list(self.execute(self.get_sql_header() + query, params, fetch_all=False))
-        return TrustChainBlock(db_result) if db_result else None
+        return self.get_block_class(db_result[0])(db_result) if db_result else None
 
     def _getall(self, query, params):
         db_result = list(self.execute(self.get_sql_header() + query, params, fetch_all=True))
-        return [TrustChainBlock(db_item) for db_item in db_result]
+        return [self.get_block_class(db_item[0])(db_item) for db_item in db_result]
 
     def get(self, public_key, sequence_number):
         """
