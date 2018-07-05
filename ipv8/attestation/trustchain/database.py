@@ -135,8 +135,13 @@ class TrustChainDB(Database):
             return self._get(u"WHERE public_key = ? AND sequence_number = (SELECT MAX(sequence_number) FROM blocks "
                              u"WHERE public_key = ?)", (buffer(public_key), buffer(public_key)))
 
-    def get_latest_blocks(self, public_key, limit=25):
-        return self._getall(u"WHERE public_key = ? ORDER BY sequence_number DESC LIMIT ?", (buffer(public_key), limit))
+    def get_latest_blocks(self, public_key, limit=25, block_type=None):
+        if block_type:
+            return self._getall(u"WHERE public_key = ? AND type = ? ORDER BY sequence_number DESC LIMIT ?",
+                                (buffer(public_key), block_type, limit))
+        else:
+            return self._getall(u"WHERE public_key = ? ORDER BY sequence_number DESC LIMIT ?",
+                                (buffer(public_key), limit))
 
     def get_block_after(self, block, block_type=None):
         """
