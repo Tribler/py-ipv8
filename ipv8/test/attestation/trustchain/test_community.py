@@ -1,3 +1,4 @@
+from ....attestation.trustchain.block import TrustChainBlock
 from ....attestation.trustchain.caches import CrawlRequestCache
 from ....attestation.trustchain.community import TrustChainCommunity, UNKNOWN_SEQ
 from ....attestation.trustchain.listener import BlockListener
@@ -7,10 +8,19 @@ from ...mocking.ipv8 import MockIPv8
 from ...util import twisted_wrapper
 
 
+class DummyBlock(TrustChainBlock):
+    """
+    This dummy block is used to verify the conversion to a specific block class during the tests.
+    Other than that, it has no purpose.
+    """
+    pass
+
+
 class TestBlockListener(BlockListener):
     """
     This block listener simply signs all blocks it receives.
     """
+    BLOCK_CLASS = DummyBlock
 
     def should_sign(self, block):
         return True
@@ -59,8 +69,11 @@ class TestTrustChainCommunity(TestBase):
         yield self.introduce_nodes()
 
         his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
-        yield self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
-                                               block_type='test', transaction={})
+        block, link_block = yield self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0],
+                                                                   public_key=his_pubkey, block_type='test',
+                                                                   transaction={})
+        self.assertIsInstance(block, DummyBlock)
+        self.assertIsInstance(link_block, DummyBlock)
 
         for node_nr in [0, 1]:
             self.assertIsNotNone(self.nodes[node_nr].overlay.persistence.get(his_pubkey, 1))

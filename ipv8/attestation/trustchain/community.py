@@ -87,11 +87,14 @@ class TrustChainCommunity(Community):
             if block_type not in self.listeners_map:
                 self.listeners_map[block_type] = []
             self.listeners_map[block_type].append(listener)
+            self.persistence.block_types[block_type] = listener.BLOCK_CLASS
 
     def remove_listener(self, listener, block_types):
         for block_type in block_types:
             if block_type in self.listeners_map and listener in self.listeners_map[block_type]:
                 self.listeners_map[block_type].remove(listener)
+            if block_type in self.persistence.block_types:
+                self.persistence.block_types.pop(block_type, None)
 
     def get_block_class(self, block_type):
         """
@@ -232,7 +235,7 @@ class TrustChainCommunity(Community):
         """
         dist, payload = self._ez_unpack_noauth(HalfBlockPayload, data)
         peer = Peer(payload.public_key, source_address)
-        block = TrustChainBlock.from_payload(payload, self.serializer)
+        block = self.get_block_class(payload.type).from_payload(payload, self.serializer)
         self.process_half_block(block, peer)
 
     @synchronized
@@ -241,7 +244,7 @@ class TrustChainCommunity(Community):
         We received a half block, part of a broadcast. Disseminate it further.
         """
         dist, payload = self._ez_unpack_noauth(HalfBlockBroadcastPayload, data)
-        block = TrustChainBlock.from_payload(payload, self.serializer)
+        block = self.get_block_class(payload.type).from_payload(payload, self.serializer)
         self.validate_persist_block(block)
 
         if block.block_id not in self.relayed_broadcasts and payload.ttl > 0:
@@ -253,7 +256,7 @@ class TrustChainCommunity(Community):
         We received a block pair message.
         """
         dist, payload = self._ez_unpack_noauth(HalfBlockPairPayload, data)
-        block1, block2 = TrustChainBlock.from_pair_payload(payload, self.serializer)
+        block1, block2 = self.get_block_class(payload.type1).from_pair_payload(payload, self.serializer)
         self.validate_persist_block(block1)
         self.validate_persist_block(block2)
 
@@ -263,7 +266,7 @@ class TrustChainCommunity(Community):
         We received a half block pair, part of a broadcast. Disseminate it further.
         """
         dist, payload = self._ez_unpack_noauth(HalfBlockPairBroadcastPayload, data)
-        block1, block2 = TrustChainBlock.from_pair_payload(payload, self.serializer)
+        block1, block2 = self.get_block_class(payload.type1).from_pair_payload(payload, self.serializer)
         self.validate_persist_block(block1)
         self.validate_persist_block(block2)
 
@@ -464,7 +467,7 @@ class TrustChainCommunity(Community):
         dist, payload = self._ez_unpack_noauth(CrawlResponsePayload, data)
         self.received_half_block(source_address, data[:-12])  # We cut off a few bytes to make it a BlockPayload
 
-        block = TrustChainBlock.from_payload(payload, self.serializer)
+        block = self.get_block_class(payload.type).from_payload(payload, self.serializer)
         cache = self.request_cache.get(u"crawl", payload.crawl_id)
         if cache:
             cache.received_block(block, payload.total_count)
