@@ -1,5 +1,6 @@
 from random import sample
 from time import time
+
 from .discovery import DiscoveryStrategy
 
 
@@ -45,19 +46,21 @@ class RandomChurn(DiscoveryStrategy):
         """
         Select a new (set of) peer(s) to investigate liveness for.
         """
-        # Find an inactive or droppable peer
-        sample_size = min(len(self.overlay.network.verified_peers), self.sample_size)
-        if sample_size:
-            window = sample(self.overlay.network.verified_peers, sample_size)
+        with self.walk_lock:
+            # Find an inactive or droppable peer
+            sample_size = min(len(self.overlay.network.verified_peers), self.sample_size)
+            if sample_size:
+                window = sample(self.overlay.network.verified_peers, sample_size)
 
-            for peer in window:
-                if self.should_drop(peer) and peer.address in self._pinged:
-                    self.overlay.network.remove_peer(peer)
-                    del self._pinged[peer.address]
-                elif self.is_inactive(peer):
-                    if (peer.address in self._pinged) and (time() > (self._pinged[peer.address] + self.ping_interval)):
+                for peer in window:
+                    if self.should_drop(peer) and peer.address in self._pinged:
+                        self.overlay.network.remove_peer(peer)
                         del self._pinged[peer.address]
-                    if peer.address not in self._pinged:
-                        self._pinged[peer.address] = time()
-                        packet = self.overlay.create_ping()
-                        self.overlay.endpoint.send(peer.address, packet)
+                    elif self.is_inactive(peer):
+                        if ((peer.address in self._pinged) and
+                                (time() > (self._pinged[peer.address] + self.ping_interval))):
+                            del self._pinged[peer.address]
+                        if peer.address not in self._pinged:
+                            self._pinged[peer.address] = time()
+                            packet = self.overlay.create_ping()
+                            self.overlay.endpoint.send(peer.address, packet)
