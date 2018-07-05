@@ -1,4 +1,4 @@
-**Linux**: [![](http://jenkins.tribler.org/job/ipv8/job/test_ipv8_linux/badge/icon)](http://jenkins.tribler.org/job/ipv8/job/test_ipv8_linux/) **Windows**: [![](http://jenkins.tribler.org/job/ipv8/job/test_ipv8_windows/badge/icon)](http://jenkins.tribler.org/job/ipv8/job/test_ipv8_windows/) **Mac**: [![](http://jenkins.tribler.org/job/ipv8/job/test_ipv8_mac/badge/icon)](http://jenkins.tribler.org/job/ipv8/job/test_ipv8_mac/)
+**Linux**: [![](http://jenkins-ci.tribler.org/job/ipv8/job/test_ipv8_linux/badge/icon)](http://jenkins-ci.tribler.org/job/ipv8/job/test_ipv8_linux/) **Windows**: [![](http://jenkins-ci.tribler.org/job/ipv8/job/test_ipv8_windows/badge/icon)](http://jenkins-ci.tribler.org/job/ipv8/job/test_ipv8_windows/) **Mac**: [![](http://jenkins-ci.tribler.org/job/ipv8/job/test_ipv8_mac/badge/icon)](http://jenkins-ci.tribler.org/job/ipv8/job/test_ipv8_mac/)
 
 ## What is IPv8 ?
 
