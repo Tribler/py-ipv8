@@ -277,13 +277,15 @@ class RequestTest(SingleServerSetup):
 
         block = TrustChainBlock()
         block.public_key = self._master_peer.get_overlays()[1].my_peer.public_key.key_to_bin()
-        block.transaction = {'name': 123, 'hash': '123'}
+        block.transaction = {'name': 123, 'hash': '123', 'metadata': b64encode(json.dumps({'psn': '1234567890'}))}
 
         self._master_peer.get_overlays()[1].persistence.add_block(block)
 
         result = yield self._get_style_requests.make_attributes(param_dict)
-        self.assertEqual(result, '[[123, "MTIz"]]', "The response was not as expected. This would suggest that "
-                                                    "something went wrong with the attributes request.")
+
+        self.assertEqual(result, '[[123, "MTIz", "eyJwc24iOiAiMTIzNDU2Nzg5MCJ9"]]',
+                         "The response was not as expected. This would suggest that something went wrong "
+                         "with the attributes request.")
 
     @twisted_wrapper(30)
     def test_get_attributes_alternative(self):
