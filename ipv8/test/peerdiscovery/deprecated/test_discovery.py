@@ -2,6 +2,8 @@ from ....deprecated.community import _DEFAULT_ADDRESSES
 from ....deprecated.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from ...base import TestBase
 from ...mocking.community import MockCommunity
+from ....keyvault.crypto import ECCrypto
+from ....peer import Peer
 from ....peerdiscovery.deprecated.discovery_payload import DiscoveryIntroductionRequestPayload
 from ...util import twisted_wrapper
 
@@ -9,6 +11,7 @@ from ...util import twisted_wrapper
 class TestDiscoveryCommunity(TestBase):
 
     def setUp(self):
+        super(TestDiscoveryCommunity, self).setUp()
         while _DEFAULT_ADDRESSES:
             _DEFAULT_ADDRESSES.pop()
         self.tracker = MockCommunity()
@@ -18,6 +21,7 @@ class TestDiscoveryCommunity(TestBase):
         self.overlays = [MockCommunity() for _ in range(node_count)]
 
     def tearDown(self):
+        super(TestDiscoveryCommunity, self).tearDown()
         self.tracker.unload()
         for overlay in self.overlays:
             overlay.unload()
@@ -68,3 +72,24 @@ class TestDiscoveryCommunity(TestBase):
             self.assertEqual(len(intros), 1)
             self.assertNotIn(overlay.my_peer.mid, intros)
             self.assertNotIn(self.tracker.my_peer.mid, intros)
+
+    @twisted_wrapper
+    def test_cross_peer(self):
+        """
+        If we have different peers under our control, don't claim to be the other identity.
+        """
+        custom_master_peer = Peer(ECCrypto().generate_key(u"very-low"))
+        class OtherMockCommunity(MockCommunity):
+            master_peer = custom_master_peer
+        custom_overlay = OtherMockCommunity()
+        custom_overlay.my_peer.address = self.overlays[0].my_peer.address
+        self.overlays.append(custom_overlay)
+        self.overlays[0].network.register_service_provider(custom_master_peer.mid, custom_overlay)
+
+        self.overlays[0].walk_to(self.overlays[1].my_peer.address)
+        yield self.deliver_messages()
+
+        discovered = reduce(lambda a, b: a | b, self.overlays[1].network.services_per_peer.values(), set())
+
+        self.assertEqual(len(self.overlays[1].network.services_per_peer), 2)
+        self.assertSetEqual(discovered, {MockCommunity.master_peer.mid, custom_master_peer.mid})

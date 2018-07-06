@@ -1,7 +1,6 @@
-cryptography
-libnacl
+cryptography>=2.3dev1
+libnacl>=1.6.1
 netifaces
 networkx
-Twisted
+Twisted>=17.9.0
 pyOpenSSL
-gensafeprime

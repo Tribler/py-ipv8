@@ -1,7 +1,7 @@
 import os
 
 from ....attestation.wallet.database import AttestationsDB
-from ....attestation.wallet.primitives.attestation import binary_relativity_sha512
+from ....attestation.wallet.primitives.attestation import binary_relativity_sha256_4
 from ....attestation.wallet.community import Attestation, AttestationCommunity, BonehPrivateKey
 
 from ...base import MockIPv8, TestBase
@@ -77,7 +77,7 @@ class TestCommunity(TestBase):
         # Request for attribute attestation goes unanswered
         self.nodes[1].overlay.request_cache.clear()
 
-    @twisted_wrapper(6)
+    @twisted_wrapper
     def test_request_attestation(self):
         """
         Check if the request_attestation callback is correctly called.
@@ -98,13 +98,13 @@ class TestCommunity(TestBase):
                                                   "MyAttribute",
                                                   TestCommunity.private_key)
 
-        yield self.deliver_messages(5)
+        yield self.deliver_messages(0.5)
 
         db_entries = self.nodes[1].overlay.database.get_all()
         self.assertEqual(1, len(db_entries))
         self.assertTrue(f.called)
 
-    @twisted_wrapper(6)
+    @twisted_wrapper
     def test_verify_attestation(self):
         """
         Check if an attestation can be verified.
@@ -112,24 +112,24 @@ class TestCommunity(TestBase):
         serialized = ""
         filename = os.path.join(os.path.dirname(__file__), 'attestation.txt')
         with open(filename, 'r') as f:
-            serialized = f.read().decode('hex')
+            serialized = f.read().strip().decode('hex')
         attestation = Attestation.unserialize(serialized)
-        hash = '470be47c5076348b497410b3f2741bba7a00d0f1'.decode('hex')
+        attestation_hash = '9019195eb75c07ec3e86a62c314dcf5ef2bbcc0d'.decode('hex')
         self.nodes[0].overlay.database.insert_attestation(attestation, TestCommunity.private_key)
-        self.nodes[0].overlay.attestation_keys[hash] = TestCommunity.private_key
+        self.nodes[0].overlay.attestation_keys[attestation_hash] = TestCommunity.private_key
 
         def callback(rhash, values):
-            self.assertEqual(hash, rhash)
+            self.assertEqual(attestation_hash, rhash)
             self.assertEqual(1, len(values))
             self.assertLess(0.99, values[0])
             callback.called = True
         callback.called = False
         self.nodes[1].overlay.verify_attestation_values(self.nodes[0].endpoint.wan_address,
-                                                        hash,
-                                                        [binary_relativity_sha512("MyAttribute")],
+                                                        attestation_hash,
+                                                        [binary_relativity_sha256_4("MyAttribute")],
                                                         callback)
 
-        yield self.deliver_messages(5)
+        yield self.deliver_messages(0.5)
 
         self.assertTrue(callback.called)
         self.nodes[1].overlay.request_cache.clear()

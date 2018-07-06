@@ -30,7 +30,7 @@ with open('test_classes_list.txt', 'r') as test_class_file:
     lines = [line[:-1] for line in test_class_file.readlines() if line.strip() and not line.startswith('#')]
 
     cov = coverage.Coverage(data_file=data_file, data_suffix=True, config_file=False,
-                                branch=True, source=['ipv8'], include=['*'], omit="ipv8/ipv8.py")
+                            branch=True, source=['ipv8'], include=['*'], omit=["ipv8/test/*", "ipv8_service.py"])
     cov.exclude('pass')
     cov.start()
 

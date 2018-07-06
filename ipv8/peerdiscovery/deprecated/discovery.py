@@ -5,6 +5,7 @@ from ...deprecated.payload_headers import BinMemberAuthenticationPayload, Global
 from .discovery_payload import PingPayload, PongPayload, SimilarityRequestPayload, SimilarityResponsePayload, \
     DiscoveryIntroductionRequestPayload
 from ...messaging.serialization import PackError
+from ...keyvault.crypto import ECCrypto
 
 
 class DiscoveryCommunity(Community):
@@ -50,14 +51,20 @@ class DiscoveryCommunity(Community):
     def on_introduction_response(self, source_address, data):
         super(DiscoveryCommunity, self).on_introduction_response(source_address, data)
 
-        packet = self.create_similarity_request()
-        self.endpoint.send(source_address, packet)
+        my_peer_set = set([overlay.my_peer for overlay in self.network.service_overlays.values()])
+        for peer in my_peer_set:
+            packet = self.create_similarity_request(peer)
+            self.endpoint.send(source_address, packet)
 
     def on_similarity_request(self, source_address, data):
         auth, dist, payload = self._ez_unpack_auth(SimilarityRequestPayload, data)
 
-        packet = self.create_similarity_response(payload.identifier)
-        self.endpoint.send(source_address, packet)
+        self.network.discover_services(Peer(auth.public_key_bin, source_address), payload.preference_list)
+
+        my_peer_set = set([overlay.my_peer for overlay in self.network.service_overlays.values()])
+        for peer in my_peer_set:
+            packet = self.create_similarity_response(payload.identifier, peer)
+            self.endpoint.send(source_address, packet)
 
     def on_similarity_response(self, source_address, data):
         auth, dist, payload = self._ez_unpack_auth(SimilarityResponsePayload, data)
@@ -73,25 +80,36 @@ class DiscoveryCommunity(Community):
     def on_pong(self, source_address, data):
         dist, payload = self._ez_unpack_noauth(PongPayload, data)
 
-    def create_similarity_request(self):
+    def get_my_overlays(self, peer):
+        return [service_id for service_id, overlay in self.network.service_overlays.iteritems()
+                if overlay.my_peer == peer]
+
+    def custom_pack(self, peer, msg_num, format_list_list):
+        packet = self._prefix + chr(msg_num)
+        for format_list in format_list_list:
+            packet += self.serializer.pack_multiple(format_list)
+        packet += ECCrypto().create_signature(peer.key, packet)
+        return packet
+
+    def create_similarity_request(self, peer):
         global_time = self.claim_global_time()
         payload = SimilarityRequestPayload(global_time,
                                            self.my_estimated_lan,
                                            self.my_estimated_wan,
                                            u"unknown",
-                                           self.network.service_overlays.keys()).to_pack_list()
-        auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
+                                           self.get_my_overlays(peer)).to_pack_list()
+        auth = BinMemberAuthenticationPayload(peer.public_key.key_to_bin()).to_pack_list()
         dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
 
-        return self._ez_pack(self._prefix, 1, [auth, dist, payload])
+        return self.custom_pack(peer, 1, [auth, dist, payload])
 
-    def create_similarity_response(self, identifier):
+    def create_similarity_response(self, identifier, peer):
         global_time = self.claim_global_time()
-        payload = SimilarityResponsePayload(identifier, self.network.service_overlays.keys(), []).to_pack_list()
-        auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
+        payload = SimilarityResponsePayload(identifier, self.get_my_overlays(peer), []).to_pack_list()
+        auth = BinMemberAuthenticationPayload(peer.public_key.key_to_bin()).to_pack_list()
         dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
 
-        return self._ez_pack(self._prefix, 2, [auth, dist, payload])
+        return self.custom_pack(peer, 2, [auth, dist, payload])
 
     def create_ping(self):
         global_time = self.claim_global_time()

@@ -20,7 +20,6 @@ ipv8/test/attestation/trustchain/test_block.py:TestTrustChainBlock
 ipv8/test/attestation/identity/test_identity.py:TestIdentityCommunity
 ipv8/test/attestation/wallet/primitives/cryptosystem/test_boneh.py:TestBoneh
 ipv8/test/attestation/wallet/primitives/cryptosystem/test_ec.py:TestPairing
-ipv8/test/attestation/wallet/primitives/cryptosystem/test_primality.py:TestPrimality
 ipv8/test/attestation/wallet/primitives/cryptosystem/test_value.py:TestFP2Value
 ipv8/test/attestation/wallet/primitives/test_attestation.py:TestAttestation
 ipv8/test/attestation/wallet/primitives/test_structs.py:TestStructs

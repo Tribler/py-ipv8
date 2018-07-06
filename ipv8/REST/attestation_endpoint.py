@@ -27,6 +27,7 @@ class AttestationEndpoint(resource.Resource):
             self.identity_overlay = identity_overlays[0]
         self.attestation_requests = {}
         self.verification_output = {}
+        self.attestation_metadata = {}
 
     @inlineCallbacks
     def on_request_attestation(self, peer, attribute_name, metadata):
@@ -35,28 +36,32 @@ class AttestationEndpoint(resource.Resource):
         """
         deferred = Deferred()
         self.attestation_requests[(b64encode(peer.mid), attribute_name)] = (deferred, b64encode(json.dumps(metadata)))
+        self.attestation_metadata[(peer, attribute_name)] = metadata
         out = yield deferred
         returnValue(out)
 
-    def on_attestation_complete(self, peer, attribute_name, hash, signer=None):
+    def on_attestation_complete(self, for_peer, attribute_name, attribute_hash, from_peer=None):
         """
         Callback for when an attestation has been completed for another peer.
         We can now sign for it.
         """
-        if peer.mid == self.identity_overlay.my_peer.mid:
-            self.identity_overlay.request_attestation_advertisement(signer, hash, attribute_name)
+        metadata = self.attestation_metadata.get((for_peer, attribute_name), None)
+        if for_peer.mid == self.identity_overlay.my_peer.mid:
+            self.identity_overlay.request_attestation_advertisement(from_peer, attribute_hash, attribute_name,
+                                                                    metadata)
         else:
-            self.identity_overlay.add_known_hash(hash, attribute_name, peer.public_key.key_to_bin())
+            self.identity_overlay.add_known_hash(attribute_hash, attribute_name, for_peer.public_key.key_to_bin(),
+                                                 metadata)
 
-    def on_verification_results(self, hash, values):
+    def on_verification_results(self, attribute_hash, values):
         """
         Callback for when verification has concluded.
         """
-        references = self.verification_output[hash]
+        references = self.verification_output[attribute_hash]
         out = []
         for i in range(len(references)):
             out.append((references[i][0] if isinstance(references[i], tuple) else references[i], values[i]))
-        self.verification_output[hash] = out
+        self.verification_output[attribute_hash] = out
 
     def get_peer_from_mid(self, mid_b64):
         """
@@ -99,7 +104,8 @@ class AttestationEndpoint(resource.Resource):
                 peer = self.identity_overlay.my_peer
             if peer:
                 blocks = self.identity_overlay.persistence.get_latest_blocks(peer.public_key.key_to_bin(), 200)
-                return json.dumps([(b.transaction["name"], b64encode(b.transaction["hash"])) for b in blocks])
+                return json.dumps([(b.transaction["name"], b64encode(b.transaction["hash"]), b.transaction["metadata"])
+                                   for b in blocks])
         if request.args['type'][0] == 'drop_identity':
             self.identity_overlay.persistence.execute('DELETE FROM blocks')
             self.identity_overlay.persistence.commit()
@@ -126,6 +132,7 @@ class AttestationEndpoint(resource.Resource):
                 metadata = {}
                 if 'metadata' in request.args:
                     metadata = json.loads(b64decode(request.args['metadata'][0]))
+                    self.attestation_metadata[(self.identity_overlay.my_peer, attribute_name)] = metadata
                 self.attestation_overlay.request_attestation(peer, attribute_name, key, metadata)
             return ""
         if request.args['type'][0] == 'attest':

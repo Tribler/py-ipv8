@@ -39,19 +39,26 @@ class TrustChainCommunity(Community):
     """
     Community for reputation based on TrustChain tamper proof interaction history.
     """
-    BLOCK_CLASS = TrustChainBlock
+    TESTNET_PEER = Peer(("3081a7301006072a8648ce3d020106052b810400270381920004017aa18185c6c8a3741aed970f5476d50932980"
+                         "66670c6557f9d2519a77c2abe293f9438444fdb73d9e36d0b43a4a254f96c563c0da7915def980270d88da4079e"
+                         "83a6039ce97f2205528c69087f88a6d6f35d83b93b3fb8a360260114729d4cfb5acc4b190e067695b4ae5e240a3"
+                         "939a1f45520e87a459ed0f358bf5e66371a748daa041997da69cab227596948bffd").decode("HEX"))
+    MAINNET_PEER = Peer(("3081a7301006072a8648ce3d020106052b810400270381920004057a1c4c4f8422b328209d99724bd30cf08d1f8"
+                         "1a2961b003affd2964f92c457572f2f79de0968c42698e2d1cfb371dd71b275332a0a4c19f35f16166272baae8e"
+                         "230bba377cc5c40643b83206088075559ec2f13a090e8786d04d84802268bef12e52983978da360589a2b7e293c"
+                         "e4f16d02f37da2c3256f4703b9623d3750f7af437befebc8935c0f0726f58c1c1e9").decode("HEX"))
+
     DB_CLASS = TrustChainDB
     DB_NAME = 'trustchain'
     BROADCAST_FANOUT = 10
     version = '\x02'
-    master_peer = Peer(("3081a7301006072a8648ce3d020106052b81040027038192000403428b0fa33d3ed62dd39852481f535e2161714" +
-                        "4a95e682ad5733b9a739b27051dc6ad1da743a463821fc8d3d1849191d5fb84fab1f3fe3ad44fb2b83f07d0c78a" +
-                        "13b7ad1d311063069f49070cad7dc15620996cdd625c1abcdbfabf750727f1dec706f6f16cb28ce6946fdf39887" +
-                        "a84fc457a5f9edc660adbe0a72ea5219f9578dd6432de825c167e80987ca4c6a2bf").decode("HEX"))
+    master_peer = None  # Determined at runtime
 
     def __init__(self, *args, **kwargs):
         working_directory = kwargs.pop('working_directory', '')
         db_name = kwargs.pop('db_name', self.DB_NAME)
+        self.testnet = kwargs.pop('testnet', False)
+        TrustChainCommunity.master_peer = self.TESTNET_PEER if self.testnet else self.MAINNET_PEER
         super(TrustChainCommunity, self).__init__(*args, **kwargs)
         self.request_cache = RequestCache()
         self.logger = logging.getLogger(self.__class__.__name__)
@@ -60,6 +67,8 @@ class TrustChainCommunity(Community):
         self.logger.debug("The trustchain community started with Public Key: %s",
                           self.my_peer.public_key.key_to_bin().encode("hex"))
         self.broadcast_block = True  # Whether we broadcast a full block after constructing it
+        self.shutting_down = False
+        self.listeners_map = {}  # Map of block_type -> [callbacks]
 
         self.decode_map.update({
             chr(1): self.received_half_block,
@@ -70,12 +79,45 @@ class TrustChainCommunity(Community):
             chr(6): self.received_half_block_pair_broadcast
         })
 
+    def add_listener(self, listener, block_types):
+        """
+        Add a listener for specific block types.
+        """
+        for block_type in block_types:
+            if block_type not in self.listeners_map:
+                self.listeners_map[block_type] = []
+            self.listeners_map[block_type].append(listener)
+            self.persistence.block_types[block_type] = listener.BLOCK_CLASS
+
+    def remove_listener(self, listener, block_types):
+        for block_type in block_types:
+            if block_type in self.listeners_map and listener in self.listeners_map[block_type]:
+                self.listeners_map[block_type].remove(listener)
+            if block_type in self.persistence.block_types:
+                self.persistence.block_types.pop(block_type, None)
+
+    def get_block_class(self, block_type):
+        """
+        Get the block class for a specific block type.
+        """
+        if block_type not in self.listeners_map or not self.listeners_map[block_type]:
+            return TrustChainBlock
+
+        return self.listeners_map[block_type][0].BLOCK_CLASS
+
     def should_sign(self, block):
         """
         Return whether we should sign the block in the passed message.
         @param block: the block we want to sign or not.
         """
-        return True
+        if block.type not in self.listeners_map:
+            return False  # There are no listeners for this block
+
+        for listener in self.listeners_map[block.type]:
+            if listener.should_sign(block):
+                return True
+
+        return False
 
     def send_block(self, block, address=None, ttl=2):
         """
@@ -119,10 +161,15 @@ class TrustChainCommunity(Community):
                 self.endpoint.send(peer.address, packet)
             self.relayed_broadcasts.append(block1.block_id)
 
-    def sign_block(self, peer, public_key=EMPTY_PK, transaction=None, linked=None):
+    def self_sign_block(self, block_type='unknown', transaction=None):
+        self.sign_block(self.my_peer, block_type=block_type, transaction=transaction)
+
+    def sign_block(self, peer, public_key=EMPTY_PK, block_type='unknown', transaction=None, linked=None):
         """
         Create, sign, persist and send a block signed message
-        :param peer: The peer with whom you have interacted, as a dispersy candidate
+        :param peer: The peer with whom you have interacted, as a IPv8 peer
+        :param public_key: The public key of the other party you transact with
+        :param block_type: The type of the block to be constructed, as a string
         :param transaction: A string describing the interaction in this block
         :param linked: The block that the requester is asking us to sign
         """
@@ -135,9 +182,12 @@ class TrustChainCommunity(Community):
         assert linked is None or linked.link_sequence_number == UNKNOWN_SEQ, \
             "Cannot counter sign block that is not a request"
         assert transaction is None or isinstance(transaction, dict), "Transaction should be a dictionary"
+
         self.persistence_integrity_check()
-        block = self.BLOCK_CLASS.create(transaction, self.persistence, self.my_peer.public_key.key_to_bin(),
-                                        link=linked, link_pk=public_key)
+        block_type = linked.type if linked else block_type
+        block = self.get_block_class(block_type).create(block_type, transaction, self.persistence,
+                                                        self.my_peer.public_key.key_to_bin(),
+                                                        link=linked, link_pk=public_key)
         block.sign(self.my_peer.key)
         validation = block.validate(self.persistence)
         self.logger.info("Signed block to %s (%s) validation result %s",
@@ -148,9 +198,15 @@ class TrustChainCommunity(Community):
 
         if not self.persistence.contains(block):
             self.persistence.add_block(block)
+            self.notify_listeners(block)
         self.send_block(block, address=peer.address)
 
-        if not linked:
+        if peer == self.my_peer and public_key == EMPTY_PK:
+            # We created a half-signed block
+            if self.broadcast_block:
+                self.send_block(block)
+            return succeed((block, None))
+        elif not linked:
             # We keep track of this outstanding sign request.
             sign_deferred = Deferred()
             self.request_cache.add(HalfBlockSignCache(self, block, sign_deferred))
@@ -159,6 +215,16 @@ class TrustChainCommunity(Community):
             # We return a deferred that fires immediately with both half blocks.
             if self.broadcast_block:
                 self.send_block_pair(linked, block)
+
+            # See https://github.com/Tribler/py-ipv8/issues/160
+            # If we receive responses from received_crawl_request out of order we can desync:
+            #  1. We need to sign block 2, but can't as we are still missing block 1.
+            #  2. We receive block 1 and sign it.
+            #  3.a. Nothing will happen until the next time we randomly encounter block 2.
+            #  3.b. The counterparty is still waiting for block 2 to be signed.
+            self.send_crawl_request(peer,
+                                    linked.public_key,
+                                    linked.sequence_number + 1)
 
             return succeed((linked, block))
 
@@ -169,7 +235,7 @@ class TrustChainCommunity(Community):
         """
         dist, payload = self._ez_unpack_noauth(HalfBlockPayload, data)
         peer = Peer(payload.public_key, source_address)
-        block = TrustChainBlock.from_payload(payload, self.serializer)
+        block = self.get_block_class(payload.type).from_payload(payload, self.serializer)
         self.process_half_block(block, peer)
 
     @synchronized
@@ -178,7 +244,7 @@ class TrustChainCommunity(Community):
         We received a half block, part of a broadcast. Disseminate it further.
         """
         dist, payload = self._ez_unpack_noauth(HalfBlockBroadcastPayload, data)
-        block = TrustChainBlock.from_payload(payload, self.serializer)
+        block = self.get_block_class(payload.type).from_payload(payload, self.serializer)
         self.validate_persist_block(block)
 
         if block.block_id not in self.relayed_broadcasts and payload.ttl > 0:
@@ -190,7 +256,7 @@ class TrustChainCommunity(Community):
         We received a block pair message.
         """
         dist, payload = self._ez_unpack_noauth(HalfBlockPairPayload, data)
-        block1, block2 = TrustChainBlock.from_pair_payload(payload, self.serializer)
+        block1, block2 = self.get_block_class(payload.type1).from_pair_payload(payload, self.serializer)
         self.validate_persist_block(block1)
         self.validate_persist_block(block2)
 
@@ -200,7 +266,7 @@ class TrustChainCommunity(Community):
         We received a half block pair, part of a broadcast. Disseminate it further.
         """
         dist, payload = self._ez_unpack_noauth(HalfBlockPairBroadcastPayload, data)
-        block1, block2 = TrustChainBlock.from_pair_payload(payload, self.serializer)
+        block1, block2 = self.get_block_class(payload.type1).from_pair_payload(payload, self.serializer)
         self.validate_persist_block(block1)
         self.validate_persist_block(block2)
 
@@ -218,8 +284,19 @@ class TrustChainCommunity(Community):
             pass
         elif not self.persistence.contains(block):
             self.persistence.add_block(block)
+            self.notify_listeners(block)
 
         return validation
+
+    def notify_listeners(self, block):
+        """
+        Notify listeners of a specific new block.
+        """
+        if block.type not in self.listeners_map or self.shutting_down:
+            return
+
+        for listener in self.listeners_map[block.type]:
+            listener.received_block(block)
 
     @synchronized
     def process_half_block(self, blk, peer):
@@ -227,13 +304,9 @@ class TrustChainCommunity(Community):
         Process a received half block.
         """
         validation = self.validate_persist_block(blk)
-        self.logger.debug("Block validation result %s, %s, (%s)", validation[0], validation[1], blk)
+        self.logger.info("Block validation result %s, %s, (%s)", validation[0], validation[1], blk)
         if validation[0] == ValidationResult.invalid:
             return
-        elif not self.persistence.contains(blk):
-            self.persistence.add_block(blk)
-        else:
-            self.logger.debug("Received already known block (%s)", blk)
 
         # Check if we are waiting for this signature response
         link_block_id_int = int(blk.linked_block_id.encode('hex'), 16) % 100000000L
@@ -325,8 +398,8 @@ class TrustChainCommunity(Community):
         if total_count == 0:
             # If there are no blocks to send, send a dummy block back with an empty transaction.
             # This is to inform the requester that he can't expect any blocks.
-            block = self.BLOCK_CLASS.create({}, self.persistence, self.my_peer.public_key.key_to_bin(),
-                                            link_pk=EMPTY_PK)
+            block = self.get_block_class("unknown").create('noblocks', {}, self.persistence,
+                                                           self.my_peer.public_key.key_to_bin(), link_pk=EMPTY_PK)
             self.send_crawl_response(block, payload.crawl_id, 0, 0, peer)
 
         for ind in xrange(len(blocks)):
@@ -394,7 +467,7 @@ class TrustChainCommunity(Community):
         dist, payload = self._ez_unpack_noauth(CrawlResponsePayload, data)
         self.received_half_block(source_address, data[:-12])  # We cut off a few bytes to make it a BlockPayload
 
-        block = TrustChainBlock.from_payload(payload, self.serializer)
+        block = self.get_block_class(payload.type).from_payload(payload, self.serializer)
         cache = self.request_cache.get(u"crawl", payload.crawl_id)
         if cache:
             cache.received_block(block, payload.total_count)
@@ -447,6 +520,7 @@ class TrustChainCommunity(Community):
 
     def unload(self):
         self.logger.debug("Unloading the TrustChain Community.")
+        self.shutting_down = True
 
         self.request_cache.shutdown()
 
