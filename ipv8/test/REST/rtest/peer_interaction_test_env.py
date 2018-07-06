@@ -245,7 +245,9 @@ class RequestTest(SingleServerSetup):
         other_peer_mids = [b64encode(x.mid).replace("+", "%2B") for x in other_peer.get_keys().values()]
 
         # Get the hash of the attestation to be validated (the one which was just attested)
-        param_dict['attribute_hash'] = quote(b64encode(other_peer.get_all_attestations()[0][0]).replace("+", "%2B"))
+        attributes = yield self._get_style_requests.make_attributes(param_dict)
+        attributes = ast.literal_eval(attributes)
+        param_dict['attribute_hash'] = attributes[0][1].replace("+", "%2B")
 
         # Forward the actual verification
         verification_responses = yield self.verify_all_attestations(other_peer_mids, param_dict.copy())
@@ -420,7 +422,9 @@ class RequestTest(SingleServerSetup):
         other_peer_mids = [b64encode(x.mid).replace("+", "%2B") for x in other_peer.get_keys().values()]
 
         # Get the hash of the attestation to be validated (the one which was just attested)
-        param_dict['attribute_hash'] = quote(b64encode(other_peer.get_all_attestations()[0][0]).replace("+", "%2B"))
+        attributes = yield self._get_style_requests.make_attributes(param_dict)
+        attributes = ast.literal_eval(attributes)
+        param_dict['attribute_hash'] = attributes[0][1].replace("+", "%2B")
 
         # Forward the actual verification
         verification_responses = yield self.verify_all_attestations(other_peer_mids, param_dict.copy())
