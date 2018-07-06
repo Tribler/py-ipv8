@@ -293,7 +293,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         self.logger.info("Create end to end initiated here")
         cache = self.request_cache.add(E2ERequestCache(self, info_hash, circuit, hop, sock_addr))
 
-        self.tunnel_data(circuit, sock_addr, u'create-e2e', CreateE2EPayload(cache.number, info_hash, hop.node_id,
+        self.tunnel_data(circuit, sock_addr, u'create-e2e', CreateE2EPayload(cache.number, info_hash,
                                                                              hop.node_public_key, hop.dh_first_part))
 
     def on_create_e2e(self, source_address, data, circuit_id=''):

@@ -125,12 +125,11 @@ class CellPayload(Payload):
 
 class CreatePayload(Payload):
 
-    format_list = ['I', 'H', 'H', '20s', 'raw']
+    format_list = ['I', 'H', 'H', 'raw']
 
-    def __init__(self, circuit_id, node_id, node_public_key, key):
+    def __init__(self, circuit_id, node_public_key, key):
         super(CreatePayload, self).__init__()
         self.circuit_id = circuit_id
-        self.node_id = node_id
         self.node_public_key = node_public_key
         self.key = key
 
@@ -138,16 +137,15 @@ class CreatePayload(Payload):
         data = [('I', self.circuit_id),
                 ('H', len(self.node_public_key)),
                 ('H', len(self.key)),
-                ('20s', self.node_id),
                 ('raw', self.node_public_key + self.key)]
 
         return data
 
     @classmethod
-    def from_unpack_list(cls, circuit_id, pubkey_len, key_len, node_id, pubkey_key):
+    def from_unpack_list(cls, circuit_id, pubkey_len, key_len, pubkey_key):
         node_public_key = pubkey_key[:pubkey_len]
         key = pubkey_key[-key_len:]
-        return CreatePayload(circuit_id, node_id, node_public_key, key)
+        return CreatePayload(circuit_id, node_public_key, key)
 
 
 class CreatedPayload(Payload):
@@ -178,12 +176,11 @@ class CreatedPayload(Payload):
 
 class ExtendPayload(Payload):
 
-    format_list = ['I', 'H', 'H', '20s', 'raw']
+    format_list = ['I', 'H', 'H', 'raw']
 
-    def __init__(self, circuit_id, node_id, node_public_key, node_addr, key):
+    def __init__(self, circuit_id, node_public_key, node_addr, key):
         super(ExtendPayload, self).__init__()
         self.circuit_id = circuit_id
-        self.node_id = node_id
         self.node_public_key = node_public_key
         self.node_addr = node_addr
         self.key = key
@@ -192,7 +189,6 @@ class ExtendPayload(Payload):
         data = [('I', self.circuit_id),
                 ('H', len(self.node_public_key)),
                 ('H', len(self.key)),
-                ('20s', self.node_id),
                 ('raw', self.node_public_key + self.key)]
 
         if self.node_addr:
@@ -202,14 +198,14 @@ class ExtendPayload(Payload):
         return data
 
     @classmethod
-    def from_unpack_list(cls, circuit_id, pubkey_len, key_len, node_id, pubkey_key_node_addr):
+    def from_unpack_list(cls, circuit_id, pubkey_len, key_len, pubkey_key_node_addr):
         node_public_key = pubkey_key_node_addr[:pubkey_len]
         key = pubkey_key_node_addr[pubkey_len:pubkey_len+key_len]
         node_addr = None
         if pubkey_len+key_len < len(pubkey_key_node_addr):
             host, port = unpack_from('>4sH', pubkey_key_node_addr, pubkey_len+key_len)
             node_addr = (socket.inet_ntoa(host), port)
-        return ExtendPayload(circuit_id, node_id, node_public_key, node_addr, key)
+        return ExtendPayload(circuit_id, node_public_key, node_addr, key)
 
 
 class ExtendedPayload(Payload):
@@ -414,13 +410,12 @@ class KeyResponsePayload(Payload):
 
 class CreateE2EPayload(Payload):
 
-    format_list = ['H', '20s', 'H', 'H', '20s', 'raw']
+    format_list = ['H', '20s', 'H', 'H', 'raw']
 
-    def __init__(self, identifier, info_hash, node_id, node_public_key, key):
+    def __init__(self, identifier, info_hash, node_public_key, key):
         super(CreateE2EPayload, self).__init__()
         self.identifier = identifier
         self.info_hash = info_hash
-        self.node_id = node_id
         self.node_public_key = node_public_key
         self.key = key
 
@@ -429,16 +424,15 @@ class CreateE2EPayload(Payload):
                 ('20s', self.info_hash),
                 ('H', len(self.node_public_key)),
                 ('H', len(self.key)),
-                ('20s', self.node_id),
                 ('raw', self.node_public_key + self.key)]
 
         return data
 
     @classmethod
-    def from_unpack_list(cls, identifier, info_hash, pubkey_len, key_len, node_id, pubkey_key):
+    def from_unpack_list(cls, identifier, info_hash, pubkey_len, key_len, pubkey_key):
         node_public_key = pubkey_key[:pubkey_len]
         key = pubkey_key[pubkey_len:]
-        return CreateE2EPayload(identifier, info_hash, node_id, node_public_key, key)
+        return CreateE2EPayload(identifier, info_hash, node_public_key, key)
 
 
 class CreatedE2EPayload(Payload):

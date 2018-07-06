@@ -290,16 +290,6 @@ class Hop(object):
         return " UNKNOWN PORT "
 
     @property
-    def node_id(self):
-        """
-        The hop's nodeid
-        """
-        if self.public_key:
-            return self.public_key.key_to_hash()
-
-        raise RuntimeError("nodeid unknown")
-
-    @property
     def node_public_key(self):
         """
         The hop's public_key

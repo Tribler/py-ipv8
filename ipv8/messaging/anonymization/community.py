@@ -330,7 +330,6 @@ class TunnelCommunity(Community):
         self.increase_bytes_sent(circuit, self.send_cell([first_hop],
                                                          u"create",
                                                          CreatePayload(circuit_id,
-                                                                       circuit.unverified_hop.node_id,
                                                                        circuit.unverified_hop.node_public_key,
                                                                        circuit.unverified_hop.dh_first_part)))
 
@@ -549,9 +548,6 @@ class TunnelCommunity(Community):
         return True
 
     def check_create(self, payload):
-        if self.crypto.key and self.crypto.key.key_to_hash() != payload.node_id:
-            self.logger.debug("nodeids do not match")
-            return False
         if self.crypto.key and self.crypto.key.pub().key_to_bin() != payload.node_public_key:
             self.logger.warning("public keys do not match")
             return False
@@ -670,7 +666,6 @@ class TunnelCommunity(Community):
                 self.increase_bytes_sent(circuit, self.send_cell([circuit.sock_addr],
                                                                  u"extend",
                                                                  ExtendPayload(circuit.circuit_id,
-                                                                               circuit.unverified_hop.node_id,
                                                                                circuit.unverified_hop.node_public_key,
                                                                                extend_hop_addr,
                                                                                circuit.unverified_hop.dh_first_part)))
@@ -883,7 +878,6 @@ class TunnelCommunity(Community):
         self.send_cell([extend_candidate],
                        u"create",
                        CreatePayload(to_circuit_id,
-                                     payload.node_id,
                                      payload.node_public_key,
                                      payload.key))
 
