@@ -77,7 +77,7 @@ data_diff_b <- diff(b$count)
 speeds_a <- mapply(function(x, y) x/y, data_diff_a, time_diff_a)
 speeds_b <- mapply(function(x, y) x/y, data_diff_b, time_diff_b)
 # A positive value would be a speed-up, which we are fine with
-if (t.test(speeds_a, speeds_b)[['statistic']][['t']]  <= -31.82) {
+if (t.test(speeds_a, speeds_b)[['statistic']][['t']]  <= -13) {
 return(bitwOr(bitwShiftL(errors, 1), 1))
 }
 return(bitwShiftL(errors, 1))

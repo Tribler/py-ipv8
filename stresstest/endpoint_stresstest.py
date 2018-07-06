@@ -3,6 +3,7 @@ from os import makedirs, path, rename
 from random import randint
 from shutil import rmtree
 from subprocess import call
+from sys import exit as _exit
 from time import sleep, time
 
 from twisted.internet import reactor
@@ -218,3 +219,9 @@ if retcode > 0:
             print "Significant slowdown in %s" % errmap[i]
 else:
     print "Stresstest found no significant slowdown"
+
+# This should be the last block of code in the file
+if retcode > 0:
+    _exit(1)
+else:
+    _exit(0)
