@@ -73,7 +73,7 @@ class DataChecker(object):
 
     @staticmethod
     def could_be_ipv8(data):
-        return data[:4] == "ffffffff".decode("HEX") and len(data) >= (23 + 4)
+        return data[0] == '\x00' and data[1] in ['\x01', '\x02'] and len(data) >= 23
 
     @staticmethod
     def is_allowed(data):

@@ -1,79 +1,22 @@
 import socket
 from struct import pack, unpack_from
 
-from ...deprecated.payload import Payload, IntroductionRequestPayload, IntroductionResponsePayload
+from ...deprecated.payload import Payload
 
 ADDRESS_TYPE_IPV4 = 0x01
 ADDRESS_TYPE_DOMAIN_NAME = 0x02
 
 
 def swap_circuit_id(packet, message_type, old_circuit_id, new_circuit_id):
-    circuit_id_pos = 0 if message_type == u"data" else 31
+    circuit_id_pos = 31#0 if message_type == u"data" else 31
     circuit_id, = unpack_from('!I', packet, circuit_id_pos)
     assert circuit_id == old_circuit_id, circuit_id
     packet = packet[:circuit_id_pos] + pack('!I', new_circuit_id) + packet[circuit_id_pos + 4:]
     return packet
 
 
-def get_circuit_id(packet, message_type):
-    circuit_id_pos = 0 if message_type == u"data" else 31
-    circuit_id, = unpack_from('!I', packet, circuit_id_pos)
-    return circuit_id
-
-
-def split_encrypted_packet(packet, message_type):
-    encryped_pos = 4 if message_type == u"data" else 36
-    return packet[:encryped_pos], packet[encryped_pos:]
-
-
-def encode_data(circuit_id, dest_address, org_address, data):
-    assert org_address
-
-    def encode_address(host, port):
-        try:
-            ip = socket.inet_aton(host)
-            is_ip = True
-        except socket.error:
-            is_ip = False
-
-        if is_ip:
-            return pack("!B4sH", ADDRESS_TYPE_IPV4, ip, port)
-        else:
-            return pack("!BH", ADDRESS_TYPE_DOMAIN_NAME, len(host)) + host + pack("!H", port)
-
-    return pack("!I", circuit_id) + encode_address(*dest_address) + encode_address(*org_address) + data
-
-
-def decode_data(packet):
-    circuit_id, = unpack_from("!I", packet)
-    offset = 4
-
-    def decode_address(packet, offset):
-        addr_type, = unpack_from("!B", packet, offset)
-        offset += 1
-
-        if addr_type == ADDRESS_TYPE_IPV4:
-            host, port = unpack_from('!4sH', packet, offset)
-            offset += 6
-            return (socket.inet_ntoa(host), port), offset
-
-        elif addr_type == ADDRESS_TYPE_DOMAIN_NAME:
-            length, = unpack_from('!H', packet, offset)
-            offset += 2
-            host = packet[offset:offset + length]
-            offset += length
-            port, = unpack_from('!H', packet, offset)
-            offset += 2
-            return (host, port), offset
-
-        return None, offset
-
-    dest_address, offset = decode_address(packet, offset)
-    org_address, offset = decode_address(packet, offset)
-
-    data = packet[offset:]
-
-    return circuit_id, dest_address, org_address, data
+def split_encrypted_packet(packet):
+    return packet[:36], packet[36:]
 
 
 def convert_from_cell(packet):
@@ -84,6 +27,35 @@ def convert_from_cell(packet):
 def convert_to_cell(packet):
     header = packet[:22] + '\x01' + packet[23:31]
     return header + packet[31:35] + packet[22] + packet[35:]
+
+
+def encode_address(host, port):
+    try:
+        ip = socket.inet_aton(host)
+        is_ip = True
+    except socket.error:
+        is_ip = False
+
+    if is_ip:
+        return pack("!B4sH", ADDRESS_TYPE_IPV4, ip, port)
+    else:
+        return pack("!BH", ADDRESS_TYPE_DOMAIN_NAME, len(host)) + host + pack("!H", port)
+
+
+def decode_address(packet):
+    addr_type, = unpack_from("!B", packet)
+
+    if addr_type == ADDRESS_TYPE_IPV4:
+        host, port = unpack_from('!4sH', packet, 1)
+        return socket.inet_ntoa(host), port
+
+    elif addr_type == ADDRESS_TYPE_DOMAIN_NAME:
+        length, = unpack_from('!H', packet, 1)
+        host = packet[3:3 + length]
+        port, = unpack_from('!H', packet, 3 + length)
+        return host, port
+
+    return None
 
 
 class ExtraIntroductionPayload(Payload):
@@ -99,6 +71,28 @@ class ExtraIntroductionPayload(Payload):
     @classmethod
     def from_unpack_list(cls, exitnode):
         return ExtraIntroductionPayload(exitnode)
+
+
+class DataPayload(Payload):
+
+    format_list = ['I', 'varlenH', 'varlenH', 'raw']
+
+    def __init__(self, circuit_id, dest_address, org_address, data):
+        super(DataPayload, self).__init__()
+        self.circuit_id = circuit_id
+        self.dest_address = dest_address
+        self.org_address = org_address
+        self.data = data
+
+    def to_pack_list(self):
+        return [('I', self.circuit_id),
+                ('varlenH', encode_address(*self.dest_address)),
+                ('varlenH', encode_address(*self.org_address)),
+                ('raw', self.data)]
+
+    @classmethod
+    def from_unpack_list(cls, circuit_id, dest_address, org_address, data):
+        return DataPayload(circuit_id, decode_address(dest_address), decode_address(org_address), data)
 
 
 class CellPayload(Payload):
