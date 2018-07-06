@@ -73,6 +73,7 @@ class SingleServerSetup(unittest.TestCase):
 
         # Stop the master peer
         self._master_peer.stop()
+        del self._master_peer
 
 
 class RequestTest(SingleServerSetup):
@@ -199,7 +200,7 @@ class RequestTest(SingleServerSetup):
         :return: None
         """
         param_dict = {
-            'port': 8086,
+            'port': self._master_peer.port,
             'interface': '127.0.0.1',
             'endpoint': 'attestation',
             'attribute_name': 'QR'
@@ -215,8 +216,8 @@ class RequestTest(SingleServerSetup):
                             for y in other_peer_mids),
                         "Could not find the outstanding request forwarded by the second peer")
 
-        other_peer.stop()
         other_peer.join()
+        other_peer.stop()
 
     @twisted_wrapper(30)
     def test_get_verification_output(self):
@@ -225,7 +226,7 @@ class RequestTest(SingleServerSetup):
         :return: None
         """
         param_dict = {
-            'port': 8086,
+            'port': self._master_peer.port,
             'interface': '127.0.0.1',
             'endpoint': 'attestation',
             'attribute_name': 'QR',
@@ -257,8 +258,8 @@ class RequestTest(SingleServerSetup):
         self.assertTrue([["YXNk", 0.0], ["YXNkMg==", 0.0]] in verification_output.values(),
                         "Something went wrong with the verification. Unexpected output values.")
 
-        other_peer.stop()
         other_peer.join()
+        other_peer.stop()
 
     @twisted_wrapper
     def test_get_attributes(self):
@@ -267,7 +268,7 @@ class RequestTest(SingleServerSetup):
         :return: None
         """
         param_dict = {
-            'port': 8086,
+            'port': self._master_peer.port,
             'interface': '127.0.0.1',
             'endpoint': 'attestation'
         }
@@ -289,10 +290,13 @@ class RequestTest(SingleServerSetup):
         :return: None
         """
         param_dict = {
-            'port': 8086,
+            'port': self._master_peer.port,
             'interface': '127.0.0.1',
             'endpoint': 'attestation',
-            'attribute_name': 'QR'
+            'attribute_name': 'QR',
+            'attribute_value': quote(b64encode('binarydata')).replace("+", "%2B"),
+            'attribute_values': 'YXNk,YXNkMg==',
+            'metadata': b64encode(json.dumps({'psn': '1234567890'}))
         }
 
         # Send a random attestation request to the well-known peer
@@ -302,17 +306,16 @@ class RequestTest(SingleServerSetup):
 
         self.assertNotEqual(outstanding_requests, '[]', "The attestation requests were not received.")
 
-        block = TrustChainBlock()
-        block.public_key = self._master_peer.get_overlays()[1].my_peer.public_key.key_to_bin()
-        block.transaction = {'name': 123, 'hash': '123'}
+        # Ensure that no block/attestation exists
+        attributes = yield self._get_style_requests.make_attributes(param_dict)
+        self.assertEqual(attributes, '[]', "Something's wrong, there should be no blocks.")
 
-        # Add a dummy block to the block DB
-        self._master_peer.get_overlays()[1].persistence.add_block(block)
+        # Attest the outstanding request. This should mean that the attribute DB is non-empty in the well-known peer
+        yield self.attest_all_outstanding_requests(param_dict)
 
-        # Make sure it was added
-        result = yield self._get_style_requests.make_attributes(param_dict)
-        self.assertEqual(result, '[[123, "MTIz"]]', "The response was not []. This would suggest that something went "
-                                                    "wrong with the attributes request.")
+        # Ensure that the attestation has been completed
+        attributes = yield self._get_style_requests.make_attributes(param_dict)
+        self.assertNotEqual(attributes, '[]', "Something's wrong, the attribute list should be non-empty.")
 
         # Drop the identity
         result = yield self._get_style_requests.make_drop_identity(param_dict)
@@ -325,8 +328,8 @@ class RequestTest(SingleServerSetup):
         result = yield self._get_style_requests.make_outstanding(param_dict)
         self.assertEqual(result, '[]', 'The identity could not be dropped. Outstanding requests still remaining.')
 
-        other_peer.stop()
         other_peer.join()
+        other_peer.stop()
 
     @twisted_wrapper(30)
     def test_post_attestation_request(self):
@@ -335,7 +338,7 @@ class RequestTest(SingleServerSetup):
         :return: None
         """
         param_dict = {
-            'port': 8086,
+            'port': self._master_peer.port,
             'interface': '127.0.0.1',
             'endpoint': 'attestation',
             'attribute_name': 'QR',
@@ -347,17 +350,21 @@ class RequestTest(SingleServerSetup):
 
         self.assertEqual(outstanding_requests, '[]', "Something went wrong, there should be no outstanding requests.")
 
-        AndroidTestPeer(param_dict.copy(), 'local_peer', 7869).start()
+        other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', 7869)
+        other_peer.start()
 
         # This should return a non-empty response
         outstanding_requests = yield self.wait_for_outstanding_requests(param_dict)
 
         self.assertNotEqual(outstanding_requests, '[]', "Something went wrong, no request was received.")
 
-    @twisted_wrapper(300)
+        other_peer.join()
+        other_peer.stop()
+
+    @twisted_wrapper(30)
     def test_post_attest(self):
         param_dict = {
-            'port': 8086,
+            'port': self._master_peer.port,
             'interface': '127.0.0.1',
             'endpoint': 'attestation',
             'attribute_name': 'QR',
@@ -365,20 +372,27 @@ class RequestTest(SingleServerSetup):
             'metadata': b64encode(json.dumps({'psn': '1234567890'}))
         }
 
-        other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', 7869)
+        other_peer_port = 7869
+        other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', other_peer_port)
         other_peer.start()
 
-        attestation = other_peer.get_all_attestations()
-        self.assertTrue(len(attestation) == 0, "There mustn't already be any attestations in the other peer.")
+        param_dict['port'] = other_peer_port
+        attributes = yield self._get_style_requests.make_attributes(param_dict)
+        attributes = ast.literal_eval(attributes)
+        self.assertTrue(len(attributes) == 0, "There mustn't already be any attestations in the other peer.")
 
+        param_dict['port'] = self._master_peer.port
         responses = yield self.attest_all_outstanding_requests(param_dict.copy())
         self.assertTrue(all(x == "" for x in responses[1]), "Something went wrong, not all responses were empty.")
 
-        attestation = other_peer.get_all_attestations()
-        self.assertTrue(len(attestation) == 1, "There should be only one attestation in the other peer's DB.")
+        param_dict['port'] = other_peer_port
+        attributes = yield self._get_style_requests.make_attributes(param_dict)
+        attributes = ast.literal_eval(attributes)
+        self.assertTrue(len(attributes) == 1 and attributes[0][0] == param_dict['attribute_name'],
+                        "There should be only one attestation in the other peer's DB.")
 
-        other_peer.stop()
         other_peer.join()
+        other_peer.stop()
 
     @twisted_wrapper(30)
     def test_post_verify(self):
@@ -387,7 +401,7 @@ class RequestTest(SingleServerSetup):
         :return: None
         """
         param_dict = {
-            'port': 8086,
+            'port': self._master_peer.port,
             'interface': '127.0.0.1',
             'endpoint': 'attestation',
             'attribute_name': 'QR',
@@ -414,5 +428,5 @@ class RequestTest(SingleServerSetup):
         self.assertTrue(all(x == "" for x in verification_responses), "At least one of the verification "
                                                                       "responses was non-empty.")
 
-        other_peer.stop()
         other_peer.join()
+        other_peer.stop()

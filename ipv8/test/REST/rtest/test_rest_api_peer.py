@@ -102,6 +102,14 @@ class TestPeer(object):
         """
         return self._ipv8.overlays
 
+    @property
+    def port(self):
+        return self._port
+
+    @property
+    def interface(self):
+        return self._interface
+
     class RestAPITestWrapper(TaskManager):
         """
         This class is responsible for managing the startup and closing of the HTTP API.
