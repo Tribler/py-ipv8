@@ -37,11 +37,10 @@ class Payload(Serializable):
 
 class IntroductionRequestPayload(Payload):
 
-    format_list = ['4SH', '4SH', '4SH', 'bits', 'H']
-    optional_format_list = ['QQHHBH', 'raw']
+    format_list = ['4SH', '4SH', '4SH', 'bits', 'H', 'raw']
 
     def __init__(self, destination_address, source_lan_address, source_wan_address, advice, connection_type,
-                 sync, identifier):
+                 identifier, extra_bytes):
         """
         Create the payload for an introduction-request message.
 
@@ -62,132 +61,51 @@ class IntroductionRequestPayload(Payload):
         creator has.  Currently the following values are supported: u"unknown", u"public", and
         u"symmetric-NAT".
 
-        SYNC is an optional (TIME_LOW, TIME_HIGH, MODULO, OFFSET, BLOOM_FILTER) tuple.  When
-        given the introduction-request will also add this sync bloom filter in the message
-        allowing the receiver to respond with missing packets.  No such sync bloom filter will
-        be included when SYNC is None.
-
-           TIME_LOW and TIME_HIGH give the global time range that the sync bloomfilter covers.
-
-           Only packets with (global time + OFFSET % MODULO) == 0 will be taken into account,
-           allowing for sync ranges to cover much larger ranges without including all the
-           packets in that range.
-
-           BLOOM_FILTER is a BloomFilter object containing all packets that the sender has in
-           the given sync range.
-
         IDENTIFIER is a number that must be given in the associated introduction-response.  This
         number allows to distinguish between multiple introduction-response messages.
+
+        EXTRA_BYTES is a string that can be used to piggyback extra information.
         """
         super(IntroductionRequestPayload, self).__init__()
-        self._destination_address = destination_address
-        self._source_lan_address = source_lan_address
-        self._source_wan_address = source_wan_address
-        self._advice = advice
-        self._connection_type = connection_type
-        self._identifier = identifier % 65536
-        if sync:
-            self._time_low, self._time_high, self._modulo, self._offset, self._bloom_filter = sync
-        else:
-            self._time_low, self._time_high, self._modulo, self._offset, self._bloom_filter = 0, 0, 1, 0, None
+        self.destination_address = destination_address
+        self.source_lan_address = source_lan_address
+        self.source_wan_address = source_wan_address
+        self.advice = advice
+        self.connection_type = connection_type
+        self.identifier = identifier % 65536
+        self.extra_bytes = extra_bytes
 
     def to_pack_list(self):
-        encoded_connection_type = encode_connection_type(self._connection_type)
-        data = [('4SH', inet_aton(self._destination_address[0]), self._destination_address[1]),
-                ('4SH', inet_aton(self._source_lan_address[0]), self._source_lan_address[1]),
-                ('4SH', inet_aton(self._source_wan_address[0]), self._source_wan_address[1]),
-                ('bits', encoded_connection_type[0], encoded_connection_type[1], 0, 0, 0, 0, self.sync, self._advice),
-                ('H', self._identifier)]
-
-        # add optional sync
-        if self.sync:
-            data.append(('QQHHBH', self._time_low, self._time_high,
-                         self._modulo, self._offset,
-                         self._bloom_filter.functions,
-                         self._bloom_filter.size))
-            data.append(('raw', self._bloom_filter.prefix, self._bloom_filter.bytes))
-
+        encoded_connection_type = encode_connection_type(self.connection_type)
+        data = [('4SH', inet_aton(self.destination_address[0]), self.destination_address[1]),
+                ('4SH', inet_aton(self.source_lan_address[0]), self.source_lan_address[1]),
+                ('4SH', inet_aton(self.source_wan_address[0]), self.source_wan_address[1]),
+                ('bits', encoded_connection_type[0], encoded_connection_type[1], 0, 0, 0, 0, 0, self.advice),
+                ('H', self.identifier),
+                ('raw', self.extra_bytes)]
         return data
 
     @classmethod
     def from_unpack_list(cls, destination_address, source_lan_address, source_wan_address,
                          connection_type_0, connection_type_1, dflag0, dflag1, dflag2, tunnel, sync, advice,
-                         identifier, time_low=None, time_high=None, modulo=None, modulo_offset=None,
-                         functions=None, size=None, prefix_bytes=None):
+                         identifier, extra_bytes):
         args = [(inet_ntoa(destination_address[0]), destination_address[1]),
                 (inet_ntoa(source_lan_address[0]), source_lan_address[1]),
                 (inet_ntoa(source_wan_address[0]), source_wan_address[1]),
                 [True, False][advice],
-                decode_connection_type(connection_type_0, connection_type_1)]
-
-        if sync and prefix_bytes:
-            bloomfilter = BloomFilter(prefix_bytes[1:], functions, prefix=prefix_bytes[0])
-            args.append((time_low, time_high, modulo, modulo_offset, bloomfilter))
-        else:
-            args.append(None)
-
-        args.append(identifier)
+                decode_connection_type(connection_type_0, connection_type_1),
+                identifier,
+                extra_bytes]
 
         return IntroductionRequestPayload(*args)
-
-    @property
-    def destination_address(self):
-        return self._destination_address
-
-    @property
-    def source_lan_address(self):
-        return self._source_lan_address
-
-    @property
-    def source_wan_address(self):
-        return self._source_wan_address
-
-    @property
-    def advice(self):
-        return self._advice
-
-    @property
-    def connection_type(self):
-        return self._connection_type
-
-    @property
-    def sync(self):
-        return True if self._bloom_filter else False
-
-    @property
-    def time_low(self):
-        return self._time_low
-
-    @property
-    def time_high(self):
-        return self._time_high
-
-    @property
-    def has_time_high(self):
-        return self._time_high > 0
-
-    @property
-    def modulo(self):
-        return self._modulo
-
-    @property
-    def offset(self):
-        return self._offset
-
-    @property
-    def bloom_filter(self):
-        return self._bloom_filter
-
-    @property
-    def identifier(self):
-        return self._identifier
 
 
 class IntroductionResponsePayload(Payload):
 
-    format_list = ['4SH', '4SH', '4SH', '4SH', '4SH', 'bits', 'H']
+    format_list = ['4SH', '4SH', '4SH', '4SH', '4SH', 'bits', 'H', 'raw']
 
-    def __init__(self, destination_address, source_lan_address, source_wan_address, lan_introduction_address, wan_introduction_address, connection_type, tunnel, identifier):
+    def __init__(self, destination_address, source_lan_address, source_wan_address, lan_introduction_address,
+                 wan_introduction_address, connection_type, tunnel, identifier, extra_bytes):
         """
         Create the payload for an introduction-response message.
 
@@ -218,38 +136,41 @@ class IntroductionResponsePayload(Payload):
         IDENTIFIER is a number that was given in the associated introduction-request.  This
         number allows to distinguish between multiple introduction-response messages.
 
+        EXTRA_BYTES is a string that can be used to piggyback extra information.
+
         When the associated request wanted advice the sender will also sent a puncture-request
         message to either the lan_introduction_address or the wan_introduction_address
         (depending on their positions).  The introduced node must sent a puncture message to the
         receiver to punch a hole in its NAT.
         """
         super(IntroductionResponsePayload, self).__init__()
-        self._destination_address = destination_address
-        self._source_lan_address = source_lan_address
-        self._source_wan_address = source_wan_address
-        self._lan_introduction_address = lan_introduction_address
-        self._wan_introduction_address = wan_introduction_address
-        self._connection_type = connection_type
-        self._tunnel = tunnel
-        self._identifier = identifier % 65536
+        self.destination_address = destination_address
+        self.source_lan_address = source_lan_address
+        self.source_wan_address = source_wan_address
+        self.lan_introduction_address = lan_introduction_address
+        self.wan_introduction_address = wan_introduction_address
+        self.connection_type = connection_type
+        self.tunnel = tunnel
+        self.identifier = identifier % 65536
+        self.extra_bytes = extra_bytes
 
     def to_pack_list(self):
-        encoded_connection_type = encode_connection_type(self._connection_type)
-        data = [('4SH', inet_aton(self._destination_address[0]), self._destination_address[1]),
-                ('4SH', inet_aton(self._source_lan_address[0]), self._source_lan_address[1]),
-                ('4SH', inet_aton(self._source_wan_address[0]), self._source_wan_address[1]),
-                ('4SH', inet_aton(self._lan_introduction_address[0]), self._lan_introduction_address[1]),
-                ('4SH', inet_aton(self._wan_introduction_address[0]), self._wan_introduction_address[1]),
+        encoded_connection_type = encode_connection_type(self.connection_type)
+        data = [('4SH', inet_aton(self.destination_address[0]), self.destination_address[1]),
+                ('4SH', inet_aton(self.source_lan_address[0]), self.source_lan_address[1]),
+                ('4SH', inet_aton(self.source_wan_address[0]), self.source_wan_address[1]),
+                ('4SH', inet_aton(self.lan_introduction_address[0]), self.lan_introduction_address[1]),
+                ('4SH', inet_aton(self.wan_introduction_address[0]), self.wan_introduction_address[1]),
                 ('bits', encoded_connection_type[0], encoded_connection_type[1], 0, 0, 0, 0, 0, 0),
-                ('H', self._identifier)]
-
+                ('H', self.identifier),
+                ('raw', self.extra_bytes)]
         return data
 
     @classmethod
     def from_unpack_list(cls, destination_address, source_lan_address, source_wan_address,
                          introduction_lan_address, introduction_wan_address,
                          connection_type_0, connection_type_1, dflag0, dflag1, dflag2, dflag3, dflag4, dflag5,
-                         identifier):
+                         identifier, extra_bytes):
         args = [(inet_ntoa(destination_address[0]), destination_address[1]),
                 (inet_ntoa(source_lan_address[0]), source_lan_address[1]),
                 (inet_ntoa(source_wan_address[0]), source_wan_address[1]),
@@ -257,41 +178,10 @@ class IntroductionResponsePayload(Payload):
                 (inet_ntoa(introduction_wan_address[0]), introduction_wan_address[1]),
                 decode_connection_type(connection_type_0, connection_type_1),
                 False,
-                identifier]
+                identifier,
+                extra_bytes]
 
         return IntroductionResponsePayload(*args)
-
-    @property
-    def destination_address(self):
-        return self._destination_address
-
-    @property
-    def source_lan_address(self):
-        return self._source_lan_address
-
-    @property
-    def source_wan_address(self):
-        return self._source_wan_address
-
-    @property
-    def lan_introduction_address(self):
-        return self._lan_introduction_address
-
-    @property
-    def wan_introduction_address(self):
-        return self._wan_introduction_address
-
-    @property
-    def connection_type(self):
-        return self._connection_type
-
-    @property
-    def tunnel(self):
-        return self._tunnel
-
-    @property
-    def identifier(self):
-        return self._identifier
 
 
 class PunctureRequestPayload(Payload):
@@ -317,14 +207,14 @@ class PunctureRequestPayload(Payload):
         TODO add tunnel bit
         """
         super(PunctureRequestPayload, self).__init__()
-        self._lan_walker_address = lan_walker_address
-        self._wan_walker_address = wan_walker_address
-        self._identifier = identifier % 65536
+        self.lan_walker_address = lan_walker_address
+        self.wan_walker_address = wan_walker_address
+        self.identifier = identifier % 65536
 
     def to_pack_list(self):
-        data = [('4SH', inet_aton(self._lan_walker_address[0]), self._lan_walker_address[1]),
-                ('4SH', inet_aton(self._wan_walker_address[0]), self._wan_walker_address[1]),
-                ('H', self._identifier)]
+        data = [('4SH', inet_aton(self.lan_walker_address[0]), self.lan_walker_address[1]),
+                ('4SH', inet_aton(self.wan_walker_address[0]), self.wan_walker_address[1]),
+                ('H', self.identifier)]
 
         return data
 
@@ -335,18 +225,6 @@ class PunctureRequestPayload(Payload):
                 identifier]
 
         return PunctureRequestPayload(*args)
-
-    @property
-    def lan_walker_address(self):
-        return self._lan_walker_address
-
-    @property
-    def wan_walker_address(self):
-        return self._wan_walker_address
-
-    @property
-    def identifier(self):
-        return self._identifier
 
 
 class PuncturePayload(Payload):
@@ -367,14 +245,14 @@ class PuncturePayload(Payload):
         number allows to distinguish between multiple introduction-response messages.
         """
         super(PuncturePayload, self).__init__()
-        self._source_lan_address = source_lan_address
-        self._source_wan_address = source_wan_address
-        self._identifier = identifier % 65536
+        self.source_lan_address = source_lan_address
+        self.source_wan_address = source_wan_address
+        self.identifier = identifier % 65536
 
     def to_pack_list(self):
-        data = [('4SH', inet_aton(self._source_lan_address[0]), self._source_lan_address[1]),
-                ('4SH', inet_aton(self._source_wan_address[0]), self._source_wan_address[1]),
-                ('H', self._identifier)]
+        data = [('4SH', inet_aton(self.source_lan_address[0]), self.source_lan_address[1]),
+                ('4SH', inet_aton(self.source_wan_address[0]), self.source_wan_address[1]),
+                ('H', self.identifier)]
 
         return data
 
@@ -385,15 +263,3 @@ class PuncturePayload(Payload):
                 identifier]
 
         return PuncturePayload(*args)
-
-    @property
-    def source_lan_address(self):
-        return self._source_lan_address
-
-    @property
-    def source_wan_address(self):
-        return self._source_wan_address
-
-    @property
-    def identifier(self):
-        return self._identifier

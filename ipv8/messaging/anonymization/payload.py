@@ -86,82 +86,19 @@ def convert_to_cell(packet):
     return header + packet[31:35] + packet[22] + packet[35:]
 
 
-class TunnelIntroductionRequestPayload(IntroductionRequestPayload):
+class ExtraIntroductionPayload(Payload):
 
-    format_list = ['?', ] + IntroductionRequestPayload.format_list
+    format_list = ['?']
 
-    def __init__(self, destination_address, source_lan_address, source_wan_address, advice, connection_type,
-                 sync, identifier, exitnode = False):
-        super(TunnelIntroductionRequestPayload, self).__init__(destination_address,
-                                                               source_lan_address, source_wan_address,
-                                                               advice, connection_type, sync, identifier)
-        self._exitnode = exitnode
+    def __init__(self, exitnode):
+        self.exitnode = exitnode
 
     def to_pack_list(self):
-        data = super(TunnelIntroductionRequestPayload, self).to_pack_list()
-        data.insert(0, ('?', self.exitnode))
-
-        return data
+        return [('?', self.exitnode)]
 
     @classmethod
-    def from_unpack_list(cls, exitnode, destination_address, source_lan_address, source_wan_address,
-                         connection_type_0, connection_type_1, dflag0, dflag1, dflag2, tunnel, sync, advice,
-                         identifier, time_low=None, time_high=None, modulo=None, modulo_offset=None,
-                         functions=None, size=None, prefix_bytes=None):
-        ir_payload = IntroductionRequestPayload.from_unpack_list(destination_address, source_lan_address,
-                                                                 source_wan_address, connection_type_0,
-                                                                 connection_type_1, dflag0, dflag1, dflag2, tunnel,
-                                                                 sync, advice, identifier, time_low, time_high, modulo,
-                                                                 modulo_offset, functions, size, prefix_bytes)
-
-        return TunnelIntroductionRequestPayload(ir_payload.destination_address, ir_payload.source_lan_address,
-                                                ir_payload.source_wan_address, ir_payload.advice,
-                                                ir_payload.connection_type, ir_payload.sync, ir_payload.identifier,
-                                                exitnode)
-
-    @property
-    def exitnode(self):
-        return self._exitnode
-
-
-class TunnelIntroductionResponsePayload(IntroductionResponsePayload):
-
-    format_list = ['?', ] + IntroductionResponsePayload.format_list
-
-    def __init__(self, destination_address, source_lan_address, source_wan_address,
-                 lan_introduction_address, wan_introduction_address, connection_type,
-                 tunnel, identifier, exitnode = False):
-        super(TunnelIntroductionResponsePayload, self).__init__(destination_address,
-                                                                source_lan_address, source_wan_address,
-                                                                lan_introduction_address, wan_introduction_address,
-                                                                connection_type, tunnel, identifier)
-        self._exitnode = exitnode
-
-    def to_pack_list(self):
-        data = super(TunnelIntroductionResponsePayload, self).to_pack_list()
-        data.insert(0, ('?', self.exitnode))
-
-        return data
-
-    @classmethod
-    def from_unpack_list(cls, exitnode, destination_address, source_lan_address, source_wan_address,
-                         introduction_lan_address, introduction_wan_address,
-                         connection_type_0, connection_type_1, dflag0, dflag1, dflag2, dflag3, dflag4, dflag5,
-                         identifier):
-        ir_payload = IntroductionResponsePayload.from_unpack_list(destination_address, source_lan_address,
-                                                                  source_wan_address, introduction_lan_address,
-                                                                  introduction_wan_address, connection_type_0,
-                                                                  connection_type_1, dflag0, dflag1, dflag2, dflag3,
-                                                                  dflag4, dflag5, identifier)
-
-        return TunnelIntroductionResponsePayload(ir_payload.destination_address, ir_payload.source_lan_address,
-                                                 ir_payload.source_wan_address, ir_payload.lan_introduction_address,
-                                                 ir_payload.wan_introduction_address, ir_payload.connection_type,
-                                                 False, ir_payload.identifier, exitnode)
-
-    @property
-    def exitnode(self):
-        return self._exitnode
+    def from_unpack_list(cls, exitnode):
+        return ExtraIntroductionPayload(exitnode)
 
 
 class CellPayload(Payload):
@@ -170,13 +107,13 @@ class CellPayload(Payload):
 
     def __init__(self, circuit_id, message_type, encrypted_message=""):
         super(CellPayload, self).__init__()
-        self._circuit_id = circuit_id
-        self._message_type = message_type
-        self._encrypted_message = encrypted_message
+        self.circuit_id = circuit_id
+        self.message_type = message_type
+        self.encrypted_message = encrypted_message
 
     def to_pack_list(self):
         data = [('I', self.circuit_id),
-                ('B', self._message_type),
+                ('B', self.message_type),
                 ('raw', self.encrypted_message)]
 
         return data
@@ -185,18 +122,6 @@ class CellPayload(Payload):
     def from_unpack_list(cls, circuit_id, message_type, encrypted_message):
         return CellPayload(circuit_id, message_type, encrypted_message)
 
-    @property
-    def circuit_id(self):
-        return self._circuit_id
-
-    @property
-    def message_type(self):
-        return self._message_type
-
-    @property
-    def encrypted_message(self):
-        return self._encrypted_message
-
 
 class CreatePayload(Payload):
 
@@ -204,10 +129,10 @@ class CreatePayload(Payload):
 
     def __init__(self, circuit_id, node_id, node_public_key, key):
         super(CreatePayload, self).__init__()
-        self._circuit_id = circuit_id
-        self._node_id = node_id
-        self._node_public_key = node_public_key
-        self._key = key
+        self.circuit_id = circuit_id
+        self.node_id = node_id
+        self.node_public_key = node_public_key
+        self.key = key
 
     def to_pack_list(self):
         data = [('I', self.circuit_id),
@@ -224,22 +149,6 @@ class CreatePayload(Payload):
         key = pubkey_key[-key_len:]
         return CreatePayload(circuit_id, node_id, node_public_key, key)
 
-    @property
-    def circuit_id(self):
-        return self._circuit_id
-
-    @property
-    def node_id(self):
-        return self._node_id
-
-    @property
-    def node_public_key(self):
-        return self._node_public_key
-
-    @property
-    def key(self):
-        return self._key
-
 
 class CreatedPayload(Payload):
 
@@ -247,10 +156,10 @@ class CreatedPayload(Payload):
 
     def __init__(self, circuit_id, key, auth, candidate_list):
         super(CreatedPayload, self).__init__()
-        self._circuit_id = circuit_id
-        self._key = key
-        self._auth = auth
-        self._candidate_list = candidate_list
+        self.circuit_id = circuit_id
+        self.key = key
+        self.auth = auth
+        self.candidate_list = candidate_list
 
     def to_pack_list(self):
         data = [('I', self.circuit_id),
@@ -266,22 +175,6 @@ class CreatedPayload(Payload):
         candidate_list = key_clist[key_len:]
         return CreatedPayload(circuit_id, key, auth, candidate_list)
 
-    @property
-    def circuit_id(self):
-        return self._circuit_id
-
-    @property
-    def key(self):
-        return self._key
-
-    @property
-    def auth(self):
-        return self._auth
-
-    @property
-    def candidate_list(self):
-        return self._candidate_list
-
 
 class ExtendPayload(Payload):
 
@@ -289,11 +182,11 @@ class ExtendPayload(Payload):
 
     def __init__(self, circuit_id, node_id, node_public_key, node_addr, key):
         super(ExtendPayload, self).__init__()
-        self._circuit_id = circuit_id
-        self._node_id = node_id
-        self._node_public_key = node_public_key
-        self._node_addr = node_addr
-        self._key = key
+        self.circuit_id = circuit_id
+        self.node_id = node_id
+        self.node_public_key = node_public_key
+        self.node_addr = node_addr
+        self.key = key
 
     def to_pack_list(self):
         data = [('I', self.circuit_id),
@@ -318,26 +211,6 @@ class ExtendPayload(Payload):
             node_addr = (socket.inet_ntoa(host), port)
         return ExtendPayload(circuit_id, node_id, node_public_key, node_addr, key)
 
-    @property
-    def circuit_id(self):
-        return self._circuit_id
-
-    @property
-    def node_id(self):
-        return self._node_id
-
-    @property
-    def node_public_key(self):
-        return self._node_public_key
-
-    @property
-    def node_addr(self):
-        return self._node_addr
-
-    @property
-    def key(self):
-        return self._key
-
 
 class ExtendedPayload(Payload):
 
@@ -345,10 +218,10 @@ class ExtendedPayload(Payload):
 
     def __init__(self, circuit_id, key, auth, candidate_list):
         super(ExtendedPayload, self).__init__()
-        self._circuit_id = circuit_id
-        self._key = key
-        self._auth = auth
-        self._candidate_list = candidate_list
+        self.circuit_id = circuit_id
+        self.key = key
+        self.auth = auth
+        self.candidate_list = candidate_list
 
     def to_pack_list(self):
         data = [('I', self.circuit_id),
@@ -364,22 +237,6 @@ class ExtendedPayload(Payload):
         candidate_list = key_clist[key_len:]
         return ExtendedPayload(circuit_id, key, auth, candidate_list)
 
-    @property
-    def circuit_id(self):
-        return self._circuit_id
-
-    @property
-    def key(self):
-        return self._key
-
-    @property
-    def auth(self):
-        return self._auth
-
-    @property
-    def candidate_list(self):
-        return self._candidate_list
-
 
 class PingPayload(Payload):
 
@@ -387,8 +244,8 @@ class PingPayload(Payload):
 
     def __init__(self, circuit_id, identifier):
         super(PingPayload, self).__init__()
-        self._circuit_id = circuit_id
-        self._identifier = identifier
+        self.circuit_id = circuit_id
+        self.identifier = identifier
 
     def to_pack_list(self):
         data = [('I', self.circuit_id),
@@ -399,14 +256,6 @@ class PingPayload(Payload):
     @classmethod
     def from_unpack_list(cls, circuit_id, identifier):
         return PingPayload(circuit_id, identifier)
-
-    @property
-    def circuit_id(self):
-        return self._circuit_id
-
-    @property
-    def identifier(self):
-        return self._identifier
 
 
 class PongPayload(PingPayload):
@@ -419,8 +268,8 @@ class DestroyPayload(Payload):
 
     def __init__(self, circuit_id, reason):
         super(DestroyPayload, self).__init__()
-        self._circuit_id = circuit_id
-        self._reason = reason
+        self.circuit_id = circuit_id
+        self.reason = reason
 
     def to_pack_list(self):
         data = [('I', self.circuit_id),
@@ -432,14 +281,6 @@ class DestroyPayload(Payload):
     def from_unpack_list(cls, circuit_id, reason):
         return DestroyPayload(circuit_id, reason)
 
-    @property
-    def circuit_id(self):
-        return self._circuit_id
-
-    @property
-    def reason(self):
-        return self._reason
-
 
 class EstablishIntroPayload(Payload):
 
@@ -447,9 +288,9 @@ class EstablishIntroPayload(Payload):
 
     def __init__(self, circuit_id, identifier, info_hash):
         super(EstablishIntroPayload, self).__init__()
-        self._circuit_id = circuit_id
-        self._identifier = identifier
-        self._info_hash = info_hash
+        self.circuit_id = circuit_id
+        self.identifier = identifier
+        self.info_hash = info_hash
 
     def to_pack_list(self):
         data = [('I', self.circuit_id),
@@ -462,18 +303,6 @@ class EstablishIntroPayload(Payload):
     def from_unpack_list(cls, circuit_id, identifier, info_hash):
         return EstablishIntroPayload(circuit_id, identifier, info_hash)
 
-    @property
-    def circuit_id(self):
-        return self._circuit_id
-
-    @property
-    def identifier(self):
-        return self._identifier
-
-    @property
-    def info_hash(self):
-        return self._info_hash
-
 
 class IntroEstablishedPayload(Payload):
 
@@ -481,8 +310,8 @@ class IntroEstablishedPayload(Payload):
 
     def __init__(self, circuit_id, identifier):
         super(IntroEstablishedPayload, self).__init__()
-        self._circuit_id = circuit_id
-        self._identifier = identifier
+        self.circuit_id = circuit_id
+        self.identifier = identifier
 
     def to_pack_list(self):
         data = [('I', self.circuit_id),
@@ -494,14 +323,6 @@ class IntroEstablishedPayload(Payload):
     def from_unpack_list(cls, circuit_id, identifier):
         return IntroEstablishedPayload(circuit_id, identifier)
 
-    @property
-    def circuit_id(self):
-        return self._circuit_id
-
-    @property
-    def identifier(self):
-        return self._identifier
-
 
 class EstablishRendezvousPayload(Payload):
 
@@ -509,9 +330,9 @@ class EstablishRendezvousPayload(Payload):
 
     def __init__(self, circuit_id, identifier, cookie):
         super(EstablishRendezvousPayload, self).__init__()
-        self._circuit_id = circuit_id
-        self._identifier = identifier
-        self._cookie = cookie
+        self.circuit_id = circuit_id
+        self.identifier = identifier
+        self.cookie = cookie
 
     def to_pack_list(self):
         data = [('I', self.circuit_id),
@@ -524,18 +345,6 @@ class EstablishRendezvousPayload(Payload):
     def from_unpack_list(cls, circuit_id, identifier, cookie):
         return EstablishRendezvousPayload(circuit_id, identifier, cookie)
 
-    @property
-    def circuit_id(self):
-        return self._circuit_id
-
-    @property
-    def identifier(self):
-        return self._identifier
-
-    @property
-    def cookie(self):
-        return self._cookie
-
 
 class RendezvousEstablishedPayload(Payload):
 
@@ -543,9 +352,9 @@ class RendezvousEstablishedPayload(Payload):
 
     def __init__(self, circuit_id, identifier, rendezvous_point_addr):
         super(RendezvousEstablishedPayload, self).__init__()
-        self._circuit_id = circuit_id
-        self._identifier = identifier
-        self._rendezvous_point_addr = rendezvous_point_addr
+        self.circuit_id = circuit_id
+        self.identifier = identifier
+        self.rendezvous_point_addr = rendezvous_point_addr
 
     def to_pack_list(self):
         host, port = self.rendezvous_point_addr
@@ -560,18 +369,6 @@ class RendezvousEstablishedPayload(Payload):
         rendezvous_point_addr = (socket.inet_ntoa(address[0]), address[1])
         return RendezvousEstablishedPayload(circuit_id, identifier, rendezvous_point_addr)
 
-    @property
-    def circuit_id(self):
-        return self._circuit_id
-
-    @property
-    def identifier(self):
-        return self._identifier
-
-    @property
-    def rendezvous_point_addr(self):
-        return self._rendezvous_point_addr
-
 
 class KeyRequestPayload(Payload):
 
@@ -579,8 +376,8 @@ class KeyRequestPayload(Payload):
 
     def __init__(self, identifier, info_hash):
         super(KeyRequestPayload, self).__init__()
-        self._identifier = identifier
-        self._info_hash = info_hash
+        self.identifier = identifier
+        self.info_hash = info_hash
 
     def to_pack_list(self):
         data = [('H', self.identifier),
@@ -592,14 +389,6 @@ class KeyRequestPayload(Payload):
     def from_unpack_list(cls, identifier, info_hash):
         return KeyRequestPayload(identifier, info_hash)
 
-    @property
-    def identifier(self):
-        return self._identifier
-
-    @property
-    def info_hash(self):
-        return self._info_hash
-
 
 class KeyResponsePayload(Payload):
 
@@ -607,9 +396,9 @@ class KeyResponsePayload(Payload):
 
     def __init__(self, identifier, public_key, pex_peers):
         super(KeyResponsePayload, self).__init__()
-        self._identifier = identifier
-        self._public_key = public_key
-        self._pex_peers = pex_peers
+        self.identifier = identifier
+        self.public_key = public_key
+        self.pex_peers = pex_peers
 
     def to_pack_list(self):
         data = [('H', self.identifier),
@@ -622,18 +411,6 @@ class KeyResponsePayload(Payload):
     def from_unpack_list(cls, identifier, public_key, pex_peers):
         return KeyResponsePayload(identifier, public_key, pex_peers)
 
-    @property
-    def identifier(self):
-        return self._identifier
-
-    @property
-    def public_key(self):
-        return self._public_key
-
-    @property
-    def pex_peers(self):
-        return self._pex_peers
-
 
 class CreateE2EPayload(Payload):
 
@@ -641,11 +418,11 @@ class CreateE2EPayload(Payload):
 
     def __init__(self, identifier, info_hash, node_id, node_public_key, key):
         super(CreateE2EPayload, self).__init__()
-        self._identifier = identifier
-        self._info_hash = info_hash
-        self._node_id = node_id
-        self._node_public_key = node_public_key
-        self._key = key
+        self.identifier = identifier
+        self.info_hash = info_hash
+        self.node_id = node_id
+        self.node_public_key = node_public_key
+        self.key = key
 
     def to_pack_list(self):
         data = [('H', self.identifier),
@@ -663,26 +440,6 @@ class CreateE2EPayload(Payload):
         key = pubkey_key[pubkey_len:]
         return CreateE2EPayload(identifier, info_hash, node_id, node_public_key, key)
 
-    @property
-    def identifier(self):
-        return self._identifier
-
-    @property
-    def info_hash(self):
-        return self._info_hash
-
-    @property
-    def node_id(self):
-        return self._node_id
-
-    @property
-    def node_public_key(self):
-        return self._node_public_key
-
-    @property
-    def key(self):
-        return self._key
-
 
 class CreatedE2EPayload(Payload):
 
@@ -690,10 +447,10 @@ class CreatedE2EPayload(Payload):
 
     def __init__(self, identifier, key, auth, rp_sock_addr):
         super(CreatedE2EPayload, self).__init__()
-        self._identifier = identifier
-        self._key = key
-        self._auth = auth
-        self._rp_sock_addr = rp_sock_addr
+        self.identifier = identifier
+        self.key = key
+        self.auth = auth
+        self.rp_sock_addr = rp_sock_addr
 
     def to_pack_list(self):
         data = [('H', self.identifier),
@@ -709,22 +466,6 @@ class CreatedE2EPayload(Payload):
         rp_sock_addr = key_rpsockaddr[key_len:]
         return CreatedE2EPayload(identifier, key, auth, rp_sock_addr)
 
-    @property
-    def identifier(self):
-        return self._identifier
-
-    @property
-    def key(self):
-        return self._key
-
-    @property
-    def auth(self):
-        return self._auth
-
-    @property
-    def rp_sock_addr(self):
-        return self._rp_sock_addr
-
 
 class DHTRequestPayload(Payload):
 
@@ -732,9 +473,9 @@ class DHTRequestPayload(Payload):
 
     def __init__(self, circuit_id, identifier, info_hash):
         super(DHTRequestPayload, self).__init__()
-        self._circuit_id = circuit_id
-        self._identifier = identifier
-        self._info_hash = info_hash
+        self.circuit_id = circuit_id
+        self.identifier = identifier
+        self.info_hash = info_hash
 
     def to_pack_list(self):
         data = [('I', self.circuit_id),
@@ -747,18 +488,6 @@ class DHTRequestPayload(Payload):
     def from_unpack_list(cls, circuit_id, identifier, info_hash):
         return DHTRequestPayload(circuit_id, identifier, info_hash)
 
-    @property
-    def circuit_id(self):
-        return self._circuit_id
-
-    @property
-    def identifier(self):
-        return self._identifier
-
-    @property
-    def info_hash(self):
-        return self._info_hash
-
 
 class DHTResponsePayload(Payload):
 
@@ -766,10 +495,10 @@ class DHTResponsePayload(Payload):
 
     def __init__(self, circuit_id, identifier, info_hash, peers):
         super(DHTResponsePayload, self).__init__()
-        self._circuit_id = circuit_id
-        self._identifier = identifier
-        self._info_hash = info_hash
-        self._peers = peers
+        self.circuit_id = circuit_id
+        self.identifier = identifier
+        self.info_hash = info_hash
+        self.peers = peers
 
     def to_pack_list(self):
         data = [('I', self.circuit_id),
@@ -783,22 +512,6 @@ class DHTResponsePayload(Payload):
     def from_unpack_list(cls, circuit_id, identifier, info_hash, peers):
         return DHTResponsePayload(circuit_id, identifier, info_hash, peers)
 
-    @property
-    def circuit_id(self):
-        return self._circuit_id
-
-    @property
-    def identifier(self):
-        return self._identifier
-
-    @property
-    def info_hash(self):
-        return self._info_hash
-
-    @property
-    def peers(self):
-        return self._peers
-
 
 class LinkE2EPayload(Payload):
 
@@ -806,9 +519,9 @@ class LinkE2EPayload(Payload):
 
     def __init__(self, circuit_id, identifier, cookie):
         super(LinkE2EPayload, self).__init__()
-        self._circuit_id = circuit_id
-        self._identifier = identifier
-        self._cookie = cookie
+        self.circuit_id = circuit_id
+        self.identifier = identifier
+        self.cookie = cookie
 
     def to_pack_list(self):
         data = [('I', self.circuit_id),
@@ -821,18 +534,6 @@ class LinkE2EPayload(Payload):
     def from_unpack_list(cls, circuit_id, identifier, cookie):
         return LinkE2EPayload(circuit_id, identifier, cookie)
 
-    @property
-    def circuit_id(self):
-        return self._circuit_id
-
-    @property
-    def identifier(self):
-        return self._identifier
-
-    @property
-    def cookie(self):
-        return self._cookie
-
 
 class LinkedE2EPayload(Payload):
 
@@ -840,8 +541,8 @@ class LinkedE2EPayload(Payload):
 
     def __init__(self, circuit_id, identifier):
         super(LinkedE2EPayload, self).__init__()
-        self._circuit_id = circuit_id
-        self._identifier = identifier
+        self.circuit_id = circuit_id
+        self.identifier = identifier
 
     def to_pack_list(self):
         data = [('I', self.circuit_id),
@@ -852,11 +553,3 @@ class LinkedE2EPayload(Payload):
     @classmethod
     def from_unpack_list(cls, circuit_id, identifier):
         return LinkedE2EPayload(circuit_id, identifier)
-
-    @property
-    def circuit_id(self):
-        return self._circuit_id
-
-    @property
-    def identifier(self):
-        return self._identifier

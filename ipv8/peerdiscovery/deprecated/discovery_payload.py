@@ -11,19 +11,19 @@ class SimilarityRequestPayload(Payload):
 
     def __init__(self, identifier, lan_address, wan_address, connection_type, preference_list):
         super(SimilarityRequestPayload, self).__init__()
-        self._identifier = identifier % 65536
-        self._preference_list = preference_list
-        self._lan_address = lan_address
-        self._wan_address = wan_address
-        self._connection_type = connection_type
+        self.identifier = identifier % 65536
+        self.preference_list = preference_list
+        self.lan_address = lan_address
+        self.wan_address = wan_address
+        self.connection_type = connection_type
 
     def to_pack_list(self):
-        encoded_connection_type = encode_connection_type(self._connection_type)
-        data = [('H', self._identifier),
-                ('4SH', inet_aton(self._lan_address[0]), self._lan_address[1]),
-                ('4SH', inet_aton(self._wan_address[0]), self._wan_address[1]),
+        encoded_connection_type = encode_connection_type(self.connection_type)
+        data = [('H', self.identifier),
+                ('4SH', inet_aton(self.lan_address[0]), self.lan_address[1]),
+                ('4SH', inet_aton(self.wan_address[0]), self.wan_address[1]),
                 ('bits', encoded_connection_type[0], encoded_connection_type[1], 0, 0, 0, 0, 0, 0),
-                ('raw', "".join(self._preference_list))]
+                ('raw', "".join(self.preference_list))]
 
         return data
 
@@ -39,26 +39,6 @@ class SimilarityRequestPayload(Payload):
 
         return SimilarityRequestPayload(*args)
 
-    @property
-    def identifier(self):
-        return self._identifier
-
-    @property
-    def lan_address(self):
-        return self._lan_address
-
-    @property
-    def wan_address(self):
-        return self._wan_address
-
-    @property
-    def connection_type(self):
-        return self._connection_type
-
-    @property
-    def preference_list(self):
-        return self._preference_list
-
 
 class SimilarityResponsePayload(Payload):
 
@@ -66,14 +46,14 @@ class SimilarityResponsePayload(Payload):
 
     def __init__(self, identifier, preference_list, tb_overlap):
         super(SimilarityResponsePayload, self).__init__()
-        self._identifier = identifier % 65536
-        self._preference_list = preference_list
-        self._tb_overlap = tb_overlap
+        self.identifier = identifier % 65536
+        self.preference_list = preference_list
+        self.tb_overlap = tb_overlap
 
     def to_pack_list(self):
-        encoded_tb_overlap = [pack(">20sI", *tb) for tb in self._tb_overlap]
-        data = [('H', self._identifier),
-                ('varlenHx20', "".join(self._preference_list)),
+        encoded_tb_overlap = [pack(">20sI", *tb) for tb in self.tb_overlap]
+        data = [('H', self.identifier),
+                ('varlenHx20', "".join(self.preference_list)),
                 ('raw', "".join(encoded_tb_overlap))]
 
         return data
@@ -86,18 +66,6 @@ class SimilarityResponsePayload(Payload):
 
         return SimilarityResponsePayload(*args)
 
-    @property
-    def identifier(self):
-        return self._identifier
-
-    @property
-    def preference_list(self):
-        return self._preference_list
-
-    @property
-    def tb_overlap(self):
-        return self._tb_overlap
-
 
 class PingPayload(Payload):
 
@@ -105,20 +73,16 @@ class PingPayload(Payload):
 
     def __init__(self, identifier):
         super(PingPayload, self).__init__()
-        self._identifier = identifier % 65536
+        self.identifier = identifier % 65536
 
     def to_pack_list(self):
-        data = [('H', self._identifier), ]
+        data = [('H', self.identifier), ]
 
         return data
 
     @classmethod
     def from_unpack_list(cls, identifier):
         return PingPayload(identifier)
-
-    @property
-    def identifier(self):
-        return self._identifier
 
 
 class PongPayload(PingPayload):
@@ -127,13 +91,13 @@ class PongPayload(PingPayload):
 
 class DiscoveryIntroductionRequestPayload(IntroductionRequestPayload):
 
-    format_list = ['c20s', '4SH', '4SH', '4SH', 'bits', 'H']
+    format_list = ['c20s', '4SH', '4SH', '4SH', 'bits', 'H', 'raw']
 
     def __init__(self, introduce_to, destination_address, source_lan_address, source_wan_address, advice,
-                 connection_type, sync, identifier):
+                 connection_type, identifier, extra_bytes):
         super(DiscoveryIntroductionRequestPayload, self).__init__(destination_address, source_lan_address,
-                                                                  source_wan_address, advice, connection_type, sync,
-                                                                  identifier)
+                                                                  source_wan_address, advice, connection_type,
+                                                                  identifier, extra_bytes)
         self.introduce_to = introduce_to
 
     def to_pack_list(self):
@@ -143,22 +107,15 @@ class DiscoveryIntroductionRequestPayload(IntroductionRequestPayload):
 
     @classmethod
     def from_unpack_list(cls, introduce_to, destination_address, source_lan_address, source_wan_address,
-                         connection_type_0, connection_type_1, dflag0, dflag1, dflag2, tunnel, sync, advice,
-                         identifier, time_low=None, time_high=None, modulo=None, modulo_offset=None,
-                         functions=None, size=None, prefix_bytes=None):
+                         connection_type_0, connection_type_1, dflag0, dflag1, dflag2, tunnel, _, advice,
+                         identifier, extra_bytes):
         args = [introduce_to[1:],
                 (inet_ntoa(destination_address[0]), destination_address[1]),
                 (inet_ntoa(source_lan_address[0]), source_lan_address[1]),
                 (inet_ntoa(source_wan_address[0]), source_wan_address[1]),
                 [True, False][advice],
-                decode_connection_type(connection_type_0, connection_type_1)]
-
-        if sync and prefix_bytes:
-            bloomfilter = BloomFilter(prefix_bytes[1:], functions, prefix=prefix_bytes[0])
-            args.append((time_low, time_high, modulo, modulo_offset, bloomfilter))
-        else:
-            args.append(None)
-
-        args.append(identifier)
+                decode_connection_type(connection_type_0, connection_type_1),
+                identifier,
+                extra_bytes]
 
         return DiscoveryIntroductionRequestPayload(*args)

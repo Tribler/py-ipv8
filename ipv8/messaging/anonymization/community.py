@@ -41,9 +41,7 @@ message_to_payload = {
     u"link-e2e": (19, LinkE2EPayload),
     u"linked-e2e": (20, LinkedE2EPayload),
     u"dht-request": (21, DHTRequestPayload),
-    u"dht-response": (22, DHTResponsePayload),
-    u"dispersy-introduction-request": (246, TunnelIntroductionRequestPayload),
-    u"dispersy-introduction-response": (245, TunnelIntroductionResponsePayload)
+    u"dht-response": (22, DHTResponsePayload)
 }
 SINGLE_HOP_ENC_PACKETS = [u'create', u'created']
 
@@ -123,6 +121,7 @@ class TunnelCommunity(Community):
 
         self.request_cache = RequestCache()
 
+        # Messages that can arrive from the socket
         self.decode_map.update({
             chr(1): self.on_cell,
             chr(10): self.on_destroy
@@ -696,84 +695,25 @@ class TunnelCommunity(Community):
         else:
             self.exit_candidates.pop(public_key.key_to_bin(), None)
 
-    def on_introduction_request(self, source_address, data):
-        auth, dist, payload = self._ez_unpack_auth(TunnelIntroductionRequestPayload, data)
-
-        peer = Peer(auth.public_key_bin, source_address)
-        if peer.mid != self.my_peer.mid:
-            self.network.add_verified_peer(peer)
-            self.network.discover_services(peer, [self.master_peer.mid, ])
-
-            packet = self.create_introduction_response(payload.destination_address, source_address, payload.identifier)
-            self.endpoint.send(source_address, packet)
-
-            self.update_exit_candidates(peer, payload.exitnode)
-
-    def create_introduction_request(self, socket_address):
-        global_time = self.claim_global_time()
-        payload = TunnelIntroductionRequestPayload(socket_address,
-                                                   self.my_estimated_lan,
-                                                   self.my_estimated_wan,
-                                                   True,
-                                                   u"unknown",
-                                                   False,
-                                                   global_time,
-                                                   self.become_exitnode()).to_pack_list()
-        auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
-        dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
-
-        return self._ez_pack(self._prefix, 246, [auth, dist, payload])
-
-    def on_introduction_response(self, source_address, data):
-        auth, dist, payload = self._ez_unpack_auth(TunnelIntroductionResponsePayload, data)
-
-        self.my_estimated_wan = payload.destination_address
-
-        peer = Peer(auth.public_key_bin, source_address)
-        self.network.add_verified_peer(peer)
-        self.network.discover_services(peer, [self.master_peer.mid, ])
-        if (payload.wan_introduction_address != ("0.0.0.0", 0)) and \
-                (payload.wan_introduction_address[0] != self.my_estimated_wan[0]):
-            self.network.discover_address(Peer(auth.public_key_bin, source_address),
-                                          payload.wan_introduction_address)
-        elif (payload.lan_introduction_address != ("0.0.0.0", 0)) and \
-                (payload.lan_introduction_address[0] != self.my_estimated_lan[0]):
-            self.network.discover_address(Peer(auth.public_key_bin, source_address),
-                                          payload.lan_introduction_address)
-
+    def introduction_request_callback(self, peer, dist, payload):
+        payload = self.serializer.unpack_to_serializables([ExtraIntroductionPayload], payload.extra_bytes)[0]
         self.update_exit_candidates(peer, payload.exitnode)
 
-    def create_introduction_response(self, lan_socket_address, socket_address, identifier):
-        global_time = self.claim_global_time()
-        introduction_lan = ("0.0.0.0", 0)
-        introduction_wan = ("0.0.0.0", 0)
-        introduced = False
-        other = self.network.get_verified_by_address(socket_address)
-        introduction = self.get_peer_for_introduction(exclude=other)
-        if introduction:
-            if self.address_is_lan(introduction.address[0]):
-                introduction_lan = introduction.address
-                introduction_wan = (self.my_estimated_wan[0], introduction_lan[1])
-            else:
-                introduction_wan = introduction.address
-            introduced = True
-        payload = TunnelIntroductionResponsePayload(socket_address,
-                                                    self.my_estimated_lan,
-                                                    self.my_estimated_wan,
-                                                    introduction_lan,
-                                                    introduction_wan,
-                                                    u"unknown",
-                                                    False,
-                                                    identifier,
-                                                    self.become_exitnode()).to_pack_list()
-        auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
-        dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
+    def introduction_response_callback(self, peer, dist, payload):
+        payload = self.serializer.unpack_to_serializables([ExtraIntroductionPayload], payload.extra_bytes)[0]
+        self.update_exit_candidates(peer, payload.exitnode)
 
-        if introduced:
-            packet = self.create_puncture_request(lan_socket_address, socket_address, identifier)
-            self.endpoint.send(introduction_wan if introduction_lan == ("0.0.0.0", 0) else introduction_lan, packet)
+    def create_introduction_request(self, socket_address, extra_bytes=''):
+        extra_payload = ExtraIntroductionPayload(self.become_exitnode())
+        extra_bytes = self.serializer.pack_multiple(extra_payload.to_pack_list())
+        return super(TunnelCommunity, self).create_introduction_request(socket_address, extra_bytes)
 
-        return self._ez_pack(self._prefix, 245, [auth, dist, payload])
+    def create_introduction_response(self, lan_socket_address, socket_address, identifier,
+                                     introduction=None, extra_bytes=''):
+        extra_payload = ExtraIntroductionPayload(self.become_exitnode())
+        extra_bytes = self.serializer.pack_multiple(extra_payload.to_pack_list())
+        return super(TunnelCommunity, self).create_introduction_response(lan_socket_address, socket_address,
+                                                                         identifier, introduction, extra_bytes)
 
     def on_cell(self, source_address, data):
         dist, payload = self._ez_unpack_noauth(CellPayload, data)
