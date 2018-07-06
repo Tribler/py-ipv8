@@ -282,8 +282,38 @@ class RequestTest(SingleServerSetup):
         self._master_peer.get_overlays()[1].persistence.add_block(block)
 
         result = yield self._get_style_requests.make_attributes(param_dict)
-        self.assertEqual(result, '[[123, "MTIz"]]', "The response was not []. This would suggest that something went "
-                                                    "wrong with the attributes request.")
+        self.assertEqual(result, '[[123, "MTIz"]]', "The response was not as expected. This would suggest that "
+                                                    "something went wrong with the attributes request.")
+
+    @twisted_wrapper(30)
+    def test_get_attributes_alternative(self):
+        """
+        Test the GET: attributes request type
+        :return: None
+        """
+        param_dict = {
+            'port': self._master_peer.port,
+            'interface': '127.0.0.1',
+            'endpoint': 'attestation',
+            'attribute_name': 'QR',
+            'attribute_value': quote(b64encode('binarydata')).replace("+", "%2B"),
+            'attribute_values': 'YXNk,YXNkMg==',
+            'metadata': b64encode(json.dumps({'psn': '1234567890'}))
+        }
+
+        # Forward the attestations to the well-known peer
+        other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', 7869)
+        other_peer.start()
+
+        yield self.attest_all_outstanding_requests(param_dict.copy())
+
+        # Get the hash of the attestation to be validated (the one which was just attested)
+        attributes = yield self._get_style_requests.make_attributes(param_dict)
+        attributes = ast.literal_eval(attributes)
+
+        self.assertTrue(attributes[0][0] == param_dict['attribute_name'] and attributes[0][1] != "",
+                        "The response was not as expected. This would suggest that something went wrong with "
+                        "the attributes request.")
 
     @twisted_wrapper(30)
     def test_get_drop_identity(self):
