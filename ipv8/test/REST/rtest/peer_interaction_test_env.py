@@ -73,7 +73,6 @@ class SingleServerSetup(unittest.TestCase):
 
         # Stop the master peer
         self._master_peer.stop()
-        del self._master_peer
 
 
 class RequestTest(SingleServerSetup):
@@ -169,6 +168,28 @@ class RequestTest(SingleServerSetup):
 
         returnValue(verification_responses)
 
+    @staticmethod
+    def gracefully_terminate_peers(peers):
+        """
+        Gracefully terminate the peers passed as parameter
+
+        :param peers: Either a single peer or a list of peers which should be gracefully terminated
+        :return: None
+        """
+        assert isinstance(peers, TestPeer) or (
+            isinstance(peers, list) and all(isinstance(x, TestPeer) for x in peers)), \
+            "The passed parameter must be either a list of TestPeer instances or a singular TestPeer instance"
+
+        if not isinstance(peers, list):
+            peers = [peers]
+
+        from threading import Thread
+
+        for peer in peers:
+            if isinstance(peer, Thread):
+                peer.join()
+            peer.stop()
+
     @twisted_wrapper(30)
     def test_get_peers_request(self):
         """
@@ -191,7 +212,7 @@ class RequestTest(SingleServerSetup):
 
         self.assertTrue(any(x in other_peer_mids for x in result), "Could not find the second peer.")
 
-        other_peer.stop()
+        RequestTest.gracefully_terminate_peers(other_peer)
 
     @twisted_wrapper(30)
     def test_get_outstanding_requests(self):
@@ -216,8 +237,7 @@ class RequestTest(SingleServerSetup):
                             for y in other_peer_mids),
                         "Could not find the outstanding request forwarded by the second peer")
 
-        other_peer.join()
-        other_peer.stop()
+        RequestTest.gracefully_terminate_peers(other_peer)
 
     @twisted_wrapper(30)
     def test_get_verification_output(self):
@@ -260,8 +280,7 @@ class RequestTest(SingleServerSetup):
         self.assertTrue([["YXNk", 0.0], ["YXNkMg==", 0.0]] in verification_output.values(),
                         "Something went wrong with the verification. Unexpected output values.")
 
-        other_peer.join()
-        other_peer.stop()
+        RequestTest.gracefully_terminate_peers(other_peer)
 
     @twisted_wrapper
     def test_get_attributes(self):
@@ -317,6 +336,8 @@ class RequestTest(SingleServerSetup):
                         "The response was not as expected. This would suggest that something went wrong with "
                         "the attributes request.")
 
+        RequestTest.gracefully_terminate_peers(other_peer)
+
     @twisted_wrapper(30)
     def test_get_drop_identity(self):
         """
@@ -362,8 +383,7 @@ class RequestTest(SingleServerSetup):
         result = yield self._get_style_requests.make_outstanding(param_dict)
         self.assertEqual(result, '[]', 'The identity could not be dropped. Outstanding requests still remaining.')
 
-        other_peer.join()
-        other_peer.stop()
+        RequestTest.gracefully_terminate_peers(other_peer)
 
     @twisted_wrapper(30)
     def test_post_attestation_request(self):
@@ -392,8 +412,7 @@ class RequestTest(SingleServerSetup):
 
         self.assertNotEqual(outstanding_requests, '[]', "Something went wrong, no request was received.")
 
-        other_peer.join()
-        other_peer.stop()
+        RequestTest.gracefully_terminate_peers(other_peer)
 
     @twisted_wrapper(30)
     def test_post_attest(self):
@@ -425,8 +444,7 @@ class RequestTest(SingleServerSetup):
         self.assertTrue(len(attributes) == 1 and attributes[0][0] == param_dict['attribute_name'],
                         "There should be only one attestation in the other peer's DB.")
 
-        other_peer.join()
-        other_peer.stop()
+        RequestTest.gracefully_terminate_peers(other_peer)
 
     @twisted_wrapper(30)
     def test_post_verify(self):
@@ -464,5 +482,4 @@ class RequestTest(SingleServerSetup):
         self.assertTrue(all(x == "" for x in verification_responses), "At least one of the verification "
                                                                       "responses was non-empty.")
 
-        other_peer.join()
-        other_peer.stop()
+        RequestTest.gracefully_terminate_peers(other_peer)

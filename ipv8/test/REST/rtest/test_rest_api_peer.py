@@ -71,6 +71,8 @@ class TestPeer(object):
         :return: None
         """
         self._logger.info("Shutting down the peer")
+        self._ipv8.endpoint.close()
+        self._rest_manager.shutdown_task_manager()
         self._rest_manager.stop()
 
     @staticmethod
