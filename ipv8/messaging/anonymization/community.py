@@ -530,63 +530,6 @@ class TunnelCommunity(Community):
         self.increase_bytes_sent(next_relay, self.send_packet([next_relay.sock_addr], message_type, packet))
         return True
 
-    def check_create(self, payload):
-        if self.request_cache.has(u"anon-created", payload.circuit_id):
-            self.logger.warning("Already have a request for this circuit_id")
-            return False
-        return True
-
-    def check_extend(self, payload):
-        request = self.request_cache.get(u"anon-created", payload.circuit_id)
-        if not request:
-            self.logger.warning("Invalid extend request circuit_id")
-            return False
-        if not payload.node_public_key:
-            self.logger.warning("No node public key specified")
-            return False
-        if not (payload.node_addr or payload.node_public_key in request.candidates):
-            self.logger.warning("Node public key not in request candidates and no ip specified")
-            return False
-        return True
-
-    def check_created(self, payload):
-        request = self.request_cache.get(u"anon-circuit", payload.circuit_id)
-        if not request:
-            self.logger.warning("Invalid created response circuit_id")
-            return False
-        return True
-
-    def check_extended(self, payload):
-        request = self.request_cache.get(u"anon-circuit", payload.circuit_id)
-        if not request:
-            self.logger.warning("Invalid extended response circuit_id")
-            return False
-        return True
-
-    def check_pong(self, payload):
-        request = self.request_cache.get(u"ping", payload.identifier)
-        if not request:
-            self.logger.warning("Invalid ping circuit_id")
-            return False
-        return True
-
-    def check_destroy(self, source_address, payload):
-        if payload.circuit_id in self.relay_from_to:
-            pass
-        elif payload.circuit_id in self.exit_sockets:
-            if source_address != self.exit_sockets[payload.circuit_id].sock_addr:
-                self.logger.warning("%s, %s not allowed send destroy", source_address)
-                return False
-        elif payload.circuit_id in self.circuits:
-            if source_address != self.circuits[payload.circuit_id].sock_addr:
-                self.logger.warning("%s, %s not allowed send destroy", source_address)
-                return False
-        else:
-            self.logger.warning("Unknown circuit_id")
-            return False
-
-        return True
-
     def _ours_on_created_extended(self, circuit, payload):
         hop = circuit.unverified_hop
 
@@ -776,7 +719,8 @@ class TunnelCommunity(Community):
     def on_create(self, source_address, data, _):
         _, payload = self._ez_unpack_noauth(CreatePayload, data)
 
-        if not self.check_create(payload):
+        if self.request_cache.has(u"anon-created", payload.circuit_id):
+            self.logger.warning("Already have a request for this circuit_id")
             return
 
         def determined_to_join(result):
@@ -790,7 +734,8 @@ class TunnelCommunity(Community):
     def on_created(self, source_address, data, _):
         _, payload = self._ez_unpack_noauth(CreatedPayload, data)
 
-        if not self.check_created(payload):
+        if not self.request_cache.has(u"anon-circuit", payload.circuit_id):
+            self.logger.warning("Invalid extended response circuit_id")
             return
 
         circuit_id = payload.circuit_id
@@ -826,11 +771,15 @@ class TunnelCommunity(Community):
     def on_extend(self, source_address, data, _):
         _, payload = self._ez_unpack_noauth(ExtendPayload, data)
 
-        if not self.check_extend(payload):
+        if not self.request_cache.has(u"anon-created", payload.circuit_id):
+            self.logger.warning("Invalid extend request circuit_id")
             return
 
         circuit_id = payload.circuit_id
         request = self.request_cache.pop(u"anon-created", circuit_id)
+        if not (payload.node_addr or payload.node_public_key in request.candidates):
+            self.logger.warning("Node public key not in request candidates and no ip specified")
+            return
 
         if payload.node_public_key in request.candidates:
             extend_candidate = request.candidates[payload.node_public_key]
@@ -864,16 +813,14 @@ class TunnelCommunity(Community):
                                                   source_address, candidate_mid,
                                                   extend_candidate.address, extend_candidate_mid))
 
-        self.send_cell([extend_candidate],
-                       u"create",
-                       CreatePayload(to_circuit_id,
-                                     self.my_peer.public_key.key_to_bin(),
-                                     payload.key))
+        self.send_cell([extend_candidate], u"create",
+                       CreatePayload(to_circuit_id, self.my_peer.public_key.key_to_bin(), payload.key))
 
     def on_extended(self, source_address, data, _):
         _, payload = self._ez_unpack_noauth(ExtendedPayload, data)
 
-        if not self.check_extended(payload):
+        if not self.request_cache.has(u"anon-circuit", payload.circuit_id):
+            self.logger.warning("Invalid extended response circuit_id")
             return
 
         circuit_id = payload.circuit_id
@@ -933,7 +880,8 @@ class TunnelCommunity(Community):
     def on_pong(self, source_address, data, _):
         _, payload = self._ez_unpack_noauth(PongPayload, data)
 
-        if not self.check_pong(payload):
+        if not self.request_cache.has(u"ping", payload.identifier):
+            self.logger.warning("Invalid ping circuit_id")
             return
 
         self.request_cache.pop(u"ping", payload.identifier)
@@ -951,9 +899,6 @@ class TunnelCommunity(Community):
     def on_destroy(self, source_address, data):
         _, _, payload = self._ez_unpack_auth(DestroyPayload, data)
 
-        if not self.check_destroy(source_address, payload):
-            return
-
         circuit_id = payload.circuit_id
         cand_sock_addr = source_address
         self.logger.info("Got destroy from %s for circuit %s", source_address, circuit_id)
@@ -961,13 +906,16 @@ class TunnelCommunity(Community):
         if circuit_id in self.relay_from_to:
             self.remove_relay(circuit_id, "Got destroy", destroy=True, got_destroy_from=(circuit_id, cand_sock_addr))
 
-        elif circuit_id in self.exit_sockets:
+        elif circuit_id in self.exit_sockets and source_address == self.exit_sockets[payload.circuit_id].sock_addr:
             self.logger.info("Got an exit socket %s %s", circuit_id, cand_sock_addr)
             self.remove_exit_socket(circuit_id, "Got destroy")
 
-        elif circuit_id in self.circuits:
+        elif circuit_id in self.circuits and source_address == self.circuits[payload.circuit_id].sock_addr:
             self.logger.info("Got a circuit %s %s", circuit_id, cand_sock_addr)
             self.remove_circuit(circuit_id, "Got destroy")
+
+        else:
+            self.logger.warning("Invalid or unauthorized destroy")
 
     def exit_data(self, circuit_id, sock_addr, destination, data):
         if not self.become_exitnode() and not DataChecker.could_be_ipv8(data):
