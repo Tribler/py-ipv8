@@ -32,3 +32,5 @@ ipv8/test/messaging/anonymization/test_community.py:TestTunnelCommunity
 ipv8/test/messaging/anonymization/test_hiddenservices.py:TestHiddenServices
 
 ipv8/test/deprecated/test_bloomfilter.py:TestBloomFilter
+
+ipv8/test/REST/rtest/peer_interaction_test_env.py:RequestTest
