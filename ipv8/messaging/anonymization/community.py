@@ -314,7 +314,7 @@ class TunnelCommunity(Community):
         self.increase_bytes_sent(circuit, self.send_cell([first_hop],
                                                          u"create",
                                                          CreatePayload(circuit_id,
-                                                                       circuit.unverified_hop.node_public_key,
+                                                                       self.my_peer.public_key.key_to_bin(),
                                                                        circuit.unverified_hop.dh_first_part)))
 
         return circuit_id
@@ -531,9 +531,6 @@ class TunnelCommunity(Community):
         return True
 
     def check_create(self, payload):
-        if self.crypto.key and self.crypto.key.pub().key_to_bin() != payload.node_public_key:
-            self.logger.warning("Public keys do not match")
-            return False
         if self.request_cache.has(u"anon-created", payload.circuit_id):
             self.logger.warning("Already have a request for this circuit_id")
             return False
@@ -870,7 +867,7 @@ class TunnelCommunity(Community):
         self.send_cell([extend_candidate],
                        u"create",
                        CreatePayload(to_circuit_id,
-                                     payload.node_public_key,
+                                     self.my_peer.public_key.key_to_bin(),
                                      payload.key))
 
     def on_extended(self, source_address, data, _):
