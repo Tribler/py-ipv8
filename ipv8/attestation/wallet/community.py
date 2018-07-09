@@ -50,6 +50,7 @@ class AttestationCommunity(Community):
         self.attestation_request_callback = lambda peer, attribute_name, metadata: None
         self.attestation_request_complete_callback = (lambda for_peer, attribute_name,
                                                              attribute_hash, from_peer=None: None)
+        self.verify_request_callback = lambda attribute_name, attribute_hash: True
 
         # Map of attestation hash -> BonehPrivateKey
         self.attestation_keys = {}
@@ -86,6 +87,17 @@ class AttestationCommunity(Community):
         :param f: the function to call when an Attestation has been completed
         """
         self.attestation_request_complete_callback = f
+
+    def set_verify_request_callback(self, f):
+        """
+        Set the callback to be called when someone wants to verify our attribute.
+
+        f should accept a (Peer, attribute_name) and return a boolean value.
+        If f return True, the attribute will be verified.
+
+        :param f: the function to call when our attribute is requested for verification
+        """
+        self.verify_request_callback = f
 
     def request_attestation(self, peer, attribute_name, secret_key, metadata={}):
         """
@@ -175,6 +187,7 @@ class AttestationCommunity(Community):
         packet = self._ez_pack(self._prefix, 1, [auth, dist, payload])
         self.endpoint.send(socket_address, packet)
 
+    @inlineCallbacks
     def on_verify_attestation_request(self, source_address, data):
         """
         We received a request to verify one of our attestations. Send the requested attestation back.
@@ -183,6 +196,10 @@ class AttestationCommunity(Community):
 
         attestation_blob, = self.database.get_attestation_by_hash(payload.hash)
         if not attestation_blob:
+            return
+
+        value = yield self.verify_request_callback(Peer(auth.public_key_bin, source_address), payload.hash)
+        if not value:
             return
 
         self.send_attestation(source_address, attestation_blob)
