@@ -1,7 +1,7 @@
 import json
-import time
 from base64 import b64encode
 from urllib import quote
+
 from twisted.internet.defer import inlineCallbacks
 
 from ipv8.test.REST.rtest.test_rest_api_peer import InteractiveTestPeer
@@ -16,26 +16,21 @@ class AndroidTestPeer(InteractiveTestPeer):
                  param_dict,
                  path,
                  port,
-                 **kwargs):
+                 interface='127.0.0.1',
+                 configuration=None,
+                 get_style_requests=None,
+                 post_style_requests=None):
         """
         AndroidTestPeer initializer
 
         :param param_dict: a dictionary containing the required parameters to communicate with a peer
         :param path: the for the working directory of this peer
         :param port: this peer's port
-        :param kwargs: a dictionary containing additional configuration parameters:
-        {
-            'interface': IP or alias of the peer. Defaults to '127.0.0.1'
-            'configuration': IPv8 configuration object. Defaults to None
-            'get_style_requests': GET style request generator. Defaults to None
-            'post_style_requests': POST style request generator. Defaults to None
-        }
+        :param interface: IP or alias of the peer. Defaults to '127.0.0.1'
+        :param configuration: IPv8 configuration object. Defaults to None
+        :param get_style_requests: GET style request generator. Defaults to None
+        :param post_style_requests: POST style request generator. Defaults to None
         """
-        interface = kwargs.get('interface', '127.0.0.1')
-        configuration = kwargs.get('configuration', None)
-        get_style_requests = kwargs.get('get_style_requests', None)
-        post_style_requests = kwargs.get('post_style_requests', None)
-
         InteractiveTestPeer.__init__(self,
                                      path=path,
                                      port=port,
@@ -51,8 +46,6 @@ class AndroidTestPeer(InteractiveTestPeer):
 
     @inlineCallbacks
     def run(self):
-        time.sleep(1)
-
         peer_list = yield self.wait_for_peers(self._param_dict)
 
         import ast

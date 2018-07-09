@@ -1,8 +1,11 @@
+import logging
 import os
 import threading
-import time
 
-import logging
+from twisted.internet import reactor
+from twisted.internet.defer import maybeDeferred, inlineCallbacks, returnValue
+from twisted.internet.task import deferLater
+from twisted.web import server
 
 from ipv8.REST.rest_manager import RESTRequest
 from ipv8.REST.root_endpoint import RootEndpoint
@@ -12,10 +15,6 @@ from ipv8.test.REST.rtest.peer_communication import GetStyleRequests, PostStyleR
 from ipv8.test.REST.rtest.rest_peer_communication import HTTPGetRequester, HTTPPostRequester
 from ipv8_service import IPv8
 
-from twisted.web import server
-from twisted.internet.defer import maybeDeferred, inlineCallbacks, returnValue
-from twisted.internet import reactor
-
 
 class TestPeer(object):
 
@@ -24,7 +23,14 @@ class TestPeer(object):
                  port,
                  interface='127.0.0.1',
                  configuration=None):
+        """
+        Create a test peer with a REST API interface.
 
+        :param path: the for the working directory of this peer
+        :param port: this peer's port
+        :param interface: IP or alias of the peer. Defaults to '127.0.0.1'
+        :param configuration: IPv8 configuration object. Defaults to None
+        """
         self._logger = logging.getLogger(self.__class__.__name__)
         self._logger.info("Peer starting-up.")
 
@@ -94,6 +100,7 @@ class TestPeer(object):
 
         :return: the peer's keys
         """
+        self._logger.info("Fetching my IPv8 object's peer.")
         return self._ipv8.keys
 
     def get_overlays(self):
@@ -102,6 +109,7 @@ class TestPeer(object):
 
         :return: the peer's overlays
         """
+        self._logger.info("Fetching my IPv8 object's overlays.")
         return self._ipv8.overlays
 
     @property
@@ -118,6 +126,13 @@ class TestPeer(object):
         """
 
         def __init__(self, session, port=8085, interface='127.0.0.1'):
+            """
+            Creates a TaskManager object for REST API testing purposes
+
+            :param session: an (IPv8) session object.
+            :param port: this peer's port. Defaults to 8085
+            :param interface: IP or alias of the peer. Defaults to '127.0.0.1'
+            """
             super(TestPeer.RestAPITestWrapper, self).__init__()
             self._logger = logging.getLogger(self.__class__.__name__)
             self._session = session
@@ -154,9 +169,18 @@ class TestPeer(object):
             }
 
     def get_attestation_by_hash(self, attestation_hash):
+        """
+        Retrieve an attestation from the DB by its hash.
+        :param attestation_hash: the hash of the attestation
+        :return: the attestation, if it was found
+        """
         return self._ipv8.overlays[0].database.get_attestation_by_hash(attestation_hash)
 
     def get_all_attestations(self):
+        """
+        Retrieve all attestations from the DB.
+        :return: all the stored attestations.
+        """
         return self._ipv8.overlays[0].database.get_all()
 
 
@@ -169,26 +193,20 @@ class InteractiveTestPeer(TestPeer, threading.Thread):
     def __init__(self,
                  path,
                  port,
-                 **kwargs):
+                 interface='127.0.0.1',
+                 configuration=None,
+                 get_style_requests=None,
+                 post_style_requests=None):
         """
         InteractiveTestPeer initializer
 
         :param path: the for the working directory of this peer
         :param port: this peer's port
-        :param kwargs: a dictionary containing additional configuration parameters:
-        {
-            'interface': IP or alias of the peer. Defaults to '127.0.0.1'
-            'configuration': IPv8 configuration object. Defaults to None
-            'get_style_requests': GET style request generator. Defaults to None
-            'post_style_requests': POST style request generator. Defaults to None
-        }
+        :param interface: IP or alias of the peer. Defaults to '127.0.0.1'
+        :param configuration: IPv8 configuration object. Defaults to None
+        :param get_style_requests: GET style request generator. Defaults to None
+        :param post_style_requests: POST style request generator. Defaults to None
         """
-
-        interface = kwargs.get('interface', '127.0.0.1')
-        configuration = kwargs.get('configuration', None)
-        get_style_requests = kwargs.get('get_style_requests', None)
-        post_style_requests = kwargs.get('post_style_requests', None)
-
         TestPeer.__init__(self, path, port, interface, configuration)
         threading.Thread.__init__(self)
 
@@ -226,7 +244,7 @@ class InteractiveTestPeer(TestPeer, threading.Thread):
         while peer_list == "[]":
             self._logger.info("Could not acquire a list of peers. Will wait 4 seconds and retry.")
             # Wait for 4 seconds before trying again
-            time.sleep(4)
+            yield deferLater(reactor, 4, lambda: None)
 
             # Forward and wait for the response
             peer_list = yield self._get_style_requests.make_peers(dict_param)
@@ -250,7 +268,7 @@ class InteractiveTestPeer(TestPeer, threading.Thread):
         while outstanding_requests == "[]":
             self._logger.info("Could not acquire a list of outstanding requests. Will wait 4 seconds and retry.")
             # Wait for 4 seconds before trying again
-            time.sleep(4)
+            yield deferLater(reactor, 4, lambda: None)
 
             # Forward and wait for the response
             outstanding_requests = yield self._get_style_requests.make_outstanding(dict_param)

@@ -1,11 +1,12 @@
 import ast
 import json
-import time
 import unittest
 from base64 import b64encode
 from urllib import quote
 
+from twisted.internet import reactor
 from twisted.internet.defer import returnValue, inlineCallbacks
+from twisted.internet.task import deferLater
 
 from ipv8.attestation.trustchain.block import TrustChainBlock
 from ipv8.test.REST.rtest.peer_communication import GetStyleRequests, PostStyleRequests
@@ -21,28 +22,24 @@ class SingleServerSetup(unittest.TestCase):
     which implement specific test cases.
     """
 
-    def initialize(self, **kwargs):
+    def initialize(self,
+                   path='test_env',
+                   port=8086,
+                   interface='127.0.0.1',
+                   configuration=None,
+                   get_style_requests=None,
+                   post_style_requests=None):
         """
         An initializer method for the Single Server test environment
 
-        :param kwargs: a dictionary containing additional configuration parameters:
-        {
-            'port': the master peer's port. Defaults to 8086
-            '8086': the master peer's path to the working directory. Defaults to 'test_env'
-            'interface': IP or alias of the peer. Defaults to '127.0.0.1'
-            'configuration': IPv8 configuration object. Defaults to None
-            'get_style_requests': GET style request generator. Defaults to None
-            'post_style_requests': POST style request generator. Defaults to None
-        }
+        :param path: the master peer's path to the working directory. Defaults to 'test_env'.
+        :param port: the master peer's port. Defaults to 8086.
+        :param interface: IP or alias of the peer. Defaults to '127.0.0.1'.
+        :param configuration: IPv8 configuration object. Defaults to None.
+        :param get_style_requests: GET style request generator. Defaults to None.
+        :param post_style_requests: POST style request generator. Defaults to None.
+        :return:
         """
-
-        port = kwargs.get('port', 8086)
-        path = kwargs.get('path', 'test_env')
-        interface = kwargs.get('interface', '127.0.0.1')
-        configuration = kwargs.get('configuration', None)
-        get_style_requests = kwargs.get('get_style_requests', None)
-        post_style_requests = kwargs.get('post_style_requests', None)
-
         # Create a so called master (well-known) peer, which should be the peer to which the requests are directed
         self._master_peer = TestPeer(path, port, interface, configuration)
 
@@ -85,13 +82,12 @@ class RequestTest(SingleServerSetup):
         :param dict_param: the required parameters by the GET request generator for the peers request type
         :return: a list of currently known peers in the network
         """
-
         peer_list = yield self._get_style_requests.make_peers(dict_param)
 
         # Keep iterating until peer_list is non-empty
         while peer_list == "[]":
             # Wait for 4 seconds before trying again
-            time.sleep(4)
+            yield deferLater(reactor, 4, lambda: None)
 
             # Forward and wait for the response
             peer_list = yield self._get_style_requests.make_peers(dict_param)
@@ -112,7 +108,7 @@ class RequestTest(SingleServerSetup):
         # Keep iterating until peer_list is non-empty
         while outstanding_requests == "[]":
             # Wait for 4 seconds before trying again
-            time.sleep(4)
+            yield deferLater(reactor, 4, lambda: None)
 
             # Forward and wait for the response
             outstanding_requests = yield self._get_style_requests.make_outstanding(dict_param)
@@ -416,6 +412,10 @@ class RequestTest(SingleServerSetup):
 
     @twisted_wrapper(30)
     def test_post_attest(self):
+        """
+        Test the POST: attest request type
+        :return: None
+        """
         param_dict = {
             'port': self._master_peer.port,
             'interface': '127.0.0.1',

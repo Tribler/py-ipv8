@@ -80,7 +80,6 @@ class AttestationEndpoint(resource.Resource):
         type=peers -> [mid_b64]
         type=attributes&mid=mid_b64 -> [(attribute_name, attribute_hash)]
         """
-
         if not request.args or 'type' not in request.args:
             return ""
         if request.args['type'][0] == 'outstanding':
@@ -120,7 +119,6 @@ class AttestationEndpoint(resource.Resource):
         type=attest&mid=mid_b64&attribute_name=attribute_name&attribute_value=attribute_value_b64
         type=verify&mid=mid_b64&attribute_hash=attribute_hash_b64&attribute_values=attribute_value_b64,...
         """
-
         if not request.args or 'type' not in request.args:
             return ""
         if request.args['type'][0] == 'request':
