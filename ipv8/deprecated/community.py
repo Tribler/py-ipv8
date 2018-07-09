@@ -161,10 +161,11 @@ class EZPackOverlay(Overlay):
         # PRODUCE
         return auth, dist, payload
 
-    def _ez_unpack_noauth(self, payload_class, data):
+    def _ez_unpack_noauth(self, payload_class, data, global_time=True):
         # UNPACK
-        format = [GlobalTimeDistributionPayload, payload_class]
-        dist, payload, unknown_data = self.serializer.unpack_to_serializables(format, data[23:])
+        format = [GlobalTimeDistributionPayload, payload_class] if global_time else [payload_class]
+        unpacked = self.serializer.unpack_to_serializables(format, data[23:])
+        unknown_data = unpacked.pop()
         # ASSERT
         if len(unknown_data) != 0:
             raise PacketDecodingError("Incoming packet %s (%s) has extra data: (%s)" %
@@ -172,7 +173,8 @@ class EZPackOverlay(Overlay):
                                        data.encode('HEX'),
                                        unknown_data.encode('HEX')))
         # PRODUCE
-        return dist, payload
+        return unpacked if global_time else unpacked[0]
+
 
 
 class Community(EZPackOverlay):

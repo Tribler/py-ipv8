@@ -8,7 +8,7 @@ ADDRESS_TYPE_DOMAIN_NAME = 0x02
 
 
 def swap_circuit_id(packet, message_type, old_circuit_id, new_circuit_id):
-    circuit_id_pos = 31#0 if message_type == u"data" else 31
+    circuit_id_pos = 23
     circuit_id, = unpack_from('!I', packet, circuit_id_pos)
     assert circuit_id == old_circuit_id, circuit_id
     packet = packet[:circuit_id_pos] + pack('!I', new_circuit_id) + packet[circuit_id_pos + 4:]
@@ -16,17 +16,17 @@ def swap_circuit_id(packet, message_type, old_circuit_id, new_circuit_id):
 
 
 def split_encrypted_packet(packet):
-    return packet[:36], packet[36:]
+    return packet[:28], packet[28:]
 
 
 def convert_from_cell(packet):
-    header = packet[:22] + packet[35] + packet[23:31]
-    return header + packet[31:35] + packet[36:]
+    header = packet[:22] + packet[27]
+    return header + packet[23:27] + packet[28:]
 
 
 def convert_to_cell(packet):
-    header = packet[:22] + '\x01' + packet[23:31]
-    return header + packet[31:35] + packet[22] + packet[35:]
+    header = packet[:22] + '\x01'
+    return header + packet[23:27] + packet[22] + packet[27:]
 
 
 def encode_address(host, port):

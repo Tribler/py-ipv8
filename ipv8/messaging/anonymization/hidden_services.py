@@ -10,7 +10,6 @@ import struct
 
 from .caches import *
 from .community import TunnelCommunity, message_to_payload
-from ...deprecated.payload_headers import GlobalTimeDistributionPayload
 from ...messaging.deprecated.encoding import decode, encode
 from .payload import *
 from ...peer import Peer
@@ -92,10 +91,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
 
     def tunnel_data(self, circuit, destination, message_type, payload):
         message_id, _ = message_to_payload[message_type]
-        dist = GlobalTimeDistributionPayload(self.global_time).to_pack_list()
-        payload_pack_list = payload.to_pack_list()
-
-        packet = self._ez_pack(self._prefix, message_id, [dist, payload_pack_list], False)
+        packet = self._ez_pack(self._prefix, message_id, [payload.to_pack_list()], False)
         pre = ('0.0.0.0', 0)
         post = ('0.0.0.0', 0)
         if isinstance(circuit, TunnelExitSocket):
@@ -138,7 +134,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
                        DHTRequestPayload(circuit.circuit_id, cache.number, lookup_info_hash))
 
     def on_dht_request(self, source_address, data, circuit_id):
-        _, payload = self._ez_unpack_noauth(DHTRequestPayload, data)
+        payload = self._ez_unpack_noauth(DHTRequestPayload, data, global_time=False)
         info_hash = payload.info_hash
 
         def dht_callback(info_hash, peers, _):
@@ -159,7 +155,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         self.dht_lookup(info_hash, dht_callback)
 
     def on_dht_response(self, source_address, data, circuit_id=None):
-        _, payload = self._ez_unpack_noauth(DHTResponsePayload, data)
+        payload = self._ez_unpack_noauth(DHTResponsePayload, data, global_time=False)
 
         if not self.is_relay(payload.circuit_id) and not self.request_cache.has(u"dht-request", payload.identifier):
             self.logger.warning('Got a dht-response with an unknown identifier')
@@ -201,7 +197,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         self.tunnel_data(circuit, sock_addr, u"key-request", KeyRequestPayload(cache.number, info_hash))
 
     def on_key_request(self, source_address, data, circuit_id=None):
-        _, payload = self._ez_unpack_noauth(KeyRequestPayload, data)
+        payload = self._ez_unpack_noauth(KeyRequestPayload, data, global_time=False)
 
         info_hash = payload.info_hash
         identifier = payload.identifier
@@ -220,7 +216,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
 
         else:
             key = self.session_keys.get(info_hash)
-            if key:
+            if not key:
                 self.logger.warning("Not seeding this infohash")
                 return
 
@@ -232,7 +228,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
                              KeyResponsePayload(identifier, key.pub().key_to_bin(), encode(pex_peers)))
 
     def on_key_response(self, source_address, data, circuit_id=None):
-        _, payload = self._ez_unpack_noauth(KeyResponsePayload, data)
+        payload = self._ez_unpack_noauth(KeyResponsePayload, data, global_time=False)
 
         if not self.request_cache.has(u"key-request", payload.identifier):
             self.logger.error("Key response packet invalid!")
@@ -241,11 +237,8 @@ class HiddenTunnelCommunity(TunnelCommunity):
         if circuit_id is None:
             cache = self.request_cache.pop(u"key-request", payload.identifier)
             self.logger.info('On key response: forward message because received over socket')
-
-            dist = GlobalTimeDistributionPayload(self.global_time).to_pack_list()
             payload = KeyResponsePayload(cache.identifier, payload.public_key, payload.pex_peers).to_pack_list()
-
-            packet = self._ez_pack(self._prefix, 14, [dist, payload], False)
+            packet = self._ez_pack(self._prefix, 14, [payload], False)
             self.send_packet([cache.return_sock_addr], u"key-response", packet)
         else:
             # pop key-request cache and notify gui
@@ -279,7 +272,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
                                                                              hop.node_public_key, hop.dh_first_part))
 
     def on_create_e2e(self, source_address, data, circuit_id=None):
-        _, payload = self._ez_unpack_noauth(CreateE2EPayload, data)
+        payload = self._ez_unpack_noauth(CreateE2EPayload, data, global_time=False)
 
         # If we have received this message over a socket, we need to forward it
         if circuit_id is None:
@@ -309,7 +302,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
                          CreatedE2EPayload(payload.identifier, Y, AUTH, rp_info_enc))
 
     def on_created_e2e(self, source_address, data, circuit_id):
-        _, payload = self._ez_unpack_noauth(CreatedE2EPayload, data)
+        payload = self._ez_unpack_noauth(CreatedE2EPayload, data, global_time=False)
 
         if not self.request_cache.has(u"e2e-request", payload.identifier):
             self.logger.warning("Invalid created-e2e identifier")
@@ -349,7 +342,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         self.send_cell([circuit.sock_addr], u'link-e2e', LinkE2EPayload(circuit.circuit_id, cache.number, cookie))
 
     def on_link_e2e(self, source_address, data, circuit_id):
-        _, payload = self._ez_unpack_noauth(LinkE2EPayload, data)
+        payload = self._ez_unpack_noauth(LinkE2EPayload, data, global_time=False)
 
         if payload.cookie not in self.rendezvous_point_for:
             self.logger.warning("Not a rendezvous point for this cookie")
@@ -376,7 +369,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         self.send_cell([source_address], u"linked-e2e", LinkedE2EPayload(circuit.circuit_id, payload.identifier))
 
     def on_linked_e2e(self, source_address, data, circuit_id):
-        _, payload = self._ez_unpack_noauth(LinkedE2EPayload, data)
+        payload = self._ez_unpack_noauth(LinkedE2EPayload, data, global_time=False)
 
         if not self.request_cache.has(u"link-request", payload.identifier):
             self.logger.warning("Invalid linked-e2e identifier")
@@ -419,7 +412,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
             self.infohash_ip_circuits[info_hash].append((circuit_id, time.time()))
 
     def on_establish_intro(self, source_address, data, circuit_id):
-        _, payload = self._ez_unpack_noauth(EstablishIntroPayload, data)
+        payload = self._ez_unpack_noauth(EstablishIntroPayload, data, global_time=False)
 
         circuit = self.exit_sockets[circuit_id]
         self.intro_point_for[payload.info_hash] = circuit
@@ -428,7 +421,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         self.dht_announce(payload.info_hash)
 
     def on_intro_established(self, source_address, data, circuit_id):
-        _, payload = self._ez_unpack_noauth(IntroEstablishedPayload, data)
+        payload = self._ez_unpack_noauth(IntroEstablishedPayload, data, global_time=False)
 
         if not self.request_cache.has(u"establish-intro", payload.identifier):
             self.logger.warning("Invalid intro-established request identifier")
@@ -456,7 +449,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         self.infohash_rp_circuits[info_hash].append(circuit_id)
 
     def on_establish_rendezvous(self, source_address, data, circuit_id):
-        _, payload = self._ez_unpack_noauth(EstablishRendezvousPayload, data)
+        payload = self._ez_unpack_noauth(EstablishRendezvousPayload, data, global_time=False)
 
         circuit = self.exit_sockets[circuit_id]
         self.rendezvous_point_for[payload.cookie] = circuit
@@ -465,7 +458,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
             circuit.circuit_id, payload.identifier, self.my_estimated_wan))
 
     def on_rendezvous_established(self, source_address, data, circuit_id):
-        _, payload = self._ez_unpack_noauth(RendezvousEstablishedPayload, data)
+        payload = self._ez_unpack_noauth(RendezvousEstablishedPayload, data, global_time=False)
 
         if not self.request_cache.has(u"establish-rendezvous", payload.identifier):
             self.logger.warning("Invalid rendezvous-established request identifier")

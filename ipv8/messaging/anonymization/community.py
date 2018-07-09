@@ -12,8 +12,8 @@ from twisted.internet.defer import Deferred
 from twisted.internet.task import LoopingCall
 
 from .caches import *
-from ...deprecated.community import Community
-from ...deprecated.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
+from ...deprecated.community import Community, PacketDecodingError, lazy_wrapper
+from ...deprecated.payload_headers import BinMemberAuthenticationPayload
 from ...messaging.deprecated.encoding import encode, decode
 from .payload import *
 from ...peer import Peer
@@ -462,12 +462,8 @@ class TunnelCommunity(Community):
 
     def send_cell(self, candidates, message_type, payload, circuit_id=None):
         message_id, _ = message_to_payload[message_type]
-        payload_pack_list = payload.to_pack_list()
-        dist = GlobalTimeDistributionPayload(self.global_time).to_pack_list()
-
-        packet = self._ez_pack(self._prefix, message_id, [dist, payload_pack_list], False)
+        packet = self._ez_pack(self._prefix, message_id, [payload.to_pack_list()], False)
         packet = convert_to_cell(packet)
-
         return self.send_message(candidates, message_type, packet, circuit_id if circuit_id else payload.circuit_id)
 
     def send_data(self, candidates, circuit_id, dest_address, source_address, data):
@@ -496,11 +492,9 @@ class TunnelCommunity(Community):
         return len(packet)
 
     def send_destroy(self, candidate, circuit_id, reason):
-        payload = DestroyPayload(circuit_id, reason).to_pack_list()
         auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
-        dist = GlobalTimeDistributionPayload(self.global_time).to_pack_list()
-
-        packet = self._ez_pack(self._prefix, 10, [auth, dist, payload])
+        payload = DestroyPayload(circuit_id, reason).to_pack_list()
+        packet = self._ez_pack(self._prefix, 10, [auth, payload])
         self.send_packet([candidate], u"destroy", packet)
 
     def relay_packet(self, circuit_id, message_type, packet):
@@ -634,13 +628,12 @@ class TunnelCommunity(Community):
                                                                          identifier, introduction, extra_bytes)
 
     def on_cell(self, source_address, data):
-        _, payload = self._ez_unpack_noauth(CellPayload, data)
+        payload = self._ez_unpack_noauth(CellPayload, data, global_time=False)
 
         message_type = [k for k, v in message_to_payload.iteritems() if v[0] == payload.message_type][0]
         circuit_id = payload.circuit_id
         self.logger.debug("Got %s (%d) from %s, I am %s", message_type,
-                                 payload.circuit_id, source_address,
-                                 self.my_peer)
+                          payload.circuit_id, source_address, self.my_peer)
 
         if self.is_relay(circuit_id):
             if not self.relay_packet(circuit_id, message_type, data):
@@ -717,7 +710,7 @@ class TunnelCommunity(Community):
                        CreatedPayload(circuit_id, key, auth, keys_list_enc))
 
     def on_create(self, source_address, data, _):
-        _, payload = self._ez_unpack_noauth(CreatePayload, data)
+        payload = self._ez_unpack_noauth(CreatePayload, data, global_time=False)
 
         if self.request_cache.has(u"anon-created", payload.circuit_id):
             self.logger.warning("Already have a request for this circuit_id")
@@ -732,7 +725,7 @@ class TunnelCommunity(Community):
         self.should_join_circuit(payload, source_address).addCallback(determined_to_join)
 
     def on_created(self, source_address, data, _):
-        _, payload = self._ez_unpack_noauth(CreatedPayload, data)
+        payload = self._ez_unpack_noauth(CreatedPayload, data, global_time=False)
 
         if not self.request_cache.has(u"anon-circuit", payload.circuit_id):
             self.logger.warning("Invalid extended response circuit_id")
@@ -769,7 +762,7 @@ class TunnelCommunity(Community):
             self._ours_on_created_extended(circuit, payload)
 
     def on_extend(self, source_address, data, _):
-        _, payload = self._ez_unpack_noauth(ExtendPayload, data)
+        payload = self._ez_unpack_noauth(ExtendPayload, data, global_time=False)
 
         if not self.request_cache.has(u"anon-created", payload.circuit_id):
             self.logger.warning("Invalid extend request circuit_id")
@@ -817,7 +810,7 @@ class TunnelCommunity(Community):
                        CreatePayload(to_circuit_id, self.my_peer.public_key.key_to_bin(), payload.key))
 
     def on_extended(self, source_address, data, _):
-        _, payload = self._ez_unpack_noauth(ExtendedPayload, data)
+        payload = self._ez_unpack_noauth(ExtendedPayload, data, global_time=False)
 
         if not self.request_cache.has(u"anon-circuit", payload.circuit_id):
             self.logger.warning("Invalid extended response circuit_id")
@@ -838,7 +831,7 @@ class TunnelCommunity(Community):
         # If its our circuit, the messenger is the candidate assigned to that circuit and the DATA's destination
         # is set to the zero-address then the packet is from the outside world and addressed to us from.
 
-        _, payload = self._ez_unpack_noauth(DataPayload, packet)
+        payload = self._ez_unpack_noauth(DataPayload, packet, global_time=False)
         circuit_id = payload.circuit_id
         destination = payload.dest_address
         origin = payload.org_address
@@ -867,7 +860,7 @@ class TunnelCommunity(Community):
                 self.logger.warning("Cannot exit data, destination is 0.0.0.0:0")
 
     def on_ping(self, source_address, data, _):
-        _, payload = self._ez_unpack_noauth(PingPayload, data)
+        payload = self._ez_unpack_noauth(PingPayload, data, global_time=False)
 
         if not (payload.circuit_id in self.circuits
                 or payload.circuit_id in self.exit_sockets
@@ -878,7 +871,7 @@ class TunnelCommunity(Community):
         self.logger.debug("Got ping from %s", source_address)
 
     def on_pong(self, source_address, data, _):
-        _, payload = self._ez_unpack_noauth(PongPayload, data)
+        payload = self._ez_unpack_noauth(PongPayload, data, global_time=False)
 
         if not self.request_cache.has(u"ping", payload.identifier):
             self.logger.warning("Invalid ping circuit_id")
@@ -896,22 +889,21 @@ class TunnelCommunity(Community):
                                                                  u"ping",
                                                                  PingPayload(circuit.circuit_id, cache.number)))
 
-    def on_destroy(self, source_address, data):
-        _, _, payload = self._ez_unpack_auth(DestroyPayload, data)
-
+    @lazy_wrapper(DestroyPayload)
+    def on_destroy(self, peer, payload):
+        source_address = peer.address
         circuit_id = payload.circuit_id
-        cand_sock_addr = source_address
         self.logger.info("Got destroy from %s for circuit %s", source_address, circuit_id)
 
         if circuit_id in self.relay_from_to:
-            self.remove_relay(circuit_id, "Got destroy", destroy=True, got_destroy_from=(circuit_id, cand_sock_addr))
+            self.remove_relay(circuit_id, "Got destroy", destroy=True, got_destroy_from=(circuit_id, source_address))
 
-        elif circuit_id in self.exit_sockets and source_address == self.exit_sockets[payload.circuit_id].sock_addr:
-            self.logger.info("Got an exit socket %s %s", circuit_id, cand_sock_addr)
+        elif circuit_id in self.exit_sockets and source_address == self.exit_sockets[circuit_id].sock_addr:
+            self.logger.info("Got an exit socket %s %s", circuit_id, source_address)
             self.remove_exit_socket(circuit_id, "Got destroy")
 
-        elif circuit_id in self.circuits and source_address == self.circuits[payload.circuit_id].sock_addr:
-            self.logger.info("Got a circuit %s %s", circuit_id, cand_sock_addr)
+        elif circuit_id in self.circuits and source_address == self.circuits[circuit_id].sock_addr:
+            self.logger.info("Got a circuit %s %s", circuit_id, source_address)
             self.remove_circuit(circuit_id, "Got destroy")
 
         else:
