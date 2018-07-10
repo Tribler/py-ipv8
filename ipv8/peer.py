@@ -1,5 +1,4 @@
-from socket import inet_aton
-from struct import pack, unpack
+from struct import unpack
 from time import time
 
 from .keyvault.crypto import ECCrypto
@@ -44,12 +43,8 @@ class Peer(object):
         return self._lamport_timestamp
 
     def __hash__(self):
-        address = inet_aton(self.address[0]) + pack(">I", self.address[1])
-        mid = self.mid[0:8]
-        out = ""
-        for i in range(8):
-            out += chr(ord(mid[i]) ^ ord(address[i]))
-        return unpack(">Q", out)[0]
+        as_long, = unpack(">Q", self.mid[:8])
+        return as_long
 
     def __eq__(self, other):
         if not isinstance(other, Peer):
