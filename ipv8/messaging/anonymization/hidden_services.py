@@ -98,7 +98,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
             post = destination
         else:
             pre = destination
-        self.send_data([circuit.sock_addr], circuit.circuit_id, pre, post, packet)
+        self.send_data([circuit.peer], circuit.circuit_id, pre, post, packet)
 
     def remove_circuit(self, circuit_id, additional_info='', remove_now=False, destroy=False):
         destroy_deferred = super(HiddenTunnelCommunity, self)\
@@ -129,7 +129,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         self.logger.info("Do DHT request: send dht request")
         self.last_dht_lookup[lookup_info_hash] = time.time()
         cache = self.request_cache.add(DHTRequestCache(self, circuit, lookup_info_hash))
-        self.send_cell([circuit.sock_addr],
+        self.send_cell([circuit.peer],
                        u"dht-request",
                        DHTRequestPayload(circuit.circuit_id, cache.number, lookup_info_hash))
 
@@ -339,7 +339,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         circuit.hs_session_keys = session_keys
 
         cache = self.request_cache.add(LinkRequestCache(self, circuit, info_hash))
-        self.send_cell([circuit.sock_addr], u'link-e2e', LinkE2EPayload(circuit.circuit_id, cache.number, cookie))
+        self.send_cell([circuit.peer], u'link-e2e', LinkE2EPayload(circuit.circuit_id, cache.number, cookie))
 
     def on_link_e2e(self, source_address, data, circuit_id):
         payload = self._ez_unpack_noauth(LinkE2EPayload, data, global_time=False)
@@ -361,10 +361,8 @@ class HiddenTunnelCommunity(TunnelCommunity):
         self.remove_exit_socket(circuit.circuit_id, 'linking circuit')
         self.remove_exit_socket(relay_circuit.circuit_id, 'linking circuit')
 
-        self.relay_from_to[circuit.circuit_id] = RelayRoute(relay_circuit.circuit_id, relay_circuit.sock_addr, True,
-                                                            mid=relay_circuit.mid)
-        self.relay_from_to[relay_circuit.circuit_id] = RelayRoute(circuit.circuit_id, circuit.sock_addr, True,
-                                                                  mid=circuit.mid)
+        self.relay_from_to[circuit.circuit_id] = RelayRoute(relay_circuit.circuit_id, relay_circuit.peer)
+        self.relay_from_to[relay_circuit.circuit_id] = RelayRoute(circuit.circuit_id, circuit.peer)
 
         self.send_cell([source_address], u"linked-e2e", LinkedE2EPayload(circuit.circuit_id, payload.identifier))
 
@@ -398,7 +396,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
             self.my_intro_points[circuit_id].append((info_hash))
 
             cache = self.request_cache.add(IPRequestCache(self, circuit))
-            self.send_cell([circuit.sock_addr],
+            self.send_cell([circuit.peer],
                            u'establish-intro', EstablishIntroPayload(circuit_id, cache.number, info_hash))
             self.logger.info("Established introduction tunnel %s", circuit_id)
 
@@ -438,7 +436,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
 
             cache = self.request_cache.add(RPRequestCache(self, rp))
 
-            self.send_cell([circuit.sock_addr],
+            self.send_cell([circuit.peer],
                            u'establish-rendezvous', EstablishRendezvousPayload(circuit_id, cache.number, rp.cookie))
 
         # create a new circuit to be used for transferring data
@@ -454,8 +452,8 @@ class HiddenTunnelCommunity(TunnelCommunity):
         circuit = self.exit_sockets[circuit_id]
         self.rendezvous_point_for[payload.cookie] = circuit
 
-        self.send_cell([source_address], u"rendezvous-established", RendezvousEstablishedPayload(
-            circuit.circuit_id, payload.identifier, self.my_estimated_wan))
+        self.send_cell([source_address], u"rendezvous-established",
+                       RendezvousEstablishedPayload(circuit.circuit_id, payload.identifier, self.my_estimated_wan))
 
     def on_rendezvous_established(self, source_address, data, circuit_id):
         payload = self._ez_unpack_noauth(RendezvousEstablishedPayload, data, global_time=False)

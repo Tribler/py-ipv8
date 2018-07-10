@@ -85,23 +85,21 @@ class DataChecker(object):
 
 class Tunnel(object):
 
-    def __init__(self, sock_addr, circuit_id, overlay, mid):
-        self.sock_addr = sock_addr
+    def __init__(self, circuit_id, peer):
         self.circuit_id = circuit_id
-        self.overlay = overlay
+        self.peer = peer
         self.creation_time = time.time()
         self.last_incoming = time.time()
         self.bytes_up = self.bytes_down = 0
-        self.mid = mid
         self.logger = logging.getLogger(self.__class__.__name__)
 
 
 class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
 
-    def __init__(self, circuit_id, community, sock_addr, mid):
-        Tunnel.__init__(self, sock_addr=sock_addr, overlay=community, circuit_id=circuit_id, mid=mid)
+    def __init__(self, circuit_id, peer, overlay):
+        Tunnel.__init__(self, circuit_id, peer)
         TaskManager.__init__(self)
-
+        self.overlay = overlay
         self.port = None
         self.ips = defaultdict(int)
 
@@ -151,7 +149,7 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
 
     def tunnel_data(self, source, data):
         self.logger.debug("Tunnel data to origin %s for circuit %s", ('0.0.0.0', 0), self.circuit_id)
-        self.overlay.send_data([self.sock_addr], self.circuit_id, ('0.0.0.0', 0), source, data)
+        self.overlay.send_data([self.peer], self.circuit_id, ('0.0.0.0', 0), source, data)
 
     @inlineCallbacks
     def close(self):
@@ -191,19 +189,19 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
 
 class Circuit(Tunnel):
 
-    def __init__(self, circuit_id, goal_hops=0, first_hop=None, proxy=None,
-                 ctype=CIRCUIT_TYPE_DATA, callback=None, required_exit=None,
-                 mid=None, info_hash=None):
-        super(Circuit, self).__init__(first_hop, circuit_id, proxy, mid)
-        self._broken = False
-        self._hops = []
-        self.unverified_hop = None
+    def __init__(self, circuit_id, peer, goal_hops=0, ctype=CIRCUIT_TYPE_DATA,
+                 callback=None, required_exit=None, info_hash=None):
+        super(Circuit, self).__init__(circuit_id, peer)
         self.goal_hops = goal_hops
         self.ctype = ctype
         self.callback = callback
         self.required_exit = required_exit
-        self.hs_session_keys = None
         self.info_hash = info_hash
+
+        self._broken = False
+        self._hops = []
+        self.unverified_hop = None
+        self.hs_session_keys = None
 
     @property
     def hops(self):
@@ -307,13 +305,13 @@ class RelayRoute(Tunnel):
     it is online or not
     """
 
-    def __init__(self, circuit_id, sock_addr, rendezvous_relay=False, mid=None):
+    def __init__(self, circuit_id, peer, rendezvous_relay=False):
         """
         @type sock_addr: (str, int)
         @type circuit_id: int
         @return:
         """
-        super(RelayRoute, self).__init__(sock_addr, circuit_id, None, mid)
+        super(RelayRoute, self).__init__(circuit_id, peer)
         self.rendezvous_relay = rendezvous_relay
 
 

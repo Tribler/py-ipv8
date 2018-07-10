@@ -287,7 +287,7 @@ class TunnelCommunity(Community):
             first_hop = required_exit
         else:
             self.logger.info("Look for a first hop that is not an exit node and is not used before")
-            first_hops = set([c.sock_addr for c in self.circuits.values()])
+            first_hops = set([c.peer.address for c in self.circuits.values()])
             first_hop = next((c for c in self.compatible_candidates
                               if c.address not in first_hops and c.address != required_exit.address), None)
 
@@ -297,8 +297,7 @@ class TunnelCommunity(Community):
 
         # Finally, construct the Circuit object and send the CREATE message
         circuit_id = self._generate_circuit_id(first_hop.address)
-        circuit = Circuit(circuit_id, goal_hops, first_hop.address, self, ctype, callback,
-                          required_exit, first_hop.mid, info_hash)
+        circuit = Circuit(circuit_id, first_hop, goal_hops, ctype, callback, required_exit, info_hash)
 
         self.request_cache.add(CircuitRequestCache(self, circuit))
 
@@ -306,8 +305,8 @@ class TunnelCommunity(Community):
         circuit.unverified_hop.address = first_hop.address
         circuit.unverified_hop.dh_secret, circuit.unverified_hop.dh_first_part = self.crypto.generate_diffie_secret()
 
-        self.logger.info("Creating circuit %d of %d hops. First hop: %s:%d", circuit_id, circuit.goal_hops,
-                           first_hop.address[0], first_hop.address[1])
+        self.logger.info("Creating circuit %d of %d hops. First hop: %s:%d",
+                         circuit_id, circuit.goal_hops, *first_hop.address)
 
         self.circuits[circuit_id] = circuit
 
@@ -417,13 +416,13 @@ class TunnelCommunity(Community):
                                reactor.callLater(self.settings.remove_tunnel_delay, remove_exit_socket_info))
 
     def destroy_circuit(self, circuit, reason=0):
-        sock_addr = circuit.sock_addr
+        sock_addr = circuit.peer.address
         self.send_destroy(sock_addr, circuit.circuit_id, reason)
         self.logger.info("destroy_circuit %s %s", circuit.circuit_id, sock_addr)
 
     def destroy_relay(self, circuit_ids, reason=0, got_destroy_from=None):
         relays = {cid_from: (self.relay_from_to[cid_from].circuit_id,
-                             self.relay_from_to[cid_from].sock_addr) for cid_from in circuit_ids
+                             self.relay_from_to[cid_from].peer.address) for cid_from in circuit_ids
                   if cid_from in self.relay_from_to}
 
         if got_destroy_from and got_destroy_from not in relays.values():
@@ -438,7 +437,7 @@ class TunnelCommunity(Community):
                 self.logger.info("Fw destroy to %s %s", cid_to, sock_addr)
 
     def destroy_exit_socket(self, exit_socket, reason=0):
-        sock_addr = exit_socket.sock_addr
+        sock_addr = exit_socket.peer.address
         self.send_destroy(sock_addr, exit_socket.circuit_id, reason)
         self.logger.info("Destroy_exit_socket %s %s", exit_socket.circuit_id, sock_addr)
 
@@ -521,7 +520,7 @@ class TunnelCommunity(Community):
             return False
 
         packet = swap_circuit_id(packet, message_type, circuit_id, next_relay.circuit_id)
-        self.increase_bytes_sent(next_relay, self.send_packet([next_relay.sock_addr], message_type, packet))
+        self.increase_bytes_sent(next_relay, self.send_packet([next_relay.peer], message_type, packet))
         return True
 
     def _ours_on_created_extended(self, circuit, payload):
@@ -580,7 +579,7 @@ class TunnelCommunity(Community):
                 self.logger.info("Extending circuit %d with %s", circuit.circuit_id,
                                  extend_hop_public_bin.encode('hex'))
 
-                self.increase_bytes_sent(circuit, self.send_cell([circuit.sock_addr],
+                self.increase_bytes_sent(circuit, self.send_cell([circuit.peer],
                                                                  u"extend",
                                                                  ExtendPayload(circuit.circuit_id,
                                                                                circuit.unverified_hop.node_public_key,
@@ -639,7 +638,7 @@ class TunnelCommunity(Community):
             if not self.relay_packet(circuit_id, message_type, data):
                 circuit = self.circuits.get(circuit_id, None)
                 if circuit:
-                    self.send_destroy(circuit.sock_addr, circuit_id, 0)
+                    self.send_destroy(circuit.peer, circuit_id, 0)
 
         else:
             circuit = self.circuits.get(circuit_id, None)
@@ -653,7 +652,7 @@ class TunnelCommunity(Community):
                 except CryptoException, e:
                     self.logger.warning(str(e))
                     if circuit:
-                        self.send_destroy(circuit.sock_addr, circuit_id, 0)
+                        self.send_destroy(circuit.peer, circuit_id, 0)
                     return
 
             self.on_packet_from_circuit(source_address, convert_from_cell(data), circuit_id)
@@ -702,7 +701,7 @@ class TunnelCommunity(Community):
 
         peer = Peer(create_payload.node_public_key, previous_node_address)
         self.request_cache.add(CreatedRequestCache(self, circuit_id, peer, peers_keys))
-        self.exit_sockets[circuit_id] = TunnelExitSocket(circuit_id, self, previous_node_address, peer.mid)
+        self.exit_sockets[circuit_id] = TunnelExitSocket(circuit_id, peer, self)
 
         keys_list_enc = self.crypto.encrypt_str(encode(peers_keys.keys()),
                                                 *self.get_session_keys(self.relay_session_keys[circuit_id], EXIT_NODE))
@@ -741,22 +740,19 @@ class TunnelCommunity(Community):
             self.logger.info("Got CREATED message forward as EXTENDED to origin.")
 
             self.relay_from_to[request.to_circuit_id] = forwarding_relay = RelayRoute(request.from_circuit_id,
-                                                                                      request.candidate_sock_addr,
-                                                                                      mid=request.candidate_mid)
+                                                                                      request.peer)
 
-            self.relay_from_to[request.from_circuit_id] = RelayRoute(request.to_circuit_id,
-                                                                     request.to_candidate_sock_addr,
-                                                                     mid=request.to_candidate_mid)
+            self.relay_from_to[request.from_circuit_id] = RelayRoute(request.to_circuit_id, request.to_peer)
 
             self.relay_session_keys[request.to_circuit_id] = self.relay_session_keys[request.from_circuit_id]
 
             self.directions[request.from_circuit_id] = EXIT_NODE
             self.remove_exit_socket(request.from_circuit_id)
 
-            self.send_cell([forwarding_relay.sock_addr], u"extended", ExtendedPayload(forwarding_relay.circuit_id,
-                                                                                      payload.key,
-                                                                                      payload.auth,
-                                                                                      payload.candidate_list))
+            self.send_cell([forwarding_relay.peer], u"extended", ExtendedPayload(forwarding_relay.circuit_id,
+                                                                                 payload.key,
+                                                                                 payload.auth,
+                                                                                 payload.candidate_list))
         else:
             circuit = self.circuits[circuit_id]
             self._ours_on_created_extended(circuit, payload)
@@ -781,21 +777,18 @@ class TunnelCommunity(Community):
             if not extend_candidate:
                 extend_candidate = Peer(payload.node_public_key, payload.node_addr)
                 self.network.add_verified_peer(extend_candidate)
-        extend_candidate_mid = extend_candidate.mid
 
         self.logger.info("On_extend send CREATE for circuit (%s, %d) to %s:%d", source_address,
-                         circuit_id,
-                         extend_candidate.address[0],
-                         extend_candidate.address[1])
+                         circuit_id, *extend_candidate.address)
 
         to_circuit_id = self._generate_circuit_id(extend_candidate.address)
 
         if circuit_id in self.circuits:
-            candidate_mid = self.circuits[circuit_id].mid
+            candidate = self.circuits[circuit_id].peer
         elif circuit_id in self.exit_sockets:
-            candidate_mid = self.exit_sockets[circuit_id].mid
+            candidate = self.exit_sockets[circuit_id].peer
         elif circuit_id in self.relay_from_to:
-            candidate_mid = self.relay_from_to[circuit_id].mid
+            candidate = self.relay_from_to[circuit_id].peer
         else:
             self.logger.error("Got extend for unknown source circuit_id")
             return
@@ -803,8 +796,7 @@ class TunnelCommunity(Community):
         self.logger.info("Extending circuit, got candidate with IP %s:%d from cache", *extend_candidate.address)
 
         self.request_cache.add(ExtendRequestCache(self, to_circuit_id, circuit_id,
-                                                  source_address, candidate_mid,
-                                                  extend_candidate.address, extend_candidate_mid))
+                                                  candidate, extend_candidate))
 
         self.send_cell([extend_candidate], u"create",
                        CreatePayload(to_circuit_id, self.my_peer.public_key.key_to_bin(), payload.key))
@@ -840,7 +832,7 @@ class TunnelCommunity(Community):
         self.logger.debug("Got data (%d) from %s", circuit_id, sock_addr)
 
         circuit = self.circuits.get(circuit_id, None)
-        if circuit and origin and sock_addr == circuit.sock_addr:
+        if circuit and origin and sock_addr == circuit.peer.address:
             circuit.beat_heart()
             self.increase_bytes_received(circuit, len(data))
 
@@ -885,7 +877,7 @@ class TunnelCommunity(Community):
         for circuit in self.circuits.values():
             if circuit.state == CIRCUIT_STATE_READY and circuit.ctype != CIRCUIT_TYPE_RENDEZVOUS:
                 cache = self.request_cache.add(PingRequestCache(self, circuit))
-                self.increase_bytes_sent(circuit, self.send_cell([circuit.sock_addr],
+                self.increase_bytes_sent(circuit, self.send_cell([circuit.peer],
                                                                  u"ping",
                                                                  PingPayload(circuit.circuit_id, cache.number)))
 
@@ -898,11 +890,11 @@ class TunnelCommunity(Community):
         if circuit_id in self.relay_from_to:
             self.remove_relay(circuit_id, "Got destroy", destroy=True, got_destroy_from=(circuit_id, source_address))
 
-        elif circuit_id in self.exit_sockets and source_address == self.exit_sockets[circuit_id].sock_addr:
+        elif circuit_id in self.exit_sockets and source_address == self.exit_sockets[circuit_id].peer.address:
             self.logger.info("Got an exit socket %s %s", circuit_id, source_address)
             self.remove_exit_socket(circuit_id, "Got destroy")
 
-        elif circuit_id in self.circuits and source_address == self.circuits[circuit_id].sock_addr:
+        elif circuit_id in self.circuits and source_address == self.circuits[circuit_id].peer.address:
             self.logger.info("Got a circuit %s %s", circuit_id, source_address)
             self.remove_circuit(circuit_id, "Got destroy")
 
@@ -916,10 +908,11 @@ class TunnelCommunity(Community):
         elif circuit_id in self.exit_sockets:
             if not self.exit_sockets[circuit_id].enabled:
                 # Check that we got the data from the correct IP.
-                if sock_addr[0] == self.exit_sockets[circuit_id].sock_addr[0]:
+                if sock_addr[0] == self.exit_sockets[circuit_id].peer.address[0]:
                     self.exit_sockets[circuit_id].enable()
                 else:
-                    self.logger.error("Dropping outbound relayed packet: IP's are %s != %s", str(sock_addr), str(self.exit_sockets[circuit_id].sock_addr))
+                    self.logger.error("Dropping outbound relayed packet: IP's are %s != %s",
+                                      str(sock_addr), str(self.exit_sockets[circuit_id].peer.address))
             try:
                 self.exit_sockets[circuit_id].sendto(data, destination)
             except:

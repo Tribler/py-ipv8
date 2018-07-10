@@ -22,15 +22,13 @@ class CircuitRequestCache(NumberCache):
 
 
 class ExtendRequestCache(NumberCache):
-    def __init__(self, community, to_circuit_id, from_circuit_id, candidate_sock_addr, candidate_mid, to_candidate_sock_addr, to_candidate_mid):
+    def __init__(self, community, to_circuit_id, from_circuit_id, peer, to_peer):
         super(ExtendRequestCache, self).__init__(community.request_cache, u"anon-circuit", to_circuit_id)
         self.community = community
         self.to_circuit_id = to_circuit_id
         self.from_circuit_id = from_circuit_id
-        self.candidate_sock_addr = candidate_sock_addr
-        self.candidate_mid = candidate_mid
-        self.to_candidate_sock_addr = to_candidate_sock_addr
-        self.to_candidate_mid = to_candidate_mid
+        self.peer = peer
+        self.to_peer = to_peer
         self.should_forward = True
 
     def on_timeout(self):
