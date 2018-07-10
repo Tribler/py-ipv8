@@ -10,13 +10,27 @@ from twisted.web import server
 from ipv8.REST.rest_manager import RESTRequest
 from ipv8.REST.root_endpoint import RootEndpoint
 from ipv8.configuration import get_default_configuration
+from ipv8.keyvault.crypto import ECCrypto
+from ipv8.peer import Peer
 from ipv8.taskmanager import TaskManager
 from ipv8.test.REST.rtest.peer_communication import GetStyleRequests, PostStyleRequests
 from ipv8.test.REST.rtest.rest_peer_communication import HTTPGetRequester, HTTPPostRequester
 from ipv8_service import IPv8
 
+COMMUNITY_TO_MASTER_PEER = {
+    'AttestationCommunity': ECCrypto().generate_key(u'low'),
+    'DiscoveryCommunity':  ECCrypto().generate_key(u'low'),
+    'HiddenTunnelCommunity':  ECCrypto().generate_key(u'low'),
+    'IdentityCommunity':  ECCrypto().generate_key(u'low'),
+    'TrustChainCommunity':  ECCrypto().generate_key(u'low'),
+    'TunnelCommunity':  ECCrypto().generate_key(u'low')
+}
+
 
 class TestPeer(object):
+    """
+    Class for the purpose of testing the REST API
+    """
 
     def __init__(self,
                  path,
@@ -66,6 +80,11 @@ class TestPeer(object):
 
         self._ipv8 = IPv8(self._configuration)
         os.chdir(os.path.dirname(__file__))
+
+        # Change the master_peers of the IPv8 object's overlays, in order to avoid conflict with the live networks
+        for idx, overlay in enumerate(self._ipv8.overlays):
+            self._ipv8.overlays[idx].master_peer = Peer(COMMUNITY_TO_MASTER_PEER[type(overlay).__name__])
+
         self._rest_manager = TestPeer.RestAPITestWrapper(self._ipv8, self._port, self._interface)
         self._rest_manager.start()
         self._logger.info("Peer started up.")
@@ -168,21 +187,6 @@ class TestPeer(object):
                 'url': 'http://{0}:{1}/attestation'.format(self._interface, self._port)
             }
 
-    def get_attestation_by_hash(self, attestation_hash):
-        """
-        Retrieve an attestation from the DB by its hash.
-        :param attestation_hash: the hash of the attestation
-        :return: the attestation, if it was found
-        """
-        return self._ipv8.overlays[0].database.get_attestation_by_hash(attestation_hash)
-
-    def get_all_attestations(self):
-        """
-        Retrieve all attestations from the DB.
-        :return: all the stored attestations.
-        """
-        return self._ipv8.overlays[0].database.get_all()
-
 
 class InteractiveTestPeer(TestPeer, threading.Thread):
     """
@@ -230,28 +234,39 @@ class InteractiveTestPeer(TestPeer, threading.Thread):
         self._logger.info("Successfully acquired request generators.")
 
     @inlineCallbacks
-    def wait_for_peers(self, dict_param):
+    def wait_for_peers(self, dict_param, excluded_peer_mids=None):
         """
         Wait until this peer receives a non-empty list of fellow peers in the network
 
         :param dict_param: the required parameters by the GET request generator for the peers request type
+        :param excluded_peer_mids: A list of peer mids which should not be taken into consideration peers
         :return: a list of currently known peers in the network
         """
-        self._logger.info("Attempting to acquire a list of peers...")
+        assert isinstance(excluded_peer_mids, (list, set)) or not excluded_peer_mids, "excluded_peer_mids " \
+                                                                                      "must be a list or set or None"
+
+        # Make sure excluded_peer_mids is a set
+        if not excluded_peer_mids:
+            excluded_peer_mids = set()
+        elif isinstance(excluded_peer_mids, list):
+            excluded_peer_mids = set(excluded_peer_mids)
+
+        import ast
+
         peer_list = yield self._get_style_requests.make_peers(dict_param)
+        peer_list = set(ast.literal_eval(peer_list))
 
         # Keep iterating until peer_list is non-empty
-        while peer_list == "[]":
-            self._logger.info("Could not acquire a list of peers. Will wait 4 seconds and retry.")
+        while not peer_list - excluded_peer_mids:
             # Wait for 4 seconds before trying again
             yield deferLater(reactor, 4, lambda: None)
 
             # Forward and wait for the response
             peer_list = yield self._get_style_requests.make_peers(dict_param)
+            peer_list = set(ast.literal_eval(peer_list))
 
         # Return the peer list
-        self._logger.info("Have found a non-empty list of peers. Returning it.")
-        returnValue(peer_list)
+        returnValue(list(peer_list - excluded_peer_mids))
 
     @inlineCallbacks
     def wait_for_attestation_request(self, dict_param):

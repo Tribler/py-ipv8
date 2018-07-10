@@ -2,7 +2,9 @@ import json
 from base64 import b64encode
 from urllib import quote
 
+from twisted.internet import reactor
 from twisted.internet.defer import inlineCallbacks
+from twisted.internet.task import deferLater
 
 from ipv8.test.REST.rtest.test_rest_api_peer import InteractiveTestPeer
 
@@ -46,6 +48,9 @@ class AndroidTestPeer(InteractiveTestPeer):
 
     @inlineCallbacks
     def run(self):
+        # Wait for a short period of time
+        yield deferLater(reactor, 1, lambda: None)
+
         peer_list = yield self.wait_for_peers(self._param_dict)
 
         import ast

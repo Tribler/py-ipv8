@@ -22,6 +22,8 @@ class SingleServerSetup(unittest.TestCase):
     which implement specific test cases.
     """
 
+    excluded_peers = {'rZvL7BqYKKrnbdsWfRDk1DMTtG0='}
+
     def initialize(self,
                    path='test_env',
                    port=8086,
@@ -75,25 +77,37 @@ class SingleServerSetup(unittest.TestCase):
 class RequestTest(SingleServerSetup):
 
     @inlineCallbacks
-    def wait_for_peers(self, dict_param):
+    def wait_for_peers(self, dict_param, excluded_peer_mids=None):
         """
         Wait until this peer receives a non-empty list of fellow peers in the network
 
         :param dict_param: the required parameters by the GET request generator for the peers request type
+        :param excluded_peer_mids: A list of peer mids which should not be taken into consideration peers
         :return: a list of currently known peers in the network
         """
+        assert isinstance(excluded_peer_mids, (list, set)) or not excluded_peer_mids, "excluded_peer_mids " \
+                                                                                      "must be a list or set or None"
+
+        # Make sure excluded_peer_mids is a set
+        if not excluded_peer_mids:
+            excluded_peer_mids = set()
+        elif isinstance(excluded_peer_mids, list):
+            excluded_peer_mids = set(excluded_peer_mids)
+
         peer_list = yield self._get_style_requests.make_peers(dict_param)
+        peer_list = set(ast.literal_eval(peer_list))
 
         # Keep iterating until peer_list is non-empty
-        while peer_list == "[]":
+        while not peer_list - excluded_peer_mids:
             # Wait for 4 seconds before trying again
             yield deferLater(reactor, 4, lambda: None)
 
             # Forward and wait for the response
             peer_list = yield self._get_style_requests.make_peers(dict_param)
+            peer_list = set(ast.literal_eval(peer_list))
 
         # Return the peer list
-        returnValue(peer_list)
+        returnValue(list(peer_list - excluded_peer_mids))
 
     @inlineCallbacks
     def wait_for_outstanding_requests(self, dict_param):
@@ -186,14 +200,14 @@ class RequestTest(SingleServerSetup):
                 peer.join()
             peer.stop()
 
-    @twisted_wrapper(30)
+    @twisted_wrapper(60)
     def test_get_peers_request(self):
         """
         Test the GET: peers request type
         :return: None
         """
         param_dict = {
-            'port': 8086,
+            'port': self._master_peer.port,
             'interface': '127.0.0.1',
             'endpoint': 'attestation'
         }
@@ -203,14 +217,13 @@ class RequestTest(SingleServerSetup):
         other_peer_mids = [b64encode(x.mid) for x in other_peer.get_keys().values()]
 
         # result = yield self._get_style_requests.make_peers(param_dict)
-        result = yield self.wait_for_peers(param_dict)
-        result = ast.literal_eval(result)
+        result = yield self.wait_for_peers(param_dict, self.excluded_peers)
 
         self.assertTrue(any(x in other_peer_mids for x in result), "Could not find the second peer.")
 
         RequestTest.gracefully_terminate_peers(other_peer)
 
-    @twisted_wrapper(30)
+    @twisted_wrapper(60)
     def test_get_outstanding_requests(self):
         """
         Test the GET: outstanding request type
@@ -235,7 +248,7 @@ class RequestTest(SingleServerSetup):
 
         RequestTest.gracefully_terminate_peers(other_peer)
 
-    @twisted_wrapper(30)
+    @twisted_wrapper(60)
     def test_get_verification_output(self):
         """
         Test the GET: verification output request type
@@ -302,7 +315,7 @@ class RequestTest(SingleServerSetup):
                          "The response was not as expected. This would suggest that something went wrong "
                          "with the attributes request.")
 
-    @twisted_wrapper(30)
+    @twisted_wrapper(60)
     def test_get_attributes_alternative(self):
         """
         Test the GET: attributes request type
@@ -334,7 +347,7 @@ class RequestTest(SingleServerSetup):
 
         RequestTest.gracefully_terminate_peers(other_peer)
 
-    @twisted_wrapper(30)
+    @twisted_wrapper(60)
     def test_get_drop_identity(self):
         """
         Test the GET: drop identity request type
@@ -381,7 +394,7 @@ class RequestTest(SingleServerSetup):
 
         RequestTest.gracefully_terminate_peers(other_peer)
 
-    @twisted_wrapper(30)
+    @twisted_wrapper(60)
     def test_post_attestation_request(self):
         """
         Test the POST: request request type
@@ -410,7 +423,7 @@ class RequestTest(SingleServerSetup):
 
         RequestTest.gracefully_terminate_peers(other_peer)
 
-    @twisted_wrapper(30)
+    @twisted_wrapper(60)
     def test_post_attest(self):
         """
         Test the POST: attest request type
@@ -446,7 +459,7 @@ class RequestTest(SingleServerSetup):
 
         RequestTest.gracefully_terminate_peers(other_peer)
 
-    @twisted_wrapper(30)
+    @twisted_wrapper(60)
     def test_post_verify(self):
         """
         Test the POST: verify request type
