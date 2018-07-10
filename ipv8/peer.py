@@ -21,6 +21,8 @@ class Peer(object):
             self.key = ECCrypto().key_from_public_bin(key)
         else:
             self.key = key
+        self.mid = self.key.key_to_hash()
+        self.public_key = self.key.pub()
         self.address = address
         self.last_response = 0 if intro else time()
         self._lamport_timestamp = 0
@@ -40,14 +42,6 @@ class Peer(object):
 
     def get_lamport_timestamp(self):
         return self._lamport_timestamp
-
-    @property
-    def mid(self):
-        return self.key.key_to_hash()
-
-    @property
-    def public_key(self):
-        return self.key.pub()
 
     def __hash__(self):
         address = inet_aton(self.address[0]) + pack(">I", self.address[1])
