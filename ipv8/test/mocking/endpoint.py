@@ -46,10 +46,17 @@ class MockEndpoint(Endpoint):
         self._open = False
 
 
+class AddressTester(EndpointListener):
+
+    def on_packet(self, packet):
+        pass
+
+
 class AutoMockEndpoint(MockEndpoint):
 
     def __init__(self):
         super(AutoMockEndpoint, self).__init__(self._generate_unique_address(), self._generate_unique_address())
+        self._port = 0
 
     def _generate_address(self):
         b0 = random.randint(0, 255)
@@ -60,10 +67,18 @@ class AutoMockEndpoint(MockEndpoint):
 
         return ('%d.%d.%d.%d' % (b0, b1, b2, b3), port)
 
+    def _is_lan(self, address):
+        """
+        Avoid false positives for the actual machine's lan.
+        """
+        self._port = address[1]
+        address_tester = AddressTester(self)
+        return address_tester.address_is_lan(address[0])
+
     def _generate_unique_address(self):
         address = self._generate_address()
 
-        while address in internet:
+        while address in internet or self._is_lan(address):
             address = self._generate_address()
 
         return address
