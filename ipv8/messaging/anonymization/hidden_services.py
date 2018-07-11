@@ -13,7 +13,8 @@ from .community import TunnelCommunity, message_to_payload
 from ...messaging.deprecated.encoding import decode, encode
 from .payload import *
 from ...peer import Peer
-from .tunnel import CIRCUIT_ID_PORT, CIRCUIT_TYPE_IP, CIRCUIT_TYPE_RENDEZVOUS, CIRCUIT_TYPE_RP, EXIT_NODE, EXIT_NODE_SALT, Hop, RelayRoute, RendezvousPoint, TunnelExitSocket
+from .tunnel import CIRCUIT_ID_PORT, CIRCUIT_TYPE_IP, CIRCUIT_TYPE_RENDEZVOUS, CIRCUIT_TYPE_RP, EXIT_NODE, \
+                    EXIT_NODE_SALT, Hop, RelayRoute, RendezvousPoint, TunnelExitSocket
 
 
 class HiddenTunnelCommunity(TunnelCommunity):

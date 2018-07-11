@@ -105,10 +105,10 @@ class RoundRobin(object):
 class TunnelCommunity(Community):
 
     version = '\x02'
-    master_peer = Peer(("3081a7301006072a8648ce3d020106052b8104002703819200040140110760621b9d81a286f5500b90e7be5355" +
-                        "d88a545efc77f4326d0954182b40b3529da15ee51e9aa6d15497635d6c04131c6c70df32ba0bd82f1cdda45607" +
-                        "9cbfd7d0637250fd068ab36cde690ac2b7d03888c7af3653733035a56a2b832644fe386270abe66d229e8ec93d" +
-                        "7ee5fc51b35deb9a4fa7f097af79e715b0cecc1fb04b2ddd292137e690fc4a3c92e93e").decode("HEX"))
+    master_peer = Peer(("3081a7301006072a8648ce3d020106052b8104002703819200040733caf0902748547efc04be6a7e064384e193" +
+                        "9622b38cde42237eff06674e07f8c4dd364e207a8c3eee30cd5751bed76d7071e8af7b910a62ccf9fbbfde7eb7" +
+                        "24a8ebdb54b738e306744ad6b96ef4549f6335c4bac10799fbe63477d8fd9395e8439685de72fabf3efc32f6cb" +
+                        "28075fff6ad605891eaba161ecec2f9b65aab45e121defa47d098f16bad7dac6025687").decode("HEX"))
 
     def __init__(self, *args, **kwargs):
         self.settings = kwargs.pop('settings', TunnelSettings())
