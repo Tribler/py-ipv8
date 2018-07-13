@@ -137,7 +137,8 @@ class AttestationEndpoint(resource.Resource):
             mid_b64 = request.args['mid'][0]
             attribute_name = request.args['attribute_name'][0]
             attribute_value_b64 = request.args['attribute_value'][0]
-            self.attestation_requests[(mid_b64, attribute_name)][0].callback(b64decode(attribute_value_b64))
+            outstanding = self.attestation_requests.pop((mid_b64, attribute_name))
+            outstanding[0].callback(b64decode(attribute_value_b64))
             return ""
         if request.args['type'][0] == 'verify':
             mid_b64 = request.args['mid'][0]
