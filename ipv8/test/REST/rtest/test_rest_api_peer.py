@@ -1,6 +1,8 @@
 import logging
 import os
 import threading
+from ast import literal_eval
+from shutil import rmtree
 
 from twisted.internet import reactor
 from twisted.internet.defer import maybeDeferred, inlineCallbacks, returnValue
@@ -17,13 +19,13 @@ from ipv8.test.REST.rtest.peer_communication import GetStyleRequests, PostStyleR
 from ipv8.test.REST.rtest.rest_peer_communication import HTTPGetRequester, HTTPPostRequester
 from ipv8_service import IPv8
 
-COMMUNITY_TO_MASTER_PEER = {
-    'AttestationCommunity': ECCrypto().generate_key(u'low'),
-    'DiscoveryCommunity':  ECCrypto().generate_key(u'low'),
-    'HiddenTunnelCommunity':  ECCrypto().generate_key(u'low'),
-    'IdentityCommunity':  ECCrypto().generate_key(u'low'),
-    'TrustChainCommunity':  ECCrypto().generate_key(u'low'),
-    'TunnelCommunity':  ECCrypto().generate_key(u'low')
+COMMUNITY_TO_MASTER_PEER_KEY = {
+    'AttestationCommunity': ECCrypto().generate_key(u'high'),
+    'DiscoveryCommunity': ECCrypto().generate_key(u'high'),
+    'HiddenTunnelCommunity': ECCrypto().generate_key(u'high'),
+    'IdentityCommunity': ECCrypto().generate_key(u'high'),
+    'TrustChainCommunity': ECCrypto().generate_key(u'high'),
+    'TunnelCommunity': ECCrypto().generate_key(u'high')
 }
 
 
@@ -31,6 +33,14 @@ class TestPeer(object):
     """
     Class for the purpose of testing the REST API
     """
+
+    master_peer_att = Peer(("3052301006072a8648ce3d020106052b8104001a033e000400fde127289850e6e550d28a083"
+                            "c539e6a449b7131ef53cf90f2fc3f3243017c98631855c0d80e77939da29cfef70ecdb3cea7"
+                            "c37db7e18d275f715c").decode("HEX"))
+
+    master_peer_identity = Peer(("3052301006072a8648ce3d020106052b8104001a033e000400d1aaecf1acc0db3aecc0"
+                                 "efb07f66f815d1a4e0804c7aa233bf144ed9cd002e2579265ef30e0a4355460a50f12f"
+                                 "5a4a5ad5033095aec4f9111f5376").decode("HEX"))
 
     def __init__(self,
                  path,
@@ -83,11 +93,22 @@ class TestPeer(object):
 
         # Change the master_peers of the IPv8 object's overlays, in order to avoid conflict with the live networks
         for idx, overlay in enumerate(self._ipv8.overlays):
-            self._ipv8.overlays[idx].master_peer = Peer(COMMUNITY_TO_MASTER_PEER[type(overlay).__name__])
+            self._ipv8.overlays[idx].master_peer = Peer(COMMUNITY_TO_MASTER_PEER_KEY[type(overlay).__name__])
+            # if type(overlay).__name__ == "AttestationCommunity":
+            #     self._ipv8.overlays[idx].master_peer = self.master_peer_att
+            # else:
+            #     self._ipv8.overlays[idx].master_peer = self.master_peer_identity
 
         self._rest_manager = TestPeer.RestAPITestWrapper(self._ipv8, self._port, self._interface)
         self._rest_manager.start()
         self._logger.info("Peer started up.")
+
+    def print_master_peers(self):
+        from base64 import b64encode
+
+        for overlay in self._ipv8.overlays:
+            print b64encode(overlay.master_peer.mid), overlay.master_peer.public_key, overlay.master_peer.address, \
+                overlay.master_peer.key.pub().key_to_bin().encode("HEX")
 
     def stop(self):
         """
@@ -100,6 +121,12 @@ class TestPeer(object):
         self._rest_manager.shutdown_task_manager()
         self._rest_manager.stop()
 
+        print "Current dir", os.getcwd()
+        print self._path
+        if os.path.isdir(self._path):
+            print "Paths", os.listdir(self._path)
+            rmtree(self._path)
+
     @staticmethod
     def _create_working_directory(path):
         """
@@ -109,8 +136,7 @@ class TestPeer(object):
         :return: None
         """
         if os.path.isdir(path):
-            import shutil
-            shutil.rmtree(path)
+            rmtree(path)
         os.mkdir(path)
 
     def get_keys(self):
@@ -194,6 +220,8 @@ class InteractiveTestPeer(TestPeer, threading.Thread):
     implement the actual main logic of the peer in the run() method (from Thread).
     """
 
+    excluded_peers = {'rZvL7BqYKKrnbdsWfRDk1DMTtG0='}
+
     def __init__(self,
                  path,
                  port,
@@ -211,25 +239,17 @@ class InteractiveTestPeer(TestPeer, threading.Thread):
         :param get_style_requests: GET style request generator. Defaults to None
         :param post_style_requests: POST style request generator. Defaults to None
         """
+        assert get_style_requests is None or isinstance(get_style_requests, GetStyleRequests), \
+            "The get_style_requests parameter must be a subclass of GetStyleRequests"
+        assert post_style_requests is None or isinstance(post_style_requests, PostStyleRequests), \
+            "The get_style_requests parameter must be a subclass of GetStyleRequests"
+
         TestPeer.__init__(self, path, port, interface, configuration)
         threading.Thread.__init__(self)
 
         # Check to see if the user has provided request generators
-        if get_style_requests:
-            assert isinstance(get_style_requests, GetStyleRequests), "The get_style_requests parameter must be a " \
-                                                                     "subclass of GetStyleRequests"
-            self._get_style_requests = get_style_requests
-        else:
-            # If no get style request provided, default to the HTTP implementation
-            self._get_style_requests = HTTPGetRequester()
-
-        if post_style_requests:
-            assert isinstance(post_style_requests, PostStyleRequests), "The post_style_requests parameter must be a " \
-                                                                       "subclass of PostStyleRequests"
-            self._post_style_requests = post_style_requests
-        else:
-            # If no post style request provided, default to the HTTP implementation
-            self._post_style_requests = HTTPPostRequester()
+        self._get_style_requests = get_style_requests if get_style_requests is not None else HTTPGetRequester()
+        self._post_style_requests = post_style_requests if post_style_requests is not None else HTTPPostRequester()
 
         self._logger.info("Successfully acquired request generators.")
 
@@ -251,10 +271,8 @@ class InteractiveTestPeer(TestPeer, threading.Thread):
         elif isinstance(excluded_peer_mids, list):
             excluded_peer_mids = set(excluded_peer_mids)
 
-        import ast
-
         peer_list = yield self._get_style_requests.make_peers(dict_param)
-        peer_list = set(ast.literal_eval(peer_list))
+        peer_list = set(literal_eval(peer_list))
 
         # Keep iterating until peer_list is non-empty
         while not peer_list - excluded_peer_mids:
@@ -263,7 +281,8 @@ class InteractiveTestPeer(TestPeer, threading.Thread):
 
             # Forward and wait for the response
             peer_list = yield self._get_style_requests.make_peers(dict_param)
-            peer_list = set(ast.literal_eval(peer_list))
+            print "Other peer", peer_list
+            peer_list = set(literal_eval(peer_list))
 
         # Return the peer list
         returnValue(list(peer_list - excluded_peer_mids))
