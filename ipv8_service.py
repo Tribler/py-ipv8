@@ -20,6 +20,7 @@ from ipv8.peerdiscovery.churn import RandomChurn
 from ipv8.peerdiscovery.deprecated.discovery import DiscoveryCommunity
 from ipv8.peerdiscovery.discovery import EdgeWalk, RandomWalk
 from ipv8.peerdiscovery.network import Network
+from ipv8.dht.discovery import DHTDiscoveryCommunity
 
 
 _COMMUNITIES = {
@@ -28,7 +29,8 @@ _COMMUNITIES = {
     'HiddenTunnelCommunity': HiddenTunnelCommunity,
     'IdentityCommunity': IdentityCommunity,
     'TrustChainCommunity': TrustChainCommunity,
-    'TunnelCommunity': TunnelCommunity
+    'TunnelCommunity': TunnelCommunity,
+    'DHTDiscoveryCommunity': DHTDiscoveryCommunity
 }
 
 
