@@ -52,7 +52,6 @@ class AndroidTestPeer(InteractiveTestPeer):
         yield deferLater(reactor, 1, lambda: None)
 
         peer_list = yield self.wait_for_peers(self._param_dict, self.excluded_peers)
-        print "Other peer", peer_list
 
         for peer in peer_list:
             self._param_dict['mid'] = peer.replace('+', '%2B')

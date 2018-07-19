@@ -104,6 +104,11 @@ class TestPeer(object):
         self._logger.info("Peer started up.")
 
     def print_master_peers(self):
+        """
+        Print details on the master peers of each of this peer's overlays
+
+        :return: None
+        """
         from base64 import b64encode
 
         for overlay in self._ipv8.overlays:
@@ -133,7 +138,10 @@ class TestPeer(object):
             "peer_and_addresses must be  a list of tuple[Peer, tuple[String, Int]]"
 
         for peer, address in peer_and_addresses:
-            self.add_and_verify_peer(peer, address) if address is not None else self.add_and_verify_peer(peer)
+            if address is not None:
+                self.add_and_verify_peer(peer, address)
+            else:
+                self.add_and_verify_peer(peer)
 
     def add_and_verify_peer(self, peer, address=("192.168.0.100", 8090)):
         """
@@ -344,7 +352,6 @@ class InteractiveTestPeer(TestPeer, threading.Thread):
 
             # Forward and wait for the response
             peer_list = yield self._get_style_requests.make_peers(dict_param)
-            print "Other peer", peer_list
             peer_list = set(literal_eval(peer_list))
 
         # Return the peer list

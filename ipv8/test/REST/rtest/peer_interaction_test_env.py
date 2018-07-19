@@ -79,13 +79,14 @@ class RequestTest(SingleServerSetup):
         super(RequestTest, self).__init__(method_name)
         self.other_peer = None
         self.other_peer_port = other_peer_port
+        self.default_test_folder = '_trial_temp'
 
     def tearDown(self):
         super(RequestTest, self).tearDown()
         RequestTest.gracefully_terminate_peers(self.other_peer)
 
-        if os.path.isdir('_trial_temp'):
-            rmtree('_trial_temp')
+        if os.path.isdir(self.default_test_folder):
+            rmtree(self.default_test_folder)
 
     @inlineCallbacks
     def wait_for_peers(self, dict_param, excluded_peer_mids=None):
@@ -115,7 +116,6 @@ class RequestTest(SingleServerSetup):
 
             # Forward and wait for the response
             peer_list = yield self._get_style_requests.make_peers(dict_param)
-            print peer_list
             peer_list = set(ast.literal_eval(peer_list))
 
         # Return the peer list
@@ -138,7 +138,6 @@ class RequestTest(SingleServerSetup):
 
             # Forward and wait for the response
             outstanding_requests = yield self._get_style_requests.make_outstanding(dict_param)
-            print outstanding_requests
 
         # Return the peer list
         returnValue(json.loads(outstanding_requests))
@@ -199,7 +198,7 @@ class RequestTest(SingleServerSetup):
         :return: None
         """
         assert peers is None or isinstance(peers, TestPeer) or (
-                isinstance(peers, list) and all(isinstance(x, TestPeer) for x in peers)), \
+            isinstance(peers, list) and all(isinstance(x, TestPeer) for x in peers)), \
             "The passed parameter must be either None, a list of TestPeer instances or a singular TestPeer instance"
 
         if peers is None:
@@ -232,8 +231,6 @@ class RequestTest(SingleServerSetup):
         other_peer_mids = [b64encode(x.mid) for x in self.other_peer.get_keys().values()]
 
         # Add the peers
-        # self._master_peer.add_and_verify_peers([(x, ("192.168.0.100", self.other_peer.get_address()[1]))
-        #                                         for x in self.other_peer.get_keys().values()])
         self._master_peer.add_and_verify_peers([(x, self.other_peer.get_address())
                                                 for x in self.other_peer.get_keys().values()])
 
@@ -259,8 +256,6 @@ class RequestTest(SingleServerSetup):
         other_peer_mids = [b64encode(x.mid) for x in self.other_peer.get_keys().values()]
 
         # Add the peers
-        # self.other_peer.add_and_verify_peers([(x, ("192.168.0.100", self._master_peer.get_address()[1]))
-        #                                       for x in self._master_peer.get_keys().values()])
         self.other_peer.add_and_verify_peers([(x, self._master_peer.get_address())
                                               for x in self._master_peer.get_keys().values()])
 
@@ -292,8 +287,6 @@ class RequestTest(SingleServerSetup):
         self.other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', self.other_peer_port)
 
         # Add the peers
-        # self.other_peer.add_and_verify_peers([(x, ("192.168.0.100", self._master_peer.get_address()[1]))
-        #                                       for x in self._master_peer.get_keys().values()])
         self.other_peer.add_and_verify_peers([(x, self._master_peer.get_address())
                                               for x in self._master_peer.get_keys().values()])
 
@@ -364,8 +357,6 @@ class RequestTest(SingleServerSetup):
         self.other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', self.other_peer_port)
 
         # Add the peers
-        # self.other_peer.add_and_verify_peers([(x, ("192.168.0.100", self._master_peer.get_address()[1]))
-        #                                       for x in self._master_peer.get_keys().values()])
         self.other_peer.add_and_verify_peers([(x, self._master_peer.get_address())
                                               for x in self._master_peer.get_keys().values()])
 
@@ -401,8 +392,6 @@ class RequestTest(SingleServerSetup):
         self.other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', self.other_peer_port)
 
         # Add the peers
-        # self.other_peer.add_and_verify_peers([(x, ("192.168.0.100", self._master_peer.get_address()[1]))
-        #                                       for x in self._master_peer.get_keys().values()])
         self.other_peer.add_and_verify_peers([(x, self._master_peer.get_address())
                                               for x in self._master_peer.get_keys().values()])
 
@@ -455,8 +444,6 @@ class RequestTest(SingleServerSetup):
         self.other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', self.other_peer_port)
 
         # Add the peers
-        # self.other_peer.add_and_verify_peers([(x, ("192.168.0.100", self._master_peer.get_address()[1]))
-        #                                       for x in self._master_peer.get_keys().values()])
         self.other_peer.add_and_verify_peers([(x, self._master_peer.get_address())
                                               for x in self._master_peer.get_keys().values()])
 
@@ -486,8 +473,6 @@ class RequestTest(SingleServerSetup):
         self.other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', other_peer_port)
 
         # Add the peers
-        # self.other_peer.add_and_verify_peers([(x, ("192.168.0.100", self._master_peer.get_address()[1]))
-        #                                       for x in self._master_peer.get_keys().values()])
         self.other_peer.add_and_verify_peers([(x, self._master_peer.get_address())
                                               for x in self._master_peer.get_keys().values()])
 
@@ -528,8 +513,6 @@ class RequestTest(SingleServerSetup):
         self.other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', self.other_peer_port)
 
         # Add the peers
-        # self.other_peer.add_and_verify_peers([(x, ("192.168.0.100", self._master_peer.get_address()[1]))
-        #                                       for x in self._master_peer.get_keys().values()])
         self.other_peer.add_and_verify_peers([(x, self._master_peer.get_address())
                                               for x in self._master_peer.get_keys().values()])
 
