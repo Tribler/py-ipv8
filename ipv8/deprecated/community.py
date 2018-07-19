@@ -48,8 +48,6 @@ BOOTSTRAP_TIMEOUT = 30.0 # Timeout before we bootstrap again (bootstrap kills pe
 
 def lazy_wrapper(*payloads):
     """
-    Sometimes you just don't want to write 3 lines of code.
-    In these cases you can unwrap your payloads using a single line.
     This function wrapper will unpack the BinMemberAuthenticationPayload for you.
 
     You can now write your authenticated and signed functions as follows:
@@ -84,6 +82,41 @@ def lazy_wrapper(*payloads):
                                           str([payload_class.__name__ for payload_class in payloads]))
             # PRODUCE
             return func(self, Peer(auth.public_key_bin, source_address), *output)
+        return wrapper
+    return decorator
+
+
+def lazy_wrapper_unsigned(*payloads):
+    """
+    This function wrapper will unpack just the normal payloads for you.
+
+    You can now write your non-authenticated and signed functions as follows:
+
+    ::
+
+        @lazy_wrapper(GlobalTimeDistributionPayload, IntroductionRequestPayload, IntroductionResponsePayload)
+        def on_message(source_address, payload1, payload2):
+            '''
+            :type source_address: str
+            :type payload1: IntroductionRequestPayload
+            :type payload2: IntroductionResponsePayload
+            '''
+            pass
+    """
+    def decorator(func):
+        def wrapper(self, source_address, data):
+            # UNPACK
+            unpacked = self.serializer.unpack_to_serializables(payloads, data[23:])
+            output, unknown_data = unpacked[:-1], unpacked[-1]
+            # ASSERT
+            if len(unknown_data) != 0:
+                raise PacketDecodingError("Incoming packet %s (%s) has extra data: (%s)" %
+                                          (str([payload_class.__name__ for payload_class in payloads]),
+                                           data.encode('HEX'),
+                                           unknown_data.encode('HEX')))
+
+            # PRODUCE
+            return func(self, source_address, *output)
         return wrapper
     return decorator
 
@@ -308,9 +341,8 @@ class Community(EZPackOverlay):
         self.network.add_verified_peer(peer)
         self.network.discover_services(peer, [self.master_peer.mid, ])
 
-    def on_puncture_request(self, source_address, data):
-        dist, payload = self._ez_unpack_noauth(PunctureRequestPayload, data)
-
+    @lazy_wrapper_unsigned(GlobalTimeDistributionPayload, PunctureRequestPayload)
+    def on_puncture_request(self, source_address, dist, payload):
         target = payload.wan_walker_address
         if payload.wan_walker_address[0] == self.my_estimated_wan[0]:
             target = payload.lan_walker_address
