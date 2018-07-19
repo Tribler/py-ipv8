@@ -110,6 +110,72 @@ class TestPeer(object):
             print b64encode(overlay.master_peer.mid), overlay.master_peer.public_key, overlay.master_peer.address, \
                 overlay.master_peer.key.pub().key_to_bin().encode("HEX")
 
+    def get_address(self):
+        """
+        Return the address of this peer
+
+        :return: A tuple[str, int] representing the address of this peer (i.e. the interface and port)
+        """
+        return self._ipv8.endpoint.get_address()
+
+    def add_and_verify_peers(self, peer_and_addresses):
+        """
+        Add a set of peers to the set of verified peers and register their services
+
+        :param peer_and_addresses: a list where each element contains a peer and a None or a tuple[String, Int]
+                                   of the interface and the port
+        :return: None
+        """
+        assert peer_and_addresses is not None and isinstance(peer_and_addresses, list), "peer_and_addresses must be " \
+                                                                                        "a non-empty list"
+        assert all(isinstance(x[0], Peer) and (x[1] is None or isinstance(x[1], tuple) and isinstance(x[1][0], str) and
+                                               isinstance(x[1][1], int)) for x in peer_and_addresses), \
+            "peer_and_addresses must be  a list of tuple[Peer, tuple[String, Int]]"
+
+        for peer, address in peer_and_addresses:
+            self.add_and_verify_peer(peer, address) if address is not None else self.add_and_verify_peer(peer)
+
+    def add_and_verify_peer(self, peer, address=("192.168.0.100", 8090)):
+        """
+        Add a set of peers to the set of verified peers and register their services
+
+        :param peer: the peer to be added
+        :param address: the address of the peer
+        :return: None
+        """
+        self._ipv8.network.add_verified_peer(peer)
+        self._ipv8.network.discover_services(peer, [overlay.master_peer.mid for overlay in self.get_overlays()])
+        self._ipv8.network.discover_address(peer, address)
+
+    def add_verified_peer(self, peer):
+        """
+        Add a new verified peer
+
+        :param peer: the new peer
+        :return: None
+        """
+        self._ipv8.network.add_verified_peer(peer)
+
+    def add_peer_to_all_services(self, peer):
+        """
+        Add a pier to the identity service
+
+        :param peer: the peer to be added to the identity service
+        :return: None
+        """
+        self._ipv8.network.discover_services(peer, [overlay.master_peer.mid for overlay in self.get_overlays()])
+
+    def add_peer_address(self, peer, interface, port):
+        """
+        Add the address of a peer so it becomes accessible
+
+        :param peer: the peer whose address will be added
+        :param interface: The interface (IP or alias) of the peer
+        :param port: The port on which the peer accepts requests
+        :return: None
+        """
+        self._ipv8.network.discover_address(peer, (interface, port))
+
     def stop(self):
         """
         Stop the peer
@@ -121,10 +187,7 @@ class TestPeer(object):
         self._rest_manager.shutdown_task_manager()
         self._rest_manager.stop()
 
-        print "Current dir", os.getcwd()
-        print self._path
         if os.path.isdir(self._path):
-            print "Paths", os.listdir(self._path)
             rmtree(self._path)
 
     @staticmethod

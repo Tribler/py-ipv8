@@ -86,6 +86,7 @@ class AttestationEndpoint(resource.Resource):
             formatted = []
             for k, v in self.attestation_requests.iteritems():
                 formatted.append(k + (v[1], ))
+            print "In Attestation Endpoint", formatted
             return json.dumps(formatted)
         if request.args['type'][0] == 'verification_output':
             formatted = {}
@@ -126,6 +127,7 @@ class AttestationEndpoint(resource.Resource):
             attribute_name = request.args['attribute_name'][0]
             peer = self.get_peer_from_mid(mid_b64)
             if peer:
+                print "HERE", peer
                 _, key = generate_keypair()
                 metadata = {}
                 if 'metadata' in request.args:
