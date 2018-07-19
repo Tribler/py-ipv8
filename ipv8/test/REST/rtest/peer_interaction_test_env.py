@@ -34,7 +34,7 @@ class SingleServerSetup(unittest.TestCase):
 
     def initialize(self,
                    path='test_env',
-                   port=8086,
+                   port=58086,
                    interface='127.0.0.1',
                    configuration=None,
                    get_style_requests=None,
@@ -43,7 +43,7 @@ class SingleServerSetup(unittest.TestCase):
         An initializer method for the Single Server test environment
 
         :param path: the master peer's path to the working directory. Defaults to 'test_env'.
-        :param port: the master peer's port. Defaults to 8086.
+        :param port: the master peer's port. Defaults to 58086.
         :param interface: IP or alias of the peer. Defaults to '127.0.0.1'.
         :param configuration: IPv8 configuration object. Defaults to None.
         :param get_style_requests: GET style request generator. Defaults to None.
