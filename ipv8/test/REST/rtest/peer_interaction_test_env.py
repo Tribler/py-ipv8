@@ -25,6 +25,7 @@ class SingleServerSetup(unittest.TestCase):
     """
 
     excluded_peers = {'rZvL7BqYKKrnbdsWfRDk1DMTtG0='}
+    master_peer_port = 58086
 
     def __init__(self, method_name='runTest'):
         super(SingleServerSetup, self).__init__(method_name)
@@ -63,7 +64,8 @@ class SingleServerSetup(unittest.TestCase):
 
     def setUp(self):
         super(SingleServerSetup, self).setUp()
-        self.initialize()
+        SingleServerSetup.master_peer_port += 1
+        self.initialize('test_env', SingleServerSetup.master_peer_port)
 
     def tearDown(self):
         # Call super method
@@ -75,10 +77,11 @@ class SingleServerSetup(unittest.TestCase):
 
 class RequestTest(SingleServerSetup):
 
-    def __init__(self, method_name='runTest', other_peer_port=7869):
+    other_peer_port = 7869
+
+    def __init__(self, method_name='runTest'):
         super(RequestTest, self).__init__(method_name)
         self.other_peer = None
-        self.other_peer_port = other_peer_port
         self.default_test_folder = '_trial_temp'
 
     def tearDown(self):
@@ -227,7 +230,8 @@ class RequestTest(SingleServerSetup):
         }
 
         # Create a dummy peer which will be used towards peer discovery; there is no need to start() it
-        self.other_peer = TestPeer('local_peer', self.other_peer_port)
+        RequestTest.other_peer_port += 1
+        self.other_peer = TestPeer('local_peer', RequestTest.other_peer_port)
         other_peer_mids = [b64encode(x.mid) for x in self.other_peer.get_keys().values()]
 
         # Add the peers
@@ -252,7 +256,8 @@ class RequestTest(SingleServerSetup):
             'attribute_name': 'QR'
         }
 
-        self.other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', self.other_peer_port)
+        RequestTest.other_peer_port += 1
+        self.other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', RequestTest.other_peer_port)
         other_peer_mids = [b64encode(x.mid) for x in self.other_peer.get_keys().values()]
 
         # Add the peers
@@ -284,7 +289,8 @@ class RequestTest(SingleServerSetup):
         }
 
         # Forward the attestations to the well-known peer
-        self.other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', self.other_peer_port)
+        RequestTest.other_peer_port += 1
+        self.other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', RequestTest.other_peer_port)
 
         # Add the peers
         self.other_peer.add_and_verify_peers([(x, self._master_peer.get_address())
@@ -354,7 +360,8 @@ class RequestTest(SingleServerSetup):
         }
 
         # Forward the attestations to the well-known peer
-        self.other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', self.other_peer_port)
+        RequestTest.other_peer_port += 1
+        self.other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', RequestTest.other_peer_port)
 
         # Add the peers
         self.other_peer.add_and_verify_peers([(x, self._master_peer.get_address())
@@ -389,7 +396,8 @@ class RequestTest(SingleServerSetup):
         }
 
         # Send a random attestation request to the well-known peer
-        self.other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', self.other_peer_port)
+        RequestTest.other_peer_port += 1
+        self.other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', RequestTest.other_peer_port)
 
         # Add the peers
         self.other_peer.add_and_verify_peers([(x, self._master_peer.get_address())
@@ -441,7 +449,8 @@ class RequestTest(SingleServerSetup):
 
         self.assertEqual(outstanding_requests, '[]', "Something went wrong, there should be no outstanding requests.")
 
-        self.other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', self.other_peer_port)
+        RequestTest.other_peer_port += 1
+        self.other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', RequestTest.other_peer_port)
 
         # Add the peers
         self.other_peer.add_and_verify_peers([(x, self._master_peer.get_address())
@@ -469,8 +478,8 @@ class RequestTest(SingleServerSetup):
             'metadata': b64encode(json.dumps({'psn': '1234567890'}))
         }
 
-        other_peer_port = 7869
-        self.other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', other_peer_port)
+        RequestTest.other_peer_port += 1
+        self.other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', RequestTest.other_peer_port)
 
         # Add the peers
         self.other_peer.add_and_verify_peers([(x, self._master_peer.get_address())
@@ -478,7 +487,7 @@ class RequestTest(SingleServerSetup):
 
         self.other_peer.start()
 
-        param_dict['port'] = other_peer_port
+        param_dict['port'] = RequestTest.other_peer_port
         attributes = yield self._get_style_requests.make_attributes(param_dict)
         attributes = ast.literal_eval(attributes)
         self.assertTrue(len(attributes) == 0, "There mustn't already be any attestations in the other peer.")
@@ -487,7 +496,7 @@ class RequestTest(SingleServerSetup):
         responses = yield self.attest_all_outstanding_requests(param_dict.copy())
         self.assertTrue(all(x == "" for x in responses[1]), "Something went wrong, not all responses were empty.")
 
-        param_dict['port'] = other_peer_port
+        param_dict['port'] = RequestTest.other_peer_port
         attributes = yield self._get_style_requests.make_attributes(param_dict)
         attributes = ast.literal_eval(attributes)
         self.assertTrue(len(attributes) == 1 and attributes[0][0] == param_dict['attribute_name'],
@@ -510,7 +519,8 @@ class RequestTest(SingleServerSetup):
         }
 
         # Forward the attestations to the well-known peer
-        self.other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', self.other_peer_port)
+        RequestTest.other_peer_port += 1
+        self.other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', RequestTest.other_peer_port)
 
         # Add the peers
         self.other_peer.add_and_verify_peers([(x, self._master_peer.get_address())
