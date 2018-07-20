@@ -323,7 +323,7 @@ class RequestTest(SingleServerSetup):
         self.assertTrue([["YXNk", 0.0], ["YXNkMg==", 0.0]] in verification_output.values(),
                         "Something went wrong with the verification. Unexpected output values.")
 
-    @twisted_wrapper
+    @twisted_wrapper(30)
     def test_get_attributes(self):
         """
         Test the GET: attributes request type
