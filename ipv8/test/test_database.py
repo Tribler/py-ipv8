@@ -1,6 +1,6 @@
 import unittest
 
-from ..database import Database
+from ..database import Database, DatabaseException
 
 
 class MockDatabase(Database):
@@ -21,13 +21,13 @@ class TestDatabase(unittest.TestCase):
         """
         Check if an unloaded database returns None for queries.
         """
-        self.assertIsNone(self.database.execute("SELECT * FROM option"))
+        self.assertRaises(DatabaseException, self.database.execute, "SELECT * FROM option")
 
     def test_closed(self):
         """
-        Check if an unloaded database returns None for queries.
+        Check if an closed database returns None for queries.
         """
         self.database.open()
         self.assertListEqual([(u'database_version', u'0')], list(self.database.execute("SELECT * FROM option")))
         self.database.close(True)
-        self.assertIsNone(self.database.execute("SELECT * FROM option"))
+        self.assertRaises(DatabaseException, self.database.execute, "SELECT * FROM option")

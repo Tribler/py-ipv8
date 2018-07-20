@@ -39,7 +39,7 @@ def db_call(f):
         with db_locks[self._file_path]:
             if self._cursor:
                 return f(self, *args, **kwargs)
-            return None
+            raise DatabaseException("Database was already closed!")
     return wrapper
 
 
