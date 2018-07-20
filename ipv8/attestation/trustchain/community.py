@@ -385,7 +385,7 @@ class TrustChainCommunity(Community):
             # The -2 element is the last_block.seq_nr - 1
             # Etc. until the genesis seq_nr
             sq = max(GENESIS_SEQ, last_block.sequence_number + (sq + 1)) if last_block else GENESIS_SEQ
-        blocks = self.persistence.crawl(self.my_peer.public_key.key_to_bin(), sq)
+        blocks = self.persistence.crawl(self.my_peer.public_key.key_to_bin(), sq, limit=10)
         total_count = len(blocks)
 
         if total_count == 0:
