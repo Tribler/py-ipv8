@@ -25,7 +25,7 @@ class SingleServerSetup(unittest.TestCase):
     """
 
     excluded_peers = {'rZvL7BqYKKrnbdsWfRDk1DMTtG0='}
-    master_peer_port = 58086
+    master_peer_port = 58085
 
     def __init__(self, method_name='runTest'):
         super(SingleServerSetup, self).__init__(method_name)
@@ -77,12 +77,19 @@ class SingleServerSetup(unittest.TestCase):
 
 class RequestTest(SingleServerSetup):
 
-    other_peer_port = 7869
+    """
+    The starting port of the 'other_peer' peers in the test suite
+    """
+    other_peer_port = 7868
 
     def __init__(self, method_name='runTest'):
         super(RequestTest, self).__init__(method_name)
         self.other_peer = None
         self.default_test_folder = '_trial_temp'
+
+    def setUp(self):
+        super(RequestTest, self).setUp()
+        RequestTest.other_peer_port += 1
 
     def tearDown(self):
         super(RequestTest, self).tearDown()
@@ -230,7 +237,6 @@ class RequestTest(SingleServerSetup):
         }
 
         # Create a dummy peer which will be used towards peer discovery; there is no need to start() it
-        RequestTest.other_peer_port += 1
         self.other_peer = TestPeer('local_peer', RequestTest.other_peer_port)
         other_peer_mids = [b64encode(x.mid) for x in self.other_peer.get_keys().values()]
 
@@ -243,7 +249,7 @@ class RequestTest(SingleServerSetup):
 
         self.assertTrue(any(x in other_peer_mids for x in result), "Could not find the second peer.")
 
-    @twisted_wrapper(10)
+    @twisted_wrapper(30)
     def test_get_outstanding_requests(self):
         """
         Test the GET: outstanding request type
@@ -256,7 +262,6 @@ class RequestTest(SingleServerSetup):
             'attribute_name': 'QR'
         }
 
-        RequestTest.other_peer_port += 1
         self.other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', RequestTest.other_peer_port)
         other_peer_mids = [b64encode(x.mid) for x in self.other_peer.get_keys().values()]
 
@@ -272,7 +277,7 @@ class RequestTest(SingleServerSetup):
                             for y in other_peer_mids),
                         "Could not find the outstanding request forwarded by the second peer")
 
-    @twisted_wrapper(10)
+    @twisted_wrapper(30)
     def test_get_verification_output(self):
         """
         Test the GET: verification output request type
@@ -289,7 +294,6 @@ class RequestTest(SingleServerSetup):
         }
 
         # Forward the attestations to the well-known peer
-        RequestTest.other_peer_port += 1
         self.other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', RequestTest.other_peer_port)
 
         # Add the peers
@@ -343,7 +347,7 @@ class RequestTest(SingleServerSetup):
                          "The response was not as expected. This would suggest that something went wrong "
                          "with the attributes request.")
 
-    @twisted_wrapper(10)
+    @twisted_wrapper(30)
     def test_get_attributes_alternative(self):
         """
         Test the GET: attributes request type
@@ -360,7 +364,6 @@ class RequestTest(SingleServerSetup):
         }
 
         # Forward the attestations to the well-known peer
-        RequestTest.other_peer_port += 1
         self.other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', RequestTest.other_peer_port)
 
         # Add the peers
@@ -379,7 +382,7 @@ class RequestTest(SingleServerSetup):
                         "The response was not as expected. This would suggest that something went wrong with "
                         "the attributes request.")
 
-    @twisted_wrapper(10)
+    @twisted_wrapper(30)
     def test_get_drop_identity(self):
         """
         Test the GET: drop identity request type
@@ -396,7 +399,6 @@ class RequestTest(SingleServerSetup):
         }
 
         # Send a random attestation request to the well-known peer
-        RequestTest.other_peer_port += 1
         self.other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', RequestTest.other_peer_port)
 
         # Add the peers
@@ -430,7 +432,7 @@ class RequestTest(SingleServerSetup):
         result = yield self._get_style_requests.make_outstanding(param_dict)
         self.assertEqual(result, '[]', 'The identity could not be dropped. Outstanding requests still remaining.')
 
-    @twisted_wrapper(10)
+    @twisted_wrapper(30)
     def test_post_attestation_request(self):
         """
         Test the POST: request request type
@@ -449,7 +451,6 @@ class RequestTest(SingleServerSetup):
 
         self.assertEqual(outstanding_requests, '[]', "Something went wrong, there should be no outstanding requests.")
 
-        RequestTest.other_peer_port += 1
         self.other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', RequestTest.other_peer_port)
 
         # Add the peers
@@ -463,7 +464,7 @@ class RequestTest(SingleServerSetup):
 
         self.assertFalse(outstanding_requests == [], "Something went wrong, no request was received.")
 
-    @twisted_wrapper(10)
+    @twisted_wrapper(30)
     def test_post_attest(self):
         """
         Test the POST: attest request type
@@ -478,7 +479,6 @@ class RequestTest(SingleServerSetup):
             'metadata': b64encode(json.dumps({'psn': '1234567890'}))
         }
 
-        RequestTest.other_peer_port += 1
         self.other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', RequestTest.other_peer_port)
 
         # Add the peers
@@ -502,7 +502,7 @@ class RequestTest(SingleServerSetup):
         self.assertTrue(len(attributes) == 1 and attributes[0][0] == param_dict['attribute_name'],
                         "There should be only one attestation in the other peer's DB.")
 
-    @twisted_wrapper(10)
+    @twisted_wrapper(30)
     def test_post_verify(self):
         """
         Test the POST: verify request type
@@ -519,7 +519,6 @@ class RequestTest(SingleServerSetup):
         }
 
         # Forward the attestations to the well-known peer
-        RequestTest.other_peer_port += 1
         self.other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', RequestTest.other_peer_port)
 
         # Add the peers
