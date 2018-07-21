@@ -139,6 +139,7 @@ class TestPeer(object):
 
         for peer, address in peer_and_addresses:
             if address is not None:
+                print address
                 self.add_and_verify_peer(peer, address)
             else:
                 self.add_and_verify_peer(peer)
@@ -194,6 +195,15 @@ class TestPeer(object):
         self._ipv8.endpoint.close()
         self._rest_manager.shutdown_task_manager()
         self._rest_manager.stop()
+
+        from ipv8.attestation.wallet.community import AttestationCommunity
+        from ipv8.attestation.identity.community import IdentityCommunity
+
+        for overlay in self._ipv8.overlays:
+            if isinstance(overlay, AttestationCommunity):
+                overlay.database.close()
+            elif isinstance(overlay, IdentityCommunity):
+                overlay.persistence.close()
 
         if os.path.isdir(self._path):
             rmtree(self._path)

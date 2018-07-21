@@ -126,6 +126,7 @@ class RequestTest(SingleServerSetup):
 
             # Forward and wait for the response
             peer_list = yield self._get_style_requests.make_peers(dict_param)
+            print peer_list
             peer_list = set(ast.literal_eval(peer_list))
 
         # Return the peer list
@@ -148,6 +149,7 @@ class RequestTest(SingleServerSetup):
 
             # Forward and wait for the response
             outstanding_requests = yield self._get_style_requests.make_outstanding(dict_param)
+            print outstanding_requests
 
         # Return the peer list
         returnValue(json.loads(outstanding_requests))
@@ -241,7 +243,7 @@ class RequestTest(SingleServerSetup):
         other_peer_mids = [b64encode(x.mid) for x in self.other_peer.get_keys().values()]
 
         # Add the peers
-        self._master_peer.add_and_verify_peers([(x, self.other_peer.get_address())
+        self._master_peer.add_and_verify_peers([(x, ("127.0.0.1", self.other_peer.get_address()[1]))
                                                 for x in self.other_peer.get_keys().values()])
 
         # result = yield self._get_style_requests.make_peers(param_dict)
@@ -266,7 +268,7 @@ class RequestTest(SingleServerSetup):
         other_peer_mids = [b64encode(x.mid) for x in self.other_peer.get_keys().values()]
 
         # Add the peers
-        self.other_peer.add_and_verify_peers([(x, self._master_peer.get_address())
+        self.other_peer.add_and_verify_peers([(x, ("127.0.0.1", self._master_peer.get_address()[1]))
                                               for x in self._master_peer.get_keys().values()])
 
         self.other_peer.start()
@@ -297,7 +299,7 @@ class RequestTest(SingleServerSetup):
         self.other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', RequestTest.other_peer_port)
 
         # Add the peers
-        self.other_peer.add_and_verify_peers([(x, self._master_peer.get_address())
+        self.other_peer.add_and_verify_peers([(x, ("127.0.0.1", self._master_peer.get_address()[1]))
                                               for x in self._master_peer.get_keys().values()])
 
         self.other_peer.start()
@@ -367,7 +369,7 @@ class RequestTest(SingleServerSetup):
         self.other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', RequestTest.other_peer_port)
 
         # Add the peers
-        self.other_peer.add_and_verify_peers([(x, self._master_peer.get_address())
+        self.other_peer.add_and_verify_peers([(x, ("127.0.0.1", self._master_peer.get_address()[1]))
                                               for x in self._master_peer.get_keys().values()])
 
         self.other_peer.start()
@@ -402,7 +404,7 @@ class RequestTest(SingleServerSetup):
         self.other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', RequestTest.other_peer_port)
 
         # Add the peers
-        self.other_peer.add_and_verify_peers([(x, self._master_peer.get_address())
+        self.other_peer.add_and_verify_peers([(x, ("127.0.0.1", self._master_peer.get_address()[1]))
                                               for x in self._master_peer.get_keys().values()])
 
         self.other_peer.start()
@@ -454,7 +456,7 @@ class RequestTest(SingleServerSetup):
         self.other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', RequestTest.other_peer_port)
 
         # Add the peers
-        self.other_peer.add_and_verify_peers([(x, self._master_peer.get_address())
+        self.other_peer.add_and_verify_peers([(x, ("127.0.0.1", self._master_peer.get_address()[1]))
                                               for x in self._master_peer.get_keys().values()])
 
         self.other_peer.start()
@@ -482,7 +484,7 @@ class RequestTest(SingleServerSetup):
         self.other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', RequestTest.other_peer_port)
 
         # Add the peers
-        self.other_peer.add_and_verify_peers([(x, self._master_peer.get_address())
+        self.other_peer.add_and_verify_peers([(x, ("127.0.0.1", self._master_peer.get_address()[1]))
                                               for x in self._master_peer.get_keys().values()])
 
         self.other_peer.start()
@@ -522,7 +524,7 @@ class RequestTest(SingleServerSetup):
         self.other_peer = AndroidTestPeer(param_dict.copy(), 'local_peer', RequestTest.other_peer_port)
 
         # Add the peers
-        self.other_peer.add_and_verify_peers([(x, self._master_peer.get_address())
+        self.other_peer.add_and_verify_peers([(x, ("127.0.0.1", self._master_peer.get_address()[1]))
                                               for x in self._master_peer.get_keys().values()])
 
         self.other_peer.start()
