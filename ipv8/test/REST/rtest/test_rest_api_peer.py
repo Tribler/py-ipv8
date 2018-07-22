@@ -11,6 +11,8 @@ from twisted.web import server
 
 from ipv8.REST.rest_manager import RESTRequest
 from ipv8.REST.root_endpoint import RootEndpoint
+from ipv8.attestation.identity.community import IdentityCommunity
+from ipv8.attestation.wallet.community import AttestationCommunity
 from ipv8.configuration import get_default_configuration
 from ipv8.keyvault.crypto import ECCrypto
 from ipv8.peer import Peer
@@ -123,38 +125,39 @@ class TestPeer(object):
         """
         return self._ipv8.endpoint.get_address()
 
-    def add_and_verify_peers(self, peer_and_addresses):
+    def add_and_verify_peers(self, peers_and_addresses):
         """
         Add a set of peers to the set of verified peers and register their services
 
-        :param peer_and_addresses: a list where each element contains a peer and a None or a tuple[String, Int]
-                                   of the interface and the port
+        :param peers_and_addresses: a list where each element contains a (Peer, interface_string, port_int)
         :return: None
         """
-        assert peer_and_addresses is not None and isinstance(peer_and_addresses, list), "peer_and_addresses must be " \
-                                                                                        "a non-empty list"
-        assert all(isinstance(x[0], Peer) and (x[1] is None or isinstance(x[1], tuple) and isinstance(x[1][0], str) and
-                                               isinstance(x[1][1], int)) for x in peer_and_addresses), \
+        assert peers_and_addresses is not None and isinstance(peers_and_addresses, list), "peer_and_addresses must " \
+                                                                                          "be a non-empty list"
+        assert all(isinstance(x[0], Peer) and (x[1] is None or isinstance(x[1], str)) and
+                   (x[2] is None or isinstance(x[2], int)) for x in peers_and_addresses), \
             "peer_and_addresses must be  a list of tuple[Peer, tuple[String, Int]]"
 
-        for peer, address in peer_and_addresses:
-            if address is not None:
-                print address
-                self.add_and_verify_peer(peer, address)
-            else:
-                self.add_and_verify_peer(peer)
+        for peer, interface, port in peers_and_addresses:
+            if interface is not None and port is not None:
+                self.add_and_verify_peer(peer, interface, port)
+            elif interface is not None:
+                self.add_and_verify_peer(peer, interface=interface)
+            elif port is not None:
+                self.add_and_verify_peer(peer, port=port)
 
-    def add_and_verify_peer(self, peer, address=("192.168.0.100", 8090)):
+    def add_and_verify_peer(self, peer, interface='127.0.0.1', port=8090):
         """
         Add a set of peers to the set of verified peers and register their services
 
         :param peer: the peer to be added
-        :param address: the address of the peer
+        :param interface: the peer's interface
+        :param port: the peer's REST API port
         :return: None
         """
         self._ipv8.network.add_verified_peer(peer)
         self._ipv8.network.discover_services(peer, [overlay.master_peer.mid for overlay in self.get_overlays()])
-        self._ipv8.network.discover_address(peer, address)
+        self._ipv8.network.discover_address(peer, (interface, port))
 
     def add_verified_peer(self, peer):
         """
@@ -196,9 +199,7 @@ class TestPeer(object):
         self._rest_manager.shutdown_task_manager()
         self._rest_manager.stop()
 
-        from ipv8.attestation.wallet.community import AttestationCommunity
-        from ipv8.attestation.identity.community import IdentityCommunity
-
+        # Close the DBs of some of the communities
         for overlay in self._ipv8.overlays:
             if isinstance(overlay, AttestationCommunity):
                 overlay.database.close()
