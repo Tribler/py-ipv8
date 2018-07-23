@@ -54,7 +54,7 @@ class AndroidTestPeer(InteractiveTestPeer):
         peer_list = yield self.wait_for_peers(self._param_dict, self.excluded_peers)
 
         for peer in peer_list:
-            self._param_dict['mid'] = peer.replace('+', '%2B')
+            self._param_dict['mid'] = str(peer.replace('+', '%2B'))
 
             self._logger.info("Sending an attestation request to %s", self._param_dict['mid'])
             yield self._post_style_requests.make_attestation_request(self._param_dict)

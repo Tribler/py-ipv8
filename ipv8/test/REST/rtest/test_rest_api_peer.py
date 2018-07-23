@@ -1,7 +1,7 @@
+import json
 import logging
 import os
 import threading
-from ast import literal_eval
 from shutil import rmtree
 
 from twisted.internet import reactor
@@ -35,14 +35,6 @@ class TestPeer(object):
     """
     Class for the purpose of testing the REST API
     """
-
-    master_peer_att = Peer(("3052301006072a8648ce3d020106052b8104001a033e000400fde127289850e6e550d28a083"
-                            "c539e6a449b7131ef53cf90f2fc3f3243017c98631855c0d80e77939da29cfef70ecdb3cea7"
-                            "c37db7e18d275f715c").decode("HEX"))
-
-    master_peer_identity = Peer(("3052301006072a8648ce3d020106052b8104001a033e000400d1aaecf1acc0db3aecc0"
-                                 "efb07f66f815d1a4e0804c7aa233bf144ed9cd002e2579265ef30e0a4355460a50f12f"
-                                 "5a4a5ad5033095aec4f9111f5376").decode("HEX"))
 
     def __init__(self,
                  path,
@@ -96,10 +88,6 @@ class TestPeer(object):
         # Change the master_peers of the IPv8 object's overlays, in order to avoid conflict with the live networks
         for idx, overlay in enumerate(self._ipv8.overlays):
             self._ipv8.overlays[idx].master_peer = Peer(COMMUNITY_TO_MASTER_PEER_KEY[type(overlay).__name__])
-            # if type(overlay).__name__ == "AttestationCommunity":
-            #     self._ipv8.overlays[idx].master_peer = self.master_peer_att
-            # else:
-            #     self._ipv8.overlays[idx].master_peer = self.master_peer_identity
 
         self._rest_manager = TestPeer.RestAPITestWrapper(self._ipv8, self._port, self._interface)
         self._rest_manager.start()
@@ -324,7 +312,7 @@ class InteractiveTestPeer(TestPeer, threading.Thread):
         assert get_style_requests is None or isinstance(get_style_requests, GetStyleRequests), \
             "The get_style_requests parameter must be a subclass of GetStyleRequests"
         assert post_style_requests is None or isinstance(post_style_requests, PostStyleRequests), \
-            "The get_style_requests parameter must be a subclass of GetStyleRequests"
+            "The post_style_requests parameter must be a subclass of PostStyleRequests"
 
         TestPeer.__init__(self, path, port, interface, configuration)
         threading.Thread.__init__(self)
@@ -354,16 +342,15 @@ class InteractiveTestPeer(TestPeer, threading.Thread):
             excluded_peer_mids = set(excluded_peer_mids)
 
         peer_list = yield self._get_style_requests.make_peers(dict_param)
-        peer_list = set(literal_eval(peer_list))
+        peer_list = set(json.loads(peer_list))
 
         # Keep iterating until peer_list is non-empty
         while not peer_list - excluded_peer_mids:
-            # Wait for 4 seconds before trying again
-            yield deferLater(reactor, 4, lambda: None)
+            yield deferLater(reactor, 0.1, lambda: None)
 
             # Forward and wait for the response
             peer_list = yield self._get_style_requests.make_peers(dict_param)
-            peer_list = set(literal_eval(peer_list))
+            peer_list = set(json.loads(peer_list))
 
         # Return the peer list
         returnValue(list(peer_list - excluded_peer_mids))
@@ -381,9 +368,8 @@ class InteractiveTestPeer(TestPeer, threading.Thread):
 
         # Keep iterating until peer_list is non-empty
         while outstanding_requests == "[]":
-            self._logger.info("Could not acquire a list of outstanding requests. Will wait 4 seconds and retry.")
-            # Wait for 4 seconds before trying again
-            yield deferLater(reactor, 4, lambda: None)
+            self._logger.info("Could not acquire a list of outstanding requests. Will wait 0.1 seconds and retry.")
+            yield deferLater(reactor, 0.1, lambda: None)
 
             # Forward and wait for the response
             outstanding_requests = yield self._get_style_requests.make_outstanding(dict_param)

@@ -1,9 +1,8 @@
-import ast
 import json
-import unittest
 import os
-from shutil import rmtree
+import unittest
 from base64 import b64encode
+from shutil import rmtree
 from urllib import quote
 
 from twisted.internet import reactor
@@ -54,7 +53,7 @@ class SingleServerSetup(unittest.TestCase):
         assert get_style_requests is None or isinstance(get_style_requests, GetStyleRequests), \
             "The get_style_requests parameter must be a subclass of GetStyleRequests"
         assert post_style_requests is None or isinstance(post_style_requests, PostStyleRequests), \
-            "The get_style_requests parameter must be a subclass of GetStyleRequests"
+            "The post_style_requests parameter must be a subclass of PostStyleRequests"
         # Create a so called master (well-known) peer, which should be the peer to which the requests are directed
         self._master_peer = TestPeer(path, port, interface, configuration)
 
@@ -108,7 +107,7 @@ class RequestTest(SingleServerSetup):
         :return: a list of currently known peers in the network
         """
         assert isinstance(excluded_peer_mids, (list, set)) or not excluded_peer_mids, "excluded_peer_mids " \
-                                                                                      "must be a list or set or None"
+                                                                                      "must be a list, set or None"
 
         # Make sure excluded_peer_mids is a set
         if not excluded_peer_mids:
@@ -117,16 +116,15 @@ class RequestTest(SingleServerSetup):
             excluded_peer_mids = set(excluded_peer_mids)
 
         peer_list = yield self._get_style_requests.make_peers(dict_param)
-        peer_list = set(ast.literal_eval(peer_list))
+        peer_list = set(json.loads(peer_list))
 
         # Keep iterating until peer_list is non-empty
         while not peer_list - excluded_peer_mids:
-            # Wait for 4 seconds before trying again
-            yield deferLater(reactor, 4, lambda: None)
+            yield deferLater(reactor, 0.1, lambda: None)
 
             # Forward and wait for the response
             peer_list = yield self._get_style_requests.make_peers(dict_param)
-            peer_list = set(ast.literal_eval(peer_list))
+            peer_list = set(json.loads(peer_list))
 
         # Return the peer list
         returnValue(list(peer_list - excluded_peer_mids))
@@ -143,8 +141,7 @@ class RequestTest(SingleServerSetup):
 
         # Keep iterating until peer_list is non-empty
         while outstanding_requests == "[]":
-            # Wait for 4 seconds before trying again
-            yield deferLater(reactor, 4, lambda: None)
+            yield deferLater(reactor, 0.1, lambda: None)
 
             # Forward and wait for the response
             outstanding_requests = yield self._get_style_requests.make_outstanding(dict_param)
@@ -244,7 +241,6 @@ class RequestTest(SingleServerSetup):
         self._master_peer.add_and_verify_peers([(x, None, self.other_peer.get_address()[1])
                                                 for x in self.other_peer.get_keys().values()])
 
-        # result = yield self._get_style_requests.make_peers(param_dict)
         result = yield self.wait_for_peers(param_dict, self.excluded_peers)
 
         self.assertTrue(any(x in other_peer_mids for x in result), "Could not find the second peer.")
@@ -309,8 +305,8 @@ class RequestTest(SingleServerSetup):
 
         # Get the hash of the attestation to be validated (the one which was just attested)
         attributes = yield self._get_style_requests.make_attributes(param_dict)
-        attributes = ast.literal_eval(attributes)
-        param_dict['attribute_hash'] = attributes[0][1].replace("+", "%2B")
+        attributes = json.loads(attributes)
+        param_dict['attribute_hash'] = str(attributes[0][1].replace("+", "%2B"))
 
         # Forward the actual verification
         verification_responses = yield self.verify_all_attestations(other_peer_mids, param_dict.copy())
@@ -319,7 +315,7 @@ class RequestTest(SingleServerSetup):
                                                                       "responses was non-empty.")
 
         verification_output = yield self._get_style_requests.make_verification_output(param_dict)
-        verification_output = ast.literal_eval(verification_output)
+        verification_output = json.loads(verification_output)
         self.assertTrue([["YXNk", 0.0], ["YXNkMg==", 0.0]] in verification_output.values(),
                         "Something went wrong with the verification. Unexpected output values.")
 
@@ -376,7 +372,7 @@ class RequestTest(SingleServerSetup):
 
         # Get the hash of the attestation to be validated (the one which was just attested)
         attributes = yield self._get_style_requests.make_attributes(param_dict)
-        attributes = ast.literal_eval(attributes)
+        attributes = json.loads(attributes)
 
         self.assertTrue(attributes[0][0] == param_dict['attribute_name'] and attributes[0][1] != "",
                         "The response was not as expected. This would suggest that something went wrong with "
@@ -412,7 +408,7 @@ class RequestTest(SingleServerSetup):
 
         # Ensure that no block/attestation exists
         attributes = yield self._get_style_requests.make_attributes(param_dict)
-        self.assertEqual(attributes, '[]', "Something's wrong, there should be no blocks.")
+        self.assertEqual(attributes, '[]', "Something's wrong, there shouldn't be any blocks.")
 
         # Attest the outstanding request. This should mean that the attribute DB is non-empty in the well-known peer
         yield self.attest_all_outstanding_requests(param_dict)
@@ -489,7 +485,7 @@ class RequestTest(SingleServerSetup):
 
         param_dict['port'] = RequestTest.other_peer_port
         attributes = yield self._get_style_requests.make_attributes(param_dict)
-        attributes = ast.literal_eval(attributes)
+        attributes = json.loads(attributes)
         self.assertTrue(len(attributes) == 0, "There mustn't already be any attestations in the other peer.")
 
         param_dict['port'] = self._master_peer.port
@@ -498,7 +494,7 @@ class RequestTest(SingleServerSetup):
 
         param_dict['port'] = RequestTest.other_peer_port
         attributes = yield self._get_style_requests.make_attributes(param_dict)
-        attributes = ast.literal_eval(attributes)
+        attributes = json.loads(attributes)
         self.assertTrue(len(attributes) == 1 and attributes[0][0] == param_dict['attribute_name'],
                         "There should be only one attestation in the other peer's DB.")
 
@@ -534,8 +530,8 @@ class RequestTest(SingleServerSetup):
 
         # Get the hash of the attestation to be validated (the one which was just attested)
         attributes = yield self._get_style_requests.make_attributes(param_dict)
-        attributes = ast.literal_eval(attributes)
-        param_dict['attribute_hash'] = attributes[0][1].replace("+", "%2B")
+        attributes = json.loads(attributes)
+        param_dict['attribute_hash'] = str(attributes[0][1].replace("+", "%2B"))
 
         # Forward the actual verification
         verification_responses = yield self.verify_all_attestations(other_peer_mids, param_dict.copy())

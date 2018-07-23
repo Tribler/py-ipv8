@@ -1,3 +1,5 @@
+import logging
+
 from twisted.internet import reactor
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.web.client import Agent, readBody
@@ -12,7 +14,12 @@ class HTTPRequester(object):
     """
 
     def __init__(self):
+        self._logger = logging.getLogger(self.__class__.__name__)
+        self._logger.info("Initializing the HTTP Requester.")
+
         self._agent = Agent(reactor)
+
+        self._logger.info("HTTP Requester initialized.")
 
     @inlineCallbacks
     def make_request(self, url, request_type, arguments=None, on_complete_callback=None):
@@ -30,7 +37,7 @@ class HTTPRequester(object):
             arguments = {}
 
         request_url = url + '?' + '&'.join("%s=%s" % (k, v) for k, v in arguments.iteritems())
-        print "\t[HTTP-%s] %s" % (request_type, request_url)
+        self._logger.info("[HTTP-%s] %s", request_type, request_url)
         d = self._agent.request(
             request_type,
             request_url,
