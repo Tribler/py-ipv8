@@ -38,8 +38,8 @@ class TestDiscoveryCommunity(TestBase):
                                                       self.overlays[0].my_estimated_wan,
                                                       True,
                                                       u"unknown",
-                                                      False,
-                                                      global_time).to_pack_list()
+                                                      global_time,
+                                                      '').to_pack_list()
         auth = BinMemberAuthenticationPayload(self.overlays[0].my_peer.public_key.key_to_bin()).to_pack_list()
         dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
 

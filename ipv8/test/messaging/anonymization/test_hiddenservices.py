@@ -76,7 +76,7 @@ class TestHiddenServices(TestBase):
 
         cur_tunnel = e2e_circuit
         while True:
-            next_node = get_node_with_sock_addr(cur_tunnel.sock_addr)
+            next_node = get_node_with_sock_addr(cur_tunnel.peer.address)
             if cur_tunnel.circuit_id not in next_node.overlay.relay_from_to:
                 # We reached the end of our e2e circuit.
                 path.append((next_node.overlay.my_peer.address, cur_tunnel.circuit_id))

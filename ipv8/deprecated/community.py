@@ -161,10 +161,11 @@ class EZPackOverlay(Overlay):
         # PRODUCE
         return auth, dist, payload
 
-    def _ez_unpack_noauth(self, payload_class, data):
+    def _ez_unpack_noauth(self, payload_class, data, global_time=True):
         # UNPACK
-        format = [GlobalTimeDistributionPayload, payload_class]
-        dist, payload, unknown_data = self.serializer.unpack_to_serializables(format, data[23:])
+        format = [GlobalTimeDistributionPayload, payload_class] if global_time else [payload_class]
+        unpacked = self.serializer.unpack_to_serializables(format, data[23:])
+        unknown_data = unpacked.pop()
         # ASSERT
         if len(unknown_data) != 0:
             raise PacketDecodingError("Incoming packet %s (%s) has extra data: (%s)" %
@@ -172,7 +173,8 @@ class EZPackOverlay(Overlay):
                                        data.encode('HEX'),
                                        unknown_data.encode('HEX')))
         # PRODUCE
-        return dist, payload
+        return unpacked if global_time else unpacked[0]
+
 
 
 class Community(EZPackOverlay):
@@ -255,21 +257,22 @@ class Community(EZPackOverlay):
             except error:
                 self.logger.info("Unable to resolve (%s, %d)", address, port)
 
-    def create_introduction_request(self, socket_address):
+    def create_introduction_request(self, socket_address, extra_bytes=''):
         global_time = self.claim_global_time()
         payload = IntroductionRequestPayload(socket_address,
                                              self.my_estimated_lan,
                                              self.my_estimated_wan,
                                              True,
                                              u"unknown",
-                                             False,
-                                             global_time).to_pack_list()
+                                             global_time,
+                                             extra_bytes).to_pack_list()
         auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
         dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
 
         return self._ez_pack(self._prefix, 246, [auth, dist, payload])
 
-    def create_introduction_response(self, lan_socket_address, socket_address, identifier, introduction=None):
+    def create_introduction_response(self, lan_socket_address, socket_address, identifier,
+                                     introduction=None, extra_bytes=''):
         global_time = self.claim_global_time()
         introduction_lan = ("0.0.0.0",0)
         introduction_wan = ("0.0.0.0",0)
@@ -291,7 +294,8 @@ class Community(EZPackOverlay):
                                               introduction_wan,
                                               u"unknown",
                                               False,
-                                              identifier).to_pack_list()
+                                              identifier,
+                                              extra_bytes).to_pack_list()
         auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
         dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
 
@@ -316,6 +320,30 @@ class Community(EZPackOverlay):
 
         return self._ez_pack(self._prefix, 250, [dist, payload], False)
 
+    def introduction_request_callback(self, peer, dist, payload):
+        """
+        Callback that gets called after an introduction-request has been processed.
+        If you want to some action to trigger upon receipt of an introduction-request,
+        this would be the place to do so.
+
+        :param peer the peer that send us an introduction-request
+        :param dist the GlobalTimeDistributionPayload
+        :param payload the IntroductionRequestPayload
+        """
+        pass
+
+    def introduction_response_callback(self, peer, dist, payload):
+        """
+        Callback that gets called after an introduction-response has been processed.
+        If you want to some action to trigger upon receipt of an introduction-response,
+        this would be the place to do so.
+
+        :param peer the peer that send us an introduction-response
+        :param dist the GlobalTimeDistributionPayload
+        :param payload the IntroductionResponsePayload
+        """
+        pass
+
     @lazy_wrapper(GlobalTimeDistributionPayload, IntroductionRequestPayload)
     def on_introduction_request(self, peer, dist, payload):
         self.network.add_verified_peer(peer)
@@ -323,6 +351,8 @@ class Community(EZPackOverlay):
 
         packet = self.create_introduction_response(payload.destination_address, peer.address, payload.identifier)
         self.endpoint.send(peer.address, packet)
+
+        self.introduction_request_callback(peer, dist, payload)
 
     @lazy_wrapper(GlobalTimeDistributionPayload, IntroductionResponsePayload)
     def on_introduction_response(self, peer, dist, payload):
@@ -335,6 +365,8 @@ class Community(EZPackOverlay):
             self.network.discover_address(peer, payload.wan_introduction_address)
         elif payload.lan_introduction_address != ("0.0.0.0", 0):
             self.network.discover_address(peer, payload.lan_introduction_address)
+
+        self.introduction_response_callback(peer, dist, payload)
 
     @lazy_wrapper(GlobalTimeDistributionPayload, PuncturePayload)
     def on_puncture(self, peer, _, __):

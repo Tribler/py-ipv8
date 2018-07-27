@@ -234,7 +234,7 @@ class TestTunnelCommunity(TestBase):
 
         # Tunnel the data to the endpoint
         circuit = self.nodes[0].overlay.circuits.values()[0]
-        self.nodes[0].overlay.send_data([circuit.sock_addr], circuit.circuit_id,
+        self.nodes[0].overlay.send_data([circuit.peer.address], circuit.circuit_id,
                                         ('localhost', self.public_endpoint.get_address()[1]), ('0.0.0.0', 0), data)
         # This is not test communication, but actual socket communication, we can't do a smart sleep
         yield self.sleep()
