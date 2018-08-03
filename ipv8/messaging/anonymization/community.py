@@ -323,29 +323,37 @@ class TunnelCommunity(Community):
         Remove a circuit and return a deferred that fires when all data associated with the circuit is destroyed.
         Optionally send a destroy message.
         """
-        destroy_deferred = Deferred()
         circuit_to_remove = self.circuits.get(circuit_id, None)
-        if circuit_to_remove and destroy:
+        if circuit_to_remove is None:
+            self.logger.warning('Cannot remove unknown circuit %d', circuit_id)
+            return
+
+        remove_deferred = Deferred()
+        self.logger.info("Removing circuit %d " + additional_info, circuit_id)
+
+        if destroy:
             self.destroy_circuit(circuit_to_remove)
 
         def remove_circuit_info():
             circuit = self.circuits.pop(circuit_id, None)
             if circuit:
-                self.logger.info("Removing circuit %d " + additional_info, circuit_id)
-                circuit.destroy()
+                self.logger.info("Removed circuit %d " + additional_info, circuit_id)
 
             # Clean up the directions dictionary
             self.directions.pop(circuit_id, None)
 
-            destroy_deferred.callback(circuit_id)
+            remove_deferred.callback(circuit_id)
+
+        circuit_to_remove.close()
 
         if self.settings.remove_tunnel_delay == 0 or remove_now:
             remove_circuit_info()
         elif not self.is_pending_task_active("remove_circuit_%s" % circuit_id):
+
             self.register_task("remove_circuit_%s" % circuit_id,
                                reactor.callLater(self.settings.remove_tunnel_delay, remove_circuit_info))
 
-        return destroy_deferred
+        return remove_deferred
 
     def remove_relay(self, circuit_id, additional_info='', remove_now=False, destroy=False,
                      got_destroy_from=None, both_sides=True):

@@ -33,7 +33,7 @@ CIRCUIT_TYPE_RENDEZVOUS = 'RENDEZVOUS'
 CIRCUIT_STATE_READY = 'READY'
 CIRCUIT_STATE_EXTENDING = 'EXTENDING'
 CIRCUIT_STATE_TO_BE_EXTENDED = 'TO_BE_EXTENDED'
-CIRCUIT_STATE_BROKEN = 'BROKEN'
+CIRCUIT_STATE_CLOSING = 'CLOSING'
 
 CIRCUIT_ID_PORT = 1024
 PING_INTERVAL = 15.0
@@ -198,7 +198,7 @@ class Circuit(Tunnel):
         self.required_exit = required_exit
         self.info_hash = info_hash
 
-        self._broken = False
+        self._closing = False
         self._hops = []
         self.unverified_hop = None
         self.hs_session_keys = None
@@ -222,11 +222,11 @@ class Circuit(Tunnel):
     def state(self):
         """
         The circuit state, can be either:
-         CIRCUIT_STATE_BROKEN, CIRCUIT_STATE_EXTENDING or CIRCUIT_STATE_READY
+        CIRCUIT_STATE_CLOSING, CIRCUIT_STATE_EXTENDING or CIRCUIT_STATE_READY
         @rtype: str
         """
-        if self._broken:
-            return CIRCUIT_STATE_BROKEN
+        if self._closing:
+            return CIRCUIT_STATE_CLOSING
 
         if len(self.hops) < self.goal_hops:
             return CIRCUIT_STATE_EXTENDING
@@ -239,14 +239,12 @@ class Circuit(Tunnel):
         """
         self.last_incoming = time.time()
 
-    def destroy(self, reason='unknown'):
+    def close(self):
         """
-        Destroys the circuit and calls the error callback of the circuit's
-        deferred if it has not been called before
-
-        @param str reason: the reason why the circuit is being destroyed
+        Sets the state of the circuit to CIRCUIT_STATE_CLOSING. This ensures that this circuit
+        will not be used to contact new peers.
         """
-        self._broken = True
+        self._closing = True
 
 
 class Hop(object):
