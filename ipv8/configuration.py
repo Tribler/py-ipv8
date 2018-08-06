@@ -116,6 +116,19 @@ default = {
             }],
             'initialize': {},
             'on_start': []
+        },
+        {
+            'class': 'DHTDiscoveryCommunity',
+            'key': "anonymous id",
+            'walkers': [{
+                'strategy': "RandomWalk",
+                'peers': 20,
+                'init': {
+                    'timeout': 3.0
+                }
+            }],
+            'initialize': {},
+            'on_start': []
         }
     ]
 }

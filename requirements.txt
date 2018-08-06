@@ -4,3 +4,4 @@ netifaces
 networkx
 Twisted>=17.9.0
 pyOpenSSL
+datrie

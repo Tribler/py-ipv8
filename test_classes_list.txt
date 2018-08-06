@@ -32,3 +32,10 @@ ipv8/test/messaging/anonymization/test_community.py:TestTunnelCommunity
 ipv8/test/messaging/anonymization/test_hiddenservices.py:TestHiddenServices
 
 ipv8/test/deprecated/test_bloomfilter.py:TestBloomFilter
+
+ipv8/test/dht/test_community.py:TestDHTCommunity
+ipv8/test/dht/test_discovery.py:TestDHTDiscoveryCommunity
+ipv8/test/dht/test_routing.py:TestNode
+ipv8/test/dht/test_routing.py:TestBucket
+ipv8/test/dht/test_routing.py:TestRoutingTable
+ipv8/test/dht/test_storage.py:TestStorage
