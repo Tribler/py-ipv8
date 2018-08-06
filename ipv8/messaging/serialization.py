@@ -1,4 +1,5 @@
 import abc
+import xdrlib
 from struct import pack, unpack, unpack_from, Struct
 import sys
 
@@ -96,6 +97,34 @@ class VarLen(object):
         return out
 
 
+class XDRData(object):
+    """
+    pack/unpack XDR data
+    """
+
+    def __init__(self, serializer, deserializer, pack_callable, unpack_callable, size):
+        self.size = size
+        self.serializer = serializer
+        self.deserializer = deserializer
+        self.pack_callable = pack_callable
+        self.unpack_callable = unpack_callable
+
+    def pack(self, *data):
+        serializer = xdrlib.Packer()
+        getattr(serializer, self.pack_callable)(data[0])
+        dat = serializer.get_buffer()
+        if self.pack_callable == "pack_string":
+            self.size = len(dat) + 4
+        return dat
+
+    def unpack_from(self, data, offset=0):
+        cur_pos = self.deserializer.get_position()
+        dat = getattr(self.deserializer, self.unpack_callable)()
+        if self.unpack_callable == "unpack_string":
+            self.size = self.deserializer.get_position() - cur_pos
+        return dat
+
+
 class DefaultStruct(Struct):
 
     def __init__(self, format, single_value=False):
@@ -114,6 +143,8 @@ class Serializer(object):
 
     def __init__(self):
         super(Serializer, self).__init__()
+        self.xdr_serializer = xdrlib.Packer()
+        self.xdr_deserializer = xdrlib.Unpacker('')
         self._packers = {
             '?': DefaultStruct(">?", True),
             'B': DefaultStruct(">B", True),
@@ -143,7 +174,12 @@ class Serializer(object):
             'varlenH': VarLen('H'),
             'varlenHx20': VarLen('H', 20),
             'varlenI': VarLen('I'),
-            'doublevarlenH': VarLen('H')
+            'doublevarlenH': VarLen('H'),
+
+            'XDR_I': XDRData(self.xdr_serializer, self.xdr_deserializer, "pack_int", "unpack_int", 4),
+            'XDR_f': XDRData(self.xdr_serializer, self.xdr_deserializer, "pack_float", "unpack_float", 4),
+            'XDR_d': XDRData(self.xdr_serializer, self.xdr_deserializer, "pack_double", "unpack_double", 8),
+            'XDR_s': XDRData(self.xdr_serializer, self.xdr_deserializer, "pack_string", "unpack_string", 0)
         }
 
     def get_available_formats(self):
@@ -223,6 +259,8 @@ class Serializer(object):
         index = 0
         required_length = len(unpack_list)
         data_length = len(data)
+        self.xdr_deserializer.reset(data)
+        self.xdr_deserializer.set_position(current_offset)
         for format in unpack_list + optional_list:
             if index >= required_length and current_offset >= data_length:
                 # We can perform a clean break if we are in the optional set

@@ -177,3 +177,47 @@ class TestSerializer(TestCase):
 
         self.assertEqual(1, unserialized)
         self.assertEqual(256, unpack_other_end)
+
+    def test_pack_xdr_int(self):
+        """
+        Test packing a single integer using XDR
+        """
+        value = 1337
+
+        serialized = self.serializer.pack("XDR_I", value)
+        unserialized = self.serializer.unpack("XDR_I", serialized)
+
+        self.assertEqual(value, unserialized)
+
+    def test_pack_xdr_float(self):
+        """
+        Test packing a single float using XDR
+        """
+        value = 13.37
+
+        serialized = self.serializer.pack("XDR_f", value)
+        unserialized = self.serializer.unpack("XDR_f", serialized)
+
+        self.assertAlmostEqual(value, unserialized, 6)
+
+    def test_pack_xdr_double(self):
+        """
+        Test packing a single double using XDR
+        """
+        value = 133.37
+
+        serialized = self.serializer.pack("XDR_d", value)
+        unserialized = self.serializer.unpack("XDR_d", serialized)
+
+        self.assertEqual(value, unserialized)
+
+    def test_pack_xdr_string(self):
+        """
+        Test packing a single double using XDR
+        """
+        value = "this is a string"
+
+        serialized = self.serializer.pack("XDR_s", value)
+        unserialized = self.serializer.unpack("XDR_s", serialized)
+
+        self.assertEqual(value, unserialized)
