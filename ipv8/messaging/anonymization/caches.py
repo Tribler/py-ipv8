@@ -17,7 +17,7 @@ class CircuitRequestCache(NumberCache):
     def on_timeout(self):
         if self.circuit.state != CIRCUIT_STATE_READY:
             reason = 'timeout on CircuitRequestCache, state = %s, candidate = %s' % (
-                self.circuit.state, self.circuit.sock_addr)
+                self.circuit.state, self.circuit.peer.address)
             self.community.remove_circuit(self.number, reason)
 
 
