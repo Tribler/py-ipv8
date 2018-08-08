@@ -654,7 +654,7 @@ class TunnelCommunity(Community):
             if message_type not in SINGLE_HOP_ENC_PACKETS:
                 plaintext, encrypted = split_encrypted_packet(data)
                 try:
-                    encrypted = self.crypto_in(circuit_id, encrypted)
+                    encrypted = self.crypto_in(circuit_id, encrypted, is_data=message_type == u'data')
                     data = plaintext + encrypted
 
                 except CryptoException, e:
