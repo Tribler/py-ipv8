@@ -362,8 +362,8 @@ class HiddenTunnelCommunity(TunnelCommunity):
         self.remove_exit_socket(circuit.circuit_id, 'linking circuit')
         self.remove_exit_socket(relay_circuit.circuit_id, 'linking circuit')
 
-        self.relay_from_to[circuit.circuit_id] = RelayRoute(relay_circuit.circuit_id, relay_circuit.peer)
-        self.relay_from_to[relay_circuit.circuit_id] = RelayRoute(circuit.circuit_id, circuit.peer)
+        self.relay_from_to[circuit.circuit_id] = RelayRoute(relay_circuit.circuit_id, relay_circuit.peer, True)
+        self.relay_from_to[relay_circuit.circuit_id] = RelayRoute(circuit.circuit_id, circuit.peer, True)
 
         self.send_cell([source_address], u"linked-e2e", LinkedE2EPayload(circuit.circuit_id, payload.identifier))
 

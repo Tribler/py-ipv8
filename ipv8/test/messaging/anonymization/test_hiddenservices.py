@@ -36,6 +36,7 @@ class TestHiddenServices(TestBase):
 
         self.private_nodes = []
         self.service = '0' * 20
+        self.received_packets = []
 
     def tearDown(self):
         super(TestHiddenServices, self).tearDown()
@@ -72,17 +73,17 @@ class TestHiddenServices(TestBase):
             return None
 
         # Add the first node to the path
-        path.append((first_node.overlay.my_peer.address, e2e_circuit.circuit_id))
+        path.append((first_node.overlay.my_peer.address, e2e_circuit))
 
         cur_tunnel = e2e_circuit
         while True:
             next_node = get_node_with_sock_addr(cur_tunnel.peer.address)
             if cur_tunnel.circuit_id not in next_node.overlay.relay_from_to:
                 # We reached the end of our e2e circuit.
-                path.append((next_node.overlay.my_peer.address, cur_tunnel.circuit_id))
+                path.append((next_node.overlay.my_peer.address, cur_tunnel))
                 break
             cur_tunnel = next_node.overlay.relay_from_to[cur_tunnel.circuit_id]
-            path.append((next_node.overlay.my_peer.address, cur_tunnel.circuit_id))
+            path.append((next_node.overlay.my_peer.address, cur_tunnel))
 
         return path
 
@@ -182,7 +183,17 @@ class TestHiddenServices(TestBase):
         yield callback_called
 
         # Verify the length of the e2e circuit
-        self.assertEqual(len(self.get_e2e_circuit_path()), 4)
+        e2e_path = self.get_e2e_circuit_path()
+        self.assertEqual(len(e2e_path), 4)
+
+        # Check if data can be sent over the e2e circuit
+        data = 'PACKET'
+        _, circuit = e2e_path[0]
+        self.nodes[2].overlay.on_raw_data = lambda _, __, data: self.received_packets.append(data)
+        self.nodes[0].overlay.send_data([circuit.peer], circuit.circuit_id, ('0.0.0.0', 0), ('0.0.0.0', 0), data)
+        yield self.deliver_messages()
+        self.assertEqual(len(self.received_packets), 1)
+        self.assertEqual(self.received_packets[0], data)
 
     @twisted_wrapper
     def test_dht_lookup_no_counterparty(self):
