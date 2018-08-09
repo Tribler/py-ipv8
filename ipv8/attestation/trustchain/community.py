@@ -10,7 +10,7 @@ from threading import RLock
 from twisted.internet import reactor
 from twisted.internet.defer import Deferred, succeed, fail
 
-from .block import TrustChainBlock, ValidationResult, EMPTY_PK, GENESIS_SEQ, UNKNOWN_SEQ
+from .block import TrustChainBlock, ValidationResult, EMPTY_PK, GENESIS_SEQ, UNKNOWN_SEQ, ANY_COUNTERPARTY_PK
 from .caches import CrawlRequestCache, HalfBlockSignCache, IntroCrawlTimeout
 from .database import TrustChainDB
 from ...deprecated.community import Community
@@ -157,7 +157,33 @@ class TrustChainCommunity(Community):
     def self_sign_block(self, block_type='unknown', transaction=None):
         self.sign_block(self.my_peer, block_type=block_type, transaction=transaction)
 
-    def sign_block(self, peer, public_key=EMPTY_PK, block_type='unknown', transaction=None, linked=None):
+    def create_source_block(self, block_type='unknown', transaction=None):
+        """
+        Create a source block without any initial counterparty to sign.
+
+        :param block_type: The type of the block to be constructed, as a string
+        :param transaction: A string describing the interaction in this block
+        :return: None
+        """
+        self.sign_block(peer=None, public_key=ANY_COUNTERPARTY_PK, block_type=block_type, transaction=transaction)
+
+    def create_link(self, source, block_type='unknown', additional_info=None, public_key=None):
+        """
+        Create a Link Block to a source block
+
+        :param source: The source block which had no initial counterpary to sign
+        :param block_type: The type of the block to be constructed, as a string
+        :param additional_info: a dictionary with supplementary information concerning the transaction
+        :param public_key: The public key of the counterparty (usually of the source's owner)
+        :return: None
+        """
+        public_key = source.public_key if public_key is None else public_key
+
+        self.sign_block(self.my_peer, linked=source, public_key=public_key, block_type=block_type,
+                        additional_info=additional_info)
+
+    def sign_block(self, peer, public_key=EMPTY_PK, block_type='unknown', transaction=None, linked=None,
+                   additional_info=None):
         """
         Create, sign, persist and send a block signed message
         :param peer: The peer with whom you have interacted, as a IPv8 peer
@@ -165,23 +191,35 @@ class TrustChainCommunity(Community):
         :param block_type: The type of the block to be constructed, as a string
         :param transaction: A string describing the interaction in this block
         :param linked: The block that the requester is asking us to sign
+        :param additional_info: Stores additional information, on the transaction
         """
         # NOTE to the future: This method reads from the database, increments and then writes back. If in some future
         # this method is allowed to execute in parallel, be sure to lock from before .create up to after .add_block
+
+        # In this particular case there must be an implicit transaction due to the following assert
+        assert peer is not None or peer is None and linked is None and public_key == ANY_COUNTERPARTY_PK, \
+            "Peer, linked block should not be provided when creating a no counterparty source block. Public key " \
+            "should be that reserved for any counterpary."
         assert transaction is None and linked is not None or transaction is not None and linked is None, \
-            "Either provide a linked block or a transaction, not both"
-        assert linked is None or linked.link_public_key == self.my_peer.public_key.key_to_bin(), \
-            "Cannot counter sign block not addressed to self"
+            "Either provide a linked block or a transaction, not both %s, %s" % (peer, self.my_peer)
+        assert additional_info is None or additional_info is not None and linked is not None and \
+               transaction is None and peer == self.my_peer and public_key == linked.public_key, \
+            "Either no additional info is provided or one provides it for a linked block"
+        assert linked is None or linked.link_public_key == self.my_peer.public_key.key_to_bin() or \
+               linked.link_public_key == ANY_COUNTERPARTY_PK, "Cannot counter sign block not addressed to self"
         assert linked is None or linked.link_sequence_number == UNKNOWN_SEQ, \
             "Cannot counter sign block that is not a request"
         assert transaction is None or isinstance(transaction, dict), "Transaction should be a dictionary"
+        assert additional_info is None or isinstance(additional_info, dict), "Additional info should be a dictionary"
 
         self.persistence_integrity_check()
         block_type = linked.type if linked else block_type
         block = self.get_block_class(block_type).create(block_type, transaction, self.persistence,
                                                         self.my_peer.public_key.key_to_bin(),
-                                                        link=linked, link_pk=public_key)
+                                                        link=linked, additional_info=additional_info,
+                                                        link_pk=public_key)
         block.sign(self.my_peer.key)
+
         validation = block.validate(self.persistence)
         self.logger.info("Signed block to %s (%s) validation result %s",
                          block.link_public_key.encode("hex")[-8:], block, validation)
@@ -192,13 +230,22 @@ class TrustChainCommunity(Community):
         if not self.persistence.contains(block):
             self.persistence.add_block(block)
             self.notify_listeners(block)
+
+        # This is a source block with no counterparty
+        if not peer and public_key == ANY_COUNTERPARTY_PK:
+            if self.broadcast_block:
+                self.send_block(block)
+            return
+
+        # If there is a counterparty to sign
         self.send_block(block, address=peer.address)
 
-        if peer == self.my_peer and public_key == EMPTY_PK:
+        if peer == self.my_peer:
             # We created a half-signed block
             if self.broadcast_block:
                 self.send_block(block)
-            return succeed((block, None))
+
+            return succeed((block, None)) if public_key == ANY_COUNTERPARTY_PK else succeed((block, linked))
         elif not linked:
             # We keep track of this outstanding sign request.
             sign_deferred = Deferred()
