@@ -130,7 +130,7 @@ class EZPackOverlay(Overlay):
     def _ez_pack(self, prefix, msg_num, format_list_list, sig=True):
         packet = prefix + chr(msg_num)
         for format_list in format_list_list:
-            packet += self.serializer.pack_multiple(format_list)
+            packet += self.serializer.pack_multiple(format_list)[0]
         if sig:
             packet += ECCrypto().create_signature(self.my_peer.key, packet)
         return packet

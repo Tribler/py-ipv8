@@ -131,7 +131,7 @@ class TrustChainBlock(object):
         args = [self.public_key, self.sequence_number, self.link_public_key, self.link_sequence_number,
                 self.previous_hash, self.signature if signature else EMPTY_SIG, self.type, self.transaction,
                 self.timestamp]
-        return self.serializer.pack_multiple(HalfBlockPayload(*args).to_pack_list())
+        return self.serializer.pack_multiple(HalfBlockPayload(*args).to_pack_list())[0]
 
     def validate_transaction(self, database):
         """

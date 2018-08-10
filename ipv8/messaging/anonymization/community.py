@@ -624,13 +624,13 @@ class TunnelCommunity(Community):
 
     def create_introduction_request(self, socket_address, extra_bytes=''):
         extra_payload = ExtraIntroductionPayload(self.become_exitnode())
-        extra_bytes = self.serializer.pack_multiple(extra_payload.to_pack_list())
+        extra_bytes = self.serializer.pack_multiple(extra_payload.to_pack_list())[0]
         return super(TunnelCommunity, self).create_introduction_request(socket_address, extra_bytes)
 
     def create_introduction_response(self, lan_socket_address, socket_address, identifier,
                                      introduction=None, extra_bytes=''):
         extra_payload = ExtraIntroductionPayload(self.become_exitnode())
-        extra_bytes = self.serializer.pack_multiple(extra_payload.to_pack_list())
+        extra_bytes = self.serializer.pack_multiple(extra_payload.to_pack_list())[0]
         return super(TunnelCommunity, self).create_introduction_response(lan_socket_address, socket_address,
                                                                          identifier, introduction, extra_bytes)
 

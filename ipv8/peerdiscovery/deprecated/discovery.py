@@ -87,7 +87,7 @@ class DiscoveryCommunity(Community):
     def custom_pack(self, peer, msg_num, format_list_list):
         packet = self._prefix + chr(msg_num)
         for format_list in format_list_list:
-            packet += self.serializer.pack_multiple(format_list)
+            packet += self.serializer.pack_multiple(format_list)[0]
         packet += ECCrypto().create_signature(peer.key, packet)
         return packet
 
