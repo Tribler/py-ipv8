@@ -9,8 +9,6 @@ class PackError(RuntimeError):
 
 class Bits(object):
 
-    size = 1
-
     def pack(self, bit_7=0, bit_6=0, bit_5=0, bit_4=0, bit_3=0, bit_2=0, bit_1=0, bit_0=0):
         """
         Pack multiple bits into a single byte.
@@ -27,7 +25,7 @@ class Bits(object):
         byte |= 0x04 if bit_2 else 0x00
         byte |= 0x02 if bit_1 else 0x00
         byte |= 0x01 if bit_0 else 0x00
-        return pack('>B', byte)
+        return pack('>B', byte), 1
 
     def unpack_from(self, data, offset):
         """
@@ -44,7 +42,7 @@ class Bits(object):
         bit_2 = 1 if 0x04 & byte else 0
         bit_1 = 1 if 0x02 & byte else 0
         bit_0 = 1 if 0x01 & byte else 0
-        return [bit_7, bit_6, bit_5, bit_4, bit_3, bit_2, bit_1, bit_0]
+        return [bit_7, bit_6, bit_5, bit_4, bit_3, bit_2, bit_1, bit_0], 1
 
 
 class Raw(object):
@@ -52,22 +50,18 @@ class Raw(object):
     Paste/unpack the remaining input without (un)packing.
     """
 
-    def __init__(self):
-        super(Raw, self).__init__()
-        self.size = 0
-
     def pack(self, *data):
         out = ''
+        size = 0
         for piece in data:
             s_piece = str(piece)
             out += s_piece
-            self.size += len(s_piece)
-        return out
+            size += len(s_piece)
+        return out, size
 
     def unpack_from(self, data, offset=0):
         out = data[offset:]
-        self.size = len(out)
-        return out
+        return out, len(out)
 
 
 class VarLen(object):
@@ -80,20 +74,18 @@ class VarLen(object):
         self.format = format
         self.format_size = Struct(self.format).size
         self.base = base
-        self.size = 0
 
     def pack(self, *data):
         raw = ''.join(data)
         length = len(raw)/self.base
-        self.size = self.format_size + len(raw)
-        return pack('>%s%ds' % (self.format, len(raw)), length, raw)
+        size = self.format_size + len(raw)
+        return pack('>%s%ds' % (self.format, len(raw)), length, raw), size
 
     def unpack_from(self, data, offset=0):
         length, = unpack_from('>%s' % self.format, data, offset)
         length *= self.base
         out, = unpack_from('>%ds' % length, data, offset + self.format_size)
-        self.size = self.format_size + length
-        return out
+        return out, self.format_size + length
 
 
 class DefaultStruct(Struct):
@@ -102,12 +94,15 @@ class DefaultStruct(Struct):
         super(DefaultStruct, self).__init__(format)
         self.single_value = single_value
 
+    def pack(self, *data):
+        return super(DefaultStruct, self).pack(*data), self.size
+
     def unpack_from(self, buffer, offset=0):
         out = super(DefaultStruct, self).unpack_from(buffer, offset)
         if self.single_value:
-            return out[0]
+            return out[0], self.size
         else:
-            return list(out)
+            return list(out), self.size
 
 
 class Serializer(object):
@@ -165,7 +160,7 @@ class Serializer(object):
         :param name: the name to register
         :param format: the format to use for it
         """
-        self._packers.update({name: Struct(format)})
+        self._packers.update({name: DefaultStruct(format)})
 
     def pack(self, format, *data):
         """
@@ -173,6 +168,7 @@ class Serializer(object):
 
         :param format: the format name to use
         :param data: the data to serialize
+        :returns: (packed, size)
         """
         return self._packers[format].pack(*data)
 
@@ -183,19 +179,23 @@ class Serializer(object):
         Each of the tuples in the pack_list are built as (format, arg1, arg2, .., argn)
 
         :param pack_list: the list of packable tuples
+        :returns: (packed, size)
         """
         out = ""
         index = 0
+        size = 0
         for packable in pack_list:
             try:
-                out += self.pack(*packable)
+                packed, packed_size = self.pack(*packable)
+                out += packed
+                size += packed_size
             except Exception as e:
                 raise PackError("Could not pack item %d: %s\n%s: %s" % (index,
                                                                         repr(packable),
                                                                         type(e).__name__,
                                                                         str(e))), None, sys.exc_info()[2]
             index += 1
-        return out
+        return out, size
 
     def unpack(self, format, data, offset=0):
         """
@@ -228,16 +228,17 @@ class Serializer(object):
                 # We can perform a clean break if we are in the optional set
                 break
             try:
+                unpacked, unpacked_size = self.unpack(format, data, current_offset)
                 if format == 'bits':
-                    out.extend(self.unpack(format, data, current_offset))
+                    out.extend(unpacked)
                 else:
-                    out.append(self.unpack(format, data, current_offset))
+                    out.append(unpacked)
             except Exception as e:
                 raise PackError("Could not unpack item %d: %s\n%s: %s" % (index,
                                                                           format,
                                                                           type(e).__name__,
                                                                           str(e))), None, sys.exc_info()[2]
-            current_offset += self._packers[format].size
+            current_offset += unpacked_size
             index += 1
         return out, current_offset
 
@@ -261,10 +262,11 @@ class Serializer(object):
             list_element = []
             for format in unpack_list:
                 try:
+                    unpacked, unpacked_size = self.unpack(format, data, current_offset)
                     if format == 'bits':
-                        list_element.extend(self.unpack(format, data, current_offset))
+                        list_element.extend(unpacked)
                     else:
-                        list_element.append(self.unpack(format, data, current_offset))
+                        list_element.append(unpacked)
                 except Exception as e:
                     raise PackError("Could not unpack #%d repetition of item %d: %s\n%s: %s" % (index+1,
                                                                                                 len(list_element),
@@ -272,7 +274,7 @@ class Serializer(object):
                                                                                                 type(e).__name__,
                                                                                                 str(e))),\
                         None, sys.exc_info()[2]
-                current_offset += self._packers[format].size
+                current_offset += unpacked_size
                 index += 1
             out.append(list_element)
         return out, current_offset

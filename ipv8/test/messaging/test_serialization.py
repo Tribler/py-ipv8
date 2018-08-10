@@ -15,8 +15,8 @@ class TestSerializer(TestCase):
         """
         value = True
 
-        serialized = self.serializer.pack("?", value)
-        unserialized = self.serializer.unpack("?", serialized)
+        serialized, _ = self.serializer.pack("?", value)
+        unserialized, _ = self.serializer.unpack("?", serialized)
 
         self.assertEqual(value, unserialized)
 
@@ -26,8 +26,8 @@ class TestSerializer(TestCase):
         """
         value = False
 
-        serialized = self.serializer.pack("?", value)
-        unserialized = self.serializer.unpack("?", serialized)
+        serialized, _ = self.serializer.pack("?", value)
+        unserialized, _ = self.serializer.unpack("?", serialized)
 
         self.assertEqual(value, unserialized)
 
@@ -37,8 +37,8 @@ class TestSerializer(TestCase):
         """
         value = 0
 
-        serialized = self.serializer.pack("B", value)
-        unserialized = self.serializer.unpack("B", serialized)
+        serialized, _ = self.serializer.pack("B", value)
+        unserialized, _ = self.serializer.unpack("B", serialized)
 
         self.assertEqual(value, unserialized)
 
@@ -48,8 +48,8 @@ class TestSerializer(TestCase):
         """
         value = 1
 
-        serialized = self.serializer.pack("B", value)
-        unserialized = self.serializer.unpack("B", serialized)
+        serialized, _ = self.serializer.pack("B", value)
+        unserialized, _ = self.serializer.unpack("B", serialized)
 
         self.assertEqual(value, unserialized)
 
@@ -59,8 +59,8 @@ class TestSerializer(TestCase):
         """
         value = 255
 
-        serialized = self.serializer.pack("B", value)
-        unserialized = self.serializer.unpack("B", serialized)
+        serialized, _ = self.serializer.pack("B", value)
+        unserialized, _ = self.serializer.unpack("B", serialized)
 
         self.assertEqual(value, unserialized)
 
@@ -74,7 +74,7 @@ class TestSerializer(TestCase):
         """
         Check if 1 byte string cannot be unpacked as a short.
         """
-        serialized = self.serializer.pack("B", 255)
+        serialized, _ = self.serializer.pack("B", 255)
 
         self.assertRaises(struct.error, self.serializer.unpack, "H", serialized)
 
@@ -85,8 +85,8 @@ class TestSerializer(TestCase):
         value0 = 0
         value1 = 1337
 
-        serialized = self.serializer.pack("HH", value0, value1)
-        unserialized = self.serializer.unpack("HH", serialized)
+        serialized, _ = self.serializer.pack("HH", value0, value1)
+        unserialized, _ = self.serializer.unpack("HH", serialized)
 
         self.assertListEqual([value0, value1], unserialized)
 
@@ -100,7 +100,7 @@ class TestSerializer(TestCase):
         """
         Check if a unpack_multiple of a short from a byte raises a PackError.
         """
-        serialized = self.serializer.pack_multiple([("B", 1)])
+        serialized, _ = self.serializer.pack_multiple([("B", 1)])
 
         self.assertRaises(PackError, self.serializer.unpack_multiple, ["H"], serialized)
 
@@ -108,7 +108,7 @@ class TestSerializer(TestCase):
         """
         Check if a unpack_multiple_as_list can unpack an empty list.
         """
-        serialized = self.serializer.pack_multiple([])
+        serialized, _ = self.serializer.pack_multiple([])
         unserialized, _ = self.serializer.unpack_multiple_as_list([], serialized)
 
         self.assertEqual([], unserialized)
@@ -117,7 +117,7 @@ class TestSerializer(TestCase):
         """
         Check if a unpack_multiple_as_list can unpack bits.
         """
-        serialized = self.serializer.pack("bits", 0, 1, 0, 1, 0, 1, 0, 1)
+        serialized, _ = self.serializer.pack("bits", 0, 1, 0, 1, 0, 1, 0, 1)
         unserialized, _ = self.serializer.unpack_multiple_as_list(["bits"], serialized)
 
         self.assertEqual(1, len(unserialized))
@@ -127,7 +127,7 @@ class TestSerializer(TestCase):
         """
         Check if a unpack_multiple_as_list of a short from a byte raises a PackError.
         """
-        serialized = self.serializer.pack_multiple([("B", 1)])
+        serialized, _ = self.serializer.pack_multiple([("B", 1)])
 
         self.assertRaises(PackError, self.serializer.unpack_multiple_as_list, ["H"], serialized)
 
@@ -135,7 +135,7 @@ class TestSerializer(TestCase):
         """
         Check if a unpack_multiple_as_list of a short from a byte raises a PackError in the third repetition.
         """
-        serialized = self.serializer.pack_multiple([("H", 1), ("H", 2), ("B", 3)])
+        serialized, _ = self.serializer.pack_multiple([("H", 1), ("H", 2), ("B", 3)])
 
         self.assertRaises(PackError, self.serializer.unpack_multiple_as_list, ["H"], serialized)
 
@@ -143,7 +143,7 @@ class TestSerializer(TestCase):
         """
         Check if a unpack_to_serializables of a short from a byte raises a PackError.
         """
-        serialized = self.serializer.pack_multiple([("B", 1)])
+        serialized, _ = self.serializer.pack_multiple([("B", 1)])
 
         class TestSerializable(Serializable):
             is_list_descriptor = True
@@ -171,9 +171,9 @@ class TestSerializer(TestCase):
         """
         self.serializer.add_packing_format("my_cool_format", "<H") # little-endian
 
-        serialized = self.serializer.pack("my_cool_format", 1) # Packed as 01 00
-        unserialized, = self.serializer.unpack("my_cool_format", serialized) # little-endian, unpacked as 00 01 = 1
-        unpack_other_end = self.serializer.unpack("H", serialized) # big-endian, unpacked as 01 00 = 256
+        serialized, _ = self.serializer.pack("my_cool_format", 1) # Packed as 01 00
+        [unserialized], _ = self.serializer.unpack("my_cool_format", serialized) # little-endian, unpacked as 00 01 = 1
+        unpack_other_end, _ = self.serializer.unpack("H", serialized) # big-endian, unpacked as 01 00 = 256
 
         self.assertEqual(1, unserialized)
         self.assertEqual(256, unpack_other_end)
