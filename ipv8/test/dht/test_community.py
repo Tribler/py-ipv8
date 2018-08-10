@@ -7,6 +7,7 @@ from ..base import TestBase
 from ..mocking.ipv8 import MockIPv8
 from ..util import twisted_wrapper
 from ...dht.community import DHTCommunity
+from ...dht.provider import DHTCommunityProvider
 from ...dht.routing import Node, distance
 
 
@@ -208,6 +209,31 @@ class TestDHTCommunity(TestBase):
         yield self.deliver_messages()
         self.assertFailure(d, RuntimeError)
         self.assertEqual(self.nodes[1].overlay.storage.get(self.key), [])
+
+    @twisted_wrapper
+    def test_provider(self):
+        """
+        Test the DHT provider (used to fetch peers in the hidden services)
+        """
+        self.add_node_to_experiment(self.create_node())
+        test_deferred = Deferred()
+
+        yield self.introduce_nodes()
+        dht_provider_1 = DHTCommunityProvider(self.nodes[0].overlay, 1337)
+        dht_provider_2 = DHTCommunityProvider(self.nodes[1].overlay, 1338)
+        dht_provider_3 = DHTCommunityProvider(self.nodes[2].overlay, 1338)
+        dht_provider_1.announce('a' * 20)
+        dht_provider_2.announce('a' * 20)
+
+        yield self.deliver_messages()
+
+        def on_peers(peers):
+            self.assertEqual(len(peers[1]), 2)
+            test_deferred.callback(None)
+
+        dht_provider_3.lookup('a' * 20, on_peers)
+
+        yield test_deferred
 
 
 class TestDHTCommunityXL(TestBase):
