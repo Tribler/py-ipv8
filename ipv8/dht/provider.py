@@ -16,7 +16,7 @@ class DHTCommunityProvider(object):
     def lookup(self, info_hash, cb):
         def callback(values):
             addresses = []
-            for value in values:
+            for value, _ in values:
                 try:
                     ip, port = struct.unpack('!4sH', value)
                     address = (socket.inet_ntoa(ip), port)
