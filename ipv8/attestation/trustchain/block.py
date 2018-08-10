@@ -13,6 +13,7 @@ GENESIS_SEQ = 1
 UNKNOWN_SEQ = 0
 EMPTY_SIG = '0'*64
 EMPTY_PK = '0'*74
+ANY_COUNTERPARTY_PK = EMPTY_PK
 
 
 class TrustChainBlock(object):
@@ -265,7 +266,9 @@ class TrustChainBlock(object):
             if pck is None or not self.crypto.is_valid_signature(
                     self.crypto.key_from_public_bin(self.public_key), pck, self.signature):
                 result.err("Invalid signature")
-        if not self.crypto.is_valid_public_bin(self.link_public_key) and self.link_public_key != EMPTY_PK:
+        if not self.crypto.is_valid_public_bin(self.link_public_key) and \
+                self.link_public_key != ANY_COUNTERPARTY_PK and \
+                self.link_public_key != EMPTY_PK:
             result.err("Linked public key is not valid")
         if self.public_key == self.link_public_key:
             # Blocks to self serve no purpose and are thus invalid.
@@ -323,7 +326,7 @@ class TrustChainBlock(object):
             elif (link.link_sequence_number != self.sequence_number and
                   link.sequence_number != self.link_sequence_number):
                 result.err("No link to linked block")
-            elif self.public_key != link.link_public_key:
+            elif self.public_key != link.link_public_key and link.link_public_key != ANY_COUNTERPARTY_PK:
                 result.err("Public key mismatch on linked block")
             elif self.link_sequence_number != UNKNOWN_SEQ:
                 # self counter signs another block (link). If link has a linked block that is not equal to self,
@@ -376,7 +379,7 @@ class TrustChainBlock(object):
         self.signature = self.crypto.create_signature(key, self.pack(signature=False))
 
     @classmethod
-    def create(cls, block_type, transaction, database, public_key, link=None, link_pk=None):
+    def create(cls, block_type, transaction, database, public_key, link=None, additional_info=None, link_pk=None):
         """
         Create an empty next block.
         :param block_type: the type of the block to be constructed
@@ -384,6 +387,8 @@ class TrustChainBlock(object):
         :param database: the database to use as information source
         :param public_key: the public key to use for this block
         :param link: optionally create the block as a linked block to this block
+        :param additional_info: additional information, which has a higher priority than the
+               transaction when link exists
         :param link_pk: the public key of the counterparty in this transaction
         :return: A newly created block
         """
@@ -391,7 +396,7 @@ class TrustChainBlock(object):
         ret = cls()
         if link:
             ret.type = link.type
-            ret.transaction = link.transaction
+            ret.transaction = link.transaction if additional_info is None else encode(additional_info)
             ret.link_public_key = link.public_key
             ret.link_sequence_number = link.sequence_number
         else:

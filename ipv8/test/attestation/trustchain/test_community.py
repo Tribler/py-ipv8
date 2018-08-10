@@ -3,6 +3,7 @@ from ....attestation.trustchain.caches import CrawlRequestCache
 from ....attestation.trustchain.community import TrustChainCommunity, UNKNOWN_SEQ
 from ....attestation.trustchain.listener import BlockListener
 from ...attestation.trustchain.test_block import TestBlock
+from ....messaging.deprecated.encoding import decode
 from ...base import TestBase
 from ...mocking.ipv8 import MockIPv8
 from ...util import twisted_wrapper
@@ -454,3 +455,36 @@ class TestTrustChainCommunity(TestBase):
         # The other node should now have the self-signed block
         self.assertIsNotNone(self.nodes[0].overlay.persistence.get(my_pubkey, 1))
         self.assertIsNotNone(self.nodes[1].overlay.persistence.get(my_pubkey, 1))
+
+    @twisted_wrapper
+    def test_half_block_link_block(self):
+        """
+        Test creating and disseminating a link block
+        """
+        yield self.introduce_nodes()
+
+        source_peer_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
+        counter_peer_pubkey = self.nodes[1].my_peer.public_key.key_to_bin()
+
+        # Create an initial source block with no counterpary
+        yield self.nodes[0].overlay.create_source_block('test', {})
+        yield self.deliver_messages()
+
+        # Check the dissemination of the no counterparty source block
+        self.assertIsNotNone(self.nodes[0].overlay.persistence.get(source_peer_pubkey, 1))
+        block = self.nodes[1].overlay.persistence.get(source_peer_pubkey, 1)
+        self.assertIsNotNone(block)
+
+        # Create a Link Block
+        yield self.nodes[1].overlay.create_link(block, block_type='link', additional_info={'a': 1, 'b': 2})
+        yield self.deliver_messages()
+
+        # Check the dissemination of the link block
+        block_node_0 = self.nodes[0].overlay.persistence.get(counter_peer_pubkey, 1)
+        block_node_1 = self.nodes[1].overlay.persistence.get(counter_peer_pubkey, 1)
+
+        self.assertIsNotNone(block_node_0)
+        self.assertIsNotNone(block_node_1)
+
+        self.assertEqual(decode(block_node_0.transaction)[1], {'a': 1, 'b': 2})
+        self.assertEqual(decode(block_node_1.transaction)[1], {'a': 1, 'b': 2})
