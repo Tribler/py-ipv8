@@ -607,20 +607,25 @@ class TunnelCommunity(Community):
         else:
             return
 
-    def update_exit_candidates(self, candidate, become_exit):
-        public_key = candidate.public_key
+    def update_exit_candidates(self, peer, become_exit):
+        public_key = peer.public_key
         if become_exit:
-            self.exit_candidates[public_key.key_to_bin()] = candidate
+            self.exit_candidates[public_key.key_to_bin()] = peer
         else:
             self.exit_candidates.pop(public_key.key_to_bin(), None)
 
+    def parse_extra_bytes(self, extra_bytes):
+        if not extra_bytes:
+            return False
+
+        payload = self.serializer.unpack_to_serializables([ExtraIntroductionPayload], extra_bytes)[0]
+        return payload.exitnode
+
     def introduction_request_callback(self, peer, dist, payload):
-        payload = self.serializer.unpack_to_serializables([ExtraIntroductionPayload], payload.extra_bytes)[0]
-        self.update_exit_candidates(peer, payload.exitnode)
+        self.update_exit_candidates(peer, self.parse_extra_bytes(payload.extra_bytes))
 
     def introduction_response_callback(self, peer, dist, payload):
-        payload = self.serializer.unpack_to_serializables([ExtraIntroductionPayload], payload.extra_bytes)[0]
-        self.update_exit_candidates(peer, payload.exitnode)
+        self.update_exit_candidates(peer, self.parse_extra_bytes(payload.extra_bytes))
 
     def create_introduction_request(self, socket_address, extra_bytes=''):
         extra_payload = ExtraIntroductionPayload(self.become_exitnode())
