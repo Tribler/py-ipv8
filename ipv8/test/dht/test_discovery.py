@@ -74,6 +74,26 @@ class TestDHTDiscoveryCommunity(TestBase):
         yield self.deliver_messages()
         self.assertFailure(d, RuntimeError)
 
+    @twisted_wrapper
+    def test_ping_pong(self):
+        now = time.time() - 1
+
+        node0 = Node(self.nodes[0].my_peer.key, self.nodes[0].my_peer.address)
+        node0.last_response = now
+        node0.last_query = now
+
+        node1 = Node(self.nodes[1].my_peer.key, self.nodes[1].my_peer.address)
+        node1.last_response = now
+        node1.last_query = now
+
+        key = node1.mid
+        self.nodes[0].overlay.store[key].append(node1)
+        self.nodes[1].overlay.store_for_me[key].append(node0)
+
+        yield self.nodes[1].overlay.ping(node0)
+        self.assertNotEqual(node0.last_response, now)
+        self.assertNotEqual(node1.last_query, now)
+
     def test_ping_all(self):
         self.nodes[0].overlay.ping = lambda n: setattr(self, 'pinged', n)
 

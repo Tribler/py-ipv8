@@ -42,19 +42,19 @@ class DHTDiscoveryCommunity(DHTCommunity):
     def on_ping_request(self, source_address, data):
         super(DHTDiscoveryCommunity, self).on_ping_request(source_address, data)
         auth, _, _ = self._ez_unpack_auth(PingRequestPayload, data)
-        node = self.find_storing_node(auth.public_key_bin)
+        node = self.find_node_in_dict(auth.public_key_bin, self.store)
         if node:
             node.last_query = time.time()
 
     def on_ping_response(self, source_address, data):
         super(DHTDiscoveryCommunity, self).on_ping_response(source_address, data)
         auth, _, _ = self._ez_unpack_auth(PingResponsePayload, data)
-        node = self.find_storing_node(auth.public_key_bin)
+        node = self.find_node_in_dict(auth.public_key_bin, self.store_for_me)
         if node:
             node.last_response = time.time()
 
-    def find_storing_node(self, public_key_bin):
-        for _, nodes in self.store_for_me.iteritems():
+    def find_node_in_dict(self, public_key_bin, node_dict):
+        for _, nodes in node_dict.iteritems():
             for node in nodes:
                 if node.public_key.key_to_bin() == public_key_bin:
                     return node

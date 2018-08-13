@@ -88,7 +88,7 @@ class TestDHTCommunity(TestBase):
         node1.failed = 1
         node1.last_response = time.time()
 
-        yield self.nodes[0].overlay.ping_all()
+        self.nodes[0].overlay.ping_all()
         self.assertTrue(node1.failed == 1)
 
     @twisted_wrapper
