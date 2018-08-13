@@ -1,0 +1,20 @@
+[Unit]
+Description=IPv8 tracker listening at port %i
+
+[Service]
+ProtectSystem=yes
+
+Environment="PYTHONPATH=/opt/ipv8"
+
+WorkingDirectory=/opt/ipv8
+
+ExecStartPre=/bin/mkdir -p ${HOME}/%i
+ExecStart=/usr/bin/twistd --nodaemon --pidfile= tracker --listen_port=%i
+
+User=ipv8_tracker
+Group=ipv8_tracker
+
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
