@@ -130,6 +130,9 @@ class TestTunnelCommunity(TestBase):
         """
         self.nodes[1].overlay.settings.become_exitnode = True
         yield self.introduce_nodes()
+
+        # Don't allow the exit node to answer, this keeps peer 0's circuit in EXTENDING state
+        self.nodes[1].overlay.endpoint.close()
         self.nodes[0].overlay.build_tunnels(1)
 
         # Node 0 should have 1 circuit in the CIRCUIT_STATE_EXTENDING state
