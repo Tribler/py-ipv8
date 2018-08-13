@@ -333,8 +333,10 @@ class AttestationCommunity(Community):
                 honesty_check_byte = choice(range(3)) if honesty_check else -1
                 challenge = None
                 if honesty_check:
-                    raw_challenge = create_honesty_check(proving_cache.public_key, honesty_check_byte)
-                    challenge = pack_pair(raw_challenge.a, raw_challenge.b)
+                    while not challenge or self.request_cache.has(*HashCache.id_from_hash(u"proving-hash",
+                                                                                          sha1(challenge).digest())):
+                        raw_challenge = create_honesty_check(proving_cache.public_key, honesty_check_byte)
+                        challenge = pack_pair(raw_challenge.a, raw_challenge.b)
                 if (not honesty_check) or (challenge and self.request_cache.has(*HashCache.id_from_hash(u"proving-hash",
                                                                                 sha1(challenge).digest()))):
                     honesty_check_byte = -1
