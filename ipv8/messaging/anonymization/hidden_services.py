@@ -138,7 +138,8 @@ class HiddenTunnelCommunity(TunnelCommunity):
         payload = self._ez_unpack_noauth(DHTRequestPayload, data, global_time=False)
         info_hash = payload.info_hash
 
-        def dht_callback(info_hash, peers, _):
+        def dht_callback(info):
+            _, peers, _ = info
             if not peers:
                 peers = []
             circuit_id = payload.circuit_id
