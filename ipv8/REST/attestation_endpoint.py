@@ -1,3 +1,4 @@
+from hashlib import sha1
 from base64 import b64decode, b64encode
 import json
 
@@ -26,8 +27,10 @@ class AttestationEndpoint(resource.Resource):
             self.attestation_overlay = attestation_overlays[0]
             self.attestation_overlay.set_attestation_request_callback(self.on_request_attestation)
             self.attestation_overlay.set_attestation_request_complete_callback(self.on_attestation_complete)
+            self.attestation_overlay.set_verify_request_callback(self.on_verify_request)
             self.identity_overlay = identity_overlays[0]
         self.attestation_requests = {}
+        self.verify_requests = {}
         self.verification_output = {}
         self.attestation_metadata = {}
 
@@ -55,6 +58,18 @@ class AttestationEndpoint(resource.Resource):
             self.identity_overlay.add_known_hash(attribute_hash, attribute_name, for_peer.public_key.key_to_bin(),
                                                  metadata)
 
+    @inlineCallbacks
+    def on_verify_request(self, peer, attribute_hash):
+        """
+        Return the measurement of an attribute for a certain peer.
+        """
+        block = self.identity_overlay.persistence.get_attestation_by_hash(attribute_hash)
+        attribute_name = block.transaction["name"]
+        deferred = Deferred()
+        self.verify_requests[(b64encode(peer.mid), attribute_name)] = deferred
+        out = yield deferred
+        returnValue(out)
+
     def on_verification_results(self, attribute_hash, values):
         """
         Callback for when verification has concluded.
@@ -78,6 +93,7 @@ class AttestationEndpoint(resource.Resource):
         """
         type=drop_identity
         type=outstanding -> [(mid_b64, attribute_name)]
+        type=outstanding_verify -> [(mid_b64, attribute_name)]
         type=verification_output -> {hash_b64: [(value_b64, match)]}
         type=peers -> [mid_b64]
         type=attributes&mid=mid_b64 -> [(attribute_name, attribute_hash)]
@@ -87,6 +103,11 @@ class AttestationEndpoint(resource.Resource):
         if request.args['type'][0] == 'outstanding':
             formatted = []
             for k, v in self.attestation_requests.iteritems():
+                formatted.append(k + (v[1], ))
+            return json.dumps(formatted)
+        if request.args['type'][0] == 'outstanding_verify':
+            formatted = []
+            for k, v in self.verify_requests.iteritems():
                 formatted.append(k + (v[1], ))
             return json.dumps(formatted)
         if request.args['type'][0] == 'verification_output':
@@ -105,8 +126,15 @@ class AttestationEndpoint(resource.Resource):
                 peer = self.identity_overlay.my_peer
             if peer:
                 blocks = self.identity_overlay.persistence.get_latest_blocks(peer.public_key.key_to_bin(), 200)
-                return json.dumps([(b.transaction["name"], b64encode(b.transaction["hash"]), b.transaction["metadata"])
-                                   for b in blocks])
+                trimmed = {}
+                for b in blocks:
+                    attester = b64encode(sha1(b.link_public_key).digest())
+                    previous = trimmed.get((attester, b.transaction["name"]), None)
+                    if not previous or previous.sequence_number < b.sequence_number:
+                        previous[(attester, b.transaction["name"])] = b
+                return json.dumps([(b.transaction["name"], b64encode(b.transaction["hash"]), b.transaction["metadata"],
+                                    b64encode(sha1(b.link_public_key).digest()))
+                                   for b in trimmed.values()])
         if request.args['type'][0] == 'drop_identity':
             self.identity_overlay.persistence.execute('DELETE FROM blocks')
             self.identity_overlay.persistence.commit()
@@ -121,6 +149,7 @@ class AttestationEndpoint(resource.Resource):
     def render_POST(self, request):
         """
         type=request&mid=mid_b64&attibute_name=attribute_name
+        type=allow_verify&mid=mid_b64&attibute_name=attribute_name
         type=attest&mid=mid_b64&attribute_name=attribute_name&attribute_value=attribute_value_b64
         type=verify&mid=mid_b64&attribute_hash=attribute_hash_b64&attribute_values=attribute_value_b64,...
         """
@@ -144,6 +173,11 @@ class AttestationEndpoint(resource.Resource):
             attribute_value_b64 = request.args['attribute_value'][0]
             outstanding = self.attestation_requests.pop((mid_b64, attribute_name))
             outstanding[0].callback(b64decode(attribute_value_b64))
+            return ""
+        if request.args['type'][0] == 'allow_verify':
+            mid_b64 = request.args['mid'][0]
+            attribute_name = request.args['attribute_name'][0]
+            self.verify_requests[(mid_b64, attribute_name)][0].callback(True)
             return ""
         if request.args['type'][0] == 'verify':
             mid_b64 = request.args['mid'][0]
