@@ -144,7 +144,7 @@ class DHTCommunity(Community):
             rt_node = self.routing_table.add(node)
 
             if not existed and rt_node:
-                self.logger.info('Added node %s to the routing table', node)
+                self.logger.debug('Added node %s to the routing table', node)
                 # Ping the node in order to determine RTT
                 self.ping(rt_node)
 
@@ -161,7 +161,7 @@ class DHTCommunity(Community):
         return pinged
 
     def ping(self, node):
-        self.logger.info('Pinging node %s', node)
+        self.logger.debug('Pinging node %s', node)
 
         cache = self.request_cache.add(Request(self, node))
         self.send_message(node.address, MSG_PING, PingRequestPayload, (cache.number,))
