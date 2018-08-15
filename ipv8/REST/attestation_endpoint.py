@@ -1,3 +1,4 @@
+from hashlib import sha1
 from base64 import b64decode, b64encode
 import json
 
@@ -125,8 +126,15 @@ class AttestationEndpoint(resource.Resource):
                 peer = self.identity_overlay.my_peer
             if peer:
                 blocks = self.identity_overlay.persistence.get_latest_blocks(peer.public_key.key_to_bin(), 200)
-                return json.dumps([(b.transaction["name"], b64encode(b.transaction["hash"]), b.transaction["metadata"])
-                                   for b in blocks])
+                trimmed = {}
+                for b in blocks:
+                    attester = b64encode(sha1(b.link_public_key).digest())
+                    previous = trimmed.get((attester, b.transaction["name"]), None)
+                    if not previous or previous.sequence_number < b.sequence_number:
+                        previous[(attester, b.transaction["name"])] = b
+                return json.dumps([(b.transaction["name"], b64encode(b.transaction["hash"]), b.transaction["metadata"],
+                                    b64encode(sha1(b.link_public_key).digest()))
+                                   for b in trimmed.values()])
         if request.args['type'][0] == 'drop_identity':
             self.identity_overlay.persistence.execute('DELETE FROM blocks')
             self.identity_overlay.persistence.commit()
