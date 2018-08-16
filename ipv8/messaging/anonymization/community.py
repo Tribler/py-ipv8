@@ -12,7 +12,8 @@ from twisted.internet.defer import Deferred
 from twisted.internet.task import LoopingCall
 
 from .caches import *
-from ...deprecated.community import Community, PacketDecodingError, lazy_wrapper
+from ...deprecated.community import Community
+from ...deprecated.lazy_community import lazy_wrapper, lazy_wrapper_unsigned, lazy_wrapper_unsigned_wd
 from ...deprecated.payload_headers import BinMemberAuthenticationPayload
 from ...messaging.deprecated.encoding import encode, decode
 from .payload import *
@@ -45,6 +46,38 @@ message_to_payload = {
     u"dht-response": (22, DHTResponsePayload)
 }
 SINGLE_HOP_ENC_PACKETS = [u'create', u'created']
+
+
+def tc_lazy_wrapper_unsigned(*payloads):
+    """
+    This function wrapper will unpack just the normal payloads for you, and handle a singular circuit_id parameter at
+    the end of the parameter list
+
+    You can now write your non-authenticated and signed functions as follows:
+
+    ::
+
+        @tc_lazy_wrapper_unsigned(GlobalTimeDistributionPayload, IntroductionRequestPayload,
+                                  IntroductionResponsePayload, circuit_id)
+        def on_message(source_address, payload1, payload2):
+            '''
+            :type source_address: str
+            :type payload1: IntroductionRequestPayload
+            :type payload2: IntroductionResponsePayload
+            '''
+            pass
+    """
+    def decorator(func):
+        def wrapper(self, source_address, data, circuit_id=None):
+
+            @lazy_wrapper_unsigned(*payloads)
+            def inner_wrapper(inner_self, inner_source_address, *pyls):
+                combo = list(pyls) + [circuit_id]
+                return func(inner_self, inner_source_address, *combo)
+
+            return inner_wrapper(self, source_address, data)
+        return wrapper
+    return decorator
 
 
 class TunnelSettings(object):
@@ -639,9 +672,8 @@ class TunnelCommunity(Community):
         return super(TunnelCommunity, self).create_introduction_response(lan_socket_address, socket_address,
                                                                          identifier, introduction, extra_bytes)
 
-    def on_cell(self, source_address, data):
-        payload = self._ez_unpack_noauth(CellPayload, data, global_time=False)
-
+    @lazy_wrapper_unsigned_wd(CellPayload)
+    def on_cell(self, source_address, payload, data):
         message_type = [k for k, v in message_to_payload.iteritems() if v[0] == payload.message_type][0]
         circuit_id = payload.circuit_id
         self.logger.debug("Got %s (%d) from %s, I am %s", message_type,
@@ -721,9 +753,8 @@ class TunnelCommunity(Community):
         self.send_cell([Peer(create_payload.node_public_key, previous_node_address)], u"created",
                        CreatedPayload(circuit_id, key, auth, keys_list_enc))
 
-    def on_create(self, source_address, data, _):
-        payload = self._ez_unpack_noauth(CreatePayload, data, global_time=False)
-
+    @tc_lazy_wrapper_unsigned(CreatePayload)
+    def on_create(self, source_address, payload, _):
         if self.request_cache.has(u"anon-created", payload.circuit_id):
             self.logger.warning("Already have a request for this circuit_id")
             return
@@ -736,9 +767,8 @@ class TunnelCommunity(Community):
 
         self.should_join_circuit(payload, source_address).addCallback(determined_to_join)
 
-    def on_created(self, source_address, data, _):
-        payload = self._ez_unpack_noauth(CreatedPayload, data, global_time=False)
-
+    @tc_lazy_wrapper_unsigned(CreatedPayload)
+    def on_created(self, source_address, payload, _):
         if not self.request_cache.has(u"anon-circuit", payload.circuit_id):
             self.logger.warning("Invalid extended response circuit_id")
             return
@@ -770,9 +800,8 @@ class TunnelCommunity(Community):
             circuit = self.circuits[circuit_id]
             self._ours_on_created_extended(circuit, payload)
 
-    def on_extend(self, source_address, data, _):
-        payload = self._ez_unpack_noauth(ExtendPayload, data, global_time=False)
-
+    @tc_lazy_wrapper_unsigned(ExtendPayload)
+    def on_extend(self, source_address, payload, _):
         if not self.request_cache.has(u"anon-created", payload.circuit_id):
             self.logger.warning("Invalid extend request circuit_id")
             return
@@ -814,9 +843,8 @@ class TunnelCommunity(Community):
         self.send_cell([extend_candidate], u"create",
                        CreatePayload(to_circuit_id, self.my_peer.public_key.key_to_bin(), payload.key))
 
-    def on_extended(self, source_address, data, _):
-        payload = self._ez_unpack_noauth(ExtendedPayload, data, global_time=False)
-
+    @tc_lazy_wrapper_unsigned(ExtendedPayload)
+    def on_extended(self, source_address, payload, _):
         if not self.request_cache.has(u"anon-circuit", payload.circuit_id):
             self.logger.warning("Invalid extended response circuit_id")
             return
@@ -832,11 +860,10 @@ class TunnelCommunity(Community):
         """
         pass
 
-    def on_data(self, sock_addr, packet, _):
+    @tc_lazy_wrapper_unsigned(DataPayload)
+    def on_data(self, sock_addr, payload, _):
         # If its our circuit, the messenger is the candidate assigned to that circuit and the DATA's destination
         # is set to the zero-address then the packet is from the outside world and addressed to us from.
-
-        payload = self._ez_unpack_noauth(DataPayload, packet, global_time=False)
         circuit_id = payload.circuit_id
         destination = payload.dest_address
         origin = payload.org_address
@@ -864,9 +891,8 @@ class TunnelCommunity(Community):
             else:
                 self.logger.warning("Cannot exit data, destination is 0.0.0.0:0")
 
-    def on_ping(self, source_address, data, _):
-        payload = self._ez_unpack_noauth(PingPayload, data, global_time=False)
-
+    @tc_lazy_wrapper_unsigned(DataPayload)
+    def on_ping(self, source_address, payload, _):
         if not (payload.circuit_id in self.circuits
                 or payload.circuit_id in self.exit_sockets
                 or payload.circuit_id in self.relay_from_to):
@@ -875,9 +901,8 @@ class TunnelCommunity(Community):
         self.send_cell([source_address], u"pong", PongPayload(payload.circuit_id, payload.identifier))
         self.logger.debug("Got ping from %s", source_address)
 
-    def on_pong(self, source_address, data, _):
-        payload = self._ez_unpack_noauth(PongPayload, data, global_time=False)
-
+    @tc_lazy_wrapper_unsigned(PongPayload)
+    def on_pong(self, source_address, payload, _):
         if not self.request_cache.has(u"ping", payload.identifier):
             self.logger.warning("Invalid ping circuit_id")
             return

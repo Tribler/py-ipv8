@@ -1,5 +1,6 @@
 from ...peer import Peer
-from ...deprecated.community import Community, PacketDecodingError
+from ...deprecated.community import Community
+from ...deprecated.lazy_community import lazy_wrapper, lazy_wrapper_unsigned, PacketDecodingError
 from ...deprecated.payload import IntroductionRequestPayload
 from ...deprecated.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from .discovery_payload import PingPayload, PongPayload, SimilarityRequestPayload, SimilarityResponsePayload, \
@@ -56,29 +57,27 @@ class DiscoveryCommunity(Community):
             packet = self.create_similarity_request(peer)
             self.endpoint.send(source_address, packet)
 
-    def on_similarity_request(self, source_address, data):
-        auth, dist, payload = self._ez_unpack_auth(SimilarityRequestPayload, data)
-
-        self.network.discover_services(Peer(auth.public_key_bin, source_address), payload.preference_list)
+    @lazy_wrapper(GlobalTimeDistributionPayload, SimilarityRequestPayload)
+    def on_similarity_request(self, node, dist, payload):
+        self.network.discover_services(node, payload.preference_list)
 
         my_peer_set = set([overlay.my_peer for overlay in self.network.service_overlays.values()])
         for peer in my_peer_set:
             packet = self.create_similarity_response(payload.identifier, peer)
-            self.endpoint.send(source_address, packet)
+            self.endpoint.send(node.address, packet)
 
-    def on_similarity_response(self, source_address, data):
-        auth, dist, payload = self._ez_unpack_auth(SimilarityResponsePayload, data)
+    @lazy_wrapper(GlobalTimeDistributionPayload, SimilarityResponsePayload)
+    def on_similarity_response(self, node, dist, payload):
+        self.network.discover_services(node, payload.preference_list)
 
-        self.network.discover_services(Peer(auth.public_key_bin, source_address), payload.preference_list)
-
-    def on_ping(self, source_address, data):
-        dist, payload = self._ez_unpack_noauth(PingPayload, data)
-
+    @lazy_wrapper_unsigned(GlobalTimeDistributionPayload, PingPayload)
+    def on_ping(self, source_address, dist, payload):
         packet = self.create_pong(payload.identifier)
         self.endpoint.send(source_address, packet)
 
-    def on_pong(self, source_address, data):
-        dist, payload = self._ez_unpack_noauth(PongPayload, data)
+    @lazy_wrapper_unsigned(GlobalTimeDistributionPayload, PongPayload)
+    def on_pong(self, source_address, dist, payload):
+        pass
 
     def get_my_overlays(self, peer):
         return [service_id for service_id, overlay in self.network.service_overlays.iteritems()

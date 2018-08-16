@@ -13,6 +13,7 @@ from ..requestcache import RandomNumberCache, RequestCache
 from ..deprecated.payload_headers import BinMemberAuthenticationPayload
 from ..deprecated.payload_headers import GlobalTimeDistributionPayload
 from ..deprecated.community import Community
+from ..deprecated.lazy_community import lazy_wrapper, lazy_wrapper_wd
 
 from .storage import Storage
 from .routing import RoutingTable, Node, distance, calc_node_id
@@ -167,25 +168,23 @@ class DHTCommunity(Community):
         self.send_message(node.address, MSG_PING, PingRequestPayload, (cache.number,))
         return cache.deferred
 
-    def on_ping_request(self, source_address, data):
-        self.logger.debug('Got ping-request from %s', source_address)
+    @lazy_wrapper_wd(GlobalTimeDistributionPayload, PingRequestPayload)
+    def on_ping_request(self, peer, dist, payload, data):
+        self.logger.debug('Got ping-request from %s', peer.address)
 
-        auth, _, payload = self._ez_unpack_auth(PingRequestPayload, data)
-
-        node = Node(auth.public_key_bin, source_address)
+        node = Node(peer.key, peer.address)
         node = self.routing_table.add(node) or node
         node.last_query = time.time()
 
-        self.send_message(source_address, MSG_PONG, PingResponsePayload, (payload.identifier,))
+        self.send_message(peer.address, MSG_PONG, PingResponsePayload, (payload.identifier,))
 
-    def on_ping_response(self, source_address, data):
-        _, _, payload = self._ez_unpack_auth(PingResponsePayload, data)
-
+    @lazy_wrapper_wd(GlobalTimeDistributionPayload, PingResponsePayload)
+    def on_ping_response(self, peer, dist, payload, data):
         if not self.request_cache.has(u'request', payload.identifier):
             self.logger.error('Got ping-response with unknown identifier, dropping packet')
             return
 
-        self.logger.debug('Got ping-response from %s', source_address)
+        self.logger.debug('Got ping-response from %s', peer.address)
         cache = self.request_cache.pop(u'request', payload.identifier)
         cache.on_complete()
         cache.deferred.callback(cache.node)
@@ -253,11 +252,11 @@ class DHTCommunity(Community):
 
         return gatherResponses(deferreds) if deferreds else fail(RuntimeError('Value was not stored'))
 
-    def on_store_request(self, source_address, data):
-        self.logger.debug('Got store-request from %s', source_address)
+    @lazy_wrapper(GlobalTimeDistributionPayload, StoreRequestPayload)
+    def on_store_request(self, peer, dist, payload):
+        self.logger.debug('Got store-request from %s', peer.address)
 
-        auth, _, payload = self._ez_unpack_auth(StoreRequestPayload, data)
-        node = Node(auth.public_key_bin, source_address)
+        node = Node(peer.key, peer.address)
         node = self.routing_table.add(node) or node
         node.last_query = time.time()
 
@@ -285,16 +284,15 @@ class DHTCommunity(Community):
         for value in payload.values:
             self.add_value(payload.target, value, max_age)
 
-        self.send_message(source_address, MSG_STORE_RESPONSE, StoreResponsePayload, (payload.identifier,))
+        self.send_message(peer.address, MSG_STORE_RESPONSE, StoreResponsePayload, (payload.identifier,))
 
-    def on_store_response(self, source_address, data):
-        _, _, payload = self._ez_unpack_auth(StoreResponsePayload, data)
-
+    @lazy_wrapper(GlobalTimeDistributionPayload, StoreResponsePayload)
+    def on_store_response(self, peer, dist, payload):
         if not self.request_cache.has(u'request', payload.identifier):
             self.logger.error('Got store-response with unknown identifier, dropping packet')
             return
 
-        self.logger.debug('Got store-response from %s', source_address)
+        self.logger.debug('Got store-response from %s', peer.address)
         cache = self.request_cache.pop(u'request', payload.identifier)
         cache.on_complete()
         cache.deferred.callback(cache.node)
@@ -398,11 +396,11 @@ class DHTCommunity(Community):
     def find_nodes(self, target):
         return self._find(target, force_nodes=True)
 
-    def on_find_request(self, source_address, data):
-        self.logger.debug('Got find-request from %s', source_address)
+    @lazy_wrapper(GlobalTimeDistributionPayload, FindRequestPayload)
+    def on_find_request(self, peer, dist, payload):
+        self.logger.debug('Got find-request from %s', peer.address)
 
-        auth, _, payload = self._ez_unpack_auth(FindRequestPayload, data)
-        node = Node(auth.public_key_bin, source_address)
+        node = Node(peer.key, peer.address)
         node = self.routing_table.add(node) or node
         node.last_query = time.time()
 
@@ -413,20 +411,19 @@ class DHTCommunity(Community):
             nodes = self.routing_table.closest_nodes(payload.target, exclude_node=node, max_nodes=MAX_NODES_IN_FIND)
             # Send puncture request to the closest node
             if nodes:
-                packet = self.create_puncture_request(payload.lan_address, source_address, payload.identifier)
+                packet = self.create_puncture_request(payload.lan_address, peer.address, payload.identifier)
                 self.endpoint.send(nodes[0].address, packet)
 
-        self.send_message(source_address, MSG_FIND_RESPONSE, FindResponsePayload,
+        self.send_message(peer.address, MSG_FIND_RESPONSE, FindResponsePayload,
                           (payload.identifier, self.generate_token(node), values, nodes))
 
-    def on_find_response(self, source_address, data):
-        _, _, payload = self._ez_unpack_auth(FindResponsePayload, data)
-
+    @lazy_wrapper(GlobalTimeDistributionPayload, FindResponsePayload)
+    def on_find_response(self, peer, dist, payload):
         if not self.request_cache.has(u'request', payload.identifier):
             self.logger.error('Got find-response with unknown identifier, dropping packet')
             return
 
-        self.logger.debug('Got find-response from %s', source_address)
+        self.logger.debug('Got find-response from %s', peer.address)
         cache = self.request_cache.pop(u'request', payload.identifier)
         cache.on_complete()
 

@@ -109,7 +109,6 @@ class TestDHTDiscoveryCommunity(TestBase):
         self.nodes[0].overlay.ping_all()
         self.assertNotIn(node1, self.nodes[0].overlay.store[node1.mid])
 
-
         self.nodes[0].overlay.store_for_me[node1.mid].append(node1)
         self.nodes[0].overlay.ping_all()
         self.assertEqual(self.pinged, None)

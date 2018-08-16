@@ -14,6 +14,7 @@ from .block import TrustChainBlock, ValidationResult, EMPTY_PK, GENESIS_SEQ, UNK
 from .caches import CrawlRequestCache, HalfBlockSignCache, IntroCrawlTimeout
 from .database import TrustChainDB
 from ...deprecated.community import Community
+from ...deprecated.lazy_community import lazy_wrapper, lazy_wrapper_unsigned, lazy_wrapper_unsigned_wd
 from ...deprecated.payload import IntroductionResponsePayload
 from ...deprecated.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from .payload import *
@@ -269,21 +270,21 @@ class TrustChainCommunity(Community):
             return succeed((linked, block))
 
     @synchronized
-    def received_half_block(self, source_address, data):
+    @lazy_wrapper_unsigned(GlobalTimeDistributionPayload, HalfBlockPayload)
+    def received_half_block(self, source_address, dist, payload):
         """
         We've received a half block, either because we sent a SIGNED message to some one or we are crawling
         """
-        dist, payload = self._ez_unpack_noauth(HalfBlockPayload, data)
         peer = Peer(payload.public_key, source_address)
         block = self.get_block_class(payload.type).from_payload(payload, self.serializer)
         self.process_half_block(block, peer)
 
     @synchronized
-    def received_half_block_broadcast(self, source, data):
+    @lazy_wrapper_unsigned(GlobalTimeDistributionPayload, HalfBlockBroadcastPayload)
+    def received_half_block_broadcast(self, source_address, dist, payload):
         """
         We received a half block, part of a broadcast. Disseminate it further.
         """
-        dist, payload = self._ez_unpack_noauth(HalfBlockBroadcastPayload, data)
         block = self.get_block_class(payload.type).from_payload(payload, self.serializer)
         self.validate_persist_block(block)
 
@@ -291,21 +292,21 @@ class TrustChainCommunity(Community):
             self.send_block(block, ttl=payload.ttl - 1)
 
     @synchronized
-    def received_half_block_pair(self, source_address, data):
+    @lazy_wrapper_unsigned(GlobalTimeDistributionPayload, HalfBlockPairPayload)
+    def received_half_block_pair(self, source_address, dist, payload):
         """
         We received a block pair message.
         """
-        dist, payload = self._ez_unpack_noauth(HalfBlockPairPayload, data)
         block1, block2 = self.get_block_class(payload.type1).from_pair_payload(payload, self.serializer)
         self.validate_persist_block(block1)
         self.validate_persist_block(block2)
 
     @synchronized
-    def received_half_block_pair_broadcast(self, source, data):
+    @lazy_wrapper_unsigned(GlobalTimeDistributionPayload, HalfBlockPairBroadcastPayload)
+    def received_half_block_pair_broadcast(self, source_address, dist, payload):
         """
         We received a half block pair, part of a broadcast. Disseminate it further.
         """
-        dist, payload = self._ez_unpack_noauth(HalfBlockPairBroadcastPayload, data)
         block1, block2 = self.get_block_class(payload.type1).from_pair_payload(payload, self.serializer)
         self.validate_persist_block(block1)
         self.validate_persist_block(block2)
@@ -418,10 +419,8 @@ class TrustChainCommunity(Community):
         return crawl_deferred
 
     @synchronized
-    def received_crawl_request(self, source_address, data):
-        auth, dist, payload = self._ez_unpack_auth(CrawlRequestPayload, data)
-        peer = Peer(auth.public_key_bin, source_address)
-
+    @lazy_wrapper(GlobalTimeDistributionPayload, CrawlRequestPayload)
+    def received_crawl_request(self, peer, dist, payload):
         self.logger.info("Received crawl request from node %s for sequence number %d",
                          peer.public_key.key_to_bin().encode("hex")[-8:],
                          payload.requested_sequence_number)
@@ -503,8 +502,8 @@ class TrustChainCommunity(Community):
         self.endpoint.send(peer.address, packet)
 
     @synchronized
-    def received_crawl_response(self, source_address, data):
-        dist, payload = self._ez_unpack_noauth(CrawlResponsePayload, data)
+    @lazy_wrapper_unsigned_wd(GlobalTimeDistributionPayload, CrawlResponsePayload)
+    def received_crawl_response(self, source_address, dist, payload, data):
         self.received_half_block(source_address, data[:-12])  # We cut off a few bytes to make it a BlockPayload
 
         block = self.get_block_class(payload.type).from_payload(payload, self.serializer)
@@ -545,15 +544,14 @@ class TrustChainCommunity(Community):
         return eligible[-1]
 
     @synchronized
-    def on_introduction_response(self, source_address, data):
-        super(TrustChainCommunity, self).on_introduction_response(source_address, data)
+    @lazy_wrapper(GlobalTimeDistributionPayload, IntroductionResponsePayload)
+    def on_introduction_response(self, peer, dist, payload):
+        super(TrustChainCommunity, self).on_introduction_response(peer, dist, payload)
 
-        auth, _, _ = self._ez_unpack_auth(IntroductionResponsePayload, data)
-        peer = Peer(auth.public_key_bin, source_address)
         if self.request_cache.has(u"introcrawltimeout", IntroCrawlTimeout.get_number_for(peer)):
             self.logger.debug("Not crawling %s, as we have already crawled it in the last %d seconds!",
                               peer.mid.encode('hex'), IntroCrawlTimeout.__new__(IntroCrawlTimeout).timeout_delay)
-        elif source_address not in self.network.blacklist:
+        elif peer.address not in self.network.blacklist:
             # Do not crawl addresses in our blacklist (trackers)
             self.request_cache.add(IntroCrawlTimeout(self, peer))
             self.crawl_lowest_unknown(peer)
