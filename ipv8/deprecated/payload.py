@@ -7,9 +7,9 @@ from ..peer import Peer
 
 
 def encode_connection_type(type):
-    if type == u"public":
+    if type == "public":
         return (1, 0)
-    if type == u"symmetric-NAT":
+    if type == "symmetric-NAT":
         return (1, 1)
     return (0, 0)
 
@@ -17,11 +17,11 @@ def encode_connection_type(type):
 def decode_connection_type(bit_0, bit_1):
     bits = (bit_0, bit_1)
     if bits == (0, 0):
-        return u"unknown"
+        return "unknown"
     if bits == (1, 0):
-        return u"public"
+        return "public"
     if bits == (1, 1):
-        return u"symmetric-NAT"
+        return "symmetric-NAT"
 
 
 class Payload(Serializable):

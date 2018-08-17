@@ -1,3 +1,5 @@
+from functools import reduce
+
 from ....deprecated.community import _DEFAULT_ADDRESSES
 from ....deprecated.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from ...base import TestBase
@@ -32,12 +34,12 @@ class TestDiscoveryCommunity(TestBase):
         Check if we can handle the deprecated Discovery introduction request as a normal one.
         """
         global_time = self.overlays[0].claim_global_time()
-        payload = DiscoveryIntroductionRequestPayload("a" * 20,
+        payload = DiscoveryIntroductionRequestPayload(b"a" * 20,
                                                       self.overlays[1].endpoint.wan_address,
                                                       self.overlays[0].my_estimated_lan,
                                                       self.overlays[0].my_estimated_wan,
                                                       True,
-                                                      u"unknown",
+                                                      "unknown",
                                                       global_time,
                                                       '').to_pack_list()
         auth = BinMemberAuthenticationPayload(self.overlays[0].my_peer.public_key.key_to_bin()).to_pack_list()
@@ -78,7 +80,7 @@ class TestDiscoveryCommunity(TestBase):
         """
         If we have different peers under our control, don't claim to be the other identity.
         """
-        custom_master_peer = Peer(ECCrypto().generate_key(u"very-low"))
+        custom_master_peer = Peer(ECCrypto().generate_key("very-low"))
         class OtherMockCommunity(MockCommunity):
             master_peer = custom_master_peer
         custom_overlay = OtherMockCommunity()
@@ -89,7 +91,7 @@ class TestDiscoveryCommunity(TestBase):
         self.overlays[0].walk_to(self.overlays[1].my_peer.address)
         yield self.deliver_messages()
 
-        discovered = reduce(lambda a, b: a | b, self.overlays[1].network.services_per_peer.values(), set())
+        discovered = reduce(lambda a, b: a | b, list(self.overlays[1].network.services_per_peer.values()), set())
 
         self.assertEqual(len(self.overlays[1].network.services_per_peer), 2)
         self.assertSetEqual(discovered, {MockCommunity.master_peer.mid, custom_master_peer.mid})

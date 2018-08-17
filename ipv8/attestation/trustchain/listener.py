@@ -3,12 +3,10 @@ import abc
 from .block import TrustChainBlock
 
 
-class BlockListener(object):
+class BlockListener(object, metaclass=abc.ABCMeta):
     """
     This class defines a listener for TrustChain blocks with a specific type.
     """
-
-    __metaclass__ = abc.ABCMeta
 
     BLOCK_CLASS = TrustChainBlock
 

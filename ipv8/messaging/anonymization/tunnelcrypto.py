@@ -24,7 +24,7 @@ class TunnelCrypto(ECCrypto):
         return isinstance(key, LibNaCLPK)
 
     def generate_diffie_secret(self):
-        tmp_key = self.generate_key(u"curve25519")
+        tmp_key = self.generate_key("curve25519")
         X = tmp_key.key.pk
 
         return tmp_key, X
@@ -33,7 +33,7 @@ class TunnelCrypto(ECCrypto):
         if key == None:
             key = self.key
 
-        tmp_key = self.generate_key(u"curve25519")
+        tmp_key = self.generate_key("curve25519")
         y = tmp_key.key.sk
         Y = tmp_key.key.pk
         shared_secret = libnacl.crypto_box_beforenm(dh_received, y) + libnacl.crypto_box_beforenm(dh_received, key.key.sk)
@@ -48,7 +48,7 @@ class TunnelCrypto(ECCrypto):
         return shared_secret
 
     def generate_session_keys(self, shared_secret):
-        hkdf = HKDFExpand(algorithm=hashes.SHA256(), backend=default_backend(), length=40, info="key_generation")
+        hkdf = HKDFExpand(algorithm=hashes.SHA256(), backend=default_backend(), length=40, info=b"key_generation")
         key = hkdf.derive(shared_secret)
 
         kf = key[:16]
@@ -58,13 +58,13 @@ class TunnelCrypto(ECCrypto):
         return [kf, kb, sf, sb, 1, 1]
 
     def _bulid_iv(self, salt, salt_explicit):
-        assert isinstance(salt, (basestring)), type(salt)
-        assert isinstance(salt_explicit, (int, long)), type(salt_explicit)
+        assert isinstance(salt, bytes), type(salt)
+        assert isinstance(salt_explicit, int), type(salt_explicit)
 
         if salt_explicit == 0:
             raise CryptoException("salt_explicit wrapped")
 
-        return salt + str(salt_explicit)
+        return salt + str(salt_explicit).encode()
 
     def encrypt_str(self, content, key, salt, salt_explicit):
         # return the encrypted content prepended with the

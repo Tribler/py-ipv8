@@ -1,3 +1,4 @@
+import base64
 import unittest
 
 from ..keyvault.crypto import ECCrypto
@@ -6,7 +7,7 @@ from ..peer import Peer
 
 class TestPeer(unittest.TestCase):
 
-    test_key = ECCrypto().generate_key(u"very-low")
+    test_key = ECCrypto().generate_key("very-low")
 
     def setUp(self):
         super(TestPeer, self).setUp()
@@ -54,7 +55,7 @@ class TestPeer(unittest.TestCase):
         """
         Check if peers with a different key and same address are not equal.
         """
-        other = Peer(ECCrypto().generate_key(u"very-low"), self.peer.address)
+        other = Peer(ECCrypto().generate_key("very-low"), self.peer.address)
 
         self.assertNotEqual(self.peer, other)
 
@@ -70,4 +71,4 @@ class TestPeer(unittest.TestCase):
         """
         Check if the __str__ method functions properly.
         """
-        self.assertEqual(str(self.peer), "Peer<1.2.3.4:5, %s>" % self.peer.mid.encode('base64')[:-1])
+        self.assertEqual(str(self.peer), "Peer<1.2.3.4:5, %s>" % base64.b64encode(self.peer.mid))

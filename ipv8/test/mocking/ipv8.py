@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+
 
 from ...attestation.trustchain.community import TrustChainCommunity
 from ...keyvault.crypto import ECCrypto
@@ -20,7 +20,7 @@ class MockIPv8(object):
         self.trustchain = None
         if create_trustchain:
             self.trustchain = TrustChainCommunity(self.my_peer, self.endpoint, self.network,
-                                                  working_directory=u":memory:")
+                                                  working_directory=":memory:")
             kwargs.update({'trustchain': self.trustchain})
         self.overlay = overlay_class(self.my_peer, self.endpoint, self.network, *args, **kwargs)
         self.overlay._use_main_thread = False

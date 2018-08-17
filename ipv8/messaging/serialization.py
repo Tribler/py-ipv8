@@ -33,7 +33,7 @@ class Bits(object):
 
         :returns: list of 8 values in [0, 1] MSB first
         """
-        byte, = unpack('>B', data[offset])
+        byte, = unpack('>B', data[offset:offset+1])
         bit_7 = 1 if 0x80 & byte else 0
         bit_6 = 1 if 0x40 & byte else 0
         bit_5 = 1 if 0x20 & byte else 0
@@ -51,12 +51,13 @@ class Raw(object):
     """
 
     def pack(self, *data):
-        out = ''
+        out = b''
         size = 0
         for piece in data:
-            s_piece = str(piece)
-            out += s_piece
-            size += len(s_piece)
+            if isinstance(piece, str):
+                piece = piece.encode()
+            out += piece
+            size += len(piece)
         return out, size
 
     def unpack_from(self, data, offset=0):
@@ -76,8 +77,8 @@ class VarLen(object):
         self.base = base
 
     def pack(self, *data):
-        raw = ''.join(data)
-        length = len(raw)/self.base
+        raw = b''.join(data)
+        length = int(len(raw)/self.base)
         size = self.format_size + len(raw)
         return pack('>%s%ds' % (self.format, len(raw)), length, raw), size
 
@@ -145,7 +146,7 @@ class Serializer(object):
         """
         Get all available packing formats.
         """
-        return self._packers.keys()
+        return list(self._packers.keys())
 
     def get_packer_for(self, name):
         """
@@ -181,7 +182,7 @@ class Serializer(object):
         :param pack_list: the list of packable tuples
         :returns: (packed, size)
         """
-        out = ""
+        out = b""
         index = 0
         size = 0
         for packable in pack_list:
@@ -193,7 +194,7 @@ class Serializer(object):
                 raise PackError("Could not pack item %d: %s\n%s: %s" % (index,
                                                                         repr(packable),
                                                                         type(e).__name__,
-                                                                        str(e))), None, sys.exc_info()[2]
+                                                                        str(e))).with_traceback(sys.exc_info()[2])
             index += 1
         return out, size
 
@@ -237,7 +238,7 @@ class Serializer(object):
                 raise PackError("Could not unpack item %d: %s\n%s: %s" % (index,
                                                                           format,
                                                                           type(e).__name__,
-                                                                          str(e))), None, sys.exc_info()[2]
+                                                                          str(e))).with_traceback(sys.exc_info()[2])
             current_offset += unpacked_size
             index += 1
         return out, current_offset
@@ -272,8 +273,7 @@ class Serializer(object):
                                                                                                 len(list_element),
                                                                                                 format,
                                                                                                 type(e).__name__,
-                                                                                                str(e))),\
-                        None, sys.exc_info()[2]
+                                                                                                str(e))).with_traceback(sys.exc_info()[2])
                 current_offset += unpacked_size
                 index += 1
             out.append(list_element)
@@ -298,18 +298,16 @@ class Serializer(object):
             except Exception as e:
                     raise PackError("Failed to unserialize %s\n%s: %s" % (serializable.__name__,
                                                                           type(e).__name__,
-                                                                          str(e))), None, sys.exc_info()[2]
+                                                                          str(e))).with_traceback(sys.exc_info()[2])
             out.append(serializable.from_unpack_list(*unpack_list))
         out.append(data[offset:])
         return out
 
 
-class Serializable(object):
+class Serializable(object, metaclass=abc.ABCMeta):
     """
     Interface for serializable objects.
     """
-
-    __metaclass__ = abc.ABCMeta
 
     format_list = []
     optional_format_list = []

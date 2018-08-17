@@ -9,12 +9,10 @@ from .peer import Peer
 from .taskmanager import TaskManager
 
 
-class Overlay(EndpointListener, TaskManager):
+class Overlay(EndpointListener, TaskManager, metaclass=abc.ABCMeta):
     """
     Interface for an Internet overlay.
     """
-
-    __metaclass__ = abc.ABCMeta
 
     def __init__(self, master_peer, my_peer, endpoint, network):
         """

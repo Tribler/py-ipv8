@@ -6,7 +6,7 @@ from .....attestation.wallet.primitives.attestation import *
 
 class TestAttestation(unittest.TestCase):
 
-    private_key = BonehPrivateKey.unserialize('01011d01011401011101011c01011c01010f010103'.decode('hex'))
+    private_key = BonehPrivateKey.unserialize(bytes.fromhex('01011d01011401011101011c01011c01010f010103'))
 
     def test_generate_minverse_group(self):
         """
@@ -31,7 +31,7 @@ class TestAttestation(unittest.TestCase):
         ]
 
         self.assertListEqual([0, 1, 1, 2],
-                             [decode(self.private_key, range(4), a.bitpairs[0].compress()) for a in attestations])
+                             [decode(self.private_key, list(range(4)), a.bitpairs[0].compress()) for a in attestations])
 
     def test_empty_relativity_map(self):
         """

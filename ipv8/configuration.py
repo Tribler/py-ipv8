@@ -6,13 +6,13 @@ default = {
     'keys': [
         {
             'alias': "my peer",
-            'generation': u"medium",
-            'file': u"ec.pem"
+            'generation': "medium",
+            'file': "ec.pem"
         },
         {
             'alias': "anonymous id",
-            'generation': u"curve25519",
-            'file': u"ec_multichain.pem"
+            'generation': "curve25519",
+            'file': "ec_multichain.pem"
         }
     ],
     'logger': {

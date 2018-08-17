@@ -15,7 +15,7 @@ class CrawlRequestPayload(Payload):
         self.crawl_id = crawl_id
 
     def to_pack_list(self):
-        data = [('74s', '0'*74),
+        data = [('74s', b'0'*74),
                 ('l', self.requested_sequence_number),
                 ('I', self.crawl_id)]
 
@@ -55,7 +55,7 @@ class HalfBlockPayload(Payload):
             block.link_sequence_number,
             block.previous_hash,
             block.signature,
-            block.type,
+            block.type.encode(),
             block.transaction,
             block.timestamp
         )
@@ -67,7 +67,7 @@ class HalfBlockPayload(Payload):
                 ('I', self.link_sequence_number),
                 ('32s', self.previous_hash),
                 ('64s', self.signature),
-                ('varlenI', str(self.type)),
+                ('varlenI', self.type),
                 ('varlenI', encode(self.transaction)),
                 ('Q', self.timestamp)]
 
@@ -101,7 +101,7 @@ class HalfBlockBroadcastPayload(HalfBlockPayload):
             block.link_sequence_number,
             block.previous_hash,
             block.signature,
-            block.type,
+            block.type.encode(),
             block.transaction,
             block.timestamp,
             ttl
@@ -149,7 +149,7 @@ class CrawlResponsePayload(Payload):
             block.link_sequence_number,
             block.previous_hash,
             block.signature,
-            block.type,
+            block.type.encode(),
             block.transaction,
             block.timestamp,
             crawl_id,
@@ -164,7 +164,7 @@ class CrawlResponsePayload(Payload):
                 ('I', self.link_sequence_number),
                 ('32s', self.previous_hash),
                 ('64s', self.signature),
-                ('varlenI', str(self.type)),
+                ('varlenI', self.type),
                 ('varlenI', encode(self.transaction)),
                 ('Q', self.timestamp),
                 ('I', self.crawl_id),
@@ -218,7 +218,7 @@ class HalfBlockPairPayload(Payload):
             block1.link_sequence_number,
             block1.previous_hash,
             block1.signature,
-            block1.type,
+            block1.type.encode(),
             block1.transaction,
             block1.timestamp,
             block2.public_key,
@@ -227,7 +227,7 @@ class HalfBlockPairPayload(Payload):
             block2.link_sequence_number,
             block2.previous_hash,
             block2.signature,
-            block2.type,
+            block2.type.encode(),
             block2.transaction,
             block2.timestamp
         )
@@ -239,7 +239,7 @@ class HalfBlockPairPayload(Payload):
                 ('I', self.link_sequence_number1),
                 ('32s', self.previous_hash1),
                 ('64s', self.signature1),
-                ('varlenI', str(self.type1)),
+                ('varlenI', self.type1),
                 ('varlenI', encode(self.transaction1)),
                 ('Q', self.timestamp1),
                 ('74s', self.public_key2),
@@ -248,7 +248,7 @@ class HalfBlockPairPayload(Payload):
                 ('I', self.link_sequence_number2),
                 ('32s', self.previous_hash2),
                 ('64s', self.signature2),
-                ('varlenI', str(self.type2)),
+                ('varlenI', self.type2),
                 ('varlenI', encode(self.transaction2)),
                 ('Q', self.timestamp2)]
 
@@ -286,7 +286,7 @@ class HalfBlockPairBroadcastPayload(HalfBlockPairPayload):
             block1.link_sequence_number,
             block1.previous_hash,
             block1.signature,
-            block1.type,
+            block1.type.encode(),
             block1.transaction,
             block1.timestamp,
             block2.public_key,
@@ -295,7 +295,7 @@ class HalfBlockPairBroadcastPayload(HalfBlockPairPayload):
             block2.link_sequence_number,
             block2.previous_hash,
             block2.signature,
-            block2.type,
+            block2.type.encode(),
             block2.transaction,
             block2.timestamp,
             ttl

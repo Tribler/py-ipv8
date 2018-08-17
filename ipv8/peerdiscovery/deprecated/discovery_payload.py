@@ -23,7 +23,7 @@ class SimilarityRequestPayload(Payload):
                 ('4SH', inet_aton(self.lan_address[0]), self.lan_address[1]),
                 ('4SH', inet_aton(self.wan_address[0]), self.wan_address[1]),
                 ('bits', encoded_connection_type[0], encoded_connection_type[1], 0, 0, 0, 0, 0, 0),
-                ('raw', "".join(self.preference_list))]
+                ('raw', b"".join(self.preference_list))]
 
         return data
 
@@ -53,7 +53,7 @@ class SimilarityResponsePayload(Payload):
     def to_pack_list(self):
         encoded_tb_overlap = [pack(">20sI", *tb) for tb in self.tb_overlap]
         data = [('H', self.identifier),
-                ('varlenHx20', "".join(self.preference_list)),
+                ('varlenHx20', b"".join(self.preference_list)),
                 ('raw', "".join(encoded_tb_overlap))]
 
         return data
@@ -102,7 +102,7 @@ class DiscoveryIntroductionRequestPayload(IntroductionRequestPayload):
 
     def to_pack_list(self):
         data = super(DiscoveryIntroductionRequestPayload, self).to_pack_list()
-        data.insert(0, ('c20s', 'Y', self.introduce_to))
+        data.insert(0, ('c20s', b'Y', self.introduce_to))
         return data
 
     @classmethod

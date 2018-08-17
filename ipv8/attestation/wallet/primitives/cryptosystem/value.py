@@ -102,7 +102,7 @@ class FP2Value(object):
              self.bC * other.bC - self.aC * other.cC + self.cC * other.cC
         return FP2Value(self.mod, a=a, b=b, aC=aC, bC=bC)
 
-    def __div__(self, other):
+    def __truediv__(self, other):
         """
         Divide this value by another value and return a new FP2Value.
         """
@@ -140,7 +140,7 @@ class FP2Value(object):
             if (n % 2) == 1:
                 R *= U
             U *= U
-            n = n/2
+            n = int(n/2)
         return R
 
     def normalize(self):

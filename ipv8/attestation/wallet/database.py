@@ -3,7 +3,7 @@ import os
 
 from ...database import Database
 
-DATABASE_DIRECTORY = os.path.join(u"sqlite")
+DATABASE_DIRECTORY = os.path.join("sqlite")
 
 
 class AttestationsDB(Database):
@@ -17,8 +17,8 @@ class AttestationsDB(Database):
         that will contain the the db at working directory/DATABASE_PATH
         :param db_name: The name of the database
         """
-        if working_directory != u":memory:":
-            db_path = os.path.join(working_directory, os.path.join(DATABASE_DIRECTORY, u"%s.db" % db_name))
+        if working_directory != ":memory:":
+            db_path = os.path.join(working_directory, os.path.join(DATABASE_DIRECTORY, "%s.db" % db_name))
         else:
             db_path = working_directory
         super(AttestationsDB, self).__init__(db_path)
@@ -29,24 +29,24 @@ class AttestationsDB(Database):
         return list(self.execute(query, params, fetch_all=False))
 
     def get_attestation_by_hash(self, hash):
-        return self._get(u"SELECT blob FROM %s WHERE hash = ?" % self.db_name, (buffer(hash),))
+        return self._get("SELECT blob FROM %s WHERE hash = ?" % self.db_name, (hash,))
 
     def get_all(self):
         return list(self.execute("SELECT * FROM %s" % self.db_name, (), fetch_all=True))
 
     def insert_attestation(self, attestation, secret_key):
-        blob = buffer(attestation.serialize())
-        hash = buffer(sha1(blob).digest())
+        blob = attestation.serialize()
+        hash = sha1(blob).digest()
         self.execute(
-            u"INSERT INTO %s (hash, blob, key) VALUES(?,?,?)" % self.db_name,
-            (hash, blob, buffer(secret_key.serialize())))
+            "INSERT INTO %s (hash, blob, key) VALUES(?,?,?)" % self.db_name,
+            (hash, blob, secret_key.serialize()))
         self.commit()
 
     def get_schema(self):
         """
         Return the schema for the database.
         """
-        return u"""
+        return """
         CREATE TABLE IF NOT EXISTS %s(
          hash                 BLOB,
          blob                 LONGBLOB,
@@ -72,7 +72,7 @@ class AttestationsDB(Database):
         :param database_version: Current version of the database.
         :return:
         """
-        assert isinstance(database_version, unicode)
+        assert isinstance(database_version, str)
         assert database_version.isdigit()
         assert int(database_version) >= 0
         database_version = int(database_version)

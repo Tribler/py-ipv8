@@ -107,16 +107,16 @@ class TestTaskManager(TestBase):
         self.assertTrue(self.tm.is_pending_task_active("test"))
         # After one second, the counter has increased by one and the task is still active.
         self.tm._reactor.advance(1)
-        self.assertEquals(1, self.counter)
+        self.assertEqual(1, self.counter)
         self.assertTrue(self.tm.is_pending_task_active("test"))
         # After one more second, the counter should be 2
         self.tm._reactor.advance(1)
-        self.assertEquals(2, self.counter)
+        self.assertEqual(2, self.counter)
         # After canceling the task the counter should stop increasing
         self.tm.cancel_pending_task("test")
         self.assertFalse(self.tm.is_pending_task_active("test"))
         self.tm._reactor.advance(10)
-        self.assertEquals(2, self.counter)
+        self.assertEqual(2, self.counter)
 
     @twisted_wrapper
     @untwisted_wrapper
@@ -128,7 +128,7 @@ class TestTaskManager(TestBase):
         self.assertTrue(self.tm.is_pending_task_active("test"))
         # After one second, the deferred has fired
         self.tm._reactor.advance(1)
-        self.assertEquals(42, self.counter)
+        self.assertEqual(42, self.counter)
         self.assertFalse(self.tm.is_pending_task_active("test"))
 
     def count(self):

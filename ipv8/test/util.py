@@ -1,4 +1,4 @@
-import Queue
+import queue
 import sys
 
 from twisted.internet import reactor
@@ -28,7 +28,7 @@ def make_decorator(func):
         newfunc.__doc__ = func.__doc__
         newfunc.__module__ = func.__module__
         if not hasattr(newfunc, 'compat_co_firstlineno'):
-            newfunc.compat_co_firstlineno = func.func_code.co_firstlineno
+            newfunc.compat_co_firstlineno = func.__code__.co_firstlineno
         try:
             newfunc.__name__ = name
         except TypeError:
@@ -114,7 +114,7 @@ def deferred(timeout=None):
 
     def decorate(func):
         def wrapper(*args, **kargs):
-            q = Queue.Queue()
+            q = queue.Queue()
 
             def callback(value):
                 q.put(None)
@@ -144,13 +144,13 @@ def deferred(timeout=None):
             reactor.callFromThread(g)
             try:
                 error = q.get(timeout=timeout)
-            except Queue.Empty:
+            except queue.Empty:
                 raise TimeExpired("timeout expired before end of test (%f s.)"
                                   % timeout)
             # Re-raise all exceptions
             if error is not None:
                 exc_type, exc_value, tb = error
-                raise exc_type, exc_value, tb
+                raise exc_type(exc_value).with_traceback(tb)
 
         wrapper = make_decorator(func)(wrapper)
         return wrapper
@@ -164,6 +164,6 @@ def twisted_wrapper(arg):
 
     Note that arg might either be a func or the timeout.
     """
-    if isinstance(arg, (int, long)):
+    if isinstance(arg, int):
         return lambda x: deferred(arg)(inlineCallbacks(x))
     return deferred(timeout=1)(inlineCallbacks(arg))

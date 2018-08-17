@@ -1,3 +1,4 @@
+import base64
 import unittest
 
 from ...keyvault.crypto import ECCrypto
@@ -12,8 +13,8 @@ class TestSerialization(unittest.TestCase):
 
     def setUp(self):
         self.ec = ECCrypto()
-        self.key = self.ec.generate_key(u"very-low")
-        self.key_nacl = self.ec.generate_key(u"curve25519")
+        self.key = self.ec.generate_key("very-low")
+        self.key_nacl = self.ec.generate_key("curve25519")
 
     def test_private_to_bin(self):
         """
@@ -40,7 +41,7 @@ class TestSerialization(unittest.TestCase):
         # Convert the PEM to a DER keystring
         prefix = "-----BEGIN EC PRIVATE KEY-----\n"
         postfix = "-----END EC PRIVATE KEY-----\n"
-        keystring = private_pem[len(prefix):-len(postfix)].decode("BASE64")
+        keystring = base64.b64decode(private_pem[len(prefix):-len(postfix)])
 
         # Reconstruct a key with this keystring
         key = M2CryptoSK(keystring=keystring)
@@ -72,7 +73,7 @@ class TestSerialization(unittest.TestCase):
         # Convert the PEM to a DER keystring
         prefix = "-----BEGIN PUBLIC KEY-----\n"
         postfix = "-----END PUBLIC KEY-----\n"
-        keystring = public_pem[len(prefix):-len(postfix)].decode("BASE64")
+        keystring = base64.b64decode(public_pem[len(prefix):-len(postfix)])
 
         # Reconstruct a key with this keystring
         key = M2CryptoPK(keystring=keystring)

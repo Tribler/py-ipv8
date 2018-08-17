@@ -49,7 +49,7 @@ def millercalc(mod, M, p, R):
     mlist = list(reversed([int(c) for c in str(bin(M))[2:]]))
     T = p
     f = FP2Value(mod, 1)
-    for i in reversed(range(len(mlist)-1)):
+    for i in reversed(list(range(len(mlist)-1))):
         f = (f*f*H(mod, T, T, R[0], R[1])).normalize()
         T = esum(mod, T, T)
         if mlist[i] == 1:

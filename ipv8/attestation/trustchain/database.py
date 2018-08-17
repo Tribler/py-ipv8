@@ -7,7 +7,7 @@ from ...database import Database
 from .block import TrustChainBlock
 
 
-DATABASE_DIRECTORY = os.path.join(u"sqlite")
+DATABASE_DIRECTORY = os.path.join("sqlite")
 
 
 class TrustChainDB(Database):
@@ -25,8 +25,8 @@ class TrustChainDB(Database):
         that will contain the the db at working directory/DATABASE_PATH
         :param db_name: The name of the database
         """
-        if working_directory != u":memory:":
-            db_path = os.path.join(working_directory, os.path.join(DATABASE_DIRECTORY, u"%s.db" % db_name))
+        if working_directory != ":memory:":
+            db_path = os.path.join(working_directory, os.path.join(DATABASE_DIRECTORY, "%s.db" % db_name))
         else:
             db_path = working_directory
         super(TrustChainDB, self).__init__(db_path)
@@ -50,8 +50,8 @@ class TrustChainDB(Database):
         :param block: The data that will be saved.
         """
         self.execute(
-            u"INSERT INTO blocks (type, tx, public_key, sequence_number, link_public_key,"
-            u"link_sequence_number, previous_hash, signature, block_timestamp, block_hash) VALUES(?,?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO blocks (type, tx, public_key, sequence_number, link_public_key,"
+            "link_sequence_number, previous_hash, signature, block_timestamp, block_hash) VALUES(?,?,?,?,?,?,?,?,?,?)",
             block.pack_db_insert())
         self.commit()
 
@@ -64,9 +64,9 @@ class TrustChainDB(Database):
         :param block: The data that will be removed.
         """
         self.execute(
-            u"DELETE FROM blocks WHERE type = ? AND tx = ? AND public_key = ? AND sequence_number = ? AND "
-            u"link_public_key = ? AND link_sequence_number = ? AND previous_hash = ? AND signature = ? "
-            u"AND block_timestamp = ? AND block_hash = ?",
+            "DELETE FROM blocks WHERE type = ? AND tx = ? AND public_key = ? AND sequence_number = ? AND "
+            "link_public_key = ? AND link_sequence_number = ? AND previous_hash = ? AND signature = ? "
+            "AND block_timestamp = ? AND block_hash = ?",
             block.pack_db_insert())
         self.commit()
 
@@ -85,21 +85,21 @@ class TrustChainDB(Database):
         :param sequence_number: The specific block to get
         :return: the block or None if it is not known
         """
-        return self._get(u"WHERE public_key = ? AND sequence_number = ?", (buffer(public_key), sequence_number))
+        return self._get("WHERE public_key = ? AND sequence_number = ?", (public_key, sequence_number))
 
     def get_all_blocks(self):
         """
         Return all blocks in the database.
         :return: all blocks in the database
         """
-        return self._getall(u"", ())
+        return self._getall("", ())
 
     def get_block_with_hash(self, block_hash):
         """
         Return the block with a specific hash or None if it's not available in the database.
         :param block_hash: the hash of the block to search for.
         """
-        return self._get(u"WHERE block_hash = ?", (buffer(block_hash),))
+        return self._get("WHERE block_hash = ?", (buffer(block_hash),))
 
     def get_blocks_with_type(self, block_type, public_key=None):
         """
@@ -109,8 +109,8 @@ class TrustChainDB(Database):
         :return: All blocks with a specific type, optionally of a specific peer.
         """
         if public_key:
-            return self._getall(u"WHERE type = ? and public_key = ?", (block_type, buffer(public_key)))
-        return self._getall(u"WHERE type = ?", (block_type,))
+            return self._getall("WHERE type = ? and public_key = ?", (block_type, buffer(public_key)))
+        return self._getall("WHERE type = ?", (block_type,))
 
     def contains(self, block):
         """
@@ -128,19 +128,19 @@ class TrustChainDB(Database):
         :return: the latest block or None if it is not known
         """
         if block_type:
-            return self._get(u"WHERE public_key = ? AND type = ? AND sequence_number = (SELECT MAX(sequence_number) "
-                             u"FROM blocks WHERE public_key = ? AND type = ?)",
-                             (buffer(public_key), block_type, buffer(public_key), block_type))
+            return self._get("WHERE public_key = ? AND type = ? AND sequence_number = (SELECT MAX(sequence_number) "
+                             "FROM blocks WHERE public_key = ? AND type = ?)",
+                             (public_key, block_type, public_key, block_type))
         else:
-            return self._get(u"WHERE public_key = ? AND sequence_number = (SELECT MAX(sequence_number) FROM blocks "
-                             u"WHERE public_key = ?)", (buffer(public_key), buffer(public_key)))
+            return self._get("WHERE public_key = ? AND sequence_number = (SELECT MAX(sequence_number) FROM blocks "
+                             "WHERE public_key = ?)", (public_key, public_key))
 
     def get_latest_blocks(self, public_key, limit=25, block_type=None):
         if block_type:
-            return self._getall(u"WHERE public_key = ? AND type = ? ORDER BY sequence_number DESC LIMIT ?",
+            return self._getall("WHERE public_key = ? AND type = ? ORDER BY sequence_number DESC LIMIT ?",
                                 (buffer(public_key), block_type, limit))
         else:
-            return self._getall(u"WHERE public_key = ? ORDER BY sequence_number DESC LIMIT ?",
+            return self._getall("WHERE public_key = ? ORDER BY sequence_number DESC LIMIT ?",
                                 (buffer(public_key), limit))
 
     def get_block_after(self, block, block_type=None):
@@ -151,11 +151,11 @@ class TrustChainDB(Database):
         :return A block
         """
         if block_type:
-            return self._get(u"WHERE sequence_number > ? AND public_key = ? AND type = ? ORDER BY sequence_number ASC",
-                             (block.sequence_number, buffer(block.public_key), block_type))
+            return self._get("WHERE sequence_number > ? AND public_key = ? AND type = ? ORDER BY sequence_number ASC",
+                             (block.sequence_number, block.public_key, block_type))
         else:
-            return self._get(u"WHERE sequence_number > ? AND public_key = ? ORDER BY sequence_number ASC",
-                             (block.sequence_number, buffer(block.public_key)))
+            return self._get("WHERE sequence_number > ? AND public_key = ? ORDER BY sequence_number ASC",
+                             (block.sequence_number, block.public_key))
 
     def get_block_before(self, block, block_type=None):
         """
@@ -164,21 +164,21 @@ class TrustChainDB(Database):
         :return A block
         """
         if block_type:
-            return self._get(u"WHERE sequence_number < ? AND public_key = ? AND type = ? ORDER BY sequence_number DESC",
-                             (block.sequence_number, buffer(block.public_key), block_type))
+            return self._get("WHERE sequence_number < ? AND public_key = ? AND type = ? ORDER BY sequence_number DESC",
+                             (block.sequence_number, block.public_key, block_type))
         else:
-            return self._get(u"WHERE sequence_number < ? AND public_key = ? ORDER BY sequence_number DESC",
-                             (block.sequence_number, buffer(block.public_key)))
+            return self._get("WHERE sequence_number < ? AND public_key = ? ORDER BY sequence_number DESC",
+                             (block.sequence_number, block.public_key))
 
     def get_lowest_sequence_number_unknown(self, public_key):
         """
         Return the lowest sequence number that we don't have a block of in the chain of a specific peer.
         :param public_key: The public key
         """
-        query = u"SELECT b1.sequence_number FROM blocks b1 WHERE b1.public_key = ? AND NOT EXISTS " \
-                u"(SELECT b2.sequence_number FROM blocks b2 WHERE b2.sequence_number = b1.sequence_number + 1 " \
-                u"AND b2.public_key = ?) ORDER BY b1.sequence_number LIMIT 1"
-        db_result = list(self.execute(query, (buffer(public_key), buffer(public_key)), fetch_all=True))
+        query = "SELECT b1.sequence_number FROM blocks b1 WHERE b1.public_key = ? AND NOT EXISTS " \
+                "(SELECT b2.sequence_number FROM blocks b2 WHERE b2.sequence_number = b1.sequence_number + 1 " \
+                "AND b2.public_key = ?) ORDER BY b1.sequence_number LIMIT 1"
+        db_result = list(self.execute(query, (public_key, public_key), fetch_all=True))
         return db_result[0][0] + 1 if db_result else 1
 
     def get_linked(self, block):
@@ -187,30 +187,30 @@ class TrustChainDB(Database):
         :param block: The block for which to get the linked block
         :return: the latest block or None if it is not known
         """
-        return self._get(u"WHERE public_key = ? AND sequence_number = ? OR link_public_key = ? AND "
-                         u"link_sequence_number = ?", (buffer(block.link_public_key), block.link_sequence_number,
-                                                       buffer(block.public_key), block.sequence_number))
+        return self._get("WHERE public_key = ? AND sequence_number = ? OR link_public_key = ? AND "
+                         "link_sequence_number = ?", (block.link_public_key, block.link_sequence_number,
+                                                      block.public_key, block.sequence_number))
 
     def crawl(self, public_key, sequence_number, limit=100):
         assert limit <= 100, "Don't fetch too much"
-        return self._getall(u"WHERE insert_time >= (SELECT MAX(insert_time) FROM blocks WHERE public_key = ? AND "
-                            u"sequence_number <= ?) AND (public_key = ? OR link_public_key = ?) "
-                            u"ORDER BY insert_time ASC LIMIT ?",
-                            (buffer(public_key), sequence_number, buffer(public_key), buffer(public_key), limit))
+        return self._getall("WHERE insert_time >= (SELECT MAX(insert_time) FROM blocks WHERE public_key = ? AND "
+                            "sequence_number <= ?) AND (public_key = ? OR link_public_key = ?) "
+                            "ORDER BY insert_time ASC LIMIT ?",
+                            (public_key, sequence_number, public_key, public_key, limit))
 
     def get_sql_header(self):
         """
         Return the first part of a generic sql select query.
         """
-        _columns = u"type, tx, public_key, sequence_number, link_public_key, link_sequence_number, " \
-                   u"previous_hash, signature, block_timestamp, insert_time"
-        return u"SELECT " + _columns + u" FROM blocks "
+        _columns = "type, tx, public_key, sequence_number, link_public_key, link_sequence_number, " \
+                   "previous_hash, signature, block_timestamp, insert_time"
+        return "SELECT " + _columns + " FROM blocks "
 
     def get_schema(self):
         """
         Return the schema for the database.
         """
-        return u"""
+        return """
         CREATE TABLE IF NOT EXISTS blocks(
          type                 TEXT NOT NULL,
          tx                   TEXT NOT NULL,
@@ -242,7 +242,7 @@ class TrustChainDB(Database):
         :param current_version: the version of the script to return.
         """
         if current_version <= 4:  # All these version introduce changes that are not backwards compatible
-            return u"""
+            return """
             DROP TABLE IF EXISTS blocks;
             DROP TABLE IF EXISTS option;
             """
@@ -259,7 +259,7 @@ class TrustChainDB(Database):
         :param database_version: Current version of the database.
         :return:
         """
-        assert isinstance(database_version, unicode)
+        assert isinstance(database_version, str)
         assert database_version.isdigit()
         assert int(database_version) >= 0
         database_version = int(database_version)

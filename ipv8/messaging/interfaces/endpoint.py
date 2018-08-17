@@ -9,12 +9,10 @@ from twisted.internet import reactor
 from ...util import blockingCallFromThread
 
 
-class Endpoint(object):
+class Endpoint(object, metaclass=abc.ABCMeta):
     """
     Interface for sending messages over the Internet.
     """
-
-    __metaclass__ = abc.ABCMeta
 
     def __init__(self):
         self._logger = logging.getLogger(self.__class__.__name__)
@@ -81,12 +79,10 @@ class Endpoint(object):
         pass
 
 
-class EndpointListener(object):
+class EndpointListener(object, metaclass=abc.ABCMeta):
     """
     Handler for messages coming in through an Endpoint.
     """
-
-    __metaclass__ = abc.ABCMeta
 
     def __init__(self, endpoint, main_thread=True):
         """
@@ -167,7 +163,7 @@ class EndpointListener(object):
                         try:
                             # On Windows netifaces currently returns IP addresses as unicode,
                             # and on *nix it returns str. So, we convert any unicode objects to str.
-                            unicode_to_str = lambda s: s.encode('utf-8') if isinstance(s, unicode) else s
+                            unicode_to_str = lambda s: s.encode('utf-8') if isinstance(s, str) else s
                             yield Interface(interface,
                                             unicode_to_str(option.get("addr")),
                                             unicode_to_str(option.get("netmask")),
@@ -177,7 +173,7 @@ class EndpointListener(object):
                             # some interfaces have no netmask configured, causing a TypeError when
                             # trying to unpack _l_netmask
                             pass
-        except OSError, e:
+        except OSError as e:
             logger = logging.getLogger("dispersy")
             logger.warning("failed to check network interfaces, error was: %r", e)
 

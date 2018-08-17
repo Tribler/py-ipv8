@@ -20,8 +20,8 @@ from .payload import *
 from ...peer import Peer
 from ...requestcache import RandomNumberCache, RequestCache
 
-HALF_BLOCK = u"half_block"
-CRAWL = u"crawl"
+HALF_BLOCK = "half_block"
+CRAWL = "crawl"
 receive_block_lock = RLock()
 
 
@@ -39,15 +39,15 @@ class TrustChainCommunity(Community):
     """
     Community for reputation based on TrustChain tamper proof interaction history.
     """
-    master_peer = Peer(("3081a7301006072a8648ce3d020106052b810400270381920004057a1c4c4f8422b328209d99724bd30cf08d1f8"
+    master_peer = Peer(bytes.fromhex("3081a7301006072a8648ce3d020106052b810400270381920004057a1c4c4f8422b328209d99724bd30cf08d1f8"
                         "1a2961b003affd2964f92c457572f2f79de0968c42698e2d1cfb371dd71b275332a0a4c19f35f16166272baae8e"
                         "230bba377cc5c40643b83206088075559ec2f13a090e8786d04d84802268bef12e52983978da360589a2b7e293c"
-                        "e4f16d02f37da2c3256f4703b9623d3750f7af437befebc8935c0f0726f58c1c1e9").decode("HEX"))
+                        "e4f16d02f37da2c3256f4703b9623d3750f7af437befebc8935c0f0726f58c1c1e9"))
 
     DB_CLASS = TrustChainDB
     DB_NAME = 'trustchain'
     BROADCAST_FANOUT = 10
-    version = '\x02'
+    version = b'\x02'
 
     def __init__(self, *args, **kwargs):
         working_directory = kwargs.pop('working_directory', '')
@@ -58,18 +58,18 @@ class TrustChainCommunity(Community):
         self.persistence = self.DB_CLASS(working_directory, db_name)
         self.relayed_broadcasts = []
         self.logger.debug("The trustchain community started with Public Key: %s",
-                          self.my_peer.public_key.key_to_bin().encode("hex"))
+                          self.my_peer.public_key.key_to_bin().hex())
         self.broadcast_block = True  # Whether we broadcast a full block after constructing it
         self.shutting_down = False
         self.listeners_map = {}  # Map of block_type -> [callbacks]
 
         self.decode_map.update({
-            chr(1): self.received_half_block,
-            chr(2): self.received_crawl_request,
-            chr(3): self.received_crawl_response,
-            chr(4): self.received_half_block_pair,
-            chr(5): self.received_half_block_broadcast,
-            chr(6): self.received_half_block_pair_broadcast
+            1: self.received_half_block,
+            2: self.received_crawl_request,
+            3: self.received_crawl_response,
+            4: self.received_half_block_pair,
+            5: self.received_half_block_broadcast,
+            6: self.received_half_block_pair_broadcast
         })
 
     def add_listener(self, listener, block_types):
@@ -222,7 +222,7 @@ class TrustChainCommunity(Community):
 
         validation = block.validate(self.persistence)
         self.logger.info("Signed block to %s (%s) validation result %s",
-                         block.link_public_key.encode("hex")[-8:], block, validation)
+                         block.link_public_key.hex()[-8:], block, validation)
         if validation[0] != ValidationResult.partial_next and validation[0] != ValidationResult.valid:
             self.logger.error("Signed block did not validate?! Result %s", repr(validation))
             return fail(RuntimeError("Signed block did not validate."))
@@ -349,9 +349,9 @@ class TrustChainCommunity(Community):
             return
 
         # Check if we are waiting for this signature response
-        link_block_id_int = int(blk.linked_block_id.encode('hex'), 16) % 100000000L
-        if self.request_cache.has(u'sign', link_block_id_int):
-            cache = self.request_cache.pop(u'sign', link_block_id_int)
+        link_block_id_int = int(blk.linked_block_id.encode().hex(), 16) % 100000000
+        if self.request_cache.has('sign', link_block_id_int):
+            cache = self.request_cache.pop('sign', link_block_id_int)
 
             # We cannot guarantee that we're on a reactor thread so make sure we do this Twisted stuff on the reactor.
             reactor.callFromThread(cache.sign_deferred.callback, (blk, self.persistence.get_linked(blk)))
@@ -376,7 +376,7 @@ class TrustChainCommunity(Community):
             self.logger.info("Request block could not be validated sufficiently, crawling requester. %s",
                              validation)
             # Note that this code does not cover the scenario where we obtain this block indirectly.
-            if not self.request_cache.has(u"crawl", blk.hash_number):
+            if not self.request_cache.has("crawl", blk.hash_number):
                 self.send_crawl_request(peer,
                                         blk.public_key,
                                         max(GENESIS_SEQ, blk.sequence_number - 5),
@@ -402,10 +402,10 @@ class TrustChainCommunity(Community):
         sq = max(GENESIS_SEQ, sq) if sq >= 0 else sq
 
         crawl_id = for_half_block.hash_number if for_half_block else \
-            RandomNumberCache.find_unclaimed_identifier(self.request_cache, u"crawl")
+            RandomNumberCache.find_unclaimed_identifier(self.request_cache, "crawl")
         crawl_deferred = Deferred()
         self.request_cache.add(CrawlRequestCache(self, crawl_id, crawl_deferred))
-        self.logger.info("Requesting crawl of node %s:%d with id %d", public_key.encode("hex")[-8:], sq, crawl_id)
+        self.logger.info("Requesting crawl of node %s:%d with id %d", public_key.hex()[-8:], sq, crawl_id)
 
         global_time = self.claim_global_time()
         auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
@@ -423,7 +423,7 @@ class TrustChainCommunity(Community):
         peer = Peer(auth.public_key_bin, source_address)
 
         self.logger.info("Received crawl request from node %s for sequence number %d",
-                         peer.public_key.key_to_bin().encode("hex")[-8:],
+                         peer.public_key.key_to_bin().hex()[-8:],
                          payload.requested_sequence_number)
         sq = payload.requested_sequence_number
         if sq < 0:
@@ -442,7 +442,7 @@ class TrustChainCommunity(Community):
                                                            self.my_peer.public_key.key_to_bin(), link_pk=EMPTY_PK)
             self.send_crawl_response(block, payload.crawl_id, 0, 0, peer)
 
-        for ind in xrange(len(blocks)):
+        for ind in range(len(blocks)):
             self.send_crawl_response(blocks[ind], payload.crawl_id, ind + 1, total_count, peer)
         self.logger.info("Sent %d blocks", total_count)
 
@@ -508,7 +508,7 @@ class TrustChainCommunity(Community):
         self.received_half_block(source_address, data[:-12])  # We cut off a few bytes to make it a BlockPayload
 
         block = self.get_block_class(payload.type).from_payload(payload, self.serializer)
-        cache = self.request_cache.get(u"crawl", payload.crawl_id)
+        cache = self.request_cache.get("crawl", payload.crawl_id)
         if cache:
             cache.received_block(block, payload.total_count)
 
@@ -535,7 +535,7 @@ class TrustChainCommunity(Community):
         total_trust = sum([self.get_trust(peer) for peer in eligible])
         random_trust_i = random.randint(0, total_trust - 1)
         current_trust_i = 0
-        for i in xrange(0, len(eligible)):
+        for i in range(0, len(eligible)):
             next_trust_i = self.get_trust(eligible[i])
             if current_trust_i + next_trust_i > random_trust_i:
                 return eligible[i]
@@ -550,7 +550,7 @@ class TrustChainCommunity(Community):
 
         auth, _, _ = self._ez_unpack_auth(IntroductionResponsePayload, data)
         peer = Peer(auth.public_key_bin, source_address)
-        if self.request_cache.has(u"introcrawltimeout", IntroCrawlTimeout.get_number_for(peer)):
+        if self.request_cache.has("introcrawltimeout", IntroCrawlTimeout.get_number_for(peer)):
             self.logger.debug("Not crawling %s, as we have already crawled it in the last %d seconds!",
                               peer.mid.encode('hex'), IntroCrawlTimeout.__new__(IntroCrawlTimeout).timeout_delay)
         elif source_address not in self.network.blacklist:
@@ -576,7 +576,7 @@ class TrustChainTestnetCommunity(TrustChainCommunity):
     """
     DB_NAME = 'trustchain_testnet'
 
-    master_peer = Peer(("3081a7301006072a8648ce3d020106052b810400270381920004017aa18185c6c8a3741aed970f5476d50932980"
+    master_peer = Peer(bytes.fromhex("3081a7301006072a8648ce3d020106052b810400270381920004017aa18185c6c8a3741aed970f5476d50932980"
                         "66670c6557f9d2519a77c2abe293f9438444fdb73d9e36d0b43a4a254f96c563c0da7915def980270d88da4079e"
                         "83a6039ce97f2205528c69087f88a6d6f35d83b93b3fb8a360260114729d4cfb5acc4b190e067695b4ae5e240a3"
-                        "939a1f45520e87a459ed0f358bf5e66371a748daa041997da69cab227596948bffd").decode("HEX"))
+                        "939a1f45520e87a459ed0f358bf5e66371a748daa041997da69cab227596948bffd"))

@@ -26,7 +26,7 @@ class TestDHTDiscoveryCommunity(TestBase):
                 node1.overlay.tokens[dht_node2] = (now, node2.overlay.generate_token(dht_node1))
 
     def create_node(self, *args, **kwargs):
-        return MockIPv8(u"curve25519", DHTDiscoveryCommunity)
+        return MockIPv8("curve25519", DHTDiscoveryCommunity)
 
     @twisted_wrapper
     def test_store_peer(self):
@@ -46,7 +46,7 @@ class TestDHTDiscoveryCommunity(TestBase):
     @twisted_wrapper
     def test_connect_peer(self):
         # Add a third node
-        node = MockIPv8(u"curve25519", DHTDiscoveryCommunity)
+        node = MockIPv8("curve25519", DHTDiscoveryCommunity)
         self.add_node_to_experiment(node)
         yield self.introduce_nodes()
 

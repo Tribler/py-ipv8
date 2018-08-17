@@ -15,7 +15,7 @@ class MockDatabase(Database):
 class TestDatabase(unittest.TestCase):
 
     def setUp(self):
-        self.database = MockDatabase(u":memory:")
+        self.database = MockDatabase(":memory:")
 
     def test_unloaded(self):
         """
@@ -28,6 +28,6 @@ class TestDatabase(unittest.TestCase):
         Check if an unloaded database returns None for queries.
         """
         self.database.open()
-        self.assertListEqual([(u'database_version', u'0')], list(self.database.execute("SELECT * FROM option")))
+        self.assertListEqual([('database_version', '0')], list(self.database.execute("SELECT * FROM option")))
         self.database.close(True)
         self.assertIsNone(self.database.execute("SELECT * FROM option"))

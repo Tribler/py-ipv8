@@ -16,7 +16,7 @@ class HashCache(NumberCache):
     def id_from_hash(cls, prefix, hash):
         number = 0
         for c in hash:
-            b, = unpack('>B', c)
+            b, = unpack('>B', bytes([c]))
             number <<= 8
             number |= b
         return prefix, number
@@ -46,7 +46,7 @@ class ReceiveAttestationVerifyCache(HashCache):
     """
 
     def __init__(self, community, hash):
-        super(ReceiveAttestationVerifyCache, self).__init__(community.request_cache, u"receive-verify-attestation",
+        super(ReceiveAttestationVerifyCache, self).__init__(community.request_cache, "receive-verify-attestation",
                                                             hash)
         self.attestation_map = set()
 
@@ -61,14 +61,14 @@ class ReceiveAttestationRequestCache(PeerCache):
     """
 
     def __init__(self, community, mid, key, name):
-        super(ReceiveAttestationRequestCache, self).__init__(community.request_cache, u"receive-request-attestation",
+        super(ReceiveAttestationRequestCache, self).__init__(community.request_cache, "receive-request-attestation",
                                                              mid)
         self.attestation_map = set()
         self.key = key
         self.name = name
 
     def on_timeout(self):
-        print "ERROR ERROR ERROR!!"
+        print("ERROR ERROR ERROR!!")
 
 
 class ProvingAttestationCache(HashCache):
@@ -77,7 +77,7 @@ class ProvingAttestationCache(HashCache):
     """
 
     def __init__(self, community, hash, public_key=None, on_complete=lambda x, y: None):
-        super(ProvingAttestationCache, self).__init__(community.request_cache, u"proving-attestation", hash)
+        super(ProvingAttestationCache, self).__init__(community.request_cache, "proving-attestation", hash)
         self.hash = hash
         self.public_key = public_key
         self.relativity_map = {}
@@ -94,7 +94,7 @@ class PendingChallengeCache(HashCache):
     Single pending challenge for a ProvingAttestationCache.
     """
     def __init__(self, community, hash, proving_cache, honesty_check=-1):
-        super(PendingChallengeCache, self).__init__(community.request_cache, u"proving-hash", hash)
+        super(PendingChallengeCache, self).__init__(community.request_cache, "proving-hash", hash)
         self.proving_cache = proving_cache
         self.honesty_check = honesty_check
 

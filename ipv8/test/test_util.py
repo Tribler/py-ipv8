@@ -2,9 +2,9 @@ from twisted.internet.defer import fail, inlineCallbacks, returnValue, succeed
 from twisted.internet.task import deferLater
 from twisted.internet.threads import deferToThread
 
-from base import TestBase
+from .base import TestBase
 from ..util import blocking_call_on_reactor_thread
-from util import reactor, twisted_wrapper
+from .util import reactor, twisted_wrapper
 
 
 class TestUtil(TestBase):

@@ -5,12 +5,10 @@ from time import time
 from threading import Lock
 
 
-class DiscoveryStrategy(object):
+class DiscoveryStrategy(object, metaclass=abc.ABCMeta):
     """
     Strategy for discovering peers in a network.
     """
-
-    __metaclass__ = abc.ABCMeta
 
     def __init__(self, overlay):
         self.overlay = overlay

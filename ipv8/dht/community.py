@@ -57,7 +57,7 @@ class Request(RandomNumberCache):
     This request cache keeps track of all outstanding requests within the DHTCommunity.
     """
     def __init__(self, community, node, params=None, consume_errors=True):
-        super(Request, self).__init__(community.request_cache, u'request')
+        super(Request, self).__init__(community.request_cache, 'request')
         self.node = node
         self.params = params
         self.deferred = Deferred()
@@ -85,10 +85,10 @@ class DHTCommunity(Community):
     """
     Community for storing/finding key-value pairs.
     """
-    master_peer = Peer('3081a7301006072a8648ce3d020106052b8104002703819200040578cfb7bc3e708df6f1a60b6baaf405c29e6cd0a'
+    master_peer = Peer(bytes.fromhex('3081a7301006072a8648ce3d020106052b8104002703819200040578cfb7bc3e708df6f1a60b6baaf405c29e6cd0a'
                        '393091b25251bf705b643af53755decbd04ce35886a87c11324d18b93efd44dc120e9559e5439ba008f0365be73a0'
                        'e30f9d963706ea766e9f89974057fda760bbe2bf533979cdccad95b6b9c19e9d4873cefc2669493f904deccc986e2'
-                       '0e4a7e60c1b7d7c9ec84fddcb908700df2365325be00596d37c05a72a7c26'.decode('hex'))
+                       '0e4a7e60c1b7d7c9ec84fddcb908700df2365325be00596d37c05a72a7c26'))
 
     def __init__(self, *args, **kwargs):
         super(DHTCommunity, self).__init__(*args, **kwargs)
@@ -103,15 +103,15 @@ class DHTCommunity(Community):
 
         # Register messages
         self.decode_map.update({
-            chr(MSG_PING): self.on_ping_request,
-            chr(MSG_PONG): self.on_ping_response,
-            chr(MSG_STORE_REQUEST): self.on_store_request,
-            chr(MSG_STORE_RESPONSE): self.on_store_response,
-            chr(MSG_FIND_REQUEST): self.on_find_request,
-            chr(MSG_FIND_RESPONSE): self.on_find_response,
+            MSG_PING: self.on_ping_request,
+            MSG_PONG: self.on_ping_response,
+            MSG_STORE_REQUEST: self.on_store_request,
+            MSG_STORE_RESPONSE: self.on_store_response,
+            MSG_FIND_REQUEST: self.on_find_request,
+            MSG_FIND_RESPONSE: self.on_find_response,
         })
 
-        self.logger.info('DHT community initialized (peer mid %s)', self.my_peer.mid.encode('HEX'))
+        self.logger.info('DHT community initialized (peer mid %s)', self.my_peer.mid.hex())
 
     @inlineCallbacks
     def unload(self):
@@ -153,8 +153,8 @@ class DHTCommunity(Community):
 
         pinged = []
         now = time.time()
-        for bucket in self.routing_table.trie.values():
-            for node in bucket.nodes.values():
+        for bucket in list(self.routing_table.trie.values()):
+            for node in list(bucket.nodes.values()):
                 if node.last_response + PING_INTERVAL <= now:
                     self.ping(node)
                     pinged.append(node)
@@ -181,27 +181,27 @@ class DHTCommunity(Community):
     def on_ping_response(self, source_address, data):
         _, _, payload = self._ez_unpack_auth(PingResponsePayload, data)
 
-        if not self.request_cache.has(u'request', payload.identifier):
+        if not self.request_cache.has('request', payload.identifier):
             self.logger.error('Got ping-response with unknown identifier, dropping packet')
             return
 
         self.logger.debug('Got ping-response from %s', source_address)
-        cache = self.request_cache.pop(u'request', payload.identifier)
+        cache = self.request_cache.pop('request', payload.identifier)
         cache.on_complete()
         cache.deferred.callback(cache.node)
 
     def serialize_value(self, data, sign=True):
         if sign:
-            payload = SignedStrPayload(data, int(time.time()), self.my_peer.public_key.key_to_bin())
-            return self._ez_pack('', DHT_ENTRY_STR_SIGNED, [payload.to_pack_list()], sig=True)
+            payload = SignedStrPayload(data.encode(), int(time.time()), self.my_peer.public_key.key_to_bin())
+            return self._ez_pack(b'', DHT_ENTRY_STR_SIGNED, [payload.to_pack_list()], sig=True)
         payload = StrPayload(data)
-        return self._ez_pack('', DHT_ENTRY_STR, [payload.to_pack_list()], sig=False)
+        return self._ez_pack(b'', DHT_ENTRY_STR, [payload.to_pack_list()], sig=False)
 
     def unserialize_value(self, value):
-        if value[0] == chr(DHT_ENTRY_STR):
+        if value[0] == DHT_ENTRY_STR:
             payload = self.serializer.unpack_to_serializables([StrPayload], value[1:])[0]
             return payload.data, None, 0
-        elif value[0] == chr(DHT_ENTRY_STR_SIGNED):
+        elif value[0] == DHT_ENTRY_STR_SIGNED:
             payload = self.serializer.unpack_to_serializables([SignedStrPayload], value[1:])[0]
             public_key = self.crypto.key_from_public_bin(payload.public_key)
             sig_len = self.crypto.get_signature_length(public_key)
@@ -216,7 +216,7 @@ class DHTCommunity(Community):
             id_ = hashlib.sha1(public_key).digest() if public_key else None
             self.storage.put(key, value, id_=id_, version=version, max_age=max_age)
         else:
-            self.logger.warning('Failed to store value %s', value.encode('hex'))
+            self.logger.warning('Failed to store value %s', value.hex())
 
     def store_value(self, key, data, sign=False):
         value = self.serialize_value(data, sign=sign)
@@ -290,12 +290,12 @@ class DHTCommunity(Community):
     def on_store_response(self, source_address, data):
         _, _, payload = self._ez_unpack_auth(StoreResponsePayload, data)
 
-        if not self.request_cache.has(u'request', payload.identifier):
+        if not self.request_cache.has('request', payload.identifier):
             self.logger.error('Got store-response with unknown identifier, dropping packet')
             return
 
         self.logger.debug('Got store-response from %s', source_address)
-        cache = self.request_cache.pop(u'request', payload.identifier)
+        cache = self.request_cache.pop('request', payload.identifier)
         cache.on_complete()
         cache.deferred.callback(cache.node)
 
@@ -315,7 +315,7 @@ class DHTCommunity(Community):
             else:
                 # Pick a node that we haven't tried yet. Trigger a puncture if needed.
                 node = next((n for n in response['nodes']
-                             if n not in nodes_tried and n not in to_puncture.itervalues()), None)
+                             if n not in nodes_tried and n not in iter(list(to_puncture.values()))), None)
                 if node:
                     to_puncture[sender] = node
         return values, to_puncture
@@ -345,12 +345,12 @@ class DHTCommunity(Community):
             new_values, to_puncture = self._process_find_responses(responses, nodes_tried)
 
             values |= new_values
-            for sender, node in to_puncture.iteritems():
+            for sender, node in list(to_puncture.items()):
                 nodes_closest.add(node)
                 recent = sender
 
             deferreds = [self._send_find_request(sender, node.id, force_nodes)
-                         for sender, node in to_puncture.iteritems()]
+                         for sender, node in list(to_puncture.items())]
 
             # Wait for punctures (if any)...
             yield DeferredList(deferreds)
@@ -382,7 +382,7 @@ class DHTCommunity(Community):
         results = []
 
         # Signed data
-        for public_key, data_list in unpacked.iteritems():
+        for public_key, data_list in list(unpacked.items()):
             if public_key is not None:
                 results.append((max(data_list, key=lambda t: t[0])[1], public_key))
 
@@ -422,12 +422,12 @@ class DHTCommunity(Community):
     def on_find_response(self, source_address, data):
         _, _, payload = self._ez_unpack_auth(FindResponsePayload, data)
 
-        if not self.request_cache.has(u'request', payload.identifier):
+        if not self.request_cache.has('request', payload.identifier):
             self.logger.error('Got find-response with unknown identifier, dropping packet')
             return
 
         self.logger.debug('Got find-response from %s', source_address)
-        cache = self.request_cache.pop(u'request', payload.identifier)
+        cache = self.request_cache.pop('request', payload.identifier)
         cache.on_complete()
 
         self.tokens[cache.node] = (time.time(), payload.token)
@@ -444,7 +444,7 @@ class DHTCommunity(Community):
     def value_maintenance(self):
         # Refresh buckets
         now = time.time()
-        for bucket in self.routing_table.trie.values():
+        for bucket in list(self.routing_table.trie.values()):
             if now - bucket.last_changed > 15 * 60:
                 self.find_values(bucket.generate_id()).addErrback(lambda _: None)
                 bucket.last_changed = now
@@ -460,12 +460,12 @@ class DHTCommunity(Community):
 
         # Cleanup old tokens
         now = time.time()
-        for node, (ts, _) in self.tokens.items():
+        for node, (ts, _) in list(self.tokens.items()):
             if now > ts + 600:
                 self.tokens.pop(node, None)
 
     def generate_token(self, node):
-        return hashlib.sha1(str(node) + self.token_secrets[-1]).digest()
+        return hashlib.sha1(str(node).encode() + self.token_secrets[-1]).digest()
 
     def check_token(self, node, token):
-        return any([hashlib.sha1(str(node) + secret).digest() == token for secret in self.token_secrets])
+        return any([hashlib.sha1(str(node).encode() + secret).digest() == token for secret in self.token_secrets])

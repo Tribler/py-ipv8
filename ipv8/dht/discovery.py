@@ -31,10 +31,10 @@ class DHTDiscoveryCommunity(DHTCommunity):
         self.store_for_me = defaultdict(list)
 
         self.decode_map.update({
-            chr(MSG_STORE_PEER_REQUEST): self.on_store_peer_request,
-            chr(MSG_STORE_PEER_RESPONSE): self.on_store_peer_response,
-            chr(MSG_CONNECT_PEER_REQUEST): self.on_connect_peer_request,
-            chr(MSG_CONNECT_PEER_RESPONSE): self.on_connect_peer_response,
+            MSG_STORE_PEER_REQUEST: self.on_store_peer_request,
+            MSG_STORE_PEER_RESPONSE: self.on_store_peer_response,
+            MSG_CONNECT_PEER_REQUEST: self.on_connect_peer_request,
+            MSG_CONNECT_PEER_RESPONSE: self.on_connect_peer_response,
         })
 
         self.register_task('store_peer', LoopingCall(self.store_peer)).start(30, now=False)
@@ -54,7 +54,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
             node.last_response = time.time()
 
     def find_node_in_dict(self, public_key_bin, node_dict):
-        for _, nodes in node_dict.iteritems():
+        for _, nodes in list(node_dict.items()):
             for node in nodes:
                 if node.public_key.key_to_bin() == public_key_bin:
                     return node
@@ -119,7 +119,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
             return
 
         if node not in self.store[payload.target]:
-            self.logger.debug('Storing peer %s (key %s)', node, payload.target.encode('hex'))
+            self.logger.debug('Storing peer %s (key %s)', node, payload.target.hex())
             self.store[payload.target].append(node)
 
         self.send_message(node.address, MSG_STORE_PEER_RESPONSE,
@@ -128,17 +128,17 @@ class DHTDiscoveryCommunity(DHTCommunity):
     def on_store_peer_response(self, source_address, data):
         _, _, payload = self._ez_unpack_auth(StorePeerResponsePayload, data)
 
-        if not self.request_cache.has(u'request', payload.identifier):
+        if not self.request_cache.has('request', payload.identifier):
             self.logger.error('Got store-peer-response with unknown identifier, dropping packet')
             return
 
         self.logger.debug('Got store-peer-response from %s', source_address)
 
-        cache = self.request_cache.pop(u'request', payload.identifier)
+        cache = self.request_cache.pop('request', payload.identifier)
 
         key = cache.params[0]
         if cache.node not in self.store_for_me[key]:
-            self.logger.debug('Peer %s storing us (key %s)', cache.node, key.encode('hex'))
+            self.logger.debug('Peer %s storing us (key %s)', cache.node, key.hex())
             self.store_for_me[key].append(cache.node)
 
         cache.deferred.callback(cache.node)
@@ -153,37 +153,37 @@ class DHTDiscoveryCommunity(DHTCommunity):
             packet = self.create_puncture_request(payload.lan_address, source_address, payload.identifier)
             self.endpoint.send(node.address, packet)
 
-        self.logger.debug('Returning peers %s (key %s)', nodes, payload.target.encode('hex'))
+        self.logger.debug('Returning peers %s (key %s)', nodes, payload.target.hex())
         self.send_message(source_address, MSG_CONNECT_PEER_RESPONSE,
                           ConnectPeerResponsePayload, (payload.identifier, nodes))
 
     def on_connect_peer_response(self, source_address, data):
         _, _, payload = self._ez_unpack_auth(ConnectPeerResponsePayload, data)
 
-        if not self.request_cache.has(u'request', payload.identifier):
+        if not self.request_cache.has('request', payload.identifier):
             self.logger.error('Got connect-peer-response with unknown identifier, dropping packet')
             return
 
         self.logger.debug('Got connect-peer-response from %s', source_address)
-        cache = self.request_cache.pop(u'request', payload.identifier)
+        cache = self.request_cache.pop('request', payload.identifier)
         cache.deferred.callback(payload.nodes)
 
     def ping_all(self):
         pinged = super(DHTDiscoveryCommunity, self).ping_all()
 
         now = time.time()
-        for key, nodes in self.store_for_me.iteritems():
-            for index in xrange(len(nodes) - 1, -1, -1):
+        for key, nodes in list(self.store_for_me.items()):
+            for index in range(len(nodes) - 1, -1, -1):
                 node = nodes[index]
                 if node.status == NODE_STATUS_BAD:
                     del self.store_for_me[key][index]
-                    self.logger.debug('Deleting peer %s that stored us (key %s)', node, key.encode('hex'))
+                    self.logger.debug('Deleting peer %s that stored us (key %s)', node, key.hex())
                 elif node not in pinged and now > node.last_response + PING_INTERVAL:
                     self.ping(node)
 
-        for key, nodes in self.store.iteritems():
-            for index in xrange(len(nodes) - 1, -1, -1):
+        for key, nodes in list(self.store.items()):
+            for index in range(len(nodes) - 1, -1, -1):
                 node = nodes[index]
                 if now > node.last_query + 60:
-                    self.logger.debug('Deleting peer %s (key %s)', node, key.encode('hex'))
+                    self.logger.debug('Deleting peer %s (key %s)', node, key.hex())
                     del self.store[key][index]

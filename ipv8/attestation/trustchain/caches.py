@@ -5,6 +5,7 @@ from twisted.internet import reactor
 from twisted.python.failure import Failure
 
 from ...requestcache import NumberCache
+from functools import reduce
 
 
 class IntroCrawlTimeout(NumberCache):
@@ -14,7 +15,7 @@ class IntroCrawlTimeout(NumberCache):
     """
 
     def __init__(self, community, peer):
-        super(IntroCrawlTimeout, self).__init__(community.request_cache, u"introcrawltimeout",
+        super(IntroCrawlTimeout, self).__init__(community.request_cache, "introcrawltimeout",
                                                 self.get_number_for(peer))
 
     @classmethod
@@ -22,7 +23,7 @@ class IntroCrawlTimeout(NumberCache):
         """
         Convert a Peer into an int. To do this we shift every byte of the mid into an integer.
         """
-        return reduce(lambda a, b: ((a << 8) | b), [ord(c) for c in peer.mid], 0)
+        return reduce(lambda a, b: ((a << 8) | b), [c for c in peer.mid], 0)
 
     @property
     def timeout_delay(self):
@@ -46,8 +47,8 @@ class HalfBlockSignCache(NumberCache):
     """
 
     def __init__(self, community, half_block, sign_deferred):
-        block_id_int = int(half_block.block_id.encode('hex'), 16) % 100000000L
-        super(HalfBlockSignCache, self).__init__(community.request_cache, u"sign", block_id_int)
+        block_id_int = int(half_block.block_id.encode().hex(), 16) % 100000000
+        super(HalfBlockSignCache, self).__init__(community.request_cache, "sign", block_id_int)
         self.logger = logging.getLogger(self.__class__.__name__)
         self.community = community
         self.half_block = half_block
@@ -73,12 +74,12 @@ class CrawlRequestCache(NumberCache):
     CRAWL_TIMEOUT = 20.0
 
     def __init__(self, community, crawl_id, crawl_deferred):
-        super(CrawlRequestCache, self).__init__(community.request_cache, u"crawl", crawl_id)
+        super(CrawlRequestCache, self).__init__(community.request_cache, "crawl", crawl_id)
         self.logger = logging.getLogger(self.__class__.__name__)
         self.community = community
         self.crawl_deferred = crawl_deferred
         self.received_half_blocks = []
-        self.total_half_blocks_expected = sys.maxint
+        self.total_half_blocks_expected = sys.maxsize
 
     @property
     def timeout_delay(self):
@@ -89,10 +90,10 @@ class CrawlRequestCache(NumberCache):
         self.total_half_blocks_expected = total_count
 
         if self.total_half_blocks_expected == 0:
-            self.community.request_cache.pop(u"crawl", self.number)
+            self.community.request_cache.pop("crawl", self.number)
             reactor.callFromThread(self.crawl_deferred.callback, [])
         elif len(self.received_half_blocks) >= self.total_half_blocks_expected:
-            self.community.request_cache.pop(u"crawl", self.number)
+            self.community.request_cache.pop("crawl", self.number)
             reactor.callFromThread(self.crawl_deferred.callback, self.received_half_blocks)
 
     def on_timeout(self):

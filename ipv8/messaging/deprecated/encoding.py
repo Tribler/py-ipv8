@@ -1,7 +1,7 @@
 import logging
 from json import dumps
-from urllib import unquote, urlencode
-from urlparse import urlparse, parse_qsl, ParseResult
+from urllib.parse import unquote, urlencode
+from urllib.parse import urlparse, parse_qsl, ParseResult
 
 logger = logging.getLogger(__name__)
 
@@ -11,17 +11,8 @@ def _a_encode_int(value, mapping):
     42 --> ('2', 'i', '42')
     """
     assert isinstance(value, int), "VALUE has invalid type: %s" % type(value)
-    value = str(value).encode("UTF-8")
-    return str(len(value)).encode("UTF-8"), "i", value
-
-
-def _a_encode_long(value, mapping):
-    """
-    42 --> ('2', 'J', '42')
-    """
-    assert isinstance(value, long), "VALUE has invalid type: %s" % type(value)
-    value = str(value).encode("UTF-8")
-    return str(len(value)).encode("UTF-8"), "J", value
+    value = str(value).encode()
+    return str(len(value)).encode(), b"i", value
 
 
 def _a_encode_float(value, mapping):
@@ -29,17 +20,17 @@ def _a_encode_float(value, mapping):
     4.2 --> ('3', 'f', '4.2')
     """
     assert isinstance(value, float), "VALUE has invalid type: %s" % type(value)
-    value = str(value).encode("UTF-8")
-    return str(len(value)).encode("UTF-8"), "f", value
+    value = str(value).encode()
+    return str(len(value)).encode(), b"f", value
 
 
 def _a_encode_unicode(value, mapping):
     """
     'foo-bar' --> ('7', 's', 'foo-bar')
     """
-    assert isinstance(value, unicode), "VALUE has invalid type: %s" % type(value)
-    value = value.encode("UTF-8")
-    return str(len(value)).encode("UTF-8"), "s", value
+    assert isinstance(value, str), "VALUE has invalid type: %s" % type(value)
+    value = value.encode()
+    return str(len(value)).encode(), b"s", value
 
 
 def _a_encode_bytes(value, mapping):
@@ -47,7 +38,7 @@ def _a_encode_bytes(value, mapping):
     'foo-bar' --> ('7', 'b', 'foo-bar')
     """
     assert isinstance(value, bytes), "VALUE has invalid type: %s" % type(value)
-    return str(len(value)).encode("UTF-8"), "b", value
+    return str(len(value)).encode(), b"b", value
 
 
 def _a_encode_list(values, mapping):
@@ -55,7 +46,7 @@ def _a_encode_list(values, mapping):
     [1,2,3] --> ['3', 'l', '1', 'i', '1', '1', 'i', '2', '1', 'i', '3']
     """
     assert isinstance(values, list), "VALUE has invalid type: %s" % type(values)
-    encoded = [str(len(values)).encode("UTF-8"), "l"]
+    encoded = [str(len(values)).encode(), b"l"]
     extend = encoded.extend
     for value in values:
         extend(mapping[type(value)](value, mapping))
@@ -67,7 +58,7 @@ def _a_encode_set(values, mapping):
     [1,2,3] --> ['3', 'l', '1', 'i', '1', '1', 'i', '2', '1', 'i', '3']
     """
     assert isinstance(values, set), "VALUE has invalid type: %s" % type(values)
-    encoded = [str(len(values)).encode("UTF-8"), "L"]
+    encoded = [str(len(values)).encode(), b"L"]
     extend = encoded.extend
     for value in values:
         extend(mapping[type(value)](value, mapping))
@@ -79,7 +70,7 @@ def _a_encode_tuple(values, mapping):
     (1,2) --> ['2', 't', '1', 'i', '1', '1', 'i', '2']
     """
     assert isinstance(values, tuple), "VALUE has invalid type: %s" % type(values)
-    encoded = [str(len(values)).encode("UTF-8"), "t"]
+    encoded = [str(len(values)).encode(), b"t"]
     extend = encoded.extend
     for value in values:
         extend(mapping[type(value)](value, mapping))
@@ -91,7 +82,7 @@ def _a_encode_dictionary(values, mapping):
     {'foo':'bar', 'moo':'milk'} --> ['2', 'd', '3', 's', 'foo', '3', 's', 'bar', '3', 's', 'moo', '4', 's', 'milk']
     """
     assert isinstance(values, dict), "VALUE has invalid type: %s" % type(values)
-    encoded = [str(len(values)).encode("UTF-8"), "d"]
+    encoded = [str(len(values)).encode(), b"d"]
     extend = encoded.extend
     for key, value in sorted(values.items()):
         assert type(key) in mapping, (key, values)
@@ -105,7 +96,7 @@ def _a_encode_none(value, mapping):
     """
     None --> ['0', 'n']
     """
-    return ['0n']
+    return [b'0n']
 
 
 def _a_encode_bool(value, mapping):
@@ -113,13 +104,12 @@ def _a_encode_bool(value, mapping):
     True  --> ['0', 'T']
     False --> ['0', 'F']
     """
-    return ['0T' if value else '0F']
+    return [b'0T' if value else b'0F']
 
 _a_encode_mapping = {int: _a_encode_int,
-                     long: _a_encode_long,
                      float: _a_encode_float,
-                     unicode: _a_encode_unicode,
-                     str: _a_encode_bytes,
+                     str: _a_encode_unicode,
+                     bytes: _a_encode_bytes,
                      list: _a_encode_list,
                      set: _a_encode_set,
                      tuple: _a_encode_tuple,
@@ -130,7 +120,7 @@ _a_encode_mapping = {int: _a_encode_int,
 
 def bytes_to_uint(stream, offset=0):
     assert isinstance(stream, str)
-    assert isinstance(offset, (int, long))
+    assert isinstance(offset, int)
     assert offset >= 0
     bit8 = 16 * 8
     mask7 = 2 ** 7 - 1
@@ -160,7 +150,7 @@ def encode(data, version="a"):
     """
     assert isinstance(version, str)
     if version == "a":
-        return "a" + "".join(_a_encode_mapping[type(data)](data, _a_encode_mapping))
+        return b"a" + b"".join(_a_encode_mapping[type(data)](data, _a_encode_mapping))
 
     raise ValueError("Unknown encode version")
 
@@ -176,7 +166,7 @@ def _a_decode_long(stream, offset, count, _):
     """
     'a2J42',3,2 --> 5,42
     """
-    return offset + count, long(stream[offset:offset + count])
+    return offset + count, int(stream[offset:offset + count])
 
 
 def _a_decode_float(stream, offset, count, _):
@@ -215,9 +205,9 @@ def _a_decode_list(stream, offset, count, mapping):
     for _ in range(count):
 
         index = offset
-        while 48 <= ord(stream[index]) <= 57:
+        while 48 <= stream[index] <= 57:
             index += 1
-        offset, value = mapping[stream[index]](stream, index + 1, int(stream[offset:index]), mapping)
+        offset, value = mapping[stream[index:index+1]](stream, index + 1, int(stream[offset:index]), mapping)
         container.append(value)
 
     return offset, container
@@ -232,9 +222,9 @@ def _a_decode_set(stream, offset, count, mapping):
     for _ in range(count):
 
         index = offset
-        while 48 <= ord(stream[index]) <= 57:
+        while 48 <= stream[index] <= 57:
             index += 1
-        offset, value = mapping[stream[index]](stream, index + 1, int(stream[offset:index]), mapping)
+        offset, value = mapping[stream[index:index+1]](stream, index + 1, int(stream[offset:index]), mapping)
         container.add(value)
 
     return offset, container
@@ -249,9 +239,9 @@ def _a_decode_tuple(stream, offset, count, mapping):
     for _ in range(count):
 
         index = offset
-        while 48 <= ord(stream[index]) <= 57:
+        while 48 <= stream[index] <= 57:
             index += 1
-        offset, value = mapping[stream[index]](stream, index + 1, int(stream[offset:index]), mapping)
+        offset, value = mapping[stream[index:index+1]](stream, index + 1, int(stream[offset:index]), mapping)
         container.append(value)
 
     return offset, tuple(container)
@@ -265,14 +255,14 @@ def _a_decode_dictionary(stream, offset, count, mapping):
     for _ in range(count):
 
         index = offset
-        while 48 <= ord(stream[index]) <= 57:
+        while 48 <= stream[index] <= 57:
             index += 1
-        offset, key = mapping[stream[index]](stream, index + 1, int(stream[offset:index]), mapping)
+        offset, key = mapping[stream[index:index+1]](stream, index + 1, int(stream[offset:index]), mapping)
 
         index = offset
-        while 48 <= ord(stream[index]) <= 57:
+        while 48 <= stream[index] <= 57:
             index += 1
-        offset, value = mapping[stream[index]](stream, index + 1, int(stream[offset:index]), mapping)
+        offset, value = mapping[stream[index:index+1]](stream, index + 1, int(stream[offset:index]), mapping)
 
         container[key] = value
 
@@ -304,18 +294,18 @@ def _a_decode_false(stream, offset, count, mapping):
     assert count == 0
     return offset, False
 
-_a_decode_mapping = {"i": _a_decode_int,
-                     "J": _a_decode_long,
-                     "f": _a_decode_float,
-                     "s": _a_decode_unicode,
-                     "b": _a_decode_bytes,
-                     "l": _a_decode_list,
-                     "L": _a_decode_set,
-                     "t": _a_decode_tuple,
-                     "d": _a_decode_dictionary,
-                     "n": _a_decode_none,
-                     "T": _a_decode_true,
-                     "F": _a_decode_false}
+_a_decode_mapping = {b"i": _a_decode_int,
+                     b"J": _a_decode_long,
+                     b"f": _a_decode_float,
+                     b"s": _a_decode_unicode,
+                     b"b": _a_decode_bytes,
+                     b"l": _a_decode_list,
+                     b"L": _a_decode_set,
+                     b"t": _a_decode_tuple,
+                     b"d": _a_decode_dictionary,
+                     b"n": _a_decode_none,
+                     b"T": _a_decode_true,
+                     b"F": _a_decode_false}
 
 
 def decode(stream, offset=0):
@@ -330,11 +320,11 @@ def decode(stream, offset=0):
     """
     assert isinstance(stream, bytes), "STREAM has invalid type: %s" % type(stream)
     assert isinstance(offset, int), "OFFSET has invalid type: %s" % type(offset)
-    if stream[offset] == "a":
+    if stream[offset:offset+1] == b"a":
         index = offset + 1
-        while 48 <= ord(stream[index]) <= 57:
+        while 48 <= stream[index] <= 57:
             index += 1
-        return _a_decode_mapping[stream[index]](stream, index + 1, int(stream[offset + 1:index]), _a_decode_mapping)
+        return _a_decode_mapping[stream[index:index+1]](stream, index + 1, int(stream[offset + 1:index]), _a_decode_mapping)
 
     raise ValueError("Unknown version found")
 
@@ -364,7 +354,7 @@ def add_url_params(url, params):
     # Bool and Dict values should be converted to json-friendly values
     # you may throw this part away if you don't like it :)
     parsed_get_args.update(
-        {k: dumps(v) for k, v in parsed_get_args.items()
+        {k: dumps(v) for k, v in list(parsed_get_args.items())
          if isinstance(v, (bool, dict))}
     )
 

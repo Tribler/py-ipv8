@@ -16,17 +16,6 @@ class TestEncoding(unittest.TestCase):
 
         self.assertEqual(value, decoded)
 
-    def test_encode_long(self):
-        """
-        Check if an long can be encoded and decoded.
-        """
-        value = 42L
-
-        encoded = encode(value)
-        _, decoded = decode(encoded)
-
-        self.assertEqual(value, decoded)
-
     def test_encode_float(self):
         """
         Check if an float can be encoded and decoded.
@@ -38,11 +27,11 @@ class TestEncoding(unittest.TestCase):
 
         self.assertEqual(value, decoded)
 
-    def test_encode_unicode(self):
+    def test_encode_str(self):
         """
-        Check if a unicode value can be encoded and decoded.
+        Check if a string value can be encoded and decoded.
         """
-        value = u"42"
+        value = "42"
 
         encoded = encode(value)
         _, decoded = decode(encoded)
@@ -51,9 +40,9 @@ class TestEncoding(unittest.TestCase):
 
     def test_encode_bytes(self):
         """
-        Check if an int can be encoded and decoded.
+        Check if a byte value can be encoded and decoded.
         """
-        value = '\x42'
+        value = b'\x42'
 
         encoded = encode(value)
         _, decoded = decode(encoded)
@@ -64,7 +53,7 @@ class TestEncoding(unittest.TestCase):
         """
         Check if a list can be encoded and decoded.
         """
-        value = [42, 42L, 42.0, u"42", '\x42']
+        value = [42, 42.0, "42", '\x42']
 
         encoded = encode(value)
         _, decoded = decode(encoded)
@@ -75,7 +64,7 @@ class TestEncoding(unittest.TestCase):
         """
         Check if a set can be encoded and decoded.
         """
-        value = {42, 42L, 42.0, u"42", '\x42'}
+        value = {42, 42.0, "42", '\x42'}
 
         encoded = encode(value)
         _, decoded = decode(encoded)
@@ -86,7 +75,7 @@ class TestEncoding(unittest.TestCase):
         """
         Check if a tuple can be encoded and decoded.
         """
-        value = (42, 42L, 42.0, u"42", '\x42')
+        value = (42, 42.0, "42", '\x42')
 
         encoded = encode(value)
         _, decoded = decode(encoded)
@@ -97,7 +86,7 @@ class TestEncoding(unittest.TestCase):
         """
         Check if a dictionary can be encoded and decoded.
         """
-        value = {42: None, 42L: 42.0, u"42": '\x42'}
+        value = {"43": 42.0, "42": '\x42'}
 
         encoded = encode(value)
         _, decoded = decode(encoded)
