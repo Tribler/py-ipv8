@@ -734,7 +734,10 @@ class TunnelCommunity(Community):
             else:
                 self.logger.warning("We're not joining circuit with ID %s", payload.circuit_id)
 
-        self.should_join_circuit(payload, source_address).addCallback(determined_to_join)
+        def determine_to_join():
+            self.should_join_circuit(payload, source_address).addCallback(determined_to_join)
+
+        reactor.callFromThread(determine_to_join)
 
     def on_created(self, source_address, data, _):
         payload = self._ez_unpack_noauth(CreatedPayload, data, global_time=False)
