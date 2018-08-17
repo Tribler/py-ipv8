@@ -131,7 +131,7 @@ class AttestationEndpoint(resource.Resource):
                     attester = b64encode(sha1(b.link_public_key).digest())
                     previous = trimmed.get((attester, b.transaction["name"]), None)
                     if not previous or previous.sequence_number < b.sequence_number:
-                        previous[(attester, b.transaction["name"])] = b
+                        trimmed[(attester, b.transaction["name"])] = b
                 return json.dumps([(b.transaction["name"], b64encode(b.transaction["hash"]), b.transaction["metadata"],
                                     b64encode(sha1(b.link_public_key).digest()))
                                    for b in trimmed.values()])
