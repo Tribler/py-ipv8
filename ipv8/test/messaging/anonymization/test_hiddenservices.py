@@ -3,31 +3,14 @@ from __future__ import absolute_import
 from twisted.internet import reactor
 from twisted.internet.defer import inlineCallbacks, Deferred
 
-from ....messaging.anonymization.community import TunnelSettings, CIRCUIT_TYPE_RENDEZVOUS
+from ....messaging.anonymization.community import TunnelSettings, CIRCUIT_TYPE_RP_DOWNLOADER
 from ....messaging.anonymization.hidden_services import HiddenTunnelCommunity
+from ....messaging.anonymization.tunnel import IntroductionPoint
 from ....peer import Peer
 from ...base import TestBase
 from ...mocking.exit_socket import MockTunnelExitSocket
 from ...mocking.ipv8 import MockIPv8
-
-# Map of info_hash -> peer list
-global_dht_services = {}
-
-
-class MockDHTProvider(object):
-
-    def __init__(self, address):
-        self.address = address
-
-    def lookup(self, info_hash, cb):
-        if info_hash in global_dht_services:
-            cb((info_hash, global_dht_services[info_hash], None))
-
-    def announce(self, info_hash):
-        if info_hash in global_dht_services:
-            global_dht_services[info_hash].append(self.address)
-        else:
-            global_dht_services[info_hash] = [self.address]
+from .test_community import MockDHTProvider
 
 
 class TestHiddenServices(TestBase):
@@ -57,7 +40,7 @@ class TestHiddenServices(TestBase):
         first_node = None
         for node in self.nodes:
             for circuit in list(node.overlay.circuits.values()):
-                if circuit.ctype == CIRCUIT_TYPE_RENDEZVOUS:
+                if circuit.ctype == CIRCUIT_TYPE_RP_DOWNLOADER:
                     first_node = node
                     e2e_circuit = circuit
                     break
@@ -95,22 +78,25 @@ class TestHiddenServices(TestBase):
         settings.min_circuits = 0
         settings.max_circuits = 0
         ipv8 = MockIPv8(u"curve25519", HiddenTunnelCommunity, settings=settings)
+
+        ipv8.overlays = []
+        ipv8.strategies = []
+        ipv8.overlay.ipv8 = ipv8
+
         # Then kill all automated circuit creation
         ipv8.overlay.cancel_all_pending_tasks()
         # Finally, use the proper exitnode and circuit settings for manual creation
         ipv8.overlay.settings.min_circuits = 1
         ipv8.overlay.settings.max_circuits = 1
-        ipv8.overlay.dht_provider = MockDHTProvider(ipv8.endpoint.wan_address)
+        ipv8.overlay.dht_provider = MockDHTProvider(ipv8.overlay.my_peer)
         return ipv8
 
     @inlineCallbacks
-    def create_intro(self, node_nr, service):
+    def create_intro(self, node_nr, service, required_ip=None):
         """
         Create an 1 hop introduction point for some node for some service.
         """
-        lookup_service = self.nodes[node_nr].overlay.get_lookup_info_hash(service)
-        self.nodes[node_nr].overlay.hops[lookup_service] = 1
-        self.nodes[node_nr].overlay.create_introduction_point(lookup_service)
+        self.nodes[node_nr].overlay.create_introduction_point(service, required_ip=required_ip)
 
         yield self.deliver_messages()
 
@@ -143,14 +129,15 @@ class TestHiddenServices(TestBase):
         Check if setting up an introduction point works.
         Some node, other than the instigator, should be assigned as the intro point.
         """
+        self.nodes[0].overlay.join_swarm(self.service, 1)
         yield self.introduce_nodes()
         yield self.create_intro(0, self.service)
-
-        lookup_service = self.nodes[0].overlay.get_lookup_info_hash(self.service)
+        seeder_sk = self.nodes[0].overlay.swarms[self.service].seeder_sk
+        seeder_pk = seeder_sk.pub().key_to_bin()
 
         intro_made = False
         for node_nr in range(1, len(self.nodes)):
-            intro_made |= lookup_service in self.nodes[node_nr].overlay.intro_point_for
+            intro_made |= seeder_pk in self.nodes[node_nr].overlay.intro_point_for
 
         self.assertTrue(intro_made)
 
@@ -169,14 +156,14 @@ class TestHiddenServices(TestBase):
         """
         callback_called = Deferred()
 
-        self.nodes[0].overlay.register_service(self.service, 1, callback_called.callback, 0)
+        self.nodes[0].overlay.join_swarm(self.service, 1, callback_called.callback, seeding=False)
+        self.nodes[2].overlay.join_swarm(self.service, 1, callback_called.callback)
 
         yield self.introduce_nodes()
         yield self.create_intro(2, self.service)
         yield self.assign_exit_node(0)
 
-        self.nodes[0].overlay.do_dht_lookup(self.service)
-
+        self.nodes[0].overlay.do_peer_discovery()
         yield self.deliver_messages()
 
         yield callback_called
@@ -206,13 +193,73 @@ class TestHiddenServices(TestBase):
 
         callback.called = False
 
-        self.nodes[0].overlay.register_service(self.service, 1, callback, 0)
+        self.nodes[0].overlay.join_swarm(self.service, 1, callback)
 
         yield self.introduce_nodes()
         yield self.assign_exit_node(0)
 
-        self.nodes[0].overlay.do_dht_lookup(self.service)
-
+        self.nodes[0].overlay.do_peer_discovery()
         yield self.deliver_messages()
 
         self.assertFalse(callback.called)
+
+    @inlineCallbacks
+    def test_pex_lookup(self):
+        # Nodes 1 and 2 are introduction points for node 0
+        self.nodes[0].overlay.join_swarm(self.service, 1)
+        yield self.introduce_nodes()
+        yield self.create_intro(0, self.service, required_ip=self.nodes[1].my_peer)
+        yield self.create_intro(0, self.service, required_ip=self.nodes[2].my_peer)
+
+        # Introduce nodes in the PexCommunity
+        self.nodes[1].overlay.ipv8.overlays[0].walk_to(self.nodes[2].endpoint.wan_address)
+        self.nodes[2].overlay.ipv8.overlays[0].walk_to(self.nodes[1].endpoint.wan_address)
+        yield self.deliver_messages()
+
+        # Add node 3 to the experiment and give this node a 1 hop data circuit (to be used for get-peers messages)
+        self.add_node_to_experiment(self.create_node())
+        yield self.assign_exit_node(3)
+
+        # Ensure node 3 already knows node 2 (which enables PEX) and do a peers-request
+        intro_point = IntroductionPoint(self.nodes[2].overlay.my_peer,
+                                        self.nodes[0].overlay.swarms[self.service].seeder_sk.pub().key_to_bin())
+        self.nodes[3].overlay.join_swarm(self.service, 1, seeding=False)
+        self.nodes[3].overlay.swarms[self.service].add_intro_point(intro_point)
+        self.nodes[3].overlay.do_peer_discovery()
+        yield self.deliver_messages()
+
+        # Node 2 should be known as an introduction point
+        peers = [ip.peer for ip in self.nodes[3].overlay.swarms[self.service].intro_points]
+        self.assertItemsEqual(peers, [self.nodes[1].my_peer, self.nodes[2].my_peer])
+
+    @inlineCallbacks
+    def test_pex_lookup_exit_is_ip(self):
+        # Nodes 1 and 2 are introduction points for node 0
+        self.nodes[0].overlay.join_swarm(self.service, 1)
+        yield self.introduce_nodes()
+        yield self.create_intro(0, self.service, required_ip=self.nodes[1].my_peer)
+        yield self.create_intro(0, self.service, required_ip=self.nodes[2].my_peer)
+
+        # Introduce nodes in the PexCommunity
+        self.nodes[1].overlay.ipv8.overlays[0].walk_to(self.nodes[2].endpoint.wan_address)
+        self.nodes[2].overlay.ipv8.overlays[0].walk_to(self.nodes[1].endpoint.wan_address)
+        yield self.deliver_messages()
+
+        # Add node 3 to the experiment and give this node a 1 hop data circuit (to be used for get-peers messages).
+        # The data circuit ends in node 1, which is also an introduction point.
+        self.add_node_to_experiment(self.create_node())
+        self.nodes[3].overlay.create_circuit(1, required_exit=self.nodes[1].overlay.my_peer)
+        yield self.deliver_messages()
+
+        # Ensure node 3 already knows node 1 and do a peers-request. Since node 3 already has a data circuit
+        # to node 1, it should send a cell directly to node 3.
+        intro_point = IntroductionPoint(self.nodes[1].overlay.my_peer,
+                                        self.nodes[0].overlay.swarms[self.service].seeder_sk.pub().key_to_bin())
+        self.nodes[3].overlay.join_swarm(self.service, 1, seeding=False)
+        self.nodes[3].overlay.swarms[self.service].add_intro_point(intro_point)
+        self.nodes[3].overlay.do_peer_discovery()
+        yield self.deliver_messages()
+
+        # Node 2 should be known as an introduction point
+        peers = [ip.peer for ip in self.nodes[3].overlay.swarms[self.service].intro_points]
+        self.assertItemsEqual(peers, [self.nodes[1].my_peer, self.nodes[2].my_peer])

@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 
 import logging
+import random
 import socket
 import sys
 import time
@@ -30,9 +31,9 @@ CIRCUIT_TYPE_DATA = 'DATA'
 
 # The other circuits are supposed to end in a connectable node, not allowed to exit
 # anything else than IPv8 messages, used for setting up end-to-end circuits
-CIRCUIT_TYPE_IP = 'IP'
-CIRCUIT_TYPE_RP = 'RP'
-CIRCUIT_TYPE_RENDEZVOUS = 'RENDEZVOUS'
+CIRCUIT_TYPE_IP_SEEDER = 'IP_SEEDER'
+CIRCUIT_TYPE_RP_SEEDER = 'RP_SEEDER'
+CIRCUIT_TYPE_RP_DOWNLOADER = 'RP_DOWNLOADER'
 
 CIRCUIT_STATE_READY = 'READY'
 CIRCUIT_STATE_EXTENDING = 'EXTENDING'
@@ -127,8 +128,7 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
         if self.check_num_packets(destination, False):
             if DataChecker.is_allowed(data):
                 def on_error(failure):
-                    self.logger.error("Can't resolve ip address for hostname %s. Failure: %s",
-                                      destination[0], failure)
+                    self.logger.error("Can't resolve ip address for hostname %s. Failure: %s", destination[0], failure)
 
                 def on_ip_address(ip_address):
                     self.logger.debug("Resolved hostname %s to ip_address %s", destination[0], ip_address)
@@ -144,8 +144,7 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
                 resolve_ip_address_deferred.addCallbacks(on_ip_address, on_error)
                 self.register_task("resolving_%r" % destination[0], resolve_ip_address_deferred)
             else:
-                self.logger.error("dropping forbidden packets from exit socket with circuit_id %d",
-                                  self.circuit_id)
+                self.logger.error("dropping forbidden packets from exit socket with circuit_id %d", self.circuit_id)
 
     def datagramReceived(self, data, source):
         self.beat_heart()
@@ -258,6 +257,9 @@ class Circuit(Tunnel):
         """
         self._closing = True
 
+    def __eq__(self, other):
+        return other and self.circuit_id == other.circuit_id
+
 
 class Hop(object):
 
@@ -336,3 +338,69 @@ class RendezvousPoint(object):
         self.cookie = cookie
         self.finished_callback = finished_callback
         self.rp_info = None
+
+
+class IntroductionPoint(object):
+
+    def __init__(self, peer, seeder_pk):
+        self.peer = peer
+        self.seeder_pk = seeder_pk
+        self.last_seen = time.time()
+
+    def __eq__(self, other):
+        return self.peer == other.peer and self.seeder_pk == other.seeder_pk
+
+
+class Swarm(object):
+
+    def __init__(self, info_hash, hops, seeder_sk=None, max_ip_age=300):
+        self.info_hash = info_hash
+        self.hops = hops
+        self.seeder_sk = seeder_sk
+        self.max_ip_age = max_ip_age
+
+        self.intro_points = []
+        self.connections = {}
+        self.last_lookup = 0
+
+    @property
+    def seeding(self):
+        return bool(self.seeder_sk)
+
+    def add_connection(self, rp_circuit, intro_point_used):
+        if rp_circuit.circuit_id not in self.connections:
+            self.connections[rp_circuit.circuit_id] = (rp_circuit, intro_point_used)
+
+    def remove_connection(self, rp_circuit):
+        return bool(self.connections.pop(rp_circuit.circuit_id, None))
+
+    def has_connection(self, seeder_pk):
+        return seeder_pk in [ip.seeder_pk for _, ip in self.connections.values()]
+
+    def get_num_connections(self):
+        return len([c for c in self.connections if c.state == CIRCUIT_STATE_READY])
+
+    def add_intro_point(self, ip):
+        old_ip = next((i for i in self.intro_points if i == ip), None)
+        if old_ip:
+            old_ip.last_seen = time.time()
+        else:
+            self.intro_points.append(ip)
+
+        # Cleanup old introduction points
+        now = time.time()
+        self.intro_points = [ip for ip in self.intro_points if ip.last_seen + self.max_ip_age >= now]
+
+        return old_ip or ip
+
+    def remove_intro_point(self, ip):
+        try:
+            self.intro_points.remove(ip)
+        except ValueError:
+            pass
+
+    def get_random_intro_point(self):
+        return random.choice(self.intro_points) if self.intro_points else None
+
+    def get_num_seeders(self):
+        return len({ip.seeder_pk for ip in self.intro_points})

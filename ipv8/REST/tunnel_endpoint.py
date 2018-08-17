@@ -22,6 +22,7 @@ class TunnelEndpoint(BaseEndpoint):
             self.putChild("circuits", TunnelCircuitsEndpoint(tunnel_overlays[0]))
             self.putChild("relays", TunnelRelaysEndpoint(tunnel_overlays[0]))
             self.putChild("exits", TunnelExitsEndpoint(tunnel_overlays[0]))
+            self.putChild("swarms", TunnelSwarmsEndpoint(tunnel_overlays[0]))
 
 
 class TunnelCircuitsEndpoint(BaseEndpoint):
@@ -97,3 +98,27 @@ class TunnelExitsEndpoint(BaseEndpoint):
                 "bytes_up": exit_socket.bytes_up,
                 "bytes_down": exit_socket.bytes_down
             } for circuit_from, exit_socket in self.tunnels.exit_sockets.iteritems()]})
+
+
+class TunnelSwarmsEndpoint(BaseEndpoint):
+    """
+    This endpoint is responsible for returning hidden swarm information from the TunnelCommunity.
+    """
+
+    def __init__(self, tunnels):
+        super(TunnelSwarmsEndpoint, self).__init__()
+        self.tunnels = tunnels
+
+    def render_GET(self, request):
+        if not self.tunnels:
+            request.setResponseCode(http.NOT_FOUND)
+            return json.dumps({"error": "tunnel community not found"})
+
+        return json.dumps({"swarms": [
+            {
+                "info_hash": hexlify(swarm.info_hash),
+                "num_seeders": swarm.get_num_seeders(),
+                "num_connections": swarm.get_num_connections(),
+                "seeding": swarm.seeding,
+                "last_lookup": swarm.last_lookup
+            } for swarm in self.tunnels.swarms.values()]})

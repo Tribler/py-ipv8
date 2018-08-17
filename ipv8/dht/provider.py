@@ -2,38 +2,56 @@ from __future__ import absolute_import
 
 from binascii import hexlify
 import logging
-import struct
-import socket
+from socket import inet_aton
+from struct import pack, unpack_from
+
+from ..peer import Peer
+from ..messaging.anonymization.tunnel import IntroductionPoint
 
 
 class DHTCommunityProvider(object):
     """
-    This class is a wrapper around the DHTCommunity and is used for the hidden services as DHT provider.
+    This class is a wrapper around the DHTCommunity and is used to discover introduction points
+    for hidden services.
     """
 
-    def __init__(self, dhtcommunity, bt_port):
-        self.dhtcommunity = dhtcommunity
-        self.bt_port = bt_port
+    def __init__(self, dht_community, port):
+        self.dht_community = dht_community
+        self.port = port
         self.logger = logging.getLogger(self.__class__.__name__)
+
+    def peer_lookup(self, mid, cb):
+        self.dht_community.connect_peer(mid).addCallbacks(cb, lambda _: None)
 
     def lookup(self, info_hash, cb):
         def callback(values):
-            addresses = []
+            results = []
             for value, _ in values:
                 try:
-                    ip, port = struct.unpack('!4sH', value)
-                    address = (socket.inet_ntoa(ip), port)
-                    addresses.append(address)
-                except (struct.error, socket.error):
-                    self.logger.info("Failed to decode value '%s' from DHTCommunity", value)
-            return info_hash, addresses, None
-        self.dhtcommunity.find_values(info_hash).addCallback(callback).addCallbacks(cb, lambda _: None)
+                    ip, port, intro_key_len = unpack_from('!4sHH', value)
+                    intro_pk = value[8:8 + intro_key_len]
+                    intro_peer = Peer(intro_pk, address=(ip, port))
 
-    def announce(self, info_hash):
+                    seeder_key_len, = unpack_from('!H', value, 8 + intro_key_len)
+                    seeder_pk = value[8 + intro_key_len:8 + intro_key_len + seeder_key_len]
+
+                    results.append(IntroductionPoint(intro_peer, seeder_pk))
+                except:
+                    pass
+            self.logger.info("Looked up %s in the DHTCommunity, got %d results", info_hash.encode('hex'), len(results))
+            return info_hash, results
+        self.dht_community.find_values(info_hash).addCallback(callback).addCallbacks(cb, lambda _: None)
+
+    def announce(self, info_hash, intro_point):
         def callback(_):
             self.logger.info("Announced %s to the DHTCommunity", hexlify(info_hash))
 
         def errback(_):
             self.logger.info("Failed to announce %s to the DHTCommunity", hexlify(info_hash))
-        value = socket.inet_aton(self.dhtcommunity.my_estimated_lan[0]) + struct.pack("!H", self.bt_port)
-        self.dhtcommunity.store_value(info_hash, value).addCallbacks(callback, errback)
+
+        intro_pk = intro_point.peer.public_key.key_to_bin()
+        value = inet_aton(intro_point.peer.address[0]) + pack("!H", intro_point.peer.address[1])
+        value += pack('!H', len(intro_pk)) + intro_pk
+        value += pack('!H', len(intro_point.seeder_pk)) + intro_point.seeder_pk
+
+        self.dht_community.store_value(info_hash, value).addCallbacks(callback, errback)

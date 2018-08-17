@@ -4,6 +4,7 @@ import logging
 import time
 
 from twisted.internet.defer import Deferred
+from twisted.python.failure import Failure
 
 from .tunnel import CIRCUIT_STATE_CLOSING, CIRCUIT_STATE_READY, PING_INTERVAL
 from ...requestcache import NumberCache, RandomNumberCache
@@ -141,62 +142,32 @@ class RPRequestCache(RandomNumberCache):
         self.community.remove_circuit(self.rp.circuit.circuit_id, 'establish-rendezvous timeout')
 
 
-class KeyRequestCache(RandomNumberCache):
-
-    def __init__(self, community, circuit, sock_addr, info_hash):
-        super(KeyRequestCache, self).__init__(community.request_cache, u"key-request")
-        self.logger = logging.getLogger(__name__)
-        self.circuit = circuit
-        self.sock_addr = sock_addr
-        self.info_hash = info_hash
-        self.community = community
-
-    def on_timeout(self):
-        self.logger.info("KeyRequestCache: no response on key-request to %s",
-                         self.sock_addr)
-        if self.info_hash in self.community.infohash_pex:
-            self.logger.info("Remove peer %s from the peer exchange cache", repr(self.sock_addr))
-            peers = self.community.infohash_pex[self.info_hash]
-            for peer in peers.copy():
-                peer_sock, _ = peer
-                if self.sock_addr == peer_sock:
-                    self.community.infohash_pex[self.info_hash].remove(peer)
-
-
-class DHTRequestCache(RandomNumberCache):
+class PeersRequestCache(RandomNumberCache):
 
     def __init__(self, community, circuit, info_hash):
-        super(DHTRequestCache, self).__init__(community.request_cache, u"dht-request")
+        super(PeersRequestCache, self).__init__(community.request_cache, u"peers-request")
         self.circuit = circuit
         self.info_hash = info_hash
+        self.deferred = Deferred()
 
     def on_timeout(self):
-        pass
-
-
-class KeyRelayCache(KeyRequestCache):
-
-    def __init__(self, community, circuit, identifier, sock_addr, info_hash):
-        super(KeyRelayCache, self).__init__(community, circuit, sock_addr, info_hash)
-        self.identifier = identifier
-        self.return_sock_addr = sock_addr
-
-    def on_timeout(self):
-        pass
+        self.deferred.errback(Failure(RuntimeError("Peers request timeout")))
 
 
 class E2ERequestCache(RandomNumberCache):
 
-    def __init__(self, community, info_hash, circuit, hop, sock_addr):
+    def __init__(self, community, info_hash, hop, intro_point):
         super(E2ERequestCache, self).__init__(community.request_cache, u"e2e-request")
-        self.circuit = circuit
-        self.hop = hop
+        self.community = community
         self.info_hash = info_hash
-        self.sock_addr = sock_addr
+        self.hop = hop
+        self.intro_point = intro_point
 
     def on_timeout(self):
-        pass
-
+        swarm = self.community.swarms.get(self.info_hash)
+        if swarm:
+            # This introduction point did not respond in time, so drop it.
+            swarm.remove_intro_point(self.intro_point)
 
 class LinkRequestCache(RandomNumberCache):
 

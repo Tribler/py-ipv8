@@ -7,7 +7,7 @@ import time
 from collections import defaultdict
 
 from six.moves import xrange
-from twisted.internet.defer import fail
+from twisted.internet.defer import fail, succeed
 from twisted.internet.task import LoopingCall
 from twisted.python.failure import Failure
 
@@ -94,6 +94,8 @@ class DHTDiscoveryCommunity(DHTCommunity):
                 else fail(RuntimeError('Peer was not stored')))
 
     def connect_peer(self, mid):
+        if mid in self.store:
+            return succeed(self.store[mid])
         return self.find_nodes(mid).addCallback(lambda nodes, mid=mid:
                                                 self.send_connect_peer_request(mid, nodes[:TARGET_NODES]))
 

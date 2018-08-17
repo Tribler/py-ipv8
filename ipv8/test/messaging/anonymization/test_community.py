@@ -1,5 +1,7 @@
 from __future__ import absolute_import
 
+from collections import defaultdict
+
 from twisted.internet.defer import inlineCallbacks, succeed
 
 from ...base import TestBase
@@ -9,6 +11,28 @@ from ....messaging.anonymization.community import TunnelCommunity, TunnelSetting
 from ....messaging.anonymization.tunnel import CIRCUIT_STATE_EXTENDING
 from ....messaging.interfaces.udp.endpoint import UDPEndpoint
 from ....util import cast_to_bin
+
+
+# Map of info_hash -> peer list
+global_dht_services = defaultdict(list)
+
+
+class MockDHTProvider(object):
+
+    def __init__(self, peer):
+        self.peer = peer
+        # DHTDiscoveryCommunity functionality
+        global_dht_services[peer.mid].append(peer)
+
+    def peer_lookup(self, mid, cb):
+        self.lookup(mid, cb)
+
+    def lookup(self, info_hash, cb):
+        if info_hash in global_dht_services:
+            cb(global_dht_services[info_hash])
+
+    def announce(self, info_hash, intro_point):
+        global_dht_services[info_hash].append(intro_point)
 
 
 class TestTunnelCommunity(TestBase):
@@ -40,6 +64,7 @@ class TestTunnelCommunity(TestBase):
         # Finally, use the proper exitnode and circuit settings for manual creation
         ipv8.overlay.settings.min_circuits = 1
         ipv8.overlay.settings.max_circuits = 1
+        ipv8.overlay.dht_provider = MockDHTProvider(ipv8.overlay.my_peer)
         return ipv8
 
     def assert_no_more_tunnels(self):

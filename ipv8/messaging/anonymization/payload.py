@@ -1,13 +1,14 @@
 from __future__ import absolute_import
 
 import socket
+from socket import inet_ntoa, inet_aton
 from struct import pack, unpack_from
 
 from cryptography.exceptions import InvalidTag
 
 from ...messaging.serialization import default_serializer
-from ...messaging.anonymization.tunnel import (CIRCUIT_TYPE_RENDEZVOUS, CIRCUIT_TYPE_RP, ORIGINATOR, EXIT_NODE,
-                                               ORIGINATOR_SALT, EXIT_NODE_SALT)
+from ...messaging.anonymization.tunnel import (CIRCUIT_TYPE_RP_SEEDER, CIRCUIT_TYPE_RP_DOWNLOADER, ORIGINATOR,
+                                               EXIT_NODE, ORIGINATOR_SALT, EXIT_NODE_SALT)
 from ...messaging.anonymization.tunnelcrypto import CryptoException
 from ...messaging.payload import Payload
 from ...util import cast_to_bin, cast_to_chr
@@ -109,8 +110,8 @@ class CellPayload(Payload):
             return
 
         if circuit:
-            if self.is_data and circuit.ctype in [CIRCUIT_TYPE_RENDEZVOUS, CIRCUIT_TYPE_RP]:
-                direction = int(circuit.ctype == CIRCUIT_TYPE_RP)
+            if self.is_data and circuit.ctype in [CIRCUIT_TYPE_RP_SEEDER, CIRCUIT_TYPE_RP_DOWNLOADER]:
+                direction = int(circuit.ctype == CIRCUIT_TYPE_RP_SEEDER)
                 self.message = crypto.encrypt_str(self.message,
                                                   *crypto.get_session_keys(circuit.hs_session_keys, direction))
 
@@ -142,8 +143,8 @@ class CellPayload(Payload):
                                           "for message: %r received for circuit_id: %s, is_data: %i, circuit_hops: %r" %
                                           (e, layer, self.message, self.circuit_id, self.is_data, circuit.hops))
 
-            if self.is_data and circuit.ctype in [CIRCUIT_TYPE_RENDEZVOUS, CIRCUIT_TYPE_RP]:
-                direction = int(circuit.ctype == CIRCUIT_TYPE_RENDEZVOUS)
+            if self.is_data and circuit.ctype in [CIRCUIT_TYPE_RP_SEEDER, CIRCUIT_TYPE_RP_DOWNLOADER]:
+                direction = int(circuit.ctype == CIRCUIT_TYPE_RP_DOWNLOADER)
                 direction_salt = direction + 2
                 self.message = crypto.decrypt_str(self.message,
                                                   circuit.hs_session_keys[direction],
@@ -349,24 +350,26 @@ class DestroyPayload(Payload):
 
 class EstablishIntroPayload(Payload):
 
-    format_list = ['I', 'H', '20s']
+    format_list = ['I', 'H', '20s', 'varlenH']
 
-    def __init__(self, circuit_id, identifier, info_hash):
+    def __init__(self, circuit_id, identifier, info_hash, public_key):
         super(EstablishIntroPayload, self).__init__()
         self.circuit_id = circuit_id
         self.identifier = identifier
         self.info_hash = info_hash
+        self.public_key = public_key
 
     def to_pack_list(self):
         data = [('I', self.circuit_id),
                 ('H', self.identifier),
-                ('20s', self.info_hash)]
+                ('20s', self.info_hash),
+                ('varlenH', self.public_key)]
 
         return data
 
     @classmethod
-    def from_unpack_list(cls, circuit_id, identifier, info_hash):
-        return EstablishIntroPayload(circuit_id, identifier, info_hash)
+    def from_unpack_list(cls, circuit_id, identifier, info_hash, public_key):
+        return EstablishIntroPayload(circuit_id, identifier, info_hash, public_key)
 
 
 class IntroEstablishedPayload(Payload):
@@ -435,48 +438,6 @@ class RendezvousEstablishedPayload(Payload):
         return RendezvousEstablishedPayload(circuit_id, identifier, rendezvous_point_addr)
 
 
-class KeyRequestPayload(Payload):
-
-    format_list = ['H', '20s']
-
-    def __init__(self, identifier, info_hash):
-        super(KeyRequestPayload, self).__init__()
-        self.identifier = identifier
-        self.info_hash = info_hash
-
-    def to_pack_list(self):
-        data = [('H', self.identifier),
-                ('20s', self.info_hash)]
-
-        return data
-
-    @classmethod
-    def from_unpack_list(cls, identifier, info_hash):
-        return KeyRequestPayload(identifier, info_hash)
-
-
-class KeyResponsePayload(Payload):
-
-    format_list = ['H', 'varlenH', 'raw']
-
-    def __init__(self, identifier, public_key, pex_peers):
-        super(KeyResponsePayload, self).__init__()
-        self.identifier = identifier
-        self.public_key = public_key
-        self.pex_peers = pex_peers
-
-    def to_pack_list(self):
-        data = [('H', self.identifier),
-                ('varlenH', self.public_key),
-                ('raw', self.pex_peers)]
-
-        return data
-
-    @classmethod
-    def from_unpack_list(cls, identifier, public_key, pex_peers):
-        return KeyResponsePayload(identifier, public_key, pex_peers)
-
-
 class CreateE2EPayload(Payload):
 
     format_list = ['H', '20s', 'H', 'H', 'raw']
@@ -530,12 +491,12 @@ class CreatedE2EPayload(Payload):
         return CreatedE2EPayload(identifier, key, auth, rp_sock_addr)
 
 
-class DHTRequestPayload(Payload):
+class PeersRequestPayload(Payload):
 
     format_list = ['I', 'H', '20s']
 
     def __init__(self, circuit_id, identifier, info_hash):
-        super(DHTRequestPayload, self).__init__()
+        super(PeersRequestPayload, self).__init__()
         self.circuit_id = circuit_id
         self.identifier = identifier
         self.info_hash = info_hash
@@ -549,15 +510,15 @@ class DHTRequestPayload(Payload):
 
     @classmethod
     def from_unpack_list(cls, circuit_id, identifier, info_hash):
-        return DHTRequestPayload(circuit_id, identifier, info_hash)
+        return PeersRequestPayload(circuit_id, identifier, info_hash)
 
 
-class DHTResponsePayload(Payload):
+class PeersResponsePayload(Payload):
 
     format_list = ['I', 'H', '20s', 'raw']
 
     def __init__(self, circuit_id, identifier, info_hash, peers):
-        super(DHTResponsePayload, self).__init__()
+        super(PeersResponsePayload, self).__init__()
         self.circuit_id = circuit_id
         self.identifier = identifier
         self.info_hash = info_hash
@@ -573,7 +534,7 @@ class DHTResponsePayload(Payload):
 
     @classmethod
     def from_unpack_list(cls, circuit_id, identifier, info_hash, peers):
-        return DHTResponsePayload(circuit_id, identifier, info_hash, peers)
+        return PeersResponsePayload(circuit_id, identifier, info_hash, peers)
 
 
 class LinkE2EPayload(Payload):
