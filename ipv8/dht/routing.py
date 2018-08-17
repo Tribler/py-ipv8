@@ -17,22 +17,22 @@ MAX_BUCKET_SIZE = 20
 
 
 def id_to_binary_string(node_id):
-    return format(int(node_id.encode('hex'), 16), '0160b')
+    return format(int(node_id.hex(), 16), '0160b')
 
 
 def distance(a, b):
-    return int(a.encode('hex'), 16) ^ int(b.encode('hex'), 16)
+    return int(a.hex(), 16) ^ int(b.hex(), 16)
 
 
 def calc_node_id(ip, mid):
     # Loosely based on the Bittorrent DHT (https://libtorrent.org/dht_sec.html), the node id is calculated as follows:
     # first 3 bytes of crc32c(ip & 0x030f3fff) + first 17 bytes of sha1(public_key)
     ip_bin = inet_aton(ip)
-    ip_mask = '\x03\x0f\x3f\0xff'
-    ip_masked = ''.join([chr(ord(ip_bin[i]) & ord(ip_mask[i])) for i in range(4)])
+    ip_mask = b'\x03\x0f\x3f\0xff'
+    ip_masked = b''.join([bytes([ip_bin[i] & ip_mask[i]]) for i in range(4)])
 
     crc32_unsigned = binascii.crc32(ip_masked) % (2 ** 32)
-    crc32_bin = ('%08x' % crc32_unsigned).decode('hex')
+    crc32_bin = bytes.fromhex('%08x' % crc32_unsigned)
 
     return crc32_bin[:3] + mid[:17]
 
@@ -87,7 +87,7 @@ class Bucket(object):
 
     def generate_id(self):
         rand_node_id_bin = format(random.randint(0, 2 ** (160 - len(self.prefix_id))), '0160b')
-        return format(int(rand_node_id_bin, 2), '040X').decode('hex')
+        return bytes.fromhex(format(int(rand_node_id_bin, 2), '040X'))
 
     def owns(self, node_id):
         node_id_binary = id_to_binary_string(node_id)
@@ -110,12 +110,12 @@ class Bucket(object):
 
         # Make room if needed
         if len(self.nodes) >= self.max_size:
-            for n in self.nodes.itervalues():
+            for n in list(self.nodes.values()):
                 if n.status == NODE_STATUS_BAD:
                     del self.nodes[n.id]
                     break
 
-            for n in self.nodes.itervalues():
+            for n in list(self.nodes.values()):
                 if node.rtt and n.rtt / node.rtt >= 2.0:
                     del self.nodes[n.id]
                     break
@@ -133,9 +133,9 @@ class Bucket(object):
         if len(self.nodes) < self.max_size:
             return False
 
-        b_0 = Bucket(self.prefix_id + u'0', self.max_size)
-        b_1 = Bucket(self.prefix_id + u'1', self.max_size)
-        for node in self.nodes.itervalues():
+        b_0 = Bucket(self.prefix_id + '0', self.max_size)
+        b_1 = Bucket(self.prefix_id + '1', self.max_size)
+        for node in list(self.nodes.values()):
             if b_0.owns(node.id):
                 b_0.add(node)
             elif b_1.owns(node.id):
@@ -152,13 +152,13 @@ class RoutingTable(object):
 
     def __init__(self, my_node_id):
         self.my_node_id = my_node_id
-        self.trie = datrie.Trie(u'01')
-        self.trie[u''] = Bucket(u'')
+        self.trie = datrie.Trie('01')
+        self.trie[''] = Bucket('')
         self.lock = RLock()
 
     def get_bucket(self, node_id):
         node_id_binary = id_to_binary_string(node_id)
-        return self.trie.longest_prefix_value(unicode(node_id_binary), default=None) or self.trie[u'']
+        return self.trie.longest_prefix_value(node_id_binary, default=None) or self.trie['']
 
     def add(self, node):
         with self.lock:
@@ -170,8 +170,8 @@ class RoutingTable(object):
                 # Splitting is only allowed if our own node_id falls within this bucket
                 if bucket.owns(self.my_node_id):
                     bucket_0, bucket_1 = bucket.split()
-                    self.trie[bucket.prefix_id + u'0'] = bucket_0
-                    self.trie[bucket.prefix_id + u'1'] = bucket_1
+                    self.trie[bucket.prefix_id + '0'] = bucket_0
+                    self.trie[bucket.prefix_id + '1'] = bucket_1
                     del self.trie[bucket.prefix_id]
 
                     # Retry
@@ -181,8 +181,8 @@ class RoutingTable(object):
 
     def remove_bad_nodes(self):
         with self.lock:
-            for bucket in self.trie.values():
-                for node_id, node in bucket.nodes.items():
+            for bucket in list(self.trie.values()):
+                for node_id, node in list(bucket.nodes.items()):
                     if node.status == NODE_STATUS_BAD:
                         bucket.nodes.pop(node_id, None)
 
@@ -191,14 +191,14 @@ class RoutingTable(object):
 
     def closest_nodes(self, node_id, max_nodes=8, exclude_node=None):
         with self.lock:
-            hash_binary = unicode(id_to_binary_string(node_id))
-            prefix = self.trie.longest_prefix(hash_binary, default=u'')
+            hash_binary = id_to_binary_string(node_id)
+            prefix = self.trie.longest_prefix(hash_binary, default='')
 
             nodes = set()
-            for i in reversed(range(len(prefix) + 1)):
+            for i in reversed(list(range(len(prefix) + 1))):
                 for suffix in self.trie.suffixes(prefix[:i]):
                     bucket = self.trie[prefix[:i] + suffix]
-                    nodes |= {node for node in bucket.nodes.itervalues()
+                    nodes |= {node for node in list(bucket.nodes.values())
                               if node.status != NODE_STATUS_BAD and (exclude_node is None or
                                                                      node.id != exclude_node.id)}
 

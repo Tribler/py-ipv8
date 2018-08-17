@@ -17,8 +17,8 @@ if nosetests --version >>/dev/null 2>&1; then
     fi
     test_command+=" -s -x -v"
 else
-    echo "using test runner 'python2 -m unittest'!"
-    test_command="python2 -m unittest --verbose"
+    echo "using test runner 'python3 -m unittest'!"
+    test_command="python3 -m unittest --verbose"
     test_files="${test_files//\//.}"
     test_files="${test_files//.py:/.}"
 fi

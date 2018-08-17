@@ -8,7 +8,7 @@ from ..requestcache import RandomNumberCache, RequestCache
 class MockCache(RandomNumberCache):
 
     def __init__(self, request_cache):
-        super(MockCache, self).__init__(request_cache, u"mock")
+        super(MockCache, self).__init__(request_cache, "mock")
 
     def on_timeout(self):
         pass

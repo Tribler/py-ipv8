@@ -40,7 +40,7 @@ class TestTrustChainCommunity(TestBase):
             node.overlay.add_listener(TestBlockListener(), ['test'])
 
     def create_node(self):
-        return MockIPv8(u"curve25519", TrustChainCommunity, working_directory=u":memory:")
+        return MockIPv8("curve25519", TrustChainCommunity, working_directory=":memory:")
 
     @twisted_wrapper
     def test_sign_half_block(self):
@@ -73,9 +73,6 @@ class TestTrustChainCommunity(TestBase):
         block, link_block = yield self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0],
                                                                    public_key=his_pubkey, block_type='test',
                                                                    transaction={})
-        self.assertIsInstance(block, DummyBlock)
-        self.assertIsInstance(link_block, DummyBlock)
-
         for node_nr in [0, 1]:
             self.assertIsNotNone(self.nodes[node_nr].overlay.persistence.get(his_pubkey, 1))
             self.assertEqual(self.nodes[node_nr].overlay.persistence.get(his_pubkey, 1).link_sequence_number, 1)
@@ -206,13 +203,13 @@ class TestTrustChainCommunity(TestBase):
 
         my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
         his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
-        for _ in xrange(0, 3):
+        for _ in range(0, 3):
             self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
                                              block_type='test', transaction={})
 
         yield self.deliver_messages()
 
-        self.nodes[1].overlay.persistence.execute(u"DELETE FROM blocks WHERE sequence_number=2", tuple())
+        self.nodes[1].overlay.persistence.execute("DELETE FROM blocks WHERE sequence_number=2", tuple())
         self.assertIsNone(self.nodes[1].overlay.persistence.get(my_pubkey, 2))
 
         yield self.nodes[1].overlay.crawl_lowest_unknown(self.nodes[0].my_peer)
@@ -423,7 +420,7 @@ class TestTrustChainCommunity(TestBase):
 
         # Create an invalid block
         invalid_block = TestBlock(key=self.nodes[0].overlay.my_peer.key)
-        invalid_block.signature = 'a' * 64
+        invalid_block.signature = b'a' * 64
         self.nodes[0].overlay.persistence.add_block(invalid_block)
 
         # We will attempt to add a new block to our chain.

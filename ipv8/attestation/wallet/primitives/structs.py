@@ -28,7 +28,7 @@ def _str_to_num(s):
     out = 0
     for b in s:
         out <<= 8
-        out |= struct.unpack(">B", b)[0]
+        out |= struct.unpack(">B", bytes([b]))[0]
     return out
 
 
@@ -45,7 +45,7 @@ def _unpack(s):
     """
     Unserialize an integer from a str.
     """
-    llen = struct.unpack(">B", s[0])[0]
+    llen = struct.unpack(">B", s[0:1])[0]
     l = _str_to_num(s[1:1+llen])
     return _str_to_num(s[1+llen:llen+l+1]), s[llen+l+1:]
 
@@ -156,7 +156,7 @@ class Attestation(object):
         self.PK = PK
 
     def serialize(self):
-        out = ""
+        out = b""
         out += self.PK.serialize()
         for bitpair in self.bitpairs:
             out += bitpair.serialize()

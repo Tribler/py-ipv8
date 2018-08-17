@@ -1,3 +1,4 @@
+import base64
 from binascii import unhexlify
 
 from cryptography.hazmat.backends import default_backend
@@ -28,7 +29,7 @@ class M2CryptoSK(PrivateKey, M2CryptoPK):
             self.ec = ec.generate_private_key(curve, default_backend())
 
         elif keystring:
-            self.ec = self.key_from_pem("-----BEGIN EC PRIVATE KEY-----\n%s-----END EC PRIVATE KEY-----\n" % keystring.encode("BASE64"))
+            self.ec = self.key_from_pem(b"-----BEGIN EC PRIVATE KEY-----\n%s\n-----END EC PRIVATE KEY-----\n" % base64.b64encode(keystring))
 
         elif filename:
             with open(filename, 'rb') as keyfile:
@@ -89,6 +90,6 @@ class M2CryptoSK(PrivateKey, M2CryptoPK):
         # Now we can turn this into a binary string
         r = unhexlify(r)
         s = unhexlify(s)
-        key_len = self.get_signature_length()/2
+        key_len = int(self.get_signature_length()/2)
         # For easy decoding, prepend 0 to r and s until they are of >equal length<
-        return "".join(("\x00" * (key_len - len(r)), r, "\x00" * (key_len - len(s)), s))
+        return b"".join((b"\x00" * (key_len - len(r)), r, b"\x00" * (key_len - len(s)), s))

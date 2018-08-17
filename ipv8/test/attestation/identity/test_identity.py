@@ -12,7 +12,7 @@ class TestIdentityCommunity(TestBase):
         self.initialize(IdentityCommunity, 2)
 
     def create_node(self):
-        return MockIPv8(u"curve25519", IdentityCommunity, working_directory=u":memory:")
+        return MockIPv8("curve25519", IdentityCommunity, working_directory=":memory:")
 
     @twisted_wrapper
     def test_advertise(self):

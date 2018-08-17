@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+
 
 from .endpoint import AutoMockEndpoint
 from ...keyvault.crypto import ECCrypto
@@ -13,7 +13,7 @@ class MockCommunity(DiscoveryCommunity):
         endpoint = AutoMockEndpoint()
         endpoint.open()
         network = Network()
-        peer = Peer(ECCrypto().generate_key(u"very-low"), endpoint.wan_address)
+        peer = Peer(ECCrypto().generate_key("very-low"), endpoint.wan_address)
         super(MockCommunity, self).__init__(peer, endpoint, network)
         # workaround for race conditions in deliver_messages
         self._use_main_thread = False

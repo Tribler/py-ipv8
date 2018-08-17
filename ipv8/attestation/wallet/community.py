@@ -1,3 +1,4 @@
+import base64
 from hashlib import sha1
 import json
 import os
@@ -36,10 +37,10 @@ class AttestationCommunity(Community):
 
     Note that the logic for giving out Attestations is in the TrustChain.
     """
-    master_peer = Peer(("3081a7301006072a8648ce3d020106052b810400270381920004057a009787f66ea54d5082ea2f56a842488e319" +
+    master_peer = Peer(bytes.fromhex("3081a7301006072a8648ce3d020106052b810400270381920004057a009787f66ea54d5082ea2f56a842488e319" +
                         "c14c98967c39286433233f769a73e9c894149cf9053a9a0c2548f07171df9c46c3bdb106afa9e9a8a06926e0ec3" +
                         "5871c91f2ab1a20651d0a7b5fda209a3500a09b630a193b281a266230472ef0cc0622c793dc18eed6c57d7bcd1e" +
-                        "eca33e2e38277ea99c28d4c62f850f81b5eb3eb19fcb601747bd87aa0b04e360ae9").decode("HEX"))
+                        "eca33e2e38277ea99c28d4c62f850f81b5eb3eb19fcb601747bd87aa0b04e360ae9"))
 
     def __init__(self, *args, **kwargs):
         working_directory = kwargs.pop('working_directory', '')
@@ -56,16 +57,16 @@ class AttestationCommunity(Community):
         self.attestation_keys = {}
         self.database = AttestationsDB(working_directory, db_name)
         for hash, _, key in self.database.get_all():
-            self.attestation_keys[str(hash)] = BonehPrivateKey.unserialize(str(key))
+            self.attestation_keys[str(hash)] = BonehPrivateKey.unserialize(key)
 
         self.request_cache = RequestCache()
 
         self.decode_map.update({
-            chr(1): self.on_verify_attestation_request,
-            chr(2): self.on_attestation_chunk,
-            chr(3): self.on_challenge,
-            chr(4): self.on_challenge_response,
-            chr(5): self.on_request_attestation
+            1: self.on_verify_attestation_request,
+            2: self.on_attestation_chunk,
+            3: self.on_challenge,
+            4: self.on_challenge_response,
+            5: self.on_request_attestation
         })
 
     def set_attestation_request_callback(self, f):
@@ -112,7 +113,7 @@ class AttestationCommunity(Community):
 
         meta_dict = {
             "attribute": attribute_name,
-            "public_key": public_key.serialize().encode('base64')
+            "public_key": base64.b64encode(public_key.serialize()).decode('utf-8')
         }
         meta_dict.update(metadata)
         metadata = json.dumps(meta_dict)
@@ -133,7 +134,7 @@ class AttestationCommunity(Community):
         auth, dist, payload = self._ez_unpack_auth(RequestAttestationPayload, data)
         peer = Peer(auth.public_key_bin, source_address)
 
-        metadata = json.loads(payload.metadata)
+        metadata = json.loads(payload.metadata.decode('utf-8'))
         attribute = metadata.pop('attribute')
         pubkey_b64 = metadata.pop('public_key')
 
@@ -141,7 +142,7 @@ class AttestationCommunity(Community):
         if value is None:
             return
 
-        PK = BonehPublicKey.unserialize(pubkey_b64.decode('base64'))
+        PK = BonehPublicKey.unserialize(base64.b64decode(pubkey_b64))
         attestation_blob = attest_sha256_4(PK, value).serialize()
 
         self.attestation_request_complete_callback(peer, attribute, sha1(attestation_blob).digest())
@@ -225,13 +226,13 @@ class AttestationCommunity(Community):
         """
         auth, dist, payload = self._ez_unpack_auth(AttestationChunkPayload, data)
         peer = Peer(auth.public_key_bin, source_address)
-        hash_id = HashCache.id_from_hash(u"receive-verify-attestation", payload.hash)
-        peer_id = PeerCache.id_from_address(u"receive-request-attestation", peer.mid)
+        hash_id = HashCache.id_from_hash("receive-verify-attestation", payload.hash)
+        peer_id = PeerCache.id_from_address("receive-request-attestation", peer.mid)
         if self.request_cache.has(*hash_id):
             cache = self.request_cache.get(*hash_id)
             cache.attestation_map |= {(payload.sequence_number, payload.data), }
 
-            serialized = ""
+            serialized = b""
             for (_, chunk) in sorted(cache.attestation_map, key=lambda item: item[0]):
                 serialized += chunk
 
@@ -246,7 +247,7 @@ class AttestationCommunity(Community):
             cache = self.request_cache.get(*peer_id)
             cache.attestation_map |= {(payload.sequence_number, payload.data), }
 
-            serialized = ""
+            serialized = b""
             for (_, chunk) in sorted(cache.attestation_map, key=lambda item: item[0]):
                 serialized += chunk
 
@@ -270,7 +271,7 @@ class AttestationCommunity(Community):
         relativity_map = create_empty_relativity_map()
         challenges = []
         hashed_challenges = []
-        cache = self.request_cache.get(*HashCache.id_from_hash(u"proving-attestation", attestation_hash))
+        cache = self.request_cache.get(*HashCache.id_from_hash("proving-attestation", attestation_hash))
         cache.public_key = attestation.PK
         for bitpair in attestation.bitpairs:
             challenge = create_challenge(attestation.PK, bitpair)
@@ -319,11 +320,11 @@ class AttestationCommunity(Community):
         """
         auth, dist, payload = self._ez_unpack_auth(ChallengeResponsePayload, data)
 
-        cache = self.request_cache.get(*HashCache.id_from_hash(u"proving-hash", payload.challenge_hash))
+        cache = self.request_cache.get(*HashCache.id_from_hash("proving-hash", payload.challenge_hash))
         if cache:
-            self.request_cache.pop(*HashCache.id_from_hash(u"proving-hash", payload.challenge_hash))
+            self.request_cache.pop(*HashCache.id_from_hash("proving-hash", payload.challenge_hash))
             proving_cache = cache.proving_cache
-            pcache_prefix, pcache_id = HashCache.id_from_hash(u"proving-attestation", proving_cache.hash)
+            pcache_prefix, pcache_id = HashCache.id_from_hash("proving-attestation", proving_cache.hash)
             if payload.challenge_hash in proving_cache.hashed_challenges:
                 proving_cache.hashed_challenges.remove(payload.challenge_hash)
                 for challenge in proving_cache.challenges[:]:
@@ -346,20 +347,20 @@ class AttestationCommunity(Community):
                 proving_cache.attestation_callbacks(proving_cache.hash, proving_cache.relativity_map)
             else:
                 # Send another proving hash
-                honesty_check = (ord(os.urandom(1)[0]) < 38)
-                honesty_check_byte = choice(range(3)) if honesty_check else -1
+                honesty_check = (os.urandom(1)[0] < 38)
+                honesty_check_byte = choice(list(range(3))) if honesty_check else -1
                 challenge = None
                 if honesty_check:
-                    while not challenge or self.request_cache.has(*HashCache.id_from_hash(u"proving-hash",
+                    while not challenge or self.request_cache.has(*HashCache.id_from_hash("proving-hash",
                                                                                           sha1(challenge).digest())):
                         raw_challenge = create_honesty_check(proving_cache.public_key, honesty_check_byte)
                         challenge = pack_pair(raw_challenge.a, raw_challenge.b)
-                if (not honesty_check) or (challenge and self.request_cache.has(*HashCache.id_from_hash(u"proving-hash",
+                if (not honesty_check) or (challenge and self.request_cache.has(*HashCache.id_from_hash("proving-hash",
                                                                                 sha1(challenge).digest()))):
                     honesty_check_byte = -1
                     challenge = None
                     for c in proving_cache.challenges:
-                        if not self.request_cache.has(*HashCache.id_from_hash(u"proving-hash", sha1(c).digest())):
+                        if not self.request_cache.has(*HashCache.id_from_hash("proving-hash", sha1(c).digest())):
                             challenge = c
                             break
                     if not challenge:

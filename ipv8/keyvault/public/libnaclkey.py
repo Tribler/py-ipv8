@@ -43,7 +43,7 @@ class LibNaCLPK(PublicKey):
         """
         Get the string representation of this key.
         """
-        return "LibNaCLPK:" + self.key.pk + self.veri.vk
+        return b"LibNaCLPK:" + self.key.pk + self.veri.vk
 
     def get_signature_length(self):
         """

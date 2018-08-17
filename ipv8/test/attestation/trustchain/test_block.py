@@ -16,7 +16,7 @@ class TestBlock(TrustChainBlock):
 
     def __init__(self, transaction=None, previous=None, key=None, block_type='test'):
         crypto = ECCrypto()
-        other = crypto.generate_key(u"curve25519").pub().key_to_bin()
+        other = crypto.generate_key("curve25519").pub().key_to_bin()
 
         transaction = transaction or {'id': 42}
 
@@ -28,11 +28,11 @@ class TestBlock(TrustChainBlock):
             if key:
                 self.key = key
             else:
-                self.key = crypto.generate_key(u"curve25519")
+                self.key = crypto.generate_key("curve25519")
 
             TrustChainBlock.__init__(self, (block_type,
                                             encode(transaction), self.key.pub().key_to_bin(), random.randint(50, 100),
-                                            other, 0, sha256(str(random.randint(0, 100000))).digest(), 0, 0, 0))
+                                            other, 0, sha256(str(random.randint(0, 100000)).encode()).digest(), 0, 0, 0))
         self.sign(self.key)
 
         self.transaction_validation_result = (ValidationResult.valid, [])
@@ -96,8 +96,8 @@ class TestTrustChainBlock(unittest.TestCase):
         """
         block = TrustChainBlock()
         block.timestamp = 0  # To make the hash the same between runs
-        self.assertEqual(block.hash, '9X\xdeb\x92g\x10W\t\xdf\xf6\x98\xc46\xdaU\x19+6\x1b\xf4\xaei'
-                                     '\x96Jz\x04\x91F@\xc0\xd8')
+        self.assertEqual(block.hash, b'9X\xdeb\x92g\x10W\t\xdf\xf6\x98\xc46\xdaU\x19+6\x1b\xf4\xaei'
+                                     b'\x96Jz\x04\x91F@\xc0\xd8')
 
     def test_sign(self):
         """
@@ -111,7 +111,7 @@ class TestTrustChainBlock(unittest.TestCase):
         """
         Test creating a genesis block
         """
-        key = ECCrypto().generate_key(u"curve25519")
+        key = ECCrypto().generate_key("curve25519")
         db = MockDatabase()
         block = TrustChainBlock.create('test', {'id': 42}, db, key.pub().key_to_bin(), link=None)
         self.assertEqual(block.previous_hash, GENESIS_HASH)
@@ -137,7 +137,7 @@ class TestTrustChainBlock(unittest.TestCase):
         """
         Test creating a linked half block
         """
-        key = ECCrypto().generate_key(u"curve25519")
+        key = ECCrypto().generate_key("curve25519")
         db = MockDatabase()
         link = TestBlock()
         db.add_block(link)
@@ -419,9 +419,9 @@ class TestTrustChainBlock(unittest.TestCase):
         """
         result = ValidationResult()
         block1 = TestBlock()
-        block1.link_public_key = "1234"
+        block1.link_public_key = b"1234"
         block2 = TestBlock()
-        block2.link_public_key = "5678"
+        block2.link_public_key = b"5678"
         block1.update_block_consistency(block2, result)
 
         self.assertEqual(ValidationResult.invalid, result.state)
@@ -445,9 +445,9 @@ class TestTrustChainBlock(unittest.TestCase):
         """
         result = ValidationResult()
         block1 = TestBlock()
-        block1.previous_hash = "1234"
+        block1.previous_hash = b"1234"
         block2 = TestBlock()
-        block2.previous_hash = "5678"
+        block2.previous_hash = b"5678"
         block1.update_block_consistency(block2, result)
 
         self.assertEqual(ValidationResult.invalid, result.state)
@@ -458,9 +458,9 @@ class TestTrustChainBlock(unittest.TestCase):
         """
         result = ValidationResult()
         block1 = TestBlock()
-        block1.signature = "1234"
+        block1.signature = b"1234"
         block2 = TestBlock()
-        block2.signature = "5678"
+        block2.signature = b"5678"
         block1.update_block_consistency(block2, result)
 
         self.assertEqual(ValidationResult.invalid, result.state)
@@ -471,9 +471,9 @@ class TestTrustChainBlock(unittest.TestCase):
         """
         result = ValidationResult()
         block1 = TestBlock()
-        block1.pack = lambda: "1234"
+        block1.pack = lambda: b"1234"
         block2 = TestBlock()
-        block2.pack = lambda: "5678"
+        block2.pack = lambda: b"5678"
         block1.update_block_consistency(block2, result)
 
         self.assertEqual(ValidationResult.invalid, result.state)
@@ -484,9 +484,9 @@ class TestTrustChainBlock(unittest.TestCase):
         """
         result = ValidationResult()
         block = TestBlock()
-        block.link_public_key = "1234"
+        block.link_public_key = b"1234"
         link = TestBlock()
-        link.public_key = "5678"
+        link.public_key = b"5678"
         block.update_linked_consistency(None, link, result)
 
         self.assertEqual(ValidationResult.invalid, result.state)
@@ -513,9 +513,9 @@ class TestTrustChainBlock(unittest.TestCase):
         """
         result = ValidationResult()
         block = TestBlock()
-        block.link_public_key = "1234"
+        block.link_public_key = b"1234"
         link = TestBlock()
-        link.public_key = "5678"
+        link.public_key = b"5678"
         link.link_public_key = block.public_key
         block.update_linked_consistency(None, link, result)
 

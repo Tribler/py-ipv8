@@ -20,13 +20,13 @@ def split_encrypted_packet(packet):
 
 
 def convert_from_cell(packet):
-    header = packet[:22] + packet[27]
+    header = packet[:22] + packet[27:28]
     return header + packet[23:27] + packet[28:]
 
 
 def convert_to_cell(packet):
-    header = packet[:22] + '\x01'
-    return header + packet[23:27] + packet[22] + packet[27:]
+    header = packet[:22] + b'\x01'
+    return header + packet[23:27] + packet[22:23] + packet[27:]
 
 
 def encode_address(host, port):
@@ -39,7 +39,7 @@ def encode_address(host, port):
     if is_ip:
         return pack("!B4sH", ADDRESS_TYPE_IPV4, ip, port)
     else:
-        return pack("!BH", ADDRESS_TYPE_DOMAIN_NAME, len(host)) + host + pack("!H", port)
+        return pack("!BH", ADDRESS_TYPE_DOMAIN_NAME, len(host)) + host.encode() + pack("!H", port)
 
 
 def decode_address(packet):
@@ -53,7 +53,7 @@ def decode_address(packet):
         length, = unpack_from('!H', packet, 1)
         host = packet[3:3 + length]
         port, = unpack_from('!H', packet, 3 + length)
-        return host, port
+        return host.decode('utf-8'), port
 
     return None
 

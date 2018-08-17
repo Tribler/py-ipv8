@@ -8,7 +8,7 @@ from .tunnel import CIRCUIT_STATE_READY, PING_INTERVAL
 class CircuitRequestCache(NumberCache):
 
     def __init__(self, community, circuit):
-        super(CircuitRequestCache, self).__init__(community.request_cache, u"anon-circuit", circuit.circuit_id)
+        super(CircuitRequestCache, self).__init__(community.request_cache, "anon-circuit", circuit.circuit_id)
         self.tunnel_logger = logging.getLogger('TunnelLogger')
         self.community = community
         self.circuit = circuit
@@ -23,7 +23,7 @@ class CircuitRequestCache(NumberCache):
 
 class ExtendRequestCache(NumberCache):
     def __init__(self, community, to_circuit_id, from_circuit_id, peer, to_peer):
-        super(ExtendRequestCache, self).__init__(community.request_cache, u"anon-circuit", to_circuit_id)
+        super(ExtendRequestCache, self).__init__(community.request_cache, "anon-circuit", to_circuit_id)
         self.community = community
         self.to_circuit_id = to_circuit_id
         self.from_circuit_id = from_circuit_id
@@ -40,7 +40,7 @@ class ExtendRequestCache(NumberCache):
 class CreatedRequestCache(NumberCache):
 
     def __init__(self, community, circuit_id, candidate, candidates):
-        super(CreatedRequestCache, self).__init__(community.request_cache, u"anon-created", circuit_id)
+        super(CreatedRequestCache, self).__init__(community.request_cache, "anon-created", circuit_id)
         self.circuit_id = circuit_id
         self.candidate = candidate
         self.candidates = candidates
@@ -52,7 +52,7 @@ class CreatedRequestCache(NumberCache):
 class PingRequestCache(RandomNumberCache):
 
     def __init__(self, community, circuit):
-        super(PingRequestCache, self).__init__(community.request_cache, u"ping")
+        super(PingRequestCache, self).__init__(community.request_cache, "ping")
         self.tunnel_logger = logging.getLogger('TunnelLogger')
         self.circuit = circuit
         self.community = community
@@ -70,7 +70,7 @@ class PingRequestCache(RandomNumberCache):
 class IPRequestCache(RandomNumberCache):
 
     def __init__(self, community, circuit):
-        super(IPRequestCache, self).__init__(community.request_cache, u"establish-intro")
+        super(IPRequestCache, self).__init__(community.request_cache, "establish-intro")
         self.tunnel_logger = logging.getLogger('TunnelLogger')
         self.circuit = circuit
         self.community = community
@@ -83,7 +83,7 @@ class IPRequestCache(RandomNumberCache):
 class RPRequestCache(RandomNumberCache):
 
     def __init__(self, community, rp):
-        super(RPRequestCache, self).__init__(community.request_cache, u"establish-rendezvous")
+        super(RPRequestCache, self).__init__(community.request_cache, "establish-rendezvous")
         self.tunnel_logger = logging.getLogger('TunnelLogger')
         self.community = community
         self.rp = rp
@@ -97,7 +97,7 @@ class RPRequestCache(RandomNumberCache):
 class KeyRequestCache(RandomNumberCache):
 
     def __init__(self, community, circuit, sock_addr, info_hash):
-        super(KeyRequestCache, self).__init__(community.request_cache, u"key-request")
+        super(KeyRequestCache, self).__init__(community.request_cache, "key-request")
         self.tunnel_logger = logging.getLogger('TunnelLogger')
         self.circuit = circuit
         self.sock_addr = sock_addr
@@ -119,7 +119,7 @@ class KeyRequestCache(RandomNumberCache):
 class DHTRequestCache(RandomNumberCache):
 
     def __init__(self, community, circuit, info_hash):
-        super(DHTRequestCache, self).__init__(community.request_cache, u"dht-request")
+        super(DHTRequestCache, self).__init__(community.request_cache, "dht-request")
         self.circuit = circuit
         self.info_hash = info_hash
 
@@ -141,7 +141,7 @@ class KeyRelayCache(KeyRequestCache):
 class E2ERequestCache(RandomNumberCache):
 
     def __init__(self, community, info_hash, circuit, hop, sock_addr):
-        super(E2ERequestCache, self).__init__(community.request_cache, u"e2e-request")
+        super(E2ERequestCache, self).__init__(community.request_cache, "e2e-request")
         self.circuit = circuit
         self.hop = hop
         self.info_hash = info_hash
@@ -154,7 +154,7 @@ class E2ERequestCache(RandomNumberCache):
 class LinkRequestCache(RandomNumberCache):
 
     def __init__(self, community, circuit, info_hash):
-        super(LinkRequestCache, self).__init__(community.request_cache, u"link-request")
+        super(LinkRequestCache, self).__init__(community.request_cache, "link-request")
         self.circuit = circuit
         self.info_hash = info_hash
 

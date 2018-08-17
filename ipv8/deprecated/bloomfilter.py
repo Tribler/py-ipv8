@@ -77,14 +77,14 @@ class BloomFilter(object):
     @classmethod
     def _overload_constructor_arguments(cls, args, kargs):
         # matches: BloomFilter(str:bytes, int:k_functions, str:prefix="")
-        if len(args) >= 2 and isinstance(args[0], str) and isinstance(args[1], int):
+        if len(args) >= 2 and isinstance(args[0], (str, bytes)) and isinstance(args[1], int):
             bytes_ = args[0]
             m_size = len(bytes_) * 8
             k_functions = args[1]
             prefix = kargs.get("prefix", args[2] if len(args) >= 3 else "")
             assert 0 < len(bytes_), len(bytes_)
             logger.debug("bloom filter based on %d bytes and k_functions %d", len(bytes_), k_functions)
-            filter_ = long(hexlify(bytes_[::-1]), 16)
+            filter_ = int(hexlify(bytes_[::-1]), 16)
 
         # matches: BloomFilter(int:m_size, float:f_error_rate, str:prefix="")
         elif len(args) >= 2 and isinstance(args[0], int) and isinstance(args[1], float):
@@ -129,7 +129,7 @@ class BloomFilter(object):
         assert 0 < self._k_functions <= self._m_size, [self._k_functions, self._m_size]
         assert isinstance(self._prefix, str), type(self._prefix)
         assert 0 <= len(self._prefix) < 256, len(self._prefix)
-        assert isinstance(self._filter, (int, long)), type(self._filter)
+        assert isinstance(self._filter, int), type(self._filter)
 
         # determine hash function
         if self._m_size >= (1 << 31):
@@ -157,8 +157,8 @@ class BloomFilter(object):
 
         self._fmt_unpack = Struct("".join((">",
                                            fmt_code * self._k_functions,
-                                           "x" * (hashfn().digest_size - bits_required / 8)))).unpack
-        self._salt = hashfn(self._prefix)
+                                           "x" * (hashfn().digest_size - int(bits_required / 8))))).unpack
+        self._salt = hashfn(self._prefix.encode())
 
     def add(self, key):
         """
@@ -183,7 +183,7 @@ class BloomFilter(object):
         for key in keys:
             assert isinstance(key, str)
             hash_ = salt_copy()
-            hash_.update(key)
+            hash_.update(key.encode())
 
             # 04/05/12 Boudewijn: using a list instead of a generator is significantly faster.
             # while generators are more memory efficient, this list will be relatively short.
@@ -204,7 +204,7 @@ class BloomFilter(object):
         m_size_ = self._m_size
 
         hash_ = self._salt.copy()
-        hash_.update(key)
+        hash_.update(key.encode())
 
         for pos in self._fmt_unpack(hash_.digest()):
             if not filter_ & (1 << (pos % m_size_)):
@@ -294,5 +294,5 @@ class BloomFilter(object):
         """
         # hex should be m_size/4, hex is 16 instead of 8 -> hence half the number of "hexes" in m_size
         hex_ = '%x' % self._filter
-        padding = '0' * (self._m_size / 4 - len(hex_))
+        padding = '0' * (int(self._m_size / 4) - len(hex_))
         return unhexlify(padding + hex_)[::-1]

@@ -8,7 +8,7 @@ from ...peerdiscovery.network import Network
 
 
 def _generate_peer():
-    key = ECCrypto().generate_key(u'very-low')
+    key = ECCrypto().generate_key('very-low')
     address = (".".join([str(random.randint(0, 255)) for _ in range(4)]), random.randint(0, 65535))
     return Peer(key, address)
 
@@ -378,7 +378,7 @@ class TestNetwork(unittest.TestCase):
             ('194.116.42.174', 21882),
             ('143.93.254.175', 41862)
         }
-        snapshot = "36e23871e14a8f5dfeafa386c2742aae557a46c8b71ded8f".decode('hex')
+        snapshot = bytes.fromhex("36e23871e14a8f5dfeafa386c2742aae557a46c8b71ded8f")
 
         self.network.load_snapshot(snapshot)
         peers = set(self.network.get_walkable_addresses())
@@ -398,7 +398,7 @@ class TestNetwork(unittest.TestCase):
         """
         Check if no peers are loaded from a malformed snapshot.
         """
-        snapshot = "36e23871e14a8f5dfeafa386c2742aae557a46c8b71ded8f".decode('hex')
+        snapshot = bytes.fromhex("36e23871e14a8f5dfeafa386c2742aae557a46c8b71ded8f")
 
         self.network.load_snapshot(snapshot[:-1])
         peers = set(self.network.get_walkable_addresses())

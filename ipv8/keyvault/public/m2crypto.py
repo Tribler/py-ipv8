@@ -1,3 +1,4 @@
+import base64
 from binascii import hexlify
 from math import ceil
 
@@ -24,14 +25,15 @@ class M2CryptoPK(PublicKey):
         if ec_pub:
             self.ec = ec_pub
         elif keystring:
-            self.ec = self.key_from_pem("-----BEGIN PUBLIC KEY-----\n%s-----END PUBLIC KEY-----\n" % keystring.encode("BASE64"))
+            key = b"-----BEGIN PUBLIC KEY-----\n%s\n-----END PUBLIC KEY-----\n" % base64.b64encode(keystring)
+            self.ec = self.key_from_pem(key)
 
     def pem_to_bin(self, pem):
         """
         Convert a key in the PEM format into a key in the binary format.
         @note: Encrypted pem's are NOT supported and will silently fail.
         """
-        return "".join(pem.split("\n")[1:-2]).decode("BASE64")
+        return base64.b64decode("".join(pem.decode('utf-8').split("\n")[1:-2]))
 
     def key_to_pem(self):
         "Convert a key to the PEM format."
@@ -61,13 +63,13 @@ class M2CryptoPK(PublicKey):
         :param signature: the given signature
         :param msg: the given message
         """
-        length = len(signature) / 2
+        length = int(len(signature) / 2)
         r = signature[:length]
         # remove all "\x00" prefixes
         while r and r[0] == "\x00":
             r = r[1:]
         # prepend "\x00" when the most significant bit is set
-        if ord(r[0]) & 128:
+        if r[0] & 128:
             r = "\x00" + r
 
         s = signature[length:]
@@ -75,7 +77,7 @@ class M2CryptoPK(PublicKey):
         while s and s[0] == "\x00":
             s = s[1:]
         # prepend "\x00" when the most significant bit is set
-        if ord(s[0]) & 128:
+        if s[0] & 128:
             s = "\x00" + s
         # turn back into int
         r = int(hexlify(r), 16)

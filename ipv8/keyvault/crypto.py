@@ -10,11 +10,11 @@ from .public.m2crypto import M2CryptoPK
 
 # We want to provide a few default curves.  We will change these curves as new become available and
 # old ones to small to provide sufficient security.
-_CURVES = {u"very-low": (ec.SECT163K1, "M2Crypto"),
-           u"low": (ec.SECT233K1, "M2Crypto"),
-           u"medium": (ec.SECT409K1, "M2Crypto"),
-           u"high": (ec.SECT571R1, "M2Crypto"),
-           u'curve25519': (None, "libnacl")}
+_CURVES = {"very-low": (ec.SECT163K1, "M2Crypto"),
+           "low": (ec.SECT233K1, "M2Crypto"),
+           "medium": (ec.SECT409K1, "M2Crypto"),
+           "high": (ec.SECT571R1, "M2Crypto"),
+           'curve25519': (None, "libnacl")}
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ class ECCrypto(object):
         Returns the names of all available curves.
         @rtype: [unicode]
         """
-        return _CURVES.keys()
+        return list(_CURVES.keys())
 
     def generate_key(self, security_level):
         """
@@ -95,13 +95,13 @@ class ECCrypto(object):
 
     def key_from_private_bin(self, string):
         "Get the EC from a public/private keypair stored in a binary format."
-        if string.startswith("LibNaCLSK:"):
+        if string.startswith(b"LibNaCLSK:"):
             return LibNaCLSK(string[10:])
         return M2CryptoSK(keystring=string)
 
     def key_from_public_bin(self, string):
         "Get the EC from a public key in binary format."
-        if string.startswith("LibNaCLPK:"):
+        if string.startswith(b"LibNaCLPK:"):
             return LibNaCLPK(string[10:])
         return M2CryptoPK(keystring=string)
 
@@ -117,7 +117,7 @@ class ECCrypto(object):
         Returns the signature of DIGEST made using EC.
         """
         assert isinstance(ec, Key), ec
-        assert isinstance(data, str), type(data)
+        assert isinstance(data, bytes), type(data)
         return ec.signature(data)
 
     def is_valid_signature(self, ec, data, signature):
@@ -125,8 +125,8 @@ class ECCrypto(object):
         Returns True when SIGNATURE matches the DIGEST made using EC.
         """
         assert isinstance(ec, Key), ec
-        assert isinstance(data, str), type(data)
-        assert isinstance(signature, str), type(signature)
+        assert isinstance(data, bytes), type(data)
+        assert isinstance(signature, bytes), type(signature)
 
         try:
             return ec.verify(signature, data)

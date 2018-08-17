@@ -1,4 +1,4 @@
-import Queue
+import queue
 import logging
 import traceback
 
@@ -25,13 +25,13 @@ def blockingCallFromThread(reactor, f, *args, **kwargs):
     if isInIOThread():
             return f(*args, **kwargs)
     else:
-        queue = Queue.Queue()
+        our_queue = queue.Queue()
 
         def _callFromThread():
             result = defer.maybeDeferred(f, *args, **kwargs)
-            result.addBoth(queue.put)
+            result.addBoth(our_queue.put)
         reactor.callFromThread(_callFromThread)
-        result = queue.get()
+        result = our_queue.get()
         if isinstance(result, failure.Failure):
             other_thread_tb = traceback.extract_tb(result.getTracebackObject())
             this_thread_tb = traceback.extract_stack()

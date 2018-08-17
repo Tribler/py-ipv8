@@ -104,17 +104,17 @@ class AttestationEndpoint(resource.Resource):
             return ""
         if request.args['type'][0] == 'outstanding':
             formatted = []
-            for k, v in self.attestation_requests.iteritems():
+            for k, v in self.attestation_requests.items():
                 formatted.append(k + (v[1], ))
             return json.dumps(formatted)
         if request.args['type'][0] == 'outstanding_verify':
             formatted = []
-            for k, v in self.verify_requests.iteritems():
+            for k, v in self.verify_requests.items():
                 formatted.append(k + (v[1], ))
             return json.dumps(formatted)
         if request.args['type'][0] == 'verification_output':
             formatted = {}
-            for k, v in self.verification_output.iteritems():
+            for k, v in self.verification_output.items():
                 formatted[b64encode(k)] = [(b64encode(a), m) for a, m in v]
             return json.dumps(formatted)
         if request.args['type'][0] == 'peers':
@@ -136,14 +136,14 @@ class AttestationEndpoint(resource.Resource):
                         trimmed[(attester, b.transaction["name"])] = b
                 return json.dumps([(b.transaction["name"], b64encode(b.transaction["hash"]), b.transaction["metadata"],
                                     b64encode(sha1(b.link_public_key).digest()))
-                                   for b in trimmed.values()])
+                                   for b in list(trimmed.values())])
         if request.args['type'][0] == 'drop_identity':
             self.identity_overlay.persistence.execute('DELETE FROM blocks')
             self.identity_overlay.persistence.commit()
             self.attestation_overlay.database.execute('DELETE FROM %s' % self.attestation_overlay.database.db_name)
             self.attestation_overlay.database.commit()
             self.attestation_requests.clear()
-            my_new_peer = Peer(ECCrypto().generate_key(u"curve25519"))
+            my_new_peer = Peer(ECCrypto().generate_key("curve25519"))
             self.identity_overlay.my_peer = my_new_peer
             self.attestation_overlay.my_peer = my_new_peer
         return ""

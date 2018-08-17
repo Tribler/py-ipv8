@@ -149,7 +149,7 @@ class Network(object):
                 for address in out:
                     b64mid_intro = self._all_addresses[address]
                     encoded_services_per_peer = {b64encode(sha1(k).digest()): v for k, v in
-                                                 self.services_per_peer.iteritems()}
+                                                 list(self.services_per_peer.items())}
                     services = encoded_services_per_peer.get(b64mid_intro, [])
                     if service_id in services:
                         new_out.append(address)
@@ -194,7 +194,7 @@ class Network(object):
         :return: a list of the introduced addresses (ip, port)
         """
         with self.graph_lock:
-            return [k for k, v in self._all_addresses.iteritems() if v == b64encode(peer.mid)]
+            return [k for k, v in list(self._all_addresses.items()) if v == b64encode(peer.mid)]
 
     def remove_by_address(self, address):
         """
@@ -249,7 +249,7 @@ class Network(object):
         :return: the serialization (str) of all verified peers
         """
         with self.graph_lock:
-            out = ""
+            out = b""
             for peer in self.verified_peers:
                 if peer.address and peer.address != ('0.0.0.0', 0):
                     out += inet_aton(peer.address[0]) + pack(">H", peer.address[1])
@@ -267,7 +267,7 @@ class Network(object):
             logging.error("Snapshot has invalid length! Aborting snapshot load.")
             return
         with self.graph_lock:
-            for i in xrange(0, snaplen, 6):
+            for i in range(0, snaplen, 6):
                 sub = snapshot[i:i+6]
                 ip = inet_ntoa(sub[0:4])
                 port = unpack(">H", sub[4:])[0]

@@ -54,7 +54,7 @@ class UDPEndpoint(Endpoint, protocol.DatagramProtocol):
             self._logger.error("Sending a packet that is too big (length: %d)", len(packet))
 
     def open(self):
-        for _ in xrange(10000):
+        for _ in range(10000):
             try:
                 self._listening_port = reactor.listenUDP(self._port, self, self._ip, UDP_MAX_SIZE)
                 self._logger.debug("Listening at %d", self._port)

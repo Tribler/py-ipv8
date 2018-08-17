@@ -6,7 +6,7 @@ from .routing import Node
 
 
 def encode_values(values):
-    return ''.join([pack('!H', len(value)) + value for value in values])
+    return b''.join([pack('!H', len(value)) + value for value in values])
 
 
 def decode_values(values_str):
@@ -21,7 +21,7 @@ def decode_values(values_str):
 
 
 def encode_nodes(nodes):
-    nodes_str = ''
+    nodes_str = b''
     for node in nodes:
         key = node.public_key.key_to_bin()
         nodes_str += inet_aton(node.address[0]) + pack("!H", node.address[1])

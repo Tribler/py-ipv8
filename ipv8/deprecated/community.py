@@ -31,15 +31,15 @@ _DEFAULT_ADDRESSES = [
 
 
 _DNS_ADDRESSES = [
-    (u"dispersy1.tribler.org", 6421),
-    (u"dispersy2.tribler.org", 6422),
-    (u"dispersy3.tribler.org", 6423),
-    (u"dispersy4.tribler.org", 6424),
-    (u"dispersy7.tribler.org", 6427),
-    (u"dispersy8.tribler.org", 6428),
-    (u"dispersy1.st.tudelft.nl", 6421),
-    (u"dispersy2.st.tudelft.nl", 6422),
-    (u"dispersy3.st.tudelft.nl", 6423)
+    ("dispersy1.tribler.org", 6421),
+    ("dispersy2.tribler.org", 6422),
+    ("dispersy3.tribler.org", 6423),
+    ("dispersy4.tribler.org", 6424),
+    ("dispersy7.tribler.org", 6427),
+    ("dispersy8.tribler.org", 6428),
+    ("dispersy1.st.tudelft.nl", 6421),
+    ("dispersy2.st.tudelft.nl", 6422),
+    ("dispersy3.st.tudelft.nl", 6423)
 ]
 
 
@@ -128,7 +128,7 @@ class PacketDecodingError(RuntimeError):
 class EZPackOverlay(Overlay):
 
     def _ez_pack(self, prefix, msg_num, format_list_list, sig=True):
-        packet = prefix + chr(msg_num)
+        packet = prefix + bytes([msg_num])
         for format_list in format_list_list:
             packet += self.serializer.pack_multiple(format_list)[0]
         if sig:
@@ -179,14 +179,14 @@ class EZPackOverlay(Overlay):
 
 class Community(EZPackOverlay):
 
-    version = '\x02'
+    version = b'\x02'
     master_peer = ""
 
     def __init__(self, my_peer, endpoint, network):
         super(Community, self).__init__(self.master_peer, my_peer, endpoint, network)
 
-        self._prefix = '\x00' + self.version + self.master_peer.key.key_to_hash()
-        self.logger.debug("Launching %s with prefix %s.", self.__class__.__name__, self._prefix.encode('hex'))
+        self._prefix = b'\x00' + self.version + self.master_peer.key.key_to_hash()
+        self.logger.debug("Launching %s with prefix %s.", self.__class__.__name__, self._prefix.hex())
         self.network.register_service_provider(self.master_peer.mid, self)
         self.network.blacklist_mids.append(my_peer.mid)
         self.network.blacklist.extend(_DEFAULT_ADDRESSES)
@@ -194,48 +194,48 @@ class Community(EZPackOverlay):
         self.last_bootstrap = 0
 
         self.decode_map = {
-            chr(250): self.on_puncture_request,
-            chr(249): self.on_puncture,
-            chr(246): self.on_introduction_request,
-            chr(245): self.on_introduction_response,
+            250: self.on_puncture_request,
+            249: self.on_puncture,
+            246: self.on_introduction_request,
+            245: self.on_introduction_response,
 
-            chr(255): self.on_deprecated_message,
-            chr(254): self.on_deprecated_message,
-            chr(253): self.on_deprecated_message,
-            chr(252): self.on_deprecated_message,
-            chr(251): self.on_deprecated_message,
-            chr(248): self.on_deprecated_message,
-            chr(247): self.on_deprecated_message,
-            chr(244): self.on_deprecated_message,
-            chr(243): self.on_deprecated_message,
-            chr(242): self.on_deprecated_message,
-            chr(241): self.on_deprecated_message,
-            chr(240): self.on_deprecated_message,
-            chr(239): self.on_deprecated_message,
-            chr(238): self.on_deprecated_message,
-            chr(237): self.on_deprecated_message,
-            chr(236): self.on_deprecated_message,
-            chr(235): self.on_deprecated_message
+            255: self.on_deprecated_message,
+            254: self.on_deprecated_message,
+            253: self.on_deprecated_message,
+            252: self.on_deprecated_message,
+            251: self.on_deprecated_message,
+            248: self.on_deprecated_message,
+            247: self.on_deprecated_message,
+            244: self.on_deprecated_message,
+            243: self.on_deprecated_message,
+            242: self.on_deprecated_message,
+            241: self.on_deprecated_message,
+            240: self.on_deprecated_message,
+            239: self.on_deprecated_message,
+            238: self.on_deprecated_message,
+            237: self.on_deprecated_message,
+            236: self.on_deprecated_message,
+            235: self.on_deprecated_message
         }
 
         self.deprecated_message_names = {
-            chr(255): "reserved-255",
-            chr(254): "on-missing-sequence",
-            chr(253): "missing-proof",
-            chr(252): "signature-request",
-            chr(251): "signature-response",
-            chr(248): "on-identity",
-            chr(247): "on-missing-identity",
-            chr(244): "destroy-community",
-            chr(243): "authorize",
-            chr(242): "revoke",
-            chr(241): "subjective-set",
-            chr(240): "missing-subjective-set",
-            chr(239): "on-missing-message",
-            chr(238): "undo-own",
-            chr(237): "undo-other",
-            chr(236): "dynamic-settings",
-            chr(235): "missing-last-message"
+            255: "reserved-255",
+            254: "on-missing-sequence",
+            253: "missing-proof",
+            252: "signature-request",
+            251: "signature-response",
+            248: "on-identity",
+            247: "on-missing-identity",
+            244: "destroy-community",
+            243: "authorize",
+            242: "revoke",
+            241: "subjective-set",
+            240: "missing-subjective-set",
+            239: "on-missing-message",
+            238: "undo-own",
+            237: "undo-other",
+            236: "dynamic-settings",
+            235: "missing-last-message"
         }
 
     def on_deprecated_message(self, source_address, data):
@@ -263,7 +263,7 @@ class Community(EZPackOverlay):
                                              self.my_estimated_lan,
                                              self.my_estimated_wan,
                                              True,
-                                             u"unknown",
+                                             "unknown",
                                              global_time,
                                              extra_bytes).to_pack_list()
         auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
@@ -292,7 +292,7 @@ class Community(EZPackOverlay):
                                               self.my_estimated_wan,
                                               introduction_lan,
                                               introduction_wan,
-                                              u"unknown",
+                                              "unknown",
                                               False,
                                               identifier,
                                               extra_bytes).to_pack_list()
@@ -396,7 +396,7 @@ class Community(EZPackOverlay):
                 self.logger.error("Exception occurred while handling packet!\n" +
                                   ''.join(format_exception(*sys.exc_info())))
         elif warn_unknown:
-            self.logger.warning("Received unknown message: %s from (%s, %d)", ord(data[22]), *source_address)
+            self.logger.warning("Received unknown message: %s from (%s, %d)", data[22], *source_address)
 
     def walk_to(self, address):
         packet = self.create_introduction_request(address)

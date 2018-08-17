@@ -30,7 +30,7 @@ class TestTunnelCommunity(TestBase):
         settings.min_circuits = 0
         settings.max_circuits = 0
         settings.remove_tunnel_delay = 0
-        ipv8 = MockIPv8(u"curve25519", TunnelCommunity, settings=settings)
+        ipv8 = MockIPv8("curve25519", TunnelCommunity, settings=settings)
         # Then kill all automated circuit creation
         ipv8.overlay.cancel_all_pending_tasks()
         # Finally, use the proper exitnode and circuit settings for manual creation
@@ -137,12 +137,12 @@ class TestTunnelCommunity(TestBase):
 
         # Node 0 should have 1 circuit in the CIRCUIT_STATE_EXTENDING state
         self.assertEqual(len(self.nodes[0].overlay.data_circuits()), 1)
-        self.assertEqual(next(self.nodes[0].overlay.circuits.itervalues()).state, CIRCUIT_STATE_EXTENDING)
+        self.assertEqual(next(iter(list(self.nodes[0].overlay.circuits.values()))).state, CIRCUIT_STATE_EXTENDING)
 
         # Subsequent calls to build_circuits should not change this
         self.nodes[0].overlay.build_tunnels(1)
         self.assertEqual(len(self.nodes[0].overlay.data_circuits()), 1)
-        self.assertEqual(next(self.nodes[0].overlay.circuits.itervalues()).state, CIRCUIT_STATE_EXTENDING)
+        self.assertEqual(next(iter(list(self.nodes[0].overlay.circuits.values()))).state, CIRCUIT_STATE_EXTENDING)
 
     @twisted_wrapper
     def test_destroy_circuit_from_originator(self):
@@ -156,7 +156,7 @@ class TestTunnelCommunity(TestBase):
         yield self.deliver_messages()
 
         # Destroy the circuit we just created using a destroy message
-        yield self.nodes[0].overlay.remove_circuit(self.nodes[0].overlay.circuits.keys()[0], destroy=True)
+        yield self.nodes[0].overlay.remove_circuit(list(self.nodes[0].overlay.circuits.keys())[0], destroy=True)
         yield self.deliver_messages()
 
         self.assert_no_more_tunnels()
@@ -172,7 +172,7 @@ class TestTunnelCommunity(TestBase):
         self.nodes[0].overlay.build_tunnels(2)
         yield self.deliver_messages()
 
-        self.nodes[2].overlay.remove_exit_socket(self.nodes[2].overlay.exit_sockets.keys()[0], destroy=True)
+        self.nodes[2].overlay.remove_exit_socket(list(self.nodes[2].overlay.exit_sockets.keys())[0], destroy=True)
         yield self.deliver_messages()
 
         self.assert_no_more_tunnels()
@@ -188,7 +188,7 @@ class TestTunnelCommunity(TestBase):
         self.nodes[0].overlay.build_tunnels(2)
         yield self.deliver_messages()
 
-        self.nodes[1].overlay.remove_relay(self.nodes[1].overlay.relay_from_to.keys()[0], destroy=True)
+        self.nodes[1].overlay.remove_relay(list(self.nodes[1].overlay.relay_from_to.keys())[0], destroy=True)
         yield self.deliver_messages()
 
         self.assert_no_more_tunnels()
@@ -205,7 +205,7 @@ class TestTunnelCommunity(TestBase):
 
         # Destroy a circuit which does not exist (circuit_id + 1)
         # This should not affect other circuits
-        yield self.nodes[0].overlay.remove_circuit(self.nodes[0].overlay.circuits.keys()[0] + 1, destroy=True)
+        yield self.nodes[0].overlay.remove_circuit(list(self.nodes[0].overlay.circuits.keys())[0] + 1, destroy=True)
         yield self.deliver_messages()
 
         # Node 0 should still have all of its required 1 hop circuits (1.0/100%)
@@ -230,13 +230,13 @@ class TestTunnelCommunity(TestBase):
         yield self.deliver_messages()
 
         # Construct a data packet
-        prefix = '\x00' * 23
-        data = prefix + ''.join([chr(i) for i in range(256)])
+        prefix = b'\x00' * 23
+        data = prefix + b''.join([bytes([i]) for i in range(256)])
 
         self.public_endpoint.assert_open()
 
         # Tunnel the data to the endpoint
-        circuit = self.nodes[0].overlay.circuits.values()[0]
+        circuit = list(self.nodes[0].overlay.circuits.values())[0]
         self.nodes[0].overlay.send_data([circuit.peer.address], circuit.circuit_id,
                                         ('localhost', self.public_endpoint.get_address()[1]), ('0.0.0.0', 0), data)
         # This is not test communication, but actual socket communication, we can't do a smart sleep

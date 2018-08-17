@@ -82,7 +82,7 @@ def get_good_wp(n, p=None):
         g1x, g1y = get_random_base(n)
         wp = bilinear_group(n, p, g1x, g1y, g1x, g1y)
         if not is_good_wp(n, wp):
-            wp = wp.intpow((p+1)/n)
+            wp = wp.intpow(int((p+1)/n))
     return p, wp
 
 

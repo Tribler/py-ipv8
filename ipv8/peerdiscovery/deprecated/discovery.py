@@ -10,22 +10,22 @@ from ...keyvault.crypto import ECCrypto
 
 class DiscoveryCommunity(Community):
 
-    version = '\x02'
-    master_peer = Peer("3081a7301006072a8648ce3d020106052b81040027038192000403b3ab059ced"
+    version = b'\x02'
+    master_peer = Peer(bytes.fromhex("3081a7301006072a8648ce3d020106052b81040027038192000403b3ab059ced"
                        "9b20646ab5e01762b3595c5e8855227ae1e424cff38a1e4edee73734ff2e2e82"
                        "9eb4f39bab20d7578284fcba7251acd74e7daf96f21d01ea17077faf4d27a655"
                        "837d072baeb671287a88554e1191d8904b0dc572d09ff95f10ff092c8a5e2a01"
                        "cd500624376aec875a6e3028aab784cfaf0bac6527245db8d93900d904ac2a92"
-                       "2a02716ccef5a22f7968".decode("HEX"))
+                       "2a02716ccef5a22f7968"))
 
     def __init__(self, my_peer, endpoint, network):
         super(DiscoveryCommunity, self).__init__(my_peer, endpoint, network)
 
         self.decode_map.update({
-            chr(1): self.on_similarity_request,
-            chr(2): self.on_similarity_response,
-            chr(3): self.on_ping,
-            chr(4): self.on_pong
+            1: self.on_similarity_request,
+            2: self.on_similarity_response,
+            3: self.on_ping,
+            4: self.on_pong
         })
 
     def on_introduction_request(self, source_address, data):
@@ -51,7 +51,7 @@ class DiscoveryCommunity(Community):
     def on_introduction_response(self, source_address, data):
         super(DiscoveryCommunity, self).on_introduction_response(source_address, data)
 
-        my_peer_set = set([overlay.my_peer for overlay in self.network.service_overlays.values()])
+        my_peer_set = set([overlay.my_peer for overlay in list(self.network.service_overlays.values())])
         for peer in my_peer_set:
             packet = self.create_similarity_request(peer)
             self.endpoint.send(source_address, packet)
@@ -61,7 +61,7 @@ class DiscoveryCommunity(Community):
 
         self.network.discover_services(Peer(auth.public_key_bin, source_address), payload.preference_list)
 
-        my_peer_set = set([overlay.my_peer for overlay in self.network.service_overlays.values()])
+        my_peer_set = set([overlay.my_peer for overlay in list(self.network.service_overlays.values())])
         for peer in my_peer_set:
             packet = self.create_similarity_response(payload.identifier, peer)
             self.endpoint.send(source_address, packet)
@@ -81,11 +81,11 @@ class DiscoveryCommunity(Community):
         dist, payload = self._ez_unpack_noauth(PongPayload, data)
 
     def get_my_overlays(self, peer):
-        return [service_id for service_id, overlay in self.network.service_overlays.iteritems()
+        return [service_id for service_id, overlay in list(self.network.service_overlays.items())
                 if overlay.my_peer == peer]
 
     def custom_pack(self, peer, msg_num, format_list_list):
-        packet = self._prefix + chr(msg_num)
+        packet = self._prefix + bytes([msg_num])
         for format_list in format_list_list:
             packet += self.serializer.pack_multiple(format_list)[0]
         packet += ECCrypto().create_signature(peer.key, packet)
@@ -96,7 +96,7 @@ class DiscoveryCommunity(Community):
         payload = SimilarityRequestPayload(global_time,
                                            self.my_estimated_lan,
                                            self.my_estimated_wan,
-                                           u"unknown",
+                                           "unknown",
                                            self.get_my_overlays(peer)).to_pack_list()
         auth = BinMemberAuthenticationPayload(peer.public_key.key_to_bin()).to_pack_list()
         dist = GlobalTimeDistributionPayload(global_time).to_pack_list()

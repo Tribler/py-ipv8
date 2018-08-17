@@ -18,7 +18,7 @@ class TestStructs(unittest.TestCase):
 
         self.assertEqual(a, unpacked_a)
         self.assertEqual(b, unpacked_b)
-        self.assertEqual('', remainder)
+        self.assertEqual(b'', remainder)
 
     def test_pack_pair_with_remainder(self):
         """
@@ -26,7 +26,7 @@ class TestStructs(unittest.TestCase):
         """
         a = 4684868464648654646385464634636
         b = 3212316546461687987934688
-        remainder = 'iljaerlijerwfjilrwuj'
+        remainder = b'iljaerlijerwfjilrwuj'
 
         packed = pack_pair(a, b) + remainder
         unpacked_a, unpacked_b, unpacked_remainder = unpack_pair(packed)
@@ -55,7 +55,7 @@ class TestStructs(unittest.TestCase):
         """
         Check if a BonehPublicKey returns None when unserializing garbage data.
         """
-        unserialized = BonehPublicKey.unserialize('wowiuuorfuuj')
+        unserialized = BonehPublicKey.unserialize(b'wowiuuorfuuj')
 
         self.assertEqual(None, unserialized)
 
@@ -68,7 +68,7 @@ class TestStructs(unittest.TestCase):
         h = FP2Value(p, 98781236511, 32185666658636546663635165635)
         key = BonehPublicKey(p, g, h)
 
-        serialized = key.serialize() + 'iejriq94u2305ijiqnfa'
+        serialized = key.serialize() + b'iejriq94u2305ijiqnfa'
         unserialized = BonehPublicKey.unserialize(serialized)
 
         self.assertEqual(p, unserialized.p)
@@ -106,7 +106,7 @@ class TestStructs(unittest.TestCase):
         t1 = 321321564645164653164687
         key = BonehPrivateKey(p, g, h, n, t1)
 
-        serialized = key.serialize() + ';k;mezrako;erjiragtijtgrioj'
+        serialized = key.serialize() + b';k;mezrako;erjiragtijtgrioj'
         unserialized = BonehPrivateKey.unserialize(serialized)
 
         self.assertEqual(n, unserialized.n)
@@ -119,7 +119,7 @@ class TestStructs(unittest.TestCase):
         """
         Check if a BonehPrivateKey returns None when unserializing garbage data.
         """
-        unserialized = BonehPrivateKey.unserialize('wowiuuorfuuj')
+        unserialized = BonehPrivateKey.unserialize(b'wowiuuorfuuj')
 
         self.assertEqual(None, unserialized)
 
@@ -150,7 +150,7 @@ class TestStructs(unittest.TestCase):
         c = FP2Value(p, 13265, 848464848609849840645102)
         attest = BitPairAttestation(a, b, c)
 
-        serialized = attest.serialize() + 'ih43qo8hepi9fjaegihngatejlidgvujhnmk '
+        serialized = attest.serialize() + b'ih43qo8hepi9fjaegihngatejlidgvujhnmk '
         unserialized = BitPairAttestation.unserialize(serialized, p)
 
         self.assertEqual(a, unserialized.a)

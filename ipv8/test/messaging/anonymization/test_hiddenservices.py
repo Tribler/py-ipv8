@@ -19,6 +19,7 @@ class MockDHTProvider(object):
 
     def lookup(self, info_hash, cb):
         if info_hash in global_dht_services:
+            print(cb)
             cb((info_hash, global_dht_services[info_hash], None))
 
     def announce(self, info_hash):
@@ -35,7 +36,7 @@ class TestHiddenServices(TestBase):
         self.initialize(HiddenTunnelCommunity, 3)
 
         self.private_nodes = []
-        self.service = '0' * 20
+        self.service = b'0' * 20
         self.received_packets = []
 
     def tearDown(self):
@@ -55,7 +56,7 @@ class TestHiddenServices(TestBase):
         e2e_circuit = None
         first_node = None
         for node in self.nodes:
-            for circuit in node.overlay.circuits.itervalues():
+            for circuit in list(node.overlay.circuits.values()):
                 if circuit.ctype == CIRCUIT_TYPE_RENDEZVOUS:
                     first_node = node
                     e2e_circuit = circuit
@@ -93,7 +94,7 @@ class TestHiddenServices(TestBase):
         settings.become_exitnode = False
         settings.min_circuits = 0
         settings.max_circuits = 0
-        ipv8 = MockIPv8(u"curve25519", HiddenTunnelCommunity, settings=settings)
+        ipv8 = MockIPv8("curve25519", HiddenTunnelCommunity, settings=settings)
         # Then kill all automated circuit creation
         ipv8.overlay.cancel_all_pending_tasks()
         # Finally, use the proper exitnode and circuit settings for manual creation
@@ -187,7 +188,7 @@ class TestHiddenServices(TestBase):
         self.assertEqual(len(e2e_path), 4)
 
         # Check if data can be sent over the e2e circuit
-        data = 'PACKET'
+        data = b'PACKET'
         _, circuit = e2e_path[0]
         self.nodes[2].overlay.on_raw_data = lambda _, __, data: self.received_packets.append(data)
         self.nodes[0].overlay.send_data([circuit.peer], circuit.circuit_id, ('0.0.0.0', 0), ('0.0.0.0', 0), data)
