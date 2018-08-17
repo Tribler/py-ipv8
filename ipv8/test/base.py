@@ -59,7 +59,6 @@ class TestBase(unittest.TestCase):
         finally:
             shutil.rmtree("temp", ignore_errors=True)
 
-
     @classmethod
     def setUpClass(cls):
         cls.__lockup_timestamp__ = time.time()
@@ -78,6 +77,13 @@ class TestBase(unittest.TestCase):
                     print >> sys.stderr, "THREAD#%d" % tid
                     for line in traceback.format_list(traceback.extract_stack(stack)):
                         print >> sys.stderr, "|", line[:-1].replace('\n', '\n|   ')
+
+            delayed_calls = reactor.getDelayedCalls()
+            if delayed_calls:
+                print "Delayed calls:"
+                for dc in delayed_calls:
+                    print ">     %s" % dc
+
             os._exit(1)
         t = threading.Thread(target=check_twisted)
         t.daemon = True
