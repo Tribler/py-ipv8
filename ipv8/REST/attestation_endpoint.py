@@ -63,7 +63,9 @@ class AttestationEndpoint(resource.Resource):
         """
         Return the measurement of an attribute for a certain peer.
         """
-        block = self.identity_overlay.persistence.get_attestation_by_hash(attribute_hash)
+        block = self.identity_overlay.get_attestation_by_hash(attribute_hash)
+        if not block:
+            returnValue(None)
         attribute_name = block.transaction["name"]
         deferred = Deferred()
         self.verify_requests[(b64encode(peer.mid), attribute_name)] = deferred

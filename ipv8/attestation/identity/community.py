@@ -26,6 +26,13 @@ class IdentityCommunity(TrustChainCommunity, BlockListener):
         """
         self.known_attestation_hashes[attribute_hash] = (name, time(), public_key, metadata)
 
+    def get_attestation_by_hash(self, attribute_hash):
+        blocks = self.persistence.get_all_blocks()
+        for block in blocks:
+            if block.transaction and block.transaction.get("hash", None) == attribute_hash:
+                return block
+        return None
+
     def received_block(self, block):
         pass
 
