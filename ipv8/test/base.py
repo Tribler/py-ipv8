@@ -48,7 +48,7 @@ class TestBase(unittest.TestCase):
 
     def setUp(self):
         super(TestBase, self).setUp()
-        self.__lockup_timestamp__ = time.time()
+        TestBase.__lockup_timestamp__ = time.time()
 
     def tearDown(self):
         try:
@@ -58,7 +58,6 @@ class TestBase(unittest.TestCase):
             internet.clear()
         finally:
             shutil.rmtree("temp", ignore_errors=True)
-
 
     @classmethod
     def setUpClass(cls):
@@ -78,6 +77,13 @@ class TestBase(unittest.TestCase):
                     print >> sys.stderr, "THREAD#%d" % tid
                     for line in traceback.format_list(traceback.extract_stack(stack)):
                         print >> sys.stderr, "|", line[:-1].replace('\n', '\n|   ')
+
+            delayed_calls = reactor.getDelayedCalls()
+            if delayed_calls:
+                print "Delayed calls:"
+                for dc in delayed_calls:
+                    print ">     %s" % dc
+
             os._exit(1)
         t = threading.Thread(target=check_twisted)
         t.daemon = True

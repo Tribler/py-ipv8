@@ -113,10 +113,9 @@ class DHTCommunity(Community):
 
         self.logger.info('DHT community initialized (peer mid %s)', self.my_peer.mid.encode('HEX'))
 
-    @inlineCallbacks
     def unload(self):
-        self.request_cache.clear()
-        yield super(DHTCommunity, self).unload()
+        self.request_cache.shutdown()
+        super(DHTCommunity, self).unload()
 
     @property
     def my_node_id(self):
