@@ -48,7 +48,7 @@ class TestBase(unittest.TestCase):
 
     def setUp(self):
         super(TestBase, self).setUp()
-        self.__lockup_timestamp__ = time.time()
+        TestBase.__lockup_timestamp__ = time.time()
 
     def tearDown(self):
         try:
