@@ -61,9 +61,9 @@ class TestBase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.__lockup_timestamp__ = time.time()
+        TestBase.__lockup_timestamp__ = time.time()
         def check_twisted():
-            while time.time() - cls.__lockup_timestamp__ < cls.MAX_TEST_TIME:
+            while time.time() - TestBase.__lockup_timestamp__ < cls.MAX_TEST_TIME:
                 time.sleep(2)
                 # If the test class completed normally, exit
                 if not cls.__testing__:
