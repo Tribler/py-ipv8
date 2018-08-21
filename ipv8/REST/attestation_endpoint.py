@@ -110,7 +110,7 @@ class AttestationEndpoint(resource.Resource):
         if request.args['type'][0] == 'outstanding_verify':
             formatted = []
             for k, v in self.verify_requests.iteritems():
-                formatted.append(k + (v[1], ))
+                formatted.append(k)
             return json.dumps(formatted)
         if request.args['type'][0] == 'verification_output':
             formatted = {}
@@ -179,7 +179,7 @@ class AttestationEndpoint(resource.Resource):
         if request.args['type'][0] == 'allow_verify':
             mid_b64 = request.args['mid'][0]
             attribute_name = request.args['attribute_name'][0]
-            self.verify_requests[(mid_b64, attribute_name)][0].callback(True)
+            self.verify_requests[(mid_b64, attribute_name)].callback(True)
             return ""
         if request.args['type'][0] == 'verify':
             mid_b64 = request.args['mid'][0]
