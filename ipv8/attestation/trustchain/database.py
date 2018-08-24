@@ -192,9 +192,12 @@ class TrustChainDB(Database):
                                                        buffer(block.public_key), block.sequence_number))
 
     def crawl(self, public_key, sequence_number, limit=100):
-        return self._getall(u"WHERE sequence_number >= ? AND (public_key = ? OR link_public_key = ?) "
-                            u"ORDER BY sequence_number ASC LIMIT ?",
-                            (sequence_number, buffer(public_key), buffer(public_key), limit))
+        query = u"SELECT * FROM (%s WHERE sequence_number >= ? AND public_key = ? LIMIT ?) " \
+                u"UNION SELECT * FROM (%s WHERE link_sequence_number >= ? AND link_sequence_number != 0 " \
+                u"AND link_public_key = ? LIMIT ?)" % (self.get_sql_header(), self.get_sql_header())
+        db_result = list(self.execute(query, (sequence_number, buffer(public_key), limit, sequence_number,
+                                              buffer(public_key), limit), fetch_all=True))
+        return [self.get_block_class(db_item[0])(db_item) for db_item in db_result]
 
     def get_recent_blocks(self, limit=10, offset=0):
         """
