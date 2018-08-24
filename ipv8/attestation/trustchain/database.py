@@ -198,6 +198,27 @@ class TrustChainDB(Database):
                             u"ORDER BY insert_time ASC LIMIT ?",
                             (buffer(public_key), sequence_number, buffer(public_key), buffer(public_key), limit))
 
+    def get_recent_blocks(self, limit=10, offset=0):
+        """
+        Return the most recent blocks in the TrustChain database.
+        """
+        return self._getall(u"ORDER BY block_timestamp DESC LIMIT ? OFFSET ?", (limit, offset))
+
+    def get_users(self, limit=100):
+        """
+        Return information about the users in the database
+        """
+        res = list(self.execute(
+            u"SELECT DISTINCT public_key, MAX(sequence_number) FROM blocks GROUP BY public_key "
+            u"ORDER BY MAX(sequence_number) DESC LIMIT ? ", (limit,)))
+        users_info = []
+        for user_info in res:
+            users_info.append({
+                "public_key": str(user_info[0]).encode('hex'),
+                "blocks": user_info[1],
+            })
+        return users_info
+
     def get_sql_header(self):
         """
         Return the first part of a generic sql select query.
