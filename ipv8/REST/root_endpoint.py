@@ -2,6 +2,7 @@ from twisted.web import resource
 
 from .attestation_endpoint import AttestationEndpoint
 from .network_endpoint import NetworkEndpoint
+from .trustchain_endpoint import TrustchainEndpoint
 
 
 class RootEndpoint(resource.Resource):
@@ -19,3 +20,4 @@ class RootEndpoint(resource.Resource):
         self.session = session
         self.putChild("attestation", AttestationEndpoint(session))
         self.putChild("network", NetworkEndpoint(session))
+        self.putChild("trustchain", TrustchainEndpoint(session))
