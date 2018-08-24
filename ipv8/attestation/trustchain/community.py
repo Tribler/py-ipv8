@@ -405,11 +405,12 @@ class TrustChainCommunity(Community):
             RandomNumberCache.find_unclaimed_identifier(self.request_cache, u"crawl")
         crawl_deferred = Deferred()
         self.request_cache.add(CrawlRequestCache(self, crawl_id, crawl_deferred))
-        self.logger.info("Requesting crawl of node %s:%d with id %d", public_key.encode("hex")[-8:], sq, crawl_id)
+        self.logger.info("Requesting crawl of node %s:%d with id %d",
+                         peer.public_key.key_to_bin().encode("hex")[-8:], sq, crawl_id)
 
         global_time = self.claim_global_time()
         auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
-        payload = CrawlRequestPayload(sq, crawl_id).to_pack_list()
+        payload = CrawlRequestPayload(public_key, sq, crawl_id).to_pack_list()
         dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
 
         packet = self._ez_pack(self._prefix, 2, [auth, dist, payload])
@@ -427,12 +428,12 @@ class TrustChainCommunity(Community):
                          payload.requested_sequence_number)
         sq = payload.requested_sequence_number
         if sq < 0:
-            last_block = self.persistence.get_latest(self.my_peer.public_key.key_to_bin())
+            last_block = self.persistence.get_latest(payload.public_key)
             # The -1 element is the last_block.seq_nr
             # The -2 element is the last_block.seq_nr - 1
             # Etc. until the genesis seq_nr
             sq = max(GENESIS_SEQ, last_block.sequence_number + (sq + 1)) if last_block else GENESIS_SEQ
-        blocks = self.persistence.crawl(self.my_peer.public_key.key_to_bin(), sq, limit=10)
+        blocks = self.persistence.crawl(payload.public_key, sq, limit=10)
         total_count = len(blocks)
 
         if total_count == 0:
