@@ -192,11 +192,9 @@ class TrustChainDB(Database):
                                                        buffer(block.public_key), block.sequence_number))
 
     def crawl(self, public_key, sequence_number, limit=100):
-        assert limit <= 100, "Don't fetch too much"
-        return self._getall(u"WHERE insert_time >= (SELECT MAX(insert_time) FROM blocks WHERE public_key = ? AND "
-                            u"sequence_number <= ?) AND (public_key = ? OR link_public_key = ?) "
-                            u"ORDER BY insert_time ASC LIMIT ?",
-                            (buffer(public_key), sequence_number, buffer(public_key), buffer(public_key), limit))
+        return self._getall(u"WHERE sequence_number >= ? AND (public_key = ? OR link_public_key = ?) "
+                            u"ORDER BY sequence_number ASC LIMIT ?",
+                            (sequence_number, buffer(public_key), buffer(public_key), limit))
 
     def get_recent_blocks(self, limit=10, offset=0):
         """
