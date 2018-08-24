@@ -1,5 +1,5 @@
 import time
-import unittest
+from twisted.trial import unittest
 
 from ...dht.storage import Storage
 

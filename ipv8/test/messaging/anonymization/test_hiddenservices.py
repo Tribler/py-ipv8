@@ -1,3 +1,6 @@
+import twisted
+from twisted.internet import reactor
+
 from twisted.internet.defer import inlineCallbacks, Deferred
 
 from ....messaging.anonymization.community import TunnelSettings, CIRCUIT_TYPE_RENDEZVOUS
@@ -6,7 +9,7 @@ from ....peer import Peer
 from ...base import TestBase
 from ...mocking.exit_socket import MockTunnelExitSocket
 from ...mocking.ipv8 import MockIPv8
-from ...util import twisted_wrapper
+from twisted.internet.defer import inlineCallbacks
 
 # Map of info_hash -> peer list
 global_dht_services = {}
@@ -26,6 +29,10 @@ class MockDHTProvider(object):
             global_dht_services[info_hash].append(self.address)
         else:
             global_dht_services[info_hash] = [self.address]
+
+
+class Twisted(object):
+    pass
 
 
 class TestHiddenServices(TestBase):
@@ -136,7 +143,7 @@ class TestHiddenServices(TestBase):
         for exit_socket in exit_sockets:
             exit_sockets[exit_socket] = MockTunnelExitSocket(exit_sockets[exit_socket])
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_create_introduction_point(self):
         """
         Check if setting up an introduction point works.
@@ -153,7 +160,7 @@ class TestHiddenServices(TestBase):
 
         self.assertTrue(intro_made)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_dht_lookup_with_counterparty(self):
         """
         Check if a DHT lookup works.
@@ -195,7 +202,7 @@ class TestHiddenServices(TestBase):
         self.assertEqual(len(self.received_packets), 1)
         self.assertEqual(self.received_packets[0], data)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_dht_lookup_no_counterparty(self):
         """
         Check if a DHT lookup doesn't return on its own required service.

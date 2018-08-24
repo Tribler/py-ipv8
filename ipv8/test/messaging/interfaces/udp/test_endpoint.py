@@ -1,8 +1,9 @@
 import socket
 
+from twisted.internet.defer import inlineCallbacks
+
 from .....messaging.interfaces.endpoint import EndpointListener
 from .....messaging.interfaces.udp.endpoint import UDPEndpoint, UDP_MAX_SIZE
-from .....test.util import twisted_wrapper
 from ....base import TestBase
 
 
@@ -23,8 +24,9 @@ class TestUDPEndpoint(TestBase):
     This class contains various tests for the UDP endpoint.
     """
 
+    @inlineCallbacks
     def setUp(self):
-        super(TestUDPEndpoint, self).setUp()
+        yield super(TestUDPEndpoint, self).setUp()
         self.endpoint1 = UDPEndpoint(8080)
         self.endpoint1.open()
         self.endpoint2 = UDPEndpoint(8081)
@@ -35,7 +37,7 @@ class TestUDPEndpoint(TestBase):
         self.endpoint2_listener = DummyEndpointListener(self.endpoint2)
         self.endpoint2.add_listener(self.endpoint2_listener)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def tearDown(self):
         super(TestUDPEndpoint, self).tearDown()
 
@@ -45,7 +47,7 @@ class TestUDPEndpoint(TestBase):
         if self.endpoint2:
             yield self.endpoint2.close()
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_send_message(self):
         """
         Test sending a basic message through the UDP endpoint.
@@ -54,7 +56,7 @@ class TestUDPEndpoint(TestBase):
         yield self.sleep(0.05)
         self.assertTrue(self.endpoint2_listener.incoming)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_send_many_messages(self):
         """
         Test sending multiple messages through the UDP endpoint.
@@ -76,7 +78,7 @@ class TestUDPEndpoint(TestBase):
         """
         self.endpoint1.send(("0.0.0.0", 0), 'a' * 10)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_blocking_endpoint_resend(self):
         """
         Test rescheduling on blocking socket in Windows.
@@ -99,7 +101,7 @@ class TestUDPEndpoint(TestBase):
         yield self.sleep(0.05)
         self.assertEqual(len(self.endpoint2_listener.incoming), 2)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_blocking_endpoint_resend_limit(self):
         """
         Test not rescheduling more than 100 packets.

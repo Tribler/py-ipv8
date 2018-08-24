@@ -2,7 +2,7 @@ from ....attestation.identity.community import IdentityCommunity
 from ....peer import Peer
 
 from ...base import MockIPv8, TestBase
-from ...util import twisted_wrapper
+from twisted.internet.defer import inlineCallbacks
 
 
 class TestIdentityCommunity(TestBase):
@@ -14,7 +14,7 @@ class TestIdentityCommunity(TestBase):
     def create_node(self):
         return MockIPv8(u"curve25519", IdentityCommunity, working_directory=u":memory:")
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_advertise(self):
         """
         Check if a node can construct an advertisement for his attested attribute.
@@ -33,7 +33,7 @@ class TestIdentityCommunity(TestBase):
             self.assertIsNotNone(self.nodes[node_nr].overlay.persistence.get(pk_1, 1))
             self.assertEqual(self.nodes[node_nr].overlay.persistence.get(pk_1, 1).link_sequence_number, 1)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_advertise_metadata(self):
         """
         Check if a node can construct an advertisement for his attested attribute with metadata.
@@ -55,7 +55,7 @@ class TestIdentityCommunity(TestBase):
             self.assertDictEqual(self.nodes[node_nr].overlay.persistence.get(pk_1, 1).transaction['metadata'],
                                  {"a": "b"})
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_advertise_metadata_reject(self):
         """
         Check if a node cannot construct an advertisement for his attested attribute with wrong metadata.
@@ -73,7 +73,7 @@ class TestIdentityCommunity(TestBase):
 
         self.assertIsNone(self.nodes[1].overlay.persistence.get(pk_1, 1))
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_advertise_reject_hash(self):
         """
         Check if unknown hashes are not signed.
@@ -90,7 +90,7 @@ class TestIdentityCommunity(TestBase):
         for node_nr in [0, 1]:
             self.assertIsNone(self.nodes[node_nr].overlay.persistence.get(pk_1, 1))
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_advertise_reject_public_key(self):
         """
         Check if we don't sign correct hashes for the wrong peer.
@@ -108,7 +108,7 @@ class TestIdentityCommunity(TestBase):
         for node_nr in [0, 1]:
             self.assertIsNone(self.nodes[node_nr].overlay.persistence.get(pk_1, 1))
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_advertise_reject_old(self):
         """
         Check if we don't sign old attestations.
@@ -127,7 +127,7 @@ class TestIdentityCommunity(TestBase):
         for node_nr in [0, 1]:
             self.assertIsNone(self.nodes[node_nr].overlay.persistence.get(pk_1, 1))
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_advertise_reject_wrong_name(self):
         """
         Check if we don't sign attestations with incorrect metadata.

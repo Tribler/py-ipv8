@@ -5,7 +5,7 @@ from twisted.internet.defer import succeed, Deferred
 
 from ..base import TestBase
 from ..mocking.ipv8 import MockIPv8
-from ..util import twisted_wrapper
+from twisted.internet.defer import inlineCallbacks
 from ...dht.community import DHTCommunity
 from ...dht.provider import DHTCommunityProvider
 from ...dht.routing import Node, distance
@@ -36,7 +36,7 @@ class TestDHTCommunity(TestBase):
     def create_node(self, *args, **kwargs):
         return MockIPv8(u"curve25519", DHTCommunity)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_routing_table(self):
         yield self.introduce_nodes()
         yield self.deliver_messages()
@@ -53,13 +53,13 @@ class TestDHTCommunity(TestBase):
         self.assertTrue(node1_bucket.get(node0_id))
         self.assertTrue(node0_bucket.get(node1_id))
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_ping_pong(self):
         yield self.introduce_nodes()
         node = yield self.nodes[0].overlay.ping(self.nodes[1].my_peer)
         self.assertEqual(node, self.nodes[1].my_peer)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_ping_pong_fail(self):
         yield self.introduce_nodes()
         yield self.nodes[1].unload()
@@ -67,7 +67,7 @@ class TestDHTCommunity(TestBase):
         yield self.deliver_messages()
         self.assertFailure(d, RuntimeError)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_ping_all(self):
         yield self.introduce_nodes()
         bucket = self.nodes[0].overlay.routing_table.trie[u'']
@@ -80,7 +80,7 @@ class TestDHTCommunity(TestBase):
         self.assertTrue(node1.failed == 0)
         self.assertNotEqual(node1.last_response, 0)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_ping_all_skip(self):
         yield self.introduce_nodes()
         bucket = self.nodes[0].overlay.routing_table.trie[u'']
@@ -91,14 +91,14 @@ class TestDHTCommunity(TestBase):
         self.nodes[0].overlay.ping_all()
         self.assertTrue(node1.failed == 1)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_store_value(self):
         yield self.introduce_nodes()
         node = yield self.nodes[0].overlay.store_value(self.key, self.value)
         self.assertIn(self.nodes[1].my_peer, node)
         self.assertEqual(self.nodes[1].overlay.storage.get(self.key), [self.value_in_store])
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_store_value_fail(self):
         yield self.introduce_nodes()
         self.nodes[1].unload()
@@ -106,28 +106,28 @@ class TestDHTCommunity(TestBase):
         yield self.deliver_messages()
         self.assertFailure(d, RuntimeError)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_find_nodes(self):
         yield self.introduce_nodes()
         nodes = yield self.nodes[0].overlay.find_nodes(self.key)
         self.assertItemsEqual(nodes, [Node(n.my_peer.key.pub().key_to_bin(), n.my_peer.address)
                                       for n in self.nodes[1:]])
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_find_values(self):
         yield self.introduce_nodes()
         self.nodes[1].overlay.storage.put(self.key, self.value_in_store)
         values = yield self.nodes[0].overlay.find_values(self.key)
         self.assertIn((self.value, None), values)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_find_values_signed(self):
         yield self.introduce_nodes()
         self.nodes[1].overlay.storage.put(self.key, self.signed_in_store)
         values = yield self.nodes[0].overlay.find_values(self.key)
         self.assertIn((self.value, self.nodes[0].my_peer.public_key.key_to_bin()), values)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_caching(self):
         # Add a third node
         node = MockIPv8(u"curve25519", DHTCommunity)
@@ -144,7 +144,7 @@ class TestDHTCommunity(TestBase):
         yield self.deliver_messages()
         self.assertEqual(self.nodes[1].overlay.storage.get(self.key), [self.value_in_store])
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_refresh(self):
         yield self.introduce_nodes()
         yield self.deliver_messages()
@@ -163,7 +163,7 @@ class TestDHTCommunity(TestBase):
         self.assertEqual(bucket.last_changed, prev_ts)
         self.assertFalse(self.is_called)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_republish(self):
         yield self.introduce_nodes()
         yield self.deliver_messages()
@@ -183,7 +183,7 @@ class TestDHTCommunity(TestBase):
         self.nodes[0].overlay.value_maintenance()
         self.assertFalse(self.is_called)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_token(self):
         dht_node = Node(self.nodes[1].my_peer.key, self.nodes[1].my_peer.address)
 
@@ -210,7 +210,7 @@ class TestDHTCommunity(TestBase):
         self.assertFailure(d, RuntimeError)
         self.assertEqual(self.nodes[1].overlay.storage.get(self.key), [])
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_provider(self):
         """
         Test the DHT provider (used to fetch peers in the hidden services)
@@ -251,7 +251,7 @@ class TestDHTCommunityXL(TestBase):
     def get_closest_nodes(self, node_id, max_nodes=8):
         return sorted(self.nodes, key=lambda n: distance(n.overlay.my_node_id, node_id))[:max_nodes]
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_full_protocol(self):
         # Fill routing tables
         yield self.introduce_nodes()

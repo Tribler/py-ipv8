@@ -4,7 +4,7 @@ from twisted.internet.task import Clock, deferLater, LoopingCall
 
 from ..taskmanager import TaskManager
 from .base import TestBase
-from .util import twisted_wrapper
+from twisted.internet.defer import inlineCallbacks
 
 
 def untwisted_wrapper(f):
@@ -33,14 +33,14 @@ class TestTaskManager(TestBase):
     def tearDown(self):
         self.tm.shutdown_task_manager()
 
-    @twisted_wrapper
+    @inlineCallbacks
     @untwisted_wrapper
     def test_call_later(self):
         self.tm.register_task("test", reactor.callLater(10, lambda: None))
 
         self.assertTrue(self.tm.is_pending_task_active("test"))
 
-    @twisted_wrapper
+    @inlineCallbacks
     @untwisted_wrapper
     def test_call_later_and_cancel(self):
         self.tm.register_task("test", reactor.callLater(10, lambda: None))
@@ -48,7 +48,7 @@ class TestTaskManager(TestBase):
 
         self.assertFalse(self.tm.is_pending_task_active("test"))
 
-    @twisted_wrapper
+    @inlineCallbacks
     @untwisted_wrapper
     def test_call_later_and_replace(self):
         task1 = self.tm.register_task("test", reactor.callLater(10, lambda: None))
@@ -57,14 +57,14 @@ class TestTaskManager(TestBase):
         self.assertTrue(self.tm.is_pending_task_active("test"))
         self.assertFalse(task1.active())
 
-    @twisted_wrapper
+    @inlineCallbacks
     @untwisted_wrapper
     def test_looping_call(self):
         self.tm.register_task("test", LoopingCall(lambda: None)).start(10, now=True)
 
         self.assertTrue(self.tm.is_pending_task_active("test"))
 
-    @twisted_wrapper
+    @inlineCallbacks
     @untwisted_wrapper
     def test_looping_call_and_cancel(self):
         self.tm.register_task("test", LoopingCall(lambda: None)).start(10, now=True)
@@ -72,23 +72,23 @@ class TestTaskManager(TestBase):
 
         self.assertFalse(self.tm.is_pending_task_active("test"))
 
-    @twisted_wrapper
+    @inlineCallbacks
     @untwisted_wrapper
     def test_delayed_looping_call_requires_interval(self):
         self.assertRaises(ValueError, self.tm.register_task, "test", LoopingCall(lambda: None), delay=1)
 
-    @twisted_wrapper
+    @inlineCallbacks
     @untwisted_wrapper
     def test_delayed_deferred_requires_value(self):
         self.assertRaises(ValueError, self.tm.register_task, "test", deferLater(reactor, 0.0, lambda: None), delay=1)
 
-    @twisted_wrapper
+    @inlineCallbacks
     @untwisted_wrapper
     def test_delayed_looping_call_requires_LoopingCall_or_Deferred(self):
         self.assertRaises(ValueError, self.tm.register_task, "test not Deferred nor LoopingCall",
                           self.tm._reactor.callLater(0, lambda: None), delay=1)
 
-    @twisted_wrapper
+    @inlineCallbacks
     @untwisted_wrapper
     def test_delayed_looping_call_register_and_cancel_pre_delay(self):
         self.assertFalse(self.tm.is_pending_task_active("test"))
@@ -97,7 +97,7 @@ class TestTaskManager(TestBase):
         self.tm.cancel_pending_task("test")
         self.assertFalse(self.tm.is_pending_task_active("test"))
 
-    @twisted_wrapper
+    @inlineCallbacks
     @untwisted_wrapper
     def test_delayed_looping_call_register_wait_and_cancel(self):
         self.assertFalse(self.tm.is_pending_task_active("test"))
@@ -118,7 +118,7 @@ class TestTaskManager(TestBase):
         self.tm._reactor.advance(10)
         self.assertEquals(2, self.counter)
 
-    @twisted_wrapper
+    @inlineCallbacks
     @untwisted_wrapper
     def test_delayed_deferred(self):
         self.assertFalse(self.tm.is_pending_task_active("test"))

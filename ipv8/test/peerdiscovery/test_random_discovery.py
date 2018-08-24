@@ -2,7 +2,7 @@ from ...peerdiscovery.discovery import RandomWalk
 from ...deprecated.community import _DEFAULT_ADDRESSES
 from ..base import TestBase
 from ..mocking.community import MockCommunity
-from ..util import twisted_wrapper
+from twisted.internet.defer import inlineCallbacks
 
 
 class TestRandomWalk(TestBase):
@@ -19,7 +19,7 @@ class TestRandomWalk(TestBase):
         for overlay in self.overlays:
             overlay.unload()
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_take_step(self):
         """
         Check if we will walk to a random other node.
@@ -38,7 +38,7 @@ class TestRandomWalk(TestBase):
 
         self.assertEqual(len(self.overlays[0].network.verified_peers), 2)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_take_step_into(self):
         """
         Check if we will walk to an introduced node.
@@ -57,7 +57,7 @@ class TestRandomWalk(TestBase):
 
         self.assertEqual(len(self.overlays[0].network.verified_peers), 2)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_fail_step_into(self):
         """
         Check if we drop an unreachable introduced node.
@@ -86,7 +86,7 @@ class TestRandomWalk(TestBase):
         self.assertEqual(len(self.overlays[0].network.get_walkable_addresses()), 0)
         self.assertEqual(len(self.overlays[0].network.verified_peers), 1)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_retry_step_into(self):
         """
         Check if we don't drop an introduced node immediately.

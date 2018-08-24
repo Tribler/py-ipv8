@@ -1,4 +1,4 @@
-import unittest
+from twisted.trial import unittest
 
 from ..keyvault.crypto import ECCrypto
 from ..peer import Peer

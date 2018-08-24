@@ -5,7 +5,7 @@ from ....attestation.wallet.primitives.attestation import binary_relativity_sha2
 from ....attestation.wallet.community import Attestation, AttestationCommunity, BonehPrivateKey
 
 from ...base import MockIPv8, TestBase
-from ...util import twisted_wrapper
+from twisted.internet.defer import inlineCallbacks
 
 
 class TestCommunity(TestBase):
@@ -20,7 +20,7 @@ class TestCommunity(TestBase):
     def create_node(self):
         return MockIPv8(u"curve25519", AttestationCommunity, working_directory=u":memory:")
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_request_attestation_callback(self):
         """
         Check if the request_attestation callback is correctly called.
@@ -47,7 +47,7 @@ class TestCommunity(TestBase):
         # Request for attribute attestation goes unanswered
         self.nodes[1].overlay.request_cache.clear()
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_request_attestation_callback_metadata(self):
         """
         Check if the request_attestation callback is correctly called with metadata.
@@ -77,7 +77,7 @@ class TestCommunity(TestBase):
         # Request for attribute attestation goes unanswered
         self.nodes[1].overlay.request_cache.clear()
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_request_attestation(self):
         """
         Check if the request_attestation callback is correctly called.
@@ -104,7 +104,7 @@ class TestCommunity(TestBase):
         self.assertEqual(1, len(db_entries))
         self.assertTrue(f.called)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_verify_attestation(self):
         """
         Check if an attestation can be verified.
