@@ -9,13 +9,14 @@ class CrawlRequestPayload(Payload):
 
     format_list = ['74s', 'l', 'I']
 
-    def __init__(self, requested_sequence_number, crawl_id):
+    def __init__(self, public_key, requested_sequence_number, crawl_id):
         super(CrawlRequestPayload, self).__init__()
+        self.public_key = public_key
         self.requested_sequence_number = requested_sequence_number
         self.crawl_id = crawl_id
 
     def to_pack_list(self):
-        data = [('74s', '0'*74),
+        data = [('74s', self.public_key),
                 ('l', self.requested_sequence_number),
                 ('I', self.crawl_id)]
 
@@ -23,7 +24,7 @@ class CrawlRequestPayload(Payload):
 
     @classmethod
     def from_unpack_list(cls, public_key, sequence_number, crawl_id):
-        return CrawlRequestPayload(sequence_number, crawl_id)
+        return CrawlRequestPayload(public_key, sequence_number, crawl_id)
 
 
 class HalfBlockPayload(Payload):
