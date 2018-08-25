@@ -7,6 +7,8 @@ import os
 import signal
 import sys
 
+import logging
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 from twisted.application.service import MultiService, IServiceMaker
@@ -109,6 +111,14 @@ class TrustchainCrawlerServiceMaker(object):
         """
         Main method to startup the TrustChain crawler.
         """
+        root = logging.getLogger()
+        root.setLevel(logging.INFO)
+
+        stderr_handler = logging.StreamHandler(sys.stderr)
+        stderr_handler.setLevel(logging.INFO)
+        stderr_handler.setFormatter(logging.Formatter("%(asctime)s:%(levelname)s:%(message)s"))
+        root.addHandler(stderr_handler)
+
         if options["statedir"]:
             # If we use a custom state directory, update various variables
             for key in crawler_config["keys"]:
