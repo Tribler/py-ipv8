@@ -237,11 +237,15 @@ class TrustChainCommunity(Community):
                 self.send_block(block)
             return
 
-        # If there is a counterparty to sign
+        # If there is a counterparty to sign, we send it
         self.send_block(block, address=peer.address)
 
+        # We broadcast the block in the network if we initiated a transaction
+        if self.broadcast_block and not linked:
+            self.send_block(block)
+
         if peer == self.my_peer:
-            # We created a half-signed block
+            # We created a self-signed block
             if self.broadcast_block:
                 self.send_block(block)
 
