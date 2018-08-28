@@ -46,6 +46,10 @@ coverage.xml
 *.cover
 .hypothesis/
 
+#Trial tests temp dirs
+_trial_temp*/
+_trial_temp*
+
 # Translations
 *.mo
 *.pot
