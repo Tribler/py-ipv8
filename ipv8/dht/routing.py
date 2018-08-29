@@ -5,9 +5,8 @@ import time
 from threading import RLock
 from socket import inet_aton
 
-import datrie
-
 from ..peer import Peer
+from .trie import Trie
 
 NODE_STATUS_GOOD = 2
 NODE_STATUS_UNKNOWN = 1
@@ -152,7 +151,7 @@ class RoutingTable(object):
 
     def __init__(self, my_node_id):
         self.my_node_id = my_node_id
-        self.trie = datrie.Trie(u'01')
+        self.trie = Trie(u'01')
         self.trie[u''] = Bucket(u'')
         self.lock = RLock()
 
