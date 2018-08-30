@@ -6,6 +6,8 @@ from twisted.internet.defer import fail
 from twisted.internet.task import LoopingCall
 from twisted.python.failure import Failure
 
+from ..deprecated.lazy_community import lazy_wrapper, lazy_wrapper_wd
+from ..deprecated.payload_headers import GlobalTimeDistributionPayload
 from .community import DHTCommunity, Request, PING_INTERVAL, TARGET_NODES, \
                                             gatherResponses, MAX_NODES_IN_FIND
 from .routing import NODE_STATUS_BAD, Node
@@ -39,17 +41,17 @@ class DHTDiscoveryCommunity(DHTCommunity):
 
         self.register_task('store_peer', LoopingCall(self.store_peer)).start(30, now=False)
 
-    def on_ping_request(self, source_address, data):
-        super(DHTDiscoveryCommunity, self).on_ping_request(source_address, data)
-        auth, _, _ = self._ez_unpack_auth(PingRequestPayload, data)
-        node = self.find_node_in_dict(auth.public_key_bin, self.store)
+    @lazy_wrapper_wd(GlobalTimeDistributionPayload, PingRequestPayload)
+    def on_ping_request(self, peer, dist, payload, data):
+        super(DHTDiscoveryCommunity, self).on_ping_request(peer.address, data)
+        node = self.find_node_in_dict(peer.key.key_to_bin(), self.store)
         if node:
             node.last_query = time.time()
 
-    def on_ping_response(self, source_address, data):
-        super(DHTDiscoveryCommunity, self).on_ping_response(source_address, data)
-        auth, _, _ = self._ez_unpack_auth(PingResponsePayload, data)
-        node = self.find_node_in_dict(auth.public_key_bin, self.store_for_me)
+    @lazy_wrapper_wd(GlobalTimeDistributionPayload, PingResponsePayload)
+    def on_ping_response(self, peer, dist, payload, data):
+        super(DHTDiscoveryCommunity, self).on_ping_response(peer.address, data)
+        node = self.find_node_in_dict(peer.key.key_to_bin(), self.store_for_me)
         if node:
             node.last_response = time.time()
 
@@ -107,11 +109,11 @@ class DHTDiscoveryCommunity(DHTCommunity):
 
         return gatherResponses(deferreds).addCallback(lambda node_lists: list(set(sum(node_lists, []))))
 
-    def on_store_peer_request(self, source_address, data):
-        self.logger.debug('Got store-peer-request from %s', source_address)
+    @lazy_wrapper(GlobalTimeDistributionPayload, StorePeerRequestPayload)
+    def on_store_peer_request(self, peer, dist, payload):
+        self.logger.debug('Got store-peer-request from %s', peer.address)
 
-        auth, _, payload = self._ez_unpack_auth(StorePeerRequestPayload, data)
-        node = Node(auth.public_key_bin, source_address)
+        node = Node(peer.key, peer.address)
         node.last_query = time.time()
 
         if not self.check_token(node, payload.token):
@@ -125,14 +127,13 @@ class DHTDiscoveryCommunity(DHTCommunity):
         self.send_message(node.address, MSG_STORE_PEER_RESPONSE,
                           StorePeerResponsePayload, (payload.identifier,))
 
-    def on_store_peer_response(self, source_address, data):
-        _, _, payload = self._ez_unpack_auth(StorePeerResponsePayload, data)
-
+    @lazy_wrapper(GlobalTimeDistributionPayload, StorePeerResponsePayload)
+    def on_store_peer_response(self, peer, dist, payload):
         if not self.request_cache.has(u'request', payload.identifier):
             self.logger.error('Got store-peer-response with unknown identifier, dropping packet')
             return
 
-        self.logger.debug('Got store-peer-response from %s', source_address)
+        self.logger.debug('Got store-peer-response from %s', peer.address)
 
         cache = self.request_cache.pop(u'request', payload.identifier)
 
@@ -143,28 +144,26 @@ class DHTDiscoveryCommunity(DHTCommunity):
 
         cache.deferred.callback(cache.node)
 
-    def on_connect_peer_request(self, source_address, data):
-        self.logger.debug('Got connect-peer-request from %s', source_address)
-
-        _, _, payload = self._ez_unpack_auth(ConnectPeerRequestPayload, data)
+    @lazy_wrapper(GlobalTimeDistributionPayload, ConnectPeerRequestPayload)
+    def on_connect_peer_request(self, peer, dist, payload):
+        self.logger.debug('Got connect-peer-request from %s', peer.address)
 
         nodes = self.store[payload.target][:MAX_NODES_IN_FIND]
         for node in nodes:
-            packet = self.create_puncture_request(payload.lan_address, source_address, payload.identifier)
+            packet = self.create_puncture_request(payload.lan_address, peer.address, payload.identifier)
             self.endpoint.send(node.address, packet)
 
         self.logger.debug('Returning peers %s (key %s)', nodes, payload.target.encode('hex'))
-        self.send_message(source_address, MSG_CONNECT_PEER_RESPONSE,
+        self.send_message(peer.address, MSG_CONNECT_PEER_RESPONSE,
                           ConnectPeerResponsePayload, (payload.identifier, nodes))
 
-    def on_connect_peer_response(self, source_address, data):
-        _, _, payload = self._ez_unpack_auth(ConnectPeerResponsePayload, data)
-
+    @lazy_wrapper(GlobalTimeDistributionPayload, ConnectPeerResponsePayload)
+    def on_connect_peer_response(self, peer, dist, payload):
         if not self.request_cache.has(u'request', payload.identifier):
             self.logger.error('Got connect-peer-response with unknown identifier, dropping packet')
             return
 
-        self.logger.debug('Got connect-peer-response from %s', source_address)
+        self.logger.debug('Got connect-peer-response from %s', peer.address)
         cache = self.request_cache.pop(u'request', payload.identifier)
         cache.deferred.callback(payload.nodes)
 

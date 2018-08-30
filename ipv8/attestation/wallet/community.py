@@ -8,6 +8,7 @@ from twisted.internet.defer import inlineCallbacks
 from .caches import *
 from .database import AttestationsDB
 from ...deprecated.community import Community
+from ...deprecated.lazy_community import lazy_wrapper
 from ...deprecated.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from .payload import *
 from .primitives.attestation import (attest_sha256_4, binary_relativity_certainty, create_challenge,
@@ -126,13 +127,11 @@ class AttestationCommunity(Community):
         self.endpoint.send(peer.address, packet)
 
     @inlineCallbacks
-    def on_request_attestation(self, source_address, data):
+    @lazy_wrapper(GlobalTimeDistributionPayload, RequestAttestationPayload)
+    def on_request_attestation(self, peer, dist, payload):
         """
         Someone wants us to attest their attribute.
         """
-        auth, dist, payload = self._ez_unpack_auth(RequestAttestationPayload, data)
-        peer = Peer(auth.public_key_bin, source_address)
-
         metadata = json.loads(payload.metadata)
         attribute = metadata.pop('attribute')
         pubkey_b64 = metadata.pop('public_key')
@@ -146,7 +145,7 @@ class AttestationCommunity(Community):
 
         self.attestation_request_complete_callback(peer, attribute, sha1(attestation_blob).digest())
 
-        self.send_attestation(source_address, attestation_blob)
+        self.send_attestation(peer.address, attestation_blob)
 
     def on_attestation_complete(self, unserialized, secret_key, peer, name, hash):
         """
@@ -188,21 +187,20 @@ class AttestationCommunity(Community):
         self.endpoint.send(socket_address, packet)
 
     @inlineCallbacks
-    def on_verify_attestation_request(self, source_address, data):
+    @lazy_wrapper(GlobalTimeDistributionPayload, VerifyAttestationRequestPayload)
+    def on_verify_attestation_request(self, peer, dist, payload):
         """
         We received a request to verify one of our attestations. Send the requested attestation back.
         """
-        auth, dist, payload = self._ez_unpack_auth(VerifyAttestationRequestPayload, data)
-
         attestation_blob, = self.database.get_attestation_by_hash(payload.hash)
         if not attestation_blob:
             return
 
-        value = yield self.verify_request_callback(Peer(auth.public_key_bin, source_address), payload.hash)
+        value = yield self.verify_request_callback(peer, payload.hash)
         if not value:
             return
 
-        self.send_attestation(source_address, attestation_blob)
+        self.send_attestation(peer.address, attestation_blob)
 
     def send_attestation(self, socket_address, blob):
         # If we want to serve this request send the attestation in chunks of 800 bytes
@@ -219,12 +217,11 @@ class AttestationCommunity(Community):
 
             sequence_number += 1
 
-    def on_attestation_chunk(self, source_address, data):
+    @lazy_wrapper(GlobalTimeDistributionPayload, AttestationChunkPayload)
+    def on_attestation_chunk(self, peer, dist, payload):
         """
         We received a chunk of an Attestation.
         """
-        auth, dist, payload = self._ez_unpack_auth(AttestationChunkPayload, data)
-        peer = Peer(auth.public_key_bin, source_address)
         hash_id = HashCache.id_from_hash(u"receive-verify-attestation", payload.hash)
         peer_id = PeerCache.id_from_address(u"receive-request-attestation", peer.mid)
         if self.request_cache.has(*hash_id):
@@ -293,12 +290,11 @@ class AttestationCommunity(Community):
             packet = self._ez_pack(self._prefix, 3, [auth, dist, payload])
             self.endpoint.send(peer.address, packet)
 
-    def on_challenge(self, source_address, data):
+    @lazy_wrapper(GlobalTimeDistributionPayload, ChallengePayload)
+    def on_challenge(self, peer, dist, payload):
         """
         We received a challenge for an Attestation.
         """
-        auth, dist, payload = self._ez_unpack_auth(ChallengePayload, data)
-
         SK = self.attestation_keys[payload.attestation_hash]
         challenge_hash = sha1(payload.challenge).digest()
 
@@ -310,15 +306,14 @@ class AttestationCommunity(Community):
         dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
 
         packet = self._ez_pack(self._prefix, 4, [auth, dist, payload])
-        self.endpoint.send(source_address, packet)
+        self.endpoint.send(peer.address, packet)
 
     @synchronized
-    def on_challenge_response(self, source_address, data):
+    @lazy_wrapper(GlobalTimeDistributionPayload, ChallengeResponsePayload)
+    def on_challenge_response(self, peer, dist, payload):
         """
         We received a response to our challenge
         """
-        auth, dist, payload = self._ez_unpack_auth(ChallengeResponsePayload, data)
-
         cache = self.request_cache.get(*HashCache.id_from_hash(u"proving-hash", payload.challenge_hash))
         if cache:
             self.request_cache.pop(*HashCache.id_from_hash(u"proving-hash", payload.challenge_hash))
@@ -333,7 +328,7 @@ class AttestationCommunity(Community):
             if cache.honesty_check < 0:
                 process_challenge_response(proving_cache.relativity_map, payload.response)
             elif cache.honesty_check != payload.response:
-                self.logger.error("%s tried to cheat in the ZKP!", source_address[0])
+                self.logger.error("%s tried to cheat in the ZKP!", peer.address[0])
                 # Liar, Completed
                 if self.request_cache.has(pcache_prefix, pcache_id):
                     self.request_cache.pop(pcache_prefix, pcache_id)
@@ -375,4 +370,4 @@ class AttestationCommunity(Community):
                 dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
 
                 packet = self._ez_pack(self._prefix, 3, [auth, dist, payload])
-                self.endpoint.send(source_address, packet)
+                self.endpoint.send(peer.address, packet)
