@@ -1,11 +1,10 @@
 import sys
 import time
 
-from twisted.internet.defer import succeed, Deferred
+from twisted.internet.defer import succeed, Deferred, inlineCallbacks
 
 from ..base import TestBase
 from ..mocking.ipv8 import MockIPv8
-from twisted.internet.defer import inlineCallbacks
 from ...dht.community import DHTCommunity
 from ...dht.provider import DHTCommunityProvider
 from ...dht.routing import Node, distance

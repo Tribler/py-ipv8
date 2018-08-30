@@ -1,10 +1,9 @@
 from twisted.internet import reactor
-from twisted.internet.defer import Deferred, succeed
+from twisted.internet.defer import Deferred, succeed, inlineCallbacks
 from twisted.internet.task import Clock, deferLater, LoopingCall
 
 from ..taskmanager import TaskManager
 from .base import TestBase
-from twisted.internet.defer import inlineCallbacks
 
 
 def untwisted_wrapper(f):

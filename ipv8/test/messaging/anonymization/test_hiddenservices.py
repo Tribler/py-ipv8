@@ -1,6 +1,3 @@
-import twisted
-from twisted.internet import reactor
-
 from twisted.internet.defer import inlineCallbacks, Deferred
 
 from ....messaging.anonymization.community import TunnelSettings, CIRCUIT_TYPE_RENDEZVOUS
@@ -9,7 +6,6 @@ from ....peer import Peer
 from ...base import TestBase
 from ...mocking.exit_socket import MockTunnelExitSocket
 from ...mocking.ipv8 import MockIPv8
-from twisted.internet.defer import inlineCallbacks
 
 # Map of info_hash -> peer list
 global_dht_services = {}

@@ -1,3 +1,4 @@
+from twisted.internet.defer import inlineCallbacks
 from ....attestation.trustchain.block import TrustChainBlock
 from ....attestation.trustchain.caches import CrawlRequestCache
 from ....attestation.trustchain.community import TrustChainCommunity, UNKNOWN_SEQ
@@ -6,7 +7,6 @@ from ...attestation.trustchain.test_block import TestBlock
 from ....messaging.deprecated.encoding import decode
 from ...base import TestBase
 from ...mocking.ipv8 import MockIPv8
-from twisted.internet.defer import inlineCallbacks
 
 
 class DummyBlock(TrustChainBlock):

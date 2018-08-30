@@ -1,11 +1,11 @@
 import time
+from twisted.internet.defer import inlineCallbacks
 
 from ...peerdiscovery.churn import RandomChurn
 from ...deprecated.community import _DEFAULT_ADDRESSES
 from ..base import TestBase
 from ..mocking.community import MockCommunity
 from ..mocking.endpoint import MockEndpointListener
-from twisted.internet.defer import inlineCallbacks
 
 
 class TestChurn(TestBase):

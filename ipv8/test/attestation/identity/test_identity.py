@@ -1,8 +1,8 @@
+from twisted.internet.defer import inlineCallbacks
 from ....attestation.identity.community import IdentityCommunity
 from ....peer import Peer
 
 from ...base import MockIPv8, TestBase
-from twisted.internet.defer import inlineCallbacks
 
 
 class TestIdentityCommunity(TestBase):

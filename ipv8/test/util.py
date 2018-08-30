@@ -1,5 +1,3 @@
-from twisted.internet.defer import inlineCallbacks, Deferred
-
 
 class TimeExpired(AssertionError):
     pass

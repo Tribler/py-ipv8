@@ -1,3 +1,4 @@
+from twisted.internet.defer import inlineCallbacks
 from ....deprecated.community import _DEFAULT_ADDRESSES
 from ....deprecated.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from ...base import TestBase
@@ -5,7 +6,6 @@ from ...mocking.community import MockCommunity
 from ....keyvault.crypto import ECCrypto
 from ....peer import Peer
 from ....peerdiscovery.deprecated.discovery_payload import DiscoveryIntroductionRequestPayload
-from twisted.internet.defer import inlineCallbacks
 
 
 class TestDiscoveryCommunity(TestBase):

@@ -1,10 +1,10 @@
+from twisted.internet.defer import inlineCallbacks
 from ....messaging.anonymization.community import TunnelCommunity, TunnelSettings
 from ....messaging.anonymization.tunnel import CIRCUIT_STATE_EXTENDING
 from ....messaging.interfaces.udp.endpoint import UDPEndpoint
 from ...base import TestBase
 from ...mocking.endpoint import MockEndpointListener
 from ...mocking.ipv8 import MockIPv8
-from twisted.internet.defer import inlineCallbacks
 
 
 class TestTunnelCommunity(TestBase):

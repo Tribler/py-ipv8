@@ -1,11 +1,11 @@
 import os
+from twisted.internet.defer import inlineCallbacks
 
 from ....attestation.wallet.database import AttestationsDB
 from ....attestation.wallet.primitives.attestation import binary_relativity_sha256_4
 from ....attestation.wallet.community import Attestation, AttestationCommunity, BonehPrivateKey
 
 from ...base import MockIPv8, TestBase
-from twisted.internet.defer import inlineCallbacks
 
 
 class TestCommunity(TestBase):

@@ -4,7 +4,6 @@ from twisted.internet.task import deferLater
 from twisted.internet.threads import deferToThread
 
 from base import TestBase
-from twisted.internet.defer import inlineCallbacks
 from ..util import blocking_call_on_reactor_thread
 
 
