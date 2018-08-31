@@ -13,7 +13,7 @@ import sys
 from time import time
 from traceback import format_exception
 
-from .lazy_community import lazy_wrapper, lazy_wrapper_unsigned, EZPackOverlay
+from .lazy_community import lazy_wrapper, lazy_wrapper_unsigned, EZPackOverlay, lazy_wrapper_wd
 from .payload import IntroductionRequestPayload, IntroductionResponsePayload, PuncturePayload, PunctureRequestPayload
 from .payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 
@@ -221,8 +221,8 @@ class Community(EZPackOverlay):
 
         self.introduction_request_callback(peer, dist, payload)
 
-    @lazy_wrapper(GlobalTimeDistributionPayload, IntroductionResponsePayload)
-    def on_introduction_response(self, peer, dist, payload):
+    @lazy_wrapper_wd(GlobalTimeDistributionPayload, IntroductionResponsePayload)
+    def on_introduction_response(self, peer, dist, payload, _):
         self.my_estimated_wan = payload.destination_address
 
         self.network.add_verified_peer(peer)

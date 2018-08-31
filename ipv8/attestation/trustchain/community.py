@@ -14,7 +14,7 @@ from .block import TrustChainBlock, ValidationResult, EMPTY_PK, GENESIS_SEQ, UNK
 from .caches import CrawlRequestCache, HalfBlockSignCache, IntroCrawlTimeout
 from .database import TrustChainDB
 from ...deprecated.community import Community
-from ...deprecated.lazy_community import lazy_wrapper, lazy_wrapper_unsigned, lazy_wrapper_unsigned_wd
+from ...deprecated.lazy_community import lazy_wrapper, lazy_wrapper_unsigned, lazy_wrapper_unsigned_wd, lazy_wrapper_wd
 from ...deprecated.payload import IntroductionResponsePayload
 from ...deprecated.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from .payload import *
@@ -549,9 +549,9 @@ class TrustChainCommunity(Community):
         return eligible[-1]
 
     @synchronized
-    @lazy_wrapper(GlobalTimeDistributionPayload, IntroductionResponsePayload)
-    def on_introduction_response(self, peer, dist, payload):
-        super(TrustChainCommunity, self).on_introduction_response(peer, dist, payload)
+    @lazy_wrapper_wd(GlobalTimeDistributionPayload, IntroductionResponsePayload)
+    def on_introduction_response(self, peer, dist, payload, data):
+        super(TrustChainCommunity, self).on_introduction_response(peer.address, data)
 
         if self.request_cache.has(u"introcrawltimeout", IntroCrawlTimeout.get_number_for(peer)):
             self.logger.debug("Not crawling %s, as we have already crawled it in the last %d seconds!",
