@@ -52,7 +52,7 @@ class Storage(object):
             self.items[key].sort(key=lambda v: 1 if v.id == key else 0)
 
     def get(self, key, limit=None):
-        return [value.data for value in self.items[key][:limit]]
+        return [value.data for value in self.items[key][:limit]] if key in self.items else []
 
     def items_older_than(self, min_age):
         items = []
