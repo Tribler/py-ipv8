@@ -47,10 +47,10 @@ MSG_FIND_REQUEST = 11
 MSG_FIND_RESPONSE = 12
 
 
-def gatherResponses(deferreds):
+def gatherResponses(deferreds, **kwargs):
     def on_finished(results):
         return [x[1] for x in results if x[0]]
-    return DeferredList(deferreds).addCallback(on_finished)
+    return DeferredList(deferreds, **kwargs).addCallback(on_finished)
 
 
 class Request(RandomNumberCache):
@@ -297,7 +297,7 @@ class DHTCommunity(Community):
         cache.deferred.callback(cache.node)
 
     def _send_find_request(self, node, target, force_nodes):
-        cache = self.request_cache.add(Request(self, node, [force_nodes]))
+        cache = self.request_cache.add(Request(self, node, [force_nodes], consume_errors=False))
         self.send_message(node.address, MSG_FIND_REQUEST, FindRequestPayload,
                           (cache.number, self.my_estimated_lan, target, force_nodes))
         return cache.deferred
@@ -333,7 +333,7 @@ class DHTCommunity(Community):
 
             # Send closest nodes a find-node-request
             deferreds = [self._send_find_request(node, target, force_nodes) for node in nodes_closest]
-            responses = yield gatherResponses(deferreds)
+            responses = yield gatherResponses(deferreds, consumeErrors=True)
 
             nodes_tried |= nodes_closest
             nodes_closest.clear()
@@ -350,7 +350,7 @@ class DHTCommunity(Community):
                          for sender, node in to_puncture.iteritems()]
 
             # Wait for punctures (if any)...
-            yield DeferredList(deferreds)
+            yield DeferredList(deferreds, consumeErrors=True)
 
             # Ensure we haven't tried these nodes yet
             nodes_closest -= nodes_tried
