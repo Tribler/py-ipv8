@@ -7,16 +7,15 @@ Community instance.
 @organization: Technical University Delft
 @contact: dispersy@frayja.com
 """
+import sys
 from random import choice, random
 from socket import error, gethostbyname
-import sys
 from time import time
 from traceback import format_exception
 
 from .lazy_community import lazy_wrapper, lazy_wrapper_unsigned, EZPackOverlay, lazy_wrapper_wd
 from .payload import IntroductionRequestPayload, IntroductionResponsePayload, PuncturePayload, PunctureRequestPayload
 from .payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
-
 
 _DEFAULT_ADDRESSES = [
     ("130.161.119.206", 6421),
@@ -104,6 +103,9 @@ class Community(EZPackOverlay):
             chr(236): "dynamic-settings",
             chr(235): "missing-last-message"
         }
+
+    def get_prefix(self):
+        return self._prefix
 
     def on_deprecated_message(self, source_address, data):
         self.logger.warning("Received deprecated message: %s from (%s, %d)",
