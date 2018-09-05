@@ -1,9 +1,11 @@
 from twisted.web import resource
 
 from .attestation_endpoint import AttestationEndpoint
+from .dht_endpoint import DHTEndpoint
 from .network_endpoint import NetworkEndpoint
 from .overlays_endpoint import OverlaysEndpoint
 from .trustchain_endpoint import TrustchainEndpoint
+from .tunnel_endpoint import TunnelEndpoint
 
 
 class RootEndpoint(resource.Resource):
@@ -23,3 +25,5 @@ class RootEndpoint(resource.Resource):
         self.putChild("network", NetworkEndpoint(session))
         self.putChild("trustchain", TrustchainEndpoint(session))
         self.putChild("overlays", OverlaysEndpoint(session))
+        self.putChild("dht", DHTEndpoint(session))
+        self.putChild("tunnel", TunnelEndpoint(session))
