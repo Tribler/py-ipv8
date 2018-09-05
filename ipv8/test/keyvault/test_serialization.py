@@ -39,7 +39,7 @@ class TestSerialization(unittest.TestCase):
 
         # Convert the PEM to a DER keystring
         prefix = "-----BEGIN EC PRIVATE KEY-----\n"
-        postfix = "-----END EC PRIVATE KEY-----\n"
+        postfix = "-----END EC PRIVATE KEY----\n"
         keystring = private_pem[len(prefix):-len(postfix)].decode("BASE64")
 
         # Reconstruct a key with this keystring
