@@ -38,8 +38,8 @@ class TestSerialization(unittest.TestCase):
         private_pem = self.key.key_to_pem()
 
         # Convert the PEM to a DER keystring
-        prefix = "-----BEGIN EC PRIVATE KEY-----\n"
-        postfix = "-----END EC PRIVATE KEY----\n"
+        prefix = "-----BEGIN EC PRIVATE KEY----\n"
+        postfix = "-----END EC PRIVATE KEY-----\n"
         keystring = private_pem[len(prefix):-len(postfix)].decode("BASE64")
 
         # Reconstruct a key with this keystring
