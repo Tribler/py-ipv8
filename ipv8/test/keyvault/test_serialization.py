@@ -46,6 +46,7 @@ class TestSerialization(unittest.TestCase):
         key = M2CryptoSK(keystring=keystring)
 
         self.assertEqual(private_pem, key.key_to_pem())
+        raise RuntimeError("THIS SHOULD DEFINITELY FAIL")
 
     def test_public_to_bin(self):
         """
