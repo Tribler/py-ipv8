@@ -7,6 +7,7 @@ from twisted.internet import reactor
 from twisted.internet.defer import DeferredList, inlineCallbacks, maybeDeferred
 from twisted.internet.task import LoopingCall
 
+from ipv8.messaging.interfaces.statistics_endpoint import StatisticsEndpoint
 from ipv8.attestation.identity.community import IdentityCommunity
 from ipv8.attestation.trustchain.community import TrustChainCommunity, TrustChainTestnetCommunity
 from ipv8.attestation.wallet.community import AttestationCommunity
@@ -44,12 +45,14 @@ _WALKERS = {
 
 class IPv8(object):
 
-    def __init__(self, configuration, endpoint_override=None):
+    def __init__(self, configuration, endpoint_override=None, enable_statistics=False):
         if endpoint_override:
             self.endpoint = endpoint_override
         else:
             self.endpoint = UDPEndpoint(port=configuration['port'], ip=configuration['address'])
             self.endpoint.open()
+            if enable_statistics:
+                self.endpoint = StatisticsEndpoint(self, self.endpoint)
 
         self.network = Network()
 

@@ -3,6 +3,7 @@ from __future__ import absolute_import
 from ...attestation.trustchain.community import TrustChainCommunity
 from ...dht.discovery import DHTDiscoveryCommunity
 from ...keyvault.crypto import ECCrypto
+from ...messaging.interfaces.statistics_endpoint import StatisticsEndpoint
 from ...peer import Peer
 from ...peerdiscovery.network import Network
 from .endpoint import AutoMockEndpoint
@@ -11,9 +12,15 @@ from .discovery import MockWalk
 
 class MockIPv8(object):
 
-    def __init__(self, crypto_curve, overlay_class, create_trustchain=False, create_dht=False, *args, **kwargs):
+    def __init__(self, crypto_curve, overlay_class, create_trustchain=False, create_dht=False, enable_statistics=False,
+                 *args, **kwargs):
         self.endpoint = AutoMockEndpoint()
         self.endpoint.open()
+
+        # Enable statistics
+        if enable_statistics:
+            self.endpoint = StatisticsEndpoint(self, self.endpoint)
+
         self.network = Network()
         self.my_peer = Peer(ECCrypto().generate_key(crypto_curve), self.endpoint.wan_address)
 
@@ -36,6 +43,9 @@ class MockIPv8(object):
 
         self.overlay.my_estimated_wan = self.endpoint.wan_address
         self.overlay.my_estimated_lan = self.endpoint.lan_address
+
+        if enable_statistics:
+            self.endpoint.enable_community_statistics(self.overlay.get_prefix(), True)
 
     def unload(self):
         self.endpoint.close()
