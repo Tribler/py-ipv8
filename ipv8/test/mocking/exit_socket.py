@@ -37,4 +37,5 @@ class MockTunnelExitSocket(TunnelExitSocket, EndpointListener):
         self.datagramReceived(data, source_address)
 
     def close(self):
+        self.shutdown_task_manager()
         return succeed(True)

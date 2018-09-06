@@ -37,13 +37,12 @@ class TestUDPEndpoint(TestBase):
 
     @twisted_wrapper
     def tearDown(self):
-        super(TestUDPEndpoint, self).tearDown()
-
         # If an endpoint was used, close it
         if self.endpoint1:
             yield self.endpoint1.close()
         if self.endpoint2:
             yield self.endpoint2.close()
+        super(TestUDPEndpoint, self).tearDown()
 
     @twisted_wrapper
     def test_send_message(self):

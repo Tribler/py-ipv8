@@ -32,6 +32,7 @@ class TestTaskManager(TestBase):
 
     def tearDown(self):
         self.tm.shutdown_task_manager()
+        super(TestTaskManager, self).tearDown()
 
     @twisted_wrapper
     @untwisted_wrapper

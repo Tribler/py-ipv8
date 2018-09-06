@@ -11,6 +11,7 @@ from ..util import twisted_wrapper
 class TestChurn(TestBase):
 
     def setUp(self):
+        super(TestChurn, self).setUp()
         while _DEFAULT_ADDRESSES:
             _DEFAULT_ADDRESSES.pop()
 
@@ -21,6 +22,7 @@ class TestChurn(TestBase):
     def tearDown(self):
         for overlay in self.overlays:
             overlay.unload()
+        super(TestChurn, self).tearDown()
 
     @twisted_wrapper
     def test_keep_reachable(self):

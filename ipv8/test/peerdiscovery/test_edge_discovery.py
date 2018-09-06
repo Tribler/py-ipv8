@@ -8,6 +8,7 @@ from ..util import twisted_wrapper
 class TestEdgeWalk(TestBase):
 
     def setUp(self):
+        super(TestEdgeWalk, self).setUp()
         while _DEFAULT_ADDRESSES:
             _DEFAULT_ADDRESSES.pop()
 
@@ -18,6 +19,7 @@ class TestEdgeWalk(TestBase):
     def tearDown(self):
         for overlay in self.overlays:
             overlay.unload()
+        super(TestEdgeWalk, self).tearDown()
 
     @twisted_wrapper
     def test_take_step(self):
