@@ -1,5 +1,6 @@
 from abc import abstractmethod
-from random import choice, randint
+from random import sample, choice
+from string import hexdigits
 
 from twisted.internet import reactor
 from twisted.internet.base import DelayedCall
@@ -37,7 +38,7 @@ class GossipRule(object):
 
 
 class GossipMessage(Serializable):
-    format_list = ['64s', '74s', 'c', '74s', 'raw']
+    format_list = ['64s', '74s', 'B', '74s', 'raw']
 
     def __init__(self, my_private_key, rule, target_public_key, payload):
         self.public_key = my_private_key.pub().key_to_bin()
@@ -52,7 +53,7 @@ class GossipMessage(Serializable):
         return [
             ('64s', self.signature),
             ('74s', self.public_key),
-            ('c', str(self.rule)),
+            ('B', self.rule),
             ('74s', self.target_public_key),
             ('raw', self.payload)
         ]
@@ -61,7 +62,7 @@ class GossipMessage(Serializable):
     def from_unpack_list(cls, signature, public_key, rule, target_public_key, payload):
         key = LibNaCLPK(binarykey=public_key[10:])
 
-        if key.verify(signature, public_key + rule + target_public_key + payload):
+        if key.verify(signature, public_key + str(rule) + target_public_key + payload):
             out = object.__new__(GossipMessage)
             out.public_key = public_key
             out.signature = signature
@@ -165,6 +166,9 @@ class GossipOverlay(Overlay):
         self.listeners = []
         self.prefix = "\x01\x00GossipCommunity\x00\x00\x00\x00\x00"
 
+        # Avoid conflicts when it comes to naming voting tasks
+        self._vote_ballot_names = set()
+
         # Loops on this, and periodically sends a message based on the rule set it's got
         self.update_list = []
         self.register_task("update_key", LoopingCall(self.take_step)).start(loop_interval)
@@ -213,7 +217,7 @@ class GossipOverlay(Overlay):
                                    bloomfilter.bytes)
         elif rule == GossipRule.SPREAD:
             # Send a random message from the DB associated to the public_key peer
-            self.send_to_neighbors(rule, public_key, choice(self.message_db[public_key]))
+            self.send_to_neighbors(rule, public_key, sample(self.message_db[public_key], 1)[0])
 
     def add_listener(self, listener):
         """
@@ -356,14 +360,9 @@ class GossipOverlay(Overlay):
         if rule == GossipRule.SUPPRESS:
             # If this peer is suppressed, ignore all messages
             return
-        if message.rule == GossipRule.SUPPRESS:
-            # message.rule = the rule which is associated to the message.target and the message itself
-            if is_neighbor:
-                # Our neighbor asked us to ignore someone else
-                self._vote_suppress(message)
-            else:
-                # If I don't trust you, you are not allowed to influence me.
-                pass
+        if message.rule == GossipRule.SUPPRESS and is_neighbor:
+            # Our neighbor asked us to ignore someone else
+            self._vote_suppress(message)
         elif message.rule == GossipRule.DEFAULT or message.rule == GossipRule.SPREAD:
             (signature, data), _ = self.serializer.unpack_multiple(['64s', 'raw'], message.payload)
 
@@ -373,25 +372,22 @@ class GossipOverlay(Overlay):
                 # Target public key did not actually make the payload
                 return
             if rule == GossipRule.DEFAULT and not is_neighbor:
-                # This message has been forwarded to us
+                # Check first if the DB has the message, since the update might add it, and not delete it after
                 if not self.has_message(message.target_public_key, data):
                     self.update(message.target_public_key, data)
                     self.delete(message.target_public_key, data)
                 else:
                     self.update(message.target_public_key, data)
             else:
-                # This message is from our neighbor or we care about it: is_neighbor or not is_neighbor and
-                # rule == GossipRule.SPREAD
                 self.update(message.target_public_key, data)
                 self.store(message.target_public_key, data)
         elif message.rule == GossipRule.COLLECT:
-            # Someone asked us to give him information of some peer
-            bloomfilter = BloomFilter(message.payload[4:], self.serializer.unpack('I', message.payload[:4])[0], "")
+            bloomfilter = BloomFilter(message.payload[4:], self.serializer.unpack('I', message.payload[:4]), "")
             for payload in self.message_db.get(message.target_public_key):
-                # If we have messages that the guy who sent us the bloomfilter does not (for the target peer),
-                # then we'll send it back to them. We need to be a neighbor for it to actually receive it.
                 if payload not in bloomfilter:
-                    self.send_to_key(message.public_key, GossipRule.DEFAULT, message.target_public_key, payload)
+                    # We need to sign the payload
+                    self.send_to_key(message.public_key, GossipRule.DEFAULT, message.target_public_key,
+                                     self.my_peer.key.signature(payload) + payload)
 
     def _pack_gossip_message(self, rule, target_public_key, message):
         """
@@ -412,10 +408,7 @@ class GossipOverlay(Overlay):
         :param data: the raw message
         :return: the unpacked message
         """
-        message = self.serializer.unpack_to_serializables([GossipMessage, ], data[self.PREFIX_LENGTH:])[0]
-        message.rule = int(message.rule)
-
-        return message
+        return self.serializer.unpack_to_serializables([GossipMessage, ], data[self.PREFIX_LENGTH:])[0]
 
     def _vote_suppress(self, message):
         """
@@ -456,7 +449,7 @@ class GossipOverlay(Overlay):
             callback_id = reactor.callLater(VOTE_TIMEOUT, self._reset_vote, message.target_public_key)
 
             # Register the task, and assign it a bogus name
-            random_task_name = message.target_public_key + '_' + str(randint(0, 10000000))
+            random_task_name = self.generate_vote_name(message.target_public_key)
             self.register_task(random_task_name, callback_id)
 
             # Add the new ballot
@@ -493,6 +486,24 @@ class GossipOverlay(Overlay):
         except KeyError:
             # Should add logger message here
             pass
+
+    def generate_vote_name(self, pk):
+        """
+        Generate a unique name for the voting ballot, which can be used when registering the voting task
+
+        :param pk: the public key of the peer whose rule change is being voted
+        :return: a unique vote task name
+        """
+        prefix = 'RULE_VOTE_' + pk + '_'
+        suffix = ''.join(choice(hexdigits) for _ in range(60))
+        joined = prefix + suffix
+
+        while joined in self._vote_ballot_names:
+            suffix = ''.join(choice(hexdigits) for _ in range(60))
+            joined = prefix + suffix
+
+        self._vote_ballot_names.add(joined)
+        return joined
 
     def walk_to(self, address):
         raise NotImplementedError("GossipOverlay should not have a walker")
