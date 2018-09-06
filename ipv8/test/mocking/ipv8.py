@@ -48,9 +48,9 @@ class MockIPv8(object):
             self.endpoint.enable_community_statistics(self.overlay.get_prefix(), True)
 
     def unload(self):
-        self.endpoint.close()
+        self.overlay.unload()
         if self.trustchain:
             self.trustchain.unload()
         if self.dht:
             self.dht.unload()
-        self.overlay.unload()
+        self.endpoint.close()

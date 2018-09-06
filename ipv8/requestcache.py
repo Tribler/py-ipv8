@@ -74,7 +74,6 @@ class RequestCache(TaskManager):
 
         self._identifiers = dict()
         self.lock = Lock()
-        self._shutdown = False
 
     def add(self, cache):
         """
@@ -169,5 +168,4 @@ class RequestCache(TaskManager):
         Clear the cache, cancel all pending tasks and disallow new caches being added.
         """
         with self.lock:
-            self._shutdown = True
-            self.clear()
+            self.shutdown_task_manager()

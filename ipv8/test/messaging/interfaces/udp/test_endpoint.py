@@ -39,13 +39,13 @@ class TestUDPEndpoint(TestBase):
 
     @inlineCallbacks
     def tearDown(self):
-        super(TestUDPEndpoint, self).tearDown()
-
         # If an endpoint was used, close it
         if self.endpoint1:
             yield self.endpoint1.close()
         if self.endpoint2:
             yield self.endpoint2.close()
+
+        super(TestUDPEndpoint, self).tearDown()
 
     @inlineCallbacks
     def test_send_message(self):

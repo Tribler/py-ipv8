@@ -17,11 +17,11 @@ class TestTunnelCommunity(TestBase):
         self.public_endpoint = None
 
     def tearDown(self):
-        super(TestTunnelCommunity, self).tearDown()
-
         # If an endpoint was used, close it
         if self.public_endpoint:
             self.public_endpoint.close()
+
+        super(TestTunnelCommunity, self).tearDown()
 
     def create_node(self):
         # Initialize a TunnelCommunity without circuits or exit node functionality

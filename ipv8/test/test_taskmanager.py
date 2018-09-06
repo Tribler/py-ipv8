@@ -31,6 +31,7 @@ class TestTaskManager(TestBase):
 
     def tearDown(self):
         self.tm.shutdown_task_manager()
+        super(TestTaskManager, self).tearDown()
 
     @inlineCallbacks
     @untwisted_wrapper
@@ -130,7 +131,7 @@ class TestTaskManager(TestBase):
         self.assertEquals(42, self.counter)
         self.assertFalse(self.tm.is_pending_task_active("test"))
 
-    @twisted_wrapper
+    @inlineCallbacks
     @untwisted_wrapper
     def test_raise_on_duplicate_task_name(self):
         self.tm.register_task("test", reactor.callLater(10, lambda: None))
