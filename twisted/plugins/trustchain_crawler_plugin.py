@@ -9,6 +9,8 @@ import sys
 
 import logging
 
+import yappi
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 from twisted.application.service import MultiService, IServiceMaker
@@ -29,7 +31,8 @@ class Options(usage.Options):
     ]
     optFlags = [
         ["no-rest-api", "a", "Autonomous: disable the REST api"],
-        ["testnet", "t", "Join the testnet"]
+        ["testnet", "t", "Join the testnet"],
+        ["yappi", "y", "Run the Yappi profiler"]
     ]
 
 
@@ -143,6 +146,16 @@ class TrustchainCrawlerServiceMaker(object):
                     self.restapi.stop()
                 self.ipv8.stop()
 
+                if options['yappi']:
+                    yappi.stop()
+                    msg("Yappi has shutdown")
+                    yappi_stats = yappi.get_func_stats()
+                    yappi_stats.sort("tsub")
+                    out_file = 'yappi'
+                    if options["statedir"]:
+                        out_file = os.path.join(options["statedir"], out_file)
+                    yappi_stats.save(out_file, type='callgrind')
+
         signal.signal(signal.SIGINT, signal_handler)
         signal.signal(signal.SIGTERM, signal_handler)
 
@@ -151,6 +164,9 @@ class TrustchainCrawlerServiceMaker(object):
         if not options['no-rest-api']:
             self.restapi = RESTManager(self.ipv8)
             reactor.callLater(0.0, self.restapi.start, options["apiport"])
+
+        if options['yappi']:
+            yappi.start(builtins=True)
 
     def makeService(self, options):
         """
