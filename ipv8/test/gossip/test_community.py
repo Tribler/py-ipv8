@@ -132,7 +132,6 @@ class TestGossipOverlay(TestBase):
 
         :return: None
         """
-        # Remove the neighborhood of the first peer
         first_node_pk = self.nodes[0].my_peer.key.pub().key_to_bin()
         second_node_pk = self.nodes[1].my_peer.key.pub().key_to_bin()
 
@@ -189,6 +188,7 @@ class TestGossipOverlay(TestBase):
         target_public_key = self.nodes[0].overlay.my_peer.public_key.key_to_bin()
 
         self.nodes[1].overlay.set_rule(target_public_key, GossipRule.SUPPRESS)
+        # The third peer will avoid voting for SUPPRESSION
         self.nodes[2].overlay.set_rule(target_public_key, GossipRule.DEFAULT)
 
         # Run multiple steps to increase the chances of failure (which should still be 0)
@@ -214,6 +214,8 @@ class TestGossipOverlay(TestBase):
         """
         self.tgo_add_node_to_experiment(self.create_node(), self.nodes[0].overlay.prefix)
         target_public_key = self.nodes[0].overlay.my_peer.public_key.key_to_bin()
+
+        # Remove the neighborhood so the votes will be ignored
         self.remove_neighborhood(self.nodes[0])
 
         self.assertEqual(self.nodes[0].overlay.get_rule(target_public_key), GossipRule.DEFAULT,
@@ -227,8 +229,7 @@ class TestGossipOverlay(TestBase):
 
         yield self.deliver_messages()
 
-        self.assertEqual(self.nodes[0].overlay.get_rule(target_public_key), GossipRule.DEFAULT,
-                         "The rule was changed.")
+        self.assertEqual(self.nodes[0].overlay.get_rule(target_public_key), GossipRule.DEFAULT, "The rule was changed.")
 
     @twisted_wrapper
     def test_peer_rule_DEFAULT_persistence(self):
@@ -300,9 +301,10 @@ class TestGossipOverlay(TestBase):
                                                                                              "node's DB.")
 
     @twisted_wrapper
-    def test_peer_rule_DEFAULT_non_neighbor(self):
+    def test_peer_rule_DEFAULT_neighbor(self):
         """
-        Test the case in which
+        Test the case where a neighboring DEFAULT rule peer (as set in the other peer) sends a SPREAD message to the
+        other peer.
 
         :return: None
         """
@@ -342,7 +344,6 @@ class TestGossipOverlay(TestBase):
 
         :return: None
         """
-        # Remove the neighborhood of the first peer
         first_node_pk = self.nodes[0].my_peer.key.pub().key_to_bin()
 
         message_contents = "asd"
@@ -380,8 +381,8 @@ class TestGossipOverlay(TestBase):
 
         :return: None
         """
-        self.remove_neighborhood(self.nodes[0])
         # Remove the neighborhood of the first peer
+        self.remove_neighborhood(self.nodes[0])
         first_node_pk = self.nodes[0].my_peer.key.pub().key_to_bin()
         second_node_pk = self.nodes[1].my_peer.key.pub().key_to_bin()
 
@@ -407,12 +408,12 @@ class TestGossipOverlay(TestBase):
         self.force_take_step(1, 5)
         yield self.deliver_messages()
 
-        self.assertTrue(self.nodes[0].overlay.has_message(first_node_pk, message_contents), "No message should be "
-                                                                                            "stored in the DB.")
+        self.assertTrue(self.nodes[0].overlay.has_message(first_node_pk, message_contents), "The message was not "
+                                                                                            "stored in the DB")
         self.assertTrue(self.nodes[0].overlay.has_message(
-            first_node_pk, message_contents + MockGossipOverlayListenerAppending.APPENDED_LITERAL), "No message should "
-                                                                                                    "be stored in the "
-                                                                                                    "DB.")
+            first_node_pk, message_contents + MockGossipOverlayListenerAppending.APPENDED_LITERAL), "The message was "
+                                                                                                    "not stored in "
+                                                                                                    "the DB")
 
     @twisted_wrapper
     def test_message_rule_COLLECT_neighbor(self):
@@ -438,8 +439,8 @@ class TestGossipOverlay(TestBase):
         self.force_take_step(0)
         yield self.deliver_messages()
 
-        self.assertIn(message_contents, self.nodes[0].overlay.message_db[second_node_pk],
-                      "The message should have been added")
+        self.assertTrue(self.nodes[0].overlay.has_message(second_node_pk, message_contents), "The message should have "
+                                                                                             "been added")
 
     @twisted_wrapper
     def test_message_rule_COLLECT_non_neighbor(self):
@@ -472,7 +473,7 @@ class TestGossipOverlay(TestBase):
     @twisted_wrapper
     def test_message_rule_SUPPRESS_when_SUPPRESSED(self):
         """
-        Test the gossip message rule SUPPRESSED when one interacting peer is SUPPRESSED
+        Test the gossip message rule SUPPRESS when one interacting peer is SUPPRESSED
 
         :return: None
         """
@@ -543,7 +544,6 @@ class TestGossipOverlay(TestBase):
 
         :return: None
         """
-        # Remove the neighborhood of the first peer
         first_node_pk = self.nodes[0].my_peer.key.pub().key_to_bin()
         second_node_pk = self.nodes[1].my_peer.key.pub().key_to_bin()
 
@@ -578,7 +578,7 @@ class TestGossipOverlay(TestBase):
     @twisted_wrapper
     def test_message_rule_COLLECT_when_SUPPRESSED_target(self):
         """
-        Test the gossip message rule COLLECT when the receiving peer is SUPPRESSED in the source peer
+        Test the gossip message rule COLLECT when the receiving peer is SUPPRESSED in the requesting peer
 
         :return: None
         """
