@@ -37,20 +37,18 @@ class TaskManager(object):
         Register a task so it can be canceled at shutdown time or by name.
         """
         with self._task_lock:
-            if self.is_pending_task_active(name):
-                is_active, stopfn = self._get_isactive_stopper(task)
-                if is_active and stopfn:
-                    stopfn()
-                    self._pending_tasks.pop(name, None)
-                return self._pending_tasks[name]
-            assert isinstance(task, (Deferred, DelayedCall, LoopingCall)), (task, type(task) == type(Deferred))
-
             if self._shutdown:
                 self._logger.warning("Not adding task %s due to shutdown!", str(task))
                 is_active, stopfn = self._get_isactive_stopper(task)
                 if is_active and stopfn:
                     stopfn()
                 return task
+
+            if self.is_pending_task_active(name):
+                self.replace_task(name, task)
+                raise RuntimeError("Task already exists: '%s'" % name)
+
+            assert isinstance(task, (Deferred, DelayedCall, LoopingCall)), (task, type(task) == type(Deferred))
 
             if delay is not None:
                 if isinstance(task, Deferred):
