@@ -131,6 +131,13 @@ class TestTaskManager(TestBase):
         self.assertEquals(42, self.counter)
         self.assertFalse(self.tm.is_pending_task_active("test"))
 
+    @twisted_wrapper
+    @untwisted_wrapper
+    def test_raise_on_duplicate_task_name(self):
+        self.tm.register_task("test", reactor.callLater(10, lambda: None))
+        with self.assertRaises(RuntimeError):
+            self.tm.register_task("test", reactor.callLater(10, lambda: None))
+
     def count(self):
         self.counter += 1
 

@@ -44,11 +44,11 @@ class TaskManager(object):
                     stopfn()
                 return task
 
+            assert isinstance(task, (Deferred, DelayedCall, LoopingCall)), (task, isinstance(task, Deferred))
+
             if self.is_pending_task_active(name):
                 self.replace_task(name, task)
                 raise RuntimeError("Task already exists: '%s'" % name)
-
-            assert isinstance(task, (Deferred, DelayedCall, LoopingCall)), (task, type(task) == type(Deferred))
 
             if delay is not None:
                 if isinstance(task, Deferred):
