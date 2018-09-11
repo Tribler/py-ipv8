@@ -1,12 +1,18 @@
 import time
 
+from ...messaging.interfaces.endpoint import EndpointListener
 from ...deprecated.network_stats import NetworkStat
 
 
-class StatisticsEndpoint(object):
+class StatisticsEndpoint(EndpointListener):
     """
     This class is responsible for keeping stats regarding community.
     The stats are basically of the messages that the community can handle.
+
+    This endpoint acts both as wrapper for IPv8 Endpoint, and EndpointListener.
+    It inherits from EndpointListener directly and implements on_packet(self, packet)
+    to measure statistics about received data. But, all the functionality of Endpoint
+    itself is delegated to the existing IPv8 UDPEndpoint.
     """
 
     IDS_INTRODUCTION = [245, 246]
@@ -14,8 +20,10 @@ class StatisticsEndpoint(object):
     IDS_DEPRECATED = [235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 247, 248, 251, 252, 253, 254, 255]
 
     def __init__(self, ipv8, ipv8_endpoint):
+        EndpointListener.__init__(self, ipv8_endpoint)
         self.ipv8 = ipv8
         self.endpoint = ipv8_endpoint
+        self.endpoint.add_listener(self)
         self.statistics = {}
 
     def __getattribute__(self, item):
