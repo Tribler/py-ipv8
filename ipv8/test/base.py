@@ -1,5 +1,7 @@
 import os
+import random
 import shutil
+import string
 import sys
 import threading
 import time
@@ -13,7 +15,6 @@ from twisted.trial import unittest
 from .mocking.endpoint import internet
 from .mocking.ipv8 import MockIPv8
 from ..peer import Peer
-
 
 twisted.internet.base.DelayedCall.debug = True
 
@@ -31,6 +32,7 @@ class TestBase(unittest.TestCase):
         self.nodes = []
         self.overlay_class = object
         internet.clear()
+        self._tempdirs = []
 
     def initialize(self, overlay_class, node_count, *args, **kwargs):
         self.overlay_class = overlay_class
@@ -56,7 +58,8 @@ class TestBase(unittest.TestCase):
                 node.unload()
             internet.clear()
         finally:
-            shutil.rmtree("temp", ignore_errors=True)
+            while self._tempdirs:
+                shutil.rmtree(self._tempdirs.pop(), ignore_errors=True)
         super(TestBase, self).tearDown()
 
     @classmethod
@@ -144,6 +147,8 @@ class TestBase(unittest.TestCase):
         yield self.deliver_messages()
 
     def temporary_directory(self):
-        d = os.path.join("temp", self.__class__.__name__ + str(int(time.time())))
+        rndstr = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(10))
+        d = os.path.abspath(self.__class__.__name__ + rndstr)
+        self._tempdirs.append(d)
         os.makedirs(d)
         return d
