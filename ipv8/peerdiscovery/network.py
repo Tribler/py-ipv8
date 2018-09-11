@@ -4,8 +4,6 @@ from threading import RLock
 from socket import inet_aton, inet_ntoa
 from struct import pack, unpack
 
-from networkx import draw, Graph, circular_layout
-
 
 class Network(object):
 
@@ -14,8 +12,6 @@ class Network(object):
         self._all_addresses = {}
         # All verified Peer objects (Peer.address must be in _all_addresses)
         self.verified_peers = []
-        # The networkx graph containing the addresses and peers
-        self.graph = Graph()
         self.graph_lock = RLock()
         # Peers we should not add to the network
         # For example, bootstrap peers
@@ -40,15 +36,11 @@ class Network(object):
             return
 
         self.graph_lock.acquire()
-        if (address not in self._all_addresses) or (not self.graph.has_node(self._all_addresses[address])):
+        if ((address not in self._all_addresses) or
+                (self._all_addresses[address] not in [b64encode(p.mid) for p in self.verified_peers])):
             # This is a new address, or our previous parent has been removed
             self._all_addresses[address] = b64encode(peer.mid)
 
-        if not self.get_verified_by_address(address) and not self.graph.has_edge(self._all_addresses[address], address):
-            # Don't remap already verified peers and don't add an edge which already exists.
-            if address in self.graph.node and address not in self.graph.adj:
-                del self.graph.node[address]
-            self.graph.add_edge(b64encode(peer.mid), address, color='orange')
         self.graph_lock.release()
 
         self.add_verified_peer(peer)
@@ -82,20 +74,14 @@ class Network(object):
                 known.address = peer.address
                 self.graph_lock.release()
                 return
-        if peer.address in self._all_addresses and self.graph.has_node(peer.address):
-            introducer = self._all_addresses[peer.address]
-            self.graph.remove_node(peer.address)
-            self.graph.add_node(b64encode(peer.mid))
-            self.graph.add_edge(introducer, b64encode(peer.mid), color='green')
+        if peer.address in self._all_addresses:
             if peer not in self.verified_peers:
                 # This should always happen, unless someone edits the verified_peers dict directly.
                 # This would be a programmer 'error', but we will allow it.
                 self.verified_peers.append(peer)
-        elif (peer.address not in self.blacklist):
+        elif peer.address not in self.blacklist:
             if peer.address not in self._all_addresses:
                 self._all_addresses[peer.address] = ''
-            if not self.graph.has_node(b64encode(peer.mid)):
-                self.graph.add_node(b64encode(peer.mid))
             if peer not in self.verified_peers:
                 self.verified_peers.append(peer)
         self.graph_lock.release()
@@ -209,16 +195,11 @@ class Network(object):
         for i in range(len(self.verified_peers)):
             if self.verified_peers[i].address == address:
                 to_remove.insert(0, i)
-                graph_node = b64encode(self.verified_peers[i].mid)
-                if self.graph.has_node(graph_node):
-                    self.graph.remove_node(graph_node)
                 key_bin = self.verified_peers[i].public_key.key_to_bin()
                 if key_bin in self.services_per_peer:
                     del self.services_per_peer[key_bin]
         for index in to_remove:
             self.verified_peers.pop(index)
-        if self.graph.has_node(address):
-            self.graph.remove_node(address)
         self.graph_lock.release()
 
     def remove_peer(self, peer):
@@ -232,11 +213,6 @@ class Network(object):
             del self._all_addresses[peer.address]
         if peer in self.verified_peers:
             self.verified_peers.remove(peer)
-        graph_node = b64encode(peer.mid)
-        if self.graph.has_node(graph_node):
-            self.graph.remove_node(graph_node)
-        if self.graph.has_node(peer.address):
-            self.graph.remove_node(peer.address)
         key_bin = peer.public_key.key_to_bin()
         if key_bin in self.services_per_peer:
             del self.services_per_peer[key_bin]
@@ -272,15 +248,3 @@ class Network(object):
                 ip = inet_ntoa(sub[0:4])
                 port = unpack(">H", sub[4:])[0]
                 self._all_addresses[(ip, port)] = ''
-
-    def draw(self, filename="network_view.png"):
-        """
-        Draw this graph to a file, for debugging.
-        """
-        import matplotlib.pyplot as plt
-        plt.clf()
-        pos = circular_layout(self.graph)
-        draw(self.graph, pos, with_labels=False, arrows=False, hold=False,
-             edge_color=[self.graph[u][v]['color'] for u,v in self.graph.edges()],
-             node_color=['orange' if v in self._all_addresses else 'green' for v in self.graph.nodes()])
-        plt.savefig(filename)
