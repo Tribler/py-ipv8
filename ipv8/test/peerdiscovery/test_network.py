@@ -34,7 +34,6 @@ class TestNetwork(unittest.TestCase):
         self.assertIn(self.peers[0], self.network.verified_peers)
         self.assertNotIn(self.peers[1], self.network.verified_peers)
         self.assertIn(self.peers[1].address, self.network.get_introductions_from(self.peers[0]))
-        self.assertTrue(self.network.graph.has_edge(b64encode(self.peers[0].mid), self.peers[1].address))
 
     def test_discover_address_duplicate(self):
         """
@@ -48,7 +47,6 @@ class TestNetwork(unittest.TestCase):
         self.assertIn(self.peers[0], self.network.verified_peers)
         self.assertNotIn(self.peers[1], self.network.verified_peers)
         self.assertIn(self.peers[1].address, self.network.get_introductions_from(self.peers[0]))
-        self.assertTrue(self.network.graph.has_edge(b64encode(self.peers[0].mid), self.peers[1].address))
 
     def test_discover_address_known(self):
         """
@@ -64,7 +62,6 @@ class TestNetwork(unittest.TestCase):
         self.assertNotIn(self.peers[1], self.network.verified_peers)
         self.assertIn(self.peers[2], self.network.verified_peers)
         self.assertIn(self.peers[1].address, self.network.get_introductions_from(self.peers[0]))
-        self.assertTrue(self.network.graph.has_edge(b64encode(self.peers[0].mid), self.peers[1].address))
 
     def test_discover_address_known_parent_deceased(self):
         """
@@ -79,7 +76,6 @@ class TestNetwork(unittest.TestCase):
         self.assertIn(self.peers[2], self.network.verified_peers)
         self.assertNotIn(self.peers[1], self.network.verified_peers)
         self.assertIn(self.peers[1].address, self.network.get_introductions_from(self.peers[2]))
-        self.assertTrue(self.network.graph.has_edge(b64encode(self.peers[2].mid), self.peers[1].address))
 
     def test_discover_address_blacklist(self):
         """
@@ -96,7 +92,6 @@ class TestNetwork(unittest.TestCase):
         self.assertNotIn(self.peers[1], self.network.verified_peers)
         self.assertNotIn(self.peers[2], self.network.verified_peers)
         self.assertIn(self.peers[1].address, self.network.get_introductions_from(self.peers[0]))
-        self.assertTrue(self.network.graph.has_edge(b64encode(self.peers[0].mid), self.peers[1].address))
 
     def test_discover_address_multiple(self):
         """
@@ -112,7 +107,6 @@ class TestNetwork(unittest.TestCase):
             self.assertIn(self.peers[other].address, self.network.get_walkable_addresses())
             self.assertNotIn(self.peers[other], self.network.verified_peers)
             self.assertIn(self.peers[other].address, self.network.get_introductions_from(self.peers[0]))
-            self.assertTrue(self.network.graph.has_edge(b64encode(self.peers[0].mid), self.peers[other].address))
 
     def test_discover_services(self):
         """
@@ -176,7 +170,6 @@ class TestNetwork(unittest.TestCase):
         self.assertNotIn(self.peers[0].address, self.network.get_walkable_addresses())
         self.assertIn(self.peers[0], self.network.verified_peers)
         self.assertListEqual([], self.network.get_introductions_from(self.peers[0]))
-        self.assertTrue(self.network.graph.has_node(b64encode(self.peers[0].mid)))
 
     def test_add_verified_peer_blacklist(self):
         """
@@ -187,7 +180,6 @@ class TestNetwork(unittest.TestCase):
 
         self.assertNotIn(self.peers[0].address, self.network.get_walkable_addresses())
         self.assertNotIn(self.peers[0], self.network.verified_peers)
-        self.assertFalse(self.network.graph.has_node(b64encode(self.peers[0].mid)))
 
     def test_add_verified_peer_duplicate(self):
         """
@@ -200,7 +192,6 @@ class TestNetwork(unittest.TestCase):
         self.assertNotIn(self.peers[0].address, self.network.get_walkable_addresses())
         self.assertIn(self.peers[0], self.network.verified_peers)
         self.assertListEqual([], self.network.get_introductions_from(self.peers[0]))
-        self.assertTrue(self.network.graph.has_node(b64encode(self.peers[0].mid)))
 
     def test_add_verified_peer_promote(self):
         """
@@ -212,8 +203,6 @@ class TestNetwork(unittest.TestCase):
         self.assertNotIn(self.peers[0].address, self.network.get_walkable_addresses())
         self.assertIn(self.peers[0], self.network.verified_peers)
         self.assertListEqual([], self.network.get_introductions_from(self.peers[0]))
-        self.assertTrue(self.network.graph.has_node(b64encode(self.peers[0].mid)))
-        self.assertFalse(self.network.graph.has_node(self.peers[0].address))
 
     def test_get_verified_by_address(self):
         """
@@ -243,7 +232,6 @@ class TestNetwork(unittest.TestCase):
         self.assertNotIn(self.peers[0], self.network.verified_peers)
         self.assertNotIn(self.peers[0].address, self.network.get_walkable_addresses())
         self.assertEqual(set(), self.network.get_services_for_peer(self.peers[0]))
-        self.assertFalse(self.network.graph.has_node(b64encode(self.peers[0].mid)))
 
     def test_remove_by_address_unverified(self):
         """
@@ -253,7 +241,6 @@ class TestNetwork(unittest.TestCase):
         self.network.remove_by_address(self.peers[1].address)
 
         self.assertNotIn(self.peers[1].address, self.network.get_walkable_addresses())
-        self.assertFalse(self.network.graph.has_node(self.peers[1].address))
 
     def test_remove_by_address_unknown(self):
         """
@@ -278,7 +265,6 @@ class TestNetwork(unittest.TestCase):
 
         self.assertNotIn(self.peers[0], self.network.verified_peers)
         self.assertNotIn(self.peers[0].address, self.network.get_walkable_addresses())
-        self.assertFalse(self.network.graph.has_node(b64encode(self.peers[0].mid)))
 
     def test_remove_peer(self):
         """
@@ -291,7 +277,6 @@ class TestNetwork(unittest.TestCase):
         self.assertNotIn(self.peers[0], self.network.verified_peers)
         self.assertNotIn(self.peers[0].address, self.network.get_walkable_addresses())
         self.assertEqual(set(), self.network.get_services_for_peer(self.peers[0]))
-        self.assertFalse(self.network.graph.has_node(b64encode(self.peers[0].mid)))
 
     def test_remove_peer_external(self):
         """
@@ -301,8 +286,6 @@ class TestNetwork(unittest.TestCase):
         self.network.remove_peer(self.peers[0])
 
         self.assertNotIn(self.peers[0].address, self.network.get_walkable_addresses())
-        self.assertFalse(self.network.graph.has_node(b64encode(self.peers[0].mid)))
-        self.assertFalse(self.network.graph.has_node(self.peers[0].address))
 
     def test_remove_peer_unknown(self):
         """
