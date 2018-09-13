@@ -251,7 +251,7 @@ class TestDHTCommunityXL(TestBase):
     def get_closest_nodes(self, node_id, max_nodes=8):
         return sorted(self.nodes, key=lambda n: distance(n.overlay.my_node_id, node_id))[:max_nodes]
 
-    @twisted_wrapper
+    @twisted_wrapper(2)
     def test_full_protocol(self):
         # Fill routing tables
         yield self.introduce_nodes()
