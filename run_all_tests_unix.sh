@@ -3,22 +3,27 @@
 # 1. Read the classes which should be tested.
 test_files="$(grep ^[^#] test_classes_list.txt)"
 
+
 # 2. Figure out if the user has nosetests installed.
 #    Change the test command and parameters accordingly.
 tty -s && tput bold
+
+# 2.1 Check for python interpreter version
+if [ -x "$(command -v python2)" ]; then
+    interpreter="python2"
+else
+    echo "No python2 command found! Will use the default python command."
+    interpreter="python"
+fi
+
 echo -n "Starting IPv8 testsuite: "
 if nosetests --version >>/dev/null 2>&1; then
     echo "using test runner 'nosetests'!"
-    # Use nosetests2 if available and if not, try version possibly incompatible with python2
-    if [ -x "$(command -v nosetests2)" ]; then
-        test_command="nosetests2"
-    else
-        test_command="nosetests"
-    fi
+    test_command="$interpreter run_nose.py"
     test_command+=" -s -x -v"
 else
-    echo "using test runner 'python2 -m unittest'!"
-    test_command="python2 -m unittest --verbose"
+    echo "using test runner '$interpreter -m unittest'!"
+    test_command="$interpreter -m unittest --verbose"
     test_files="${test_files//\//.}"
     test_files="${test_files//.py:/.}"
 fi
