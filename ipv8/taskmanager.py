@@ -68,6 +68,12 @@ class TaskManager(object):
             self._pending_tasks[name] = task
             return task
 
+    def register_anonymous_task(self, basename, task, delay=None, value=None, interval=None):
+        """
+        Wrapper for register_task to derive a unique name from the basename.
+        """
+        return self.register_task(basename + str(id(task)), task, delay, value, interval)
+
     def cancel_pending_task(self, name):
         """
         Cancels the named task
