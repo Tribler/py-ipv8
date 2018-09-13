@@ -139,6 +139,27 @@ class TestTaskManager(TestBase):
         with self.assertRaises(RuntimeError):
             self.tm.register_task("test", reactor.callLater(10, lambda: None))
 
+    @twisted_wrapper
+    @untwisted_wrapper
+    def test_duplicate_anon_task_name(self):
+        self.tm.register_anonymous_task("test", deferLater(reactor, 10, lambda: None)).addErrback(lambda _: None)
+        self.tm.register_anonymous_task("test", deferLater(reactor, 10, lambda: None)).addErrback(lambda _: None)
+
+        deferred_list = self.tm.wait_for_deferred_tasks()
+        self.assertEqual(2, len(deferred_list.resultList))
+
+        self.tm.cancel_all_pending_tasks()
+
+    @twisted_wrapper
+    @untwisted_wrapper
+    def test_duplicate_anon_task_deferred(self):
+        task = deferLater(reactor, 10, lambda: None)
+        self.tm.register_anonymous_task("test", task).addErrback(lambda _: None)
+        with self.assertRaises(RuntimeError):
+            self.tm.register_anonymous_task("test", task).addErrback(lambda _: None)
+
+        self.tm.cancel_all_pending_tasks()
+
     def count(self):
         self.counter += 1
 
