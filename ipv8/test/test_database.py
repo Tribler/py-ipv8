@@ -15,6 +15,7 @@ class MockDatabase(Database):
 class TestDatabase(unittest.TestCase):
 
     def setUp(self):
+        super(TestDatabase, self).setUp()
         self.database = MockDatabase(u":memory:")
 
     def test_unloaded(self):

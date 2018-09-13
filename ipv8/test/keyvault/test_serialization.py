@@ -11,6 +11,7 @@ class TestSerialization(unittest.TestCase):
     """
 
     def setUp(self):
+        super(TestSerialization, self).setUp()
         self.ec = ECCrypto()
         self.key = self.ec.generate_key(u"very-low")
         self.key_nacl = self.ec.generate_key(u"curve25519")

@@ -39,10 +39,9 @@ class TestHiddenServices(TestBase):
         self.received_packets = []
 
     def tearDown(self):
-        super(TestHiddenServices, self).tearDown()
-
         for node in self.private_nodes:
             node.unload()
+        super(TestHiddenServices, self).tearDown()
 
     def get_e2e_circuit_path(self):
         """

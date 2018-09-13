@@ -12,6 +12,7 @@ class TestECCrypto(unittest.TestCase):
     libnacl_key = ECCrypto().generate_key(u"curve25519")
 
     def setUp(self):
+        super(TestECCrypto, self).setUp()
         self.ecc = ECCrypto()
 
     def test_available(self):

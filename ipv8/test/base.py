@@ -52,12 +52,12 @@ class TestBase(unittest.TestCase):
 
     def tearDown(self):
         try:
-            super(TestBase, self).tearDown()
             for node in self.nodes:
                 node.unload()
             internet.clear()
         finally:
             shutil.rmtree("temp", ignore_errors=True)
+        super(TestBase, self).tearDown()
 
     @classmethod
     def setUpClass(cls):

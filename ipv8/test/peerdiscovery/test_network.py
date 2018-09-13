@@ -18,6 +18,7 @@ class TestNetwork(unittest.TestCase):
     peers = [_generate_peer() for _ in range(4)]
 
     def setUp(self):
+        super(TestNetwork, self).setUp()
         self.network = Network()
 
     def test_discover_address(self):

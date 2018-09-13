@@ -21,10 +21,10 @@ class TestDiscoveryCommunity(TestBase):
         self.overlays = [MockCommunity() for _ in range(node_count)]
 
     def tearDown(self):
-        super(TestDiscoveryCommunity, self).tearDown()
         self.tracker.unload()
         for overlay in self.overlays:
             overlay.unload()
+        super(TestDiscoveryCommunity, self).tearDown()
 
     @twisted_wrapper
     def test_deprecated_introduction(self):

@@ -9,6 +9,7 @@ class TestSignatures(unittest.TestCase):
     """
 
     def setUp(self):
+        super(TestSignatures, self).setUp()
         self.ec = ECCrypto()
         self.data = "".join([chr(i) for i in range(256)])
 
