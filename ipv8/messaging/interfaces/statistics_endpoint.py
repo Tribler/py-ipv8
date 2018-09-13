@@ -57,7 +57,7 @@ class StatisticsEndpoint(EndpointListener):
             return
 
         message_id = ord(data[22])
-        self.add_received_stat(prefix, message_id, len(packet))
+        self.add_received_stat(prefix, message_id, len(data))
 
     # Statistics methods
     def add_sent_stat(self, prefix, identifier, num_bytes, timestamp=None):
