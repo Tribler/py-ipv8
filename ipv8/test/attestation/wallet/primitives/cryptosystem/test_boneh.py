@@ -65,17 +65,17 @@ class TestBoneh(unittest.TestCase):
         """
         Check if the same value is encoded with a random masking.
         """
-        PK = TestBoneh.private_key.public_key()
+        pk = TestBoneh.private_key.public_key()
 
-        self.assertNotEqual(encode(PK, 0), encode(PK, 0))
+        self.assertNotEqual(encode(pk, 0), encode(pk, 0))
 
     def test_decoding_same(self):
         """
         Check if values are encoded with a random masking.
         """
-        PK = TestBoneh.private_key.public_key()
-        a = encode(PK, 0)
-        b = encode(PK, 0)
+        pk = TestBoneh.private_key.public_key()
+        a = encode(pk, 0)
+        b = encode(pk, 0)
 
         self.assertEqual(decode(TestBoneh.private_key, [0], a), decode(TestBoneh.private_key, [0], b))
 
@@ -83,9 +83,9 @@ class TestBoneh(unittest.TestCase):
         """
         Check if values can still be decrypted after a homomorphic add.
         """
-        PK = TestBoneh.private_key.public_key()
-        a = encode(PK, 1)
-        b = encode(PK, 3)
+        pk = TestBoneh.private_key.public_key()
+        a = encode(pk, 1)
+        b = encode(pk, 3)
 
         self.assertEqual(decode(TestBoneh.private_key, [4], a*b), 4)
 
@@ -93,19 +93,19 @@ class TestBoneh(unittest.TestCase):
         """
         Check if decode return None if the message is outside of the allowed space.
         """
-        PK = TestBoneh.private_key.public_key()
+        pk = TestBoneh.private_key.public_key()
 
-        self.assertIsNone(decode(TestBoneh.private_key, [0], encode(PK, 1)))
+        self.assertIsNone(decode(TestBoneh.private_key, [0], encode(pk, 1)))
 
     def test_generate_keypair(self):
         """
         Check if we can create a new keypair.
         """
-        PK, SK = generate_keypair(32)
+        pk, sk = generate_keypair(32)
 
-        self.assertEqual(PK.p, SK.p)
-        self.assertEqual(PK.g, SK.g)
-        self.assertEqual(PK.h, SK.h)
-        self.assertEqual(decode(SK, [0, 1, 2], encode(PK, 0)), 0)
-        self.assertEqual(decode(SK, [0, 1, 2], encode(PK, 1)), 1)
-        self.assertEqual(decode(SK, [0, 1, 2], encode(PK, 2)), 2)
+        self.assertEqual(pk.p, sk.p)
+        self.assertEqual(pk.g, sk.g)
+        self.assertEqual(pk.h, sk.h)
+        self.assertEqual(decode(sk, [0, 1, 2], encode(pk, 0)), 0)
+        self.assertEqual(decode(sk, [0, 1, 2], encode(pk, 1)), 1)
+        self.assertEqual(decode(sk, [0, 1, 2], encode(pk, 2)), 2)

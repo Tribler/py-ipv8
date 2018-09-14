@@ -1,3 +1,5 @@
+from __future__ import division
+
 from cryptography.hazmat.primitives.asymmetric.rsa import _modinv
 
 
@@ -102,7 +104,7 @@ class FP2Value(object):
              self.bC * other.bC - self.aC * other.cC + self.cC * other.cC
         return FP2Value(self.mod, a=a, b=b, aC=aC, bC=bC)
 
-    def __div__(self, other):
+    def __floordiv__(self, other):
         """
         Divide this value by another value and return a new FP2Value.
         """
@@ -123,7 +125,7 @@ class FP2Value(object):
         """
         if not isinstance(other, FP2Value):
             return False
-        divd = (self/other).normalize()
+        divd = (self//other).normalize()
         return all([divd.a == divd.aC, divd.b == divd.bC, divd.c == divd.cC])
 
     def intpow(self, power):
@@ -140,7 +142,7 @@ class FP2Value(object):
             if (n % 2) == 1:
                 R *= U
             U *= U
-            n = n/2
+            n = n//2
         return R
 
     def normalize(self):
@@ -178,6 +180,6 @@ class FP2Value(object):
         Return the '1^-1' and 'x^-1' coefficients modular inverse.
         """
         iq = FP2Value(self.mod, self.aC * self.aC - self.aC * self.bC + self.bC * self.bC)
-        a = FP2Value(self.mod, self.aC - self.bC) / iq
-        b = FP2Value(self.mod, -self.bC) / iq
+        a = FP2Value(self.mod, self.aC - self.bC) // iq
+        b = FP2Value(self.mod, -self.bC) // iq
         return FP2Value(self.mod, a.normalize().a, b.normalize().a)

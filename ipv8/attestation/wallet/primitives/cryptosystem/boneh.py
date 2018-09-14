@@ -1,6 +1,8 @@
 """
 Implementation of the Boneh 2-DNF scheme ("Evaluating 2-DNF Formulas on Ciphertexts" by Boneh et al.).
 """
+from __future__ import division
+
 from random import randint
 
 from .cryptography_wrapper import generate_safe_prime, is_prime
@@ -82,7 +84,7 @@ def get_good_wp(n, p=None):
         g1x, g1y = get_random_base(n)
         wp = bilinear_group(n, p, g1x, g1y, g1x, g1y)
         if not is_good_wp(n, wp):
-            wp = wp.intpow((p+1)/n)
+            wp = wp.intpow((p+1)//n)
     return p, wp
 
 

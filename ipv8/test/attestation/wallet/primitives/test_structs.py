@@ -198,7 +198,7 @@ class TestStructs(unittest.TestCase):
         a = FP2Value(p, 64168498535685461646, 6846513216165165)
         b = FP2Value(p, 32184987216545974, 987984116541354132132165464)
         c = FP2Value(p, 13265, 848464848609849840645102)
-        bitpair  = BitPairAttestation(a, b, c)
+        bitpair = BitPairAttestation(a, b, c)
         key = BonehPublicKey(p, g, h)
         bitpairs = [bitpair]
         attest = Attestation(key, bitpairs)
@@ -224,7 +224,7 @@ class TestStructs(unittest.TestCase):
         a = FP2Value(p, 64168498535685461646, 6846513216165165)
         b = FP2Value(p, 32184987216545974, 987984116541354132132165464)
         c = FP2Value(p, 13265, 848464848609849840645102)
-        bitpair  = BitPairAttestation(a, b, c)
+        bitpair = BitPairAttestation(a, b, c)
         key = BonehPublicKey(p, g, h)
         bitpairs = [bitpair] * 20
         attest = Attestation(key, bitpairs)

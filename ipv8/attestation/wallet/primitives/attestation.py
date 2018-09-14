@@ -27,7 +27,7 @@ def attest(PK, value, bitspace):
     while len(A) < bitspace:
         A.insert(0, 0)
     R = generate_modular_additive_inverse(PK.p, bitspace)
-    t_out_public = map(lambda a, b: encode(PK, a + b), A, R)
+    t_out_public = [encode(PK, a + b) for (a, b) in zip(A, R)]
     t_out_private = []
     for i in range(0, len(A) - 1, 2):
         t_out_private.append((i, encode(PK, PK.p - ((R[i] + R[i + 1]) % (PK.p + 1)) + 1)))
@@ -56,7 +56,7 @@ def sha512_as_int(value):
     Convert a SHA512 hash to an integer.
     """
     out = 0
-    for c in sha512(str(value)).digest():
+    for c in sha512(value.encode()).digest():
         out <<= 8
         out |= ord(c)
     return out
@@ -81,7 +81,7 @@ def sha256_as_int(value):
     Convert a SHA256 hash to an integer.
     """
     out = 0
-    for c in sha256(str(value)).digest():
+    for c in sha256(value.encode()).digest():
         out <<= 8
         out |= ord(c)
     return out
@@ -106,7 +106,7 @@ def sha256_4_as_int(value):
     Convert a SHA256 4 byte hash to an integer.
     """
     out = 0
-    for c in sha256(str(value)).digest()[:4]:
+    for c in sha256(value.encode()).digest()[:4]:
         out <<= 8
         out |= ord(c)
     return out
@@ -195,7 +195,7 @@ def create_challenge_response(SK, challenge):
     """
     Respond to a bitpair challenge.
     """
-    decoded = decode(SK, xrange(3), challenge)
+    decoded = decode(SK, range(3), challenge)
     return 3 if decoded is None else decoded
 
 
