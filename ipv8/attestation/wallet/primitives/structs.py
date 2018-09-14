@@ -156,7 +156,7 @@ class Attestation(object):
         self.PK = PK
 
     def serialize(self):
-        out = ""
+        out = b''
         out += self.PK.serialize()
         for bitpair in self.bitpairs:
             out += bitpair.serialize()

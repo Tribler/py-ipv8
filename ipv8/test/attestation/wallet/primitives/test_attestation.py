@@ -37,10 +37,10 @@ class TestAttestation(unittest.TestCase):
         """
         Check if a new relativity map is empty.
         """
-        map = create_empty_relativity_map()
+        relativity_map = create_empty_relativity_map()
 
-        self.assertSetEqual({0, 1, 2, 3}, set(map.keys()))
-        self.assertEqual(0, sum(map.values()))
+        self.assertSetEqual({0, 1, 2, 3}, set(relativity_map.keys()))
+        self.assertEqual(0, sum(relativity_map.values()))
 
     def test_binary_relativity(self):
         """
@@ -86,12 +86,12 @@ class TestAttestation(unittest.TestCase):
         """
         Check if challenges can be created and are properly responded to.
         """
-        PK = self.private_key.public_key()
+        pk = self.private_key.public_key()
         challenges = [
-            create_challenge(PK, attest(PK, 0, 2).bitpairs[0]),
-            create_challenge(PK, attest(PK, 1, 2).bitpairs[0]),
-            create_challenge(PK, attest(PK, 2, 2).bitpairs[0]),
-            create_challenge(PK, attest(PK, 3, 2).bitpairs[0])
+            create_challenge(pk, attest(pk, 0, 2).bitpairs[0]),
+            create_challenge(pk, attest(pk, 1, 2).bitpairs[0]),
+            create_challenge(pk, attest(pk, 2, 2).bitpairs[0]),
+            create_challenge(pk, attest(pk, 3, 2).bitpairs[0])
         ]
 
         self.assertListEqual([0, 1, 1, 2], [create_challenge_response(self.private_key, c) for c in challenges])

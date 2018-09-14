@@ -1,3 +1,5 @@
+from __future__ import division
+
 import unittest
 
 from ......attestation.wallet.primitives.cryptosystem.value import FP2Value
@@ -167,7 +169,7 @@ class TestFP2Value(unittest.TestCase):
         a = FP2Value(11, 9)
         b = FP2Value(11, 3)
 
-        self.assertEqual(a / b, FP2Value(11, 3))
+        self.assertEqual(a // b, FP2Value(11, 3))
 
     def test_div_unary_mod(self):
         """
@@ -176,7 +178,7 @@ class TestFP2Value(unittest.TestCase):
         a = FP2Value(11, 4)
         b = FP2Value(11, 3)
 
-        self.assertEqual((a / b).normalize(), FP2Value(11, 5))
+        self.assertEqual((a // b).normalize(), FP2Value(11, 5))
 
     def test_div_x(self):
         """
@@ -185,7 +187,7 @@ class TestFP2Value(unittest.TestCase):
         a = FP2Value(11, b=9)
         b = FP2Value(11, b=3)
 
-        self.assertEqual((a / b).normalize(), FP2Value(11, 3))
+        self.assertEqual((a // b).normalize(), FP2Value(11, 3))
 
     def test_div_x_mod(self):
         """
@@ -194,7 +196,7 @@ class TestFP2Value(unittest.TestCase):
         a = FP2Value(11, b=4)
         b = FP2Value(11, b=3)
 
-        self.assertEqual((a / b).normalize(), FP2Value(11, 5))
+        self.assertEqual((a // b).normalize(), FP2Value(11, 5))
 
     def test_div_combined_mod(self):
         """
@@ -203,7 +205,7 @@ class TestFP2Value(unittest.TestCase):
         a = FP2Value(11, 1, 2, 1)
         b = FP2Value(11, 1, 1)
 
-        self.assertEqual((a / b).normalize(), FP2Value(11, 1, 1))
+        self.assertEqual((a // b).normalize(), FP2Value(11, 1, 1))
 
     def test_intpow_unary_p2(self):
         """

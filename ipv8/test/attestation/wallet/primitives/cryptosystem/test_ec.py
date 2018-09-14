@@ -52,7 +52,7 @@ class TestPairing(unittest.TestCase):
         """
         Check if EC sum of the point of infinity with another point equals the other point.
         """
-        P = (FP2Value(11, 1), FP2Value(11, 2))
+        p = (FP2Value(11, 1), FP2Value(11, 2))
 
-        self.assertEqual(esum(11, P, "O"), P)
-        self.assertEqual(esum(11, "O", P), P)
+        self.assertEqual(esum(11, p, "O"), p)
+        self.assertEqual(esum(11, "O", p), p)
