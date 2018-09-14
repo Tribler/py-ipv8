@@ -1,6 +1,6 @@
 from __future__ import division
 
-import unittest
+from twisted.trial import unittest
 
 from ......attestation.wallet.primitives.cryptosystem.value import FP2Value
 

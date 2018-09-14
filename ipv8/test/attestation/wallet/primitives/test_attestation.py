@@ -1,4 +1,4 @@
-import unittest
+from twisted.trial import unittest
 
 from .....attestation.wallet.primitives.structs import BonehPrivateKey
 from .....attestation.wallet.primitives.attestation import *

@@ -1,4 +1,4 @@
-import unittest
+from twisted.trial import unittest
 
 from ....messaging.deprecated.encoding import decode, encode
 

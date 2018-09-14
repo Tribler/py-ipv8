@@ -1,3 +1,4 @@
+from twisted.internet.defer import inlineCallbacks
 from ....attestation.trustchain.block import TrustChainBlock
 from ....attestation.trustchain.caches import CrawlRequestCache
 from ....attestation.trustchain.community import TrustChainCommunity, UNKNOWN_SEQ
@@ -6,7 +7,6 @@ from ...attestation.trustchain.test_block import TestBlock
 from ....messaging.deprecated.encoding import decode
 from ...base import TestBase
 from ...mocking.ipv8 import MockIPv8
-from ...util import twisted_wrapper
 
 
 class DummyBlock(TrustChainBlock):
@@ -42,7 +42,7 @@ class TestTrustChainCommunity(TestBase):
     def create_node(self):
         return MockIPv8(u"curve25519", TrustChainCommunity, working_directory=u":memory:")
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_sign_half_block(self):
         """
         Check if a block signed by one party is stored in the databases of both parties.
@@ -62,7 +62,7 @@ class TestTrustChainCommunity(TestBase):
             self.assertIsNotNone(self.nodes[node_nr].overlay.persistence.get(my_pubkey, 1))
             self.assertEqual(self.nodes[node_nr].overlay.persistence.get(my_pubkey, 1).link_sequence_number, UNKNOWN_SEQ)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_sign_full_block(self):
         """
         Check if a double signed transaction is stored in the databases of both parties.
@@ -80,7 +80,7 @@ class TestTrustChainCommunity(TestBase):
             self.assertIsNotNone(self.nodes[node_nr].overlay.persistence.get(his_pubkey, 1))
             self.assertEqual(self.nodes[node_nr].overlay.persistence.get(his_pubkey, 1).link_sequence_number, 1)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_get_linked(self):
         """
         Check if a both halves of a fully signed block link to each other.
@@ -100,7 +100,7 @@ class TestTrustChainCommunity(TestBase):
             self.assertEqual(self.nodes[node_nr].overlay.persistence.get_linked(my_block), his_block)
             self.assertEqual(self.nodes[node_nr].overlay.persistence.get_linked(his_block), my_block)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_crawl(self):
         """
         Check if a block can be crawled.
@@ -132,7 +132,7 @@ class TestTrustChainCommunity(TestBase):
         self.assertIsNotNone(self.nodes[1].overlay.persistence.get(my_pubkey, 1))
         self.assertEqual(self.nodes[1].overlay.persistence.get(my_pubkey, 1).link_sequence_number, UNKNOWN_SEQ)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_crawl_default(self):
         """
         Check if the default crawl strategy produces blocks.
@@ -160,7 +160,7 @@ class TestTrustChainCommunity(TestBase):
         self.assertIsNotNone(self.nodes[1].overlay.persistence.get(my_pubkey, 1))
         self.assertEqual(self.nodes[1].overlay.persistence.get(my_pubkey, 1).link_sequence_number, UNKNOWN_SEQ)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_crawl_no_blocks(self):
         """
         Check if blocks don't magically appear.
@@ -172,7 +172,7 @@ class TestTrustChainCommunity(TestBase):
         response = yield self.nodes[1].overlay.send_crawl_request(self.nodes[0].my_peer, my_pubkey, 1)
         self.assertFalse(response)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_crawl_negative_index(self):
         """
         Check if a block can be crawled by negative range.
@@ -197,7 +197,7 @@ class TestTrustChainCommunity(TestBase):
         self.assertIsNotNone(self.nodes[1].overlay.persistence.get(my_pubkey, 1))
         self.assertEqual(self.nodes[1].overlay.persistence.get(my_pubkey, 1).link_sequence_number, UNKNOWN_SEQ)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_crawl_lowest_unknown(self):
         """
         Test crawling the lowest unknown block of a specific peer.
@@ -220,7 +220,7 @@ class TestTrustChainCommunity(TestBase):
 
         self.assertIsNotNone(self.nodes[1].overlay.persistence.get(my_pubkey, 2))
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_crawl_pair(self):
         """
         Test crawling a block pair.
@@ -240,7 +240,7 @@ class TestTrustChainCommunity(TestBase):
         self.assertEqual(self.nodes[2].overlay.persistence.get(my_pubkey, 1).link_sequence_number, UNKNOWN_SEQ)
         self.assertEqual(self.nodes[2].overlay.persistence.get(his_pubkey, 1).link_sequence_number, 1)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_parallel_blocks(self):
         """
         Check if blocks created in parallel will properly be stored in the database.
@@ -273,7 +273,7 @@ class TestTrustChainCommunity(TestBase):
             self.assertIsNotNone(self.nodes[node_nr].overlay.persistence.get(his_pubkey, 2))
             self.assertEqual(self.nodes[node_nr].overlay.persistence.get(his_pubkey, 2).link_sequence_number, second)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_retrieve_missing_block(self):
         """
         Check if missing blocks are retrieved through a crawl request.
@@ -302,7 +302,7 @@ class TestTrustChainCommunity(TestBase):
             self.assertIsNotNone(self.nodes[node_nr].overlay.persistence.get(his_pubkey, 2))
             self.assertEqual(self.nodes[node_nr].overlay.persistence.get(his_pubkey, 2).link_sequence_number, 2)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_send_block_pair(self):
         """
         Test sending and receiving a pair of blocks from one to another peer.
@@ -318,7 +318,7 @@ class TestTrustChainCommunity(TestBase):
         self.assertTrue(self.nodes[1].overlay.persistence.get_latest(block1.public_key))
         self.assertTrue(self.nodes[1].overlay.persistence.get_latest(block2.public_key))
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_broadcast_half_block(self):
         """
         Test broadcasting a half block
@@ -338,7 +338,7 @@ class TestTrustChainCommunity(TestBase):
 
         self.assertTrue(node3.overlay.relayed_broadcasts)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_broadcast_half_block_pair(self):
         """
         Test broadcasting a half block pair
@@ -361,7 +361,7 @@ class TestTrustChainCommunity(TestBase):
             self.assertIsNotNone(self.nodes[node_nr].overlay.persistence.get_latest(block1.public_key))
             self.assertIsNotNone(self.nodes[node_nr].overlay.persistence.get_latest(block2.public_key))
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_intro_response_crawl(self):
         """
         Test if we crawl a node on introduction response and if we respect the crawl timeout.
@@ -406,7 +406,7 @@ class TestTrustChainCommunity(TestBase):
 
         self.assertIsNone(self.nodes[1].overlay.persistence.get(my_pubkey, 2))
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_empty_crawl(self):
         """
         Test a crawl request to a peer without any blocks
@@ -414,7 +414,7 @@ class TestTrustChainCommunity(TestBase):
         my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
         yield self.nodes[1].overlay.send_crawl_request(self.nodes[0].my_peer, my_pubkey, 1)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_invalid_block(self):
         """
         See if we can recover from database corruption.
@@ -440,7 +440,7 @@ class TestTrustChainCommunity(TestBase):
         self.assertIsNotNone(self.nodes[0].overlay.persistence.get(my_pubkey, 1))
         self.assertIsNotNone(self.nodes[1].overlay.persistence.get(my_pubkey, 1))
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_half_block_self_signed(self):
         """
         Test creating and disseminating a half block, signed by yourself
@@ -456,7 +456,7 @@ class TestTrustChainCommunity(TestBase):
         self.assertIsNotNone(self.nodes[0].overlay.persistence.get(my_pubkey, 1))
         self.assertIsNotNone(self.nodes[1].overlay.persistence.get(my_pubkey, 1))
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_half_block_link_block(self):
         """
         Test creating and disseminating a link block

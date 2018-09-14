@@ -1,6 +1,3 @@
-from nose.twistedtools import deferred
-from twisted.internet.defer import inlineCallbacks
-
 
 class TimeExpired(AssertionError):
     pass
@@ -32,13 +29,3 @@ def make_decorator(func):
 
     return decorate
 
-
-def twisted_wrapper(arg):
-    """
-    Wrap a twisted test. Optionally supply a test timeout.
-
-    Note that arg might either be a func or the timeout.
-    """
-    if isinstance(arg, (int, long)):
-        return lambda x: deferred(arg)(inlineCallbacks(x))
-    return deferred(timeout=1)(inlineCallbacks(arg))

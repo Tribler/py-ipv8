@@ -1,3 +1,4 @@
+from twisted.internet.defer import inlineCallbacks
 from ....deprecated.community import _DEFAULT_ADDRESSES
 from ....deprecated.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from ...base import TestBase
@@ -5,7 +6,6 @@ from ...mocking.community import MockCommunity
 from ....keyvault.crypto import ECCrypto
 from ....peer import Peer
 from ....peerdiscovery.deprecated.discovery_payload import DiscoveryIntroductionRequestPayload
-from ...util import twisted_wrapper
 
 
 class TestDiscoveryCommunity(TestBase):
@@ -26,7 +26,7 @@ class TestDiscoveryCommunity(TestBase):
             overlay.unload()
         super(TestDiscoveryCommunity, self).tearDown()
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_deprecated_introduction(self):
         """
         Check if we can handle the deprecated Discovery introduction request as a normal one.
@@ -50,7 +50,7 @@ class TestDiscoveryCommunity(TestBase):
 
         self.assertEqual(1, len(self.overlays[1].network.verified_peers))
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_bootstrap(self):
         """
         Check if we can bootstrap our peerdiscovery.
@@ -73,7 +73,7 @@ class TestDiscoveryCommunity(TestBase):
             self.assertNotIn(overlay.my_peer.mid, intros)
             self.assertNotIn(self.tracker.my_peer.mid, intros)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_cross_peer(self):
         """
         If we have different peers under our control, don't claim to be the other identity.
