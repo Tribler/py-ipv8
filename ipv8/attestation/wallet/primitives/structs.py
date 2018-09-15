@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 import struct
 
 from .cryptosystem.value import FP2Value

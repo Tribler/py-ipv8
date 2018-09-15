@@ -1,3 +1,6 @@
+from __future__ import absolute_import
+
+from base64 import decodestring, encodestring
 from hashlib import sha1
 import json
 import os
@@ -113,7 +116,7 @@ class AttestationCommunity(Community):
 
         meta_dict = {
             "attribute": attribute_name,
-            "public_key": public_key.serialize().encode('base64')
+            "public_key": encodestring(public_key.serialize())
         }
         meta_dict.update(metadata)
         metadata = json.dumps(meta_dict)
@@ -140,7 +143,7 @@ class AttestationCommunity(Community):
         if value is None:
             return
 
-        PK = BonehPublicKey.unserialize(pubkey_b64.decode('base64'))
+        PK = BonehPublicKey.unserialize(decodestring(pubkey_b64))
         attestation_blob = attest_sha256_4(PK, value).serialize()
 
         self.attestation_request_complete_callback(peer, attribute, sha1(attestation_blob).digest())
@@ -342,7 +345,7 @@ class AttestationCommunity(Community):
             else:
                 # Send another proving hash
                 honesty_check = (ord(os.urandom(1)[0]) < 38)
-                honesty_check_byte = choice(range(3)) if honesty_check else -1
+                honesty_check_byte = choice([0, 1, 2]) if honesty_check else -1
                 challenge = None
                 if honesty_check:
                     while not challenge or self.request_cache.has(*HashCache.id_from_hash(u"proving-hash",

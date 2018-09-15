@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 from __future__ import division
 
 from cryptography.hazmat.primitives.asymmetric.rsa import _modinv
@@ -127,6 +128,12 @@ class FP2Value(object):
             return False
         divd = (self//other).normalize()
         return all([divd.a == divd.aC, divd.b == divd.bC, divd.c == divd.cC])
+
+    def __hash__(self):
+        """
+        Equality is not trivial. We hash everything to 0 for the full equality check.
+        """
+        return 0
 
     def intpow(self, power):
         """
