@@ -1,5 +1,6 @@
 import abc
 from struct import pack, unpack, unpack_from, Struct
+import six
 import sys
 
 
@@ -304,12 +305,10 @@ class Serializer(object):
         return out
 
 
-class Serializable(object):
+class Serializable(six.with_metaclass(abc.ABCMeta, object)):
     """
     Interface for serializable objects.
     """
-
-    __metaclass__ = abc.ABCMeta
 
     format_list = []
     optional_format_list = []

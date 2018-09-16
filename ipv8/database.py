@@ -8,6 +8,7 @@ This module provides basic database functionalty and simple version control.
 from collections import defaultdict
 import logging
 import os
+import six
 import sys
 from threading import RLock
 from abc import ABCMeta, abstractmethod
@@ -68,9 +69,7 @@ class DatabaseException(RuntimeError):
     pass
 
 
-class Database(object):
-
-    __metaclass__ = ABCMeta
+class Database(six.with_metaclass(ABCMeta, object)):
 
     def __init__(self, file_path):
         """

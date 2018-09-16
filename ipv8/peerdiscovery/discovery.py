@@ -1,16 +1,14 @@
 import abc
-
 from random import choice
+import six
 from time import time
 from threading import Lock
 
 
-class DiscoveryStrategy(object):
+class DiscoveryStrategy(six.with_metaclass(abc.ABCMeta, object)):
     """
     Strategy for discovering peers in a network.
     """
-
-    __metaclass__ = abc.ABCMeta
 
     def __init__(self, overlay):
         self.overlay = overlay

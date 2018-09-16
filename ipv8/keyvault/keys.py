@@ -1,13 +1,12 @@
 import abc
 from hashlib import sha1
+import six
 
 
-class Key(object):
+class Key(six.with_metaclass(abc.ABCMeta, object)):
     """
     Interface for a public or private key.
     """
-
-    __metaclass__ = abc.ABCMeta
 
     @abc.abstractmethod
     def pub(self):
@@ -27,12 +26,10 @@ class Key(object):
         return sha1(self.key_to_bin()).digest()
 
 
-class PrivateKey(Key):
+class PrivateKey(six.with_metaclass(abc.ABCMeta, Key)):
     """
     Interface for a private key.
     """
-
-    __metaclass__ = abc.ABCMeta
 
     def has_secret_key(self):
         return True
@@ -42,12 +39,10 @@ class PrivateKey(Key):
         pass
 
 
-class PublicKey(Key):
+class PublicKey(six.with_metaclass(abc.ABCMeta, Key)):
     """
     Interface for a public key.
     """
-
-    __metaclass__ = abc.ABCMeta
 
     def pub(self):
         return self

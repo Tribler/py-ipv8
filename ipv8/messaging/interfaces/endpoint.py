@@ -1,6 +1,7 @@
 import abc
 import logging
 import netifaces
+import six
 import socket
 import struct
 
@@ -9,12 +10,10 @@ from twisted.internet import reactor
 from ...util import blockingCallFromThread
 
 
-class Endpoint(object):
+class Endpoint(six.with_metaclass(abc.ABCMeta, object)):
     """
     Interface for sending messages over the Internet.
     """
-
-    __metaclass__ = abc.ABCMeta
 
     def __init__(self):
         self._logger = logging.getLogger(self.__class__.__name__)
@@ -81,12 +80,10 @@ class Endpoint(object):
         pass
 
 
-class EndpointListener(object):
+class EndpointListener(six.with_metaclass(abc.ABCMeta, object)):
     """
     Handler for messages coming in through an Endpoint.
     """
-
-    __metaclass__ = abc.ABCMeta
 
     def __init__(self, endpoint, main_thread=True):
         """
