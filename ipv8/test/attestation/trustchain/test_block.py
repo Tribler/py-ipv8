@@ -1,5 +1,5 @@
 import random
-import unittest
+from twisted.trial import unittest
 
 from hashlib import sha256
 

@@ -1,11 +1,11 @@
 import time
+from twisted.internet.defer import inlineCallbacks
 
 from ...peerdiscovery.churn import RandomChurn
 from ...deprecated.community import _DEFAULT_ADDRESSES
 from ..base import TestBase
 from ..mocking.community import MockCommunity
 from ..mocking.endpoint import MockEndpointListener
-from ..util import twisted_wrapper
 
 
 class TestChurn(TestBase):
@@ -24,7 +24,7 @@ class TestChurn(TestBase):
             overlay.unload()
         super(TestChurn, self).tearDown()
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_keep_reachable(self):
         """
         Check if we don't remove reachable nodes.
@@ -45,7 +45,7 @@ class TestChurn(TestBase):
 
         self.assertEqual(len(self.overlays[0].network.verified_peers), 1)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_remove_unreachable(self):
         """
         Check if we remove unreachable nodes.
@@ -70,7 +70,7 @@ class TestChurn(TestBase):
 
         self.assertEqual(len(self.overlays[0].network.verified_peers), 0)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_no_nodes(self):
         """
         Nothing should happen if we have no nodes to check.
@@ -86,7 +86,7 @@ class TestChurn(TestBase):
 
         self.assertEqual(len(self.overlays[0].network.verified_peers), 1)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_ping_timeout(self):
         """
         Don't overload inactive nodes with pings, send it once within some timeout.
@@ -107,7 +107,7 @@ class TestChurn(TestBase):
 
         self.assertEqual(len(sniffer.received_packets), 1)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_ping_timeout_resend(self):
         """
         Don't overload inactive nodes with pings, send it again after some timeout.

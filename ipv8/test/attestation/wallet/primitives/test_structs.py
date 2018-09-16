@@ -1,4 +1,4 @@
-import unittest
+from twisted.trial import unittest
 
 from .....attestation.wallet.primitives.cryptosystem.value import FP2Value
 from .....attestation.wallet.primitives.structs import *

@@ -1,6 +1,6 @@
 from base64 import b64encode
 import random
-import unittest
+from twisted.trial import unittest
 
 from ...keyvault.crypto import ECCrypto
 from ...peer import Peer

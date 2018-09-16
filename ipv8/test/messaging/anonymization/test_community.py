@@ -1,10 +1,10 @@
+from twisted.internet.defer import inlineCallbacks
 from ....messaging.anonymization.community import TunnelCommunity, TunnelSettings
 from ....messaging.anonymization.tunnel import CIRCUIT_STATE_EXTENDING
 from ....messaging.interfaces.udp.endpoint import UDPEndpoint
 from ...base import TestBase
 from ...mocking.endpoint import MockEndpointListener
 from ...mocking.ipv8 import MockIPv8
-from ...util import twisted_wrapper
 
 
 class TestTunnelCommunity(TestBase):
@@ -47,7 +47,7 @@ class TestTunnelCommunity(TestBase):
             self.assertFalse(node.overlay.relay_from_to)
             self.assertFalse(node.overlay.circuits)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_introduction_as_exit(self):
         """
         Check if introduction requests share the fact that nodes are exit nodes.
@@ -60,7 +60,7 @@ class TestTunnelCommunity(TestBase):
         self.assertIn(self.nodes[0].my_peer.public_key.key_to_bin(), self.nodes[1].overlay.exit_candidates)
         self.assertNotIn(self.nodes[1].my_peer.public_key.key_to_bin(), self.nodes[0].overlay.exit_candidates)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_introduction_as_exit_twoway(self):
         """
         Check if two nodes can have each other as exit nodes.
@@ -73,7 +73,7 @@ class TestTunnelCommunity(TestBase):
         self.assertIn(self.nodes[0].my_peer.public_key.key_to_bin(), self.nodes[1].overlay.exit_candidates)
         self.assertIn(self.nodes[1].my_peer.public_key.key_to_bin(), self.nodes[0].overlay.exit_candidates)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_introduction_as_exit_noway(self):
         """
         Check if two nodes don't advertise themselves as exit node incorrectly.
@@ -86,7 +86,7 @@ class TestTunnelCommunity(TestBase):
         self.assertEqual(len(self.nodes[0].overlay.exit_candidates), 0)
         self.assertEqual(len(self.nodes[1].overlay.exit_candidates), 0)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_create_circuit(self):
         """
         Check if 1 hop circuit creation works.
@@ -106,7 +106,7 @@ class TestTunnelCommunity(TestBase):
         # Node 1 has an exit socket open
         self.assertEqual(len(self.nodes[1].overlay.exit_sockets), 1)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_create_circuit_no_exit(self):
         """
         Check if 1 hop circuit creation fails without exit nodes.
@@ -123,7 +123,7 @@ class TestTunnelCommunity(TestBase):
         # Node 1 should not have an exit socket open
         self.assertEqual(len(self.nodes[1].overlay.exit_sockets), 0)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_create_circuit_multiple_calls(self):
         """
         Check if circuit creation is aborted when it's already building the requested circuit.
@@ -144,7 +144,7 @@ class TestTunnelCommunity(TestBase):
         self.assertEqual(len(self.nodes[0].overlay.data_circuits()), 1)
         self.assertEqual(next(self.nodes[0].overlay.circuits.itervalues()).state, CIRCUIT_STATE_EXTENDING)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_destroy_circuit_from_originator(self):
         """
         Check if a 2 hop circuit can be destroyed (by the exit node)
@@ -161,7 +161,7 @@ class TestTunnelCommunity(TestBase):
 
         self.assert_no_more_tunnels()
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_destroy_circuit_from_exit(self):
         """
         Check if a 2 hop circuit can be destroyed (by the exit node)
@@ -177,7 +177,7 @@ class TestTunnelCommunity(TestBase):
 
         self.assert_no_more_tunnels()
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_destroy_circuit_from_relay(self):
         """
         Check if a 2 hop circuit can be destroyed (by the relay node)
@@ -193,7 +193,7 @@ class TestTunnelCommunity(TestBase):
 
         self.assert_no_more_tunnels()
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_destroy_circuit_bad_id(self):
         """
         Check if the correct circuit gets destroyed.
@@ -213,7 +213,7 @@ class TestTunnelCommunity(TestBase):
         # Node 1 still has an exit socket open
         self.assertEqual(len(self.nodes[1].overlay.exit_sockets), 1)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_tunnel_data(self):
         """
         Check if data is correctly exited.
@@ -245,7 +245,7 @@ class TestTunnelCommunity(TestBase):
         self.assertEqual(len(ep_listener.received_packets), 1)
         self.assertEqual(ep_listener.received_packets[0][1], data)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_two_hop_circuit(self):
         """
         Check if a two hop circuit is correctly created.
@@ -262,7 +262,7 @@ class TestTunnelCommunity(TestBase):
 
         self.assertEqual(self.nodes[0].overlay.tunnels_ready(2), 1.0)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_three_hop_circuit(self):
         """
         Check if a three hop circuit is correctly created.
@@ -280,7 +280,7 @@ class TestTunnelCommunity(TestBase):
 
         self.assertEqual(self.nodes[0].overlay.tunnels_ready(3), 1.0)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_create_two_circuit(self):
         """
         Check if multiple 1 hop circuit creation works.

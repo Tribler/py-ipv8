@@ -1,8 +1,8 @@
+from twisted.internet.defer import inlineCallbacks
 from ...peerdiscovery.discovery import EdgeWalk
 from ...deprecated.community import _DEFAULT_ADDRESSES
 from ..base import TestBase
 from ..mocking.community import MockCommunity
-from ..util import twisted_wrapper
 
 
 class TestEdgeWalk(TestBase):
@@ -21,7 +21,7 @@ class TestEdgeWalk(TestBase):
             overlay.unload()
         super(TestEdgeWalk, self).tearDown()
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_take_step(self):
         """
         Check if we will walk to a random other node.
@@ -40,7 +40,7 @@ class TestEdgeWalk(TestBase):
 
         self.assertEqual(len(self.overlays[0].network.verified_peers), 2)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_take_step_into(self):
         """
         Check if we will walk to an introduced node.
@@ -70,7 +70,7 @@ class TestEdgeWalk(TestBase):
         self.assertEqual(len(self.overlays[0].network.verified_peers), 2)
         self.assertEqual(len(self.strategies[0].complete_edges), 1)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_fail_step_into(self):
         """
         Check if we drop an unreachable introduced node.
@@ -100,7 +100,7 @@ class TestEdgeWalk(TestBase):
         self.assertEqual(len(self.overlays[0].network.verified_peers), 1)
         self.assertEqual(len(self.strategies[0].complete_edges), 0)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_complete_edge(self):
         """
         Check if we can complete an edge.

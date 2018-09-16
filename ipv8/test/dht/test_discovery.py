@@ -1,8 +1,8 @@
 import time
+from twisted.internet.defer import inlineCallbacks
 
 from ..base import TestBase
 from ..mocking.ipv8 import MockIPv8
-from ..util import twisted_wrapper
 from ...dht.discovery import DHTDiscoveryCommunity
 from ...dht.routing import Node
 
@@ -28,14 +28,14 @@ class TestDHTDiscoveryCommunity(TestBase):
     def create_node(self, *args, **kwargs):
         return MockIPv8(u"curve25519", DHTDiscoveryCommunity)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_store_peer(self):
         yield self.introduce_nodes()
         yield self.nodes[0].overlay.store_peer()
         self.assertIn(self.nodes[0].my_peer.mid, self.nodes[1].overlay.store)
         self.assertIn(self.nodes[0].my_peer.mid, self.nodes[0].overlay.store_for_me)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_store_peer_fail(self):
         yield self.introduce_nodes()
         self.nodes[1].unload()
@@ -43,7 +43,7 @@ class TestDHTDiscoveryCommunity(TestBase):
         yield self.deliver_messages()
         self.assertFailure(d, RuntimeError)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_connect_peer(self):
         # Add a third node
         node = MockIPv8(u"curve25519", DHTDiscoveryCommunity)
@@ -66,7 +66,7 @@ class TestDHTDiscoveryCommunity(TestBase):
         self.assertIn(self.nodes[0].overlay.my_peer.public_key.key_to_bin(),
                       [n.public_key.key_to_bin() for n in nodes])
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_connect_peer_fail(self):
         yield self.introduce_nodes()
         self.nodes[1].unload()
@@ -74,7 +74,7 @@ class TestDHTDiscoveryCommunity(TestBase):
         yield self.deliver_messages()
         self.assertFailure(d, RuntimeError)
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_ping_pong(self):
         now = time.time() - 1
 
