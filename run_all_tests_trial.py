@@ -1,7 +1,7 @@
 import inspect
 import subprocess
 import unittest
-from os.path import abspath
+from os.path import abspath, join
 from unittest.loader import TestLoader
 
 from twisted.scripts.trial import _makeRunner, Options, _initialDebugSetup
@@ -34,6 +34,6 @@ if __name__ == "__main__":
 
     test_loader = TestLoader()
     test_loader.suiteClass = CustomSuite
-    test_suite = test_loader.discover(abspath('./ipv8/test'),
+    test_suite = test_loader.discover(abspath(join('.', 'ipv8', 'test')),
                                       top_level_dir=abspath('.'))
     test_result = trialRunner.run(test_suite)
