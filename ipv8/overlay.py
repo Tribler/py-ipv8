@@ -1,20 +1,17 @@
 import abc
 import logging
-from time import time
+import six
 
 from .keyvault.crypto import ECCrypto
 from .messaging.interfaces.endpoint import EndpointListener
 from .messaging.serialization import Serializer
-from .peer import Peer
 from .taskmanager import TaskManager
 
 
-class Overlay(EndpointListener, TaskManager):
+class Overlay(six.with_metaclass(abc.ABCMeta, EndpointListener, TaskManager)):
     """
     Interface for an Internet overlay.
     """
-
-    __metaclass__ = abc.ABCMeta
 
     def __init__(self, master_peer, my_peer, endpoint, network):
         """

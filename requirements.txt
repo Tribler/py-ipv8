@@ -3,3 +3,4 @@ libnacl>=1.6.1
 netifaces
 Twisted>=17.9.0
 pyOpenSSL
+six
