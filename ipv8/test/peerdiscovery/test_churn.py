@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 import time
 from twisted.internet.defer import inlineCallbacks
 

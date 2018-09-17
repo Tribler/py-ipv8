@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 from .payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from ..keyvault.crypto import ECCrypto
 from ..overlay import Overlay

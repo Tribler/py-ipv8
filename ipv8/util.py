@@ -1,5 +1,6 @@
 import Queue
 import logging
+import sys
 import traceback
 
 from twisted.internet import reactor, defer
@@ -40,3 +41,9 @@ def blockingCallFromThread(reactor, f, *args, **kwargs):
                          ''.join(traceback.format_list(this_thread_tb)), ''.join(traceback.format_list(other_thread_tb)))
             result.raiseException()
         return result
+
+# In Python 3 sqlite expects bytes instead of buffer objects.
+if sys.version_info.major > 2:
+    grange = range
+else:
+    grange = xrange

@@ -1,7 +1,8 @@
+from __future__ import absolute_import
+
 from socket import inet_ntoa, inet_aton
 from struct import pack, unpack
 
-from ...deprecated.bloomfilter import BloomFilter
 from ...deprecated.payload import decode_connection_type, encode_connection_type, IntroductionRequestPayload, Payload
 
 

@@ -1,5 +1,6 @@
-from twisted.trial import unittest
+from __future__ import absolute_import
 
+from twisted.trial import unittest
 from twisted.internet import reactor
 
 from ..requestcache import RandomNumberCache, RequestCache

@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 from twisted.internet.defer import inlineCallbacks
 from ....attestation.identity.community import IdentityCommunity
 from ....peer import Peer

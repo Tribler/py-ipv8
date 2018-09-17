@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 from ...peer import Peer
 from ...deprecated.community import Community
 from ...deprecated.lazy_community import lazy_wrapper, lazy_wrapper_unsigned, PacketDecodingError

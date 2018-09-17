@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 from socket import inet_ntoa, inet_aton
 import struct
 

@@ -1,3 +1,6 @@
+from __future__ import absolute_import
+from __future__ import division
+
 from binascii import hexlify
 from math import ceil
 
@@ -61,7 +64,7 @@ class M2CryptoPK(PublicKey):
         :param signature: the given signature
         :param msg: the given message
         """
-        length = len(signature) / 2
+        length = len(signature) // 2
         r = signature[:length]
         # remove all "\x00" prefixes
         while r and r[0] == "\x00":

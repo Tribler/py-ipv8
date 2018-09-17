@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 from twisted.internet.defer import inlineCallbacks, Deferred
 
 from ....messaging.anonymization.community import TunnelSettings, CIRCUIT_TYPE_RENDEZVOUS

@@ -1,4 +1,7 @@
+from __future__ import absolute_import
+
 from twisted.internet.defer import inlineCallbacks
+
 from ....attestation.trustchain.block import TrustChainBlock
 from ....attestation.trustchain.caches import CrawlRequestCache
 from ....attestation.trustchain.community import TrustChainCommunity, UNKNOWN_SEQ
@@ -206,7 +209,7 @@ class TestTrustChainCommunity(TestBase):
 
         my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
         his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
-        for _ in xrange(0, 3):
+        for _ in [0, 1, 2]:
             self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
                                              block_type='test', transaction={})
 

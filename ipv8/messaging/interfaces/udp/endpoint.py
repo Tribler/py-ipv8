@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 import errno
 from collections import deque
 import socket
@@ -7,6 +9,7 @@ from twisted.internet import protocol, reactor, error
 from twisted.internet.error import MessageLengthError
 
 from ..endpoint import Endpoint, EndpointClosedException
+from ....util import grange
 
 UDP_MAX_SIZE = 2 ** 16 - 60
 
@@ -54,7 +57,7 @@ class UDPEndpoint(Endpoint, protocol.DatagramProtocol):
             self._logger.error("Sending a packet that is too big (length: %d)", len(packet))
 
     def open(self):
-        for _ in xrange(10000):
+        for _ in grange(10000):
             try:
                 self._listening_port = reactor.listenUDP(self._port, self, self._ip, UDP_MAX_SIZE)
                 self._logger.debug("Listening at %d", self._port)
