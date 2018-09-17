@@ -1,3 +1,6 @@
+from __future__ import absolute_import
+from __future__ import division
+
 from hashlib import sha256, sha512
 from random import randint, shuffle
 from threading import Lock
@@ -195,7 +198,7 @@ def create_challenge_response(SK, challenge):
     """
     Respond to a bitpair challenge.
     """
-    decoded = decode(SK, range(3), challenge)
+    decoded = decode(SK, [0, 1, 2], challenge)
     return 3 if decoded is None else decoded
 
 

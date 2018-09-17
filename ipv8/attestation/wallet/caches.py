@@ -1,3 +1,6 @@
+from __future__ import absolute_import
+
+import logging
 from struct import unpack
 
 from ...requestcache import NumberCache
@@ -51,7 +54,7 @@ class ReceiveAttestationVerifyCache(HashCache):
         self.attestation_map = set()
 
     def on_timeout(self):
-        pass
+        logging.warning("ReceiveAttestationVerify timed out!")
 
 
 class ReceiveAttestationRequestCache(PeerCache):
@@ -68,7 +71,7 @@ class ReceiveAttestationRequestCache(PeerCache):
         self.name = name
 
     def on_timeout(self):
-        print "ERROR ERROR ERROR!!"
+        logging.warning("ReceiveAttestation timed out!")
 
 
 class ProvingAttestationCache(HashCache):
@@ -86,7 +89,7 @@ class ProvingAttestationCache(HashCache):
         self.attestation_callbacks = on_complete
 
     def on_timeout(self):
-        pass
+        logging.warning("ProvingAttestation timed out!")
 
 
 class PendingChallengeCache(HashCache):
@@ -99,4 +102,4 @@ class PendingChallengeCache(HashCache):
         self.honesty_check = honesty_check
 
     def on_timeout(self):
-        pass
+        logging.warning("PendingChallenge timed out!")

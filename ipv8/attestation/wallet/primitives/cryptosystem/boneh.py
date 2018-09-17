@@ -1,6 +1,7 @@
 """
 Implementation of the Boneh 2-DNF scheme ("Evaluating 2-DNF Formulas on Ciphertexts" by Boneh et al.).
 """
+from __future__ import absolute_import
 from __future__ import division
 
 from random import randint

@@ -1,7 +1,9 @@
+from __future__ import absolute_import
+
 from hashlib import sha1
 import os
 
-from ...database import Database
+from ...database import database_blob, Database
 
 DATABASE_DIRECTORY = os.path.join(u"sqlite")
 
@@ -28,18 +30,18 @@ class AttestationsDB(Database):
     def _get(self, query, params):
         return list(self.execute(query, params, fetch_all=False))
 
-    def get_attestation_by_hash(self, hash):
-        return self._get(u"SELECT blob FROM %s WHERE hash = ?" % self.db_name, (buffer(hash),))
+    def get_attestation_by_hash(self, attestation_hash):
+        return self._get(u"SELECT blob FROM %s WHERE hash = ?" % self.db_name, (database_blob(attestation_hash),))
 
     def get_all(self):
         return list(self.execute("SELECT * FROM %s" % self.db_name, (), fetch_all=True))
 
     def insert_attestation(self, attestation, secret_key):
-        blob = buffer(attestation.serialize())
-        hash = buffer(sha1(blob).digest())
+        blob = database_blob(attestation.serialize())
+        attestation_hash = database_blob(sha1(blob).digest())
         self.execute(
             u"INSERT INTO %s (hash, blob, key) VALUES(?,?,?)" % self.db_name,
-            (hash, blob, buffer(secret_key.serialize())))
+            (attestation_hash, blob, database_blob(secret_key.serialize())))
         self.commit()
 
     def get_schema(self):
@@ -72,7 +74,6 @@ class AttestationsDB(Database):
         :param database_version: Current version of the database.
         :return:
         """
-        assert isinstance(database_version, unicode)
         assert database_version.isdigit()
         assert int(database_version) >= 0
         database_version = int(database_version)

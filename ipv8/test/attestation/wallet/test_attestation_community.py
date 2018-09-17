@@ -1,3 +1,6 @@
+from __future__ import absolute_import
+
+from binascii import unhexlify
 import os
 from twisted.internet.defer import inlineCallbacks
 
@@ -10,8 +13,8 @@ from ...base import MockIPv8, TestBase
 
 class TestCommunity(TestBase):
 
-    private_key = BonehPrivateKey.unserialize(("01064c65dcb113f901064228da3ea57101064793a4f9c77901062b083e8690fb0" +
-                                               "106408293c67e9f010601d1a9d3744901030f4243").decode('hex'))
+    private_key = BonehPrivateKey.unserialize(unhexlify("01064c65dcb113f901064228da3ea57101064793a4f9c77901062b083e" +
+                                                        "8690fb0106408293c67e9f010601d1a9d3744901030f4243"))
 
     def setUp(self):
         super(TestCommunity, self).setUp()
@@ -112,9 +115,9 @@ class TestCommunity(TestBase):
         serialized = ""
         filename = os.path.join(os.path.dirname(__file__), 'attestation.txt')
         with open(filename, 'r') as f:
-            serialized = f.read().strip().decode('hex')
+            serialized = unhexlify(f.read().strip())
         attestation = Attestation.unserialize(serialized)
-        attestation_hash = '9019195eb75c07ec3e86a62c314dcf5ef2bbcc0d'.decode('hex')
+        attestation_hash = unhexlify('9019195eb75c07ec3e86a62c314dcf5ef2bbcc0d')
         self.nodes[0].overlay.database.insert_attestation(attestation, TestCommunity.private_key)
         self.nodes[0].overlay.attestation_keys[attestation_hash] = TestCommunity.private_key
 

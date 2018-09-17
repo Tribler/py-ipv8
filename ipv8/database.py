@@ -24,6 +24,7 @@ if sys.platform == "darwin":
 else:
     import sqlite3
 
+
 def execute_or_script(cursor, statement):
     """
     This workaround is part of the MacOS Sierra bug described at the top of this file.
@@ -32,6 +33,13 @@ def execute_or_script(cursor, statement):
         cursor.executescript(statement)
     else:
         cursor.execute(statement)
+
+
+# In Python 3 sqlite expects bytes instead of buffer objects.
+if sys.version_info.major > 2:
+    database_blob = bytes
+else:
+    database_blob = buffer
 
 
 db_locks = defaultdict(RLock)
