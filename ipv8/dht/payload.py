@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 from struct import pack, unpack, unpack_from, calcsize
 from socket import inet_aton, inet_ntoa
 

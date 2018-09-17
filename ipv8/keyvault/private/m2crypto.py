@@ -1,3 +1,6 @@
+from __future__ import absolute_import
+from __future__ import division
+
 from binascii import unhexlify
 
 from cryptography.hazmat.backends import default_backend
@@ -89,6 +92,6 @@ class M2CryptoSK(PrivateKey, M2CryptoPK):
         # Now we can turn this into a binary string
         r = unhexlify(r)
         s = unhexlify(s)
-        key_len = self.get_signature_length()/2
+        key_len = self.get_signature_length()//2
         # For easy decoding, prepend 0 to r and s until they are of >equal length<
         return "".join(("\x00" * (key_len - len(r)), r, "\x00" * (key_len - len(s)), s))

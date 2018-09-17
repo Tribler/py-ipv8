@@ -1,6 +1,7 @@
 """
 This twistd plugin enables to start IPv8 headless using the twistd command.
 """
+from __future__ import absolute_import
 
 import os
 import signal

@@ -1,4 +1,7 @@
+from __future__ import absolute_import
+
 from twisted.internet.defer import inlineCallbacks
+
 from ...peerdiscovery.discovery import RandomWalk
 from ...deprecated.community import _DEFAULT_ADDRESSES
 from ..base import TestBase

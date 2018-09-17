@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 from twisted.web import resource
 
 from .attestation_endpoint import AttestationEndpoint

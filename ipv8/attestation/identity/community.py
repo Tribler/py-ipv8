@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 from time import time
 
 from ...attestation.trustchain.community import TrustChainCommunity

@@ -1,4 +1,7 @@
+from __future__ import absolute_import
+
 import time
+
 from twisted.trial import unittest
 
 from ...dht.storage import Storage
