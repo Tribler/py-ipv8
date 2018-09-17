@@ -1,6 +1,10 @@
+from __future__ import absolute_import
+from __future__ import division
+
 from unittest import TestCase
 
 from ...deprecated.bloomfilter import BloomFilter
+from ...util import grange
 
 
 class TestBloomFilter(TestCase):
@@ -14,7 +18,7 @@ class TestBloomFilter(TestCase):
                   BloomFilter(128 * 8, 0.25, prefix="")]
 
         for bloom in blooms:
-            bloom.add_keys(str(i) for i in xrange(100))
+            bloom.add_keys(str(i) for i in grange(100))
             self.assertEqual(bloom.size, 128 * 8)
             self.assertEqual(len(bloom.bytes), 128)
             self.assertEqual(bloom.prefix, "")
@@ -23,7 +27,7 @@ class TestBloomFilter(TestCase):
                   BloomFilter(128 * 8, 0.25, prefix="p")]
 
         for bloom in blooms:
-            bloom.add_keys(str(i) for i in xrange(100))
+            bloom.add_keys(str(i) for i in grange(100))
             self.assertEqual(bloom.size, 128 * 8)
             self.assertEqual(len(bloom.bytes), 128)
             self.assertEqual(bloom.prefix, "p")
@@ -37,14 +41,14 @@ class TestBloomFilter(TestCase):
                   BloomFilter(0.25, 142, prefix="")]
 
         for bloom in blooms:
-            bloom.add_keys(str(i) for i in xrange(100))
+            bloom.add_keys(str(i) for i in grange(100))
             self.assertEqual(bloom.prefix, "")
 
         blooms = [BloomFilter(0.25, 142, "p"),
                   BloomFilter(0.25, 142, prefix="p")]
 
         for bloom in blooms:
-            bloom.add_keys(str(i) for i in xrange(100))
+            bloom.add_keys(str(i) for i in grange(100))
             self.assertEqual(bloom.prefix, "p")
 
     def test_load_constructor(self):
@@ -52,7 +56,7 @@ class TestBloomFilter(TestCase):
         Testing BloomFilter(str:bytes, int:k_functions, str:prefix="")
         """
         bloom = BloomFilter(128 * 8, 0.25)
-        bloom.add_keys(str(i) for i in xrange(100))
+        bloom.add_keys(str(i) for i in grange(100))
         bytes_, functions = bloom.bytes, bloom.functions
 
         blooms = [BloomFilter(bytes_, functions),
@@ -63,10 +67,10 @@ class TestBloomFilter(TestCase):
             self.assertEqual(bloom.size, 128 * 8)
             self.assertEqual(bloom.bytes, bytes_)
             self.assertEqual(bloom.prefix, "")
-            self.assertTrue(all(str(i) in bloom for i in xrange(100)))
+            self.assertTrue(all(str(i) in bloom for i in grange(100)))
 
         bloom = BloomFilter(128 * 8, 0.25, "p")
-        bloom.add_keys(str(i) for i in xrange(100))
+        bloom.add_keys(str(i) for i in grange(100))
         bytes_, functions = bloom.bytes, bloom.functions
 
         blooms = [BloomFilter(bytes_, functions, "p"),
@@ -76,7 +80,7 @@ class TestBloomFilter(TestCase):
             self.assertEqual(bloom.size, 128 * 8)
             self.assertEqual(bloom.bytes, bytes_)
             self.assertEqual(bloom.prefix, "p")
-            self.assertTrue(all(str(i) in bloom for i in xrange(100)))
+            self.assertTrue(all(str(i) in bloom for i in grange(100)))
 
     def test_clear(self):
         """
@@ -84,7 +88,7 @@ class TestBloomFilter(TestCase):
         """
         bloom = BloomFilter(128 * 8, 0.25)
         self.assertEqual(bloom.bits_checked, 0)
-        bloom.add_keys(str(i) for i in xrange(100))
+        bloom.add_keys(str(i) for i in grange(100))
         self.assertNotEqual(bloom.bits_checked, 0)
         bloom.clear()
         self.assertEqual(bloom.bits_checked, 0)
@@ -112,7 +116,7 @@ class TestBloomFilter(TestCase):
 
         for f_error_rate, n_capacity, prefix in args:
             bloom = BloomFilter(f_error_rate, n_capacity, prefix)
-            bloom.add_keys(str(i) for i in xrange(n_capacity))
-            self.assertTrue(all(str(i) in bloom for i in xrange(n_capacity)))
-            false_positives = sum(str(i) in bloom for i in xrange(n_capacity, n_capacity + 10000))
+            bloom.add_keys(str(i) for i in grange(n_capacity))
+            self.assertTrue(all(str(i) in bloom for i in grange(n_capacity)))
+            false_positives = sum(str(i) in bloom for i in grange(n_capacity, n_capacity + 10000))
             self.assertAlmostEqual(1.0 * false_positives / 10000, f_error_rate, delta=0.05)

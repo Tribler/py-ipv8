@@ -3,7 +3,7 @@ This file contains everything related to persistence for TrustChain.
 """
 import os
 
-from ...database import Database
+from ...database import database_blob, Database
 from .block import TrustChainBlock
 
 
@@ -85,7 +85,7 @@ class TrustChainDB(Database):
         :param sequence_number: The specific block to get
         :return: the block or None if it is not known
         """
-        return self._get(u"WHERE public_key = ? AND sequence_number = ?", (buffer(public_key), sequence_number))
+        return self._get(u"WHERE public_key = ? AND sequence_number = ?", (database_blob(public_key), sequence_number))
 
     def get_all_blocks(self):
         """
@@ -99,7 +99,7 @@ class TrustChainDB(Database):
         Return the block with a specific hash or None if it's not available in the database.
         :param block_hash: the hash of the block to search for.
         """
-        return self._get(u"WHERE block_hash = ?", (buffer(block_hash),))
+        return self._get(u"WHERE block_hash = ?", (database_blob(block_hash),))
 
     def get_blocks_with_type(self, block_type, public_key=None):
         """
@@ -109,7 +109,7 @@ class TrustChainDB(Database):
         :return: All blocks with a specific type, optionally of a specific peer.
         """
         if public_key:
-            return self._getall(u"WHERE type = ? and public_key = ?", (block_type, buffer(public_key)))
+            return self._getall(u"WHERE type = ? and public_key = ?", (block_type, database_blob(public_key)))
         return self._getall(u"WHERE type = ?", (block_type,))
 
     def contains(self, block):
@@ -130,18 +130,18 @@ class TrustChainDB(Database):
         if block_type:
             return self._get(u"WHERE public_key = ? AND type = ? AND sequence_number = (SELECT MAX(sequence_number) "
                              u"FROM blocks WHERE public_key = ? AND type = ?)",
-                             (buffer(public_key), block_type, buffer(public_key), block_type))
+                             (database_blob(public_key), block_type, database_blob(public_key), block_type))
         else:
             return self._get(u"WHERE public_key = ? AND sequence_number = (SELECT MAX(sequence_number) FROM blocks "
-                             u"WHERE public_key = ?)", (buffer(public_key), buffer(public_key)))
+                             u"WHERE public_key = ?)", (database_blob(public_key), database_blob(public_key)))
 
     def get_latest_blocks(self, public_key, limit=25, block_type=None):
         if block_type:
             return self._getall(u"WHERE public_key = ? AND type = ? ORDER BY sequence_number DESC LIMIT ?",
-                                (buffer(public_key), block_type, limit))
+                                (database_blob(public_key), block_type, limit))
         else:
             return self._getall(u"WHERE public_key = ? ORDER BY sequence_number DESC LIMIT ?",
-                                (buffer(public_key), limit))
+                                (database_blob(public_key), limit))
 
     def get_block_after(self, block, block_type=None):
         """
@@ -152,10 +152,10 @@ class TrustChainDB(Database):
         """
         if block_type:
             return self._get(u"WHERE sequence_number > ? AND public_key = ? AND type = ? ORDER BY sequence_number ASC",
-                             (block.sequence_number, buffer(block.public_key), block_type))
+                             (block.sequence_number, database_blob(block.public_key), block_type))
         else:
             return self._get(u"WHERE sequence_number > ? AND public_key = ? ORDER BY sequence_number ASC",
-                             (block.sequence_number, buffer(block.public_key)))
+                             (block.sequence_number, database_blob(block.public_key)))
 
     def get_block_before(self, block, block_type=None):
         """
@@ -165,10 +165,10 @@ class TrustChainDB(Database):
         """
         if block_type:
             return self._get(u"WHERE sequence_number < ? AND public_key = ? AND type = ? ORDER BY sequence_number DESC",
-                             (block.sequence_number, buffer(block.public_key), block_type))
+                             (block.sequence_number, database_blob(block.public_key), block_type))
         else:
             return self._get(u"WHERE sequence_number < ? AND public_key = ? ORDER BY sequence_number DESC",
-                             (block.sequence_number, buffer(block.public_key)))
+                             (block.sequence_number, database_blob(block.public_key)))
 
     def get_lowest_sequence_number_unknown(self, public_key):
         """
@@ -178,7 +178,7 @@ class TrustChainDB(Database):
         query = u"SELECT b1.sequence_number FROM blocks b1 WHERE b1.public_key = ? AND NOT EXISTS " \
                 u"(SELECT b2.sequence_number FROM blocks b2 WHERE b2.sequence_number = b1.sequence_number + 1 " \
                 u"AND b2.public_key = ?) ORDER BY b1.sequence_number LIMIT 1"
-        db_result = list(self.execute(query, (buffer(public_key), buffer(public_key)), fetch_all=True))
+        db_result = list(self.execute(query, (database_blob(public_key), database_blob(public_key)), fetch_all=True))
         return db_result[0][0] + 1 if db_result else 1
 
     def get_linked(self, block):
@@ -188,15 +188,15 @@ class TrustChainDB(Database):
         :return: the latest block or None if it is not known
         """
         return self._get(u"WHERE public_key = ? AND sequence_number = ? OR link_public_key = ? AND "
-                         u"link_sequence_number = ?", (buffer(block.link_public_key), block.link_sequence_number,
-                                                       buffer(block.public_key), block.sequence_number))
+                         u"link_sequence_number = ?", (database_blob(block.link_public_key), block.link_sequence_number,
+                                                       database_blob(block.public_key), block.sequence_number))
 
     def crawl(self, public_key, sequence_number, limit=100):
         query = u"SELECT * FROM (%s WHERE sequence_number >= ? AND public_key = ? LIMIT ?) " \
                 u"UNION SELECT * FROM (%s WHERE link_sequence_number >= ? AND link_sequence_number != 0 " \
                 u"AND link_public_key = ? LIMIT ?)" % (self.get_sql_header(), self.get_sql_header())
-        db_result = list(self.execute(query, (sequence_number, buffer(public_key), limit, sequence_number,
-                                              buffer(public_key), limit), fetch_all=True))
+        db_result = list(self.execute(query, (sequence_number, database_blob(public_key), limit, sequence_number,
+                                              database_blob(public_key), limit), fetch_all=True))
         return [self.get_block_class(db_item[0])(db_item) for db_item in db_result]
 
     def get_recent_blocks(self, limit=10, offset=0):

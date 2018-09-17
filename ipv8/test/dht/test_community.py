@@ -1,4 +1,5 @@
-import sys
+from __future__ import absolute_import
+
 import time
 
 from twisted.internet.defer import succeed, Deferred, inlineCallbacks
@@ -8,6 +9,7 @@ from ..mocking.ipv8 import MockIPv8
 from ...dht.community import DHTCommunity
 from ...dht.provider import DHTCommunityProvider
 from ...dht.routing import Node, distance
+from ...util import maximum_integer
 
 
 class TestDHTCommunity(TestBase):
@@ -178,7 +180,7 @@ class TestDHTCommunity(TestBase):
 
         self.is_called = False
         self.nodes[0].overlay.storage.put(self.key, self.value_in_store)
-        self.nodes[0].overlay.storage.items[self.key][0].last_update = sys.maxint
+        self.nodes[0].overlay.storage.items[self.key][0].last_update = maximum_integer
         self.nodes[0].overlay.value_maintenance()
         self.assertFalse(self.is_called)
 

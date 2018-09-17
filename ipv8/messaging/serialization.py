@@ -1,3 +1,6 @@
+from __future__ import absolute_import
+from __future__ import division
+
 import abc
 from struct import pack, unpack, unpack_from, Struct
 import six
@@ -78,7 +81,7 @@ class VarLen(object):
 
     def pack(self, *data):
         raw = ''.join(data)
-        length = len(raw)/self.base
+        length = len(raw)//self.base
         size = self.format_size + len(raw)
         return pack('>%s%ds' % (self.format, len(raw)), length, raw), size
 
@@ -146,7 +149,7 @@ class Serializer(object):
         """
         Get all available packing formats.
         """
-        return self._packers.keys()
+        return list(self._packers.keys())
 
     def get_packer_for(self, name):
         """
@@ -191,10 +194,9 @@ class Serializer(object):
                 out += packed
                 size += packed_size
             except Exception as e:
-                raise PackError("Could not pack item %d: %s\n%s: %s" % (index,
-                                                                        repr(packable),
-                                                                        type(e).__name__,
-                                                                        str(e))), None, sys.exc_info()[2]
+                six.reraise(PackError, PackError("Could not pack item %d: %s\n%s: %s" % (index, repr(packable),
+                                                                                         type(e).__name__, str(e))),
+                            sys.exc_info()[2])
             index += 1
         return out, size
 
@@ -235,10 +237,9 @@ class Serializer(object):
                 else:
                     out.append(unpacked)
             except Exception as e:
-                raise PackError("Could not unpack item %d: %s\n%s: %s" % (index,
-                                                                          format,
-                                                                          type(e).__name__,
-                                                                          str(e))), None, sys.exc_info()[2]
+                six.reraise(PackError, PackError("Could not pack item %d: %s\n%s: %s" % (index, format,
+                                                                                         type(e).__name__, str(e))),
+                            sys.exc_info()[2])
             current_offset += unpacked_size
             index += 1
         return out, current_offset
@@ -269,12 +270,9 @@ class Serializer(object):
                     else:
                         list_element.append(unpacked)
                 except Exception as e:
-                    raise PackError("Could not unpack #%d repetition of item %d: %s\n%s: %s" % (index+1,
-                                                                                                len(list_element),
-                                                                                                format,
-                                                                                                type(e).__name__,
-                                                                                                str(e))),\
-                        None, sys.exc_info()[2]
+                    six.reraise(PackError, PackError("Could not unpack #%d repetition of item %d: %s\n%s: %s" %
+                                                     (index+1, len(list_element), format, type(e).__name__, str(e))),
+                                sys.exc_info()[2])
                 current_offset += unpacked_size
                 index += 1
             out.append(list_element)
@@ -297,9 +295,9 @@ class Serializer(object):
                     unpack_list, offset = self.unpack_multiple(serializable.format_list, data,
                                                                serializable.optional_format_list, offset)
             except Exception as e:
-                    raise PackError("Failed to unserialize %s\n%s: %s" % (serializable.__name__,
-                                                                          type(e).__name__,
-                                                                          str(e))), None, sys.exc_info()[2]
+                six.reraise(PackError, PackError("Failed to unserialize %s\n%s: %s" % (serializable.__name__,
+                                                                                       type(e).__name__, str(e))),
+                            sys.exc_info()[2])
             out.append(serializable.from_unpack_list(*unpack_list))
         out.append(data[offset:])
         return out

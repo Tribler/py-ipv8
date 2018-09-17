@@ -1,6 +1,9 @@
+from __future__ import absolute_import
+
 from twisted.trial import unittest
 
 from ....messaging.deprecated.encoding import decode, encode
+from ....util import cast_to_long
 
 
 class TestEncoding(unittest.TestCase):
@@ -20,7 +23,7 @@ class TestEncoding(unittest.TestCase):
         """
         Check if an long can be encoded and decoded.
         """
-        value = 42L
+        value = cast_to_long(42)
 
         encoded = encode(value)
         _, decoded = decode(encoded)
@@ -64,7 +67,7 @@ class TestEncoding(unittest.TestCase):
         """
         Check if a list can be encoded and decoded.
         """
-        value = [42, 42L, 42.0, u"42", '\x42']
+        value = [42, cast_to_long(42), 42.0, u"42", '\x42']
 
         encoded = encode(value)
         _, decoded = decode(encoded)
@@ -75,7 +78,7 @@ class TestEncoding(unittest.TestCase):
         """
         Check if a set can be encoded and decoded.
         """
-        value = {42, 42L, 42.0, u"42", '\x42'}
+        value = {42, cast_to_long(42), 42.0, u"42", '\x42'}
 
         encoded = encode(value)
         _, decoded = decode(encoded)
@@ -86,7 +89,7 @@ class TestEncoding(unittest.TestCase):
         """
         Check if a tuple can be encoded and decoded.
         """
-        value = (42, 42L, 42.0, u"42", '\x42')
+        value = (42, cast_to_long(42), 42.0, u"42", '\x42')
 
         encoded = encode(value)
         _, decoded = decode(encoded)
@@ -97,7 +100,7 @@ class TestEncoding(unittest.TestCase):
         """
         Check if a dictionary can be encoded and decoded.
         """
-        value = {42: None, 42L: 42.0, u"42": '\x42'}
+        value = {42: None, cast_to_long(42): 42.0, u"42": '\x42'}
 
         encoded = encode(value)
         _, decoded = decode(encoded)

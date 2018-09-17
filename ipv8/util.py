@@ -1,4 +1,5 @@
-import Queue
+from __future__ import absolute_import
+
 import logging
 import sys
 import traceback
@@ -8,6 +9,22 @@ from twisted.python import failure
 from twisted.python.threadable import isInIOThread
 
 logger = logging.getLogger(__name__)
+
+if sys.version_info.major > 2:
+    from io import StringIO
+    import queue as Queue
+    grange = range
+    is_long_or_int = lambda x: isinstance(x, int)
+    cast_to_long = lambda x: x
+    maximum_integer = sys.maxsize
+else:
+    from StringIO import StringIO
+    import Queue
+    grange = xrange
+    is_long_or_int = lambda x: isinstance(x, (int, long))
+    cast_to_long = lambda x: long(x)
+    maximum_integer = sys.maxint
+StringIO = StringIO
 
 
 def blocking_call_on_reactor_thread(func):
@@ -41,9 +58,3 @@ def blockingCallFromThread(reactor, f, *args, **kwargs):
                          ''.join(traceback.format_list(this_thread_tb)), ''.join(traceback.format_list(other_thread_tb)))
             result.raiseException()
         return result
-
-# In Python 3 sqlite expects bytes instead of buffer objects.
-if sys.version_info.major > 2:
-    grange = range
-else:
-    grange = xrange

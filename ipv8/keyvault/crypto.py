@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 import logging
 
 from cryptography.hazmat.primitives.asymmetric import ec
@@ -38,7 +40,7 @@ class ECCrypto(object):
         Returns the names of all available curves.
         @rtype: [unicode]
         """
-        return _CURVES.keys()
+        return list(_CURVES.keys())
 
     def generate_key(self, security_level):
         """

@@ -1,6 +1,10 @@
+from __future__ import absolute_import
+
 from threading import RLock
 from socket import inet_aton, inet_ntoa
 from struct import pack, unpack
+
+from ..util import grange
 
 
 class Network(object):
@@ -162,7 +166,7 @@ class Network(object):
         :return: a list of the introduced addresses (ip, port)
         """
         with self.graph_lock:
-            return [k for k, v in self._all_addresses.iteritems() if v == peer.mid]
+            return [k for k, v in self._all_addresses.items() if v == peer.mid]
 
     def remove_by_address(self, address):
         """
@@ -217,7 +221,7 @@ class Network(object):
             logging.error("Snapshot has invalid length! Aborting snapshot load.")
             return
         with self.graph_lock:
-            for i in xrange(0, snaplen, 6):
+            for i in grange(0, snaplen, 6):
                 sub = snapshot[i:i+6]
                 ip = inet_ntoa(sub[0:4])
                 port = unpack(">H", sub[4:])[0]

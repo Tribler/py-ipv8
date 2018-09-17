@@ -3,6 +3,8 @@ This twistd plugin enables to start the tracker using the twistd command.
 
 Select the port you want to use by setting the `listen_port` command line argument.
 """
+from __future__ import absolute_import
+from __future__ import division
 
 import os
 import random
@@ -42,7 +44,8 @@ class EndpointServer(DiscoveryCommunity):
         self.churn_strategy = RandomChurn(self)
         self.crypto = ECCrypto()
 
-    def on_packet(self, (source_address, data), warn_unknown=False):
+    def on_packet(self, packet, warn_unknown=False):
+        source_address, data = packet
         try:
             probable_peer = self.network.get_verified_by_address(source_address)
             if probable_peer:
@@ -78,7 +81,7 @@ class EndpointServer(DiscoveryCommunity):
         """
         Dynamically scale churn to check one fifth of our network every step.
         """
-        self.churn_strategy.sample_size = min(len(self.network.verified_peers)/5, 1)
+        self.churn_strategy.sample_size = min(len(self.network.verified_peers)//5, 1)
         self.churn_strategy.take_step()
 
 

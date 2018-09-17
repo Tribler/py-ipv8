@@ -5,6 +5,7 @@ from threading import Lock
 from twisted.internet import reactor
 
 from .taskmanager import TaskManager
+from .util import grange
 
 
 class NumberCache(object):
@@ -52,7 +53,7 @@ class RandomNumberCache(NumberCache):
 
     @classmethod
     def find_unclaimed_identifier(cls, request_cache, prefix):
-        for _ in xrange(1000):
+        for _ in grange(1000):
             number = int(random() * 2 ** 16)
             if not request_cache.has(prefix, number):
                 break

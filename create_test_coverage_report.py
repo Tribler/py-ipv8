@@ -1,7 +1,10 @@
+from __future__ import absolute_import
+from __future__ import print_function
+
 import sys
 
 if __name__ != '__main__':
-    print >> sys.stderr, __file__, "should be run stand-alone! Instead, it is being imported!"
+    print(__file__, "should be run stand-alone! Instead, it is being imported!", file=sys.stderr)
     sys.exit(1)
 
 import logging
@@ -11,9 +14,9 @@ logging.disable(logging.CRITICAL)
 import coverage
 import os
 import shutil
-from StringIO import StringIO
 from twisted.trial.runner import TestLoader
 from twisted.trial.reporter import VerboseTextReporter
+from ipv8.util import StringIO
 
 data_file = os.path.join('coverage', 'raw', 'coverage_file')
 
@@ -35,7 +38,7 @@ with open('test_classes_list.txt', 'r') as test_class_file:
     cov.start()
 
     for line in lines:
-        print "Measuring coverage for", line
+        print("Measuring coverage for", line)
 
         output_stream = StringIO()
         formatted_line = line.replace('/', '.').replace('.py:', '.')
@@ -50,7 +53,7 @@ with open('test_classes_list.txt', 'r') as test_class_file:
         output_stream.close()
 
     cov.stop()
-    print "Generating HTML report"
+    print("Generating HTML report")
     cov.html_report(directory='coverage', omit="ipv8/keyvault/libnacl/*")
     cov.erase()
 

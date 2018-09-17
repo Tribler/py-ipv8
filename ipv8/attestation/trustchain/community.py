@@ -20,6 +20,7 @@ from ...deprecated.payload_headers import BinMemberAuthenticationPayload, Global
 from .payload import *
 from ...peer import Peer
 from ...requestcache import RandomNumberCache, RequestCache
+from ...util import grange
 
 HALF_BLOCK = u"half_block"
 CRAWL = u"crawl"
@@ -447,7 +448,7 @@ class TrustChainCommunity(Community):
                                                            self.my_peer.public_key.key_to_bin(), link_pk=EMPTY_PK)
             self.send_crawl_response(block, payload.crawl_id, 0, 0, peer)
 
-        for ind in xrange(len(blocks)):
+        for ind in grange(len(blocks)):
             self.send_crawl_response(blocks[ind], payload.crawl_id, ind + 1, total_count, peer)
         self.logger.info("Sent %d blocks", total_count)
 
@@ -540,7 +541,7 @@ class TrustChainCommunity(Community):
         total_trust = sum([self.get_trust(peer) for peer in eligible])
         random_trust_i = random.randint(0, total_trust - 1)
         current_trust_i = 0
-        for i in xrange(0, len(eligible)):
+        for i in grange(0, len(eligible)):
             next_trust_i = self.get_trust(eligible[i])
             if current_trust_i + next_trust_i > random_trust_i:
                 return eligible[i]

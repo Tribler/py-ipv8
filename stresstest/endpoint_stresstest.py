@@ -1,3 +1,6 @@
+from __future__ import absolute_import
+from __future__ import print_function
+
 from collections import deque, namedtuple
 from os import makedirs, path, rename
 from random import randint
@@ -23,6 +26,7 @@ from ipv8.configuration import get_default_configuration
 from ipv8.keyvault.crypto import ECCrypto
 from ipv8.overlay import Overlay
 from ipv8.peer import Peer
+from ipv8.util import grange
 
 
 test_results = {}
@@ -60,7 +64,8 @@ class LoadOverlay(Overlay):
         self.packets_sent.append((time(), self.packets_sent[-1][1] + 1))
         self.bytes_sent.append((time(), self.bytes_sent[-1][1] + self.packet_size))
 
-    def on_packet(self, (source_address, data)):
+    def on_packet(self, packet):
+        source_address, data = packet
         self.packets_received.append((time(), self.packets_received[-1][1] + 1))
         self.bytes_received.append((time(), self.bytes_received[-1][1] + len(data)))
         self.window += 1
@@ -183,7 +188,7 @@ except:
     rmtree(old_prefix, ignore_errors=True)
     rename(path.abspath(prefix), old_prefix)
     makedirs(prefix)
-for experiment, pair in test_results.iteritems():
+for experiment, pair in test_results.items():
     for peer in ['initiator', 'counterparty']:
         for metric in ['bytes_received', 'bytes_sent', 'packets_received', 'packets_sent']:
             filename = prefix + "%s_%s_%s.csv" % (experiment, metric, peer)
@@ -202,7 +207,7 @@ if old_prefix:
 retcode = call(rcmd, shell=True)
 
 if retcode > 0:
-    print "Error! Stresstest found significant slowdown:"
+    print("Error! Stresstest found significant slowdown:")
     binretcode = bin(retcode)[2:]
     errmap = {
         0: 'data_rcv_initiator',
@@ -214,11 +219,11 @@ if retcode > 0:
         6: 'data_asnd_initiator',
         7: 'data_asnd_counterparty'
     }
-    for i in xrange(len(binretcode)):
+    for i in grange(len(binretcode)):
         if binretcode[i] == '1':
-            print "Significant slowdown in %s" % errmap[i]
+            print("Significant slowdown in %s" % errmap[i])
 else:
-    print "Stresstest found no significant slowdown"
+    print("Stresstest found no significant slowdown")
 
 # This should be the last block of code in the file
 if retcode > 0:

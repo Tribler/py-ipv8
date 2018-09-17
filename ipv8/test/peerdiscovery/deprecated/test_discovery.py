@@ -1,4 +1,9 @@
+from __future__ import absolute_import
+
+from functools import reduce
+
 from twisted.internet.defer import inlineCallbacks
+
 from ....deprecated.community import _DEFAULT_ADDRESSES
 from ....deprecated.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from ...base import TestBase

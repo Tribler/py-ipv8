@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 import time
 import hashlib
 
@@ -26,6 +28,9 @@ class Value(object):
 
     def __eq__(self, other):
         return self.id == other.id
+
+    def __hash__(self):
+        return 0
 
 
 class Storage(object):
