@@ -334,12 +334,21 @@ class TestTrustChainCommunity(TestBase):
         self.nodes[1].network.add_verified_peer(node3.my_peer)
         self.nodes[1].discovery.take_step()
 
+        # TTL=1 (should not be relayed)
         block = TestBlock()
-        self.nodes[0].overlay.send_block(block)
-
+        self.nodes[0].overlay.send_block(block, ttl=1)
         yield self.deliver_messages()
+        self.assertIn(block.block_id, self.nodes[0].overlay.relayed_broadcasts)
+        self.assertNotIn(block.block_id, self.nodes[1].overlay.relayed_broadcasts)
+        self.assertNotIn(block.block_id, node3.overlay.relayed_broadcasts)
 
-        self.assertTrue(node3.overlay.relayed_broadcasts)
+        # TTL=2 (should be relayed)
+        block = TestBlock()
+        self.nodes[0].overlay.send_block(block, ttl=2)
+        yield self.deliver_messages()
+        self.assertIn(block.block_id, self.nodes[0].overlay.relayed_broadcasts)
+        self.assertIn(block.block_id, self.nodes[1].overlay.relayed_broadcasts)
+        self.assertNotIn(block.block_id, node3.overlay.relayed_broadcasts)
 
     @inlineCallbacks
     def test_broadcast_half_block_pair(self):
@@ -354,15 +363,23 @@ class TestTrustChainCommunity(TestBase):
         self.nodes[1].network.add_verified_peer(node3.my_peer)
         self.nodes[1].discovery.take_step()
 
+        # TTL=1 (should not be relayed)
         block1 = TestBlock()
         block2 = TestBlock()
-        self.nodes[0].overlay.send_block_pair(block1, block2)
-
+        self.nodes[0].overlay.send_block_pair(block1, block2, ttl=1)
         yield self.deliver_messages()
+        self.assertIn(block1.block_id, self.nodes[0].overlay.relayed_broadcasts)
+        self.assertNotIn(block1.block_id, self.nodes[1].overlay.relayed_broadcasts)
+        self.assertNotIn(block1.block_id, node3.overlay.relayed_broadcasts)
 
-        for node_nr in [0, 1]:
-            self.assertIsNotNone(self.nodes[node_nr].overlay.persistence.get_latest(block1.public_key))
-            self.assertIsNotNone(self.nodes[node_nr].overlay.persistence.get_latest(block2.public_key))
+        # TTL=2 (should be relayed)
+        block1 = TestBlock()
+        block2 = TestBlock()
+        self.nodes[0].overlay.send_block_pair(block1, block2, ttl=2)
+        yield self.deliver_messages()
+        self.assertIn(block1.block_id, self.nodes[0].overlay.relayed_broadcasts)
+        self.assertIn(block1.block_id, self.nodes[1].overlay.relayed_broadcasts)
+        self.assertNotIn(block1.block_id, node3.overlay.relayed_broadcasts)
 
     @inlineCallbacks
     def test_intro_response_crawl(self):
