@@ -9,21 +9,21 @@ from twisted.internet import reactor
 from twisted.internet.defer import DeferredList, inlineCallbacks, maybeDeferred
 from twisted.internet.task import LoopingCall
 
-from ipv8.messaging.interfaces.statistics_endpoint import StatisticsEndpoint
-from ipv8.attestation.identity.community import IdentityCommunity
-from ipv8.attestation.trustchain.community import TrustChainCommunity, TrustChainTestnetCommunity
-from ipv8.attestation.wallet.community import AttestationCommunity
-from ipv8.keyvault.crypto import ECCrypto
-from ipv8.keyvault.private.m2crypto import M2CryptoSK
-from ipv8.messaging.anonymization.community import TunnelCommunity
-from ipv8.messaging.anonymization.hidden_services import HiddenTunnelCommunity
-from ipv8.messaging.interfaces.udp.endpoint import UDPEndpoint
-from ipv8.peer import Peer
-from ipv8.peerdiscovery.churn import RandomChurn
-from ipv8.peerdiscovery.deprecated.discovery import DiscoveryCommunity
-from ipv8.peerdiscovery.discovery import EdgeWalk, RandomWalk
-from ipv8.peerdiscovery.network import Network
-from ipv8.dht.discovery import DHTDiscoveryCommunity
+from .ipv8.messaging.interfaces.statistics_endpoint import StatisticsEndpoint
+from .ipv8.attestation.identity.community import IdentityCommunity
+from .ipv8.attestation.trustchain.community import TrustChainCommunity, TrustChainTestnetCommunity
+from .ipv8.attestation.wallet.community import AttestationCommunity
+from .ipv8.keyvault.crypto import ECCrypto
+from .ipv8.keyvault.private.m2crypto import M2CryptoSK
+from .ipv8.messaging.anonymization.community import TunnelCommunity
+from .ipv8.messaging.anonymization.hidden_services import HiddenTunnelCommunity
+from .ipv8.messaging.interfaces.udp.endpoint import UDPEndpoint
+from .ipv8.peer import Peer
+from .ipv8.peerdiscovery.churn import RandomChurn
+from .ipv8.peerdiscovery.deprecated.discovery import DiscoveryCommunity
+from .ipv8.peerdiscovery.discovery import EdgeWalk, RandomWalk
+from .ipv8.peerdiscovery.network import Network
+from .ipv8.dht.discovery import DHTDiscoveryCommunity
 
 
 _COMMUNITIES = {
