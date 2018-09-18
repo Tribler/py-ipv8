@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 import logging
 from random import random
 from threading import Lock
@@ -5,14 +7,14 @@ from threading import Lock
 from twisted.internet import reactor
 
 from .taskmanager import TaskManager
-from .util import grange
+from .util import grange, is_long_or_int, is_unicode
 
 
 class NumberCache(object):
 
     def __init__(self, request_cache, prefix, number):
-        assert isinstance(number, (int, long)), type(number)
-        assert isinstance(prefix, unicode), type(prefix)
+        assert is_long_or_int(number), type(number)
+        assert is_unicode(prefix), type(prefix)
 
         super(NumberCache, self).__init__()
         self._logger = logging.getLogger(self.__class__.__name__)
@@ -45,7 +47,7 @@ class NumberCache(object):
 class RandomNumberCache(NumberCache):
 
     def __init__(self, request_cache, prefix):
-        assert isinstance(prefix, unicode), type(prefix)
+        assert is_unicode(prefix), type(prefix)
 
         # find an unclaimed identifier
         number = RandomNumberCache.find_unclaimed_identifier(request_cache, prefix)
@@ -84,8 +86,8 @@ class RequestCache(TaskManager):
         Returns CACHE when CACHE.identifier was not yet added, otherwise returns None.
         """
         assert isinstance(cache, NumberCache), type(cache)
-        assert isinstance(cache.number, (int, long)), type(cache.number)
-        assert isinstance(cache.prefix, unicode), type(cache.prefix)
+        assert is_long_or_int(cache.number), type(cache.number)
+        assert is_unicode(cache.prefix), type(cache.prefix)
         assert isinstance(cache.timeout_delay, float), type(cache.timeout_delay)
         assert cache.timeout_delay > 0.0, cache.timeout_delay
 
@@ -109,16 +111,16 @@ class RequestCache(TaskManager):
         """
         Returns True when IDENTIFIER is part of this RequestCache.
         """
-        assert isinstance(number, (int, long)), type(number)
-        assert isinstance(prefix, unicode), type(prefix)
+        assert is_long_or_int(number), type(number)
+        assert is_unicode(prefix), type(prefix)
         return self._create_identifier(number, prefix) in self._identifiers
 
     def get(self, prefix, number):
         """
         Returns the Cache associated with IDENTIFIER when it exists, otherwise returns None.
         """
-        assert isinstance(number, (int, long)), type(number)
-        assert isinstance(prefix, unicode), type(prefix)
+        assert is_long_or_int(number), type(number)
+        assert is_unicode(prefix), type(prefix)
         return self._identifiers.get(self._create_identifier(number, prefix))
 
     def pop(self, prefix, number):
@@ -126,8 +128,8 @@ class RequestCache(TaskManager):
         Returns the Cache associated with IDENTIFIER, and removes it from this RequestCache, when it exists, otherwise
         raises a KeyError exception.
         """
-        assert isinstance(number, (int, long)), type(number)
-        assert isinstance(prefix, unicode), type(prefix)
+        assert is_long_or_int(number), type(number)
+        assert is_unicode(prefix), type(prefix)
 
         identifier = self._create_identifier(number, prefix)
         cache = self._identifiers.pop(identifier)

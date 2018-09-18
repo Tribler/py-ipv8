@@ -3,9 +3,12 @@ The tunnel community.
 
 Author(s): Egbert Bouman
 """
+from __future__ import absolute_import
+from __future__ import division
+
+from binascii import hexlify
 import sys
 import random
-
 from traceback import format_exception
 from cryptography.exceptions import InvalidTag
 from twisted.internet.defer import Deferred
@@ -282,7 +285,7 @@ class TunnelCommunity(Community):
 
         # Remove exit_candidates that are not returned as dispersy verified candidates
         current_peers = set(p.public_key.key_to_bin() for p in self.network.get_peers_for_service(self.master_peer.mid))
-        ckeys = self.exit_candidates.keys()
+        ckeys = list(self.exit_candidates.keys())
         for pubkey in ckeys:
             if pubkey not in current_peers:
                 self.exit_candidates.pop(pubkey)
@@ -300,14 +303,14 @@ class TunnelCommunity(Community):
         # Determine the last hop
         if not required_exit:
             if ctype == CIRCUIT_TYPE_DATA:
-                required_exit = random.choice(self.exit_candidates.values()) if self.exit_candidates else None
+                required_exit = random.choice(list(self.exit_candidates.values())) if self.exit_candidates else None
             else:
                 # For exit nodes that don't exit actual data, we prefer verified candidates,
                 # but we also consider exit candidates.
                 if self.compatible_candidates:
                     required_exit = random.choice(self.compatible_candidates)
                 elif self.exit_candidates:
-                    required_exit = random.choice(self.exit_candidates.values())
+                    required_exit = random.choice(list(self.exit_candidates.values()))
 
         if not required_exit:
             self.logger.info("Could not create circuit, no available exit-nodes")
@@ -396,7 +399,7 @@ class TunnelCommunity(Community):
         to_remove = [circuit_id]
         if both_sides:
             # Find other side of relay
-            for k, v in self.relay_from_to.iteritems():
+            for k, v in self.relay_from_to.items():
                 if circuit_id == v.circuit_id:
                     to_remove.append(k)
 
@@ -471,7 +474,7 @@ class TunnelCommunity(Community):
                               *reversed(got_destroy_from))
             return
 
-        for cid_from, (cid_to, sock_addr) in relays.iteritems():
+        for cid_from, (cid_to, sock_addr) in relays.items():
             self.logger.info("Found relay %s -> %s (%s)", cid_from, cid_to, sock_addr)
             if (cid_to, sock_addr) != got_destroy_from:
                 self.send_destroy(sock_addr, cid_to, reason)
@@ -519,7 +522,7 @@ class TunnelCommunity(Community):
                 encrypted = self.crypto_out(circuit_id, encrypted, is_data=is_data)
                 packet = plaintext + encrypted
 
-            except CryptoException, e:
+            except CryptoException as e:
                 self.logger.error(str(e))
                 return 0
 
@@ -556,7 +559,7 @@ class TunnelCommunity(Community):
                 encrypted = self.crypto_relay(circuit_id, encrypted)
             packet = plaintext + encrypted
 
-        except CryptoException, e:
+        except CryptoException as e:
             self.logger.error(str(e))
             return False
 
@@ -580,7 +583,7 @@ class TunnelCommunity(Community):
         circuit.unverified_hop = None
 
         if circuit.state == CIRCUIT_STATE_EXTENDING:
-            ignore_candidates = [self.crypto.key_to_bin(hop.public_key) for hop in circuit.hops] + \
+            ignore_candidates = [self.crypto.key_to_bin(chop.public_key) for chop in circuit.hops] + \
                                 [self.my_peer.public_key]
             if circuit.required_exit:
                 ignore_candidates.append(circuit.required_exit.public_key.key_to_bin())
@@ -618,7 +621,7 @@ class TunnelCommunity(Community):
                     self.crypto.generate_diffie_secret()
 
                 self.logger.info("Extending circuit %d with %s", circuit.circuit_id,
-                                 extend_hop_public_bin.encode('hex'))
+                                 hexlify(extend_hop_public_bin))
 
                 self.increase_bytes_sent(circuit, self.send_cell([circuit.peer],
                                                                  u"extend",
@@ -674,7 +677,7 @@ class TunnelCommunity(Community):
 
     @lazy_wrapper_unsigned_wd(CellPayload)
     def on_cell(self, source_address, payload, data):
-        message_type = [k for k, v in message_to_payload.iteritems() if v[0] == payload.message_type][0]
+        message_type = [k for k, v in message_to_payload.items() if v[0] == payload.message_type][0]
         circuit_id = payload.circuit_id
         self.logger.debug("Got %s (%d) from %s, I am %s", message_type,
                           payload.circuit_id, source_address, self.my_peer)
@@ -694,7 +697,7 @@ class TunnelCommunity(Community):
                     encrypted = self.crypto_in(circuit_id, encrypted, is_data=message_type == u'data')
                     data = plaintext + encrypted
 
-                except CryptoException, e:
+                except CryptoException as e:
                     self.logger.warning(str(e))
                     if circuit:
                         self.send_destroy(circuit.peer, circuit_id, 0)

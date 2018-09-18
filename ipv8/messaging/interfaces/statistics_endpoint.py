@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 import time
 
 from ...messaging.interfaces.endpoint import EndpointListener
@@ -37,7 +39,7 @@ class StatisticsEndpoint(EndpointListener):
         self.endpoint.send(socket_address, packet)
 
         prefix = packet[:22]
-        if prefix not in self.statistics.keys() or len(packet) < 22:
+        if prefix not in list(self.statistics.keys()) or len(packet) < 22:
             return
 
         self.add_sent_stat(prefix, ord(packet[22]), len(packet))
@@ -53,7 +55,7 @@ class StatisticsEndpoint(EndpointListener):
         _, data = packet
 
         prefix = data[:22]
-        if prefix not in self.statistics.keys() or len(data) < 22:
+        if prefix not in list(self.statistics.keys()) or len(data) < 22:
             return
 
         message_id = ord(data[22])
