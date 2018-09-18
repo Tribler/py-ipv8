@@ -13,18 +13,31 @@ logger = logging.getLogger(__name__)
 if sys.version_info.major > 2:
     from io import StringIO
     import queue as Queue
+    from urllib.parse import parse_qsl, ParseResult, unquote, urlencode, urlparse
     grange = range
     is_long_or_int = lambda x: isinstance(x, int)
+    is_unicode = lambda x: isinstance(x, str)
+
     cast_to_long = lambda x: x
     maximum_integer = sys.maxsize
 else:
     from StringIO import StringIO
     import Queue
+    from urllib import unquote, urlencode
+    from urlparse import urlparse, parse_qsl, ParseResult
     grange = xrange
     is_long_or_int = lambda x: isinstance(x, (int, long))
+    is_unicode = lambda x: isinstance(x, unicode)
     cast_to_long = lambda x: long(x)
     maximum_integer = sys.maxint
 StringIO = StringIO
+urllib_future = type("", (), {
+    "unquote": unquote,
+    "urlencode": urlencode,
+    "urlparse": urlparse,
+    "parse_qsl": parse_qsl,
+    "ParseResult": ParseResult
+})
 
 
 def blocking_call_on_reactor_thread(func):

@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 import struct
 
 from cryptography.hazmat.backends import default_backend
@@ -8,6 +10,7 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 import libnacl
 
 from ...keyvault.crypto import ECCrypto, LibNaCLPK
+from ...util import is_long_or_int
 
 
 class CryptoException(Exception):
@@ -58,8 +61,8 @@ class TunnelCrypto(ECCrypto):
         return [kf, kb, sf, sb, 1, 1]
 
     def _bulid_iv(self, salt, salt_explicit):
-        assert isinstance(salt, (basestring)), type(salt)
-        assert isinstance(salt_explicit, (int, long)), type(salt_explicit)
+        assert isinstance(salt, str), type(salt)
+        assert is_long_or_int(salt_explicit), type(salt_explicit)
 
         if salt_explicit == 0:
             raise CryptoException("salt_explicit wrapped")

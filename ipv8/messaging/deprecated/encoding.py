@@ -1,7 +1,9 @@
+from __future__ import absolute_import
+
 import logging
 from json import dumps
-from urllib import unquote, urlencode
-from urlparse import urlparse, parse_qsl, ParseResult
+
+from ...util import cast_to_long, is_long_or_int, is_unicode, urllib_future
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +21,7 @@ def _a_encode_long(value, mapping):
     """
     42 --> ('2', 'J', '42')
     """
-    assert isinstance(value, long), "VALUE has invalid type: %s" % type(value)
+    assert is_long_or_int(value) and not isinstance(value, int), "VALUE has invalid type: %s" % type(value)
     value = str(value).encode("UTF-8")
     return str(len(value)).encode("UTF-8"), "J", value
 
@@ -37,7 +39,7 @@ def _a_encode_unicode(value, mapping):
     """
     'foo-bar' --> ('7', 's', 'foo-bar')
     """
-    assert isinstance(value, unicode), "VALUE has invalid type: %s" % type(value)
+    assert is_unicode(value), "VALUE has invalid type: %s" % type(value)
     value = value.encode("UTF-8")
     return str(len(value)).encode("UTF-8"), "s", value
 
@@ -58,7 +60,7 @@ def _a_encode_list(values, mapping):
     encoded = [str(len(values)).encode("UTF-8"), "l"]
     extend = encoded.extend
     for value in values:
-        extend(mapping[type(value)](value, mapping))
+        extend(mapping[type(value).__name__](value, mapping))
     return encoded
 
 
@@ -70,7 +72,7 @@ def _a_encode_set(values, mapping):
     encoded = [str(len(values)).encode("UTF-8"), "L"]
     extend = encoded.extend
     for value in values:
-        extend(mapping[type(value)](value, mapping))
+        extend(mapping[type(value).__name__](value, mapping))
     return encoded
 
 
@@ -82,7 +84,7 @@ def _a_encode_tuple(values, mapping):
     encoded = [str(len(values)).encode("UTF-8"), "t"]
     extend = encoded.extend
     for value in values:
-        extend(mapping[type(value)](value, mapping))
+        extend(mapping[type(value).__name__](value, mapping))
     return encoded
 
 
@@ -94,10 +96,10 @@ def _a_encode_dictionary(values, mapping):
     encoded = [str(len(values)).encode("UTF-8"), "d"]
     extend = encoded.extend
     for key, value in sorted(values.items()):
-        assert type(key) in mapping, (key, values)
-        assert type(value) in mapping, (value, values)
-        extend(mapping[type(key)](key, mapping))
-        extend(mapping[type(value)](value, mapping))
+        assert type(key).__name__ in mapping, (key, values)
+        assert type(value).__name__ in mapping, (value, values)
+        extend(mapping[type(key).__name__](key, mapping))
+        extend(mapping[type(value).__name__](value, mapping))
     return encoded
 
 
@@ -115,22 +117,22 @@ def _a_encode_bool(value, mapping):
     """
     return ['0T' if value else '0F']
 
-_a_encode_mapping = {int: _a_encode_int,
-                     long: _a_encode_long,
-                     float: _a_encode_float,
-                     unicode: _a_encode_unicode,
-                     str: _a_encode_bytes,
-                     list: _a_encode_list,
-                     set: _a_encode_set,
-                     tuple: _a_encode_tuple,
-                     dict: _a_encode_dictionary,
-                     type(None): _a_encode_none,
-                     bool: _a_encode_bool}
+_a_encode_mapping = {'int': _a_encode_int,
+                     'long': _a_encode_long,
+                     'float': _a_encode_float,
+                     'unicode': _a_encode_unicode,
+                     'str': _a_encode_bytes,
+                     'list': _a_encode_list,
+                     'set': _a_encode_set,
+                     'tuple': _a_encode_tuple,
+                     'dict': _a_encode_dictionary,
+                     'NoneType': _a_encode_none,
+                     'bool': _a_encode_bool}
 
 
 def bytes_to_uint(stream, offset=0):
     assert isinstance(stream, str)
-    assert isinstance(offset, (int, long))
+    assert is_long_or_int(offset)
     assert offset >= 0
     bit8 = 16 * 8
     mask7 = 2 ** 7 - 1
@@ -160,7 +162,7 @@ def encode(data, version="a"):
     """
     assert isinstance(version, str)
     if version == "a":
-        return "a" + "".join(_a_encode_mapping[type(data)](data, _a_encode_mapping))
+        return "a" + "".join(_a_encode_mapping[type(data).__name__](data, _a_encode_mapping))
 
     raise ValueError("Unknown encode version")
 
@@ -176,7 +178,7 @@ def _a_decode_long(stream, offset, count, _):
     """
     'a2J42',3,2 --> 5,42
     """
-    return offset + count, long(stream[offset:offset + count])
+    return offset + count, cast_to_long(stream[offset:offset + count])
 
 
 def _a_decode_float(stream, offset, count, _):
@@ -351,13 +353,13 @@ def add_url_params(url, params):
     'http://stackoverflow.com/test?data=some&data=values&answers=false'
     """
     # Unquoting URL first so we don't loose existing args
-    url = unquote(url)
+    url = urllib_future.unquote(url)
     # Extracting url info
-    parsed_url = urlparse(url)
+    parsed_url = urllib_future.urlparse(url)
     # Extracting URL arguments from parsed URL
     get_args = parsed_url.query
     # Converting URL arguments to dict
-    parsed_get_args = dict(parse_qsl(get_args))
+    parsed_get_args = dict(urllib_future.parse_qsl(get_args))
     # Merging URL arguments dict with new params
     parsed_get_args.update(params)
 
@@ -369,10 +371,10 @@ def add_url_params(url, params):
     )
 
     # Converting URL argument to proper query string
-    encoded_get_args = urlencode(parsed_get_args, doseq=True)
+    encoded_get_args = urllib_future.urlencode(parsed_get_args, doseq=True)
     # Creating new parsed result object based on provided with new
     # URL arguments. Same thing happens inside of urlparse.
-    new_url = ParseResult(
+    new_url = urllib_future.ParseResult(
         parsed_url.scheme, parsed_url.netloc, parsed_url.path,
         parsed_url.params, encoded_get_args, parsed_url.fragment
     ).geturl()

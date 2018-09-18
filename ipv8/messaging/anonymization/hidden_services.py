@@ -3,6 +3,9 @@ The hidden tunnel community.
 
 Author(s): Egbert Bouman
 """
+from __future__ import absolute_import
+
+from binascii import hexlify
 from collections import defaultdict
 import hashlib
 import os
@@ -15,6 +18,7 @@ from .payload import *
 from ...peer import Peer
 from .tunnel import CIRCUIT_ID_PORT, CIRCUIT_TYPE_IP, CIRCUIT_TYPE_RENDEZVOUS, CIRCUIT_TYPE_RP, EXIT_NODE, \
                     EXIT_NODE_SALT, Hop, RelayRoute, RendezvousPoint, TunnelExitSocket
+from ...util import grange
 
 
 class HiddenTunnelCommunity(TunnelCommunity):
@@ -172,7 +176,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         blacklist = self.dht_blacklist[info_hash]
 
         # cleanup dht_blacklist
-        for i in xrange(len(blacklist) - 1, -1, -1):
+        for i in grange(len(blacklist) - 1, -1, -1):
             if time.time() - blacklist[i][0] > 60:
                 blacklist.pop(i)
         exclude = [rp[2] for rp in self.my_download_points.values()] + [sock_addr for _, sock_addr in blacklist]
@@ -472,4 +476,4 @@ class HiddenTunnelCommunity(TunnelCommunity):
             self.logger.error("Need a DHT provider to announce to the DHT")
 
     def get_lookup_info_hash(self, info_hash):
-        return hashlib.sha1('tribler anonymous download' + info_hash.encode('hex')).digest()
+        return hashlib.sha1('tribler anonymous download' + hexlify(info_hash)).digest()
