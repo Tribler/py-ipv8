@@ -1,3 +1,6 @@
+from __future__ import absolute_import
+from __future__ import print_function
+
 import os
 import random
 import shutil
@@ -74,18 +77,18 @@ class TestBase(unittest.TestCase):
             # If we made it here, there is a serious issue which we cannot recover from.
             # Most likely the Twisted threadpool got into a deadlock while shutting down.
             import os, traceback
-            print >> sys.stderr, "The test-suite locked up! Force quitting! Thread dump:"
+            print("The test-suite locked up! Force quitting! Thread dump:", file=sys.stderr)
             for tid, stack in sys._current_frames().items():
                 if tid != threading.currentThread().ident:
-                    print >> sys.stderr, "THREAD#%d" % tid
+                    print("THREAD#%d" % tid, file=sys.stderr)
                     for line in traceback.format_list(traceback.extract_stack(stack)):
-                        print >> sys.stderr, "|", line[:-1].replace('\n', '\n|   ')
+                        print("|", line[:-1].replace('\n', '\n|   '), file=sys.stderr)
 
             delayed_calls = reactor.getDelayedCalls()
             if delayed_calls:
-                print "Delayed calls:"
+                print("Delayed calls:")
                 for dc in delayed_calls:
-                    print ">     %s" % dc
+                    print(">     %s" % dc)
 
             os._exit(1)
         t = threading.Thread(target=check_twisted)

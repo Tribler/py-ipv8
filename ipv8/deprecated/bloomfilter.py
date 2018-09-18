@@ -21,12 +21,16 @@ Ippolito <bob@redivi.com>.  Simplified, and optimized to use just python code.
 @organization: Technical University Delft
 @contact: dispersy@frayja.com
 """
+from __future__ import absolute_import
+from __future__ import division
 
 from hashlib import sha1, sha256, sha384, sha512, md5
 from math import ceil, log
 from struct import Struct
 from binascii import hexlify, unhexlify
 import logging
+
+from ..util import is_long_or_int
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +72,7 @@ class BloomFilter(object):
 
     @staticmethod
     def _get_k_functions(m_size, n_capacity):
-        return int(ceil(log(2) * m_size / n_capacity))
+        return int(ceil(log(2) * m_size // n_capacity))
 
     @staticmethod
     def _get_n_capacity(m_size, f_error_rate):
@@ -84,7 +88,7 @@ class BloomFilter(object):
             prefix = kargs.get("prefix", args[2] if len(args) >= 3 else "")
             assert 0 < len(bytes_), len(bytes_)
             logger.debug("bloom filter based on %d bytes and k_functions %d", len(bytes_), k_functions)
-            filter_ = long(hexlify(bytes_[::-1]), 16)
+            filter_ = int(hexlify(bytes_[::-1]), 16)
 
         # matches: BloomFilter(int:m_size, float:f_error_rate, str:prefix="")
         elif len(args) >= 2 and isinstance(args[0], int) and isinstance(args[1], float):
@@ -107,7 +111,7 @@ class BloomFilter(object):
             assert 0 < n_capacity, n_capacity
             logger.debug("constructing bloom filter based on f_error_rate %f and %d n_capacity", f_error_rate,
                          n_capacity)
-            m_size = int(ceil(abs((n_capacity * log(f_error_rate)) / (log(2) ** 2)) / 8.0) * 8)
+            m_size = int(ceil(abs((n_capacity * log(f_error_rate)) // (log(2) ** 2)) // 8.0) * 8)
             k_functions = cls._get_k_functions(m_size, n_capacity)
             filter_ = 0
 
@@ -129,7 +133,7 @@ class BloomFilter(object):
         assert 0 < self._k_functions <= self._m_size, [self._k_functions, self._m_size]
         assert isinstance(self._prefix, str), type(self._prefix)
         assert 0 <= len(self._prefix) < 256, len(self._prefix)
-        assert isinstance(self._filter, (int, long)), type(self._filter)
+        assert is_long_or_int(self._filter), type(self._filter)
 
         # determine hash function
         if self._m_size >= (1 << 31):
@@ -157,7 +161,7 @@ class BloomFilter(object):
 
         self._fmt_unpack = Struct("".join((">",
                                            fmt_code * self._k_functions,
-                                           "x" * (hashfn().digest_size - bits_required / 8)))).unpack
+                                           "x" * (hashfn().digest_size - bits_required // 8)))).unpack
         self._salt = hashfn(self._prefix)
 
     def add(self, key):
@@ -294,5 +298,5 @@ class BloomFilter(object):
         """
         # hex should be m_size/4, hex is 16 instead of 8 -> hence half the number of "hexes" in m_size
         hex_ = '%x' % self._filter
-        padding = '0' * (self._m_size / 4 - len(hex_))
+        padding = '0' * (self._m_size // 4 - len(hex_))
         return unhexlify(padding + hex_)[::-1]

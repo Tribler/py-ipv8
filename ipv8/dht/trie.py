@@ -72,7 +72,7 @@ class Trie(object):
         def generator(node):
             if node.value is not None:
                 yield node.value
-            for _, child in node.children.iteritems():
+            for _, child in node.children.items():
                 for subresult in generator(child):
                     yield subresult
         return generator(self.root)

@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 import logging
 from threading import RLock
 
@@ -97,7 +99,7 @@ class TaskManager(object):
         """
         with self._task_lock:
             assert all([isinstance(task, (Deferred, DelayedCall, LoopingCall, tuple))
-                        for task in self._pending_tasks.itervalues()]), self._pending_tasks
+                        for task in self._pending_tasks.values()]), self._pending_tasks
 
             for name in self._pending_tasks.keys():
                 self.cancel_pending_task(name)
@@ -116,11 +118,11 @@ class TaskManager(object):
         """
         with self._task_lock:
             self._maybe_clean_task_list()
-            return DeferredList(self._iter_deferreds())
+            return DeferredList(list(self._iter_deferreds()))
 
     def _iter_deferreds(self):
         with self._task_lock:
-            for task in self._pending_tasks.itervalues():
+            for task in self._pending_tasks.values():
                 if isinstance(task, Deferred):
                     yield task
 

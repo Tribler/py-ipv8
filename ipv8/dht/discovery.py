@@ -1,3 +1,6 @@
+from __future__ import absolute_import
+from __future__ import division
+
 import time
 
 from collections import defaultdict
@@ -14,6 +17,7 @@ from .routing import NODE_STATUS_BAD, Node
 from .payload import StorePeerRequestPayload, StorePeerResponsePayload, \
                      ConnectPeerRequestPayload, ConnectPeerResponsePayload, \
                      PingRequestPayload, PingResponsePayload
+from ..util import grange
 
 MSG_STORE_PEER_REQUEST = 13
 MSG_STORE_PEER_RESPONSE = 14
@@ -56,14 +60,14 @@ class DHTDiscoveryCommunity(DHTCommunity):
             node.last_response = time.time()
 
     def find_node_in_dict(self, public_key_bin, node_dict):
-        for _, nodes in node_dict.iteritems():
+        for _, nodes in node_dict.items():
             for node in nodes:
                 if node.public_key.key_to_bin() == public_key_bin:
                     return node
 
     def store_peer(self):
         # Do we already have enough peers storing our address?
-        if len(self.store_for_me) >= TARGET_NODES / 2:
+        if len(self.store_for_me) >= TARGET_NODES // 2:
             return
 
         key = self.my_peer.mid
@@ -171,8 +175,8 @@ class DHTDiscoveryCommunity(DHTCommunity):
         pinged = super(DHTDiscoveryCommunity, self).ping_all()
 
         now = time.time()
-        for key, nodes in self.store_for_me.iteritems():
-            for index in xrange(len(nodes) - 1, -1, -1):
+        for key, nodes in self.store_for_me.items():
+            for index in grange(len(nodes) - 1, -1, -1):
                 node = nodes[index]
                 if node.status == NODE_STATUS_BAD:
                     del self.store_for_me[key][index]
@@ -180,8 +184,8 @@ class DHTDiscoveryCommunity(DHTCommunity):
                 elif node not in pinged and now > node.last_response + PING_INTERVAL:
                     self.ping(node)
 
-        for key, nodes in self.store.iteritems():
-            for index in xrange(len(nodes) - 1, -1, -1):
+        for key, nodes in self.store.items():
+            for index in grange(len(nodes) - 1, -1, -1):
                 node = nodes[index]
                 if now > node.last_query + 60:
                     self.logger.debug('Deleting peer %s (key %s)', node, key.encode('hex'))

@@ -1,4 +1,7 @@
+from __future__ import absolute_import
+
 from twisted.internet.defer import inlineCallbacks
+
 from ....messaging.anonymization.community import TunnelCommunity, TunnelSettings
 from ....messaging.anonymization.tunnel import CIRCUIT_STATE_EXTENDING
 from ....messaging.interfaces.udp.endpoint import UDPEndpoint
@@ -137,12 +140,12 @@ class TestTunnelCommunity(TestBase):
 
         # Node 0 should have 1 circuit in the CIRCUIT_STATE_EXTENDING state
         self.assertEqual(len(self.nodes[0].overlay.data_circuits()), 1)
-        self.assertEqual(next(self.nodes[0].overlay.circuits.itervalues()).state, CIRCUIT_STATE_EXTENDING)
+        self.assertEqual(self.nodes[0].overlay.circuits.values()[0].state, CIRCUIT_STATE_EXTENDING)
 
         # Subsequent calls to build_circuits should not change this
         self.nodes[0].overlay.build_tunnels(1)
         self.assertEqual(len(self.nodes[0].overlay.data_circuits()), 1)
-        self.assertEqual(next(self.nodes[0].overlay.circuits.itervalues()).state, CIRCUIT_STATE_EXTENDING)
+        self.assertEqual(self.nodes[0].overlay.circuits.values()[0].state, CIRCUIT_STATE_EXTENDING)
 
     @inlineCallbacks
     def test_destroy_circuit_from_originator(self):

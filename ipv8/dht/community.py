@@ -1,3 +1,6 @@
+from __future__ import absolute_import
+from __future__ import division
+
 import os
 import time
 import hashlib
@@ -279,7 +282,7 @@ class DHTCommunity(Community):
 
         # To prevent over-caching, the expiration time of an entry depends on the number
         # of nodes that are closer than us.
-        max_age = MAX_ENTRY_AGE / 2 ** max(0, num_closer - TARGET_NODES + 1)
+        max_age = MAX_ENTRY_AGE // 2 ** max(0, num_closer - TARGET_NODES + 1)
         for value in payload.values:
             self.add_value(payload.target, value, max_age)
 
@@ -342,12 +345,12 @@ class DHTCommunity(Community):
             new_values, to_puncture = self._process_find_responses(responses, nodes_tried)
 
             values |= new_values
-            for sender, node in to_puncture.iteritems():
+            for sender, node in to_puncture.items():
                 nodes_closest.add(node)
                 recent = sender
 
             deferreds = [self._send_find_request(sender, node.id, force_nodes)
-                         for sender, node in to_puncture.iteritems()]
+                         for sender, node in to_puncture.items()]
 
             # Wait for punctures (if any)...
             yield DeferredList(deferreds, consumeErrors=True)
@@ -379,7 +382,7 @@ class DHTCommunity(Community):
         results = []
 
         # Signed data
-        for public_key, data_list in unpacked.iteritems():
+        for public_key, data_list in unpacked.items():
             if public_key is not None:
                 results.append((max(data_list, key=lambda t: t[0])[1], public_key))
 
