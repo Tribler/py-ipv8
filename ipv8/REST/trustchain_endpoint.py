@@ -1,3 +1,6 @@
+from __future__ import absolute_import
+
+from binascii import unhexlify
 import json
 
 from twisted.web import http
@@ -56,7 +59,7 @@ class TrustchainSpecificBlockEndpoint(resource.Resource):
         resource.Resource.__init__(self)
         self.trustchain = trustchain
         try:
-            self.block_hash = block_hash.decode('hex')
+            self.block_hash = unhexlify(block_hash)
         except TypeError:
             self.block_hash = None
 
@@ -114,7 +117,7 @@ class TrustchainSpecificUserBlocksEndpoint(resource.Resource):
         resource.Resource.__init__(self)
         self.trustchain = trustchain
         try:
-            self.pub_key = pub_key.decode('hex')
+            self.pub_key = unhexlify(pub_key)
         except TypeError:
             self.pub_key = None
 

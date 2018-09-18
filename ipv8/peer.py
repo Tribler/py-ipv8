@@ -1,3 +1,6 @@
+from __future__ import absolute_import
+
+from base64 import b64encode
 from struct import unpack
 from time import time
 
@@ -52,4 +55,4 @@ class Peer(object):
         return (self.public_key.key_to_bin() == other.public_key.key_to_bin()) and (self.address == other.address)
 
     def __str__(self):
-        return 'Peer<%s:%d, %s>' % (self.address + (self.mid.encode('base64')[:-1], ))
+        return 'Peer<%s:%d, %s>' % (self.address[0], self.address[1], b64encode(self.mid))
