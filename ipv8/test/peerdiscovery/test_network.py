@@ -1,4 +1,6 @@
-from base64 import b64encode
+from __future__ import absolute_import
+
+from binascii import unhexlify
 import random
 from twisted.trial import unittest
 
@@ -362,7 +364,7 @@ class TestNetwork(unittest.TestCase):
             ('194.116.42.174', 21882),
             ('143.93.254.175', 41862)
         }
-        snapshot = "36e23871e14a8f5dfeafa386c2742aae557a46c8b71ded8f".decode('hex')
+        snapshot = unhexlify("36e23871e14a8f5dfeafa386c2742aae557a46c8b71ded8f")
 
         self.network.load_snapshot(snapshot)
         peers = set(self.network.get_walkable_addresses())
@@ -382,7 +384,7 @@ class TestNetwork(unittest.TestCase):
         """
         Check if no peers are loaded from a malformed snapshot.
         """
-        snapshot = "36e23871e14a8f5dfeafa386c2742aae557a46c8b71ded8f".decode('hex')
+        snapshot = unhexlify("36e23871e14a8f5dfeafa386c2742aae557a46c8b71ded8f")
 
         self.network.load_snapshot(snapshot[:-1])
         peers = set(self.network.get_walkable_addresses())

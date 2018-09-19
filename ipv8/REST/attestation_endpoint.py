@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 from hashlib import sha1
 from base64 import b64decode, b64encode
 import json

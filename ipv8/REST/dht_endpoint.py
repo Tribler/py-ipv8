@@ -1,3 +1,7 @@
+from __future__ import absolute_import
+
+from base64 import b64encode
+from binascii import hexlify, unhexlify
 import json
 
 from twisted.web import http, resource
@@ -37,8 +41,8 @@ class DHTStatisticsEndpoint(resource.Resource):
             return json.dumps({"error": "DHT community not found"})
 
         buckets = self.dht.routing_table.trie.values()
-        stats = {"node_id": self.dht.my_node_id.encode('hex'),
-                 "peer_id": self.dht.my_peer.mid.encode('hex'),
+        stats = {"node_id": hexlify(self.dht.my_node_id),
+                 "peer_id": hexlify(self.dht.my_peer.mid),
                  "routing_table_size": sum([len(bucket.nodes) for bucket in buckets]),
                  "routing_table_buckets": len(buckets),
                  "num_keys_in_store": len(self.dht.storage.items),
@@ -46,8 +50,8 @@ class DHTStatisticsEndpoint(resource.Resource):
 
         if isinstance(self.dht, DHTDiscoveryCommunity):
             stats.update({
-                "num_peers_in_store": {key.encode('hex'): len(peers) for key, peers in self.dht.store.iteritems()},
-                "num_store_for_me": {key.encode('hex'): len(peers) for key, peers in self.dht.store_for_me.iteritems()}
+                "num_peers_in_store": {hexlify(key): len(peers) for key, peers in self.dht.store.items()},
+                "num_store_for_me": {hexlify(key): len(peers) for key, peers in self.dht.store_for_me.items()}
             })
 
         return json.dumps({"statistics": stats})
@@ -73,7 +77,7 @@ class SpecificDHTPeerEndpoint(resource.Resource):
 
     def __init__(self, dht, key):
         resource.Resource.__init__(self)
-        self.mid = bytes(key.decode('hex'))
+        self.mid = bytes(unhexlify(key))
         self.dht = dht
 
     def render_GET(self, request):
@@ -84,7 +88,7 @@ class SpecificDHTPeerEndpoint(resource.Resource):
         def on_success(nodes):
             node_dicts = []
             for node in nodes:
-                node_dicts.append({'public_key': node.public_key.key_to_bin().encode('base64'),
+                node_dicts.append({'public_key': b64encode(node.public_key.key_to_bin()),
                                    'address': node.address})
             request.write(json.dumps({"peers": node_dicts}))
             request.finish()
@@ -126,7 +130,7 @@ class SpecificDHTValueEndpoint(resource.Resource):
 
     def __init__(self, dht, key):
         resource.Resource.__init__(self)
-        self.key = bytes(key.decode('hex'))
+        self.key = bytes(unhexlify(key))
         self.dht = dht
 
     def render_GET(self, request):
@@ -138,8 +142,8 @@ class SpecificDHTValueEndpoint(resource.Resource):
             dicts = []
             for value in values:
                 data, public_key = value
-                dicts.append({'public_key': public_key.encode('base64') if public_key else None,
-                              'value': data.encode('hex')})
+                dicts.append({'public_key': b64encode(public_key) if public_key else None,
+                              'value': hexlify(data)})
             request.write(json.dumps({"values": dicts}))
             request.finish()
 
@@ -183,7 +187,7 @@ class SpecificDHTValueEndpoint(resource.Resource):
             request.setResponseCode(http.BAD_REQUEST)
             return json.dumps({"error": "incorrect parameters"})
 
-        deferred = self.dht.store_value(self.key, parameters['value'][0].decode('hex'), sign=True)
+        deferred = self.dht.store_value(self.key, unhexlify(parameters['value'][0]), sign=True)
         deferred.addCallback(on_success)
         deferred.addErrback(on_failure)
 
