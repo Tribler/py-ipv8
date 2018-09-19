@@ -51,7 +51,7 @@ class TrustChainCommunity(Community):
 
     DB_CLASS = TrustChainDB
     DB_NAME = 'trustchain'
-    BROADCAST_FANOUT = 10
+    BROADCAST_FANOUT = 25
     version = '\x02'
 
     def __init__(self, *args, **kwargs):
