@@ -1,10 +1,14 @@
+from __future__ import absolute_import
+
+from binascii import hexlify
+from functools import reduce
 import logging
-import sys
 
 from twisted.internet import reactor
 from twisted.python.failure import Failure
 
 from ...requestcache import NumberCache
+from ...util import maximum_integer
 
 
 class IntroCrawlTimeout(NumberCache):
@@ -46,7 +50,7 @@ class HalfBlockSignCache(NumberCache):
     """
 
     def __init__(self, community, half_block, sign_deferred):
-        block_id_int = int(half_block.block_id.encode('hex'), 16) % 100000000L
+        block_id_int = int(hexlify(half_block.block_id), 16) % 100000000
         super(HalfBlockSignCache, self).__init__(community.request_cache, u"sign", block_id_int)
         self.logger = logging.getLogger(self.__class__.__name__)
         self.community = community
@@ -78,7 +82,7 @@ class CrawlRequestCache(NumberCache):
         self.community = community
         self.crawl_deferred = crawl_deferred
         self.received_half_blocks = []
-        self.total_half_blocks_expected = sys.maxint
+        self.total_half_blocks_expected = maximum_integer
 
     @property
     def timeout_delay(self):

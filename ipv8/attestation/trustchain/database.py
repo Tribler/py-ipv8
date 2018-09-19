@@ -1,10 +1,13 @@
 """
 This file contains everything related to persistence for TrustChain.
 """
+from __future__ import absolute_import
+
 import os
 
 from ...database import database_blob, Database
 from .block import TrustChainBlock
+from ...util import is_unicode
 
 
 DATABASE_DIRECTORY = os.path.join(u"sqlite")
@@ -281,7 +284,7 @@ class TrustChainDB(Database):
         :param database_version: Current version of the database.
         :return:
         """
-        assert isinstance(database_version, unicode)
+        assert is_unicode(database_version)
         assert database_version.isdigit()
         assert int(database_version) >= 0
         database_version = int(database_version)

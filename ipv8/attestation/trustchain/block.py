@@ -1,11 +1,15 @@
-from hashlib import sha256
+from __future__ import absolute_import
 
+from binascii import hexlify
+from hashlib import sha256
 import time
 
+from ...database import database_blob
 from ...keyvault.crypto import ECCrypto
 from ...messaging.deprecated.encoding import decode, encode
 from ...messaging.serialization import Serializer
 from .payload import HalfBlockPayload
+from ...util import is_unicode, old_round
 
 
 GENESIS_HASH = '0'*32    # ID of the first block of the chain.
@@ -36,7 +40,7 @@ class TrustChainBlock(object):
             # validation
             self.previous_hash = GENESIS_HASH
             self.signature = EMPTY_SIG
-            self.timestamp = int(round(time.time() * 1000))
+            self.timestamp = int(old_round(time.time() * 1000))
             # debug stuff
             self.insert_time = None
         else:
@@ -45,13 +49,13 @@ class TrustChainBlock(object):
              self.previous_hash, self.signature, self.timestamp, self.insert_time) = (data[0], data[2], data[3],
                                                                                       data[4], data[5], data[6],
                                                                                       data[7], data[8], data[9])
-            if isinstance(self.public_key, buffer):
+            if isinstance(self.public_key, database_blob):
                 self.public_key = str(self.public_key)
-            if isinstance(self.link_public_key, buffer):
+            if isinstance(self.link_public_key, database_blob):
                 self.link_public_key = str(self.link_public_key)
-            if isinstance(self.previous_hash, buffer):
+            if isinstance(self.previous_hash, database_blob):
                 self.previous_hash = str(self.previous_hash)
-            if isinstance(self.signature, buffer):
+            if isinstance(self.signature, database_blob):
                 self.signature = str(self.signature)
         self.serializer = serializer
         self.crypto = ECCrypto()
@@ -83,10 +87,10 @@ class TrustChainBlock(object):
     def __str__(self):
         # This makes debugging and logging easier
         return "Block {0} from ...{1}:{2} links ...{3}:{4} for {5} type {6}".format(
-            self.hash.encode("hex")[-8:],
-            self.public_key.encode("hex")[-8:],
+            hexlify(self.hash)[-8:],
+            hexlify(self.public_key)[-8:],
             self.sequence_number,
-            self.link_public_key.encode("hex")[-8:],
+            hexlify(self.link_public_key)[-8:],
             self.link_sequence_number,
             self.transaction,
             self.type)
@@ -120,13 +124,13 @@ class TrustChainBlock(object):
         """
         Return the hash of this block as a number (used as crawl ID).
         """
-        return int(self.hash.encode('hex'), 16) % 100000000L
+        return int(hexlify(self.hash), 16) % 100000000
 
     def pack(self, signature=True):
         """
         Encode this block for transport
         :param signature: False to pack EMPTY_SIG in the signature location, true to pack the signature field
-        :return: the buffer the data was packed into
+        :return: the database_blob the data was packed into
         """
         args = [self.public_key, self.sequence_number, self.link_public_key, self.link_sequence_number,
                 self.previous_hash, self.signature if signature else EMPTY_SIG, self.type, self.transaction,
@@ -418,23 +422,24 @@ class TrustChainBlock(object):
         Prepare a tuple to use for inserting into the database
         :return: A database insertable tuple
         """
-        return (self.type, buffer(encode(self.transaction)), buffer(self.public_key),
-                self.sequence_number, buffer(self.link_public_key), self.link_sequence_number,
-                buffer(self.previous_hash), buffer(self.signature), self.timestamp, buffer(self.hash))
+        return (self.type, database_blob(encode(self.transaction)), database_blob(self.public_key),
+                self.sequence_number, database_blob(self.link_public_key), self.link_sequence_number,
+                database_blob(self.previous_hash), database_blob(self.signature), self.timestamp,
+                database_blob(self.hash))
 
     def __iter__(self):
         """
         This override allows one to take the dict(<block>) of a block.
         :return: generator to iterate over all properties of this block
         """
-        for key, value in self.__dict__.iteritems():
+        for key, value in self.__dict__.items():
             if key == 'key' or key == 'serializer' or key == 'crypto':
                 continue
-            if isinstance(value, basestring) and key != "insert_time" and key != "type":
-                yield key, value.encode("hex")
+            if (isinstance(value, str) or is_unicode(value)) and key != "insert_time" and key != "type":
+                yield key, hexlify(value)
             else:
                 yield key, value
-        yield "hash", self.hash.encode("hex")
+        yield "hash", hexlify(self.hash)
 
         # "previous_hash_requester": base64.encodestring(self.previous_hash_requester).strip(),
         # "previous_hash_responder": base64.encodestring(self.previous_hash_responder).strip(),
