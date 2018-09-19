@@ -3,6 +3,9 @@ The TrustChain Community is the first step in an incremental approach in buildin
 This reputation system builds a tamper proof interaction history contained in a chain data-structure.
 Every node has a chain and these chains intertwine by blocks shared by chains.
 """
+from __future__ import absolute_import
+
+from binascii import hexlify
 import logging
 import random
 from threading import RLock
@@ -60,7 +63,7 @@ class TrustChainCommunity(Community):
         self.persistence = self.DB_CLASS(working_directory, db_name)
         self.relayed_broadcasts = []
         self.logger.debug("The trustchain community started with Public Key: %s",
-                          self.my_peer.public_key.key_to_bin().encode("hex"))
+                          hexlify(self.my_peer.public_key.key_to_bin()))
         self.broadcast_block = True  # Whether we broadcast a full block after constructing it
         self.shutting_down = False
         self.listeners_map = {}  # Map of block_type -> [callbacks]
@@ -356,7 +359,7 @@ class TrustChainCommunity(Community):
             return
 
         # Check if we are waiting for this signature response
-        link_block_id_int = int(blk.linked_block_id.encode('hex'), 16) % 100000000L
+        link_block_id_int = int(hexlify(blk.linked_block_id), 16) % 100000000
         if self.request_cache.has(u'sign', link_block_id_int):
             cache = self.request_cache.pop(u'sign', link_block_id_int)
 
@@ -413,7 +416,7 @@ class TrustChainCommunity(Community):
         crawl_deferred = Deferred()
         self.request_cache.add(CrawlRequestCache(self, crawl_id, crawl_deferred))
         self.logger.info("Requesting crawl of node %s:%d with id %d",
-                         peer.public_key.key_to_bin().encode("hex")[-8:], sq, crawl_id)
+                         hexlify(peer.public_key.key_to_bin())[-8:], sq, crawl_id)
 
         global_time = self.claim_global_time()
         auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
@@ -429,7 +432,7 @@ class TrustChainCommunity(Community):
     @lazy_wrapper(GlobalTimeDistributionPayload, CrawlRequestPayload)
     def received_crawl_request(self, peer, dist, payload):
         self.logger.info("Received crawl request from node %s for sequence number %d",
-                         peer.public_key.key_to_bin().encode("hex")[-8:],
+                         hexlify(peer.public_key.key_to_bin())[-8:],
                          payload.requested_sequence_number)
         sq = payload.requested_sequence_number
         if sq < 0:
@@ -557,7 +560,7 @@ class TrustChainCommunity(Community):
 
         if self.request_cache.has(u"introcrawltimeout", IntroCrawlTimeout.get_number_for(peer)):
             self.logger.debug("Not crawling %s, as we have already crawled it in the last %d seconds!",
-                              peer.mid.encode('hex'), IntroCrawlTimeout.__new__(IntroCrawlTimeout).timeout_delay)
+                              hexlify(peer.mid), IntroCrawlTimeout.__new__(IntroCrawlTimeout).timeout_delay)
         elif peer.address not in self.network.blacklist:
             # Do not crawl addresses in our blacklist (trackers)
             self.request_cache.add(IntroCrawlTimeout(self, peer))

@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 if sys.version_info.major > 2:
     from io import StringIO
+    import math
     import queue as Queue
     from urllib.parse import parse_qsl, ParseResult, unquote, urlencode, urlparse
     grange = range
@@ -20,6 +21,7 @@ if sys.version_info.major > 2:
     cast_to_long = lambda x: x
     cast_to_unicode = lambda x: str(x)
     maximum_integer = sys.maxsize
+    old_round = lambda x: float(math.floor((x) + math.copysign(0.5, x)))
 else:
     from StringIO import StringIO
     import Queue
@@ -31,6 +33,7 @@ else:
     cast_to_long = lambda x: long(x)
     cast_to_unicode = lambda x: unicode(x)
     maximum_integer = sys.maxint
+    old_round = round
 StringIO = StringIO
 urllib_future = type("", (), {
     "unquote": unquote,
