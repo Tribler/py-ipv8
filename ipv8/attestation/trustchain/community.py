@@ -8,6 +8,7 @@ from __future__ import absolute_import
 from binascii import hexlify
 import logging
 import random
+import struct
 from threading import RLock
 
 from twisted.internet import reactor
@@ -554,6 +555,25 @@ class TrustChainCommunity(Community):
                 current_trust_i += next_trust_i
 
         return eligible[-1]
+
+    def get_chain_length(self):
+        """
+        Return the length of your own chain.
+        """
+        latest_block = self.persistence.get_latest(self.my_peer.public_key.key_to_bin())
+        return 0 if not latest_block else latest_block.sequence_number
+
+    @synchronized
+    def create_introduction_request(self, socket_address, extra_bytes=b''):
+        extra_bytes = struct.pack('>H', self.get_chain_length())
+        return super(TrustChainCommunity, self).create_introduction_request(socket_address, extra_bytes)
+
+    @synchronized
+    def create_introduction_response(self, lan_socket_address, socket_address, identifier,
+                                     introduction=None, extra_bytes=b''):
+        extra_bytes = struct.pack('>H', self.get_chain_length())
+        return super(TrustChainCommunity, self).create_introduction_response(lan_socket_address, socket_address,
+                                                                             identifier, introduction, extra_bytes)
 
     @synchronized
     @lazy_wrapper_wd(GlobalTimeDistributionPayload, IntroductionResponsePayload)
