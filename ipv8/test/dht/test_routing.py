@@ -1,3 +1,6 @@
+from __future__ import absolute_import
+
+from binascii import unhexlify
 import time
 
 from ..base import TestBase
@@ -12,7 +15,7 @@ class FakeNode(object):
         id_hex = '%x' % id_binary
         id_hex = '0' + id_hex if len(id_hex) % 2 != 0 else id_hex
 
-        self.id = id_hex.decode('hex')
+        self.id = unhexlify(id_hex)
         self.address = ('1.1.1.1', 1)
         self.status = NODE_STATUS_GOOD
         self.failed = 0
@@ -31,7 +34,7 @@ class TestNode(TestBase):
         self.assertEqual(self.node.last_response, 0)
         self.assertEqual(self.node.last_query, 0)
         self.assertEqual(self.node.failed, 0)
-        self.assertEqual(self.node.id, '8121e3512feb2d7c476ca95985397d9d1836b6da'.decode('hex'))
+        self.assertEqual(self.node.id, unhexlify('8121e3512feb2d7c476ca95985397d9d1836b6da'))
 
     def test_status(self):
         self.node.last_response = time.time()
@@ -62,7 +65,7 @@ class TestBucket(TestBase):
         self.bucket = Bucket('01', max_size=8)
 
     def test_owns(self):
-        pad_and_convert = lambda b: '{:<040X}'.format(int(b.ljust(160, '0'), 2)).decode('hex')
+        pad_and_convert = lambda b: unhexlify('{:<040X}'.format(int(b.ljust(160, '0'), 2)))
         self.assertTrue(self.bucket.owns(pad_and_convert('01')))
         self.assertTrue(self.bucket.owns(pad_and_convert('010')))
         self.assertFalse(self.bucket.owns(pad_and_convert('00')))

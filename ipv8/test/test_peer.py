@@ -1,3 +1,7 @@
+from __future__ import absolute_import
+
+from base64 import b64encode
+
 from twisted.trial import unittest
 
 from ..keyvault.crypto import ECCrypto
@@ -70,4 +74,4 @@ class TestPeer(unittest.TestCase):
         """
         Check if the __str__ method functions properly.
         """
-        self.assertEqual(str(self.peer), "Peer<1.2.3.4:5, %s>" % self.peer.mid.encode('base64')[:-1])
+        self.assertEqual(str(self.peer), "Peer<1.2.3.4:5, %s>" % b64encode(self.peer.mid))

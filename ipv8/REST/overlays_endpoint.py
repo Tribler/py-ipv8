@@ -1,3 +1,6 @@
+from __future__ import absolute_import
+
+from binascii import hexlify
 import json
 
 from twisted.web import resource
@@ -17,8 +20,8 @@ class OverlaysEndpoint(resource.Resource):
         for overlay in self.session.overlays:
             peers = overlay.get_peers()
             overlay_stats.append({
-                "master_peer": overlay.master_peer.public_key.key_to_bin().encode('hex'),
-                "my_peer": overlay.my_peer.public_key.key_to_bin().encode('hex'),
+                "master_peer": hexlify(overlay.master_peer.public_key.key_to_bin()),
+                "my_peer": hexlify(overlay.my_peer.public_key.key_to_bin()),
                 "global_time": overlay.global_time,
                 "peers": [str(peer) for peer in peers],
                 "overlay_name": overlay.__class__.__name__
