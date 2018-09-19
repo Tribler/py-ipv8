@@ -104,17 +104,17 @@ class AttestationEndpoint(resource.Resource):
             return ""
         if request.args['type'][0] == 'outstanding':
             formatted = []
-            for k, v in self.attestation_requests.iteritems():
+            for k, v in self.attestation_requests.items():
                 formatted.append(k + (v[1], ))
             return json.dumps(formatted)
         if request.args['type'][0] == 'outstanding_verify':
             formatted = []
-            for k, v in self.verify_requests.iteritems():
+            for k, v in self.verify_requests.items():
                 formatted.append(k)
             return json.dumps(formatted)
         if request.args['type'][0] == 'verification_output':
             formatted = {}
-            for k, v in self.verification_output.iteritems():
+            for k, v in self.verification_output.items():
                 formatted[b64encode(k)] = [(b64encode(a), m) for a, m in v]
             return json.dumps(formatted)
         if request.args['type'][0] == 'peers':

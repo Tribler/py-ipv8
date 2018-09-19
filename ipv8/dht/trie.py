@@ -116,7 +116,7 @@ class Trie(object):
         if node.value is not None:
             suffixes.append(u'')
 
-        for char, node in node.children.iteritems():
+        for char, node in node.children.items():
             if node.value:
                 suffixes.append(char)
             for nested_suffix in self.suffixes(key + char):

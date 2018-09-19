@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 from __future__ import division
 
+from binascii import hexlify, unhexlify
 import os
 import time
 import hashlib
@@ -89,10 +90,11 @@ class DHTCommunity(Community):
     """
     Community for storing/finding key-value pairs.
     """
-    master_peer = Peer('3081a7301006072a8648ce3d020106052b8104002703819200040578cfb7bc3e708df6f1a60b6baaf405c29e6cd0a'
-                       '393091b25251bf705b643af53755decbd04ce35886a87c11324d18b93efd44dc120e9559e5439ba008f0365be73a0'
-                       'e30f9d963706ea766e9f89974057fda760bbe2bf533979cdccad95b6b9c19e9d4873cefc2669493f904deccc986e2'
-                       '0e4a7e60c1b7d7c9ec84fddcb908700df2365325be00596d37c05a72a7c26'.decode('hex'))
+    master_peer = Peer(unhexlify('3081a7301006072a8648ce3d020106052b8104002703819200040578cfb7bc3e708df6f1a60b6baaf40'
+                                 '5c29e6cd0a393091b25251bf705b643af53755decbd04ce35886a87c11324d18b93efd44dc120e9559e'
+                                 '5439ba008f0365be73a0e30f9d963706ea766e9f89974057fda760bbe2bf533979cdccad95b6b9c19e9'
+                                 'd4873cefc2669493f904deccc986e20e4a7e60c1b7d7c9ec84fddcb908700df2365325be00596d37c05'
+                                 'a72a7c26'))
 
     def __init__(self, *args, **kwargs):
         super(DHTCommunity, self).__init__(*args, **kwargs)
@@ -217,7 +219,7 @@ class DHTCommunity(Community):
             id_ = hashlib.sha1(public_key).digest() if public_key else None
             self.storage.put(key, value, id_=id_, version=version, max_age=max_age)
         else:
-            self.logger.warning('Failed to store value %s', value.encode('hex'))
+            self.logger.warning('Failed to store value %s', hexlify(value))
 
     def store_value(self, key, data, sign=False):
         value = self.serialize_value(data, sign=sign)
@@ -315,7 +317,7 @@ class DHTCommunity(Community):
             else:
                 # Pick a node that we haven't tried yet. Trigger a puncture if needed.
                 node = next((n for n in response['nodes']
-                             if n not in nodes_tried and n not in to_puncture.itervalues()), None)
+                             if n not in nodes_tried and n not in list(to_puncture.values())), None)
                 if node:
                     to_puncture[sender] = node
         return values, to_puncture

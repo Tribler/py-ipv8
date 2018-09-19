@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 import binascii
 import random
 import time
@@ -7,6 +9,7 @@ from socket import inet_aton
 
 from ..peer import Peer
 from .trie import Trie
+from ..util import cast_to_unicode
 
 NODE_STATUS_GOOD = 2
 NODE_STATUS_UNKNOWN = 1
@@ -16,11 +19,11 @@ MAX_BUCKET_SIZE = 20
 
 
 def id_to_binary_string(node_id):
-    return format(int(node_id.encode('hex'), 16), '0160b')
+    return format(int(binascii.hexlify(node_id), 16), '0160b')
 
 
 def distance(a, b):
-    return int(a.encode('hex'), 16) ^ int(b.encode('hex'), 16)
+    return int(binascii.hexlify(a), 16) ^ int(binascii.hexlify(b), 16)
 
 
 def calc_node_id(ip, mid):
@@ -31,7 +34,7 @@ def calc_node_id(ip, mid):
     ip_masked = ''.join([chr(ord(ip_bin[i]) & ord(ip_mask[i])) for i in range(4)])
 
     crc32_unsigned = binascii.crc32(ip_masked) % (2 ** 32)
-    crc32_bin = ('%08x' % crc32_unsigned).decode('hex')
+    crc32_bin = binascii.unhexlify('%08x' % crc32_unsigned)
 
     return crc32_bin[:3] + mid[:17]
 
@@ -86,7 +89,7 @@ class Bucket(object):
 
     def generate_id(self):
         rand_node_id_bin = format(random.randint(0, 2 ** (160 - len(self.prefix_id))), '0160b')
-        return format(int(rand_node_id_bin, 2), '040X').decode('hex')
+        return binascii.unhexlify(format(int(rand_node_id_bin, 2), '040X'))
 
     def owns(self, node_id):
         node_id_binary = id_to_binary_string(node_id)
@@ -109,12 +112,12 @@ class Bucket(object):
 
         # Make room if needed
         if len(self.nodes) >= self.max_size:
-            for n in self.nodes.itervalues():
+            for n in list(self.nodes.values()):
                 if n.status == NODE_STATUS_BAD:
                     del self.nodes[n.id]
                     break
 
-            for n in self.nodes.itervalues():
+            for n in list(self.nodes.values()):
                 if node.rtt and n.rtt / node.rtt >= 2.0:
                     del self.nodes[n.id]
                     break
@@ -134,13 +137,14 @@ class Bucket(object):
 
         b_0 = Bucket(self.prefix_id + u'0', self.max_size)
         b_1 = Bucket(self.prefix_id + u'1', self.max_size)
-        for node in self.nodes.itervalues():
+        for node in list(self.nodes.values()):
             if b_0.owns(node.id):
                 b_0.add(node)
             elif b_1.owns(node.id):
                 b_1.add(node)
             else:
-                self.logger.error('Failed to place node into bucket while splitting')
+                import logging
+                logging.error('Failed to place node into bucket while splitting')
         return b_0, b_1
 
 
@@ -157,7 +161,7 @@ class RoutingTable(object):
 
     def get_bucket(self, node_id):
         node_id_binary = id_to_binary_string(node_id)
-        return self.trie.longest_prefix_value(unicode(node_id_binary), default=None) or self.trie[u'']
+        return self.trie.longest_prefix_value(cast_to_unicode(node_id_binary), default=None) or self.trie[u'']
 
     def add(self, node):
         with self.lock:
@@ -190,14 +194,14 @@ class RoutingTable(object):
 
     def closest_nodes(self, node_id, max_nodes=8, exclude_node=None):
         with self.lock:
-            hash_binary = unicode(id_to_binary_string(node_id))
+            hash_binary = cast_to_unicode(id_to_binary_string(node_id))
             prefix = self.trie.longest_prefix(hash_binary, default=u'')
 
             nodes = set()
             for i in reversed(range(len(prefix) + 1)):
                 for suffix in self.trie.suffixes(prefix[:i]):
                     bucket = self.trie[prefix[:i] + suffix]
-                    nodes |= {node for node in bucket.nodes.itervalues()
+                    nodes |= {node for node in list(bucket.nodes.values())
                               if node.status != NODE_STATUS_BAD and (exclude_node is None or
                                                                      node.id != exclude_node.id)}
 

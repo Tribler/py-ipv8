@@ -1,3 +1,6 @@
+from __future__ import absolute_import
+
+from binascii import hexlify
 import logging
 import struct
 import socket
@@ -28,8 +31,8 @@ class DHTCommunityProvider(object):
 
     def announce(self, info_hash):
         def callback(_):
-            self.logger.info("Announced %s to the DHTCommunity", info_hash.encode('hex'))
+            self.logger.info("Announced %s to the DHTCommunity", hexlify(info_hash))
         def errback(_):
-            self.logger.info("Failed to announce %s to the DHTCommunity", info_hash.encode('hex'))
+            self.logger.info("Failed to announce %s to the DHTCommunity", hexlify(info_hash))
         value = socket.inet_aton(self.dhtcommunity.my_estimated_lan[0]) + struct.pack("!H", self.bt_port)
         self.dhtcommunity.store_value(info_hash, value).addCallbacks(callback, errback)

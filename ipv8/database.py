@@ -5,13 +5,17 @@ This module provides basic database functionalty and simple version control.
 @organization: Technical University Delft
 @contact: dispersy@frayja.com
 """
+from __future__ import absolute_import
+
+from abc import ABCMeta, abstractmethod
 from collections import defaultdict
 import logging
 import os
 import six
 import sys
 from threading import RLock
-from abc import ABCMeta, abstractmethod
+
+from .util import is_long_or_int, is_unicode, cast_to_unicode
 
 if sys.platform == "darwin":
     # Workaround for annoying MacOS Sierra bug: https://bugs.python.org/issue27126
@@ -86,7 +90,7 @@ class Database(six.with_metaclass(ABCMeta, object)):
         @param file_path: the path to the database file.
         @type file_path: unicode
         """
-        self._assert(isinstance(file_path, unicode),
+        self._assert(is_unicode(file_path),
                      "expected file_path to be unicode, but was %s" % str(type(file_path)))
 
         super(Database, self).__init__()
@@ -155,8 +159,8 @@ class Database(six.with_metaclass(ABCMeta, object)):
 
         # collect current database configuration
         page_size = int(next(self._cursor.execute(u"PRAGMA page_size"))[0])
-        journal_mode = unicode(next(self._cursor.execute(u"PRAGMA journal_mode"))[0]).upper()
-        synchronous = unicode(next(self._cursor.execute(u"PRAGMA synchronous"))[0]).upper()
+        journal_mode = cast_to_unicode(next(self._cursor.execute(u"PRAGMA journal_mode"))[0]).upper()
+        synchronous = cast_to_unicode(next(self._cursor.execute(u"PRAGMA synchronous"))[0]).upper()
 
         #
         # PRAGMA page_size = bytes;
@@ -226,7 +230,7 @@ class Database(six.with_metaclass(ABCMeta, object)):
             version = u"0"
 
         self._database_version = self.check_database(version)
-        self._assert(isinstance(self._database_version, (int, long)),
+        self._assert(is_long_or_int(self._database_version),
                      "expected databse version to be int or long, but was type %s" % str(type(self._database_version)))
 
     @property
@@ -320,7 +324,7 @@ class Database(six.with_metaclass(ABCMeta, object)):
                      "Database.close() has been called or Database.open() has not been called")
         self._assert(self._connection is not None,
                      "Database.close() has been called or Database.open() has not been called")
-        self._assert(isinstance(statements, unicode), "The SQL statement must be given in unicode")
+        self._assert(is_unicode(statements), "The SQL statement must be given in unicode")
 
         self._logger.log(logging.NOTSET, "%s [%s]", statements, self._file_path)
 

@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 from __future__ import division
 
+from binascii import hexlify
 import time
 
 from collections import defaultdict
@@ -125,7 +126,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
             return
 
         if node not in self.store[payload.target]:
-            self.logger.debug('Storing peer %s (key %s)', node, payload.target.encode('hex'))
+            self.logger.debug('Storing peer %s (key %s)', node, hexlify(payload.target))
             self.store[payload.target].append(node)
 
         self.send_message(node.address, MSG_STORE_PEER_RESPONSE,
@@ -143,7 +144,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
 
         key = cache.params[0]
         if cache.node not in self.store_for_me[key]:
-            self.logger.debug('Peer %s storing us (key %s)', cache.node, key.encode('hex'))
+            self.logger.debug('Peer %s storing us (key %s)', cache.node, hexlify(key))
             self.store_for_me[key].append(cache.node)
 
         cache.deferred.callback(cache.node)
@@ -157,7 +158,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
             packet = self.create_puncture_request(payload.lan_address, peer.address, payload.identifier)
             self.endpoint.send(node.address, packet)
 
-        self.logger.debug('Returning peers %s (key %s)', nodes, payload.target.encode('hex'))
+        self.logger.debug('Returning peers %s (key %s)', nodes, hexlify(payload.target))
         self.send_message(peer.address, MSG_CONNECT_PEER_RESPONSE,
                           ConnectPeerResponsePayload, (payload.identifier, nodes))
 
@@ -180,7 +181,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
                 node = nodes[index]
                 if node.status == NODE_STATUS_BAD:
                     del self.store_for_me[key][index]
-                    self.logger.debug('Deleting peer %s that stored us (key %s)', node, key.encode('hex'))
+                    self.logger.debug('Deleting peer %s that stored us (key %s)', node, hexlify(key))
                 elif node not in pinged and now > node.last_response + PING_INTERVAL:
                     self.ping(node)
 
@@ -188,5 +189,5 @@ class DHTDiscoveryCommunity(DHTCommunity):
             for index in grange(len(nodes) - 1, -1, -1):
                 node = nodes[index]
                 if now > node.last_query + 60:
-                    self.logger.debug('Deleting peer %s (key %s)', node, key.encode('hex'))
+                    self.logger.debug('Deleting peer %s (key %s)', node, hexlify(key))
                     del self.store[key][index]

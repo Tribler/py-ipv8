@@ -17,8 +17,8 @@ if sys.version_info.major > 2:
     grange = range
     is_long_or_int = lambda x: isinstance(x, int)
     is_unicode = lambda x: isinstance(x, str)
-
     cast_to_long = lambda x: x
+    cast_to_unicode = lambda x: str(x)
     maximum_integer = sys.maxsize
 else:
     from StringIO import StringIO
@@ -29,6 +29,7 @@ else:
     is_long_or_int = lambda x: isinstance(x, (int, long))
     is_unicode = lambda x: isinstance(x, unicode)
     cast_to_long = lambda x: long(x)
+    cast_to_unicode = lambda x: unicode(x)
     maximum_integer = sys.maxint
 StringIO = StringIO
 urllib_future = type("", (), {
