@@ -6,7 +6,7 @@ Author(s): Egbert Bouman
 from __future__ import absolute_import
 from __future__ import division
 
-from binascii import hexlify
+from binascii import hexlify, unhexlify
 import sys
 import random
 from traceback import format_exception
@@ -140,17 +140,18 @@ class RoundRobin(object):
 
 class TunnelCommunity(Community):
 
-    version = '\x02'
-    master_peer = Peer(("3081a7301006072a8648ce3d020106052b8104002703819200040733caf0902748547efc04be6a7e064384e193" +
-                        "9622b38cde42237eff06674e07f8c4dd364e207a8c3eee30cd5751bed76d7071e8af7b910a62ccf9fbbfde7eb7" +
-                        "24a8ebdb54b738e306744ad6b96ef4549f6335c4bac10799fbe63477d8fd9395e8439685de72fabf3efc32f6cb" +
-                        "28075fff6ad605891eaba161ecec2f9b65aab45e121defa47d098f16bad7dac6025687").decode("HEX"))
+    version = b'\x02'
+    master_peer = Peer(unhexlify("3081a7301006072a8648ce3d020106052b8104002703819200040733caf0902748547efc04be6a7e0" +
+                                 "64384e1939622b38cde42237eff06674e07f8c4dd364e207a8c3eee30cd5751bed76d7071e8af7b91" +
+                                 "0a62ccf9fbbfde7eb724a8ebdb54b738e306744ad6b96ef4549f6335c4bac10799fbe63477d8fd939" +
+                                 "5e8439685de72fabf3efc32f6cb28075fff6ad605891eaba161ecec2f9b65aab45e121defa47d098f" +
+                                 "16bad7dac6025687"))
 
     def __init__(self, *args, **kwargs):
         self.settings = kwargs.pop('settings', TunnelSettings())
         if isinstance(self.settings, dict):
             settings = TunnelSettings()
-            for k, v in self.settings.iteritems():
+            for k, v in self.settings.items():
                 setattr(settings, k, v)
             self.settings = settings
 
@@ -200,11 +201,11 @@ class TunnelCommunity(Community):
 
     def unload(self):
         # Remove all circuits/relays/exitsockets
-        for circuit_id in self.circuits.keys():
+        for circuit_id in list(self.circuits.keys()):
             self.remove_circuit(circuit_id, 'unload', remove_now=True, destroy=True)
-        for circuit_id in self.relay_from_to.keys():
+        for circuit_id in list(self.relay_from_to.keys()):
             self.remove_relay(circuit_id, 'unload', remove_now=True, destroy=True, both_sides=False)
-        for circuit_id in self.exit_sockets.keys():
+        for circuit_id in list(self.exit_sockets.keys()):
             self.remove_exit_socket(circuit_id, 'unload', remove_now=True, destroy=True)
 
         self.request_cache.shutdown()
@@ -712,9 +713,10 @@ class TunnelCommunity(Community):
     def on_packet_from_circuit(self, source_address, data, circuit_id):
         if self._prefix != data[:22]:
             return
-        if data[22] in self.decode_map_private:
+        msg_id = chr(ord(data[22:23]))
+        if msg_id in self.decode_map_private:
             try:
-                self.decode_map_private[data[22]](source_address, data, circuit_id)
+                self.decode_map_private[msg_id](source_address, data, circuit_id)
             except:
                 self.logger.error("Exception occurred while handling packet!\n" +
                                   ''.join(format_exception(*sys.exc_info())))
@@ -751,7 +753,7 @@ class TunnelCommunity(Community):
         self.request_cache.add(CreatedRequestCache(self, circuit_id, peer, peers_keys))
         self.exit_sockets[circuit_id] = TunnelExitSocket(circuit_id, peer, self)
 
-        keys_list_enc = self.crypto.encrypt_str(encode(peers_keys.keys()),
+        keys_list_enc = self.crypto.encrypt_str(encode(list(peers_keys.keys())),
                                                 *self.get_session_keys(self.relay_session_keys[circuit_id], EXIT_NODE))
         self.send_cell([Peer(create_payload.node_public_key, previous_node_address)], u"created",
                        CreatedPayload(circuit_id, key, auth, keys_list_enc))

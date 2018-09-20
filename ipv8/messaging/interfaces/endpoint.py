@@ -176,7 +176,7 @@ class EndpointListener(six.with_metaclass(abc.ABCMeta, object)):
                             # some interfaces have no netmask configured, causing a TypeError when
                             # trying to unpack _l_netmask
                             pass
-        except OSError, e:
+        except OSError as e:
             logger = logging.getLogger("dispersy")
             logger.warning("failed to check network interfaces, error was: %r", e)
 

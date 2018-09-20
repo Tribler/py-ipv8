@@ -8,6 +8,7 @@ from hashlib import sha256
 from ....attestation.trustchain.block import TrustChainBlock, GENESIS_HASH, GENESIS_SEQ, EMPTY_SIG, ValidationResult
 from ....keyvault.crypto import ECCrypto
 from ....messaging.deprecated.encoding import encode
+from ....util import cast_to_bin
 
 
 class TestBlock(TrustChainBlock):
@@ -16,11 +17,11 @@ class TestBlock(TrustChainBlock):
     Also used in other test files for TrustChain.
     """
 
-    def __init__(self, transaction=None, previous=None, key=None, block_type='test'):
+    def __init__(self, transaction=None, previous=None, key=None, block_type=b'test'):
         crypto = ECCrypto()
         other = crypto.generate_key(u"curve25519").pub().key_to_bin()
 
-        transaction = transaction or {'id': 42}
+        transaction = transaction or {b'id': 42}
 
         if previous:
             self.key = previous.key
@@ -34,7 +35,8 @@ class TestBlock(TrustChainBlock):
 
             TrustChainBlock.__init__(self, (block_type,
                                             encode(transaction), self.key.pub().key_to_bin(), random.randint(50, 100),
-                                            other, 0, sha256(str(random.randint(0, 100000))).digest(), 0, 0, 0))
+                                            other, 0, sha256(cast_to_bin(str(random.randint(0, 100000)))).digest(), 0,
+                                            0, 0))
         self.sign(self.key)
 
         self.transaction_validation_result = (ValidationResult.valid, [])
@@ -102,8 +104,8 @@ class TestTrustChainBlock(unittest.TestCase):
         """
         block = TrustChainBlock()
         block.timestamp = 0  # To make the hash the same between runs
-        self.assertEqual(block.hash, '9X\xdeb\x92g\x10W\t\xdf\xf6\x98\xc46\xdaU\x19+6\x1b\xf4\xaei'
-                                     '\x96Jz\x04\x91F@\xc0\xd8')
+        self.assertEqual(block.hash, b'9X\xdeb\x92g\x10W\t\xdf\xf6\x98\xc46\xdaU\x19+6\x1b\xf4\xaei'
+                                     b'\x96Jz\x04\x91F@\xc0\xd8')
 
     def test_sign(self):
         """
@@ -119,12 +121,12 @@ class TestTrustChainBlock(unittest.TestCase):
         """
         key = ECCrypto().generate_key(u"curve25519")
         db = MockDatabase()
-        block = TrustChainBlock.create('test', {'id': 42}, db, key.pub().key_to_bin(), link=None)
+        block = TrustChainBlock.create(b'test', {b'id': 42}, db, key.pub().key_to_bin(), link=None)
         self.assertEqual(block.previous_hash, GENESIS_HASH)
         self.assertEqual(block.sequence_number, GENESIS_SEQ)
         self.assertEqual(block.public_key, key.pub().key_to_bin())
         self.assertEqual(block.signature, EMPTY_SIG)
-        self.assertEqual(block.type, 'test')
+        self.assertEqual(block.type, b'test')
 
     def test_create_next(self):
         """
@@ -134,7 +136,7 @@ class TestTrustChainBlock(unittest.TestCase):
         prev = TestBlock()
         prev.sequence_number = GENESIS_SEQ
         db.add_block(prev)
-        block = TrustChainBlock.create('test', {'id': 42}, db, prev.public_key, link=None)
+        block = TrustChainBlock.create(b'test', {b'id': 42}, db, prev.public_key, link=None)
         self.assertEqual(block.previous_hash, prev.hash)
         self.assertEqual(block.sequence_number, 2)
         self.assertEqual(block.public_key, prev.public_key)
@@ -147,7 +149,7 @@ class TestTrustChainBlock(unittest.TestCase):
         db = MockDatabase()
         link = TestBlock()
         db.add_block(link)
-        block = TrustChainBlock.create('test', {'id': 42}, db, key.pub().key_to_bin(), link=link)
+        block = TrustChainBlock.create(b'test', {b'id': 42}, db, key.pub().key_to_bin(), link=link)
         self.assertEqual(block.previous_hash, GENESIS_HASH)
         self.assertEqual(block.sequence_number, GENESIS_SEQ)
         self.assertEqual(block.public_key, key.pub().key_to_bin())
@@ -164,7 +166,7 @@ class TestTrustChainBlock(unittest.TestCase):
         db.add_block(prev)
         link = TestBlock()
         db.add_block(link)
-        block = TrustChainBlock.create('test', {'id': 42}, db, prev.public_key, link=link)
+        block = TrustChainBlock.create(b'test', {b'id': 42}, db, prev.public_key, link=link)
         self.assertEqual(block.previous_hash, prev.hash)
         self.assertEqual(block.sequence_number, 2)
         self.assertEqual(block.public_key, prev.public_key)
@@ -368,7 +370,7 @@ class TestTrustChainBlock(unittest.TestCase):
         """
         result = ValidationResult()
         block = TestBlock()
-        block.public_key = "definitelynotakey"
+        block.public_key = b"definitelynotakey"
         block.update_block_invariant(None, result)
 
         self.assertEqual(ValidationResult.invalid, result.state)
@@ -379,7 +381,7 @@ class TestTrustChainBlock(unittest.TestCase):
         """
         result = ValidationResult()
         block = TestBlock()
-        block.link_public_key = "definitelynotakey"
+        block.link_public_key = b"definitelynotakey"
         block.update_block_invariant(None, result)
 
         self.assertEqual(ValidationResult.invalid, result.state)
@@ -402,7 +404,7 @@ class TestTrustChainBlock(unittest.TestCase):
         result = ValidationResult()
         block = TestBlock()
         block.sequence_number = GENESIS_SEQ
-        block.previous_hash = "abcdefg"
+        block.previous_hash = b"abcdefg"
         block.update_block_invariant(None, result)
 
         self.assertEqual(ValidationResult.invalid, result.state)
@@ -425,9 +427,9 @@ class TestTrustChainBlock(unittest.TestCase):
         """
         result = ValidationResult()
         block1 = TestBlock()
-        block1.link_public_key = "1234"
+        block1.link_public_key = b"1234"
         block2 = TestBlock()
-        block2.link_public_key = "5678"
+        block2.link_public_key = b"5678"
         block1.update_block_consistency(block2, result, MockDatabase())
 
         self.assertEqual(ValidationResult.invalid, result.state)
@@ -451,9 +453,9 @@ class TestTrustChainBlock(unittest.TestCase):
         """
         result = ValidationResult()
         block1 = TestBlock()
-        block1.previous_hash = "1234"
+        block1.previous_hash = b"1234"
         block2 = TestBlock()
-        block2.previous_hash = "5678"
+        block2.previous_hash = b"5678"
         block1.update_block_consistency(block2, result, MockDatabase())
 
         self.assertEqual(ValidationResult.invalid, result.state)
@@ -464,9 +466,9 @@ class TestTrustChainBlock(unittest.TestCase):
         """
         result = ValidationResult()
         block1 = TestBlock()
-        block1.signature = "1234"
+        block1.signature = b"1234"
         block2 = TestBlock()
-        block2.signature = "5678"
+        block2.signature = b"5678"
         block1.update_block_consistency(block2, result, MockDatabase())
 
         self.assertEqual(ValidationResult.invalid, result.state)
@@ -477,9 +479,9 @@ class TestTrustChainBlock(unittest.TestCase):
         """
         result = ValidationResult()
         block1 = TestBlock()
-        block1.pack = lambda: "1234"
+        block1.pack = lambda: b"1234"
         block2 = TestBlock()
-        block2.pack = lambda: "5678"
+        block2.pack = lambda: b"5678"
         block1.update_block_consistency(block2, result, MockDatabase())
 
         self.assertEqual(ValidationResult.invalid, result.state)
@@ -490,9 +492,9 @@ class TestTrustChainBlock(unittest.TestCase):
         """
         result = ValidationResult()
         block = TestBlock()
-        block.link_public_key = "1234"
+        block.link_public_key = b"1234"
         link = TestBlock()
-        link.public_key = "5678"
+        link.public_key = b"5678"
         block.update_linked_consistency(None, link, result)
 
         self.assertEqual(ValidationResult.invalid, result.state)
@@ -519,9 +521,9 @@ class TestTrustChainBlock(unittest.TestCase):
         """
         result = ValidationResult()
         block = TestBlock()
-        block.link_public_key = "1234"
+        block.link_public_key = b"1234"
         link = TestBlock()
-        link.public_key = "5678"
+        link.public_key = b"5678"
         link.link_public_key = block.public_key
         block.update_linked_consistency(None, link, result)
 
@@ -591,7 +593,7 @@ class TestTrustChainBlock(unittest.TestCase):
         class FakeDB(object):
 
             def get_linked(self, _):
-                return TestBlock(transaction={"a": "b"})
+                return TestBlock(transaction={b"a": b"b"})
 
         result = ValidationResult()
         block = TestBlock()
@@ -670,7 +672,7 @@ class TestTrustChainBlock(unittest.TestCase):
         block = TestBlock()
         block.public_key = prev_block.public_key
         block.sequence_number = 4
-        block.previous_hash = "definitelynotthathash"
+        block.previous_hash = b"definitelynotthathash"
         block.update_chain_consistency(prev_block, None, result)
 
         self.assertEqual(ValidationResult.invalid, result.state)
@@ -685,7 +687,7 @@ class TestTrustChainBlock(unittest.TestCase):
         block = TestBlock()
         block.public_key = prev_block.public_key
         block.sequence_number = 4
-        block.previous_hash = "definitelynotthathash"
+        block.previous_hash = b"definitelynotthathash"
         block.update_chain_consistency(prev_block, None, result)
 
         self.assertEqual(ValidationResult.valid, result.state)
@@ -744,7 +746,7 @@ class TestTrustChainBlock(unittest.TestCase):
         next_block = TestBlock()
         next_block.public_key = block.public_key
         next_block.sequence_number = 4
-        next_block.previous_hash = "definitelynotthathash"
+        next_block.previous_hash = b"definitelynotthathash"
         block.update_chain_consistency(None, next_block, result)
 
         self.assertEqual(ValidationResult.invalid, result.state)
@@ -759,7 +761,7 @@ class TestTrustChainBlock(unittest.TestCase):
         next_block = TestBlock()
         next_block.public_key = block.public_key
         next_block.sequence_number = 4
-        next_block.previous_hash = "definitelynotthathash"
+        next_block.previous_hash = b"definitelynotthathash"
         block.update_chain_consistency(None, next_block, result)
 
         self.assertEqual(ValidationResult.valid, result.state)

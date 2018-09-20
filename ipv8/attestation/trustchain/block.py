@@ -12,11 +12,11 @@ from .payload import HalfBlockPayload
 from ...util import is_unicode, old_round
 
 
-GENESIS_HASH = '0'*32    # ID of the first block of the chain.
+GENESIS_HASH = b'0'*32    # ID of the first block of the chain.
 GENESIS_SEQ = 1
 UNKNOWN_SEQ = 0
-EMPTY_SIG = '0'*64
-EMPTY_PK = '0'*74
+EMPTY_SIG = b'0'*64
+EMPTY_PK = b'0'*74
 ANY_COUNTERPARTY_PK = EMPTY_PK
 
 
@@ -29,7 +29,7 @@ class TrustChainBlock(object):
         super(TrustChainBlock, self).__init__()
         if data is None:
             # data
-            self.type = 'unknown'
+            self.type = b'unknown'
             self.transaction = {}
             # identity
             self.public_key = EMPTY_PK
@@ -44,19 +44,18 @@ class TrustChainBlock(object):
             # debug stuff
             self.insert_time = None
         else:
-            _, self.transaction = decode(str(data[1]))
+            _, self.transaction = decode(data[1] if isinstance(data[1], bytes) else str(data[1]))
             (self.type, self.public_key, self.sequence_number, self.link_public_key, self.link_sequence_number,
              self.previous_hash, self.signature, self.timestamp, self.insert_time) = (data[0], data[2], data[3],
                                                                                       data[4], data[5], data[6],
                                                                                       data[7], data[8], data[9])
-            if isinstance(self.public_key, database_blob):
-                self.public_key = str(self.public_key)
-            if isinstance(self.link_public_key, database_blob):
-                self.link_public_key = str(self.link_public_key)
-            if isinstance(self.previous_hash, database_blob):
-                self.previous_hash = str(self.previous_hash)
-            if isinstance(self.signature, database_blob):
-                self.signature = str(self.signature)
+            self.type = self.type if isinstance(self.type, bytes) else str(self.type)
+            self.public_key = self.public_key if isinstance(self.public_key, bytes) else str(self.public_key)
+            self.link_public_key = (self.link_public_key if isinstance(self.link_public_key, bytes)
+                                    else str(self.link_public_key))
+            self.previous_hash = (self.previous_hash if isinstance(self.previous_hash, bytes)
+                                  else str(self.previous_hash))
+            self.signature = self.signature if isinstance(self.signature, bytes) else str(self.signature)
         self.serializer = serializer
         self.crypto = ECCrypto()
 
@@ -109,11 +108,11 @@ class TrustChainBlock(object):
 
     @property
     def block_id(self):
-        return "%s.%d" % (self.public_key.encode('hex'), self.sequence_number)
+        return b"%s.%d" % (hexlify(self.public_key), self.sequence_number)
 
     @property
     def linked_block_id(self):
-        return "%s.%d" % (self.link_public_key.encode('hex'), self.link_sequence_number)
+        return b"%s.%d" % (hexlify(self.link_public_key), self.link_sequence_number)
 
     @property
     def is_genesis(self):

@@ -3,6 +3,7 @@ This file contains everything related to persistence for TrustChain.
 """
 from __future__ import absolute_import
 
+from binascii import hexlify
 import os
 
 from ...database import database_blob, Database
@@ -264,7 +265,7 @@ class TrustChainDB(Database):
         users_info = []
         for user_info in res:
             users_info.append({
-                "public_key": str(user_info[0]).encode('hex'),
+                "public_key": hexlify(user_info[0] if isinstance(user_info[0], bytes) else str(user_info[0])),
                 "blocks": user_info[1],
             })
         return users_info

@@ -157,7 +157,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
                 self.logger.info("Circuit %d is not existing anymore, can't send back dht-response" %
                                         circuit_id)
 
-        self.logger.info("Doing dht hidden seeders lookup for info_hash %s" % info_hash.encode('HEX'))
+        self.logger.info("Doing dht hidden seeders lookup for info_hash %s", hexlify(info_hash))
         self.dht_lookup(info_hash, dht_callback)
 
     @tc_lazy_wrapper_unsigned(DHTResponsePayload)
@@ -476,4 +476,4 @@ class HiddenTunnelCommunity(TunnelCommunity):
             self.logger.error("Need a DHT provider to announce to the DHT")
 
     def get_lookup_info_hash(self, info_hash):
-        return hashlib.sha1('tribler anonymous download' + hexlify(info_hash)).digest()
+        return hashlib.sha1(b'tribler anonymous download' + hexlify(info_hash)).digest()

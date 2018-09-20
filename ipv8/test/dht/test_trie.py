@@ -83,5 +83,5 @@ class TestNode(TestBase):
         self.trie['01'] = 2
         self.trie['111'] = 3
 
-        self.assertItemsEqual(self.trie.values(), [1, 2, 3])
-        self.assertItemsEqual(list(self.trie.itervalues()), [1, 2, 3])
+        self.assertSetEqual(set(self.trie.values()), set([1, 2, 3]))
+        self.assertSetEqual(set(self.trie.values()), set([1, 2, 3]))

@@ -10,7 +10,7 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 import libnacl
 
 from ...keyvault.crypto import ECCrypto, LibNaCLPK
-from ...util import is_long_or_int
+from ...util import cast_to_bin, is_long_or_int
 
 
 class CryptoException(Exception):
@@ -51,7 +51,7 @@ class TunnelCrypto(ECCrypto):
         return shared_secret
 
     def generate_session_keys(self, shared_secret):
-        hkdf = HKDFExpand(algorithm=hashes.SHA256(), backend=default_backend(), length=40, info="key_generation")
+        hkdf = HKDFExpand(algorithm=hashes.SHA256(), backend=default_backend(), length=40, info=b"key_generation")
         key = hkdf.derive(shared_secret)
 
         kf = key[:16]
@@ -61,13 +61,13 @@ class TunnelCrypto(ECCrypto):
         return [kf, kb, sf, sb, 1, 1]
 
     def _bulid_iv(self, salt, salt_explicit):
-        assert isinstance(salt, str), type(salt)
+        assert isinstance(salt, (bytes, str)), type(salt)
         assert is_long_or_int(salt_explicit), type(salt_explicit)
 
         if salt_explicit == 0:
             raise CryptoException("salt_explicit wrapped")
 
-        return salt + str(salt_explicit)
+        return salt + cast_to_bin(str(salt_explicit))
 
     def encrypt_str(self, content, key, salt, salt_explicit):
         # return the encrypted content prepended with the

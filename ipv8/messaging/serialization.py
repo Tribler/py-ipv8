@@ -37,7 +37,7 @@ class Bits(object):
 
         :returns: list of 8 values in [0, 1] MSB first
         """
-        byte, = unpack('>B', data[offset])
+        byte, = unpack('>B', data[offset:offset+1])
         bit_7 = 1 if 0x80 & byte else 0
         bit_6 = 1 if 0x40 & byte else 0
         bit_5 = 1 if 0x20 & byte else 0
@@ -55,12 +55,11 @@ class Raw(object):
     """
 
     def pack(self, *data):
-        out = ''
+        out = b''
         size = 0
         for piece in data:
-            s_piece = str(piece)
-            out += s_piece
-            size += len(s_piece)
+            out += piece
+            size += len(piece)
         return out, size
 
     def unpack_from(self, data, offset=0):
@@ -80,7 +79,7 @@ class VarLen(object):
         self.base = base
 
     def pack(self, *data):
-        raw = ''.join(data)
+        raw = b''.join(data)
         length = len(raw)//self.base
         size = self.format_size + len(raw)
         return pack('>%s%ds' % (self.format, len(raw)), length, raw), size
@@ -185,7 +184,7 @@ class Serializer(object):
         :param pack_list: the list of packable tuples
         :returns: (packed, size)
         """
-        out = ""
+        out = b""
         index = 0
         size = 0
         for packable in pack_list:

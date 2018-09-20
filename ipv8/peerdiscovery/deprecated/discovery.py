@@ -1,5 +1,7 @@
 from __future__ import absolute_import
 
+from binascii import unhexlify
+
 from ...peer import Peer
 from ...deprecated.community import Community
 from ...deprecated.lazy_community import lazy_wrapper, lazy_wrapper_unsigned, PacketDecodingError
@@ -9,17 +11,18 @@ from .discovery_payload import PingPayload, PongPayload, SimilarityRequestPayloa
     DiscoveryIntroductionRequestPayload
 from ...messaging.serialization import PackError
 from ...keyvault.crypto import ECCrypto
+from ...util import cast_to_bin
 
 
 class DiscoveryCommunity(Community):
 
-    version = '\x02'
-    master_peer = Peer("3081a7301006072a8648ce3d020106052b81040027038192000403b3ab059ced"
-                       "9b20646ab5e01762b3595c5e8855227ae1e424cff38a1e4edee73734ff2e2e82"
-                       "9eb4f39bab20d7578284fcba7251acd74e7daf96f21d01ea17077faf4d27a655"
-                       "837d072baeb671287a88554e1191d8904b0dc572d09ff95f10ff092c8a5e2a01"
-                       "cd500624376aec875a6e3028aab784cfaf0bac6527245db8d93900d904ac2a92"
-                       "2a02716ccef5a22f7968".decode("HEX"))
+    version = b'\x02'
+    master_peer = Peer(unhexlify("3081a7301006072a8648ce3d020106052b81040027038192000403b3ab059ced"
+                                 "9b20646ab5e01762b3595c5e8855227ae1e424cff38a1e4edee73734ff2e2e82"
+                                 "9eb4f39bab20d7578284fcba7251acd74e7daf96f21d01ea17077faf4d27a655"
+                                 "837d072baeb671287a88554e1191d8904b0dc572d09ff95f10ff092c8a5e2a01"
+                                 "cd500624376aec875a6e3028aab784cfaf0bac6527245db8d93900d904ac2a92"
+                                 "2a02716ccef5a22f7968"))
 
     def __init__(self, my_peer, endpoint, network):
         super(DiscoveryCommunity, self).__init__(my_peer, endpoint, network)
@@ -82,11 +85,11 @@ class DiscoveryCommunity(Community):
         pass
 
     def get_my_overlays(self, peer):
-        return [service_id for service_id, overlay in self.network.service_overlays.iteritems()
+        return [service_id for service_id, overlay in self.network.service_overlays.items()
                 if overlay.my_peer == peer]
 
     def custom_pack(self, peer, msg_num, format_list_list):
-        packet = self._prefix + chr(msg_num)
+        packet = self._prefix + cast_to_bin(chr(msg_num))
         for format_list in format_list_list:
             packet += self.serializer.pack_multiple(format_list)[0]
         packet += ECCrypto().create_signature(peer.key, packet)

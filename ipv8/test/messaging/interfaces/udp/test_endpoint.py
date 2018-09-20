@@ -1,6 +1,8 @@
 from __future__ import absolute_import
 
 import socket
+import sys
+from unittest import skipIf
 
 from twisted.internet.defer import inlineCallbacks
 
@@ -54,7 +56,7 @@ class TestUDPEndpoint(TestBase):
         """
         Test sending a basic message through the UDP endpoint.
         """
-        self.endpoint1.send(self.ep2_address, 'a' * 10)
+        self.endpoint1.send(self.ep2_address, b'a' * 10)
         yield self.sleep(0.05)
         self.assertTrue(self.endpoint2_listener.incoming)
 
@@ -64,7 +66,7 @@ class TestUDPEndpoint(TestBase):
         Test sending multiple messages through the UDP endpoint.
         """
         for ind in grange(0, 50):
-            self.endpoint1.send(self.ep2_address, 'a' * ind)
+            self.endpoint1.send(self.ep2_address, b'a' * ind)
         yield self.sleep(0.05)
         self.assertEqual(len(self.endpoint2_listener.incoming), 50)
 
@@ -72,14 +74,15 @@ class TestUDPEndpoint(TestBase):
         """
         Test sending a too big message through the UDP endpoint.
         """
-        self.endpoint1.send(self.ep2_address, 'a' * (UDP_MAX_SIZE + 1000))
+        self.endpoint1.send(self.ep2_address, b'a' * (UDP_MAX_SIZE + 1000))
 
     def test_send_invalid_destination(self):
         """
         Test sending a message with an invalid destination through the UDP endpoint.
         """
-        self.endpoint1.send(("0.0.0.0", 0), 'a' * 10)
+        self.endpoint1.send(("0.0.0.0", 0), b'a' * 10)
 
+    @skipIf(sys.version_info.major > 2, "sendto is write-only in Python3")
     @inlineCallbacks
     def test_blocking_endpoint_resend(self):
         """
@@ -103,6 +106,7 @@ class TestUDPEndpoint(TestBase):
         yield self.sleep(0.05)
         self.assertEqual(len(self.endpoint2_listener.incoming), 2)
 
+    @skipIf(sys.version_info.major > 2, "sendto is write-only in Python3")
     @inlineCallbacks
     def test_blocking_endpoint_resend_limit(self):
         """

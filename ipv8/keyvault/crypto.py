@@ -97,13 +97,13 @@ class ECCrypto(object):
 
     def key_from_private_bin(self, string):
         "Get the EC from a public/private keypair stored in a binary format."
-        if string.startswith("LibNaCLSK:"):
+        if string.startswith(b"LibNaCLSK:"):
             return LibNaCLSK(string[10:])
         return M2CryptoSK(keystring=string)
 
     def key_from_public_bin(self, string):
         "Get the EC from a public key in binary format."
-        if string.startswith("LibNaCLPK:"):
+        if string.startswith(b"LibNaCLPK:"):
             return LibNaCLPK(string[10:])
         return M2CryptoPK(keystring=string)
 
@@ -119,7 +119,7 @@ class ECCrypto(object):
         Returns the signature of DIGEST made using EC.
         """
         assert isinstance(ec, Key), ec
-        assert isinstance(data, str), type(data)
+        assert isinstance(data, (bytes, str)), type(data)
         return ec.signature(data)
 
     def is_valid_signature(self, ec, data, signature):
@@ -127,8 +127,8 @@ class ECCrypto(object):
         Returns True when SIGNATURE matches the DIGEST made using EC.
         """
         assert isinstance(ec, Key), ec
-        assert isinstance(data, str), type(data)
-        assert isinstance(signature, str), type(signature)
+        assert isinstance(data, (bytes, str)), type(data)
+        assert isinstance(signature, (bytes, str)), type(signature)
 
         try:
             return ec.verify(signature, data)

@@ -1,5 +1,7 @@
 from __future__ import absolute_import
 
+from base64 import decodestring
+
 from twisted.trial import unittest
 
 from ...keyvault.crypto import ECCrypto
@@ -43,7 +45,7 @@ class TestSerialization(unittest.TestCase):
         # Convert the PEM to a DER keystring
         prefix = "-----BEGIN EC PRIVATE KEY-----\n"
         postfix = "-----END EC PRIVATE KEY-----\n"
-        keystring = private_pem[len(prefix):-len(postfix)].decode("BASE64")
+        keystring = decodestring(private_pem[len(prefix):-len(postfix)])
 
         # Reconstruct a key with this keystring
         key = M2CryptoSK(keystring=keystring)
@@ -75,7 +77,7 @@ class TestSerialization(unittest.TestCase):
         # Convert the PEM to a DER keystring
         prefix = "-----BEGIN PUBLIC KEY-----\n"
         postfix = "-----END PUBLIC KEY-----\n"
-        keystring = public_pem[len(prefix):-len(postfix)].decode("BASE64")
+        keystring = decodestring(public_pem[len(prefix):-len(postfix)])
 
         # Reconstruct a key with this keystring
         key = M2CryptoPK(keystring=keystring)

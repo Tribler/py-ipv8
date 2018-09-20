@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 
+from twisted.internet import reactor
 from twisted.internet.defer import inlineCallbacks, Deferred
 
 from ....messaging.anonymization.community import TunnelSettings, CIRCUIT_TYPE_RENDEZVOUS
@@ -35,7 +36,7 @@ class TestHiddenServices(TestBase):
         self.initialize(HiddenTunnelCommunity, 3)
 
         self.private_nodes = []
-        self.service = '0' * 20
+        self.service = b'0' * 20
         self.received_packets = []
 
     def tearDown(self):
@@ -54,7 +55,7 @@ class TestHiddenServices(TestBase):
         e2e_circuit = None
         first_node = None
         for node in self.nodes:
-            for circuit in node.overlay.circuits.itervalues():
+            for circuit in list(node.overlay.circuits.values()):
                 if circuit.ctype == CIRCUIT_TYPE_RENDEZVOUS:
                     first_node = node
                     e2e_circuit = circuit
@@ -166,10 +167,8 @@ class TestHiddenServices(TestBase):
          6. Callback the service handler
         """
         callback_called = Deferred()
-        def callback(_):
-            callback_called.callback(None)
 
-        self.nodes[0].overlay.register_service(self.service, 1, callback, 0)
+        self.nodes[0].overlay.register_service(self.service, 1, callback_called.callback, 0)
 
         yield self.introduce_nodes()
         yield self.create_intro(2, self.service)
@@ -186,10 +185,11 @@ class TestHiddenServices(TestBase):
         self.assertEqual(len(e2e_path), 4)
 
         # Check if data can be sent over the e2e circuit
-        data = 'PACKET'
+        data = b'PACKET'
         _, circuit = e2e_path[0]
-        self.nodes[2].overlay.on_raw_data = lambda _, __, data: self.received_packets.append(data)
-        self.nodes[0].overlay.send_data([circuit.peer], circuit.circuit_id, ('0.0.0.0', 0), ('0.0.0.0', 0), data)
+        self.nodes[2].overlay.on_raw_data = lambda _, __, rdata: self.received_packets.append(rdata)
+        reactor.callInThread(self.nodes[0].overlay.send_data, [circuit.peer], circuit.circuit_id, ('0.0.0.0', 0),
+                             ('0.0.0.0', 0), data)
         yield self.deliver_messages()
         self.assertEqual(len(self.received_packets), 1)
         self.assertEqual(self.received_packets[0], data)

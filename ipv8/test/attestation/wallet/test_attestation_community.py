@@ -94,7 +94,7 @@ class TestCommunity(TestBase):
 
         yield self.introduce_nodes()
 
-        self.nodes[0].overlay.set_attestation_request_callback(lambda x, y, z: y)
+        self.nodes[0].overlay.set_attestation_request_callback(lambda x, y, z: b"AttributeValue")
         self.nodes[0].overlay.set_attestation_request_complete_callback(f)
 
         self.nodes[1].overlay.request_attestation(self.nodes[0].overlay.my_peer,
@@ -129,7 +129,7 @@ class TestCommunity(TestBase):
         callback.called = False
         self.nodes[1].overlay.verify_attestation_values(self.nodes[0].endpoint.wan_address,
                                                         attestation_hash,
-                                                        [binary_relativity_sha256_4("MyAttribute")],
+                                                        [binary_relativity_sha256_4(b"MyAttribute")],
                                                         callback)
 
         yield self.deliver_messages(0.5)
@@ -149,7 +149,7 @@ class TestCommunity(TestBase):
         # Create an attestation and write it to file.
         # Then close the database.
         attestation = Attestation(TestCommunity.private_key.public_key(), [])
-        overlay.on_attestation_complete(attestation, TestCommunity.private_key, None, "test", "a"*20)
+        overlay.on_attestation_complete(attestation, TestCommunity.private_key, None, "test", b"a"*20)
         overlay.database.close(True)
 
         # Reload the community with the same database.

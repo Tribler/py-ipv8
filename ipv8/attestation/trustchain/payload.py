@@ -92,7 +92,7 @@ class HalfBlockPayload(Payload):
                 ('I', self.link_sequence_number),
                 ('32s', self.previous_hash),
                 ('64s', self.signature),
-                ('varlenI', str(self.type)),
+                ('varlenI', self.type),
                 ('varlenI', encode(self.transaction)),
                 ('Q', self.timestamp)]
 
@@ -189,7 +189,7 @@ class CrawlResponsePayload(Payload):
                 ('I', self.link_sequence_number),
                 ('32s', self.previous_hash),
                 ('64s', self.signature),
-                ('varlenI', str(self.type)),
+                ('varlenI', self.type),
                 ('varlenI', encode(self.transaction)),
                 ('Q', self.timestamp),
                 ('I', self.crawl_id),
@@ -264,7 +264,7 @@ class HalfBlockPairPayload(Payload):
                 ('I', self.link_sequence_number1),
                 ('32s', self.previous_hash1),
                 ('64s', self.signature1),
-                ('varlenI', str(self.type1)),
+                ('varlenI', self.type1),
                 ('varlenI', encode(self.transaction1)),
                 ('Q', self.timestamp1),
                 ('74s', self.public_key2),
@@ -273,7 +273,7 @@ class HalfBlockPairPayload(Payload):
                 ('I', self.link_sequence_number2),
                 ('32s', self.previous_hash2),
                 ('64s', self.signature2),
-                ('varlenI', str(self.type2)),
+                ('varlenI', self.type2),
                 ('varlenI', encode(self.transaction2)),
                 ('Q', self.timestamp2)]
 

@@ -3,6 +3,7 @@ from __future__ import absolute_import
 from twisted.trial import unittest
 
 from ...keyvault.crypto import ECCrypto
+from ...util import cast_to_bin
 
 
 class TestSignatures(unittest.TestCase):
@@ -13,7 +14,7 @@ class TestSignatures(unittest.TestCase):
     def setUp(self):
         super(TestSignatures, self).setUp()
         self.ec = ECCrypto()
-        self.data = "".join([chr(i) for i in range(256)])
+        self.data = cast_to_bin("".join([chr(i) for i in range(256)]))
 
     def test_vlow(self):
         """

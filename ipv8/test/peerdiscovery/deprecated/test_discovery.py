@@ -37,14 +37,14 @@ class TestDiscoveryCommunity(TestBase):
         Check if we can handle the deprecated Discovery introduction request as a normal one.
         """
         global_time = self.overlays[0].claim_global_time()
-        payload = DiscoveryIntroductionRequestPayload("a" * 20,
+        payload = DiscoveryIntroductionRequestPayload(b"a" * 20,
                                                       self.overlays[1].endpoint.wan_address,
                                                       self.overlays[0].my_estimated_lan,
                                                       self.overlays[0].my_estimated_wan,
                                                       True,
                                                       u"unknown",
                                                       global_time,
-                                                      '').to_pack_list()
+                                                      b'').to_pack_list()
         auth = BinMemberAuthenticationPayload(self.overlays[0].my_peer.public_key.key_to_bin()).to_pack_list()
         dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
 
