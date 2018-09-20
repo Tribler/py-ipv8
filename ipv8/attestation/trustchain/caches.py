@@ -99,6 +99,10 @@ class CrawlRequestCache(NumberCache):
             self.community.request_cache.pop(u"crawl", self.number)
             reactor.callFromThread(self.crawl_deferred.callback, self.received_half_blocks)
 
+    def received_empty_response(self):
+        self.community.request_cache.pop(u"crawl", self.number)
+        reactor.callFromThread(self.crawl_deferred.callback, self.received_half_blocks)
+
     def on_timeout(self):
         self._logger.info("Timeout for crawl with id %d", self.number)
         self.crawl_deferred.callback(self.received_half_blocks)

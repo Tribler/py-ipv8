@@ -129,7 +129,7 @@ class TestTrustChainCommunity(TestBase):
         self.assertIsNone(self.nodes[1].overlay.persistence.get(my_pubkey, 1))
 
         self.nodes[0].endpoint.open()
-        self.nodes[1].overlay.send_crawl_request(self.nodes[0].my_peer, my_pubkey, 1)
+        self.nodes[1].overlay.send_crawl_request(self.nodes[0].my_peer, my_pubkey, 1, 1)
 
         yield self.deliver_messages()
 
@@ -157,7 +157,7 @@ class TestTrustChainCommunity(TestBase):
         self.assertIsNone(self.nodes[1].overlay.persistence.get(my_pubkey, 1))
 
         self.nodes[0].endpoint.open()
-        self.nodes[1].overlay.send_crawl_request(self.nodes[0].my_peer, my_pubkey)
+        self.nodes[1].overlay.send_crawl_request(self.nodes[0].my_peer, my_pubkey, 1, 1)
 
         yield self.deliver_messages()
 
@@ -173,7 +173,7 @@ class TestTrustChainCommunity(TestBase):
 
         my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
         CrawlRequestCache.CRAWL_TIMEOUT = 0.1
-        response = yield self.nodes[1].overlay.send_crawl_request(self.nodes[0].my_peer, my_pubkey, 1)
+        response = yield self.nodes[1].overlay.send_crawl_request(self.nodes[0].my_peer, my_pubkey, 1, 1)
         self.assertFalse(response)
 
     @inlineCallbacks
@@ -194,7 +194,7 @@ class TestTrustChainCommunity(TestBase):
         self.assertIsNone(self.nodes[1].overlay.persistence.get(my_pubkey, 1))
         self.nodes[0].endpoint.open()
 
-        self.nodes[1].overlay.send_crawl_request(self.nodes[0].my_peer, my_pubkey, -1)
+        self.nodes[1].overlay.send_crawl_request(self.nodes[0].my_peer, my_pubkey, -1, -1)
 
         yield self.deliver_messages()
 
@@ -238,7 +238,7 @@ class TestTrustChainCommunity(TestBase):
         self.add_node_to_experiment(self.create_node())
 
         my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
-        yield self.nodes[2].overlay.send_crawl_request(self.nodes[0].my_peer, my_pubkey, -1)
+        yield self.nodes[2].overlay.send_crawl_request(self.nodes[0].my_peer, my_pubkey, 1, 1)
 
         # Check whether we have both blocks now
         self.assertEqual(self.nodes[2].overlay.persistence.get(my_pubkey, 1).link_sequence_number, UNKNOWN_SEQ)
@@ -433,7 +433,7 @@ class TestTrustChainCommunity(TestBase):
         Test a crawl request to a peer without any blocks
         """
         my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
-        yield self.nodes[1].overlay.send_crawl_request(self.nodes[0].my_peer, my_pubkey, 1)
+        yield self.nodes[1].overlay.send_crawl_request(self.nodes[0].my_peer, my_pubkey, 1, 1)
 
     @inlineCallbacks
     def test_invalid_block(self):

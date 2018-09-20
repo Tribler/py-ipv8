@@ -78,7 +78,8 @@ class TrustChainCommunity(Community):
             chr(3): self.received_crawl_response,
             chr(4): self.received_half_block_pair,
             chr(5): self.received_half_block_broadcast,
-            chr(6): self.received_half_block_pair_broadcast
+            chr(6): self.received_half_block_pair_broadcast,
+            chr(7): self.received_empty_crawl_response,
         })
 
     def do_db_cleanup(self):
@@ -279,16 +280,6 @@ class TrustChainCommunity(Community):
             if self.settings.broadcast_blocks:
                 self.send_block_pair(linked, block)
 
-            # See https://github.com/Tribler/py-ipv8/issues/160
-            # If we receive responses from received_crawl_request out of order we can desync:
-            #  1. We need to sign block 2, but can't as we are still missing block 1.
-            #  2. We receive block 1 and sign it.
-            #  3.a. Nothing will happen until the next time we randomly encounter block 2.
-            #  3.b. The counterparty is still waiting for block 2 to be signed.
-            self.send_crawl_request(peer,
-                                    linked.public_key,
-                                    linked.sequence_number + 1)
-
             return succeed((linked, block))
 
     @synchronized
@@ -405,7 +396,8 @@ class TrustChainCommunity(Community):
                 self.send_crawl_request(peer,
                                         blk.public_key,
                                         max(GENESIS_SEQ, blk.sequence_number - self.settings.validation_range),
-                                        for_half_block=blk)
+                                        max(GENESIS_SEQ, blk.sequence_number - 1),
+                                        for_half_block=blk).addCallback(lambda _: self.process_half_block(blk, peer))
         else:
             self.sign_block(peer, linked=blk)
 
@@ -414,28 +406,22 @@ class TrustChainCommunity(Community):
         Crawl the lowest unknown block of a specific peer.
         """
         sq = self.persistence.get_lowest_sequence_number_unknown(peer.public_key.key_to_bin())
-        return self.send_crawl_request(peer, peer.public_key.key_to_bin(), sequence_number=sq)
+        return self.send_crawl_request(peer, peer.public_key.key_to_bin(), sq, sq)
 
-    def send_crawl_request(self, peer, public_key, sequence_number=None, for_half_block=None):
+    def send_crawl_request(self, peer, public_key, start_seq_num, end_seq_num, for_half_block=None):
         """
         Send a crawl request to a specific peer.
         """
-        sq = sequence_number
-        if sequence_number is None:
-            blk = self.persistence.get_latest(public_key)
-            sq = blk.sequence_number if blk else GENESIS_SEQ
-        sq = max(GENESIS_SEQ, sq) if sq >= 0 else sq
-
         crawl_id = for_half_block.hash_number if for_half_block else \
             RandomNumberCache.find_unclaimed_identifier(self.request_cache, u"crawl")
         crawl_deferred = Deferred()
         self.request_cache.add(CrawlRequestCache(self, crawl_id, crawl_deferred))
-        self.logger.info("Requesting crawl of node %s:%d with id %d",
-                         hexlify(peer.public_key.key_to_bin())[-8:], sq, crawl_id)
+        self.logger.info("Requesting crawl of node %s (blocks %d to %d) with id %d",
+                         hexlify(peer.public_key.key_to_bin())[-8:], start_seq_num, end_seq_num, crawl_id)
 
         global_time = self.claim_global_time()
         auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
-        payload = CrawlRequestPayload(public_key, sq, crawl_id).to_pack_list()
+        payload = CrawlRequestPayload(public_key, start_seq_num, end_seq_num, crawl_id).to_pack_list()
         dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
 
         packet = self._ez_pack(self._prefix, 2, [auth, dist, payload])
@@ -446,29 +432,41 @@ class TrustChainCommunity(Community):
     @synchronized
     @lazy_wrapper(GlobalTimeDistributionPayload, CrawlRequestPayload)
     def received_crawl_request(self, peer, dist, payload):
-        self.logger.info("Received crawl request from node %s for sequence number %d",
-                         hexlify(peer.public_key.key_to_bin())[-8:],
-                         payload.requested_sequence_number)
-        sq = payload.requested_sequence_number
-        if sq < 0:
+        self.logger.info("Received crawl request from node %s for range %d-%d",
+                         hexlify(peer.public_key.key_to_bin())[-8:], payload.start_seq_num, payload.end_seq_num)
+        start_seq_num = payload.start_seq_num
+        end_seq_num = payload.end_seq_num
+
+        # It could be that our start_seq_num and end_seq_num are negative. If so, convert them to positive numbers,
+        # based on the last block of ones chain.
+        if start_seq_num < 0:
             last_block = self.persistence.get_latest(payload.public_key)
-            # The -1 element is the last_block.seq_nr
-            # The -2 element is the last_block.seq_nr - 1
-            # Etc. until the genesis seq_nr
-            sq = max(GENESIS_SEQ, last_block.sequence_number + (sq + 1)) if last_block else GENESIS_SEQ
-        blocks = self.persistence.crawl(payload.public_key, sq, limit=10)
+            start_seq_num = max(GENESIS_SEQ, last_block.sequence_number + start_seq_num + 1) \
+                if last_block else GENESIS_SEQ
+        if end_seq_num < 0:
+            last_block = self.persistence.get_latest(payload.public_key)
+            end_seq_num = max(GENESIS_SEQ, last_block.sequence_number + end_seq_num + 1) \
+                if last_block else GENESIS_SEQ
+
+        blocks = self.persistence.crawl(payload.public_key, start_seq_num, end_seq_num, limit=10)
         total_count = len(blocks)
 
         if total_count == 0:
-            # If there are no blocks to send, send a dummy block back with an empty transaction.
-            # This is to inform the requester that he can't expect any blocks.
-            block = self.get_block_class("unknown").create('noblocks', {}, self.persistence,
-                                                           self.my_peer.public_key.key_to_bin(), link_pk=EMPTY_PK)
-            self.send_crawl_response(block, payload.crawl_id, 0, 0, peer)
+            global_time = self.claim_global_time()
+            response_payload = EmptyCrawlResponsePayload(payload.crawl_id).to_pack_list()
+            dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
+            packet = self._ez_pack(self._prefix, 7, [dist, response_payload], False)
+            self.endpoint.send(peer.address, packet)
+        else:
+            self.send_crawl_responses(blocks, peer, payload.crawl_id)
 
-        for ind in grange(len(blocks)):
-            self.send_crawl_response(blocks[ind], payload.crawl_id, ind + 1, total_count, peer)
-        self.logger.info("Sent %d blocks", total_count)
+    def send_crawl_responses(self, blocks, peer, crawl_id):
+        """
+        Answer a peer with crawl responses.
+        """
+        for ind, block in enumerate(blocks):
+            self.send_crawl_response(block, crawl_id, ind + 1, len(blocks), peer)
+        self.logger.info("Sent %d blocks", len(blocks))
 
     @synchronized
     def sanitize_database(self):
@@ -535,6 +533,13 @@ class TrustChainCommunity(Community):
         cache = self.request_cache.get(u"crawl", payload.crawl_id)
         if cache:
             cache.received_block(block, payload.total_count)
+
+    @lazy_wrapper_unsigned_wd(GlobalTimeDistributionPayload, EmptyCrawlResponsePayload)
+    def received_empty_crawl_response(self, source_address, dist, payload, data):
+        cache = self.request_cache.get(u"crawl", payload.crawl_id)
+        if cache:
+            self.logger.info("Received empty crawl response for crawl with ID %d", payload.crawl_id)
+            cache.received_empty_response()
 
     def get_trust(self, peer):
         """

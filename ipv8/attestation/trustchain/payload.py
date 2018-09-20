@@ -9,24 +9,46 @@ class CrawlRequestPayload(Payload):
     Request a crawl of blocks starting with a specific sequence number or the first if 0.
     """
 
-    format_list = ['74s', 'l', 'I']
+    format_list = ['74s', 'l', 'l', 'I']
 
-    def __init__(self, public_key, requested_sequence_number, crawl_id):
+    def __init__(self, public_key, start_seq_num, end_seq_num, crawl_id):
         super(CrawlRequestPayload, self).__init__()
         self.public_key = public_key
-        self.requested_sequence_number = requested_sequence_number
+        self.start_seq_num = start_seq_num
+        self.end_seq_num = end_seq_num
         self.crawl_id = crawl_id
 
     def to_pack_list(self):
         data = [('74s', self.public_key),
-                ('l', self.requested_sequence_number),
+                ('l', self.start_seq_num),
+                ('l', self.end_seq_num),
                 ('I', self.crawl_id)]
 
         return data
 
     @classmethod
-    def from_unpack_list(cls, public_key, sequence_number, crawl_id):
-        return CrawlRequestPayload(public_key, sequence_number, crawl_id)
+    def from_unpack_list(cls, public_key, start_seq_num, end_seq_num, crawl_id):
+        return CrawlRequestPayload(public_key, start_seq_num, end_seq_num, crawl_id)
+
+
+class EmptyCrawlResponsePayload(Payload):
+    """
+    Payload for the message that indicates that there are no blocks to respond.
+    """
+
+    format_list = ['I']
+
+    def __init__(self, crawl_id):
+        super(EmptyCrawlResponsePayload, self).__init__()
+        self.crawl_id = crawl_id
+
+    def to_pack_list(self):
+        data = [('I', self.crawl_id)]
+        return data
+
+    @classmethod
+    def from_unpack_list(cls, crawl_id):
+        return EmptyCrawlResponsePayload(crawl_id)
 
 
 class HalfBlockPayload(Payload):

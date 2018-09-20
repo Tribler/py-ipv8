@@ -213,12 +213,14 @@ class TrustChainDB(Database):
                          u"link_sequence_number = ?", (database_blob(block.link_public_key), block.link_sequence_number,
                                                        database_blob(block.public_key), block.sequence_number))
 
-    def crawl(self, public_key, sequence_number, limit=100):
-        query = u"SELECT * FROM (%s WHERE sequence_number >= ? AND public_key = ? LIMIT ?) " \
-                u"UNION SELECT * FROM (%s WHERE link_sequence_number >= ? AND link_sequence_number != 0 " \
-                u"AND link_public_key = ? LIMIT ?)" % (self.get_sql_header(), self.get_sql_header())
-        db_result = list(self.execute(query, (sequence_number, database_blob(public_key), limit, sequence_number,
-                                              database_blob(public_key), limit), fetch_all=True))
+    def crawl(self, public_key, start_seq_num, end_seq_num, limit=100):
+        query = u"SELECT * FROM (%s WHERE sequence_number >= ? AND sequence_number <= ? AND public_key = ? LIMIT ?) " \
+                u"UNION SELECT * FROM (%s WHERE link_sequence_number >= ? AND link_sequence_number <= ? AND " \
+                u"link_sequence_number != 0 AND link_public_key = ? LIMIT ?)" % \
+                (self.get_sql_header(), self.get_sql_header())
+        db_result = list(self.execute(query, (start_seq_num, end_seq_num, database_blob(public_key), limit,
+                                              start_seq_num, end_seq_num, database_blob(public_key), limit),
+                                      fetch_all=True))
         return [self.get_block_class(db_item[0])(db_item) for db_item in db_result]
 
     def get_recent_blocks(self, limit=10, offset=0):
