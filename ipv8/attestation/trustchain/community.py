@@ -598,7 +598,10 @@ class TrustChainCommunity(Community):
         elif peer.address not in self.network.blacklist:
             # Do not crawl addresses in our blacklist (trackers)
             self.request_cache.add(IntroCrawlTimeout(self, peer))
-            self.crawl_lowest_unknown(peer)
+
+            known_blocks = self.persistence.get_number_of_known_blocks(public_key=peer.public_key.key_to_bin())
+            if known_blocks < 1000 or random.random() > 0.5:
+                self.crawl_lowest_unknown(peer)
 
     def unload(self):
         self.logger.debug("Unloading the TrustChain Community.")
