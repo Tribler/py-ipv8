@@ -19,7 +19,7 @@ class TrustChainDB(Database):
     Connection layer to SQLiteDB.
     Ensures a proper DB schema on startup.
     """
-    LATEST_DB_VERSION = 5
+    LATEST_DB_VERSION = 6
 
     def __init__(self, working_directory, db_name):
         """
@@ -244,6 +244,24 @@ class TrustChainDB(Database):
             })
         return users_info
 
+    def add_double_spend(self, block1, block2):
+        """
+        Add information about a double spend to the database.
+        """
+        sql = u"INSERT OR IGNORE INTO double_spends (type, tx, public_key, sequence_number, link_public_key," \
+              u"link_sequence_number,previous_hash, signature, block_timestamp, block_hash) VALUES(?,?,?,?,?,?,?,?,?,?)"
+        self.execute(sql, block1.pack_db_insert())
+        self.execute(sql, block2.pack_db_insert())
+        self.commit()
+
+    def did_double_spend(self, public_key):
+        """
+        Return whether a specific user did a double spend in the past.
+        """
+        count = list(self.execute(u"SELECT COUNT(*) FROM double_spends WHERE public_key = ?",
+                                  (database_blob(public_key),)))[0][0]
+        return count > 0
+
     def get_sql_header(self):
         """
         Return the first part of a generic sql select query.
@@ -252,12 +270,9 @@ class TrustChainDB(Database):
                    u"previous_hash, signature, block_timestamp, insert_time"
         return u"SELECT " + _columns + u" FROM blocks "
 
-    def get_schema(self):
-        """
-        Return the schema for the database.
-        """
+    def get_sql_create_blocks_table(self, table_name, primary_key):
         return u"""
-        CREATE TABLE IF NOT EXISTS blocks(
+        CREATE TABLE IF NOT EXISTS %s(
          type                 TEXT NOT NULL,
          tx                   TEXT NOT NULL,
          public_key           TEXT NOT NULL,
@@ -270,17 +285,30 @@ class TrustChainDB(Database):
          insert_time          TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
          block_hash	          TEXT NOT NULL,
 
-         PRIMARY KEY (public_key, sequence_number)
+         PRIMARY KEY (%s)
          );
+         """ % (table_name, primary_key)
 
-        CREATE TABLE option(key TEXT PRIMARY KEY, value BLOB);
+    def get_schema(self):
+        """
+        Return the schema for the database.
+        """
+        return u"""
+        %s
+        
+        %s
+
+        CREATE TABLE IF NOT EXISTS option(key TEXT PRIMARY KEY, value BLOB);
+        DELETE FROM option WHERE key = 'database_version';
         INSERT INTO option(key, value) VALUES('database_version', '%s');
 
-        CREATE INDEX pub_key_ind ON blocks (public_key);
-        CREATE INDEX link_pub_key_ind ON blocks (link_public_key);
-        CREATE INDEX seq_num_ind ON blocks (sequence_number);
-        CREATE INDEX link_seq_num_ind ON blocks (link_sequence_number);
-        """ % str(self.LATEST_DB_VERSION)
+        CREATE INDEX IF NOT EXISTS pub_key_ind ON blocks (public_key);
+        CREATE INDEX IF NOT EXISTS link_pub_key_ind ON blocks (link_public_key);
+        CREATE INDEX IF NOT EXISTS seq_num_ind ON blocks (sequence_number);
+        CREATE INDEX IF NOT EXISTS link_seq_num_ind ON blocks (link_sequence_number);
+        """ % (self.get_sql_create_blocks_table("blocks", "public_key, sequence_number"),
+               self.get_sql_create_blocks_table("double_spends", "public_key, sequence_number, block_hash"),
+               str(self.LATEST_DB_VERSION))
 
     def get_upgrade_script(self, current_version):
         """
@@ -292,6 +320,8 @@ class TrustChainDB(Database):
             DROP TABLE IF EXISTS blocks;
             DROP TABLE IF EXISTS option;
             """
+        elif current_version == 5:
+            return self.get_sql_create_blocks_table("double_spends", "public_key, sequence_number, block_hash")
 
     def open(self, initial_statements=True, prepare_visioning=True):
         return super(TrustChainDB, self).open(initial_statements, prepare_visioning)

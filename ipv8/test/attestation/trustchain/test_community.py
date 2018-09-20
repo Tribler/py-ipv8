@@ -534,3 +534,24 @@ class TestTrustChainCommunity(TestBase):
         self.nodes[0].overlay.settings.max_db_blocks = 3
         self.nodes[0].overlay.do_db_cleanup()
         self.assertEqual(self.nodes[0].overlay.persistence.get_number_of_known_blocks(), 3)
+
+    @inlineCallbacks
+    def test_double_spend(self):
+        """
+        Test that a double spend is correctly detected and stored
+        """
+        yield self.introduce_nodes()
+
+        my_pubkey = self.nodes[0].overlay.my_peer.public_key.key_to_bin()
+        his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
+        block1, block2 = yield self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0],
+                                                                public_key=his_pubkey, block_type=b'test',
+                                                                transaction={})
+        self.nodes[0].overlay.persistence.remove_block(block1)
+        self.nodes[0].overlay.persistence.remove_block(block2)
+
+        # Double spend
+        self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0],
+                                         public_key=his_pubkey, block_type=b'test', transaction={})
+        yield self.deliver_messages()
+        self.assertTrue(self.nodes[1].overlay.persistence.did_double_spend(my_pubkey))
