@@ -10,6 +10,7 @@ from ...attestation.trustchain.test_block import TestBlock
 from ....messaging.deprecated.encoding import decode
 from ...base import TestBase
 from ...mocking.ipv8 import MockIPv8
+from ....util import grange
 
 
 class DummyBlock(TrustChainBlock):
@@ -508,3 +509,28 @@ class TestTrustChainCommunity(TestBase):
 
         self.assertEqual(decode(block_node_0.transaction)[1], {'a': 1, 'b': 2})
         self.assertEqual(decode(block_node_1.transaction)[1], {'a': 1, 'b': 2})
+
+    def test_db_remove(self):
+        """
+        Test pruning of the database when it grows too large
+        """
+        self.nodes[0].overlay.settings.max_db_blocks = 5
+
+        for _ in grange(10):
+            test_block = TestBlock()
+            self.nodes[0].overlay.persistence.add_block(test_block)
+
+        self.nodes[0].overlay.do_db_cleanup()
+        self.assertEqual(self.nodes[0].overlay.persistence.get_number_of_known_blocks(), 5)
+
+    def test_database_cleanup(self):
+        """
+        Test whether we are cleaning up the database correctly when there are too many blocks
+        """
+        for _ in range(5):
+            self.nodes[0].overlay.persistence.add_block(TestBlock())
+
+        self.assertEqual(self.nodes[0].overlay.persistence.get_number_of_known_blocks(), 5)
+        self.nodes[0].overlay.settings.max_db_blocks = 3
+        self.nodes[0].overlay.do_db_cleanup()
+        self.assertEqual(self.nodes[0].overlay.persistence.get_number_of_known_blocks(), 3)

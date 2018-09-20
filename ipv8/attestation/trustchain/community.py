@@ -13,6 +13,7 @@ from threading import RLock
 
 from twisted.internet import reactor
 from twisted.internet.defer import Deferred, succeed, fail
+from twisted.internet.task import LoopingCall
 
 from ...attestation.trustchain.settings import TrustChainSettings
 from .block import TrustChainBlock, ValidationResult, EMPTY_PK, GENESIS_SEQ, UNKNOWN_SEQ, ANY_COUNTERPARTY_PK
@@ -68,6 +69,8 @@ class TrustChainCommunity(Community):
                           hexlify(self.my_peer.public_key.key_to_bin()))
         self.shutting_down = False
         self.listeners_map = {}  # Map of block_type -> [callbacks]
+        self.db_cleanup_lc = self.register_task("db_cleanup", LoopingCall(self.do_db_cleanup))
+        self.db_cleanup_lc.start(600)
 
         self.decode_map.update({
             chr(1): self.received_half_block,
@@ -77,6 +80,15 @@ class TrustChainCommunity(Community):
             chr(5): self.received_half_block_broadcast,
             chr(6): self.received_half_block_pair_broadcast
         })
+
+    def do_db_cleanup(self):
+        """
+        Cleanup the database if necessary.
+        """
+        blocks_in_db = self.persistence.get_number_of_known_blocks()
+        if blocks_in_db > self.settings.max_db_blocks:
+            my_pk = self.my_peer.public_key.key_to_bin()
+            self.persistence.remove_old_blocks(blocks_in_db - self.settings.max_db_blocks, my_pk)
 
     def add_listener(self, listener, block_types):
         """

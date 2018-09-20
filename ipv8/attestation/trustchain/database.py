@@ -97,6 +97,25 @@ class TrustChainDB(Database):
         """
         return self._getall(u"", ())
 
+    def get_number_of_known_blocks(self, public_key=None):
+        """
+        Return the total number of blocks in the database or the number of known blocks for a specific user.
+        """
+        if public_key:
+            return list(self.execute(u"SELECT COUNT(*) FROM blocks WHERE public_key = ?",
+                                     (database_blob(public_key), )))[0][0]
+        return list(self.execute(u"SELECT COUNT(*) FROM blocks"))[0][0]
+
+    def remove_old_blocks(self, num_blocks_to_remove, my_pub_key):
+        """
+        Remove old blocks from the database.
+        :param num_blocks_to_remove: The number of blocks to remove from the database.
+        :param my_pub_key: Your public key, specified since we don't want to remove your own blocks.
+        """
+        self.execute(u"DELETE FROM blocks WHERE block_hash IN "
+                     u"(SELECT block_hash FROM blocks WHERE public_key != ? ORDER BY block_timestamp LIMIT ?)",
+                     (database_blob(my_pub_key), num_blocks_to_remove))
+
     def get_block_with_hash(self, block_hash):
         """
         Return the block with a specific hash or None if it's not available in the database.
