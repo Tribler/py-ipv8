@@ -14,6 +14,7 @@ from threading import RLock
 from twisted.internet import reactor
 from twisted.internet.defer import Deferred, succeed, fail
 
+from ...attestation.trustchain.settings import TrustChainSettings
 from .block import TrustChainBlock, ValidationResult, EMPTY_PK, GENESIS_SEQ, UNKNOWN_SEQ, ANY_COUNTERPARTY_PK
 from .caches import CrawlRequestCache, HalfBlockSignCache, IntroCrawlTimeout
 from .database import TrustChainDB
@@ -52,12 +53,12 @@ class TrustChainCommunity(Community):
 
     DB_CLASS = TrustChainDB
     DB_NAME = 'trustchain'
-    BROADCAST_FANOUT = 25
     version = '\x02'
 
     def __init__(self, *args, **kwargs):
         working_directory = kwargs.pop('working_directory', '')
         db_name = kwargs.pop('db_name', self.DB_NAME)
+        self.settings = kwargs.pop('settings', TrustChainSettings())
         super(TrustChainCommunity, self).__init__(*args, **kwargs)
         self.request_cache = RequestCache()
         self.logger = logging.getLogger(self.__class__.__name__)
@@ -65,7 +66,6 @@ class TrustChainCommunity(Community):
         self.relayed_broadcasts = []
         self.logger.debug("The trustchain community started with Public Key: %s",
                           hexlify(self.my_peer.public_key.key_to_bin()))
-        self.broadcast_block = True  # Whether we broadcast a full block after constructing it
         self.shutting_down = False
         self.listeners_map = {}  # Map of block_type -> [callbacks]
 
@@ -135,7 +135,7 @@ class TrustChainCommunity(Community):
             payload = HalfBlockBroadcastPayload.from_half_block(block, ttl).to_pack_list()
             packet = self._ez_pack(self._prefix, 5, [dist, payload], False)
             for peer in random.sample(self.network.verified_peers, min(len(self.network.verified_peers),
-                                                                       self.BROADCAST_FANOUT)):
+                                                                       self.settings.broadcast_fanout)):
                 self.endpoint.send(peer.address, packet)
             self.relayed_broadcasts.append(block.block_id)
 
@@ -156,7 +156,7 @@ class TrustChainCommunity(Community):
             payload = HalfBlockPairBroadcastPayload.from_half_blocks(block1, block2, ttl).to_pack_list()
             packet = self._ez_pack(self._prefix, 6, [dist, payload], False)
             for peer in random.sample(self.network.verified_peers, min(len(self.network.verified_peers),
-                                                                       self.BROADCAST_FANOUT)):
+                                                                       self.settings.broadcast_fanout)):
                 self.endpoint.send(peer.address, packet)
             self.relayed_broadcasts.append(block1.block_id)
 
@@ -240,7 +240,7 @@ class TrustChainCommunity(Community):
 
         # This is a source block with no counterparty
         if not peer and public_key == ANY_COUNTERPARTY_PK:
-            if self.broadcast_block:
+            if self.settings.broadcast_blocks:
                 self.send_block(block)
             return
 
@@ -248,12 +248,12 @@ class TrustChainCommunity(Community):
         self.send_block(block, address=peer.address)
 
         # We broadcast the block in the network if we initiated a transaction
-        if self.broadcast_block and not linked:
+        if self.settings.broadcast_blocks and not linked:
             self.send_block(block)
 
         if peer == self.my_peer:
             # We created a self-signed block
-            if self.broadcast_block:
+            if self.settings.broadcast_blocks:
                 self.send_block(block)
 
             return succeed((block, None)) if public_key == ANY_COUNTERPARTY_PK else succeed((block, linked))
@@ -264,7 +264,7 @@ class TrustChainCommunity(Community):
             return sign_deferred
         else:
             # We return a deferred that fires immediately with both half blocks.
-            if self.broadcast_block:
+            if self.settings.broadcast_blocks:
                 self.send_block_pair(linked, block)
 
             # See https://github.com/Tribler/py-ipv8/issues/160
@@ -384,15 +384,15 @@ class TrustChainCommunity(Community):
         # It is important that the request matches up with its previous block, gaps cannot be tolerated at
         # this point. We already dropped invalids, so here we delay this message if the result is partial,
         # partial_previous or no-info. We send a crawl request to the requester to (hopefully) close the gap
-        if validation[0] == ValidationResult.partial_previous or validation[0] == ValidationResult.partial or \
-                        validation[0] == ValidationResult.no_info:
+        if (validation[0] == ValidationResult.partial_previous or validation[0] == ValidationResult.partial or \
+                        validation[0] == ValidationResult.no_info) and self.settings.validation_range > 0:
             self.logger.info("Request block could not be validated sufficiently, crawling requester. %s",
                              validation)
             # Note that this code does not cover the scenario where we obtain this block indirectly.
             if not self.request_cache.has(u"crawl", blk.hash_number):
                 self.send_crawl_request(peer,
                                         blk.public_key,
-                                        max(GENESIS_SEQ, blk.sequence_number - 5),
+                                        max(GENESIS_SEQ, blk.sequence_number - self.settings.validation_range),
                                         for_half_block=blk)
         else:
             self.sign_block(peer, linked=blk)

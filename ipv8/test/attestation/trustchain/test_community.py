@@ -401,7 +401,7 @@ class TestTrustChainCommunity(TestBase):
         self.nodes.append(node3)
         # Disable broadcasting to others on signing (we don't want to test that here)
         for node in self.nodes:
-            node.overlay.broadcast_block = False
+            node.overlay.settings.broadcast_blocks = False
 
         my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
         his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
