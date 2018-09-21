@@ -194,12 +194,10 @@ class TestTrustChainCommunity(TestBase):
         my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
         his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
         for _ in [0, 1, 2]:
-            self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
-                                             block_type='test', transaction={})
+            yield self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
+                                                   block_type=b'test', transaction={})
 
-        yield self.deliver_messages()
-
-        self.nodes[1].overlay.persistence.execute(u"DELETE FROM blocks WHERE sequence_number=2", tuple())
+        self.nodes[1].overlay.persistence.execute(u"DELETE FROM blocks WHERE sequence_number = 2", tuple())
         self.assertIsNone(self.nodes[1].overlay.persistence.get(my_pubkey, 2))
 
         yield self.nodes[1].overlay.crawl_lowest_unknown(self.nodes[0].my_peer)
