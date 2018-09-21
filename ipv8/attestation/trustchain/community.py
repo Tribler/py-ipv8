@@ -382,6 +382,7 @@ class TrustChainCommunity(Community):
 
         # determine if we want to sign this block
         if not self.should_sign(blk):
+            self.logger.info("Not signing block %s", blk)
             return
 
         # It is important that the request matches up with its previous block, gaps cannot be tolerated at
