@@ -53,8 +53,6 @@ class TestTrustChainCommunity(TestBase):
         """
         self.nodes[1].overlay.should_sign = lambda x: False
 
-        yield self.introduce_nodes()
-
         my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
         his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
         self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
@@ -71,8 +69,6 @@ class TestTrustChainCommunity(TestBase):
         """
         Check if a double signed transaction is stored in the databases of both parties.
         """
-        yield self.introduce_nodes()
-
         his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
         block, link_block = yield self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0],
                                                                    public_key=his_pubkey, block_type='test',
@@ -89,8 +85,6 @@ class TestTrustChainCommunity(TestBase):
         """
         Check if a both halves of a fully signed block link to each other.
         """
-        yield self.introduce_nodes()
-
         my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
         his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
         self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
@@ -114,9 +108,6 @@ class TestTrustChainCommunity(TestBase):
          3. Node 0 sends his half block back
         """
         self.nodes[1].overlay.should_sign = lambda x: False
-
-        yield self.introduce_nodes()
-
         self.nodes[0].endpoint.close()
 
         my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
@@ -142,9 +133,6 @@ class TestTrustChainCommunity(TestBase):
         Check if the default crawl strategy produces blocks.
         """
         self.nodes[1].overlay.should_sign = lambda x: False
-
-        yield self.introduce_nodes()
-
         self.nodes[0].endpoint.close()
 
         my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
@@ -169,8 +157,6 @@ class TestTrustChainCommunity(TestBase):
         """
         Check if blocks don't magically appear.
         """
-        yield self.introduce_nodes()
-
         my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
         CrawlRequestCache.CRAWL_TIMEOUT = 0.1
         response = yield self.nodes[1].overlay.send_crawl_request(self.nodes[0].my_peer, my_pubkey, 1, 1)
@@ -182,7 +168,6 @@ class TestTrustChainCommunity(TestBase):
         Check if a block can be crawled by negative range.
         """
         self.nodes[1].overlay.should_sign = lambda x: False
-        yield self.introduce_nodes()
         self.nodes[0].endpoint.close()
 
         my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
@@ -206,8 +191,6 @@ class TestTrustChainCommunity(TestBase):
         """
         Test crawling the lowest unknown block of a specific peer.
         """
-        yield self.introduce_nodes()
-
         my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
         his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
         for _ in [0, 1, 2]:
@@ -229,8 +212,6 @@ class TestTrustChainCommunity(TestBase):
         """
         Test crawling a block pair.
         """
-        yield self.introduce_nodes()
-
         his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
         yield self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
                                                block_type='test', transaction={})
@@ -249,8 +230,6 @@ class TestTrustChainCommunity(TestBase):
         """
         Check if blocks created in parallel will properly be stored in the database.
         """
-        yield self.introduce_nodes()
-
         his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
         self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
                                          block_type='test', transaction={})
@@ -282,8 +261,6 @@ class TestTrustChainCommunity(TestBase):
         """
         Check if missing blocks are retrieved through a crawl request.
         """
-        yield self.introduce_nodes()
-
         his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
         self.nodes[0].endpoint.close()
         signed1 = self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
@@ -311,8 +288,6 @@ class TestTrustChainCommunity(TestBase):
         """
         Test sending and receiving a pair of blocks from one to another peer.
         """
-        yield self.introduce_nodes()
-
         block1 = TestBlock()
         block2 = TestBlock()
         self.nodes[0].overlay.send_block_pair(block1, block2, self.nodes[0].network.verified_peers[0].address)
@@ -327,8 +302,6 @@ class TestTrustChainCommunity(TestBase):
         """
         Test broadcasting a half block
         """
-        yield self.introduce_nodes()
-
         # Let node 3 discover node 2.
         node3 = self.create_node()
         self.nodes.append(node3)
@@ -356,8 +329,6 @@ class TestTrustChainCommunity(TestBase):
         """
         Test broadcasting a half block pair
         """
-        yield self.introduce_nodes()
-
         # Let node 3 discover node 2.
         node3 = self.create_node()
         self.nodes.append(node3)
@@ -440,8 +411,6 @@ class TestTrustChainCommunity(TestBase):
         """
         See if we can recover from database corruption.
         """
-        yield self.introduce_nodes()
-
         # Create an invalid block
         invalid_block = TestBlock(key=self.nodes[0].overlay.my_peer.key)
         invalid_block.signature = 'a' * 64
@@ -466,8 +435,6 @@ class TestTrustChainCommunity(TestBase):
         """
         Test creating and disseminating a half block, signed by yourself
         """
-        yield self.introduce_nodes()
-
         my_pubkey = self.nodes[0].overlay.my_peer.public_key.key_to_bin()
         yield self.nodes[0].overlay.self_sign_block(block_type='test', transaction={})
 
@@ -482,8 +449,6 @@ class TestTrustChainCommunity(TestBase):
         """
         Test creating and disseminating a link block
         """
-        yield self.introduce_nodes()
-
         source_peer_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
         counter_peer_pubkey = self.nodes[1].my_peer.public_key.key_to_bin()
 
@@ -540,13 +505,12 @@ class TestTrustChainCommunity(TestBase):
         """
         Test that a double spend is correctly detected and stored
         """
-        yield self.introduce_nodes()
-
         my_pubkey = self.nodes[0].overlay.my_peer.public_key.key_to_bin()
         his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
         block1, block2 = yield self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0],
                                                                 public_key=his_pubkey, block_type=b'test',
                                                                 transaction={})
+        yield self.deliver_messages()
         self.nodes[0].overlay.persistence.remove_block(block1)
         self.nodes[0].overlay.persistence.remove_block(block2)
 
