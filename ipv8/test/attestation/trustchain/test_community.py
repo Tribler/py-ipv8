@@ -356,47 +356,31 @@ class TestTrustChainCommunity(TestBase):
     @inlineCallbacks
     def test_intro_response_crawl(self):
         """
-        Test if we crawl a node on introduction response and if we respect the crawl timeout.
-
-        This test does the following:
-
-         1. Node 1 and 2 are introduced to each other and subsequently crawl each other.
-         2. Node 1 and 3 perform a transaction.
-         3. Node 1 and 2 are introduced to each other again.
-         4. As we are still in the crawl timeout and node 2 is not involved in any transaction with node 1,
-            there should be no crawl request and therefore node 2 does not know about the transaction between
-            node 1 and 3.
+        Test whether we crawl a node when receiving an introduction response
         """
-        node3 = self.create_node()
-        node3.overlay.add_listener(TestBlockListener(), ['test'])
-        node3.my_peer.address = node3.endpoint.wan_address
-        self.nodes.append(node3)
-        # Disable broadcasting to others on signing (we don't want to test that here)
-        for node in self.nodes:
-            node.overlay.settings.broadcast_blocks = False
+        self.nodes[0].endpoint.close()
 
         my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
-        his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
-        node3_pubkey = self.nodes[2].overlay.my_peer.public_key.key_to_bin()
-        yield self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
-                                               block_type='test', transaction={})
+        self.nodes[0].overlay.create_source_block(block_type=b'test', transaction={})
+        yield self.deliver_messages()
 
-        # Perform the first crawl with all nodes
+        self.nodes[0].endpoint.open()
+
+        # Crawl each other
         yield self.introduce_nodes()
 
-        for node_nr in [0, 1]:
-            self.assertIsNotNone(self.nodes[node_nr].overlay.persistence.get(my_pubkey, 1))
-            self.assertEqual(self.nodes[node_nr].overlay.persistence.get(my_pubkey, 1).link_sequence_number,
-                             UNKNOWN_SEQ)
+        # We should have received the block now
+        self.assertIsNotNone(self.nodes[1].overlay.persistence.get_latest(my_pubkey))
 
-        # Perform a transaction between node 1 and 3
-        yield self.nodes[0].overlay.sign_block(node3.my_peer, public_key=node3_pubkey,
-                                               block_type='test', transaction={})
+        # Check whether we do not crawl this node again in a short time
+        self.nodes[0].endpoint.close()
+        self.nodes[0].overlay.create_source_block(block_type=b'test', transaction={})
+        self.nodes[0].endpoint.open()
 
-        # Perform the second crawl with all nodes
         yield self.introduce_nodes()
 
-        self.assertIsNone(self.nodes[1].overlay.persistence.get(my_pubkey, 2))
+        # We should not have crawled this second block
+        self.assertEqual(self.nodes[1].overlay.persistence.get_latest(my_pubkey).sequence_number, 1)
 
     @inlineCallbacks
     def test_empty_crawl(self):
