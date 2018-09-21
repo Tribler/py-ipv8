@@ -7,6 +7,7 @@ from ....attestation.trustchain.caches import CrawlRequestCache
 from ....attestation.trustchain.community import TrustChainCommunity, UNKNOWN_SEQ
 from ....attestation.trustchain.listener import BlockListener
 from ...attestation.trustchain.test_block import TestBlock
+from ....keyvault.crypto import ECCrypto
 from ....messaging.deprecated.encoding import decode
 from ...base import TestBase
 from ...mocking.ipv8 import MockIPv8
@@ -501,3 +502,49 @@ class TestTrustChainCommunity(TestBase):
                                          public_key=his_pubkey, block_type=b'test', transaction={})
         yield self.deliver_messages()
         self.assertTrue(self.nodes[1].overlay.persistence.did_double_spend(my_pubkey))
+
+    @inlineCallbacks
+    def test_chain_crawl_with_gaps(self):
+        """
+        Test crawling a whole chain with gaps from a specific user.
+        """
+        his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
+        created_blocks = []
+        for _ in range(0, 5):
+            blocks = yield self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0],
+                                                            public_key=his_pubkey, block_type=b'test', transaction={})
+            created_blocks.append(blocks)
+
+        yield self.deliver_messages()
+
+        self.assertEqual(self.nodes[1].overlay.persistence.get_number_of_known_blocks(), 10)
+
+        # Let node 1 remove some of the blocks
+        self.nodes[1].overlay.persistence.remove_block(created_blocks[0][1])
+        self.nodes[1].overlay.persistence.remove_block(created_blocks[2][1])
+        self.nodes[1].overlay.persistence.remove_block(created_blocks[4][1])
+
+        # Let node 1 crawl the chain of node 0
+        self.nodes[1].overlay.settings.crawler = True
+        yield self.introduce_nodes()
+        yield self.sleep(0.2)  # Let blocks propagate
+
+        self.assertEqual(self.nodes[1].overlay.persistence.get_number_of_known_blocks(), 10)
+
+    @inlineCallbacks
+    def test_chain_crawl(self):
+        """
+        Test crawl the whole chain of a specific peer
+        """
+        self.nodes[0].endpoint.close()
+        key = ECCrypto().generate_key(u'very-low').pub().key_to_bin()
+        for _ in range(4):
+            self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=key,
+                                             block_type=b'test', transaction={})
+        self.nodes[0].endpoint.open()
+
+        self.nodes[1].overlay.settings.crawler = True
+        yield self.introduce_nodes()
+        yield self.sleep(0.2)  # Let blocks propagate
+
+        self.assertEqual(self.nodes[1].overlay.persistence.get_number_of_known_blocks(), 4)

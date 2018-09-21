@@ -17,8 +17,8 @@ class IntroCrawlTimeout(NumberCache):
     We wish to slow down the amount of crawls we do to not overload any node with database IO.
     """
 
-    def __init__(self, community, peer):
-        super(IntroCrawlTimeout, self).__init__(community.request_cache, u"introcrawltimeout",
+    def __init__(self, community, peer, identifier=u"introcrawltimeout"):
+        super(IntroCrawlTimeout, self).__init__(community.request_cache, identifier,
                                                 self.get_number_for(peer))
 
     @classmethod
@@ -42,6 +42,25 @@ class IntroCrawlTimeout(NumberCache):
         The node is then allowed to be crawled again.
         """
         pass
+
+
+class ChainCrawlCache(IntroCrawlTimeout):
+    """
+    This cache keeps track of the crawl of a whole chain.
+    """
+    def __init__(self, community, peer, known_chain_length=-1):
+        super(ChainCrawlCache, self).__init__(community, peer, identifier=u"chaincrawl")
+        self.community = community
+        self.current_crawl_deferred = None
+        self.peer = peer
+        self.known_chain_length = known_chain_length
+
+        self.current_request_range = (0, 0)
+        self.current_request_attempts = 0
+
+    @property
+    def timeout_delay(self):
+        return 120.0
 
 
 class HalfBlockSignCache(NumberCache):

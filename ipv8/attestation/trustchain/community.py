@@ -17,7 +17,7 @@ from twisted.internet.task import LoopingCall
 
 from ...attestation.trustchain.settings import TrustChainSettings
 from .block import TrustChainBlock, ValidationResult, EMPTY_PK, GENESIS_SEQ, UNKNOWN_SEQ, ANY_COUNTERPARTY_PK
-from .caches import CrawlRequestCache, HalfBlockSignCache, IntroCrawlTimeout
+from .caches import CrawlRequestCache, HalfBlockSignCache, IntroCrawlTimeout, ChainCrawlCache
 from .database import TrustChainDB
 from ...deprecated.community import Community
 from ...deprecated.lazy_community import lazy_wrapper, lazy_wrapper_unsigned, lazy_wrapper_unsigned_wd, lazy_wrapper_wd
@@ -402,11 +402,23 @@ class TrustChainCommunity(Community):
         else:
             self.sign_block(peer, linked=blk)
 
-    def crawl_lowest_unknown(self, peer):
+    def crawl_chain(self, peer, latest_block_num=None):
+        """
+        Crawl the whole chain of a specific peer.
+        :param latest_block_num: The latest block number of the peer in question, if available.
+        """
+        cache = ChainCrawlCache(self, peer, known_chain_length=latest_block_num)
+        self.request_cache.add(cache)
+        reactor.callFromThread(self.send_next_partial_chain_crawl_request, cache)
+
+    def crawl_lowest_unknown(self, peer, latest_block_num=None):
         """
         Crawl the lowest unknown block of a specific peer.
+        :param latest_block_num: The latest block number of the peer in question, if available
         """
         sq = self.persistence.get_lowest_sequence_number_unknown(peer.public_key.key_to_bin())
+        if latest_block_num and sq == latest_block_num + 1:
+            return succeed([])  # We don't have to crawl this node since we have its whole chain
         return self.send_crawl_request(peer, peer.public_key.key_to_bin(), sq, sq)
 
     def send_crawl_request(self, peer, public_key, start_seq_num, end_seq_num, for_half_block=None):
@@ -429,6 +441,54 @@ class TrustChainCommunity(Community):
         self.endpoint.send(peer.address, packet)
 
         return crawl_deferred
+
+    def perform_partial_chain_crawl(self, cache, start, stop):
+        """
+        Perform a partial crawl request for a specific range, when crawling a chain.
+        :param cache: The cache that stores progress regarding the chain crawl.
+        :param start: The sequence number of the first block to be requested.
+        :param stop: The sequence number of the last block to be requested.
+        """
+        if cache.current_request_range != (start, stop):
+            # We are performing a new request
+            cache.current_request_range = start, stop
+            cache.current_request_attempts = 0
+        elif cache.current_request_attempts == 3:
+            # We already tried the same request three times, bail out
+            self.request_cache.pop(u"chaincrawl", cache.number)
+            return
+
+        cache.current_request_attempts += 1
+        cache.current_crawl_deferred = self.send_crawl_request(cache.peer, cache.peer.public_key.key_to_bin(),
+                                                               start, stop)
+        cache.current_crawl_deferred.addCallback(lambda _: self.send_next_partial_chain_crawl_request(cache))
+
+    def send_next_partial_chain_crawl_request(self, cache):
+        """
+        Send the next partial crawl request, if we are not done yet.
+        :param cache: The cache that stores progress regarding the chain crawl.
+        """
+        lowest_unknown = self.persistence.get_lowest_sequence_number_unknown(cache.peer.public_key.key_to_bin())
+        if cache.known_chain_length >= 0 and cache.known_chain_length == lowest_unknown - 1:
+            self.request_cache.pop(u"chaincrawl", cache.number)
+            return
+
+        latest_block = self.persistence.get_latest(cache.peer.public_key.key_to_bin())
+        if not latest_block and cache.known_chain_length > 0:
+            # We have no knowledge of this peer, simply send a request from the genesis block to known chain length
+            self.perform_partial_chain_crawl(cache, 1, cache.known_chain_length)
+            return
+        elif latest_block and lowest_unknown == latest_block.sequence_number + 1:
+            # It seems that we filled all gaps in the database; check whether we can do one final request
+            if latest_block.sequence_number < cache.known_chain_length:
+                self.perform_partial_chain_crawl(cache, latest_block.sequence_number + 1, cache.known_chain_length)
+                return
+            else:
+                self.request_cache.pop(u"chaincrawl", cache.number)
+                return
+
+        start, stop = self.persistence.get_lowest_range_unknown(cache.peer.public_key.key_to_bin())
+        self.perform_partial_chain_crawl(cache, start, stop)
 
     @synchronized
     @lazy_wrapper(GlobalTimeDistributionPayload, CrawlRequestPayload)
@@ -594,20 +654,25 @@ class TrustChainCommunity(Community):
                                                                              identifier, introduction, extra_bytes)
 
     @synchronized
-    @lazy_wrapper_wd(GlobalTimeDistributionPayload, IntroductionResponsePayload)
-    def on_introduction_response(self, peer, dist, payload, data):
-        super(TrustChainCommunity, self).on_introduction_response(peer.address, data)
+    def introduction_response_callback(self, peer, dist, payload):
+        chain_length = struct.unpack('>H', payload.extra_bytes)[0]
+        if peer.address in self.network.blacklist:  # Do not crawl addresses in our blacklist (trackers)
+            return
 
-        if self.request_cache.has(u"introcrawltimeout", IntroCrawlTimeout.get_number_for(peer)):
-            self.logger.debug("Not crawling %s, as we have already crawled it in the last %d seconds!",
-                              hexlify(peer.mid), IntroCrawlTimeout.__new__(IntroCrawlTimeout).timeout_delay)
-        elif peer.address not in self.network.blacklist:
-            # Do not crawl addresses in our blacklist (trackers)
-            self.request_cache.add(IntroCrawlTimeout(self, peer))
+        # Check if we have pending crawl requests for this peer
+        has_intro_crawl = self.request_cache.has(u"introcrawltimeout", IntroCrawlTimeout.get_number_for(peer))
+        has_chain_crawl = self.request_cache.has(u"chaincrawl", ChainCrawlCache.get_number_for(peer))
+        if has_intro_crawl or has_chain_crawl:
+            self.logger.debug("Skipping crawl of peer %s, another crawl is pending", peer)
+            return
 
+        if self.settings.crawler:
+            self.crawl_chain(peer, latest_block_num=chain_length)
+        else:
             known_blocks = self.persistence.get_number_of_known_blocks(public_key=peer.public_key.key_to_bin())
             if known_blocks < 1000 or random.random() > 0.5:
-                self.crawl_lowest_unknown(peer)
+                self.request_cache.add(IntroCrawlTimeout(self, peer))
+                self.crawl_lowest_unknown(peer, latest_block_num=chain_length)
 
     def unload(self):
         self.logger.debug("Unloading the TrustChain Community.")

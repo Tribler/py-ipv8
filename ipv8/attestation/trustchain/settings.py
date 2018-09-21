@@ -15,3 +15,6 @@ class TrustChainSettings(object):
 
         # The maximum number of blocks we want to store in the database
         self.max_db_blocks = 1000000
+
+        # Whether we are a crawler (and fetching whole chains)
+        self.crawler = False

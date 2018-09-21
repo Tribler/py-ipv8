@@ -197,11 +197,36 @@ class TrustChainDB(Database):
         Return the lowest sequence number that we don't have a block of in the chain of a specific peer.
         :param public_key: The public key
         """
+
+        # The following query fetches the earliest block that does not have a subsequent block.
+        # This does not work for the case where we are merely missing the first block, hence this check.
+        if not self.get(public_key, 1):
+            return 1
+
         query = u"SELECT b1.sequence_number FROM blocks b1 WHERE b1.public_key = ? AND NOT EXISTS " \
                 u"(SELECT b2.sequence_number FROM blocks b2 WHERE b2.sequence_number = b1.sequence_number + 1 " \
                 u"AND b2.public_key = ?) ORDER BY b1.sequence_number LIMIT 1"
         db_result = list(self.execute(query, (database_blob(public_key), database_blob(public_key)), fetch_all=True))
         return db_result[0][0] + 1 if db_result else 1
+
+    def get_lowest_range_unknown(self, public_key):
+        """
+        Get the range of blocks (created by the peer with public_key) that we do not have yet.
+        For instance, if a user has the following blocks in the database: [1, 4, 5, 9], then this method will return
+        the tuple (2, 3).
+        :param public_key: The public key of the peer we want to get missing blocks from.
+        :return: A tuple indicating the start and end of the range of missing blocks.
+        """
+        lowest_unknown = self.get_lowest_sequence_number_unknown(public_key)
+
+        # Now get the sequence number of the first block in the database, after this lowest unknown
+        query = u"SELECT sequence_number FROM blocks WHERE public_key = ? AND sequence_number > ? " \
+                u"ORDER BY sequence_number LIMIT 1"
+        db_result = list(self.execute(query, (database_blob(public_key), lowest_unknown), fetch_all=True))
+        if db_result:
+            return lowest_unknown, db_result[0][0] - 1
+        else:
+            return lowest_unknown, lowest_unknown
 
     def get_linked(self, block):
         """
@@ -261,6 +286,8 @@ class TrustChainDB(Database):
         count = list(self.execute(u"SELECT COUNT(*) FROM double_spends WHERE public_key = ?",
                                   (database_blob(public_key),)))[0][0]
         return count > 0
+
+
 
     def get_sql_header(self):
         """
