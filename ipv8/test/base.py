@@ -90,7 +90,10 @@ class TestBase(unittest.TestCase):
                 for dc in delayed_calls:
                     print(">     %s" % dc)
 
-            os._exit(1)
+            # Our test suite catches the SIGINT signal, this allows it to print debug information before force exiting.
+            # If we were to hard exit here (through os._exit) we would lose this additional information.
+            import signal
+            os.kill(os.getpid(), signal.SIGINT)
         t = threading.Thread(target=check_twisted)
         t.daemon = True
         t.start()
