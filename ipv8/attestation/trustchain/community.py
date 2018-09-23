@@ -5,7 +5,7 @@ Every node has a chain and these chains intertwine by blocks shared by chains.
 """
 from __future__ import absolute_import
 
-from binascii import hexlify
+from binascii import hexlify, unhexlify
 import logging
 import random
 import struct
@@ -47,10 +47,11 @@ class TrustChainCommunity(Community):
     """
     Community for reputation based on TrustChain tamper proof interaction history.
     """
-    master_peer = Peer(("3081a7301006072a8648ce3d020106052b810400270381920004057a1c4c4f8422b328209d99724bd30cf08d1f8"
-                        "1a2961b003affd2964f92c457572f2f79de0968c42698e2d1cfb371dd71b275332a0a4c19f35f16166272baae8e"
-                        "230bba377cc5c40643b83206088075559ec2f13a090e8786d04d84802268bef12e52983978da360589a2b7e293c"
-                        "e4f16d02f37da2c3256f4703b9623d3750f7af437befebc8935c0f0726f58c1c1e9").decode("HEX"))
+    master_peer = Peer(unhexlify("3081a7301006072a8648ce3d020106052b810400270381920004026c015f205478073708b9a50b0e74"
+                                 "60139b615ba34830b3b3a288e41480eda48ad6adfb39d3d17636169fc06cc68844b5e6ef4e264faa96"
+                                 "76f487bb4e445ca52188076296fb9a9a037c37d977cd0fff8b367318a088ad64b46b1e947eab3356e1"
+                                 "50cf14a3a4b58c6ee59a33ce7036f2c39e0099b68c8cf7430d88ad2b67a4565e07b1e37e94dbc832fb"
+                                 "b4b1927fc297"))
 
     DB_CLASS = TrustChainDB
     DB_NAME = 'trustchain'
@@ -692,7 +693,8 @@ class TrustChainTestnetCommunity(TrustChainCommunity):
     """
     DB_NAME = 'trustchain_testnet'
 
-    master_peer = Peer(("3081a7301006072a8648ce3d020106052b810400270381920004017aa18185c6c8a3741aed970f5476d50932980"
-                        "66670c6557f9d2519a77c2abe293f9438444fdb73d9e36d0b43a4a254f96c563c0da7915def980270d88da4079e"
-                        "83a6039ce97f2205528c69087f88a6d6f35d83b93b3fb8a360260114729d4cfb5acc4b190e067695b4ae5e240a3"
-                        "939a1f45520e87a459ed0f358bf5e66371a748daa041997da69cab227596948bffd").decode("HEX"))
+    master_peer = Peer(unhexlify("3081a7301006072a8648ce3d020106052b81040027038192000404494ce33365dbf1e9b93647b7ff8c"
+                                 "979ba4d883421928ac7f7130900605e4fdece109d6ec3a1716537cb1ab284aa307f1dfc2aebe2e2d03"
+                                 "7d27cd68ccc6b3dc560c20e4fc8a670500fb8e653bd286ce0be52b1d43d53041bb74204e5af9662eca"
+                                 "b890ae518caeb11a7ef1510cf79c7b22e72529923b8f1cb08e518adb49a0da131a51c1254e49cd657b"
+                                 "60fd7ddd8e19"))
