@@ -11,6 +11,77 @@ class PackError(RuntimeError):
     pass
 
 
+class NestedPayload(object):
+    """
+    This is a special type of format. Allowing for nested packing.
+
+    You can specify which serializable to use by specifying its class in the format_list of the parent Serializable.
+
+    For example, nesting a Serializable of class B in class A::
+
+        class A(Serializable):
+            format_list = [B]
+
+        def __init__(self, b_instance):
+            pass
+
+        def to_pack_list(self):
+            return [("payload", B())]
+
+        @classmethod
+        def from_unpack_list(cls, *args):
+            return A(*args)
+
+    """
+
+    def __init__(self, serializer):
+        """
+        Initialize with a known serializer, so we do not keep creating Serializer instances.
+        As an added bonus, we also get all of the custom types defined in the given instance.
+
+        :param serializer: the Serializer to inherit
+        :type serializer: Serializer
+        """
+        super(NestedPayload, self).__init__()
+        self.serializer = serializer
+
+    def pack(self, serializable):
+        """
+        Pack some serializable.
+
+        :param serializable: the Serializable instance which we should serialize.
+        :type serializable: Serializable
+        :return: the serialized data and its size
+        :rtype: (str, int)
+        """
+        data, size = self.serializer.pack_multiple(serializable.to_pack_list())
+        # We don't care about the inner size of the Serializable, we already have the outer size.
+        data, size = self.serializer.pack('varlenH', data)[0], size + 2
+        return data, size
+
+    def unpack_from(self, serializable_class, data, offset):
+        """
+        Unpack a Serializable using a class definition for some given data and offset.
+        This is a special unpack_from which also takes a payload class.
+
+        :param serializable_class: the Serializable class to unpack to
+        :type serializable_class: type(Serializable)
+        :param data: the data to unpack from
+        :type data: str
+        :param offset: the offset in the list of data to unpack from
+        :type offset: int
+        :return: the output Serializable instance and the new offset delta
+        :rtype: (Serializable, int)
+        """
+        raw, size = self.serializer.unpack('varlenH', data, offset)
+        unpacked = self.serializer.unpack_to_serializables([serializable_class], raw)
+        output, unknown_data = unpacked[:-1], unpacked[-1]
+        if len(unknown_data) != 0:
+            raise PackError("Found leftover data when unpacking %s" % serializable_class.__name__)
+        # We only ever have 1 serializable, only return item 0.
+        return output[0], size
+
+
 class Bits(object):
 
     def pack(self, bit_7=0, bit_6=0, bit_5=0, bit_4=0, bit_3=0, bit_2=0, bit_1=0, bit_0=0):
@@ -141,7 +212,8 @@ class Serializer(object):
             'varlenH': VarLen('H'),
             'varlenHx20': VarLen('H', 20),
             'varlenI': VarLen('I'),
-            'doublevarlenH': VarLen('H')
+            'doublevarlenH': VarLen('H'),
+            'payload': NestedPayload(self)
         }
 
     def get_available_formats(self):
@@ -207,6 +279,8 @@ class Serializer(object):
         :param data: the data to unpack from
         :param offset: the optional offset to unpack data from
         """
+        if format not in self._packers and issubclass(format, Serializable):
+            return NestedPayload(self).unpack_from(format, data, offset)
         return self._packers[format].unpack_from(data, offset)
 
     def unpack_multiple(self, unpack_list, data, optional_list=[], offset=0):
