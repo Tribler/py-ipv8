@@ -26,7 +26,7 @@ class TestNode(TestBase):
 
     def setUp(self):
         super(TestNode, self).setUp()
-        self.key = LibNaCLSK('\x00' * 64)
+        self.key = LibNaCLSK(b'\x01' * 64)
         self.node = Node(self.key, ('1.1.1.1', 1))
 
     def test_init(self):
@@ -34,7 +34,7 @@ class TestNode(TestBase):
         self.assertEqual(self.node.last_response, 0)
         self.assertEqual(self.node.last_query, 0)
         self.assertEqual(self.node.failed, 0)
-        self.assertEqual(self.node.id, unhexlify('8121e3512feb2d7c476ca95985397d9d1836b6da'))
+        self.assertEqual(self.node.id, unhexlify('8121e35b16b30807cdcb11f8214a5eb762c0dc19'))
 
     def test_status(self):
         self.node.last_response = time.time()

@@ -30,7 +30,7 @@ from struct import Struct
 from binascii import hexlify, unhexlify
 import logging
 
-from ..util import is_long_or_int
+from ..util import cast_to_bin, cast_to_chr, is_long_or_int
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +82,7 @@ class BloomFilter(object):
     def _overload_constructor_arguments(cls, args, kargs):
         # matches: BloomFilter(str:bytes, int:k_functions, str:prefix="")
         if len(args) >= 2 and isinstance(args[0], str) and isinstance(args[1], int):
-            bytes_ = args[0]
+            bytes_ = cast_to_bin(args[0])
             m_size = len(bytes_) * 8
             k_functions = args[1]
             prefix = kargs.get("prefix", args[2] if len(args) >= 3 else "")
@@ -162,7 +162,7 @@ class BloomFilter(object):
         self._fmt_unpack = Struct("".join((">",
                                            fmt_code * self._k_functions,
                                            "x" * (hashfn().digest_size - bits_required // 8)))).unpack
-        self._salt = hashfn(self._prefix)
+        self._salt = hashfn(self._prefix.encode())
 
     def add(self, key):
         """
@@ -187,7 +187,7 @@ class BloomFilter(object):
         for key in keys:
             assert isinstance(key, str)
             hash_ = salt_copy()
-            hash_.update(key)
+            hash_.update(key.encode())
 
             # 04/05/12 Boudewijn: using a list instead of a generator is significantly faster.
             # while generators are more memory efficient, this list will be relatively short.
@@ -208,7 +208,7 @@ class BloomFilter(object):
         m_size_ = self._m_size
 
         hash_ = self._salt.copy()
-        hash_.update(key)
+        hash_.update(key.encode())
 
         for pos in self._fmt_unpack(hash_.digest()):
             if not filter_ & (1 << (pos % m_size_)):
@@ -230,7 +230,7 @@ class BloomFilter(object):
             assert len(tup) > 0
             assert isinstance(tup[0], str)
             hash_ = salt_copy()
-            hash_.update(tup[0])
+            hash_.update(tup[0].encode())
 
             # 04/05/12 Boudewijn: using a list instead of a generator is significantly faster.
             # while generators are more memory efficient, this list will be relatively short.
@@ -299,4 +299,4 @@ class BloomFilter(object):
         # hex should be m_size/4, hex is 16 instead of 8 -> hence half the number of "hexes" in m_size
         hex_ = '%x' % self._filter
         padding = '0' * (self._m_size // 4 - len(hex_))
-        return unhexlify(padding + hex_)[::-1]
+        return cast_to_chr(unhexlify(padding + hex_)[::-1])

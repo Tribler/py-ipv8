@@ -48,7 +48,8 @@ class UDPEndpoint(Endpoint, protocol.DatagramProtocol):
                 self.send(*self._delayed_packets.popleft())
         except socket.error as exc:
             # Not all OSes have WSAEWOULDBLOCK: Windows may have a blocked output buffer
-            if exc[0] == getattr(errno, 'WSAEWOULDBLOCK', 10035):
+            errnum = exc[0] if hasattr(exc, "__getitem__") else exc.errno
+            if errnum == getattr(errno, 'WSAEWOULDBLOCK', 10035):
                 self._logger.info("Rescheduling packet (due to blocked socket) outbound to %s", str(socket_address))
                 self._delayed_packets.append((socket_address, packet))
             else:

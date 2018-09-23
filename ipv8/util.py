@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 
+from collections import namedtuple
 import logging
 import sys
 import traceback
@@ -20,6 +21,8 @@ if sys.version_info.major > 2:
     is_unicode = lambda x: isinstance(x, str)
     cast_to_long = lambda x: x
     cast_to_unicode = lambda x: str(x)
+    cast_to_bin = lambda x: x if isinstance(x, bytes) else bytes([ord(c) for c in x])
+    cast_to_chr = lambda x: "".join([chr(c) for c in x])
     maximum_integer = sys.maxsize
     old_round = lambda x: float(math.floor((x) + math.copysign(0.5, x)))
 else:
@@ -32,16 +35,13 @@ else:
     is_unicode = lambda x: isinstance(x, unicode)
     cast_to_long = lambda x: long(x)
     cast_to_unicode = lambda x: unicode(x)
+    cast_to_bin = str
+    cast_to_chr = lambda x: x
     maximum_integer = sys.maxint
     old_round = round
 StringIO = StringIO
-urllib_future = type("", (), {
-    "unquote": unquote,
-    "urlencode": urlencode,
-    "urlparse": urlparse,
-    "parse_qsl": parse_qsl,
-    "ParseResult": ParseResult
-})
+urllib_future = namedtuple('urllib_future', ['unquote', 'urlencode', 'urlparse', 'parse_qsl', 'ParseResult'])\
+    (unquote, urlencode, urlparse, parse_qsl, ParseResult)
 
 
 def blocking_call_on_reactor_thread(func):

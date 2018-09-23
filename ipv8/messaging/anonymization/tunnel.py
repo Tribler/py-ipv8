@@ -67,7 +67,7 @@ class DataChecker(object):
     @staticmethod
     def could_be_dht(data):
         try:
-            if len(data) > 1 and data[0] == 'd' and data[-1] == 'e':
+            if len(data) > 1 and data[0:1] == 'd' and data[-1:] == 'e':
                 return True
         except:
             pass
@@ -75,7 +75,7 @@ class DataChecker(object):
 
     @staticmethod
     def could_be_ipv8(data):
-        return len(data) >= 23 and data[0] == '\x00' and data[1] in ['\x01', '\x02']
+        return len(data) >= 23 and data[0:1] == b'\x00' and data[1:2] in [b'\x01', b'\x02']
 
     @staticmethod
     def is_allowed(data):

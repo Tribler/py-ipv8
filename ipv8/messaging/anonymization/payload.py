@@ -4,6 +4,7 @@ import socket
 from struct import pack, unpack_from
 
 from ...deprecated.payload import Payload
+from ...util import cast_to_bin, cast_to_chr
 
 ADDRESS_TYPE_IPV4 = 0x01
 ADDRESS_TYPE_DOMAIN_NAME = 0x02
@@ -22,16 +23,18 @@ def split_encrypted_packet(packet):
 
 
 def convert_from_cell(packet):
-    header = packet[:22] + packet[27]
+    header = packet[:22] + packet[27:28]
     return header + packet[23:27] + packet[28:]
 
 
 def convert_to_cell(packet):
-    header = packet[:22] + '\x01'
-    return header + packet[23:27] + packet[22] + packet[27:]
+    header = packet[:22] + b'\x01'
+    return header + packet[23:27] + packet[22:23] + packet[27:]
 
 
 def encode_address(host, port):
+    if not isinstance(host, str):
+        host = cast_to_chr(host)
     try:
         ip = socket.inet_aton(host)
         is_ip = True
@@ -41,7 +44,7 @@ def encode_address(host, port):
     if is_ip:
         return pack("!B4sH", ADDRESS_TYPE_IPV4, ip, port)
     else:
-        return pack("!BH", ADDRESS_TYPE_DOMAIN_NAME, len(host)) + host + pack("!H", port)
+        return pack("!BH", ADDRESS_TYPE_DOMAIN_NAME, len(host)) + cast_to_bin(host) + pack("!H", port)
 
 
 def decode_address(packet):
@@ -189,6 +192,8 @@ class ExtendPayload(Payload):
 
         if self.node_addr:
             host, port = self.node_addr
+            if not isinstance(host, str):
+                host = cast_to_chr(host)
             data.append(('4SH', socket.inet_aton(host), port))
 
         return data

@@ -229,7 +229,7 @@ class TestNetwork(unittest.TestCase):
         Check if we can remove a peer from our network by its address.
         """
         self.network.add_verified_peer(self.peers[0])
-        self.network.discover_services(self.peers[0], ["0"*20])
+        self.network.discover_services(self.peers[0], [b"0"*20])
         self.network.remove_by_address(self.peers[0].address)
 
         self.assertNotIn(self.peers[0], self.network.verified_peers)
@@ -274,7 +274,7 @@ class TestNetwork(unittest.TestCase):
         Check if we can remove a peer from our network.
         """
         self.network.add_verified_peer(self.peers[0])
-        self.network.discover_services(self.peers[0], ["0" * 20])
+        self.network.discover_services(self.peers[0], [b"0" * 20])
         self.network.remove_peer(self.peers[0])
 
         self.assertNotIn(self.peers[0], self.network.verified_peers)

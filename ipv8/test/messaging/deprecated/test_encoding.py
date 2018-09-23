@@ -56,7 +56,7 @@ class TestEncoding(unittest.TestCase):
         """
         Check if an int can be encoded and decoded.
         """
-        value = '\x42'
+        value = b'\x42'
 
         encoded = encode(value)
         _, decoded = decode(encoded)
@@ -100,7 +100,7 @@ class TestEncoding(unittest.TestCase):
         """
         Check if a dictionary can be encoded and decoded.
         """
-        value = {42: None, cast_to_long(42): 42.0, u"42": '\x42'}
+        value = {42: None, cast_to_long(42): 42.0, u"42": b'\x42'}
 
         encoded = encode(value)
         _, decoded = decode(encoded)

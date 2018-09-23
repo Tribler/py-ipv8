@@ -24,6 +24,7 @@ from .routing import RoutingTable, Node, distance, calc_node_id
 from .payload import PingRequestPayload, PingResponsePayload, StoreRequestPayload, \
                      StoreResponsePayload, FindRequestPayload, FindResponsePayload, \
                      SignedStrPayload, StrPayload
+from ..util import cast_to_bin
 
 PING_INTERVAL = 25
 
@@ -117,7 +118,7 @@ class DHTCommunity(Community):
             chr(MSG_FIND_RESPONSE): self.on_find_response,
         })
 
-        self.logger.info('DHT community initialized (peer mid %s)', self.my_peer.mid.encode('HEX'))
+        self.logger.info('DHT community initialized (peer mid %s)', hexlify(self.my_peer.mid))
 
     def unload(self):
         self.request_cache.shutdown()
@@ -196,15 +197,15 @@ class DHTCommunity(Community):
     def serialize_value(self, data, sign=True):
         if sign:
             payload = SignedStrPayload(data, int(time.time()), self.my_peer.public_key.key_to_bin())
-            return self._ez_pack('', DHT_ENTRY_STR_SIGNED, [payload.to_pack_list()], sig=True)
+            return self._ez_pack(b'', DHT_ENTRY_STR_SIGNED, [payload.to_pack_list()], sig=True)
         payload = StrPayload(data)
-        return self._ez_pack('', DHT_ENTRY_STR, [payload.to_pack_list()], sig=False)
+        return self._ez_pack(b'', DHT_ENTRY_STR, [payload.to_pack_list()], sig=False)
 
     def unserialize_value(self, value):
-        if value[0] == chr(DHT_ENTRY_STR):
+        if ord(value[0:1]) == DHT_ENTRY_STR:
             payload = self.serializer.unpack_to_serializables([StrPayload], value[1:])[0]
             return payload.data, None, 0
-        elif value[0] == chr(DHT_ENTRY_STR_SIGNED):
+        elif ord(value[0:1]) == DHT_ENTRY_STR_SIGNED:
             payload = self.serializer.unpack_to_serializables([SignedStrPayload], value[1:])[0]
             public_key = self.crypto.key_from_public_bin(payload.public_key)
             sig_len = self.crypto.get_signature_length(public_key)
@@ -466,7 +467,7 @@ class DHTCommunity(Community):
                 self.tokens.pop(node, None)
 
     def generate_token(self, node):
-        return hashlib.sha1(str(node) + self.token_secrets[-1]).digest()
+        return hashlib.sha1(cast_to_bin(str(node)) + self.token_secrets[-1]).digest()
 
     def check_token(self, node, token):
-        return any([hashlib.sha1(str(node) + secret).digest() == token for secret in self.token_secrets])
+        return any([hashlib.sha1(cast_to_bin(str(node)) + secret).digest() == token for secret in self.token_secrets])

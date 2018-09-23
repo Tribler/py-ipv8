@@ -101,7 +101,7 @@ class TaskManager(object):
             assert all([isinstance(task, (Deferred, DelayedCall, LoopingCall, tuple))
                         for task in self._pending_tasks.values()]), self._pending_tasks
 
-            for name in self._pending_tasks.keys():
+            for name in list(self._pending_tasks.keys()):
                 self.cancel_pending_task(name)
 
     def is_pending_task_active(self, name):

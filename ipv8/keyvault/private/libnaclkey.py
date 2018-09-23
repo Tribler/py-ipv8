@@ -50,4 +50,4 @@ class LibNaCLSK(PrivateKey, LibNaCLPK):
         """
         Get the string representation of this key.
         """
-        return "LibNaCLSK:" + self.key.sk + self.key.seed
+        return b"LibNaCLSK:" + self.key.sk + self.key.seed

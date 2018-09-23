@@ -26,7 +26,10 @@ class IntroCrawlTimeout(NumberCache):
         """
         Convert a Peer into an int. To do this we shift every byte of the mid into an integer.
         """
-        return reduce(lambda a, b: ((a << 8) | b), [ord(c) for c in peer.mid], 0)
+        charlist = []
+        for i in range(len(peer.mid)):
+            charlist.append(ord(peer.mid[i:i+1]))
+        return reduce(lambda a, b: ((a << 8) | b), charlist, 0)
 
     @property
     def timeout_delay(self):

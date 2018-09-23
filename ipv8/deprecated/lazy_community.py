@@ -1,9 +1,12 @@
 from __future__ import absolute_import
 
+from binascii import hexlify
+
 from .payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from ..keyvault.crypto import ECCrypto
 from ..overlay import Overlay
 from ..peer import Peer
+from ..util import cast_to_bin
 
 
 def lazy_wrapper(*payloads):
@@ -34,8 +37,8 @@ def lazy_wrapper(*payloads):
             if len(unknown_data) != 0:
                 raise PacketDecodingError("Incoming packet %s (%s) has extra data: (%s)" %
                                           (str([payload_class.__name__ for payload_class in payloads]),
-                                           data.encode('HEX'),
-                                           unknown_data.encode('HEX')))
+                                           hexlify(data),
+                                           hexlify(unknown_data)))
 
             if not signature_valid:
                 raise PacketDecodingError("Incoming packet %s has an invalid signature" % \
@@ -75,8 +78,8 @@ def lazy_wrapper_wd(*payloads):
             if len(unknown_data) != 0:
                 raise PacketDecodingError("Incoming packet %s (%s) has extra data: (%s)" %
                                           (str([payload_class.__name__ for payload_class in payloads]),
-                                           data.encode('HEX'),
-                                           unknown_data.encode('HEX')))
+                                           hexlify(data),
+                                           hexlify(unknown_data)))
 
             if not signature_valid:
                 raise PacketDecodingError("Incoming packet %s has an invalid signature" % \
@@ -114,8 +117,8 @@ def lazy_wrapper_unsigned(*payloads):
             if len(unknown_data) != 0:
                 raise PacketDecodingError("Incoming packet %s (%s) has extra data: (%s)" %
                                           (str([payload_class.__name__ for payload_class in payloads]),
-                                           data.encode('HEX'),
-                                           unknown_data.encode('HEX')))
+                                           hexlify(data),
+                                           hexlify(unknown_data)))
 
             # PRODUCE
             return func(self, source_address, *output)
@@ -158,7 +161,7 @@ def lazy_wrapper_unsigned_wd(*payloads):
 class EZPackOverlay(Overlay):
 
     def _ez_pack(self, prefix, msg_num, format_list_list, sig=True):
-        packet = prefix + chr(msg_num)
+        packet = prefix + cast_to_bin(chr(msg_num))
         for format_list in format_list_list:
             packet += self.serializer.pack_multiple(format_list)[0]
         if sig:
@@ -183,8 +186,8 @@ class EZPackOverlay(Overlay):
         if len(unknown_data) != 0:
             raise PacketDecodingError("Incoming packet %s (%s) has extra data: (%s)" %
                                       (payload_class.__name__,
-                                       data.encode('HEX'),
-                                       unknown_data.encode('HEX')))
+                                       hexlify(data),
+                                       hexlify(unknown_data)))
 
         if not signature_valid:
             raise PacketDecodingError("Incoming packet %s has an invalid signature" % payload_class.__name__)
@@ -200,8 +203,8 @@ class EZPackOverlay(Overlay):
         if len(unknown_data) != 0:
             raise PacketDecodingError("Incoming packet %s (%s) has extra data: (%s)" %
                                       (payload_class.__name__,
-                                       data.encode('HEX'),
-                                       unknown_data.encode('HEX')))
+                                       hexlify(data),
+                                       hexlify(unknown_data)))
         # PRODUCE
         return unpacked if global_time else unpacked[0]
 

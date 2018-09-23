@@ -10,7 +10,7 @@ from socket import inet_aton
 
 from ..peer import Peer
 from .trie import Trie
-from ..util import cast_to_unicode
+from ..util import cast_to_bin, cast_to_unicode
 
 NODE_STATUS_GOOD = 2
 NODE_STATUS_UNKNOWN = 1
@@ -20,11 +20,11 @@ MAX_BUCKET_SIZE = 20
 
 
 def id_to_binary_string(node_id):
-    return format(int(binascii.hexlify(node_id), 16), '0160b')
+    return format(int(binascii.hexlify(cast_to_bin(node_id)), 16), '0160b')
 
 
 def distance(a, b):
-    return int(binascii.hexlify(a), 16) ^ int(binascii.hexlify(b), 16)
+    return int(binascii.hexlify(cast_to_bin(a)), 16) ^ int(binascii.hexlify(cast_to_bin(b)), 16)
 
 
 def calc_node_id(ip, mid):
@@ -32,9 +32,9 @@ def calc_node_id(ip, mid):
     # first 3 bytes of crc32c(ip & 0x030f3fff) + first 17 bytes of sha1(public_key)
     ip_bin = inet_aton(ip)
     ip_mask = '\x03\x0f\x3f\0xff'
-    ip_masked = ''.join([chr(ord(ip_bin[i]) & ord(ip_mask[i])) for i in range(4)])
+    ip_masked = ''.join([chr(ord(ip_bin[i:i+1]) & ord(ip_mask[i:i+1])) for i in range(4)])
 
-    crc32_unsigned = binascii.crc32(ip_masked) % (2 ** 32)
+    crc32_unsigned = binascii.crc32(cast_to_bin(ip_masked)) % (2 ** 32)
     crc32_bin = binascii.unhexlify('%08x' % crc32_unsigned)
 
     return crc32_bin[:3] + mid[:17]

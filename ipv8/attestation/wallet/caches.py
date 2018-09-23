@@ -16,10 +16,10 @@ class HashCache(NumberCache):
         super(HashCache, self).__init__(request_cache, prefix, number)
 
     @classmethod
-    def id_from_hash(cls, prefix, hash):
+    def id_from_hash(cls, prefix, cache_hash):
         number = 0
-        for c in hash:
-            b, = unpack('>B', c)
+        for i in range(len(cache_hash)):
+            b, = unpack('>B', cache_hash[i:i+1])
             number <<= 8
             number |= b
         return prefix, number

@@ -20,6 +20,7 @@ from .lazy_community import lazy_wrapper, lazy_wrapper_unsigned, EZPackOverlay, 
 from .payload import IntroductionRequestPayload, IntroductionResponsePayload, PuncturePayload, PunctureRequestPayload
 from .payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 
+
 _DEFAULT_ADDRESSES = [
     ("130.161.119.206", 6421),
     ("130.161.119.206", 6422),
@@ -48,13 +49,13 @@ BOOTSTRAP_TIMEOUT = 30.0  # Timeout before we bootstrap again (bootstrap kills p
 
 class Community(EZPackOverlay):
 
-    version = '\x02'
+    version = b'\x02'
     master_peer = ""
 
     def __init__(self, my_peer, endpoint, network):
         super(Community, self).__init__(self.master_peer, my_peer, endpoint, network)
 
-        self._prefix = '\x00' + self.version + self.master_peer.key.key_to_hash()
+        self._prefix = b'\x00' + self.version + self.master_peer.key.key_to_hash()
         self.logger.debug("Launching %s with prefix %s.", self.__class__.__name__, hexlify(self._prefix))
         self.network.register_service_provider(self.master_peer.mid, self)
         self.network.blacklist_mids.append(my_peer.mid)
@@ -129,7 +130,7 @@ class Community(EZPackOverlay):
             except error:
                 self.logger.info("Unable to resolve (%s, %d)", address, port)
 
-    def create_introduction_request(self, socket_address, extra_bytes=''):
+    def create_introduction_request(self, socket_address, extra_bytes=b''):
         global_time = self.claim_global_time()
         payload = IntroductionRequestPayload(socket_address,
                                              self.my_estimated_lan,
@@ -144,7 +145,7 @@ class Community(EZPackOverlay):
         return self._ez_pack(self._prefix, 246, [auth, dist, payload])
 
     def create_introduction_response(self, lan_socket_address, socket_address, identifier,
-                                     introduction=None, extra_bytes=''):
+                                     introduction=None, extra_bytes=b''):
         global_time = self.claim_global_time()
         introduction_lan = ("0.0.0.0",0)
         introduction_wan = ("0.0.0.0",0)
@@ -261,14 +262,15 @@ class Community(EZPackOverlay):
             probable_peer.last_response = time()
         if self._prefix != data[:22]:
             return
-        if data[22] in self.decode_map:
+        msg_id = chr(ord(data[22:23]))
+        if msg_id in self.decode_map:
             try:
-                self.decode_map[data[22]](source_address, data)
+                self.decode_map[msg_id](source_address, data)
             except:
                 self.logger.error("Exception occurred while handling packet!\n" +
                                   ''.join(format_exception(*sys.exc_info())))
         elif warn_unknown:
-            self.logger.warning("Received unknown message: %s from (%s, %d)", ord(data[22]), *source_address)
+            self.logger.warning("Received unknown message: %d from (%s, %d)", ord(msg_id), *source_address)
 
     def walk_to(self, address):
         packet = self.create_introduction_request(address)

@@ -28,8 +28,6 @@ from ...peer import Peer
 from ...requestcache import RandomNumberCache, RequestCache
 from ...util import grange
 
-HALF_BLOCK = u"half_block"
-CRAWL = u"crawl"
 receive_block_lock = RLock()
 
 
@@ -55,7 +53,7 @@ class TrustChainCommunity(Community):
 
     DB_CLASS = TrustChainDB
     DB_NAME = 'trustchain'
-    version = '\x02'
+    version = b'\x02'
 
     def __init__(self, *args, **kwargs):
         working_directory = kwargs.pop('working_directory', '')
@@ -174,10 +172,10 @@ class TrustChainCommunity(Community):
                 self.endpoint.send(peer.address, packet)
             self.relayed_broadcasts.append(block1.block_id)
 
-    def self_sign_block(self, block_type='unknown', transaction=None):
+    def self_sign_block(self, block_type=b'unknown', transaction=None):
         self.sign_block(self.my_peer, block_type=block_type, transaction=transaction)
 
-    def create_source_block(self, block_type='unknown', transaction=None):
+    def create_source_block(self, block_type=b'unknown', transaction=None):
         """
         Create a source block without any initial counterparty to sign.
 
@@ -187,7 +185,7 @@ class TrustChainCommunity(Community):
         """
         self.sign_block(peer=None, public_key=ANY_COUNTERPARTY_PK, block_type=block_type, transaction=transaction)
 
-    def create_link(self, source, block_type='unknown', additional_info=None, public_key=None):
+    def create_link(self, source, block_type=b'unknown', additional_info=None, public_key=None):
         """
         Create a Link Block to a source block
 
@@ -203,7 +201,7 @@ class TrustChainCommunity(Community):
                         additional_info=additional_info)
 
     @synchronized
-    def sign_block(self, peer, public_key=EMPTY_PK, block_type='unknown', transaction=None, linked=None,
+    def sign_block(self, peer, public_key=EMPTY_PK, block_type=b'unknown', transaction=None, linked=None,
                    additional_info=None):
         """
         Create, sign, persist and send a block signed message
@@ -243,7 +241,7 @@ class TrustChainCommunity(Community):
 
         validation = block.validate(self.persistence)
         self.logger.info("Signed block to %s (%s) validation result %s",
-                         block.link_public_key.encode("hex")[-8:], block, validation)
+                         hexlify(block.link_public_key)[-8:], block, validation)
         if validation[0] != ValidationResult.partial_next and validation[0] != ValidationResult.valid:
             self.logger.error("Signed block did not validate?! Result %s", repr(validation))
             return fail(RuntimeError("Signed block did not validate."))

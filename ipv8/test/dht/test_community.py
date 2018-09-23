@@ -18,8 +18,8 @@ class TestDHTCommunity(TestBase):
         super(TestDHTCommunity, self).setUp()
         self.initialize(DHTCommunity, 2)
 
-        self.key = '\x00' * 20
-        self.value = 'test'
+        self.key = b'\x00' * 20
+        self.value = b'test'
         self.value_in_store = self.nodes[0].overlay.serialize_value(self.value, sign=False)
         self.signed_in_store = self.nodes[0].overlay.serialize_value(self.value, sign=True)
         self.is_called = False
@@ -111,8 +111,8 @@ class TestDHTCommunity(TestBase):
     def test_find_nodes(self):
         yield self.introduce_nodes()
         nodes = yield self.nodes[0].overlay.find_nodes(self.key)
-        self.assertItemsEqual(nodes, [Node(n.my_peer.key.pub().key_to_bin(), n.my_peer.address)
-                                      for n in self.nodes[1:]])
+        self.assertSetEqual(set(nodes), set([Node(n.my_peer.key.pub().key_to_bin(), n.my_peer.address)
+                                             for n in self.nodes[1:]]))
 
     @inlineCallbacks
     def test_find_values(self):
@@ -204,7 +204,7 @@ class TestDHTCommunity(TestBase):
         self.assertEqual(self.nodes[1].overlay.storage.get(self.key), [])
 
         # With a bad token..
-        self.nodes[0].overlay.tokens[dht_node] = 'faketoken'
+        self.nodes[0].overlay.tokens[dht_node] = (0, b'faketoken')
         yield self.introduce_nodes()
         d = self.nodes[0].overlay.store_on_nodes(self.key, [self.value_in_store], [dht_node])
         yield self.deliver_messages()
@@ -223,8 +223,8 @@ class TestDHTCommunity(TestBase):
         dht_provider_1 = DHTCommunityProvider(self.nodes[0].overlay, 1337)
         dht_provider_2 = DHTCommunityProvider(self.nodes[1].overlay, 1338)
         dht_provider_3 = DHTCommunityProvider(self.nodes[2].overlay, 1338)
-        dht_provider_1.announce('a' * 20)
-        dht_provider_2.announce('a' * 20)
+        dht_provider_1.announce(b'a' * 20)
+        dht_provider_2.announce(b'a' * 20)
 
         yield self.deliver_messages()
 
@@ -232,7 +232,7 @@ class TestDHTCommunity(TestBase):
             self.assertEqual(len(peers[1]), 2)
             test_deferred.callback(None)
 
-        dht_provider_3.lookup('a' * 20, on_peers)
+        dht_provider_3.lookup(b'a' * 20, on_peers)
 
         yield test_deferred
 
@@ -259,7 +259,7 @@ class TestDHTCommunityXL(TestBase):
         yield self.deliver_messages()
 
         # Store key value pair
-        kv_pair = ('\x00' * 20, 'test1')
+        kv_pair = (b'\x00' * 20, b'test1')
         yield self.nodes[0].overlay.store_value(*kv_pair)
 
         # Check if the closest nodes have now stored the key
@@ -267,9 +267,9 @@ class TestDHTCommunityXL(TestBase):
             self.assertTrue(node.overlay.storage.get(kv_pair[0]), kv_pair[1])
 
         # Store another value under the same key
-        yield self.nodes[1].overlay.store_value('\x00' * 20, 'test2', sign=True)
+        yield self.nodes[1].overlay.store_value(b'\x00' * 20, b'test2', sign=True)
 
         # Check if we get both values
-        values = yield self.nodes[-1].overlay.find_values('\x00' * 20)
-        self.assertIn(('test1', None), values)
-        self.assertIn(('test2', self.nodes[1].my_peer.public_key.key_to_bin()), values)
+        values = yield self.nodes[-1].overlay.find_values(b'\x00' * 20)
+        self.assertIn((b'test1', None), values)
+        self.assertIn((b'test2', self.nodes[1].my_peer.public_key.key_to_bin()), values)
