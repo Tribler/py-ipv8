@@ -5,16 +5,19 @@ Every node has a chain and these chains intertwine by blocks shared by chains.
 """
 from __future__ import absolute_import
 
-from binascii import hexlify
+from binascii import hexlify, unhexlify
 import logging
 import random
+import struct
 from threading import RLock
 
 from twisted.internet import reactor
 from twisted.internet.defer import Deferred, succeed, fail
+from twisted.internet.task import LoopingCall
 
+from ...attestation.trustchain.settings import TrustChainSettings
 from .block import TrustChainBlock, ValidationResult, EMPTY_PK, GENESIS_SEQ, UNKNOWN_SEQ, ANY_COUNTERPARTY_PK
-from .caches import CrawlRequestCache, HalfBlockSignCache, IntroCrawlTimeout
+from .caches import CrawlRequestCache, HalfBlockSignCache, IntroCrawlTimeout, ChainCrawlCache
 from .database import TrustChainDB
 from ...deprecated.community import Community
 from ...deprecated.lazy_community import lazy_wrapper, lazy_wrapper_unsigned, lazy_wrapper_unsigned_wd, lazy_wrapper_wd
@@ -44,19 +47,20 @@ class TrustChainCommunity(Community):
     """
     Community for reputation based on TrustChain tamper proof interaction history.
     """
-    master_peer = Peer(("3081a7301006072a8648ce3d020106052b810400270381920004057a1c4c4f8422b328209d99724bd30cf08d1f8"
-                        "1a2961b003affd2964f92c457572f2f79de0968c42698e2d1cfb371dd71b275332a0a4c19f35f16166272baae8e"
-                        "230bba377cc5c40643b83206088075559ec2f13a090e8786d04d84802268bef12e52983978da360589a2b7e293c"
-                        "e4f16d02f37da2c3256f4703b9623d3750f7af437befebc8935c0f0726f58c1c1e9").decode("HEX"))
+    master_peer = Peer(unhexlify("3081a7301006072a8648ce3d020106052b810400270381920004026c015f205478073708b9a50b0e74"
+                                 "60139b615ba34830b3b3a288e41480eda48ad6adfb39d3d17636169fc06cc68844b5e6ef4e264faa96"
+                                 "76f487bb4e445ca52188076296fb9a9a037c37d977cd0fff8b367318a088ad64b46b1e947eab3356e1"
+                                 "50cf14a3a4b58c6ee59a33ce7036f2c39e0099b68c8cf7430d88ad2b67a4565e07b1e37e94dbc832fb"
+                                 "b4b1927fc297"))
 
     DB_CLASS = TrustChainDB
     DB_NAME = 'trustchain'
-    BROADCAST_FANOUT = 10
     version = '\x02'
 
     def __init__(self, *args, **kwargs):
         working_directory = kwargs.pop('working_directory', '')
         db_name = kwargs.pop('db_name', self.DB_NAME)
+        self.settings = kwargs.pop('settings', TrustChainSettings())
         super(TrustChainCommunity, self).__init__(*args, **kwargs)
         self.request_cache = RequestCache()
         self.logger = logging.getLogger(self.__class__.__name__)
@@ -64,9 +68,10 @@ class TrustChainCommunity(Community):
         self.relayed_broadcasts = []
         self.logger.debug("The trustchain community started with Public Key: %s",
                           hexlify(self.my_peer.public_key.key_to_bin()))
-        self.broadcast_block = True  # Whether we broadcast a full block after constructing it
         self.shutting_down = False
         self.listeners_map = {}  # Map of block_type -> [callbacks]
+        self.db_cleanup_lc = self.register_task("db_cleanup", LoopingCall(self.do_db_cleanup))
+        self.db_cleanup_lc.start(600)
 
         self.decode_map.update({
             chr(1): self.received_half_block,
@@ -74,8 +79,18 @@ class TrustChainCommunity(Community):
             chr(3): self.received_crawl_response,
             chr(4): self.received_half_block_pair,
             chr(5): self.received_half_block_broadcast,
-            chr(6): self.received_half_block_pair_broadcast
+            chr(6): self.received_half_block_pair_broadcast,
+            chr(7): self.received_empty_crawl_response,
         })
+
+    def do_db_cleanup(self):
+        """
+        Cleanup the database if necessary.
+        """
+        blocks_in_db = self.persistence.get_number_of_known_blocks()
+        if blocks_in_db > self.settings.max_db_blocks:
+            my_pk = self.my_peer.public_key.key_to_bin()
+            self.persistence.remove_old_blocks(blocks_in_db - self.settings.max_db_blocks, my_pk)
 
     def add_listener(self, listener, block_types):
         """
@@ -117,7 +132,7 @@ class TrustChainCommunity(Community):
 
         return False
 
-    def send_block(self, block, address=None, ttl=2):
+    def send_block(self, block, address=None, ttl=1):
         """
         Send a block to a specific address, or do a broadcast to known peers if no peer is specified.
         """
@@ -134,11 +149,11 @@ class TrustChainCommunity(Community):
             payload = HalfBlockBroadcastPayload.from_half_block(block, ttl).to_pack_list()
             packet = self._ez_pack(self._prefix, 5, [dist, payload], False)
             for peer in random.sample(self.network.verified_peers, min(len(self.network.verified_peers),
-                                                                       self.BROADCAST_FANOUT)):
+                                                                       self.settings.broadcast_fanout)):
                 self.endpoint.send(peer.address, packet)
             self.relayed_broadcasts.append(block.block_id)
 
-    def send_block_pair(self, block1, block2, address=None, ttl=2):
+    def send_block_pair(self, block1, block2, address=None, ttl=1):
         """
         Send a half block pair to a specific address, or do a broadcast to known peers if no peer is specified.
         """
@@ -155,7 +170,7 @@ class TrustChainCommunity(Community):
             payload = HalfBlockPairBroadcastPayload.from_half_blocks(block1, block2, ttl).to_pack_list()
             packet = self._ez_pack(self._prefix, 6, [dist, payload], False)
             for peer in random.sample(self.network.verified_peers, min(len(self.network.verified_peers),
-                                                                       self.BROADCAST_FANOUT)):
+                                                                       self.settings.broadcast_fanout)):
                 self.endpoint.send(peer.address, packet)
             self.relayed_broadcasts.append(block1.block_id)
 
@@ -239,7 +254,7 @@ class TrustChainCommunity(Community):
 
         # This is a source block with no counterparty
         if not peer and public_key == ANY_COUNTERPARTY_PK:
-            if self.broadcast_block:
+            if self.settings.broadcast_blocks:
                 self.send_block(block)
             return
 
@@ -247,12 +262,12 @@ class TrustChainCommunity(Community):
         self.send_block(block, address=peer.address)
 
         # We broadcast the block in the network if we initiated a transaction
-        if self.broadcast_block and not linked:
+        if self.settings.broadcast_blocks and not linked:
             self.send_block(block)
 
         if peer == self.my_peer:
             # We created a self-signed block
-            if self.broadcast_block:
+            if self.settings.broadcast_blocks:
                 self.send_block(block)
 
             return succeed((block, None)) if public_key == ANY_COUNTERPARTY_PK else succeed((block, linked))
@@ -263,18 +278,8 @@ class TrustChainCommunity(Community):
             return sign_deferred
         else:
             # We return a deferred that fires immediately with both half blocks.
-            if self.broadcast_block:
+            if self.settings.broadcast_blocks:
                 self.send_block_pair(linked, block)
-
-            # See https://github.com/Tribler/py-ipv8/issues/160
-            # If we receive responses from received_crawl_request out of order we can desync:
-            #  1. We need to sign block 2, but can't as we are still missing block 1.
-            #  2. We receive block 1 and sign it.
-            #  3.a. Nothing will happen until the next time we randomly encounter block 2.
-            #  3.b. The counterparty is still waiting for block 2 to be signed.
-            self.send_crawl_request(peer,
-                                    linked.public_key,
-                                    linked.sequence_number + 1)
 
             return succeed((linked, block))
 
@@ -294,6 +299,7 @@ class TrustChainCommunity(Community):
         """
         We received a half block, part of a broadcast. Disseminate it further.
         """
+        payload.ttl -= 1
         block = self.get_block_class(payload.type).from_payload(payload, self.serializer)
         self.validate_persist_block(block)
 
@@ -316,6 +322,7 @@ class TrustChainCommunity(Community):
         """
         We received a half block pair, part of a broadcast. Disseminate it further.
         """
+        payload.ttl -= 1
         block1, block2 = self.get_block_class(payload.type1).from_pair_payload(payload, self.serializer)
         self.validate_persist_block(block1)
         self.validate_persist_block(block2)
@@ -376,51 +383,59 @@ class TrustChainCommunity(Community):
 
         # determine if we want to sign this block
         if not self.should_sign(blk):
+            self.logger.info("Not signing block %s", blk)
             return
 
         # It is important that the request matches up with its previous block, gaps cannot be tolerated at
         # this point. We already dropped invalids, so here we delay this message if the result is partial,
         # partial_previous or no-info. We send a crawl request to the requester to (hopefully) close the gap
-        if validation[0] == ValidationResult.partial_previous or validation[0] == ValidationResult.partial or \
-                        validation[0] == ValidationResult.no_info:
+        if (validation[0] == ValidationResult.partial_previous or validation[0] == ValidationResult.partial or \
+                        validation[0] == ValidationResult.no_info) and self.settings.validation_range > 0:
             self.logger.info("Request block could not be validated sufficiently, crawling requester. %s",
                              validation)
             # Note that this code does not cover the scenario where we obtain this block indirectly.
             if not self.request_cache.has(u"crawl", blk.hash_number):
                 self.send_crawl_request(peer,
                                         blk.public_key,
-                                        max(GENESIS_SEQ, blk.sequence_number - 5),
-                                        for_half_block=blk)
+                                        max(GENESIS_SEQ, blk.sequence_number - self.settings.validation_range),
+                                        max(GENESIS_SEQ, blk.sequence_number - 1),
+                                        for_half_block=blk).addCallback(lambda _: self.process_half_block(blk, peer))
         else:
             self.sign_block(peer, linked=blk)
 
-    def crawl_lowest_unknown(self, peer):
+    def crawl_chain(self, peer, latest_block_num=None):
+        """
+        Crawl the whole chain of a specific peer.
+        :param latest_block_num: The latest block number of the peer in question, if available.
+        """
+        cache = ChainCrawlCache(self, peer, known_chain_length=latest_block_num)
+        self.request_cache.add(cache)
+        reactor.callFromThread(self.send_next_partial_chain_crawl_request, cache)
+
+    def crawl_lowest_unknown(self, peer, latest_block_num=None):
         """
         Crawl the lowest unknown block of a specific peer.
+        :param latest_block_num: The latest block number of the peer in question, if available
         """
         sq = self.persistence.get_lowest_sequence_number_unknown(peer.public_key.key_to_bin())
-        return self.send_crawl_request(peer, peer.public_key.key_to_bin(), sequence_number=sq)
+        if latest_block_num and sq == latest_block_num + 1:
+            return succeed([])  # We don't have to crawl this node since we have its whole chain
+        return self.send_crawl_request(peer, peer.public_key.key_to_bin(), sq, sq)
 
-    def send_crawl_request(self, peer, public_key, sequence_number=None, for_half_block=None):
+    def send_crawl_request(self, peer, public_key, start_seq_num, end_seq_num, for_half_block=None):
         """
         Send a crawl request to a specific peer.
         """
-        sq = sequence_number
-        if sequence_number is None:
-            blk = self.persistence.get_latest(public_key)
-            sq = blk.sequence_number if blk else GENESIS_SEQ
-        sq = max(GENESIS_SEQ, sq) if sq >= 0 else sq
-
         crawl_id = for_half_block.hash_number if for_half_block else \
             RandomNumberCache.find_unclaimed_identifier(self.request_cache, u"crawl")
         crawl_deferred = Deferred()
         self.request_cache.add(CrawlRequestCache(self, crawl_id, crawl_deferred))
-        self.logger.info("Requesting crawl of node %s:%d with id %d",
-                         hexlify(peer.public_key.key_to_bin())[-8:], sq, crawl_id)
+        self.logger.info("Requesting crawl of node %s (blocks %d to %d) with id %d",
+                         hexlify(peer.public_key.key_to_bin())[-8:], start_seq_num, end_seq_num, crawl_id)
 
         global_time = self.claim_global_time()
         auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
-        payload = CrawlRequestPayload(public_key, sq, crawl_id).to_pack_list()
+        payload = CrawlRequestPayload(public_key, start_seq_num, end_seq_num, crawl_id).to_pack_list()
         dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
 
         packet = self._ez_pack(self._prefix, 2, [auth, dist, payload])
@@ -428,32 +443,92 @@ class TrustChainCommunity(Community):
 
         return crawl_deferred
 
+    def perform_partial_chain_crawl(self, cache, start, stop):
+        """
+        Perform a partial crawl request for a specific range, when crawling a chain.
+        :param cache: The cache that stores progress regarding the chain crawl.
+        :param start: The sequence number of the first block to be requested.
+        :param stop: The sequence number of the last block to be requested.
+        """
+        if cache.current_request_range != (start, stop):
+            # We are performing a new request
+            cache.current_request_range = start, stop
+            cache.current_request_attempts = 0
+        elif cache.current_request_attempts == 3:
+            # We already tried the same request three times, bail out
+            self.request_cache.pop(u"chaincrawl", cache.number)
+            return
+
+        cache.current_request_attempts += 1
+        cache.current_crawl_deferred = self.send_crawl_request(cache.peer, cache.peer.public_key.key_to_bin(),
+                                                               start, stop)
+        cache.current_crawl_deferred.addCallback(lambda _: self.send_next_partial_chain_crawl_request(cache))
+
+    def send_next_partial_chain_crawl_request(self, cache):
+        """
+        Send the next partial crawl request, if we are not done yet.
+        :param cache: The cache that stores progress regarding the chain crawl.
+        """
+        lowest_unknown = self.persistence.get_lowest_sequence_number_unknown(cache.peer.public_key.key_to_bin())
+        if cache.known_chain_length >= 0 and cache.known_chain_length == lowest_unknown - 1:
+            self.request_cache.pop(u"chaincrawl", cache.number)
+            return
+
+        latest_block = self.persistence.get_latest(cache.peer.public_key.key_to_bin())
+        if not latest_block and cache.known_chain_length > 0:
+            # We have no knowledge of this peer, simply send a request from the genesis block to known chain length
+            self.perform_partial_chain_crawl(cache, 1, cache.known_chain_length)
+            return
+        elif latest_block and lowest_unknown == latest_block.sequence_number + 1:
+            # It seems that we filled all gaps in the database; check whether we can do one final request
+            if latest_block.sequence_number < cache.known_chain_length:
+                self.perform_partial_chain_crawl(cache, latest_block.sequence_number + 1, cache.known_chain_length)
+                return
+            else:
+                self.request_cache.pop(u"chaincrawl", cache.number)
+                return
+
+        start, stop = self.persistence.get_lowest_range_unknown(cache.peer.public_key.key_to_bin())
+        self.perform_partial_chain_crawl(cache, start, stop)
+
     @synchronized
     @lazy_wrapper(GlobalTimeDistributionPayload, CrawlRequestPayload)
     def received_crawl_request(self, peer, dist, payload):
-        self.logger.info("Received crawl request from node %s for sequence number %d",
-                         hexlify(peer.public_key.key_to_bin())[-8:],
-                         payload.requested_sequence_number)
-        sq = payload.requested_sequence_number
-        if sq < 0:
+        self.logger.info("Received crawl request from node %s for range %d-%d",
+                         hexlify(peer.public_key.key_to_bin())[-8:], payload.start_seq_num, payload.end_seq_num)
+        start_seq_num = payload.start_seq_num
+        end_seq_num = payload.end_seq_num
+
+        # It could be that our start_seq_num and end_seq_num are negative. If so, convert them to positive numbers,
+        # based on the last block of ones chain.
+        if start_seq_num < 0:
             last_block = self.persistence.get_latest(payload.public_key)
-            # The -1 element is the last_block.seq_nr
-            # The -2 element is the last_block.seq_nr - 1
-            # Etc. until the genesis seq_nr
-            sq = max(GENESIS_SEQ, last_block.sequence_number + (sq + 1)) if last_block else GENESIS_SEQ
-        blocks = self.persistence.crawl(payload.public_key, sq, limit=10)
+            start_seq_num = max(GENESIS_SEQ, last_block.sequence_number + start_seq_num + 1) \
+                if last_block else GENESIS_SEQ
+        if end_seq_num < 0:
+            last_block = self.persistence.get_latest(payload.public_key)
+            end_seq_num = max(GENESIS_SEQ, last_block.sequence_number + end_seq_num + 1) \
+                if last_block else GENESIS_SEQ
+
+        blocks = self.persistence.crawl(payload.public_key, start_seq_num, end_seq_num, limit=10)
         total_count = len(blocks)
 
         if total_count == 0:
-            # If there are no blocks to send, send a dummy block back with an empty transaction.
-            # This is to inform the requester that he can't expect any blocks.
-            block = self.get_block_class("unknown").create('noblocks', {}, self.persistence,
-                                                           self.my_peer.public_key.key_to_bin(), link_pk=EMPTY_PK)
-            self.send_crawl_response(block, payload.crawl_id, 0, 0, peer)
+            global_time = self.claim_global_time()
+            response_payload = EmptyCrawlResponsePayload(payload.crawl_id).to_pack_list()
+            dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
+            packet = self._ez_pack(self._prefix, 7, [dist, response_payload], False)
+            self.endpoint.send(peer.address, packet)
+        else:
+            self.send_crawl_responses(blocks, peer, payload.crawl_id)
 
-        for ind in grange(len(blocks)):
-            self.send_crawl_response(blocks[ind], payload.crawl_id, ind + 1, total_count, peer)
-        self.logger.info("Sent %d blocks", total_count)
+    def send_crawl_responses(self, blocks, peer, crawl_id):
+        """
+        Answer a peer with crawl responses.
+        """
+        for ind, block in enumerate(blocks):
+            self.send_crawl_response(block, crawl_id, ind + 1, len(blocks), peer)
+        self.logger.info("Sent %d blocks", len(blocks))
 
     @synchronized
     def sanitize_database(self):
@@ -521,6 +596,13 @@ class TrustChainCommunity(Community):
         if cache:
             cache.received_block(block, payload.total_count)
 
+    @lazy_wrapper_unsigned_wd(GlobalTimeDistributionPayload, EmptyCrawlResponsePayload)
+    def received_empty_crawl_response(self, source_address, dist, payload, data):
+        cache = self.request_cache.get(u"crawl", payload.crawl_id)
+        if cache:
+            self.logger.info("Received empty crawl response for crawl with ID %d", payload.crawl_id)
+            cache.received_empty_response()
+
     def get_trust(self, peer):
         """
         Return the trust score for a specific peer. For the basic Trustchain, this is the length of their chain.
@@ -553,18 +635,45 @@ class TrustChainCommunity(Community):
 
         return eligible[-1]
 
-    @synchronized
-    @lazy_wrapper_wd(GlobalTimeDistributionPayload, IntroductionResponsePayload)
-    def on_introduction_response(self, peer, dist, payload, data):
-        super(TrustChainCommunity, self).on_introduction_response(peer.address, data)
+    def get_chain_length(self):
+        """
+        Return the length of your own chain.
+        """
+        latest_block = self.persistence.get_latest(self.my_peer.public_key.key_to_bin())
+        return 0 if not latest_block else latest_block.sequence_number
 
-        if self.request_cache.has(u"introcrawltimeout", IntroCrawlTimeout.get_number_for(peer)):
-            self.logger.debug("Not crawling %s, as we have already crawled it in the last %d seconds!",
-                              hexlify(peer.mid), IntroCrawlTimeout.__new__(IntroCrawlTimeout).timeout_delay)
-        elif peer.address not in self.network.blacklist:
-            # Do not crawl addresses in our blacklist (trackers)
-            self.request_cache.add(IntroCrawlTimeout(self, peer))
-            self.crawl_lowest_unknown(peer)
+    @synchronized
+    def create_introduction_request(self, socket_address, extra_bytes=b''):
+        extra_bytes = struct.pack('>H', self.get_chain_length())
+        return super(TrustChainCommunity, self).create_introduction_request(socket_address, extra_bytes)
+
+    @synchronized
+    def create_introduction_response(self, lan_socket_address, socket_address, identifier,
+                                     introduction=None, extra_bytes=b''):
+        extra_bytes = struct.pack('>H', self.get_chain_length())
+        return super(TrustChainCommunity, self).create_introduction_response(lan_socket_address, socket_address,
+                                                                             identifier, introduction, extra_bytes)
+
+    @synchronized
+    def introduction_response_callback(self, peer, dist, payload):
+        chain_length = struct.unpack('>H', payload.extra_bytes)[0]
+        if peer.address in self.network.blacklist:  # Do not crawl addresses in our blacklist (trackers)
+            return
+
+        # Check if we have pending crawl requests for this peer
+        has_intro_crawl = self.request_cache.has(u"introcrawltimeout", IntroCrawlTimeout.get_number_for(peer))
+        has_chain_crawl = self.request_cache.has(u"chaincrawl", ChainCrawlCache.get_number_for(peer))
+        if has_intro_crawl or has_chain_crawl:
+            self.logger.debug("Skipping crawl of peer %s, another crawl is pending", peer)
+            return
+
+        if self.settings.crawler:
+            self.crawl_chain(peer, latest_block_num=chain_length)
+        else:
+            known_blocks = self.persistence.get_number_of_known_blocks(public_key=peer.public_key.key_to_bin())
+            if known_blocks < 1000 or random.random() > 0.5:
+                self.request_cache.add(IntroCrawlTimeout(self, peer))
+                self.crawl_lowest_unknown(peer, latest_block_num=chain_length)
 
     def unload(self):
         self.logger.debug("Unloading the TrustChain Community.")
@@ -584,7 +693,8 @@ class TrustChainTestnetCommunity(TrustChainCommunity):
     """
     DB_NAME = 'trustchain_testnet'
 
-    master_peer = Peer(("3081a7301006072a8648ce3d020106052b810400270381920004017aa18185c6c8a3741aed970f5476d50932980"
-                        "66670c6557f9d2519a77c2abe293f9438444fdb73d9e36d0b43a4a254f96c563c0da7915def980270d88da4079e"
-                        "83a6039ce97f2205528c69087f88a6d6f35d83b93b3fb8a360260114729d4cfb5acc4b190e067695b4ae5e240a3"
-                        "939a1f45520e87a459ed0f358bf5e66371a748daa041997da69cab227596948bffd").decode("HEX"))
+    master_peer = Peer(unhexlify("3081a7301006072a8648ce3d020106052b81040027038192000404494ce33365dbf1e9b93647b7ff8c"
+                                 "979ba4d883421928ac7f7130900605e4fdece109d6ec3a1716537cb1ab284aa307f1dfc2aebe2e2d03"
+                                 "7d27cd68ccc6b3dc560c20e4fc8a670500fb8e653bd286ce0be52b1d43d53041bb74204e5af9662eca"
+                                 "b890ae518caeb11a7ef1510cf79c7b22e72529923b8f1cb08e518adb49a0da131a51c1254e49cd657b"
+                                 "60fd7ddd8e19"))

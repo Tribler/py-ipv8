@@ -51,6 +51,7 @@ class MockDatabase(object):
     def __init__(self):
         super(MockDatabase, self).__init__()
         self.data = dict()
+        self.double_spends = []
 
     def add_block(self, block):
         if self.data.get(block.public_key) is None:
@@ -85,6 +86,9 @@ class MockDatabase(object):
             return None
         item = [i for i in self.data[blk.public_key] if i.sequence_number < blk.sequence_number]
         return item[-1] if item else None
+
+    def add_double_spend(self, block1, block2):
+        self.double_spends.append((block1, block2))
 
 
 class TestTrustChainBlock(unittest.TestCase):
@@ -424,7 +428,7 @@ class TestTrustChainBlock(unittest.TestCase):
         block1.link_public_key = "1234"
         block2 = TestBlock()
         block2.link_public_key = "5678"
-        block1.update_block_consistency(block2, result)
+        block1.update_block_consistency(block2, result, MockDatabase())
 
         self.assertEqual(ValidationResult.invalid, result.state)
 
@@ -437,7 +441,7 @@ class TestTrustChainBlock(unittest.TestCase):
         block1.link_sequence_number = 0
         block2 = TestBlock()
         block2.link_sequence_number = 1
-        block1.update_block_consistency(block2, result)
+        block1.update_block_consistency(block2, result, MockDatabase())
 
         self.assertEqual(ValidationResult.invalid, result.state)
 
@@ -450,7 +454,7 @@ class TestTrustChainBlock(unittest.TestCase):
         block1.previous_hash = "1234"
         block2 = TestBlock()
         block2.previous_hash = "5678"
-        block1.update_block_consistency(block2, result)
+        block1.update_block_consistency(block2, result, MockDatabase())
 
         self.assertEqual(ValidationResult.invalid, result.state)
 
@@ -463,7 +467,7 @@ class TestTrustChainBlock(unittest.TestCase):
         block1.signature = "1234"
         block2 = TestBlock()
         block2.signature = "5678"
-        block1.update_block_consistency(block2, result)
+        block1.update_block_consistency(block2, result, MockDatabase())
 
         self.assertEqual(ValidationResult.invalid, result.state)
 
@@ -476,7 +480,7 @@ class TestTrustChainBlock(unittest.TestCase):
         block1.pack = lambda: "1234"
         block2 = TestBlock()
         block2.pack = lambda: "5678"
-        block1.update_block_consistency(block2, result)
+        block1.update_block_consistency(block2, result, MockDatabase())
 
         self.assertEqual(ValidationResult.invalid, result.state)
 

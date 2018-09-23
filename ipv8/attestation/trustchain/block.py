@@ -170,7 +170,7 @@ class TrustChainBlock(object):
         self.update_block_invariant(database, result)
 
         # Check if this block as retrieved from our database is the same as this block.
-        self.update_block_consistency(blk, result)
+        self.update_block_consistency(blk, result, database)
 
         # Check if the linked block as retrieved from our database is the same as the one linked by this block.
         self.update_linked_consistency(database, link, result)
@@ -283,7 +283,7 @@ class TrustChainBlock(object):
             if self.sequence_number != GENESIS_SEQ and self.previous_hash == GENESIS_HASH:
                 result.err("Sequence number implies previous hash should not be Genesis ID")
 
-    def update_block_consistency(self, blk, result):
+    def update_block_consistency(self, blk, result, database):
         """
         Check if a given block is consistent with this block.
 
@@ -293,6 +293,8 @@ class TrustChainBlock(object):
         :type blk: TrustChainBlock or None
         :param result: the result to update
         :type result: ValidationResult
+        :param database: the TrustChain database object, used to store detected double spend attempts
+        :type database: TrustChainDB
         :returns: None
         """
         if blk:
@@ -308,6 +310,7 @@ class TrustChainBlock(object):
             if self.hash != blk.hash and "Invalid signature" not in result.errors and\
                "Public key is not valid" not in result.errors:
                 result.err("Double sign fraud")
+                database.add_double_spend(blk, self)
 
     def update_linked_consistency(self, database, link, result):
         """

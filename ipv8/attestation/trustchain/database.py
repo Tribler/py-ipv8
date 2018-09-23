@@ -19,7 +19,7 @@ class TrustChainDB(Database):
     Connection layer to SQLiteDB.
     Ensures a proper DB schema on startup.
     """
-    LATEST_DB_VERSION = 5
+    LATEST_DB_VERSION = 6
 
     def __init__(self, working_directory, db_name):
         """
@@ -96,6 +96,25 @@ class TrustChainDB(Database):
         :return: all blocks in the database
         """
         return self._getall(u"", ())
+
+    def get_number_of_known_blocks(self, public_key=None):
+        """
+        Return the total number of blocks in the database or the number of known blocks for a specific user.
+        """
+        if public_key:
+            return list(self.execute(u"SELECT COUNT(*) FROM blocks WHERE public_key = ?",
+                                     (database_blob(public_key), )))[0][0]
+        return list(self.execute(u"SELECT COUNT(*) FROM blocks"))[0][0]
+
+    def remove_old_blocks(self, num_blocks_to_remove, my_pub_key):
+        """
+        Remove old blocks from the database.
+        :param num_blocks_to_remove: The number of blocks to remove from the database.
+        :param my_pub_key: Your public key, specified since we don't want to remove your own blocks.
+        """
+        self.execute(u"DELETE FROM blocks WHERE block_hash IN "
+                     u"(SELECT block_hash FROM blocks WHERE public_key != ? ORDER BY block_timestamp LIMIT ?)",
+                     (database_blob(my_pub_key), num_blocks_to_remove))
 
     def get_block_with_hash(self, block_hash):
         """
@@ -178,11 +197,36 @@ class TrustChainDB(Database):
         Return the lowest sequence number that we don't have a block of in the chain of a specific peer.
         :param public_key: The public key
         """
+
+        # The following query fetches the earliest block that does not have a subsequent block.
+        # This does not work for the case where we are merely missing the first block, hence this check.
+        if not self.get(public_key, 1):
+            return 1
+
         query = u"SELECT b1.sequence_number FROM blocks b1 WHERE b1.public_key = ? AND NOT EXISTS " \
                 u"(SELECT b2.sequence_number FROM blocks b2 WHERE b2.sequence_number = b1.sequence_number + 1 " \
                 u"AND b2.public_key = ?) ORDER BY b1.sequence_number LIMIT 1"
         db_result = list(self.execute(query, (database_blob(public_key), database_blob(public_key)), fetch_all=True))
         return db_result[0][0] + 1 if db_result else 1
+
+    def get_lowest_range_unknown(self, public_key):
+        """
+        Get the range of blocks (created by the peer with public_key) that we do not have yet.
+        For instance, if a user has the following blocks in the database: [1, 4, 5, 9], then this method will return
+        the tuple (2, 3).
+        :param public_key: The public key of the peer we want to get missing blocks from.
+        :return: A tuple indicating the start and end of the range of missing blocks.
+        """
+        lowest_unknown = self.get_lowest_sequence_number_unknown(public_key)
+
+        # Now get the sequence number of the first block in the database, after this lowest unknown
+        query = u"SELECT sequence_number FROM blocks WHERE public_key = ? AND sequence_number > ? " \
+                u"ORDER BY sequence_number LIMIT 1"
+        db_result = list(self.execute(query, (database_blob(public_key), lowest_unknown), fetch_all=True))
+        if db_result:
+            return lowest_unknown, db_result[0][0] - 1
+        else:
+            return lowest_unknown, lowest_unknown
 
     def get_linked(self, block):
         """
@@ -194,12 +238,14 @@ class TrustChainDB(Database):
                          u"link_sequence_number = ?", (database_blob(block.link_public_key), block.link_sequence_number,
                                                        database_blob(block.public_key), block.sequence_number))
 
-    def crawl(self, public_key, sequence_number, limit=100):
-        query = u"SELECT * FROM (%s WHERE sequence_number >= ? AND public_key = ? LIMIT ?) " \
-                u"UNION SELECT * FROM (%s WHERE link_sequence_number >= ? AND link_sequence_number != 0 " \
-                u"AND link_public_key = ? LIMIT ?)" % (self.get_sql_header(), self.get_sql_header())
-        db_result = list(self.execute(query, (sequence_number, database_blob(public_key), limit, sequence_number,
-                                              database_blob(public_key), limit), fetch_all=True))
+    def crawl(self, public_key, start_seq_num, end_seq_num, limit=100):
+        query = u"SELECT * FROM (%s WHERE sequence_number >= ? AND sequence_number <= ? AND public_key = ? LIMIT ?) " \
+                u"UNION SELECT * FROM (%s WHERE link_sequence_number >= ? AND link_sequence_number <= ? AND " \
+                u"link_sequence_number != 0 AND link_public_key = ? LIMIT ?)" % \
+                (self.get_sql_header(), self.get_sql_header())
+        db_result = list(self.execute(query, (start_seq_num, end_seq_num, database_blob(public_key), limit,
+                                              start_seq_num, end_seq_num, database_blob(public_key), limit),
+                                      fetch_all=True))
         return [self.get_block_class(db_item[0])(db_item) for db_item in db_result]
 
     def get_recent_blocks(self, limit=10, offset=0):
@@ -223,6 +269,26 @@ class TrustChainDB(Database):
             })
         return users_info
 
+    def add_double_spend(self, block1, block2):
+        """
+        Add information about a double spend to the database.
+        """
+        sql = u"INSERT OR IGNORE INTO double_spends (type, tx, public_key, sequence_number, link_public_key," \
+              u"link_sequence_number,previous_hash, signature, block_timestamp, block_hash) VALUES(?,?,?,?,?,?,?,?,?,?)"
+        self.execute(sql, block1.pack_db_insert())
+        self.execute(sql, block2.pack_db_insert())
+        self.commit()
+
+    def did_double_spend(self, public_key):
+        """
+        Return whether a specific user did a double spend in the past.
+        """
+        count = list(self.execute(u"SELECT COUNT(*) FROM double_spends WHERE public_key = ?",
+                                  (database_blob(public_key),)))[0][0]
+        return count > 0
+
+
+
     def get_sql_header(self):
         """
         Return the first part of a generic sql select query.
@@ -231,12 +297,9 @@ class TrustChainDB(Database):
                    u"previous_hash, signature, block_timestamp, insert_time"
         return u"SELECT " + _columns + u" FROM blocks "
 
-    def get_schema(self):
-        """
-        Return the schema for the database.
-        """
+    def get_sql_create_blocks_table(self, table_name, primary_key):
         return u"""
-        CREATE TABLE IF NOT EXISTS blocks(
+        CREATE TABLE IF NOT EXISTS %s(
          type                 TEXT NOT NULL,
          tx                   TEXT NOT NULL,
          public_key           TEXT NOT NULL,
@@ -249,17 +312,30 @@ class TrustChainDB(Database):
          insert_time          TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
          block_hash	          TEXT NOT NULL,
 
-         PRIMARY KEY (public_key, sequence_number)
+         PRIMARY KEY (%s)
          );
+         """ % (table_name, primary_key)
 
-        CREATE TABLE option(key TEXT PRIMARY KEY, value BLOB);
+    def get_schema(self):
+        """
+        Return the schema for the database.
+        """
+        return u"""
+        %s
+        
+        %s
+
+        CREATE TABLE IF NOT EXISTS option(key TEXT PRIMARY KEY, value BLOB);
+        DELETE FROM option WHERE key = 'database_version';
         INSERT INTO option(key, value) VALUES('database_version', '%s');
 
-        CREATE INDEX pub_key_ind ON blocks (public_key);
-        CREATE INDEX link_pub_key_ind ON blocks (link_public_key);
-        CREATE INDEX seq_num_ind ON blocks (sequence_number);
-        CREATE INDEX link_seq_num_ind ON blocks (link_sequence_number);
-        """ % str(self.LATEST_DB_VERSION)
+        CREATE INDEX IF NOT EXISTS pub_key_ind ON blocks (public_key);
+        CREATE INDEX IF NOT EXISTS link_pub_key_ind ON blocks (link_public_key);
+        CREATE INDEX IF NOT EXISTS seq_num_ind ON blocks (sequence_number);
+        CREATE INDEX IF NOT EXISTS link_seq_num_ind ON blocks (link_sequence_number);
+        """ % (self.get_sql_create_blocks_table("blocks", "public_key, sequence_number"),
+               self.get_sql_create_blocks_table("double_spends", "public_key, sequence_number, block_hash"),
+               str(self.LATEST_DB_VERSION))
 
     def get_upgrade_script(self, current_version):
         """
@@ -271,6 +347,8 @@ class TrustChainDB(Database):
             DROP TABLE IF EXISTS blocks;
             DROP TABLE IF EXISTS option;
             """
+        elif current_version == 5:
+            return self.get_sql_create_blocks_table("double_spends", "public_key, sequence_number, block_hash")
 
     def open(self, initial_statements=True, prepare_visioning=True):
         return super(TrustChainDB, self).open(initial_statements, prepare_visioning)

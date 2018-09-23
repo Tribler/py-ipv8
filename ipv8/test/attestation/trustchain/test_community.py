@@ -7,9 +7,11 @@ from ....attestation.trustchain.caches import CrawlRequestCache
 from ....attestation.trustchain.community import TrustChainCommunity, UNKNOWN_SEQ
 from ....attestation.trustchain.listener import BlockListener
 from ...attestation.trustchain.test_block import TestBlock
+from ....keyvault.crypto import ECCrypto
 from ....messaging.deprecated.encoding import decode
 from ...base import TestBase
 from ...mocking.ipv8 import MockIPv8
+from ....util import grange
 
 
 class DummyBlock(TrustChainBlock):
@@ -52,8 +54,6 @@ class TestTrustChainCommunity(TestBase):
         """
         self.nodes[1].overlay.should_sign = lambda x: False
 
-        yield self.introduce_nodes()
-
         my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
         his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
         self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
@@ -70,8 +70,6 @@ class TestTrustChainCommunity(TestBase):
         """
         Check if a double signed transaction is stored in the databases of both parties.
         """
-        yield self.introduce_nodes()
-
         his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
         block, link_block = yield self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0],
                                                                    public_key=his_pubkey, block_type='test',
@@ -88,8 +86,6 @@ class TestTrustChainCommunity(TestBase):
         """
         Check if a both halves of a fully signed block link to each other.
         """
-        yield self.introduce_nodes()
-
         my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
         his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
         self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
@@ -113,9 +109,6 @@ class TestTrustChainCommunity(TestBase):
          3. Node 0 sends his half block back
         """
         self.nodes[1].overlay.should_sign = lambda x: False
-
-        yield self.introduce_nodes()
-
         self.nodes[0].endpoint.close()
 
         my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
@@ -128,7 +121,7 @@ class TestTrustChainCommunity(TestBase):
         self.assertIsNone(self.nodes[1].overlay.persistence.get(my_pubkey, 1))
 
         self.nodes[0].endpoint.open()
-        self.nodes[1].overlay.send_crawl_request(self.nodes[0].my_peer, my_pubkey, 1)
+        self.nodes[1].overlay.send_crawl_request(self.nodes[0].my_peer, my_pubkey, 1, 1)
 
         yield self.deliver_messages()
 
@@ -141,9 +134,6 @@ class TestTrustChainCommunity(TestBase):
         Check if the default crawl strategy produces blocks.
         """
         self.nodes[1].overlay.should_sign = lambda x: False
-
-        yield self.introduce_nodes()
-
         self.nodes[0].endpoint.close()
 
         my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
@@ -156,7 +146,7 @@ class TestTrustChainCommunity(TestBase):
         self.assertIsNone(self.nodes[1].overlay.persistence.get(my_pubkey, 1))
 
         self.nodes[0].endpoint.open()
-        self.nodes[1].overlay.send_crawl_request(self.nodes[0].my_peer, my_pubkey)
+        self.nodes[1].overlay.send_crawl_request(self.nodes[0].my_peer, my_pubkey, 1, 1)
 
         yield self.deliver_messages()
 
@@ -168,11 +158,9 @@ class TestTrustChainCommunity(TestBase):
         """
         Check if blocks don't magically appear.
         """
-        yield self.introduce_nodes()
-
         my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
         CrawlRequestCache.CRAWL_TIMEOUT = 0.1
-        response = yield self.nodes[1].overlay.send_crawl_request(self.nodes[0].my_peer, my_pubkey, 1)
+        response = yield self.nodes[1].overlay.send_crawl_request(self.nodes[0].my_peer, my_pubkey, 1, 1)
         self.assertFalse(response)
 
     @inlineCallbacks
@@ -181,7 +169,6 @@ class TestTrustChainCommunity(TestBase):
         Check if a block can be crawled by negative range.
         """
         self.nodes[1].overlay.should_sign = lambda x: False
-        yield self.introduce_nodes()
         self.nodes[0].endpoint.close()
 
         my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
@@ -193,7 +180,7 @@ class TestTrustChainCommunity(TestBase):
         self.assertIsNone(self.nodes[1].overlay.persistence.get(my_pubkey, 1))
         self.nodes[0].endpoint.open()
 
-        self.nodes[1].overlay.send_crawl_request(self.nodes[0].my_peer, my_pubkey, -1)
+        self.nodes[1].overlay.send_crawl_request(self.nodes[0].my_peer, my_pubkey, -1, -1)
 
         yield self.deliver_messages()
 
@@ -205,17 +192,13 @@ class TestTrustChainCommunity(TestBase):
         """
         Test crawling the lowest unknown block of a specific peer.
         """
-        yield self.introduce_nodes()
-
         my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
         his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
         for _ in [0, 1, 2]:
-            self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
-                                             block_type='test', transaction={})
+            yield self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
+                                                   block_type=b'test', transaction={})
 
-        yield self.deliver_messages()
-
-        self.nodes[1].overlay.persistence.execute(u"DELETE FROM blocks WHERE sequence_number=2", tuple())
+        self.nodes[1].overlay.persistence.execute(u"DELETE FROM blocks WHERE sequence_number = 2", tuple())
         self.assertIsNone(self.nodes[1].overlay.persistence.get(my_pubkey, 2))
 
         yield self.nodes[1].overlay.crawl_lowest_unknown(self.nodes[0].my_peer)
@@ -228,8 +211,6 @@ class TestTrustChainCommunity(TestBase):
         """
         Test crawling a block pair.
         """
-        yield self.introduce_nodes()
-
         his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
         yield self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
                                                block_type='test', transaction={})
@@ -237,7 +218,7 @@ class TestTrustChainCommunity(TestBase):
         self.add_node_to_experiment(self.create_node())
 
         my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
-        yield self.nodes[2].overlay.send_crawl_request(self.nodes[0].my_peer, my_pubkey, -1)
+        yield self.nodes[2].overlay.send_crawl_request(self.nodes[0].my_peer, my_pubkey, 1, 1)
 
         # Check whether we have both blocks now
         self.assertEqual(self.nodes[2].overlay.persistence.get(my_pubkey, 1).link_sequence_number, UNKNOWN_SEQ)
@@ -248,8 +229,6 @@ class TestTrustChainCommunity(TestBase):
         """
         Check if blocks created in parallel will properly be stored in the database.
         """
-        yield self.introduce_nodes()
-
         his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
         self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
                                          block_type='test', transaction={})
@@ -281,8 +260,6 @@ class TestTrustChainCommunity(TestBase):
         """
         Check if missing blocks are retrieved through a crawl request.
         """
-        yield self.introduce_nodes()
-
         his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
         self.nodes[0].endpoint.close()
         signed1 = self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
@@ -310,8 +287,6 @@ class TestTrustChainCommunity(TestBase):
         """
         Test sending and receiving a pair of blocks from one to another peer.
         """
-        yield self.introduce_nodes()
-
         block1 = TestBlock()
         block2 = TestBlock()
         self.nodes[0].overlay.send_block_pair(block1, block2, self.nodes[0].network.verified_peers[0].address)
@@ -326,88 +301,85 @@ class TestTrustChainCommunity(TestBase):
         """
         Test broadcasting a half block
         """
-        yield self.introduce_nodes()
-
         # Let node 3 discover node 2.
         node3 = self.create_node()
         self.nodes.append(node3)
         self.nodes[1].network.add_verified_peer(node3.my_peer)
         self.nodes[1].discovery.take_step()
 
+        # TTL=1 (should not be relayed)
         block = TestBlock()
-        self.nodes[0].overlay.send_block(block)
-
+        self.nodes[0].overlay.send_block(block, ttl=1)
         yield self.deliver_messages()
+        self.assertIn(block.block_id, self.nodes[0].overlay.relayed_broadcasts)
+        self.assertNotIn(block.block_id, self.nodes[1].overlay.relayed_broadcasts)
+        self.assertNotIn(block.block_id, node3.overlay.relayed_broadcasts)
 
-        self.assertTrue(node3.overlay.relayed_broadcasts)
+        # TTL=2 (should be relayed)
+        block = TestBlock()
+        self.nodes[0].overlay.send_block(block, ttl=2)
+        yield self.deliver_messages()
+        self.assertIn(block.block_id, self.nodes[0].overlay.relayed_broadcasts)
+        self.assertIn(block.block_id, self.nodes[1].overlay.relayed_broadcasts)
+        self.assertNotIn(block.block_id, node3.overlay.relayed_broadcasts)
 
     @inlineCallbacks
     def test_broadcast_half_block_pair(self):
         """
         Test broadcasting a half block pair
         """
-        yield self.introduce_nodes()
-
         # Let node 3 discover node 2.
         node3 = self.create_node()
         self.nodes.append(node3)
         self.nodes[1].network.add_verified_peer(node3.my_peer)
         self.nodes[1].discovery.take_step()
 
+        # TTL=1 (should not be relayed)
         block1 = TestBlock()
         block2 = TestBlock()
-        self.nodes[0].overlay.send_block_pair(block1, block2)
-
+        self.nodes[0].overlay.send_block_pair(block1, block2, ttl=1)
         yield self.deliver_messages()
+        self.assertIn(block1.block_id, self.nodes[0].overlay.relayed_broadcasts)
+        self.assertNotIn(block1.block_id, self.nodes[1].overlay.relayed_broadcasts)
+        self.assertNotIn(block1.block_id, node3.overlay.relayed_broadcasts)
 
-        for node_nr in [0, 1]:
-            self.assertIsNotNone(self.nodes[node_nr].overlay.persistence.get_latest(block1.public_key))
-            self.assertIsNotNone(self.nodes[node_nr].overlay.persistence.get_latest(block2.public_key))
+        # TTL=2 (should be relayed)
+        block1 = TestBlock()
+        block2 = TestBlock()
+        self.nodes[0].overlay.send_block_pair(block1, block2, ttl=2)
+        yield self.deliver_messages()
+        self.assertIn(block1.block_id, self.nodes[0].overlay.relayed_broadcasts)
+        self.assertIn(block1.block_id, self.nodes[1].overlay.relayed_broadcasts)
+        self.assertNotIn(block1.block_id, node3.overlay.relayed_broadcasts)
 
     @inlineCallbacks
     def test_intro_response_crawl(self):
         """
-        Test if we crawl a node on introduction response and if we respect the crawl timeout.
-
-        This test does the following:
-
-         1. Node 1 and 2 are introduced to each other and subsequently crawl each other.
-         2. Node 1 and 3 perform a transaction.
-         3. Node 1 and 2 are introduced to each other again.
-         4. As we are still in the crawl timeout and node 2 is not involved in any transaction with node 1,
-            there should be no crawl request and therefore node 2 does not know about the transaction between
-            node 1 and 3.
+        Test whether we crawl a node when receiving an introduction response
         """
-        node3 = self.create_node()
-        node3.overlay.add_listener(TestBlockListener(), ['test'])
-        node3.my_peer.address = node3.endpoint.wan_address
-        self.nodes.append(node3)
-        # Disable broadcasting to others on signing (we don't want to test that here)
-        for node in self.nodes:
-            node.overlay.broadcast_block = False
+        self.nodes[0].endpoint.close()
 
         my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
-        his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
-        node3_pubkey = self.nodes[2].overlay.my_peer.public_key.key_to_bin()
-        yield self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
-                                               block_type='test', transaction={})
+        self.nodes[0].overlay.create_source_block(block_type=b'test', transaction={})
+        yield self.deliver_messages()
 
-        # Perform the first crawl with all nodes
+        self.nodes[0].endpoint.open()
+
+        # Crawl each other
         yield self.introduce_nodes()
 
-        for node_nr in [0, 1]:
-            self.assertIsNotNone(self.nodes[node_nr].overlay.persistence.get(my_pubkey, 1))
-            self.assertEqual(self.nodes[node_nr].overlay.persistence.get(my_pubkey, 1).link_sequence_number,
-                             UNKNOWN_SEQ)
+        # We should have received the block now
+        self.assertIsNotNone(self.nodes[1].overlay.persistence.get_latest(my_pubkey))
 
-        # Perform a transaction between node 1 and 3
-        yield self.nodes[0].overlay.sign_block(node3.my_peer, public_key=node3_pubkey,
-                                               block_type='test', transaction={})
+        # Check whether we do not crawl this node again in a short time
+        self.nodes[0].endpoint.close()
+        self.nodes[0].overlay.create_source_block(block_type=b'test', transaction={})
+        self.nodes[0].endpoint.open()
 
-        # Perform the second crawl with all nodes
         yield self.introduce_nodes()
 
-        self.assertIsNone(self.nodes[1].overlay.persistence.get(my_pubkey, 2))
+        # We should not have crawled this second block
+        self.assertEqual(self.nodes[1].overlay.persistence.get_latest(my_pubkey).sequence_number, 1)
 
     @inlineCallbacks
     def test_empty_crawl(self):
@@ -415,15 +387,13 @@ class TestTrustChainCommunity(TestBase):
         Test a crawl request to a peer without any blocks
         """
         my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
-        yield self.nodes[1].overlay.send_crawl_request(self.nodes[0].my_peer, my_pubkey, 1)
+        yield self.nodes[1].overlay.send_crawl_request(self.nodes[0].my_peer, my_pubkey, 1, 1)
 
     @inlineCallbacks
     def test_invalid_block(self):
         """
         See if we can recover from database corruption.
         """
-        yield self.introduce_nodes()
-
         # Create an invalid block
         invalid_block = TestBlock(key=self.nodes[0].overlay.my_peer.key)
         invalid_block.signature = 'a' * 64
@@ -448,8 +418,6 @@ class TestTrustChainCommunity(TestBase):
         """
         Test creating and disseminating a half block, signed by yourself
         """
-        yield self.introduce_nodes()
-
         my_pubkey = self.nodes[0].overlay.my_peer.public_key.key_to_bin()
         yield self.nodes[0].overlay.self_sign_block(block_type='test', transaction={})
 
@@ -464,8 +432,6 @@ class TestTrustChainCommunity(TestBase):
         """
         Test creating and disseminating a link block
         """
-        yield self.introduce_nodes()
-
         source_peer_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
         counter_peer_pubkey = self.nodes[1].my_peer.public_key.key_to_bin()
 
@@ -491,3 +457,94 @@ class TestTrustChainCommunity(TestBase):
 
         self.assertEqual(decode(block_node_0.transaction)[1], {'a': 1, 'b': 2})
         self.assertEqual(decode(block_node_1.transaction)[1], {'a': 1, 'b': 2})
+
+    def test_db_remove(self):
+        """
+        Test pruning of the database when it grows too large
+        """
+        self.nodes[0].overlay.settings.max_db_blocks = 5
+
+        for _ in grange(10):
+            test_block = TestBlock()
+            self.nodes[0].overlay.persistence.add_block(test_block)
+
+        self.nodes[0].overlay.do_db_cleanup()
+        self.assertEqual(self.nodes[0].overlay.persistence.get_number_of_known_blocks(), 5)
+
+    def test_database_cleanup(self):
+        """
+        Test whether we are cleaning up the database correctly when there are too many blocks
+        """
+        for _ in range(5):
+            self.nodes[0].overlay.persistence.add_block(TestBlock())
+
+        self.assertEqual(self.nodes[0].overlay.persistence.get_number_of_known_blocks(), 5)
+        self.nodes[0].overlay.settings.max_db_blocks = 3
+        self.nodes[0].overlay.do_db_cleanup()
+        self.assertEqual(self.nodes[0].overlay.persistence.get_number_of_known_blocks(), 3)
+
+    @inlineCallbacks
+    def test_double_spend(self):
+        """
+        Test that a double spend is correctly detected and stored
+        """
+        my_pubkey = self.nodes[0].overlay.my_peer.public_key.key_to_bin()
+        his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
+        block1, block2 = yield self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0],
+                                                                public_key=his_pubkey, block_type=b'test',
+                                                                transaction={})
+        yield self.deliver_messages()
+        self.nodes[0].overlay.persistence.remove_block(block1)
+        self.nodes[0].overlay.persistence.remove_block(block2)
+
+        # Double spend
+        self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0],
+                                         public_key=his_pubkey, block_type=b'test', transaction={})
+        yield self.deliver_messages()
+        self.assertTrue(self.nodes[1].overlay.persistence.did_double_spend(my_pubkey))
+
+    @inlineCallbacks
+    def test_chain_crawl_with_gaps(self):
+        """
+        Test crawling a whole chain with gaps from a specific user.
+        """
+        his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
+        created_blocks = []
+        for _ in range(0, 5):
+            blocks = yield self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0],
+                                                            public_key=his_pubkey, block_type=b'test', transaction={})
+            created_blocks.append(blocks)
+
+        yield self.deliver_messages()
+
+        self.assertEqual(self.nodes[1].overlay.persistence.get_number_of_known_blocks(), 10)
+
+        # Let node 1 remove some of the blocks
+        self.nodes[1].overlay.persistence.remove_block(created_blocks[0][1])
+        self.nodes[1].overlay.persistence.remove_block(created_blocks[2][1])
+        self.nodes[1].overlay.persistence.remove_block(created_blocks[4][1])
+
+        # Let node 1 crawl the chain of node 0
+        self.nodes[1].overlay.settings.crawler = True
+        yield self.introduce_nodes()
+        yield self.sleep(0.2)  # Let blocks propagate
+
+        self.assertEqual(self.nodes[1].overlay.persistence.get_number_of_known_blocks(), 10)
+
+    @inlineCallbacks
+    def test_chain_crawl(self):
+        """
+        Test crawl the whole chain of a specific peer
+        """
+        self.nodes[0].endpoint.close()
+        key = ECCrypto().generate_key(u'very-low').pub().key_to_bin()
+        for _ in range(4):
+            self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=key,
+                                             block_type=b'test', transaction={})
+        self.nodes[0].endpoint.open()
+
+        self.nodes[1].overlay.settings.crawler = True
+        yield self.introduce_nodes()
+        yield self.sleep(0.2)  # Let blocks propagate
+
+        self.assertEqual(self.nodes[1].overlay.persistence.get_number_of_known_blocks(), 4)
