@@ -896,7 +896,7 @@ class TunnelCommunity(Community):
             else:
                 self.logger.warning("Cannot exit data, destination is 0.0.0.0:0")
 
-    @tc_lazy_wrapper_unsigned(DataPayload)
+    @tc_lazy_wrapper_unsigned(PingPayload)
     def on_ping(self, source_address, payload, _):
         if not (payload.circuit_id in self.circuits
                 or payload.circuit_id in self.exit_sockets
