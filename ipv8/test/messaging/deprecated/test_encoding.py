@@ -99,7 +99,6 @@ class TestEncoding(unittest.TestCase):
 
         self.assertEqual(value, decoded)
 
-    @skipIf(sys.version_info.major > 2, "https://github.com/Tribler/py-ipv8/issues/295")
     def test_encode_dict(self):
         """
         Check if a dictionary can be encoded and decoded.

@@ -3,6 +3,7 @@ from __future__ import absolute_import
 import logging
 from json import dumps
 
+from .sorting import sortable_sort
 from ...util import cast_to_bin, cast_to_long, is_long_or_int, is_unicode, urllib_future
 
 logger = logging.getLogger(__name__)
@@ -106,7 +107,7 @@ def _a_encode_dictionary(values, mapping):
     assert isinstance(values, dict), "VALUE has invalid type: %s" % type(values)
     encoded = [str(len(values)).encode("UTF-8"), b"d"]
     extend = encoded.extend
-    for key, value in sorted(values.items()):
+    for key, value in sortable_sort(list(values.items())):
         assert type(key).__name__ in mapping, (key, values)
         assert type(value).__name__ in mapping, (value, values)
         extend(mapping[type(key).__name__](key, mapping))
@@ -138,6 +139,7 @@ _a_encode_mapping = {'int': _a_encode_int,
                      'set': _a_encode_set,
                      'tuple': _a_encode_tuple,
                      'dict': _a_encode_dictionary,
+                     'OrderedDict': _a_encode_dictionary,
                      'NoneType': _a_encode_none,
                      'bool': _a_encode_bool}
 
