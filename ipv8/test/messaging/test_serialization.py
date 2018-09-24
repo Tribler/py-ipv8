@@ -6,6 +6,20 @@ from unittest import TestCase
 from ...messaging.serialization import Serializable, Serializer, PackError
 
 
+class TestSerializable(Serializable):
+    format_list = ["H"]
+
+    def __init__(self, number):
+        self.number = number
+
+    def to_pack_list(self):
+        return [("H", self.number)]
+
+    @classmethod
+    def from_unpack_list(cls, *args):
+        return TestSerializable(*args)
+
+
 class TestSerializer(TestCase):
 
     def setUp(self):
@@ -147,10 +161,6 @@ class TestSerializer(TestCase):
         """
         serialized, _ = self.serializer.pack_multiple([("B", 1)])
 
-        class TestSerializable(Serializable):
-            is_list_descriptor = True
-            format_list = ["H"]
-
         self.assertRaises(PackError, self.serializer.unpack_to_serializables, [TestSerializable], serialized)
 
     def test_get_formats(self):
@@ -179,3 +189,14 @@ class TestSerializer(TestCase):
 
         self.assertEqual(1, unserialized)
         self.assertEqual(256, unpack_other_end)
+
+    def test_nested_serializable(self):
+        """
+        Check if we can unpack nested serializables.
+        """
+        instance = TestSerializable(123)
+
+        data, _ = self.serializer.pack('payload', instance)
+        output, _ = self.serializer.unpack(TestSerializable, data, 0)
+
+        self.assertEqual(instance.number, output.number)
