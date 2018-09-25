@@ -35,7 +35,10 @@ class MockEndpoint(Endpoint):
         if not self.is_open():
             return
         if socket_address in internet:
-            reactor.callInThread(internet[socket_address].notify_listeners, (self.wan_address, packet))
+            if reactor.running:
+                reactor.callInThread(internet[socket_address].notify_listeners, (self.wan_address, packet))
+            else:
+                reactor.callWhenRunning(internet[socket_address].notify_listeners, (self.wan_address, packet))
         else:
             raise AssertionError("Received data from unregistered address %s" % repr(socket_address))
 
