@@ -9,6 +9,7 @@ from binascii import hexlify, unhexlify
 import logging
 import random
 import struct
+from functools import wraps
 from threading import RLock
 
 from twisted.internet import reactor
@@ -35,6 +36,7 @@ def synchronized(f):
     """
     Due to database inconsistencies, we can't allow multiple threads to handle a received_half_block at the same time.
     """
+    @wraps(f)
     def wrapper(self, *args, **kwargs):
         with receive_block_lock:
             return f(self, *args, **kwargs)
