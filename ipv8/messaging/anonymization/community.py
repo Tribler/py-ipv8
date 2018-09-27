@@ -664,13 +664,13 @@ class TunnelCommunity(Community):
     def introduction_response_callback(self, peer, dist, payload):
         self.update_exit_candidates(peer, self.parse_extra_bytes(payload.extra_bytes))
 
-    def create_introduction_request(self, socket_address, extra_bytes=''):
+    def create_introduction_request(self, socket_address, extra_bytes=b''):
         extra_payload = ExtraIntroductionPayload(self.become_exitnode())
         extra_bytes = self.serializer.pack_multiple(extra_payload.to_pack_list())[0]
         return super(TunnelCommunity, self).create_introduction_request(socket_address, extra_bytes)
 
     def create_introduction_response(self, lan_socket_address, socket_address, identifier,
-                                     introduction=None, extra_bytes=''):
+                                     introduction=None, extra_bytes=b''):
         extra_payload = ExtraIntroductionPayload(self.become_exitnode())
         extra_bytes = self.serializer.pack_multiple(extra_payload.to_pack_list())[0]
         return super(TunnelCommunity, self).create_introduction_response(lan_socket_address, socket_address,

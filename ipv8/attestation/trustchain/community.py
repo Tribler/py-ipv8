@@ -654,7 +654,10 @@ class TrustChainCommunity(Community):
 
     @synchronized
     def introduction_response_callback(self, peer, dist, payload):
-        chain_length = struct.unpack('>H', payload.extra_bytes)[0]
+        chain_length = None
+        if payload.extra_bytes:
+            chain_length = struct.unpack('>H', payload.extra_bytes)[0]
+
         if peer.address in self.network.blacklist:  # Do not crawl addresses in our blacklist (trackers)
             return
 
