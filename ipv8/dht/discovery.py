@@ -126,6 +126,9 @@ class DHTDiscoveryCommunity(DHTCommunity):
         if not self.check_token(node, payload.token):
             self.logger.warning('Bad token, dropping packet.')
             return
+        if payload.target != peer.mid:
+            self.logger.warning('Not allowed to store under key %s, dropping packet.', hexlify(payload.target))
+            return
 
         if node not in self.store[payload.target]:
             self.logger.debug('Storing peer %s (key %s)', node, hexlify(payload.target))
