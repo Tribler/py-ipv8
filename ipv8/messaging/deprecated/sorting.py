@@ -3,6 +3,68 @@ from collections import OrderedDict
 from ...util import is_long_or_int, is_unicode
 
 
+class OrderedSet(set):
+    """
+    Looks like a set, iterates like a list.
+    """
+
+    def __init__(self, decorated):
+        super(OrderedSet, self).__init__(decorated)
+        self.decorated = decorated
+
+    def __iter__(self):
+        for o in self.decorated:
+            yield o
+
+    def __reversed__(self):
+        i = len(self.decorated)
+        while i > 0:
+            i -= 1
+            yield self.decorated[i]
+
+    def add(self, element):
+        super(OrderedSet, self).add(element)
+        self.decorated.append(element)
+
+    def clear(self):
+        super(OrderedSet, self).clear()
+        self.decorated = []
+
+    def copy(self):
+        return OrderedSet([o for o in self.decorated])
+
+    def difference_update(self, s):
+        super(OrderedSet, self).difference_update(s)
+        self.decorated = [o for o in self.difference(s)]
+
+    def discard(self, element):
+        super(OrderedSet, self).discard(element)
+        self.decorated.remove(element)
+
+    def intersection_update(self, s):
+        super(OrderedSet, self).intersection_update(s)
+        self.decorated = [o for o in self.intersection(s)]
+
+    def pop(self):
+        if not self.decorated:
+            raise KeyError('empty set')
+        removed = self.decorated[-1]
+        super(OrderedSet, self).remove(removed)
+        return removed
+
+    def remove(self, element):
+        super(OrderedSet, self).remove(element)
+        return self.decorated.remove(element)
+
+    def symmetric_difference_update(self, s):
+        super(OrderedSet, self).symmetric_difference_update(s)
+        self.decorated = [o for o in self.symmetric_difference(s)]
+
+    def update(self, s):
+        super(OrderedSet, self).update(s)
+        self.decorated = [o for o in self.union(s)]
+
+
 class SortableTypeEnum(object):
     """
     Initial type sorting enum: the lower enum values are inserted closer to the head of the list.
@@ -128,6 +190,8 @@ class Sortable(object):
                 for v in converted:
                     out[v[0]] = v[1]
                 return out
+            if isinstance(self.source, set):
+                return OrderedSet(converted)
             return tuple(converted) if isinstance(self.source, tuple) else converted
         return self.value
 
