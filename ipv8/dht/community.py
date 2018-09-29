@@ -62,7 +62,7 @@ class Request(RandomNumberCache):
     """
     This request cache keeps track of all outstanding requests within the DHTCommunity.
     """
-    def __init__(self, community, node, params=None, consume_errors=True):
+    def __init__(self, community, node, params=None, consume_errors=False):
         super(Request, self).__init__(community.request_cache, u'request')
         self.node = node
         self.params = params
@@ -152,7 +152,7 @@ class DHTCommunity(Community):
             if not existed and rt_node:
                 self.logger.debug('Added node %s to the routing table', node)
                 # Ping the node in order to determine RTT
-                self.ping(rt_node)
+                self.ping(rt_node).addErrback(lambda _: None)
 
     def ping_all(self):
         self.routing_table.remove_bad_nodes()
@@ -162,7 +162,7 @@ class DHTCommunity(Community):
         for bucket in self.routing_table.trie.values():
             for node in bucket.nodes.values():
                 if node.last_response + PING_INTERVAL <= now:
-                    self.ping(node)
+                    self.ping(node).addErrback(lambda _: None)
                     pinged.append(node)
         return pinged
 
@@ -255,7 +255,8 @@ class DHTCommunity(Community):
             else:
                 self.logger.debug('Not sending store-request to %s (no token available)', node)
 
-        return gatherResponses(deferreds) if deferreds else fail(RuntimeError('Value was not stored'))
+        return gatherResponses(deferreds, consumeErrors=True) \
+               if deferreds else fail(RuntimeError('Value was not stored'))
 
     @lazy_wrapper(GlobalTimeDistributionPayload, StoreRequestPayload)
     def on_store_request(self, peer, dist, payload):
@@ -303,7 +304,7 @@ class DHTCommunity(Community):
         cache.deferred.callback(cache.node)
 
     def _send_find_request(self, node, target, force_nodes):
-        cache = self.request_cache.add(Request(self, node, [force_nodes], consume_errors=False))
+        cache = self.request_cache.add(Request(self, node, [force_nodes]))
         self.send_message(node.address, MSG_FIND_REQUEST, FindRequestPayload,
                           (cache.number, self.my_estimated_lan, target, force_nodes))
         return cache.deferred
