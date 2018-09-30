@@ -147,13 +147,15 @@ class TestSorting(unittest.TestCase):
         """
         Check if an empty set is returned as is.
         """
-        self.assertListEqual(sortable_sort(set()), [])
+        self.assertSetEqual(sortable_sort(set()), set())
+        self.assertListEqual(list(sortable_sort(set())), [])
 
     def test_single_set_one(self):
         """
         Check if a single entry set is returned as is.
         """
-        self.assertListEqual(sortable_sort({b"\x01"}), [b"\x01"])
+        self.assertSetEqual(sortable_sort(set([b"\x01"])), set([b"\x01"]))
+        self.assertListEqual(list(sortable_sort({b"\x01"})), [b"\x01"])
 
     def test_single_set_many(self):
         """
@@ -162,7 +164,8 @@ class TestSorting(unittest.TestCase):
         data = {5, 4, "z", "a"}
         expected = [4, 5, "a", "z"]
 
-        self.assertListEqual(sortable_sort(data), expected)
+        self.assertSetEqual(sortable_sort(data), set(expected))
+        self.assertListEqual(list(sortable_sort(data)), expected)
 
     def test_single_list_empty(self):
         """
