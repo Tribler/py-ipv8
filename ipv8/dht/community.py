@@ -91,11 +91,11 @@ class DHTCommunity(Community):
     """
     Community for storing/finding key-value pairs.
     """
-    master_peer = Peer(unhexlify('3081a7301006072a8648ce3d020106052b8104002703819200040578cfb7bc3e708df6f1a60b6baaf40'
-                                 '5c29e6cd0a393091b25251bf705b643af53755decbd04ce35886a87c11324d18b93efd44dc120e9559e'
-                                 '5439ba008f0365be73a0e30f9d963706ea766e9f89974057fda760bbe2bf533979cdccad95b6b9c19e9'
-                                 'd4873cefc2669493f904deccc986e20e4a7e60c1b7d7c9ec84fddcb908700df2365325be00596d37c05'
-                                 'a72a7c26'))
+    master_peer = Peer(unhexlify('3081a7301006072a8648ce3d020106052b81040027038192000402b8dcc3bee358ff30b3bd00aa56a7f'
+                                 '9100fe546fc7fb518f197f7c1bbadeb817d8e7a0dcc44c239cfc8906cf55781235dfe24179d0450bcdb'
+                                 'dc49e851f3b03b12acbf0e7b0823e606e50e9c0c77a97af7e737ad749ff53c42fd9d636da4e71d3b7a7'
+                                 'a291734fd64304be90c86e2268490332dfa9e8f01d953538f01c2fba73acd7fe7eec480098054610855'
+                                 'b7918974'))
 
     def __init__(self, *args, **kwargs):
         super(DHTCommunity, self).__init__(*args, **kwargs)
