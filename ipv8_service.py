@@ -12,7 +12,7 @@ from twisted.internet.task import LoopingCall
 if hasattr(sys.modules['__main__'], "IPv8"):
     sys.modules[__name__] = sys.modules['__main__']
 else:
-    if __name__ == '__main__':
+    if __name__ == '__main__' or __name__ == 'ipv8_service':
         from ipv8.messaging.interfaces.statistics_endpoint import StatisticsEndpoint
         from ipv8.attestation.identity.community import IdentityCommunity
         from ipv8.attestation.trustchain.community import TrustChainCommunity, TrustChainTestnetCommunity
