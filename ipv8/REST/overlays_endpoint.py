@@ -57,7 +57,7 @@ class OverlayStatisticsEndpoint(resource.Resource):
     def statistics_by_name(self, statistics, overlay):
         named_statistics = {}
         for message_id, network_stats in statistics.items():
-            mapped_name = str(message_id) + ":" + overlay.decode_map[chr(ord(message_id))].__name__
+            mapped_name = str(message_id) + ":" + overlay.decode_map[chr(message_id)].__name__
             mapped_value = network_stats.to_dict()
             named_statistics[mapped_name] = mapped_value
         return named_statistics

@@ -42,7 +42,7 @@ class StatisticsEndpoint(EndpointListener):
         if prefix not in list(self.statistics.keys()) or len(packet) < 22:
             return
 
-        self.add_sent_stat(prefix, ord(packet[22]), len(packet))
+        self.add_sent_stat(prefix, ord(packet[22:23]), len(packet))
 
     def enable_community_statistics(self, community_prefix, enabled):
         if community_prefix not in self.statistics and enabled:
@@ -58,7 +58,7 @@ class StatisticsEndpoint(EndpointListener):
         if prefix not in list(self.statistics.keys()) or len(data) < 22:
             return
 
-        message_id = ord(data[22])
+        message_id = ord(data[22:23])
         self.add_received_stat(prefix, message_id, len(data))
 
     # Statistics methods
