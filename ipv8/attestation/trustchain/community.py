@@ -47,11 +47,11 @@ class TrustChainCommunity(Community):
     """
     Community for reputation based on TrustChain tamper proof interaction history.
     """
-    master_peer = Peer(unhexlify("3081a7301006072a8648ce3d020106052b810400270381920004026c015f205478073708b9a50b0e74"
-                                 "60139b615ba34830b3b3a288e41480eda48ad6adfb39d3d17636169fc06cc68844b5e6ef4e264faa96"
-                                 "76f487bb4e445ca52188076296fb9a9a037c37d977cd0fff8b367318a088ad64b46b1e947eab3356e1"
-                                 "50cf14a3a4b58c6ee59a33ce7036f2c39e0099b68c8cf7430d88ad2b67a4565e07b1e37e94dbc832fb"
-                                 "b4b1927fc297"))
+    master_peer = Peer(unhexlify("3081a7301006072a8648ce3d020106052b8104002703819200040672297aa47c7bb2648ba0385275bc"
+                                 "8ade5aedc3677a615f5f9ca83b9b28c75e543342875f7f353bbf74baff7e3dae895ee9c9a9f80df023"
+                                 "dbfb72362426b50ce35549e6f0e0a319015a2fd425e2e34c92a3fb33b26929bcabb73e14f63684129b"
+                                 "66f0373ca425015cc9fad75b267de0cfb46ed798796058b23e12fc4c42ce9868f1eb7d59cc2023c039"
+                                 "14175ebb9703"))
 
     DB_CLASS = TrustChainDB
     DB_NAME = 'trustchain'
@@ -696,8 +696,8 @@ class TrustChainTestnetCommunity(TrustChainCommunity):
     """
     DB_NAME = 'trustchain_testnet'
 
-    master_peer = Peer(unhexlify("3081a7301006072a8648ce3d020106052b81040027038192000404494ce33365dbf1e9b93647b7ff8c"
-                                 "979ba4d883421928ac7f7130900605e4fdece109d6ec3a1716537cb1ab284aa307f1dfc2aebe2e2d03"
-                                 "7d27cd68ccc6b3dc560c20e4fc8a670500fb8e653bd286ce0be52b1d43d53041bb74204e5af9662eca"
-                                 "b890ae518caeb11a7ef1510cf79c7b22e72529923b8f1cb08e518adb49a0da131a51c1254e49cd657b"
-                                 "60fd7ddd8e19"))
+    master_peer = Peer(unhexlify("3081a7301006072a8648ce3d020106052b81040027038192000403554c843faae4d443d72064cd7b2c"
+                                 "31a87251c43fd901011b8b28a2b03f18bd8b6888342e77a9b824aee73d9ee797f34805f6a67948f609"
+                                 "60bf87a2e502476bd7e9967221d041f20328acfb5859eebaf01b9285496ec9f2e32e0645e2a77f6ade"
+                                 "accd28d39755601dae2d545e35b49c088e5045fc2d1fda20dd4798cdf8863382950171d10f6b19ff60"
+                                 "6f630ec365b0"))
