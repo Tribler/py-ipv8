@@ -31,6 +31,7 @@ class TrustChainBlock(object):
             # data
             self.type = b'unknown'
             self.transaction = {}
+            self._transaction = encode({})
             # identity
             self.public_key = EMPTY_PK
             self.sequence_number = GENESIS_SEQ
@@ -44,7 +45,8 @@ class TrustChainBlock(object):
             # debug stuff
             self.insert_time = None
         else:
-            _, self.transaction = decode(data[1] if isinstance(data[1], bytes) else str(data[1]))
+            self._transaction = data[1] if isinstance(data[1], bytes) else str(data[1])
+            _, self.transaction = decode(self._transaction)
             (self.type, self.public_key, self.sequence_number, self.link_public_key, self.link_sequence_number,
              self.previous_hash, self.signature, self.timestamp, self.insert_time) = (data[0], data[2], data[3],
                                                                                       data[4], data[5], data[6],
@@ -132,7 +134,7 @@ class TrustChainBlock(object):
         :return: the database_blob the data was packed into
         """
         args = [self.public_key, self.sequence_number, self.link_public_key, self.link_sequence_number,
-                self.previous_hash, self.signature if signature else EMPTY_SIG, self.type, self.transaction,
+                self.previous_hash, self.signature if signature else EMPTY_SIG, self.type, self._transaction,
                 self.timestamp]
         return self.serializer.pack_multiple(HalfBlockPayload(*args).to_pack_list())[0]
 
@@ -402,11 +404,13 @@ class TrustChainBlock(object):
         ret = cls()
         if link:
             ret.type = link.type
-            ret.transaction = link.transaction if additional_info is None else encode(additional_info)
+            ret.transaction = link.transaction if additional_info is None else additional_info
+            ret._transaction = encode(ret.transaction)
             ret.link_public_key = link.public_key
             ret.link_sequence_number = link.sequence_number
         else:
             ret.type = block_type
+            ret._transaction = encode(transaction)
             ret.transaction = transaction
             ret.link_public_key = link_pk
             ret.link_sequence_number = UNKNOWN_SEQ
@@ -424,7 +428,7 @@ class TrustChainBlock(object):
         Prepare a tuple to use for inserting into the database
         :return: A database insertable tuple
         """
-        return (self.type, database_blob(encode(self.transaction)), database_blob(self.public_key),
+        return (self.type, database_blob(self._transaction), database_blob(self.public_key),
                 self.sequence_number, database_blob(self.link_public_key), self.link_sequence_number,
                 database_blob(self.previous_hash), database_blob(self.signature), self.timestamp,
                 database_blob(self.hash))
@@ -442,13 +446,6 @@ class TrustChainBlock(object):
             else:
                 yield key, value
         yield "hash", hexlify(self.hash)
-
-        # "previous_hash_requester": base64.encodestring(self.previous_hash_requester).strip(),
-        # "previous_hash_responder": base64.encodestring(self.previous_hash_responder).strip(),
-        # "public_key_requester": base64.encodestring(self.public_key_requester).strip(),
-        # "signature_requester": base64.encodestring(self.signature_requester).strip(),
-        # "public_key_responder": base64.encodestring(self.public_key_responder).strip(),
-        # "signature_responder": base64.encodestring(self.signature_responder).strip(),
 
 
 class ValidationResult(object):

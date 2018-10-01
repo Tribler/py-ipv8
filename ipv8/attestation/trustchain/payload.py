@@ -1,7 +1,6 @@
 from __future__ import absolute_import
 
 from ...deprecated.payload import Payload
-from ...messaging.deprecated.encoding import encode
 
 
 class CrawlRequestPayload(Payload):
@@ -81,7 +80,7 @@ class HalfBlockPayload(Payload):
             block.previous_hash,
             block.signature,
             block.type,
-            block.transaction,
+            block._transaction,
             block.timestamp
         )
 
@@ -93,7 +92,7 @@ class HalfBlockPayload(Payload):
                 ('32s', self.previous_hash),
                 ('64s', self.signature),
                 ('varlenI', self.type),
-                ('varlenI', encode(self.transaction)),
+                ('varlenI', self.transaction),
                 ('Q', self.timestamp)]
 
         return data
@@ -127,7 +126,7 @@ class HalfBlockBroadcastPayload(HalfBlockPayload):
             block.previous_hash,
             block.signature,
             block.type,
-            block.transaction,
+            block._transaction,
             block.timestamp,
             ttl
         )
@@ -175,7 +174,7 @@ class CrawlResponsePayload(Payload):
             block.previous_hash,
             block.signature,
             block.type,
-            block.transaction,
+            block._transaction,
             block.timestamp,
             crawl_id,
             cur_count,
@@ -190,7 +189,7 @@ class CrawlResponsePayload(Payload):
                 ('32s', self.previous_hash),
                 ('64s', self.signature),
                 ('varlenI', self.type),
-                ('varlenI', encode(self.transaction)),
+                ('varlenI', self.transaction),
                 ('Q', self.timestamp),
                 ('I', self.crawl_id),
                 ('I', self.cur_count),
@@ -244,7 +243,7 @@ class HalfBlockPairPayload(Payload):
             block1.previous_hash,
             block1.signature,
             block1.type,
-            block1.transaction,
+            block1._transaction,
             block1.timestamp,
             block2.public_key,
             block2.sequence_number,
@@ -253,7 +252,7 @@ class HalfBlockPairPayload(Payload):
             block2.previous_hash,
             block2.signature,
             block2.type,
-            block2.transaction,
+            block2._transaction,
             block2.timestamp
         )
 
@@ -265,7 +264,7 @@ class HalfBlockPairPayload(Payload):
                 ('32s', self.previous_hash1),
                 ('64s', self.signature1),
                 ('varlenI', self.type1),
-                ('varlenI', encode(self.transaction1)),
+                ('varlenI', self.transaction1),
                 ('Q', self.timestamp1),
                 ('74s', self.public_key2),
                 ('I', self.sequence_number2),
@@ -274,7 +273,7 @@ class HalfBlockPairPayload(Payload):
                 ('32s', self.previous_hash2),
                 ('64s', self.signature2),
                 ('varlenI', self.type2),
-                ('varlenI', encode(self.transaction2)),
+                ('varlenI', self.transaction2),
                 ('Q', self.timestamp2)]
 
         return data
@@ -312,7 +311,7 @@ class HalfBlockPairBroadcastPayload(HalfBlockPairPayload):
             block1.previous_hash,
             block1.signature,
             block1.type,
-            block1.transaction,
+            block1._transaction,
             block1.timestamp,
             block2.public_key,
             block2.sequence_number,
@@ -321,7 +320,7 @@ class HalfBlockPairBroadcastPayload(HalfBlockPairPayload):
             block2.previous_hash,
             block2.signature,
             block2.type,
-            block2.transaction,
+            block2._transaction,
             block2.timestamp,
             ttl
         )

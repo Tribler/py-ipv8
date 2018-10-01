@@ -455,8 +455,8 @@ class TestTrustChainCommunity(TestBase):
         self.assertIsNotNone(block_node_0)
         self.assertIsNotNone(block_node_1)
 
-        self.assertEqual(decode(block_node_0.transaction)[1], {b'a': 1, b'b': 2})
-        self.assertEqual(decode(block_node_1.transaction)[1], {b'a': 1, b'b': 2})
+        self.assertEqual(block_node_0.transaction, {b'a': 1, b'b': 2})
+        self.assertEqual(block_node_1.transaction, {b'a': 1, b'b': 2})
 
     def test_db_remove(self):
         """

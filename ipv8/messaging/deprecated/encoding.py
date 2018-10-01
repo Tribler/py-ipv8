@@ -107,7 +107,7 @@ def _a_encode_dictionary(values, mapping):
     assert isinstance(values, dict), "VALUE has invalid type: %s" % type(values)
     encoded = [str(len(values)).encode("UTF-8"), b"d"]
     extend = encoded.extend
-    for key, value in sortable_sort(list(values.items())):
+    for key, value in values.items():
         assert type(key).__name__ in mapping, (key, values)
         assert type(value).__name__ in mapping, (value, values)
         extend(mapping[type(key).__name__](key, mapping))
