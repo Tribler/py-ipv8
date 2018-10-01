@@ -20,7 +20,7 @@ class TrustChainDB(Database):
     Connection layer to SQLiteDB.
     Ensures a proper DB schema on startup.
     """
-    LATEST_DB_VERSION = 6
+    LATEST_DB_VERSION = 7
 
     def __init__(self, working_directory, db_name):
         """
@@ -343,7 +343,8 @@ class TrustChainDB(Database):
         Return the upgrade script for a specific version.
         :param current_version: the version of the script to return.
         """
-        if current_version <= 4:  # All these version introduce changes that are not backwards compatible
+        # All these version introduce changes that are not backwards compatible
+        if current_version <= 4 or current_version == 6:
             return u"""
             DROP TABLE IF EXISTS blocks;
             DROP TABLE IF EXISTS option;
