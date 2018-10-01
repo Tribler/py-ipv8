@@ -57,14 +57,16 @@ class TestDHTCommunity(TestBase):
     @inlineCallbacks
     def test_ping_pong(self):
         yield self.introduce_nodes()
-        node = yield self.nodes[0].overlay.ping(self.nodes[1].my_peer)
+        node = yield self.nodes[0].overlay.ping(Node(self.nodes[1].my_peer.key,
+                                                     self.nodes[1].my_peer.address))
         self.assertEqual(node, self.nodes[1].my_peer)
 
     @inlineCallbacks
     def test_ping_pong_fail(self):
         yield self.introduce_nodes()
         yield self.nodes[1].unload()
-        d = self.nodes[0].overlay.ping(self.nodes[1].my_peer)
+        d = self.nodes[0].overlay.ping(Node(self.nodes[1].my_peer.key,
+                                            self.nodes[1].my_peer.address))
         yield self.deliver_messages()
         self.assertFailure(d, RuntimeError)
 

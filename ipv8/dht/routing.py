@@ -5,12 +5,18 @@ import binascii
 import random
 import time
 
+from collections import deque
 from threading import RLock
 from socket import inet_aton
 
 from ..peer import Peer
 from .trie import Trie
 from ..util import cast_to_bin, cast_to_unicode
+
+# By default we allow a maximum number of 10 queries during a 5s interval.
+# Additional queries will be dropped.
+NODE_LIMIT_INTERVAL = 5
+NODE_LIMIT_QUERIES = 10
 
 NODE_STATUS_GOOD = 2
 NODE_STATUS_UNKNOWN = 1
@@ -49,7 +55,7 @@ class Node(Peer):
         super(Node, self).__init__(*args, **kwargs)
         self.bucket = None
         self.last_response = 0
-        self.last_query = 0
+        self.last_queries = deque(maxlen=NODE_LIMIT_QUERIES)
         self.failed = 0
         self.rtt = 0
 
@@ -60,6 +66,16 @@ class Node(Peer):
     @property
     def last_contact(self):
         return max(self.last_response, self.last_query)
+
+    @property
+    def last_query(self):
+        return self.last_queries[-1] if self.last_queries else 0
+
+    @property
+    def blocked(self):
+        if len(self.last_queries) != self.last_queries.maxlen:
+            return False
+        return time.time() - self.last_queries[0] < NODE_LIMIT_INTERVAL
 
     @property
     def status(self):
@@ -190,8 +206,11 @@ class RoutingTable(object):
                     if node.status == NODE_STATUS_BAD:
                         bucket.nodes.pop(node_id, None)
 
-    def has(self, node):
-        return bool(self.get_bucket(node.id).get(node.id))
+    def has(self, node_id):
+        return bool(self.get(node_id))
+
+    def get(self, node_id):
+        return self.get_bucket(node_id).get(node_id)
 
     def closest_nodes(self, node_id, max_nodes=8, exclude_node=None):
         with self.lock:

@@ -136,6 +136,17 @@ class DHTCommunity(Community):
         packet = self._ez_pack(self._prefix, message_id, [auth, dist, payload])
         return self.endpoint.send(address, packet)
 
+    def get_requesting_node(self, peer):
+        node = Node(peer.key, peer.address)
+
+        if self.routing_table.has(node.id) and self.routing_table.get(node.id).blocked:
+            self.logger.warning('Too many queries\'s, dropping packet')
+            return
+
+        node = self.routing_table.add(node) or node
+        node.last_queries.append(time.time())
+        return node
+
     def introduction_request_callback(self, peer, dist, payload):
         self.on_node_discovered(peer.public_key.key_to_bin(), peer.address)
 
@@ -146,7 +157,7 @@ class DHTCommunity(Community):
         # Filter out trackers
         if source_address not in self.network.blacklist:
             node = Node(public_key_bin, source_address)
-            existed = self.routing_table.has(node)
+            existed = self.routing_table.has(node.id)
             rt_node = self.routing_table.add(node)
 
             if not existed and rt_node:
@@ -177,9 +188,9 @@ class DHTCommunity(Community):
     def on_ping_request(self, peer, dist, payload, data):
         self.logger.debug('Got ping-request from %s', peer.address)
 
-        node = Node(peer.key, peer.address)
-        node = self.routing_table.add(node) or node
-        node.last_query = time.time()
+        node = self.get_requesting_node(peer)
+        if not node:
+            return
 
         self.send_message(peer.address, MSG_PONG, PingResponsePayload, (payload.identifier,))
 
@@ -262,10 +273,9 @@ class DHTCommunity(Community):
     def on_store_request(self, peer, dist, payload):
         self.logger.debug('Got store-request from %s', peer.address)
 
-        node = Node(peer.key, peer.address)
-        node = self.routing_table.add(node) or node
-        node.last_query = time.time()
-
+        node = self.get_requesting_node(peer)
+        if not node:
+            return
         if any([len(value) > MAX_ENTRY_SIZE for value in payload.values]):
             self.logger.warning('Maximum length of value exceeded, dropping packet.')
             return
@@ -311,6 +321,7 @@ class DHTCommunity(Community):
 
     def _process_find_responses(self, responses, nodes_tried):
         values = set()
+        nodes = set()
         to_puncture = {}
 
         for sender, response in responses:
@@ -321,10 +332,14 @@ class DHTCommunity(Community):
                 node = next((n for n in response['nodes']
                              if n not in nodes_tried and n not in list(to_puncture.values())), None)
 
-                # If we picked any node other than the first one, we will need to puncture.
-                if node and node != response['nodes'][0]:
-                    to_puncture[sender] = node
-        return values, to_puncture
+                if node:
+                    nodes.add(node)
+
+                    # If we picked any node other than the first one, we will need to puncture.
+                    if node != response['nodes'][0]:
+                        to_puncture[sender] = node
+
+        return values, nodes, to_puncture
 
     @inlineCallbacks
     def _find(self, target, force_nodes=False):
@@ -343,17 +358,15 @@ class DHTCommunity(Community):
             # Send closest nodes a find-node-request
             deferreds = [self._send_find_request(node, target, force_nodes) for node in nodes_closest]
             responses = yield gatherResponses(deferreds, consumeErrors=True)
+            recent = next((sender for sender, response in responses if 'nodes' in response), recent)
 
             nodes_tried |= nodes_closest
             nodes_closest.clear()
 
             # Process responses and puncture nodes that we haven't tried yet
-            new_values, to_puncture = self._process_find_responses(responses, nodes_tried)
-
+            new_values, new_nodes, to_puncture = self._process_find_responses(responses, nodes_tried)
             values |= new_values
-            for sender, node in to_puncture.items():
-                nodes_closest.add(node)
-                recent = sender
+            nodes_closest |= new_nodes
 
             deferreds = [self._send_find_request(sender, node.id, force_nodes)
                          for sender, node in to_puncture.items()]
@@ -408,9 +421,9 @@ class DHTCommunity(Community):
     def on_find_request(self, peer, dist, payload):
         self.logger.debug('Got find-request for %s from %s', hexlify(payload.target), peer.address)
 
-        node = Node(peer.key, peer.address)
-        node = self.routing_table.add(node) or node
-        node.last_query = time.time()
+        node = self.get_requesting_node(peer)
+        if not node:
+            return
 
         nodes = []
         values = self.storage.get(payload.target, limit=MAX_VALUES_IN_FIND) if not payload.force_nodes else []
