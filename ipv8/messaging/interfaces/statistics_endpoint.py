@@ -79,7 +79,34 @@ class StatisticsEndpoint(EndpointListener):
     def get_statistics(self, prefix):
         if prefix in self.statistics:
             return self.statistics[prefix]
-        return None
+        return {}
+
+    def get_aggregate_statistics(self, prefix):
+        def min_positive(a, b):
+            return a if not b else b if b < a or not a else a
+
+        aggregate_stats = {
+            "num_up":  0,
+            "num_down":  0,
+            "bytes_up":  0,
+            "bytes_down":  0,
+            "diff_time": 0
+        }
+
+        if prefix in self.statistics:
+            first_ts = last_ts = 0
+            for _, network_stat in self.statistics[prefix].items():
+                aggregate_stats['num_up'] += network_stat.num_up
+                aggregate_stats['num_down'] += network_stat.num_down
+                aggregate_stats['bytes_up'] += network_stat.bytes_up
+                aggregate_stats['bytes_down'] += network_stat.bytes_down
+
+                first_ts = min_positive(first_ts, min_positive(network_stat.first_measured_up,
+                                                               network_stat.first_measured_down))
+                last_ts = max(last_ts, max(network_stat.last_measured_up, network_stat.last_measured_down))
+
+            aggregate_stats["diff_time"] = last_ts - first_ts
+        return aggregate_stats
 
     def get_message_sent(self, prefix, include_introduction=False, include_puncture=False, include_deprecated=False):
         num_sent = 0

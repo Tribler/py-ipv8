@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 
 from binascii import hexlify
+from functools import wraps
 
 from .payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from ..keyvault.crypto import ECCrypto
@@ -27,6 +28,7 @@ def lazy_wrapper(*payloads):
             pass
     """
     def decorator(func):
+        @wraps(func)
         def wrapper(self, source_address, data):
             # UNPACK
             auth, remainder = self.serializer.unpack_to_serializables([BinMemberAuthenticationPayload, ], data[23:])
@@ -68,6 +70,7 @@ def lazy_wrapper_wd(*payloads):
             pass
     """
     def decorator(func):
+        @wraps(func)
         def wrapper(self, source_address, data):
             # UNPACK
             auth, remainder = self.serializer.unpack_to_serializables([BinMemberAuthenticationPayload, ], data[23:])
@@ -109,6 +112,7 @@ def lazy_wrapper_unsigned(*payloads):
             pass
     """
     def decorator(func):
+        @wraps(func)
         def wrapper(self, source_address, data):
             # UNPACK
             unpacked = self.serializer.unpack_to_serializables(payloads, data[23:])
@@ -146,6 +150,7 @@ def lazy_wrapper_unsigned_wd(*payloads):
             pass
     """
     def decorator(func):
+        @wraps(func)
         def wrapper(self, source_address, data):
 
             @lazy_wrapper_unsigned(*payloads)
