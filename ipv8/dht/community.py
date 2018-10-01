@@ -406,7 +406,7 @@ class DHTCommunity(Community):
 
     @lazy_wrapper(GlobalTimeDistributionPayload, FindRequestPayload)
     def on_find_request(self, peer, dist, payload):
-        self.logger.debug('Got find-request from %s', peer.address)
+        self.logger.debug('Got find-request for %s from %s', hexlify(payload.target), peer.address)
 
         node = Node(peer.key, peer.address)
         node = self.routing_table.add(node) or node
