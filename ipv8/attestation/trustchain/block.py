@@ -27,6 +27,7 @@ class TrustChainBlock(object):
 
     def __init__(self, data=None, serializer=Serializer()):
         super(TrustChainBlock, self).__init__()
+        self.serializer = serializer
         if data is None:
             # data
             self.type = b'unknown'
@@ -58,7 +59,7 @@ class TrustChainBlock(object):
             self.previous_hash = (self.previous_hash if isinstance(self.previous_hash, bytes)
                                   else str(self.previous_hash))
             self.signature = self.signature if isinstance(self.signature, bytes) else str(self.signature)
-        self.serializer = serializer
+        self.hash = self.calculate_hash()
         self.crypto = ECCrypto()
 
     @classmethod
@@ -104,8 +105,7 @@ class TrustChainBlock(object):
             return False
         return self.pack() == other.pack()
 
-    @property
-    def hash(self):
+    def calculate_hash(self):
         return sha256(self.pack()).digest()
 
     @property
@@ -385,6 +385,7 @@ class TrustChainBlock(object):
         :param key: the key to sign this block with
         """
         self.signature = self.crypto.create_signature(key, self.pack(signature=False))
+        self.hash = self.calculate_hash()
 
     @classmethod
     def create(cls, block_type, transaction, database, public_key, link=None, additional_info=None, link_pk=None):
@@ -405,22 +406,22 @@ class TrustChainBlock(object):
         if link:
             ret.type = link.type
             ret.transaction = link.transaction if additional_info is None else additional_info
-            ret._transaction = encode(ret.transaction)
             ret.link_public_key = link.public_key
             ret.link_sequence_number = link.sequence_number
         else:
             ret.type = block_type
-            ret._transaction = encode(transaction)
             ret.transaction = transaction
-            ret.link_public_key = link_pk
+            ret.link_public_key = link_pk or EMPTY_PK
             ret.link_sequence_number = UNKNOWN_SEQ
 
         if blk:
             ret.sequence_number = blk.sequence_number + 1
             ret.previous_hash = blk.hash
 
+        ret._transaction = encode(ret.transaction)
         ret.public_key = public_key
         ret.signature = EMPTY_SIG
+        ret.hash = ret.calculate_hash()
         return ret
 
     def pack_db_insert(self):
