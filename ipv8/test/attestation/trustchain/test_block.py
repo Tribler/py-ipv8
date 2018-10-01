@@ -26,7 +26,8 @@ class TestBlock(TrustChainBlock):
         if previous:
             self.key = previous.key
             TrustChainBlock.__init__(self, block_type, (encode(transaction), previous.public_key,
-                                                        previous.sequence_number + 1, other, 0, previous.hash, 0, 0, 0))
+                                                        previous.sequence_number + 1, other, 0, previous.hash,
+                                                        EMPTY_SIG, 0, 0))
         else:
             if key:
                 self.key = key
@@ -35,8 +36,8 @@ class TestBlock(TrustChainBlock):
 
             TrustChainBlock.__init__(self, (block_type,
                                             encode(transaction), self.key.pub().key_to_bin(), random.randint(50, 100),
-                                            other, 0, sha256(cast_to_bin(str(random.randint(0, 100000)))).digest(), 0,
-                                            0, 0))
+                                            other, 0, sha256(cast_to_bin(str(random.randint(0, 100000)))).digest(),
+                                            EMPTY_SIG, 0, 0))
         self.sign(self.key)
 
         self.transaction_validation_result = (ValidationResult.valid, [])
@@ -104,6 +105,7 @@ class TestTrustChainBlock(unittest.TestCase):
         """
         block = TrustChainBlock()
         block.timestamp = 0  # To make the hash the same between runs
+        block.hash = block.calculate_hash()
         self.assertEqual(block.hash, b'9X\xdeb\x92g\x10W\t\xdf\xf6\x98\xc46\xdaU\x19+6\x1b\xf4\xaei'
                                      b'\x96Jz\x04\x91F@\xc0\xd8')
 

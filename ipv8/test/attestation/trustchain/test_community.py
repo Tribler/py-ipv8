@@ -7,8 +7,8 @@ from ....attestation.trustchain.caches import CrawlRequestCache
 from ....attestation.trustchain.community import TrustChainCommunity, UNKNOWN_SEQ
 from ....attestation.trustchain.listener import BlockListener
 from ...attestation.trustchain.test_block import TestBlock
+from ....database import database_blob
 from ....keyvault.crypto import ECCrypto
-from ....messaging.deprecated.encoding import decode
 from ...base import TestBase
 from ...mocking.ipv8 import MockIPv8
 from ....util import grange
@@ -198,7 +198,8 @@ class TestTrustChainCommunity(TestBase):
             yield self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
                                                    block_type=b'test', transaction={})
 
-        self.nodes[1].overlay.persistence.execute(u"DELETE FROM blocks WHERE sequence_number = 2", tuple())
+        self.nodes[1].overlay.persistence.execute(u"DELETE FROM blocks WHERE sequence_number = 2 AND public_key = ?",
+                                                  (database_blob(my_pubkey), ))
         self.assertIsNone(self.nodes[1].overlay.persistence.get(my_pubkey, 2))
 
         yield self.nodes[1].overlay.crawl_lowest_unknown(self.nodes[0].my_peer)
@@ -397,6 +398,7 @@ class TestTrustChainCommunity(TestBase):
         # Create an invalid block
         invalid_block = TestBlock(key=self.nodes[0].overlay.my_peer.key)
         invalid_block.signature = b'a' * 64
+        invalid_block.hash = invalid_block.calculate_hash()
         self.nodes[0].overlay.persistence.add_block(invalid_block)
 
         # We will attempt to add a new block to our chain.
@@ -455,8 +457,8 @@ class TestTrustChainCommunity(TestBase):
         self.assertIsNotNone(block_node_0)
         self.assertIsNotNone(block_node_1)
 
-        self.assertEqual(decode(block_node_0.transaction)[1], {b'a': 1, b'b': 2})
-        self.assertEqual(decode(block_node_1.transaction)[1], {b'a': 1, b'b': 2})
+        self.assertEqual(block_node_0.transaction, {b'a': 1, b'b': 2})
+        self.assertEqual(block_node_1.transaction, {b'a': 1, b'b': 2})
 
     def test_db_remove(self):
         """
@@ -488,6 +490,8 @@ class TestTrustChainCommunity(TestBase):
         """
         Test that a double spend is correctly detected and stored
         """
+        for node in self.nodes:
+            node.overlay.settings.broadcast_blocks = False
         my_pubkey = self.nodes[0].overlay.my_peer.public_key.key_to_bin()
         his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
         block1, block2 = yield self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0],
