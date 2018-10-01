@@ -317,10 +317,12 @@ class DHTCommunity(Community):
             if 'values' in response:
                 values |= set(response['values'])
             else:
-                # Pick a node that we haven't tried yet. Trigger a puncture if needed.
+                # Pick a node that we haven't tried yet.
                 node = next((n for n in response['nodes']
                              if n not in nodes_tried and n not in list(to_puncture.values())), None)
-                if node:
+
+                # If we picked any node other than the first one, we will need to puncture.
+                if node and node != response['nodes'][0]:
                     to_puncture[sender] = node
         return values, to_puncture
 
