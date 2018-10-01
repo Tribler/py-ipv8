@@ -73,7 +73,7 @@ class Node(Peer):
 
     @property
     def blocked(self):
-        if len(self.last_queries) != self.last_queries.maxlen:
+        if len(self.last_queries) < self.last_queries.maxlen:
             return False
         return time.time() - self.last_queries[0] < NODE_LIMIT_INTERVAL
 
