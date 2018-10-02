@@ -8,7 +8,7 @@ from ..base import TestBase
 from ..mocking.ipv8 import MockIPv8
 from ...dht.community import DHTCommunity
 from ...dht.provider import DHTCommunityProvider
-from ...dht.routing import Node, distance
+from ...dht.routing import Node, distance, NODE_LIMIT_QUERIES
 from ...util import maximum_integer
 
 
@@ -57,14 +57,16 @@ class TestDHTCommunity(TestBase):
     @inlineCallbacks
     def test_ping_pong(self):
         yield self.introduce_nodes()
-        node = yield self.nodes[0].overlay.ping(self.nodes[1].my_peer)
+        node = yield self.nodes[0].overlay.ping(Node(self.nodes[1].my_peer.key,
+                                                     self.nodes[1].my_peer.address))
         self.assertEqual(node, self.nodes[1].my_peer)
 
     @inlineCallbacks
     def test_ping_pong_fail(self):
         yield self.introduce_nodes()
         yield self.nodes[1].unload()
-        d = self.nodes[0].overlay.ping(self.nodes[1].my_peer)
+        d = self.nodes[0].overlay.ping(Node(self.nodes[1].my_peer.key,
+                                            self.nodes[1].my_peer.address))
         yield self.deliver_messages()
         self.assertFailure(d, RuntimeError)
 
@@ -235,6 +237,25 @@ class TestDHTCommunity(TestBase):
         dht_provider_3.lookup(b'a' * 20, on_peers)
 
         yield test_deferred
+
+    @inlineCallbacks
+    def test_rate_limit(self):
+        yield self.introduce_nodes()
+        yield self.deliver_messages(.5)
+
+        node0 = Node(self.nodes[0].my_peer.key, self.nodes[0].my_peer.address)
+        node1 = Node(self.nodes[1].my_peer.key, self.nodes[1].my_peer.address)
+
+        # Send pings from node0 to node1 until blocked
+        num_queries = len(self.nodes[1].overlay.routing_table.get(node0.id).last_queries)
+        for _ in range(NODE_LIMIT_QUERIES - num_queries):
+            yield self.nodes[0].overlay.ping(node1)
+
+        # Node1 must have blocked node0
+        self.assertTrue(self.nodes[1].overlay.routing_table.get(node0.id).blocked)
+        # Additional pings should get dropped (i.e. timeout)
+        d = self.nodes[0].overlay.ping(node1)
+        self.assertFailure(d, RuntimeError)
 
 
 class TestDHTCommunityXL(TestBase):

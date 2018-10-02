@@ -41,17 +41,17 @@ class TestNode(TestBase):
         self.assertEqual(self.node.status, NODE_STATUS_GOOD)
 
         self.node.last_response = 1
-        self.node.last_query = time.time()
+        self.node.last_queries.append(time.time())
         self.assertEqual(self.node.status, NODE_STATUS_GOOD)
 
-        self.node.last_query = 0
+        self.node.last_queries.clear()
         self.assertEqual(self.node.status, NODE_STATUS_UNKNOWN)
 
         self.node.failed += 3
         self.assertEqual(self.node.status, NODE_STATUS_BAD)
 
     def test_last_contact(self):
-        self.node.last_query = 5
+        self.node.last_queries.append(5)
         self.assertEqual(self.node.last_contact, 5)
 
         self.node.last_response = 10

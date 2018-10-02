@@ -13,7 +13,7 @@ from twisted.python.failure import Failure
 from ..deprecated.lazy_community import lazy_wrapper, lazy_wrapper_wd
 from ..deprecated.payload_headers import GlobalTimeDistributionPayload
 from .community import DHTCommunity, Request, PING_INTERVAL, TARGET_NODES, \
-                                            gatherResponses, MAX_NODES_IN_FIND
+                       gatherResponses, MAX_NODES_IN_FIND, MSG_PING
 from .routing import NODE_STATUS_BAD, Node
 from .payload import StorePeerRequestPayload, StorePeerResponsePayload, \
                      ConnectPeerRequestPayload, ConnectPeerResponsePayload, \
@@ -51,7 +51,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
         super(DHTDiscoveryCommunity, self).on_ping_request(peer.address, data)
         node = self.find_node_in_dict(peer.key.key_to_bin(), self.store)
         if node:
-            node.last_query = time.time()
+            node.last_queries.append(time.time())
 
     @lazy_wrapper_wd(GlobalTimeDistributionPayload, PingResponsePayload)
     def on_ping_response(self, peer, dist, payload, data):
@@ -92,7 +92,8 @@ class DHTDiscoveryCommunity(DHTCommunity):
             else:
                 self.logger.debug('Not sending store-peer-request to %s (no token available)', node)
 
-        return gatherResponses(deferreds) if deferreds else fail(RuntimeError('Peer was not stored'))
+        return gatherResponses(deferreds, consumeErrors=True) \
+               if deferreds else fail(RuntimeError('Peer was not stored'))
 
     def connect_peer(self, mid):
         return self.find_nodes(mid).addCallback(lambda nodes, mid=mid:
@@ -112,17 +113,21 @@ class DHTDiscoveryCommunity(DHTCommunity):
             self.send_message(node.address, MSG_CONNECT_PEER_REQUEST,
                               ConnectPeerRequestPayload, (cache.number, self.my_estimated_lan, key))
 
-        return gatherResponses(deferreds).addCallback(lambda node_lists: list(set(sum(node_lists, []))))
+        return gatherResponses(deferreds, consumeErrors=True).addCallback(lambda node_lists:
+                                                                          list(set(sum(node_lists, []))))
 
     @lazy_wrapper(GlobalTimeDistributionPayload, StorePeerRequestPayload)
     def on_store_peer_request(self, peer, dist, payload):
         self.logger.debug('Got store-peer-request from %s', peer.address)
 
         node = Node(peer.key, peer.address)
-        node.last_query = time.time()
+        node.last_queries.append(time.time())
 
         if not self.check_token(node, payload.token):
             self.logger.warning('Bad token, dropping packet.')
+            return
+        if payload.target != peer.mid:
+            self.logger.warning('Not allowed to store under key %s, dropping packet.', hexlify(payload.target))
             return
 
         if node not in self.store[payload.target]:
@@ -183,7 +188,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
                     del self.store_for_me[key][index]
                     self.logger.debug('Deleting peer %s that stored us (key %s)', node, hexlify(key))
                 elif node not in pinged and now > node.last_response + PING_INTERVAL:
-                    self.ping(node)
+                    self.ping(node).addErrback(lambda _: None)
 
         for key, nodes in self.store.items():
             for index in grange(len(nodes) - 1, -1, -1):

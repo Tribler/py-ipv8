@@ -2,7 +2,7 @@ from __future__ import absolute_import
 
 import time
 
-from twisted.internet.defer import inlineCallbacks
+from twisted.internet.defer import inlineCallbacks, succeed
 
 from ..base import TestBase
 from ..mocking.ipv8 import MockIPv8
@@ -83,11 +83,11 @@ class TestDHTDiscoveryCommunity(TestBase):
 
         node0 = Node(self.nodes[0].my_peer.key, self.nodes[0].my_peer.address)
         node0.last_response = now
-        node0.last_query = now
+        node0.last_queries.append(now)
 
         node1 = Node(self.nodes[1].my_peer.key, self.nodes[1].my_peer.address)
         node1.last_response = now
-        node1.last_query = now
+        node1.last_queries.append(now)
 
         key = node1.mid
         self.nodes[0].overlay.store[key].append(node1)
@@ -98,17 +98,17 @@ class TestDHTDiscoveryCommunity(TestBase):
         self.assertNotEqual(node1.last_query, now)
 
     def test_ping_all(self):
-        self.nodes[0].overlay.ping = lambda n: setattr(self, 'pinged', n)
+        self.nodes[0].overlay.ping = lambda n: setattr(self, 'pinged', n) or succeed(None)
 
         node1 = Node(self.nodes[1].my_peer.key, self.nodes[1].my_peer.address)
         node1.last_response = time.time()
-        node1.last_query = time.time()
+        node1.last_queries.append(time.time())
 
         self.nodes[0].overlay.store[node1.mid].append(node1)
         self.nodes[0].overlay.ping_all()
         self.assertIn(node1, self.nodes[0].overlay.store[node1.mid])
 
-        node1.last_query -= 100
+        node1.last_queries[-1] -= 100
         self.nodes[0].overlay.ping_all()
         self.assertNotIn(node1, self.nodes[0].overlay.store[node1.mid])
 
