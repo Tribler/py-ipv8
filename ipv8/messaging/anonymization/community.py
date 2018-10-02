@@ -879,7 +879,6 @@ class TunnelCommunity(Community):
         circuit = self.circuits.get(circuit_id, None)
         if circuit and origin and sock_addr == circuit.peer.address:
             circuit.beat_heart()
-            self.increase_bytes_received(circuit, len(data))
 
             if DataChecker.could_be_ipv8(data):
                 self.logger.debug("Giving incoming data packet to IPv8 (circuit ID %d)", circuit_id)
