@@ -440,7 +440,7 @@ class TrustChainBlock(object):
         :return: generator to iterate over all properties of this block
         """
         for key, value in self.__dict__.items():
-            if key == 'key' or key == 'serializer' or key == 'crypto':
+            if key == 'key' or key == 'serializer' or key == 'crypto' or key == '_transaction':
                 continue
             if (isinstance(value, str) or is_unicode(value)) and key != "insert_time" and key != "type":
                 yield key, hexlify(value)
