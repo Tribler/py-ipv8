@@ -18,6 +18,7 @@ from ..deprecated.payload_headers import BinMemberAuthenticationPayload
 from ..deprecated.payload_headers import GlobalTimeDistributionPayload
 from ..deprecated.community import Community
 from ..deprecated.lazy_community import lazy_wrapper, lazy_wrapper_wd
+from ..deprecated.payload import PuncturePayload
 
 from .storage import Storage
 from .routing import RoutingTable, Node, distance, calc_node_id
@@ -140,7 +141,7 @@ class DHTCommunity(Community):
         node = Node(peer.key, peer.address)
 
         if self.routing_table.has(node.id) and self.routing_table.get(node.id).blocked:
-            self.logger.warning('Too many queries\'s, dropping packet')
+            self.logger.debug('Too many queries\'s, dropping packet')
             return
 
         node = self.routing_table.add(node) or node
@@ -152,6 +153,13 @@ class DHTCommunity(Community):
 
     def introduction_response_callback(self, peer, dist, payload):
         self.on_node_discovered(peer.public_key.key_to_bin(), peer.address)
+
+    @lazy_wrapper(GlobalTimeDistributionPayload, PuncturePayload)
+    def on_puncture(self, peer, dist, payload):
+        # Since the DHT sends punctures manually, we often discover peers that the
+        # DiscoveryStrategy did not ask for. In order to keep these peers from entering
+        # our list of verified peers, we ignore punctures.
+        pass
 
     def on_node_discovered(self, public_key_bin, source_address):
         # Filter out trackers
