@@ -21,6 +21,7 @@ from twisted.python.log import msg
 from zope.interface import implements
 
 from ipv8_service import IPv8
+from ipv8.attestation.trustchain.settings import TrustChainSettings
 from ipv8.REST.rest_manager import RESTManager
 
 
@@ -34,6 +35,11 @@ class Options(usage.Options):
         ["testnet", "t", "Join the testnet"],
         ["yappi", "y", "Run the Yappi profiler"]
     ]
+
+
+tc_settings = TrustChainSettings()
+tc_settings.crawler = True
+tc_settings.max_db_blocks = 1000000000
 
 
 crawler_config = {
@@ -89,7 +95,9 @@ crawler_config = {
                     }
                 },
             ],
-            'initialize': {},
+            'initialize': {
+                'settings': tc_settings
+            },
             'on_start': [],
         },
     ]
