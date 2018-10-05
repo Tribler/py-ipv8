@@ -77,6 +77,11 @@ class AttestationCommunity(Community):
             chr(5): self.on_request_attestation
         })
 
+    def unload(self):
+        super(AttestationCommunity, self).unload()
+        # Close the database after we stop accepting requests.
+        self.database.close()
+
     def set_attestation_request_callback(self, f):
         """
         Set the callback to be called when someone requests an attestation from us.
