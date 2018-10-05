@@ -10,7 +10,7 @@ from ..util import cast_to_chr, grange
 class Network(object):
 
     def __init__(self):
-        # All known IP:port addresses
+        # All known IP:port addresses, mapped to (introduction peer, services)
         self._all_addresses = {}
         # All verified Peer objects (Peer.address must be in _all_addresses)
         self.verified_peers = []
@@ -26,12 +26,13 @@ class Network(object):
         # Map of service identifiers to local overlays
         self.service_overlays = {}
 
-    def discover_address(self, peer, address):
+    def discover_address(self, peer, address, service=None):
         """
         A peer has introduced us to another IP address.
 
         :param peer: the peer that performed the introduction
         :param address: the introduced address
+        :param service: the service through which we discovered the peer
         """
         if address in self.blacklist:
             self.add_verified_peer(peer)
@@ -39,9 +40,9 @@ class Network(object):
 
         with self.graph_lock:
             if ((address not in self._all_addresses) or
-                    (self._all_addresses[address] not in [p.mid for p in self.verified_peers])):
+                    (self._all_addresses[address][0] not in [p.mid for p in self.verified_peers])):
                 # This is a new address, or our previous parent has been removed
-                self._all_addresses[address] = peer.mid
+                self._all_addresses[address] = (peer.mid, service)
 
             self.add_verified_peer(peer)
 
@@ -79,7 +80,7 @@ class Network(object):
                     self.verified_peers.append(peer)
             elif peer.address not in self.blacklist:
                 if peer.address not in self._all_addresses:
-                    self._all_addresses[peer.address] = ''
+                    self._all_addresses[peer.address] = ('', None)
                 if peer not in self.verified_peers:
                     self.verified_peers.append(peer)
 
@@ -128,7 +129,10 @@ class Network(object):
             if service_id:
                 new_out = []
                 for address in out:
-                    services = self.services_per_peer.get(self._all_addresses[address], [])
+                    intro_peer, service = self._all_addresses[address]
+                    services = self.services_per_peer.get(intro_peer, set([]))
+                    if service:
+                        services.add(service)
                     if service_id in services:
                         new_out.append(address)
                 out = new_out
@@ -166,7 +170,7 @@ class Network(object):
         :return: a list of the introduced addresses (ip, port)
         """
         with self.graph_lock:
-            return [k for k, v in self._all_addresses.items() if v == peer.mid]
+            return [k for k, v in self._all_addresses.items() if v[0] == peer.mid]
 
     def remove_by_address(self, address):
         """
@@ -226,4 +230,4 @@ class Network(object):
                 sub = snapshot[i:i+6]
                 ip = inet_ntoa(sub[0:4])
                 port = unpack(">H", sub[4:])[0]
-                self._all_addresses[(ip, port)] = ''
+                self._all_addresses[(ip, port)] = ('', None)
