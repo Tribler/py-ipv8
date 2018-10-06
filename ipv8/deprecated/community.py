@@ -27,7 +27,7 @@ _DEFAULT_ADDRESSES = [
     ("131.180.27.155", 6423),
     ("83.149.70.6", 6424),
     ("95.211.155.142", 6427),
-    ("95.211.155.131", 6428),
+    ("95.211.155.131", 6428)
 ]
 
 
@@ -227,14 +227,15 @@ class Community(EZPackOverlay):
 
         self.introduction_request_callback(peer, dist, payload)
 
-    @lazy_wrapper_wd(GlobalTimeDistributionPayload, IntroductionResponsePayload)
-    def on_introduction_response(self, peer, dist, payload, _):
+    @lazy_wrapper(GlobalTimeDistributionPayload, IntroductionResponsePayload)
+    def on_introduction_response(self, peer, dist, payload):
         self.my_estimated_wan = payload.destination_address
 
         self.network.add_verified_peer(peer)
         self.network.discover_services(peer, [self.master_peer.mid, ])
         if (payload.wan_introduction_address != ("0.0.0.0", 0)) and \
-                (payload.wan_introduction_address[0] != self.my_estimated_wan[0]):
+                (payload.wan_introduction_address[0] != self.my_estimated_wan[0] or
+                 payload.lan_introduction_address == ("0.0.0.0", 0)):
             self.network.discover_address(peer, payload.wan_introduction_address, self.master_peer.mid)
         elif payload.lan_introduction_address != ("0.0.0.0", 0):
             self.network.discover_address(peer, payload.lan_introduction_address, self.master_peer.mid)
