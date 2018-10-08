@@ -183,9 +183,10 @@ class TrustChainCommunity(Community):
 
         :param block_type: The type of the block to be constructed, as a string
         :param transaction: A string describing the interaction in this block
-        :return: None
+        :return: A deferred that fires with a (block, None) tuple
         """
-        self.sign_block(peer=None, public_key=ANY_COUNTERPARTY_PK, block_type=block_type, transaction=transaction)
+        return self.sign_block(peer=None, public_key=ANY_COUNTERPARTY_PK,
+                               block_type=block_type, transaction=transaction)
 
     def create_link(self, source, block_type=b'unknown', additional_info=None, public_key=None):
         """
@@ -256,7 +257,7 @@ class TrustChainCommunity(Community):
         if not peer and public_key == ANY_COUNTERPARTY_PK:
             if self.settings.broadcast_blocks:
                 self.send_block(block)
-            return
+            return succeed((block, None))
 
         # If there is a counterparty to sign, we send it
         self.send_block(block, address=peer.address)
