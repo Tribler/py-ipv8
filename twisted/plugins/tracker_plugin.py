@@ -68,14 +68,25 @@ class EndpointServer(DiscoveryCommunity):
         intro_peers = [p for p in self.network.get_peers_for_service(prefix[2:]) if not(p == peer)]
         if intro_peers:
             intro_peer = random.choice(intro_peers)
-            packet = self.create_introduction_response(payload.destination_address, peer.address, payload.identifier,
-                                                       introduction=intro_peer)
+        else:
+            intro_peer = None
 
-            signature_length = self.crypto.get_signature_length(self.my_peer.public_key)
-            packet = prefix + packet[22:-signature_length]
-            signature = self.crypto.create_signature(self.my_peer.key, packet)
+        packet = self.create_introduction_response(payload.destination_address, peer.address, payload.identifier,
+                                                   introduction=intro_peer)
 
-            self.endpoint.send(peer.address, packet + signature)
+        signature_length = self.crypto.get_signature_length(self.my_peer.public_key)
+        packet = prefix + packet[22:-signature_length]
+        signature = self.crypto.create_signature(self.my_peer.key, packet)
+
+        self.endpoint.send(peer.address, packet + signature)
+
+    def get_peer_for_introduction(self, exclude=None):
+        """
+        We explicitly provide create_introduction_response with a peer.
+        If on_generic_introduction_request provides None, this method should not suggest a peer.
+        More so as the get_peer_for_introduction peer would be for the DiscoveryCommunity.
+        """
+        return None
 
     def do_churn(self):
         """
