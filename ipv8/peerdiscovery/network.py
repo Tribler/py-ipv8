@@ -124,7 +124,8 @@ class Network(object):
         :param service_id: the service_id to filter on
         """
         with self.graph_lock:
-            verified = [peer.address for peer in self.verified_peers]
+            known = self.get_peers_for_service(service_id) if service_id else self.verified_peers
+            verified = [peer.address for peer in known]
             out = list(set(self._all_addresses.keys()) - set(verified))
             if service_id:
                 new_out = []
