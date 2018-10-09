@@ -135,7 +135,7 @@ class RoundRobin(object):
 
         self.index = (self.index + 1) % len(circuit_ids)
         circuit_id = circuit_ids[self.index]
-        return self.community.active_data_circuits()[circuit_id]
+        return self.community.active_data_circuits().get(circuit_id, None)
 
 
 class TunnelCommunity(Community):
