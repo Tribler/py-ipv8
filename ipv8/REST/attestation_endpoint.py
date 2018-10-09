@@ -8,6 +8,7 @@ from twisted.internet.defer import Deferred, inlineCallbacks, returnValue
 from twisted.web import resource
 
 from ..attestation.identity.community import IdentityCommunity
+from ..attestation.trustchain.block import UNKNOWN_SEQ
 from ..attestation.wallet.community import AttestationCommunity
 from ..attestation.wallet.primitives.attestation import binary_relativity_sha256_4
 from ..attestation.wallet.primitives.cryptosystem.boneh import generate_keypair
@@ -132,10 +133,12 @@ class AttestationEndpoint(resource.Resource):
                 blocks = self.identity_overlay.persistence.get_latest_blocks(peer.public_key.key_to_bin(), 200)
                 trimmed = {}
                 for b in blocks:
-                    attester = b64encode(sha1(b.link_public_key).digest())
-                    previous = trimmed.get((attester, b.transaction["name"]), None)
-                    if not previous or previous.sequence_number < b.sequence_number:
-                        trimmed[(attester, b.transaction["name"])] = b
+                    # Only include identity blocks we initiated (otherwise it would be an attestation)
+                    if b.link_sequence_number == UNKNOWN_SEQ:
+                        attester = b64encode(sha1(b.link_public_key).digest())
+                        previous = trimmed.get((attester, b.transaction["name"]), None)
+                        if not previous or previous.sequence_number < b.sequence_number:
+                            trimmed[(attester, b.transaction["name"])] = b
                 return json.dumps([(b.transaction["name"], b64encode(b.transaction["hash"]), b.transaction["metadata"],
                                     b64encode(sha1(b.link_public_key).digest()))
                                    for b in trimmed.values()])
@@ -191,7 +194,7 @@ class AttestationEndpoint(resource.Resource):
             peer = self.get_peer_from_mid(mid_b64)
             if peer:
                 self.verification_output[b64decode(request.args['attribute_hash'][0])] =\
-                    [b64decode(v) for v in request.args['attribute_values'][0].split(',')]
+                    [(b64decode(v), 0.0) for v in request.args['attribute_values'][0].split(',')]
                 self.attestation_overlay.verify_attestation_values(peer.address, attribute_hash, reference_values, self.on_verification_results)
             return ""
         return ""
