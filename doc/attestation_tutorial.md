@@ -3,6 +3,9 @@ This document assumes you have a basic understanding of network overlays in IPv8
 You will learn how to use the IPv8 attestation *HTTP REST API*.
 This tutorial will use `curl` to perform HTTP `GET` and `POST` requests.
 
+Note that this tutorial will make use of the Python IPv8 service.
+[An Android binding](https://github.com/Tribler/ipv8-android-app) is also available ([including demo app](https://github.com/Tribler/ipv8-android-app/tree/demo_app)). 
+
 ## Files
 This tutorial will follow the same file structure as [the overlay tutorial](https://github.com/Tribler/py-ipv8/blob/master/doc/overlay_tutorial.md).
 In this tutorial all of the files are placed in the `~/Documents/ipv8_tutorial` directory.
