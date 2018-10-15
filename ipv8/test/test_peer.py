@@ -4,13 +4,13 @@ from base64 import b64encode
 
 from twisted.trial import unittest
 
-from ..keyvault.crypto import ECCrypto
+from ..keyvault.crypto import default_eccrypto
 from ..peer import Peer
 
 
 class TestPeer(unittest.TestCase):
 
-    test_key = ECCrypto().generate_key(u"very-low")
+    test_key = default_eccrypto.generate_key(u"very-low")
 
     def setUp(self):
         super(TestPeer, self).setUp()
@@ -58,7 +58,7 @@ class TestPeer(unittest.TestCase):
         """
         Check if peers with a different key and same address are not equal.
         """
-        other = Peer(ECCrypto().generate_key(u"very-low"), self.peer.address)
+        other = Peer(default_eccrypto.generate_key(u"very-low"), self.peer.address)
 
         self.assertNotEqual(self.peer, other)
 

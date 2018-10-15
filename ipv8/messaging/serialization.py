@@ -401,3 +401,9 @@ class Serializable(six.with_metaclass(abc.ABCMeta, object)):
         Create a new Serializable object from a list of unpacked variables.
         """
         pass
+
+
+# Serializers should be stateless.
+# Therefore we can expose a global singleton for efficiency.
+# If you do need a Serializer with a state, be sure to use your own instance.
+default_serializer = Serializer()

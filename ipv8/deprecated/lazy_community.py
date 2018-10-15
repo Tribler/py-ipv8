@@ -4,7 +4,7 @@ from binascii import hexlify
 from functools import wraps
 
 from .payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
-from ..keyvault.crypto import ECCrypto
+from ..keyvault.crypto import default_eccrypto
 from ..overlay import Overlay
 from ..peer import Peer
 from ..util import cast_to_bin
@@ -170,11 +170,11 @@ class EZPackOverlay(Overlay):
         for format_list in format_list_list:
             packet += self.serializer.pack_multiple(format_list)[0]
         if sig:
-            packet += ECCrypto().create_signature(self.my_peer.key, packet)
+            packet += default_eccrypto.create_signature(self.my_peer.key, packet)
         return packet
 
     def _verify_signature(self, auth, data):
-        ec = ECCrypto()
+        ec = default_eccrypto
         public_key = ec.key_from_public_bin(auth.public_key_bin)
         signature_length = ec.get_signature_length(public_key)
         remainder = data[2 + len(auth.public_key_bin):-signature_length]

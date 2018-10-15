@@ -4,13 +4,13 @@ from binascii import unhexlify
 import random
 from twisted.trial import unittest
 
-from ...keyvault.crypto import ECCrypto
+from ...keyvault.crypto import default_eccrypto
 from ...peer import Peer
 from ...peerdiscovery.network import Network
 
 
 def _generate_peer():
-    key = ECCrypto().generate_key(u'very-low')
+    key = default_eccrypto.generate_key(u'very-low')
     address = (".".join([str(random.randint(0, 255)) for _ in range(4)]), random.randint(0, 65535))
     return Peer(key, address)
 

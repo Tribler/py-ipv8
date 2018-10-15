@@ -23,7 +23,7 @@ from twisted.python.log import msg
 from zope.interface import implements
 
 from ipv8.deprecated.payload import IntroductionRequestPayload
-from ipv8.keyvault.crypto import ECCrypto
+from ipv8.keyvault.crypto import default_eccrypto
 from ipv8.messaging.interfaces.udp.endpoint import UDPEndpoint
 from ipv8.peer import Peer
 from ipv8.peerdiscovery.churn import RandomChurn
@@ -38,11 +38,11 @@ class EndpointServer(DiscoveryCommunity):
     """
 
     def __init__(self, endpoint):
-        my_peer = Peer(ECCrypto().generate_key(u"very-low"))
+        my_peer = Peer(default_eccrypto.generate_key(u"very-low"))
         super(EndpointServer, self).__init__(my_peer, endpoint, Network())
         self.churn_lc = self.register_task("churn", LoopingCall(self.do_churn)).start(5.0, now=False)
         self.churn_strategy = RandomChurn(self)
-        self.crypto = ECCrypto()
+        self.crypto = default_eccrypto
 
     def on_packet(self, packet, warn_unknown=False):
         source_address, data = packet

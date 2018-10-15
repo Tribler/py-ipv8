@@ -4,7 +4,7 @@ import abc
 import logging
 import six
 
-from .keyvault.crypto import ECCrypto
+from .keyvault.crypto import default_eccrypto
 from .messaging.interfaces.endpoint import EndpointListener
 from .messaging.serialization import Serializer
 from .taskmanager import TaskManager
@@ -27,7 +27,7 @@ class Overlay(six.with_metaclass(abc.ABCMeta, EndpointListener, TaskManager)):
         EndpointListener.__init__(self, endpoint)
         TaskManager.__init__(self)
         self.serializer = self.get_serializer()
-        self.crypto = ECCrypto()
+        self.crypto = default_eccrypto
 
         self.master_peer = master_peer
         self.my_peer = my_peer

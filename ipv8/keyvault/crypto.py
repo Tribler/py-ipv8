@@ -134,3 +134,9 @@ class ECCrypto(object):
             return ec.verify(signature, data)
         except:
             return False
+
+
+# ECCrypto should be stateless.
+# Therefore we can expose a global singleton for efficiency.
+# If you do need a ECCrypto with a state, be sure to use your own instance.
+default_eccrypto = ECCrypto()
