@@ -388,7 +388,7 @@ class TunnelCommunity(Community):
         elif not self.is_pending_task_active("remove_circuit_%s" % circuit_id):
 
             self.register_task("remove_circuit_%s" % circuit_id,
-                               reactor.callLater(self.settings.remove_tunnel_delay, remove_circuit_info))
+                               self.clock.callLater(self.settings.remove_tunnel_delay, remove_circuit_info))
 
         return remove_deferred
 
@@ -428,8 +428,8 @@ class TunnelCommunity(Community):
                 remove_relay_info(cid)
             elif not self.is_pending_task_active("remove_relay_%s" % cid):
                 self.register_task("remove_relay_%s" % cid,
-                                   reactor.callLater(self.settings.remove_tunnel_delay,
-                                                     lambda cid_copy=cid: remove_relay_info(cid_copy)))
+                                   self.clock.callLater(self.settings.remove_tunnel_delay,
+                                                        lambda cid_copy=cid: remove_relay_info(cid_copy)))
 
         return removed_relays
 
@@ -458,7 +458,7 @@ class TunnelCommunity(Community):
             remove_exit_socket_info()
         elif not self.is_pending_task_active("remove_exit_socket_%s" % circuit_id):
             self.register_task("remove_exit_socket_%s" % circuit_id,
-                               reactor.callLater(self.settings.remove_tunnel_delay, remove_exit_socket_info))
+                               self.clock.callLater(self.settings.remove_tunnel_delay, remove_exit_socket_info))
 
     def destroy_circuit(self, circuit, reason=0):
         sock_addr = circuit.peer.address

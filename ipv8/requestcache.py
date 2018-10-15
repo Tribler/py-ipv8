@@ -4,8 +4,6 @@ import logging
 from random import random
 from threading import Lock
 
-from twisted.internet import reactor
-
 from .taskmanager import TaskManager
 from .util import grange, is_long_or_int, is_unicode
 
@@ -104,7 +102,7 @@ class RequestCache(TaskManager):
             else:
                 self._logger.debug("add %s", cache)
                 self._identifiers[identifier] = cache
-                self.register_task(cache, reactor.callLater(cache.timeout_delay, self._on_timeout, cache))
+                self.register_task(cache, self.clock.callLater(cache.timeout_delay, self._on_timeout, cache))
                 return cache
 
     def has(self, prefix, number):

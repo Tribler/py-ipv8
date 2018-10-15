@@ -17,14 +17,15 @@ class TaskManager(object):
     Provides a set of tools to mantain a list of twisted "tasks" (Deferred, LoopingCall, DelayedCall) that are to be
     executed during the lifetime of an arbitrary object, usually getting killed with it.
     """
-    _reactor = reactor
 
-    def __init__(self):
+    def __init__(self, clock=reactor):
         self._pending_tasks = {}
         self._cleanup_counter = CLEANUP_FREQUENCY
         self._task_lock = RLock()
         self._shutdown = False
         self._logger = logging.getLogger(self.__class__.__name__)
+
+        self.clock = clock
 
     def replace_task(self, name, task):
         """
@@ -56,11 +57,11 @@ class TaskManager(object):
                 if isinstance(task, Deferred):
                     if value is None:
                         raise ValueError("Expecting value to fire the Deferred with")
-                    dc = self._reactor.callLater(delay, task.callback, value)
+                    dc = self.clock.callLater(delay, task.callback, value)
                 elif isinstance(task, LoopingCall):
                     if interval is None:
                         raise ValueError("Expecting interval for delayed LoopingCall")
-                    dc = self._reactor.callLater(delay, task.start, interval)
+                    dc = self.clock.callLater(delay, task.start, interval)
                 else:
                     raise ValueError("Expecting Deferred or LoopingCall if task is delayed")
 
