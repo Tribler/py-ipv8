@@ -15,7 +15,7 @@ class Overlay(six.with_metaclass(abc.ABCMeta, EndpointListener, TaskManager)):
     Interface for an Internet overlay.
     """
 
-    def __init__(self, master_peer, my_peer, endpoint, network):
+    def __init__(self, master_peer, my_peer, endpoint, network, clock):
         """
         Create a new overlay for the Internet.
 
@@ -23,9 +23,10 @@ class Overlay(six.with_metaclass(abc.ABCMeta, EndpointListener, TaskManager)):
         :param my_peer: the (private key) peer of this peer
         :param endpoint: the endpoint to use for messaging
         :param network: the network graph backend
+        :param clock: the Clock object which manages callLater's
         """
         EndpointListener.__init__(self, endpoint)
-        TaskManager.__init__(self)
+        TaskManager.__init__(self, clock)
         self.serializer = self.get_serializer()
         self.crypto = default_eccrypto
 

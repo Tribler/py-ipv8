@@ -157,7 +157,7 @@ class TunnelCommunity(Community):
 
         super(TunnelCommunity, self).__init__(*args, **kwargs)
 
-        self.request_cache = RequestCache()
+        self.request_cache = RequestCache(self.clock)
 
         # Messages that can arrive from the socket
         self.decode_map.update({

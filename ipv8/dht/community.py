@@ -102,7 +102,7 @@ class DHTCommunity(Community):
         super(DHTCommunity, self).__init__(*args, **kwargs)
         self.routing_table = RoutingTable(self.my_node_id)
         self.storage = Storage()
-        self.request_cache = RequestCache()
+        self.request_cache = RequestCache(self.clock)
         self.tokens = {}
         self.token_secrets = deque(maxlen=2)
         self.register_task('ping_all', LoopingCall(self.ping_all)).start(10, now=False)

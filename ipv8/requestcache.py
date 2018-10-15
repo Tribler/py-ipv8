@@ -4,6 +4,8 @@ import logging
 from random import random
 from threading import Lock
 
+from twisted.internet import reactor
+
 from .taskmanager import TaskManager
 from .util import grange, is_long_or_int, is_unicode
 
@@ -65,11 +67,11 @@ class RandomNumberCache(NumberCache):
 
 class RequestCache(TaskManager):
 
-    def __init__(self):
+    def __init__(self, clock=reactor):
         """
         Creates a new RequestCache instance.
         """
-        super(RequestCache, self).__init__()
+        super(RequestCache, self).__init__(clock)
 
         self._logger = logging.getLogger(self.__class__.__name__)
 

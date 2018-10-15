@@ -16,6 +16,8 @@ from socket import error, gethostbyname
 from time import time
 from traceback import format_exception
 
+from twisted.internet import reactor
+
 from .lazy_community import lazy_wrapper, lazy_wrapper_unsigned, EZPackOverlay, lazy_wrapper_wd
 from .payload import IntroductionRequestPayload, IntroductionResponsePayload, PuncturePayload, PunctureRequestPayload
 from .payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
@@ -52,8 +54,8 @@ class Community(EZPackOverlay):
     version = b'\x02'
     master_peer = ""
 
-    def __init__(self, my_peer, endpoint, network):
-        super(Community, self).__init__(self.master_peer, my_peer, endpoint, network)
+    def __init__(self, my_peer, endpoint, network, clock=reactor):
+        super(Community, self).__init__(self.master_peer, my_peer, endpoint, network, clock)
 
         self._prefix = b'\x00' + self.version + self.master_peer.key.key_to_hash()
         self.logger.debug("Launching %s with prefix %s.", self.__class__.__name__, hexlify(self._prefix))

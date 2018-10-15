@@ -67,7 +67,7 @@ class AttestationCommunity(Community):
             key = key if isinstance(key, bytes) else str(key)
             self.attestation_keys[attribute_hash] = BonehPrivateKey.unserialize(key)
 
-        self.request_cache = RequestCache()
+        self.request_cache = RequestCache(self.clock)
 
         self.decode_map.update({
             chr(1): self.on_verify_attestation_request,

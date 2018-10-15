@@ -21,8 +21,7 @@ from .block import TrustChainBlock, ValidationResult, EMPTY_PK, GENESIS_SEQ, UNK
 from .caches import CrawlRequestCache, HalfBlockSignCache, IntroCrawlTimeout, ChainCrawlCache
 from .database import TrustChainDB
 from ...deprecated.community import Community
-from ...deprecated.lazy_community import lazy_wrapper, lazy_wrapper_unsigned, lazy_wrapper_unsigned_wd, lazy_wrapper_wd
-from ...deprecated.payload import IntroductionResponsePayload
+from ...deprecated.lazy_community import lazy_wrapper, lazy_wrapper_unsigned, lazy_wrapper_unsigned_wd
 from ...deprecated.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from .payload import *
 from ...peer import Peer
@@ -62,7 +61,7 @@ class TrustChainCommunity(Community):
         db_name = kwargs.pop('db_name', self.DB_NAME)
         self.settings = kwargs.pop('settings', TrustChainSettings())
         super(TrustChainCommunity, self).__init__(*args, **kwargs)
-        self.request_cache = RequestCache()
+        self.request_cache = RequestCache(self.clock)
         self.logger = logging.getLogger(self.__class__.__name__)
         self.persistence = self.DB_CLASS(working_directory, db_name)
         self.relayed_broadcasts = []
