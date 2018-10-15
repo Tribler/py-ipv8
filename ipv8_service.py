@@ -4,10 +4,11 @@ import logging
 from os.path import isfile
 import sys
 from threading import RLock
+import time
 
 from twisted.internet import reactor
 from twisted.internet.defer import DeferredList, inlineCallbacks, maybeDeferred
-from twisted.internet.task import LoopingCall
+from twisted.internet.task import Clock, LoopingCall
 
 if hasattr(sys.modules['__main__'], "IPv8"):
     sys.modules[__name__] = sys.modules['__main__']
@@ -56,7 +57,6 @@ else:
         'TrustChainTestnetCommunity': TrustChainTestnetCommunity,
     }
 
-
     _WALKERS = {
         'EdgeWalk': EdgeWalk,
         'RandomChurn': RandomChurn,
@@ -76,6 +76,8 @@ else:
                     self.endpoint = StatisticsEndpoint(self, self.endpoint)
 
             self.network = Network()
+            self.clock = Clock()
+            self._previous_clock = time.time()
 
             # Load/generate keys
             self.keys = {}
@@ -134,6 +136,9 @@ else:
                         peer_count = len(self.network.get_peers_for_service(service))
                         if (target_peers == -1) or (peer_count < target_peers):
                             strategy.take_step(service)
+                current_time = time.time()
+                self.clock.advance(current_time - self._previous_clock)
+                self._previous_clock = current_time
 
         def unload_overlay(self, instance):
             with self.overlay_lock:

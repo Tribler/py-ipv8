@@ -1,5 +1,7 @@
 from __future__ import absolute_import
 
+from twisted.internet.task import Clock
+
 from ...attestation.trustchain.community import TrustChainCommunity
 from ...dht.discovery import DHTDiscoveryCommunity
 from ...keyvault.crypto import default_eccrypto
@@ -22,22 +24,23 @@ class MockIPv8(object):
             self.endpoint = StatisticsEndpoint(self, self.endpoint)
 
         self.network = Network()
+        self.clock = Clock()
         self.my_peer = Peer(default_eccrypto.generate_key(crypto_curve), self.endpoint.wan_address)
 
         # Load a TrustChain community if specified
         self.trustchain = None
         if create_trustchain:
-            self.trustchain = TrustChainCommunity(self.my_peer, self.endpoint, self.network,
+            self.trustchain = TrustChainCommunity(self.my_peer, self.endpoint, self.network, self.clock,
                                                   working_directory=u":memory:")
             kwargs.update({'trustchain': self.trustchain})
 
         # Load a DHT community if specified
         self.dht = None
         if create_dht:
-            self.dht = DHTDiscoveryCommunity(self.my_peer, self.endpoint, self.network)
+            self.dht = DHTDiscoveryCommunity(self.my_peer, self.endpoint, self.network, self.clock)
             kwargs.update({'dht': self.dht})
 
-        self.overlay = overlay_class(self.my_peer, self.endpoint, self.network, *args, **kwargs)
+        self.overlay = overlay_class(self.my_peer, self.endpoint, self.network, self.clock, *args, **kwargs)
         self.overlay._use_main_thread = False
         self.discovery = MockWalk(self.overlay)
 
