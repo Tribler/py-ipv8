@@ -7,7 +7,7 @@ import time
 from ...database import database_blob
 from ...keyvault.crypto import ECCrypto
 from ...messaging.deprecated.encoding import decode, encode
-from ...messaging.serialization import Serializer
+from ...messaging.serialization import default_serializer
 from .payload import HalfBlockPayload
 from ...util import is_unicode, old_round
 
@@ -25,7 +25,7 @@ class TrustChainBlock(object):
     Container for TrustChain block information
     """
 
-    def __init__(self, data=None, serializer=Serializer()):
+    def __init__(self, data=None, serializer=default_serializer):
         super(TrustChainBlock, self).__init__()
         self.serializer = serializer
         if data is None:
