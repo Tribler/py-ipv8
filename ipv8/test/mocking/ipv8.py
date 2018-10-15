@@ -2,7 +2,7 @@ from __future__ import absolute_import
 
 from ...attestation.trustchain.community import TrustChainCommunity
 from ...dht.discovery import DHTDiscoveryCommunity
-from ...keyvault.crypto import ECCrypto
+from ...keyvault.crypto import default_eccrypto
 from ...messaging.interfaces.statistics_endpoint import StatisticsEndpoint
 from ...peer import Peer
 from ...peerdiscovery.network import Network
@@ -22,7 +22,7 @@ class MockIPv8(object):
             self.endpoint = StatisticsEndpoint(self, self.endpoint)
 
         self.network = Network()
-        self.my_peer = Peer(ECCrypto().generate_key(crypto_curve), self.endpoint.wan_address)
+        self.my_peer = Peer(default_eccrypto.generate_key(crypto_curve), self.endpoint.wan_address)
 
         # Load a TrustChain community if specified
         self.trustchain = None

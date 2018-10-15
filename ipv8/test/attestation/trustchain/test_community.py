@@ -8,7 +8,7 @@ from ....attestation.trustchain.community import TrustChainCommunity, UNKNOWN_SE
 from ....attestation.trustchain.listener import BlockListener
 from ...attestation.trustchain.test_block import TestBlock
 from ....database import database_blob
-from ....keyvault.crypto import ECCrypto
+from ....keyvault.crypto import default_eccrypto
 from ...base import TestBase
 from ...mocking.ipv8 import MockIPv8
 from ....util import grange
@@ -541,7 +541,7 @@ class TestTrustChainCommunity(TestBase):
         Test crawl the whole chain of a specific peer
         """
         self.nodes[0].endpoint.close()
-        key = ECCrypto().generate_key(u'very-low').pub().key_to_bin()
+        key = default_eccrypto.generate_key(u'very-low').pub().key_to_bin()
         for _ in range(4):
             self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=key,
                                              block_type=b'test', transaction={})

@@ -5,7 +5,7 @@ from hashlib import sha256
 import time
 
 from ...database import database_blob
-from ...keyvault.crypto import ECCrypto
+from ...keyvault.crypto import default_eccrypto
 from ...messaging.deprecated.encoding import decode, encode
 from ...messaging.serialization import default_serializer
 from .payload import HalfBlockPayload
@@ -60,7 +60,7 @@ class TrustChainBlock(object):
                                   else str(self.previous_hash))
             self.signature = self.signature if isinstance(self.signature, bytes) else str(self.signature)
         self.hash = self.calculate_hash()
-        self.crypto = ECCrypto()
+        self.crypto = default_eccrypto
 
     @classmethod
     def from_payload(cls, payload, serializer):

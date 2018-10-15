@@ -4,7 +4,7 @@ from base64 import decodestring
 
 from twisted.trial import unittest
 
-from ...keyvault.crypto import ECCrypto
+from ...keyvault.crypto import default_eccrypto
 from ...keyvault.public.m2crypto import M2CryptoPK
 from ...keyvault.private.m2crypto import M2CryptoSK
 
@@ -16,7 +16,7 @@ class TestSerialization(unittest.TestCase):
 
     def setUp(self):
         super(TestSerialization, self).setUp()
-        self.ec = ECCrypto()
+        self.ec = default_eccrypto
         self.key = self.ec.generate_key(u"very-low")
         self.key_nacl = self.ec.generate_key(u"curve25519")
 

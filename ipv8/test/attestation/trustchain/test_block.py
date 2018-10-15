@@ -6,7 +6,7 @@ from twisted.trial import unittest
 from hashlib import sha256
 
 from ....attestation.trustchain.block import TrustChainBlock, GENESIS_HASH, GENESIS_SEQ, EMPTY_SIG, ValidationResult
-from ....keyvault.crypto import ECCrypto
+from ....keyvault.crypto import default_eccrypto
 from ....messaging.deprecated.encoding import encode
 from ....util import cast_to_bin
 
@@ -18,7 +18,7 @@ class TestBlock(TrustChainBlock):
     """
 
     def __init__(self, transaction=None, previous=None, key=None, block_type=b'test'):
-        crypto = ECCrypto()
+        crypto = default_eccrypto
         other = crypto.generate_key(u"curve25519").pub().key_to_bin()
 
         transaction = transaction or {b'id': 42}
@@ -113,7 +113,7 @@ class TestTrustChainBlock(unittest.TestCase):
         """
         Test signing a block and whether the signature is valid
         """
-        crypto = ECCrypto()
+        crypto = default_eccrypto
         block = TestBlock()
         self.assertTrue(crypto.is_valid_signature(block.key, block.pack(signature=False), block.signature))
 
@@ -121,7 +121,7 @@ class TestTrustChainBlock(unittest.TestCase):
         """
         Test creating a genesis block
         """
-        key = ECCrypto().generate_key(u"curve25519")
+        key = default_eccrypto.generate_key(u"curve25519")
         db = MockDatabase()
         block = TrustChainBlock.create(b'test', {b'id': 42}, db, key.pub().key_to_bin(), link=None)
         self.assertEqual(block.previous_hash, GENESIS_HASH)
@@ -147,7 +147,7 @@ class TestTrustChainBlock(unittest.TestCase):
         """
         Test creating a linked half block
         """
-        key = ECCrypto().generate_key(u"curve25519")
+        key = default_eccrypto.generate_key(u"curve25519")
         db = MockDatabase()
         link = TestBlock()
         db.add_block(link)

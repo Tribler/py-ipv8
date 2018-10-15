@@ -23,7 +23,7 @@ except ImportError:
 
 from ipv8_service import IPv8
 from ipv8.configuration import get_default_configuration
-from ipv8.keyvault.crypto import ECCrypto
+from ipv8.keyvault.crypto import default_eccrypto
 from ipv8.overlay import Overlay
 from ipv8.peer import Peer
 from ipv8.util import grange
@@ -103,15 +103,15 @@ def setup_test(window=1, packet_size=1000, packets=10000):
     configuration['overlays'] = []
     configuration['keys'] = []
 
-    master_peer = Peer(ECCrypto().generate_key(u"low"))
+    master_peer = Peer(default_eccrypto.generate_key(u"low"))
 
     peer_ipv8 = IPv8(configuration)
-    peer_ipv8.keys = {'my_peer': Peer(ECCrypto().generate_key(u"low"))}
+    peer_ipv8.keys = {'my_peer': Peer(default_eccrypto.generate_key(u"low"))}
     peer_ipv8.overlays = [LoadOverlay(master_peer, peer_ipv8.keys['my_peer'], peer_ipv8.endpoint, peer_ipv8.network,
                                       window, packet_size, packets)]
 
     counterparty_ipv8 = IPv8(configuration)
-    counterparty_ipv8.keys = {'my_peer': Peer(ECCrypto().generate_key(u"low"))}
+    counterparty_ipv8.keys = {'my_peer': Peer(default_eccrypto.generate_key(u"low"))}
     counterparty_ipv8.overlays = [LoadOverlay(master_peer, counterparty_ipv8.keys['my_peer'],
                                               counterparty_ipv8.endpoint, counterparty_ipv8.network, 0,
                                               packet_size, packets)]

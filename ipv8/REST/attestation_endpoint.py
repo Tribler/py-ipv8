@@ -12,7 +12,7 @@ from ..attestation.trustchain.block import UNKNOWN_SEQ
 from ..attestation.wallet.community import AttestationCommunity
 from ..attestation.wallet.primitives.attestation import binary_relativity_sha256_4
 from ..attestation.wallet.primitives.cryptosystem.boneh import generate_keypair
-from ..keyvault.crypto import ECCrypto
+from ..keyvault.crypto import default_eccrypto
 from ..peer import Peer
 
 
@@ -148,7 +148,7 @@ class AttestationEndpoint(resource.Resource):
             self.attestation_overlay.database.execute('DELETE FROM %s' % self.attestation_overlay.database.db_name)
             self.attestation_overlay.database.commit()
             self.attestation_requests.clear()
-            my_new_peer = Peer(ECCrypto().generate_key(u"curve25519"))
+            my_new_peer = Peer(default_eccrypto.generate_key(u"curve25519"))
             self.identity_overlay.my_peer = my_new_peer
             self.attestation_overlay.my_peer = my_new_peer
         return ""

@@ -10,7 +10,7 @@ from ...deprecated.payload_headers import BinMemberAuthenticationPayload, Global
 from .discovery_payload import PingPayload, PongPayload, SimilarityRequestPayload, SimilarityResponsePayload, \
     DiscoveryIntroductionRequestPayload
 from ...messaging.serialization import PackError
-from ...keyvault.crypto import ECCrypto
+from ...keyvault.crypto import default_eccrypto
 from ...util import cast_to_bin
 
 
@@ -92,7 +92,7 @@ class DiscoveryCommunity(Community):
         packet = self._prefix + cast_to_bin(chr(msg_num))
         for format_list in format_list_list:
             packet += self.serializer.pack_multiple(format_list)[0]
-        packet += ECCrypto().create_signature(peer.key, packet)
+        packet += default_eccrypto.create_signature(peer.key, packet)
         return packet
 
     def create_similarity_request(self, peer):
