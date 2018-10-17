@@ -81,7 +81,7 @@ class Request(RandomNumberCache):
 
     def on_timeout(self):
         if not self.deferred.called:
-            self._logger.warning('Timeout for %s to %s', self.msg_type, self.node)
+            self._logger.info('Timeout for %s to %s', self.msg_type, self.node)
             self.node.failed += 1
             if not self.consume_errors:
                 self.deferred.errback(Failure(RuntimeError('Timeout for {} to {}'.format(self.msg_type, self.node))))
@@ -483,9 +483,9 @@ class DHTCommunity(Community):
                 self.find_values(bucket.generate_id()).addErrback(lambda _: None)
                 bucket.last_changed = now
 
-        # Replicate keys older than one hour
-        for key, value in self.storage.items_older_than(3600):
-            self._store(key, value).addErrback(lambda _: None)
+        # FIXME: Disable replication for now, as it creates too much traffic
+        # for key, value in self.storage.items_older_than(3600):
+        #    self._store(key, value).addErrback(lambda _: None)
 
         # Also republish our own key-value pairs every 24h?
 
