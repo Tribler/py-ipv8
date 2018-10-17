@@ -389,6 +389,9 @@ class DHTCommunity(Community):
 
             # Ensure we haven't tried these nodes yet
             nodes_closest -= nodes_tried
+            # Only consider top-k closest to our target
+            if len(nodes_closest) > MAX_FIND_WALKS:
+                nodes_closest = set(sorted(nodes_closest, key=lambda n: distance(n.id, target))[:MAX_FIND_WALKS])
 
         if force_nodes:
             returnValue(sorted(nodes_tried, key=lambda n: distance(n.id, target)))
