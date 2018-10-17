@@ -29,6 +29,9 @@ from ..util import cast_to_bin
 
 PING_INTERVAL = 25
 
+# Maximum number of seconds a token can remain valid
+TOKEN_EXPIRATION_TIME = 600
+
 DHT_ENTRY_STR = 0
 DHT_ENTRY_STR_SIGNED = 1
 
@@ -265,9 +268,10 @@ class DHTCommunity(Community):
             for value in values:
                 self.add_value(key, value)
 
+        now = time.time()
         deferreds = []
         for node in nodes:
-            if node in self.tokens:
+            if node in self.tokens and self.tokens[node][0] + TOKEN_EXPIRATION_TIME > now:
                 cache = self.request_cache.add(Request(self, u'store', node))
                 deferreds.append(cache.deferred)
                 self.send_message(node.address, MSG_STORE_REQUEST, StoreRequestPayload,
@@ -488,7 +492,7 @@ class DHTCommunity(Community):
         # Cleanup old tokens
         now = time.time()
         for node, (ts, _) in self.tokens.items():
-            if now > ts + 600:
+            if now > ts + TOKEN_EXPIRATION_TIME:
                 self.tokens.pop(node, None)
 
     def generate_token(self, node):
