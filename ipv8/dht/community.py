@@ -63,8 +63,9 @@ class Request(RandomNumberCache):
     """
     This request cache keeps track of all outstanding requests within the DHTCommunity.
     """
-    def __init__(self, community, node, params=None, consume_errors=False):
-        super(Request, self).__init__(community.request_cache, u'request')
+    def __init__(self, community, msg_type, node, params=None, consume_errors=False):
+        super(Request, self).__init__(community.request_cache, msg_type)
+        self.msg_type = msg_type
         self.node = node
         self.params = params
         self.deferred = Deferred()
@@ -77,10 +78,10 @@ class Request(RandomNumberCache):
 
     def on_timeout(self):
         if not self.deferred.called:
-            self._logger.warning('Request to %s timed out', self.node)
+            self._logger.warning('Timeout for %s to %s', self.msg_type, self.node)
             self.node.failed += 1
             if not self.consume_errors:
-                self.deferred.errback(Failure(RuntimeError('Node %s timeout' % self.node)))
+                self.deferred.errback(Failure(RuntimeError('Timeout for {} to {}'.format(self.msg_type, self.node))))
 
     def on_complete(self):
         self.node.last_response = time.time()
@@ -188,7 +189,7 @@ class DHTCommunity(Community):
     def ping(self, node):
         self.logger.debug('Pinging node %s', node)
 
-        cache = self.request_cache.add(Request(self, node))
+        cache = self.request_cache.add(Request(self, u'ping', node))
         self.send_message(node.address, MSG_PING, PingRequestPayload, (cache.number,))
         return cache.deferred
 
@@ -204,12 +205,12 @@ class DHTCommunity(Community):
 
     @lazy_wrapper_wd(GlobalTimeDistributionPayload, PingResponsePayload)
     def on_ping_response(self, peer, dist, payload, data):
-        if not self.request_cache.has(u'request', payload.identifier):
+        if not self.request_cache.has(u'ping', payload.identifier):
             self.logger.error('Got ping-response with unknown identifier, dropping packet')
             return
 
         self.logger.debug('Got ping-response from %s', peer.address)
-        cache = self.request_cache.pop(u'request', payload.identifier)
+        cache = self.request_cache.pop(u'ping', payload.identifier)
         cache.on_complete()
         cache.deferred.callback(cache.node)
 
@@ -267,7 +268,7 @@ class DHTCommunity(Community):
         deferreds = []
         for node in nodes:
             if node in self.tokens:
-                cache = self.request_cache.add(Request(self, node))
+                cache = self.request_cache.add(Request(self, u'store', node))
                 deferreds.append(cache.deferred)
                 self.send_message(node.address, MSG_STORE_REQUEST, StoreRequestPayload,
                                   (cache.number, self.tokens[node][1], key, values))
@@ -312,17 +313,17 @@ class DHTCommunity(Community):
 
     @lazy_wrapper(GlobalTimeDistributionPayload, StoreResponsePayload)
     def on_store_response(self, peer, dist, payload):
-        if not self.request_cache.has(u'request', payload.identifier):
+        if not self.request_cache.has(u'store', payload.identifier):
             self.logger.error('Got store-response with unknown identifier, dropping packet')
             return
 
         self.logger.debug('Got store-response from %s', peer.address)
-        cache = self.request_cache.pop(u'request', payload.identifier)
+        cache = self.request_cache.pop(u'store', payload.identifier)
         cache.on_complete()
         cache.deferred.callback(cache.node)
 
     def _send_find_request(self, node, target, force_nodes):
-        cache = self.request_cache.add(Request(self, node, [force_nodes]))
+        cache = self.request_cache.add(Request(self, u'find', node, [force_nodes]))
         self.send_message(node.address, MSG_FIND_REQUEST, FindRequestPayload,
                           (cache.number, self.my_estimated_lan, target, force_nodes))
         return cache.deferred
@@ -448,12 +449,12 @@ class DHTCommunity(Community):
 
     @lazy_wrapper(GlobalTimeDistributionPayload, FindResponsePayload)
     def on_find_response(self, peer, dist, payload):
-        if not self.request_cache.has(u'request', payload.identifier):
+        if not self.request_cache.has(u'find', payload.identifier):
             self.logger.error('Got find-response with unknown identifier, dropping packet')
             return
 
         self.logger.debug('Got find-response from %s', peer.address)
-        cache = self.request_cache.pop(u'request', payload.identifier)
+        cache = self.request_cache.pop(u'find', payload.identifier)
         cache.on_complete()
 
         self.tokens[cache.node] = (time.time(), payload.token)
