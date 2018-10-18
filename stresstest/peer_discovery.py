@@ -25,6 +25,7 @@ from ipv8.peer import Peer
 
 START_TIME = time.time()
 LOW_EDGE = 0
+LOW_EDGE_PEER = None
 INSTANCES = []
 
 
@@ -33,15 +34,16 @@ class MyCommunity(Community):
 
     def started(self):
         def check_peers():
-            global INSTANCES, LOW_EDGE, START_TIME
+            global INSTANCES, LOW_EDGE, LOW_EDGE_PEER, START_TIME
             if self.get_peers():
-                if LOW_EDGE:
+                if LOW_EDGE and self.my_peer != LOW_EDGE_PEER:
                     for instance in INSTANCES:
                         instance.stop(False)
                     reactor.callFromThread(reactor.stop)
                     print("%.4f,%.4f" % (LOW_EDGE, time.time() - START_TIME))
                 else:
                     LOW_EDGE = time.time() - START_TIME
+                    LOW_EDGE_PEER = self.my_peer
         self.register_task("check_peers", LoopingCall(check_peers)).start(0.1, True)
 
     def create_introduction_response(self, lan_socket_address, socket_address, identifier, introduction=None):
