@@ -4,6 +4,7 @@ import logging
 from os.path import isfile
 import sys
 from threading import RLock
+from traceback import format_exception
 
 from twisted.internet import reactor
 from twisted.internet.defer import DeferredList, inlineCallbacks, maybeDeferred
@@ -133,7 +134,12 @@ else:
                         service = strategy.overlay.master_peer.mid
                         peer_count = len(self.network.get_peers_for_service(service))
                         if (target_peers == -1) or (peer_count < target_peers):
-                            strategy.take_step(service)
+                            # We wrap the take_step into a general except as it is prone to programmer error.
+                            try:
+                                strategy.take_step(service)
+                            except:
+                                logging.error("Exception occurred while trying to walk!\n" +
+                                              ''.join(format_exception(*sys.exc_info())))
 
         def unload_overlay(self, instance):
             with self.overlay_lock:
