@@ -167,26 +167,6 @@ class TestDHTCommunity(TestBase):
         self.assertFalse(self.is_called)
 
     @inlineCallbacks
-    def test_republish(self):
-        yield self.introduce_nodes()
-        yield self.deliver_messages()
-
-        bucket = self.nodes[0].overlay.routing_table.get_bucket(self.nodes[1].overlay.my_node_id)
-        bucket.last_changed = 0
-
-        self.nodes[0].overlay.storage.put(self.key, self.value_in_store)
-        self.nodes[0].overlay.storage.items[self.key][0].last_update = 0
-        self.nodes[0].overlay._store = lambda *args: setattr(self, 'is_called', True) or Deferred()
-        self.nodes[0].overlay.value_maintenance()
-        self.assertTrue(self.is_called)
-
-        self.is_called = False
-        self.nodes[0].overlay.storage.put(self.key, self.value_in_store)
-        self.nodes[0].overlay.storage.items[self.key][0].last_update = maximum_integer
-        self.nodes[0].overlay.value_maintenance()
-        self.assertFalse(self.is_called)
-
-    @inlineCallbacks
     def test_token(self):
         dht_node = Node(self.nodes[1].my_peer.key, self.nodes[1].my_peer.address)
 
