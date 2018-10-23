@@ -275,7 +275,7 @@ class TrustChainCommunity(Community):
         elif not linked:
             # We keep track of this outstanding sign request.
             sign_deferred = Deferred()
-            self.request_cache.add(HalfBlockSignCache(self, block, sign_deferred))
+            self.request_cache.add(HalfBlockSignCache(self, block, sign_deferred, peer.address))
             return sign_deferred
         else:
             # We return a deferred that fires immediately with both half blocks.
