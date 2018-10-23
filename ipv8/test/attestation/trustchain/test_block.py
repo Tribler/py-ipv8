@@ -366,6 +366,17 @@ class TestTrustChainBlock(unittest.TestCase):
 
         self.assertEqual(ValidationResult.valid, result.state)
 
+    def test_invariant_negative_timestamp(self):
+        """
+        Test if negative sequence number blocks are not valid.
+        """
+        result = ValidationResult()
+        block = TestBlock()
+        block.timestamp = -1.0
+        block.update_block_invariant(None, result)
+
+        self.assertEqual(ValidationResult.invalid, result.state)
+
     def test_invariant_invalid_key(self):
         """
         Test if illegal key blocks are not valid.
@@ -767,3 +778,28 @@ class TestTrustChainBlock(unittest.TestCase):
         block.update_chain_consistency(None, next_block, result)
 
         self.assertEqual(ValidationResult.valid, result.state)
+
+    def test_iter(self):
+        """
+        Check that the iterator of a Block has all of the required keys without duplicates.
+        """
+        block = TestBlock()
+        block_keys = []
+        for field in iter(block):
+            block_keys.append(field[0])
+        expected_keys = {'public_key', 'transaction', 'hash', 'timestamp', 'link_sequence_number', 'insert_time',
+                         'previous_hash', 'sequence_number', 'signature', 'link_public_key', 'type',
+                         'transaction_validation_result'}
+
+        # Check if we have the required keys
+        self.assertSetEqual(set(block_keys), expected_keys)
+        # Check for duplicates
+        self.assertEqual(len(block_keys), len(expected_keys))
+
+    def test_hash_function(self):
+        """
+        Check if the hash() function returns the Block hash.
+        """
+        block = TestBlock()
+
+        self.assertEqual(block.__hash__(), block.hash)
