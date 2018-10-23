@@ -446,7 +446,6 @@ class TrustChainBlock(object):
                 yield key, hexlify(value)
             else:
                 yield key, value
-        yield "hash", hexlify(self.hash)
 
 
 class ValidationResult(object):
