@@ -1,11 +1,12 @@
 from __future__ import absolute_import
 
 from twisted.internet import reactor
-from twisted.internet.defer import Deferred, succeed, inlineCallbacks
+from twisted.internet.defer import Deferred, succeed
 from twisted.internet.task import Clock, deferLater, LoopingCall
 
-from ..taskmanager import TaskManager
 from .base import TestBase
+from ..taskmanager import CLEANUP_FREQUENCY, TaskManager
+from ..util import grange
 
 
 class TestTaskManager(TestBase):
@@ -120,6 +121,39 @@ class TestTaskManager(TestBase):
             self.tm.register_anonymous_task("test", task).addErrback(lambda _: None)
 
         self.tm.cancel_all_pending_tasks()
+
+    def test_shutdown(self):
+        """
+        Test if the TaskManager does not allow new tasks after shutdown().
+        """
+        self.tm.shutdown_task_manager()
+        self.tm.register_anonymous_task("test", deferLater(reactor, 10, lambda: None)).addErrback(lambda _: None)
+
+        deferred_list = self.tm.wait_for_deferred_tasks()
+        self.assertEqual(0, len(deferred_list.resultList))
+
+    def test_cleanup(self):
+        """
+        Test if the tasks are cleaned up after the cleanup frequency has been met.
+        """
+        deferred = succeed(None)
+        for _ in grange(CLEANUP_FREQUENCY):
+            self.tm.register_anonymous_task("test", deferred)
+
+        deferred_list = self.tm.wait_for_deferred_tasks()
+        self.assertEqual(0, len(deferred_list.resultList))
+
+    def test_cleanup_remaining(self):
+        """
+        Test if tasks which have yet to complete are not cleaned.
+        """
+        deferred = succeed(None)
+        self.tm.register_anonymous_task("test", Deferred()).addErrback(lambda _: None)
+        for _ in grange(CLEANUP_FREQUENCY-1):
+            self.tm.register_anonymous_task("test", deferred)
+
+        deferred_list = self.tm.wait_for_deferred_tasks()
+        self.assertEqual(1, len(deferred_list.resultList))
 
     def count(self):
         self.counter += 1

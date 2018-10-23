@@ -156,7 +156,7 @@ class TaskManager(object):
                 self._cleanup_counter -= 1
             else:
                 self._cleanup_counter = CLEANUP_FREQUENCY
-                for name in self._pending_tasks.keys():
+                for name in list(self._pending_tasks.keys()):
                     if not self.is_pending_task_active(name):
                         self._pending_tasks.pop(name, None)
 
