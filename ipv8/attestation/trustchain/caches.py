@@ -71,13 +71,24 @@ class HalfBlockSignCache(NumberCache):
     This request cache keeps track of outstanding half block signature requests.
     """
 
-    def __init__(self, community, half_block, sign_deferred):
+    def __init__(self, community, half_block, sign_deferred, socket_address, timeouts=0):
+        """
+        A cache to keep track of the signing of one of our blocks by a counterparty.
+
+        :param community: the TrustChainCommunity
+        :param half_block: the half_block requiring a counterparty
+        :param sign_deferred: the Deferred to fire once this block has been double signed
+        :param socket_address: the peer we sent the block to
+        :param timeouts: the number of timeouts we have already had while waiting
+        """
         block_id_int = int(hexlify(half_block.block_id), 16) % 100000000
         super(HalfBlockSignCache, self).__init__(community.request_cache, u"sign", block_id_int)
         self.logger = logging.getLogger(self.__class__.__name__)
         self.community = community
         self.half_block = half_block
         self.sign_deferred = sign_deferred
+        self.socket_address = socket_address
+        self.timeouts = timeouts
 
     @property
     def timeout_delay(self):
@@ -85,11 +96,16 @@ class HalfBlockSignCache(NumberCache):
         Note that we use a very high timeout for a half block signature. Ideally, we would like to have a request
         cache without any timeouts and just keep track of outstanding signature requests but this isn't possible (yet).
         """
-        return 3600.0
+        return 10.0
 
     def on_timeout(self):
         self._logger.info("Timeout for sign request for half block %s, note that it can still arrive!", self.half_block)
-        self.sign_deferred.errback(Failure(RuntimeError("Signature request timeout")))
+        if self.timeouts < 360:
+            self.community.send_block(self.half_block, address=self.socket_address)
+            self.community.request_cache.add(HalfBlockSignCache(self.community, self.half_block, self.sign_deferred,
+                                                                self.socket_address, self.timeouts + 1))
+        else:
+            self.sign_deferred.errback(Failure(RuntimeError("Signature request timeout")))
 
 
 class CrawlRequestCache(NumberCache):
