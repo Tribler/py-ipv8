@@ -67,7 +67,7 @@ class TestBase(unittest.TestCase):
         # After the super tearDown the remaining blocking calls should have been cancelled.
         # We reschedule the reactor to inspect itself after 0.01 seconds. Note that this cannot
         # be done after 0 seconds because we need to exit this Deferred callback chain first.
-        # Also note that the longer we make this timeout, the longer we sill have to wait before
+        # Also note that the longer we make this timeout, the longer we will have to wait before
         # we can cleanup.
         shutdown_dc = deferLater(reactor, 0.01, lambda: None)
         reactor.wakeUp()
