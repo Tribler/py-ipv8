@@ -49,7 +49,7 @@ class TestUDPEndpoint(TestBase):
             yield self.endpoint1.close()
         if self.endpoint2:
             yield self.endpoint2.close()
-        super(TestUDPEndpoint, self).tearDown()
+        yield super(TestUDPEndpoint, self).tearDown()
 
     @inlineCallbacks
     def test_send_message(self):

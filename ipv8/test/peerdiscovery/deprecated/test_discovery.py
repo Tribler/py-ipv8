@@ -29,7 +29,7 @@ class TestDiscoveryCommunity(TestBase):
         self.tracker.unload()
         for overlay in self.overlays:
             overlay.unload()
-        super(TestDiscoveryCommunity, self).tearDown()
+        return super(TestDiscoveryCommunity, self).tearDown()
 
     @inlineCallbacks
     def test_deprecated_introduction(self):

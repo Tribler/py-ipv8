@@ -22,7 +22,7 @@ class TestEdgeWalk(TestBase):
     def tearDown(self):
         for overlay in self.overlays:
             overlay.unload()
-        super(TestEdgeWalk, self).tearDown()
+        return super(TestEdgeWalk, self).tearDown()
 
     @inlineCallbacks
     def test_take_step(self):

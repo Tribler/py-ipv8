@@ -24,7 +24,7 @@ class TestChurn(TestBase):
     def tearDown(self):
         for overlay in self.overlays:
             overlay.unload()
-        super(TestChurn, self).tearDown()
+        return super(TestChurn, self).tearDown()
 
     @inlineCallbacks
     def test_keep_reachable(self):

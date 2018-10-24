@@ -42,7 +42,7 @@ class TestHiddenServices(TestBase):
     def tearDown(self):
         for node in self.private_nodes:
             node.unload()
-        super(TestHiddenServices, self).tearDown()
+        return super(TestHiddenServices, self).tearDown()
 
     def get_e2e_circuit_path(self):
         """
