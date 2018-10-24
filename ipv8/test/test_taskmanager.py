@@ -22,7 +22,7 @@ class TestTaskManager(TestBase):
 
     def tearDown(self):
         self.tm.shutdown_task_manager()
-        super(TestTaskManager, self).tearDown()
+        return super(TestTaskManager, self).tearDown()
 
     def test_call_later(self):
         self.tm.register_task("test", reactor.callLater(10, lambda: None))

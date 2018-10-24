@@ -22,7 +22,7 @@ class TestRandomWalk(TestBase):
     def tearDown(self):
         for overlay in self.overlays:
             overlay.unload()
-        super(TestRandomWalk, self).tearDown()
+        return super(TestRandomWalk, self).tearDown()
 
     @inlineCallbacks
     def test_take_step(self):

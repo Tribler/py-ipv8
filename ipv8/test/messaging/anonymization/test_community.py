@@ -25,7 +25,7 @@ class TestTunnelCommunity(TestBase):
         if self.public_endpoint:
             self.public_endpoint.close()
 
-        super(TestTunnelCommunity, self).tearDown()
+        return super(TestTunnelCommunity, self).tearDown()
 
     def create_node(self):
         # Initialize a TunnelCommunity without circuits or exit node functionality
