@@ -23,9 +23,9 @@ class RootEndpoint(resource.Resource):
         """
         resource.Resource.__init__(self)
         self.session = session
-        self.putChild("attestation", AttestationEndpoint(session))
-        self.putChild("network", NetworkEndpoint(session))
-        self.putChild("trustchain", TrustchainEndpoint(session))
-        self.putChild("overlays", OverlaysEndpoint(session))
-        self.putChild("dht", DHTEndpoint(session))
-        self.putChild("tunnel", TunnelEndpoint(session))
+        self.putChild(b'attestation', AttestationEndpoint(session))
+        self.putChild(b'network', NetworkEndpoint(session))
+        self.putChild(b'trustchain', TrustchainEndpoint(session))
+        self.putChild(b'overlays', OverlaysEndpoint(session))
+        self.putChild(b'dht', DHTEndpoint(session))
+        self.putChild(b'tunnel', TunnelEndpoint(session))
