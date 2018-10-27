@@ -43,7 +43,8 @@ class AttestationEndpoint(resource.Resource):
         Return the measurement of an attribute for a certain peer.
         """
         deferred = Deferred()
-        self.attestation_requests[(b64encode(peer.mid), attribute_name)] = (deferred, b64encode(json.dumps(metadata)))
+        self.attestation_requests[(b64encode(peer.mid), attribute_name)] = \
+            (deferred, b64encode(json.dumps(metadata).encode('utf-8')))
         self.attestation_metadata[(peer, attribute_name)] = metadata
         out = yield deferred
         returnValue(out)
@@ -69,7 +70,7 @@ class AttestationEndpoint(resource.Resource):
         block = self.identity_overlay.get_attestation_by_hash(attribute_hash)
         if not block:
             returnValue(None)
-        attribute_name = block.transaction["name"]
+        attribute_name = block.transaction[b"name"]
         deferred = Deferred()
         self.verify_requests[(b64encode(peer.mid), attribute_name)] = deferred
         out = yield deferred
@@ -103,29 +104,29 @@ class AttestationEndpoint(resource.Resource):
         type=peers -> [mid_b64]
         type=attributes&mid=mid_b64 -> [(attribute_name, attribute_hash)]
         """
-        if not request.args or 'type' not in request.args:
+        if not request.args or b'type' not in request.args:
             return ""
-        if request.args['type'][0] == 'outstanding':
+        if request.args[b'type'][0] == b'outstanding':
             formatted = []
             for k, v in self.attestation_requests.items():
                 formatted.append(k + (v[1], ))
-            return json.dumps(formatted)
-        if request.args['type'][0] == 'outstanding_verify':
+            return json.dumps([(x.decode('utf-8'), y, z.decode('utf-8')) for x, y, z in formatted]).encode('utf-8')
+        if request.args[b'type'][0] == b'outstanding_verify':
             formatted = []
             for k, v in self.verify_requests.items():
                 formatted.append(k)
-            return json.dumps(formatted)
-        if request.args['type'][0] == 'verification_output':
+            return json.dumps([(x.decode('utf-8'), y) for x, y in formatted]).encode('utf-8')
+        if request.args[b'type'][0] == b'verification_output':
             formatted = {}
             for k, v in self.verification_output.items():
-                formatted[b64encode(k)] = [(b64encode(a), m) for a, m in v]
-            return json.dumps(formatted)
-        if request.args['type'][0] == 'peers':
+                formatted[b64encode(k).decode('utf-8')] = [(b64encode(a).decode('utf-8'), m) for a, m in v]
+            return json.dumps(formatted).encode('utf-8')
+        if request.args[b'type'][0] == b'peers':
             peers = self.session.network.get_peers_for_service(self.identity_overlay.master_peer.mid)
-            return json.dumps([b64encode(p.mid) for p in peers])
-        if request.args['type'][0] == 'attributes':
-            if 'mid' in request.args:
-                mid_b64 = request.args['mid'][0]
+            return json.dumps([b64encode(p.mid).decode('utf-8') for p in peers]).encode('utf-8')
+        if request.args[b'type'][0] == b'attributes':
+            if b'mid' in request.args:
+                mid_b64 = request.args[b'mid'][0]
                 peer = self.get_peer_from_mid(mid_b64)
             else:
                 peer = self.identity_overlay.my_peer
@@ -136,13 +137,14 @@ class AttestationEndpoint(resource.Resource):
                     # Only include identity blocks we initiated (otherwise it would be an attestation)
                     if b.link_sequence_number == UNKNOWN_SEQ:
                         attester = b64encode(sha1(b.link_public_key).digest())
-                        previous = trimmed.get((attester, b.transaction["name"]), None)
+                        previous = trimmed.get((attester, b.transaction[b"name"]), None)
                         if not previous or previous.sequence_number < b.sequence_number:
-                            trimmed[(attester, b.transaction["name"])] = b
-                return json.dumps([(b.transaction["name"], b64encode(b.transaction["hash"]), b.transaction["metadata"],
-                                    b64encode(sha1(b.link_public_key).digest()))
-                                   for b in trimmed.values()])
-        if request.args['type'][0] == 'drop_identity':
+                            trimmed[(attester, b.transaction[b"name"])] = b
+                return json.dumps([(b.transaction[b"name"], b64encode(b.transaction[b"hash"]).decode('utf-8'),
+                                    b.transaction[b"metadata"],
+                                    b64encode(sha1(b.link_public_key).digest()).decode('utf-8'))
+                                   for b in trimmed.values()]).encode('utf-8')
+        if request.args[b'type'][0] == b'drop_identity':
             self.identity_overlay.persistence.execute('DELETE FROM blocks')
             self.identity_overlay.persistence.commit()
             self.attestation_overlay.database.execute('DELETE FROM %s' % self.attestation_overlay.database.db_name)
@@ -151,7 +153,7 @@ class AttestationEndpoint(resource.Resource):
             my_new_peer = Peer(default_eccrypto.generate_key(u"curve25519"))
             self.identity_overlay.my_peer = my_new_peer
             self.attestation_overlay.my_peer = my_new_peer
-        return ""
+        return b""
 
     def render_POST(self, request):
         """
@@ -160,41 +162,42 @@ class AttestationEndpoint(resource.Resource):
         type=attest&mid=mid_b64&attribute_name=attribute_name&attribute_value=attribute_value_b64
         type=verify&mid=mid_b64&attribute_hash=attribute_hash_b64&attribute_values=attribute_value_b64,...
         """
-        if not request.args or 'type' not in request.args:
-            return ""
-        if request.args['type'][0] == 'request':
-            mid_b64 = request.args['mid'][0]
-            attribute_name = request.args['attribute_name'][0]
+        if not request.args or b'type' not in request.args:
+            return b""
+        if request.args[b'type'][0] == b'request':
+            mid_b64 = request.args[b'mid'][0]
+            attribute_name = request.args[b'attribute_name'][0].decode('utf-8')
             peer = self.get_peer_from_mid(mid_b64)
             if peer:
                 _, key = generate_keypair()
                 metadata = {}
-                if 'metadata' in request.args:
-                    metadata = json.loads(b64decode(request.args['metadata'][0]))
+                if b'metadata' in request.args:
+                    metadata = json.loads(b64decode(request.args[b'metadata'][0]))
                     self.attestation_metadata[(self.identity_overlay.my_peer, attribute_name)] = metadata
                 self.attestation_overlay.request_attestation(peer, attribute_name, key, metadata)
-            return ""
-        if request.args['type'][0] == 'attest':
-            mid_b64 = request.args['mid'][0]
-            attribute_name = request.args['attribute_name'][0]
-            attribute_value_b64 = request.args['attribute_value'][0]
+            return b""
+        if request.args[b'type'][0] == b'attest':
+            mid_b64 = request.args[b'mid'][0]
+            attribute_name = request.args[b'attribute_name'][0].decode('utf-8')
+            attribute_value_b64 = request.args[b'attribute_value'][0]
             outstanding = self.attestation_requests.pop((mid_b64, attribute_name))
             outstanding[0].callback(b64decode(attribute_value_b64))
-            return ""
-        if request.args['type'][0] == 'allow_verify':
-            mid_b64 = request.args['mid'][0]
-            attribute_name = request.args['attribute_name'][0]
+            return b""
+        if request.args[b'type'][0] == b'allow_verify':
+            mid_b64 = request.args[b'mid'][0]
+            attribute_name = request.args[b'attribute_name'][0].decode('utf-8')
             self.verify_requests[(mid_b64, attribute_name)].callback(True)
-            return ""
-        if request.args['type'][0] == 'verify':
-            mid_b64 = request.args['mid'][0]
-            attribute_hash = b64decode(request.args['attribute_hash'][0])
+            return b""
+        if request.args[b'type'][0] == b'verify':
+            mid_b64 = request.args[b'mid'][0]
+            attribute_hash = b64decode(request.args[b'attribute_hash'][0].decode('utf-8'))
             reference_values = [binary_relativity_sha256_4(b64decode(v))
-                                for v in request.args['attribute_values'][0].split(',')]
+                                for v in request.args[b'attribute_values'][0].split(b',')]
             peer = self.get_peer_from_mid(mid_b64)
             if peer:
-                self.verification_output[b64decode(request.args['attribute_hash'][0])] =\
-                    [(b64decode(v), 0.0) for v in request.args['attribute_values'][0].split(',')]
-                self.attestation_overlay.verify_attestation_values(peer.address, attribute_hash, reference_values, self.on_verification_results)
-            return ""
-        return ""
+                self.verification_output[b64decode(request.args[b'attribute_hash'][0])] =\
+                    [(b64decode(v), 0.0) for v in request.args[b'attribute_values'][0].split(b',')]
+                self.attestation_overlay.verify_attestation_values(peer.address, attribute_hash, reference_values,
+                                                                   self.on_verification_results)
+            return b""
+        return b""

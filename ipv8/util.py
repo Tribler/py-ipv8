@@ -15,7 +15,7 @@ if sys.version_info.major > 2:
     from io import StringIO
     import math
     import queue as Queue
-    from urllib.parse import parse_qsl, ParseResult, unquote, urlencode, urlparse
+    from urllib.parse import parse_qsl, ParseResult, unquote, urlencode, urlparse, quote
     grange = range
     is_long_or_int = lambda x: isinstance(x, int)
     is_unicode = lambda x: isinstance(x, str)
@@ -28,7 +28,7 @@ if sys.version_info.major > 2:
 else:
     from StringIO import StringIO
     import Queue
-    from urllib import unquote, urlencode
+    from urllib import unquote, urlencode, quote
     from urlparse import urlparse, parse_qsl, ParseResult
     grange = xrange
     is_long_or_int = lambda x: isinstance(x, (int, long))
@@ -40,8 +40,8 @@ else:
     maximum_integer = sys.maxint
     old_round = round
 StringIO = StringIO
-urllib_future = namedtuple('urllib_future', ['unquote', 'urlencode', 'urlparse', 'parse_qsl', 'ParseResult'])\
-    (unquote, urlencode, urlparse, parse_qsl, ParseResult)
+urllib_future = namedtuple('urllib_future', ['unquote', 'urlencode', 'urlparse', 'parse_qsl', 'ParseResult', 'quote'])\
+    (unquote, urlencode, urlparse, parse_qsl, ParseResult, quote)
 
 
 def blocking_call_on_reactor_thread(func):
