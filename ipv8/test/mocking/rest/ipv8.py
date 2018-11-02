@@ -2,7 +2,7 @@ import threading
 
 from twisted.internet.task import LoopingCall
 
-from .comunities import TestIdentityCommunity, TestAttestationCommunity
+from .comunities import TestIdentityCommunity, TestAttestationCommunity, overlay_initializer
 from ....keyvault.crypto import ECCrypto
 from ....messaging.interfaces.udp.endpoint import UDPEndpoint
 from ....peer import Peer
@@ -26,8 +26,8 @@ class TestRestIPv8(object):
         self.overlays = []
 
         for overlay_class in overlay_classes:
-            self.overlays.append(overlay_class(my_peer, self.endpoint, self.network,
-                                               working_directory=database_working_dir))
+            self.overlays.append(overlay_initializer(overlay_class, my_peer, self.endpoint, self.network,
+                                                     working_directory=database_working_dir))
 
         self.strategies = [
             (RandomWalk(overlay), 20) for overlay in self.overlays

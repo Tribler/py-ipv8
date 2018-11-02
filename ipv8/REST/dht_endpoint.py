@@ -1,14 +1,19 @@
 from __future__ import absolute_import
 
-from base64 import b64encode
+from base64 import b64encode, b64decode
 from binascii import hexlify, unhexlify
+from hashlib import sha1
 import json
+import struct
 
+from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.web import http, resource
 from twisted.web.server import NOT_DONE_YET
 
-from ..dht.community import DHTCommunity
+from ..dht.community import DHTCommunity, MAX_ENTRY_SIZE
+from ..attestation.trustchain.community import TrustChainCommunity
 from ..dht.discovery import DHTDiscoveryCommunity
+from ..attestation.trustchain.listener import BlockListener
 
 
 class DHTEndpoint(resource.Resource):
@@ -20,10 +25,126 @@ class DHTEndpoint(resource.Resource):
         resource.Resource.__init__(self)
 
         dht_overlays = [overlay for overlay in session.overlays if isinstance(overlay, DHTCommunity)]
+        tc_overlays = [overlay for overlay in session.overlays if isinstance(overlay, TrustChainCommunity)]
         if dht_overlays:
-            self.putChild("statistics", DHTStatisticsEndpoint(dht_overlays[0]))
-            self.putChild("values", DHTValuesEndpoint(dht_overlays[0]))
-            self.putChild("peers", DHTPeersEndpoint(dht_overlays[0]))
+            self.putChild(b"statistics", DHTStatisticsEndpoint(dht_overlays[0]))
+            self.putChild(b"values", DHTValuesEndpoint(dht_overlays[0]))
+            self.putChild(b"peers", DHTPeersEndpoint(dht_overlays[0]))
+            self.putChild(b"block", DHTBlockEndpoint(dht_overlays[0], tc_overlays[0]))
+
+
+class DHTBlockEndpoint(resource.Resource, BlockListener):
+    """
+    This endpoint is responsible for returning the latest Trustchain block of a peer. Additionally, it ensures
+    this peer's latest TC block is available
+    """
+
+    def received_block(self, block):
+        """
+        Wrapper callback method, inherited from the BlockListener abstract class, which will publish the latest
+        TrustChain block to the DHT
+
+        :param block: the latest block added to the Database. This is not actually used by the inner method
+        :return: None
+        """
+        self.publish_latest_block()
+
+    def should_sign(self, block):
+        pass
+
+    KEY_SUFFIX = b'_BLOCK'
+
+    def __init__(self, dht, trustchain):
+        resource.Resource.__init__(self)
+        self.dht = dht
+        self.trustchain = trustchain
+        self.block_version = 0
+
+        self._hashed_dht_key = sha1(self.trustchain.my_peer.mid + self.KEY_SUFFIX).digest()
+
+        trustchain.add_listener(self, [trustchain.UNIVERSAL_BLOCK_LISTENER])
+
+    def reconstruct_all_blocks(self, block_chunks):
+        """
+        Given a list of block chunks, reconstruct all the blocks in a dictionary indexed by their version
+
+        :param block_chunks: the list of block chunks
+        :return: a dictionary of reconstructed blocks (in packed format), indexed by the version of the blocks,
+                 and the maximal version
+        """
+        new_blocks = {}
+        max_version = 0
+
+        for entry in block_chunks:
+            this_version = struct.unpack("H", entry[1:3])[0]
+            max_version = max_version if max_version > this_version else this_version
+
+            new_blocks[this_version] = entry[3:] + new_blocks[this_version] if this_version in new_blocks else entry[3:]
+
+        return new_blocks, max_version
+
+    def _is_duplicate(self, latest_block):
+        """
+        Checks to see if this block has already been published to the DHT
+
+        :param latest_block: the PACKED version of the latest block
+        :return: True if the block has indeed been published before, False otherwise
+        """
+        block_chunks = self.dht.storage.get(self._hashed_dht_key)
+        new_blocks, _ = self.reconstruct_all_blocks(block_chunks)
+
+        for val in new_blocks.values():
+            if val == latest_block:
+                return True
+
+        return False
+
+    @inlineCallbacks
+    def publish_latest_block(self):
+        """
+        Publish the latest block of this node's TrustChain to the DHT
+        """
+        latest_block = self.trustchain.persistence.get_latest(self.trustchain.my_peer.public_key.key_to_bin())
+
+        if latest_block:
+            # Get all the previously published blocks for this peer from the DHT, and check if this is a duplicate
+            latest_block = latest_block.pack()
+            if self._is_duplicate(latest_block):
+                returnValue(None)
+
+            version = struct.pack("H", self.block_version)
+            self.block_version += 1
+
+            for i in range(0, len(latest_block), MAX_ENTRY_SIZE - 3):
+                blob_chunk = version + latest_block[i:i + MAX_ENTRY_SIZE - 3]
+                yield self.dht.store_value(self._hashed_dht_key, blob_chunk)
+
+    def render_GET(self, request):
+        """
+        Return the latest TC block of a peer, as identified in the request
+
+        :param request: the request for retrieving the latest TC block of a peer. It must contain the peer's
+        public key of the peer
+        :return: the latest block of the peer, if found
+        """
+        if not self.dht:
+            request.setResponseCode(http.NOT_FOUND)
+            return json.dumps({"error": "DHT community not found"}).encode('utf-8')
+
+        if not request.args or b'public_key' not in request.args:
+            request.setResponseCode(http.BAD_REQUEST)
+            return json.dumps({"error": "Must specify the peer's public key"}).encode('utf-8')
+
+        hash_key = sha1(b64decode(request.args[b'public_key'][0]) + self.KEY_SUFFIX).digest()
+        block_chunks = self.dht.storage.get(hash_key)
+
+        if not block_chunks:
+            request.setResponseCode(http.NOT_FOUND)
+            return json.dumps({"error": "Could not find a block for the specified key."}).encode('utf-8')
+
+        new_blocks, max_version = self.reconstruct_all_blocks(block_chunks)
+
+        return json.dumps({"block": b64encode(new_blocks[max_version]).decode('utf-8')}).encode('utf-8')
 
 
 class DHTStatisticsEndpoint(resource.Resource):

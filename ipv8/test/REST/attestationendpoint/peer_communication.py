@@ -1,4 +1,3 @@
-
 from abc import abstractmethod
 
 
@@ -111,9 +110,3 @@ class IGetStyleRequestsAE(object):
         :return: None
         """
         pass
-
-
-class RequestException(Exception):
-    """
-    Custom exception used to model request errors
-    """

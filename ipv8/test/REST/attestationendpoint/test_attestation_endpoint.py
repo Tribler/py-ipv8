@@ -3,13 +3,13 @@ from hashlib import sha1
 from json import dumps
 from twisted.internet.defer import returnValue, inlineCallbacks
 
-from ..mocking.rest.base import RESTTestBase
-from ..mocking.rest.peer_interactive_behavior import RequesterRestTestPeer
-from ..mocking.rest.rest_peer_communication import string_to_url
-from ..mocking.rest.rest_api_peer import RestTestPeer
-from ..mocking.rest.rest_peer_communication import HTTPGetRequesterAE, HTTPPostRequesterAE
-from ..mocking.rest.comunities import TestAttestationCommunity, TestIdentityCommunity
-from ...attestation.identity.community import IdentityCommunity
+from .rest_peer_communication import HTTPGetRequesterAE, HTTPPostRequesterAE
+from ...mocking.rest.base import RESTTestBase
+from ...mocking.rest.peer_interactive_behavior import RequesterRestTestPeer
+from ...mocking.rest.rest_peer_communication import string_to_url
+from ...mocking.rest.rest_api_peer import RestTestPeer
+from ...mocking.rest.comunities import TestAttestationCommunity, TestIdentityCommunity
+from ....attestation.identity.community import IdentityCommunity
 
 
 class TestAttestationEndpoint(RESTTestBase):
