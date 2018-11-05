@@ -4,7 +4,7 @@ from hashlib import sha1
 from base64 import b64decode, b64encode
 import json
 
-from twisted.internet.defer import Deferred, inlineCallbacks, returnValue
+from twisted.internet.defer import Deferred, succeed
 from twisted.web import resource
 
 from ..attestation.identity.community import IdentityCommunity
@@ -37,7 +37,6 @@ class AttestationEndpoint(resource.Resource):
         self.verification_output = {}
         self.attestation_metadata = {}
 
-    @inlineCallbacks
     def on_request_attestation(self, peer, attribute_name, metadata):
         """
         Return the measurement of an attribute for a certain peer.
@@ -46,8 +45,7 @@ class AttestationEndpoint(resource.Resource):
         self.attestation_requests[(b64encode(peer.mid), attribute_name)] = \
             (deferred, b64encode(json.dumps(metadata).encode('utf-8')))
         self.attestation_metadata[(peer, attribute_name)] = metadata
-        out = yield deferred
-        returnValue(out)
+        return deferred
 
     def on_attestation_complete(self, for_peer, attribute_name, attribute_hash, from_peer=None):
         """
@@ -62,19 +60,17 @@ class AttestationEndpoint(resource.Resource):
             self.identity_overlay.add_known_hash(attribute_hash, attribute_name, for_peer.public_key.key_to_bin(),
                                                  metadata)
 
-    @inlineCallbacks
     def on_verify_request(self, peer, attribute_hash):
         """
         Return the measurement of an attribute for a certain peer.
         """
         block = self.identity_overlay.get_attestation_by_hash(attribute_hash)
         if not block:
-            returnValue(None)
+            return succeed(None)
         attribute_name = block.transaction[b"name"]
         deferred = Deferred()
         self.verify_requests[(b64encode(peer.mid), attribute_name)] = deferred
-        out = yield deferred
-        returnValue(out)
+        return deferred
 
     def on_verification_results(self, attribute_hash, values):
         """

@@ -4,7 +4,9 @@ from collections import defaultdict
 import logging
 import socket
 from struct import unpack_from
+import sys
 import time
+from traceback import format_exception
 
 from twisted.internet import reactor
 from twisted.internet.error import MessageLengthError
@@ -144,7 +146,11 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
         self.overlay.increase_bytes_received(self, len(data))
         if self.check_num_packets(source, True):
             if DataChecker.is_allowed(data):
-                self.tunnel_data(source, data)
+                try:
+                    self.tunnel_data(source, data)
+                except:
+                    self.logger.error("Exception occurred while handling incoming exit node data!\n" +
+                                      ''.join(format_exception(*sys.exc_info())))
             else:
                 self.logger.warning("dropping forbidden packets to exit socket with circuit_id %d",
                                            self.circuit_id)
