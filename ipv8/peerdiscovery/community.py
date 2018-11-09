@@ -2,16 +2,17 @@ from __future__ import absolute_import
 
 from binascii import unhexlify
 
-from ...peer import Peer
-from ...deprecated.community import Community
-from ...deprecated.lazy_community import lazy_wrapper, lazy_wrapper_unsigned, PacketDecodingError
-from ...deprecated.payload import IntroductionRequestPayload
-from ...deprecated.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
-from .discovery_payload import PingPayload, PongPayload, SimilarityRequestPayload, SimilarityResponsePayload, \
+from .churn import RandomChurn
+from ..peer import Peer
+from ..deprecated.community import Community
+from ..deprecated.lazy_community import lazy_wrapper, lazy_wrapper_unsigned, PacketDecodingError
+from ..deprecated.payload import IntroductionRequestPayload
+from ..deprecated.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
+from .payload import PingPayload, PongPayload, SimilarityRequestPayload, SimilarityResponsePayload, \
     DiscoveryIntroductionRequestPayload
-from ...messaging.serialization import PackError
-from ...keyvault.crypto import default_eccrypto
-from ...util import cast_to_bin
+from ..messaging.serialization import PackError
+from ..keyvault.crypto import default_eccrypto
+from ..util import cast_to_bin
 
 
 class DiscoveryCommunity(Community):
@@ -33,6 +34,9 @@ class DiscoveryCommunity(Community):
             chr(3): self.on_ping,
             chr(4): self.on_pong
         })
+
+    def get_available_strategies(self):
+        return {'RandomChurn': RandomChurn}
 
     def on_introduction_request(self, source_address, data):
         try:

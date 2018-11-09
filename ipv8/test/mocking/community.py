@@ -3,7 +3,7 @@ from __future__ import absolute_import
 from .endpoint import AutoMockEndpoint
 from ...keyvault.crypto import default_eccrypto
 from ...peer import Peer
-from ...peerdiscovery.deprecated.discovery import DiscoveryCommunity
+from ...peerdiscovery.community import DiscoveryCommunity
 from ...peerdiscovery.network import Network
 
 

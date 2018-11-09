@@ -27,7 +27,7 @@ from ipv8.keyvault.crypto import default_eccrypto
 from ipv8.messaging.interfaces.udp.endpoint import UDPEndpoint
 from ipv8.peer import Peer
 from ipv8.peerdiscovery.churn import RandomChurn
-from ipv8.peerdiscovery.deprecated.discovery import DiscoveryCommunity
+from ipv8.peerdiscovery.community import DiscoveryCommunity
 from ipv8.peerdiscovery.network import Network
 
 

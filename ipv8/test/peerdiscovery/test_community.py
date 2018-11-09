@@ -4,13 +4,13 @@ from functools import reduce
 
 from twisted.internet.defer import inlineCallbacks
 
-from ....deprecated.community import _DEFAULT_ADDRESSES
-from ....deprecated.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
-from ...base import TestBase
-from ...mocking.community import MockCommunity
-from ....keyvault.crypto import default_eccrypto
-from ....peer import Peer
-from ....peerdiscovery.deprecated.discovery_payload import DiscoveryIntroductionRequestPayload
+from ...deprecated.community import _DEFAULT_ADDRESSES
+from ...deprecated.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
+from ..base import TestBase
+from ..mocking.community import MockCommunity
+from ...keyvault.crypto import default_eccrypto
+from ...peer import Peer
+from ...peerdiscovery.payload import DiscoveryIntroductionRequestPayload
 
 
 class TestDiscoveryCommunity(TestBase):
