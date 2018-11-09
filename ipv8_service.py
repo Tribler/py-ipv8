@@ -24,8 +24,7 @@ else:
         from ipv8.messaging.anonymization.hidden_services import HiddenTunnelCommunity
         from ipv8.messaging.interfaces.udp.endpoint import UDPEndpoint
         from ipv8.peer import Peer
-        from ipv8.peerdiscovery.churn import RandomChurn
-        from ipv8.peerdiscovery.deprecated.discovery import DiscoveryCommunity
+        from ipv8.peerdiscovery.community import DiscoveryCommunity
         from ipv8.peerdiscovery.discovery import EdgeWalk, RandomWalk
         from ipv8.peerdiscovery.network import Network
         from ipv8.dht.discovery import DHTDiscoveryCommunity
@@ -40,8 +39,7 @@ else:
         from .ipv8.messaging.anonymization.hidden_services import HiddenTunnelCommunity
         from .ipv8.messaging.interfaces.udp.endpoint import UDPEndpoint
         from .ipv8.peer import Peer
-        from .ipv8.peerdiscovery.churn import RandomChurn
-        from .ipv8.peerdiscovery.deprecated.discovery import DiscoveryCommunity
+        from .ipv8.peerdiscovery.community import DiscoveryCommunity
         from .ipv8.peerdiscovery.discovery import EdgeWalk, RandomWalk
         from .ipv8.peerdiscovery.network import Network
         from .ipv8.dht.discovery import DHTDiscoveryCommunity
@@ -57,10 +55,8 @@ else:
         'TrustChainTestnetCommunity': TrustChainTestnetCommunity,
     }
 
-
     _WALKERS = {
         'EdgeWalk': EdgeWalk,
-        'RandomChurn': RandomChurn,
         'RandomWalk': RandomWalk
     }
 
@@ -117,7 +113,8 @@ else:
                 overlay_instance = overlay_class(my_peer, self.endpoint, self.network, **overlay['initialize'])
                 self.overlays.append(overlay_instance)
                 for walker in overlay['walkers']:
-                    strategy_class = _WALKERS[walker['strategy']]
+                    strategy_class = _WALKERS.get(walker['strategy'],
+                                                  overlay_instance.get_available_strategies().get(walker['strategy']))
                     args = walker['init']
                     target_peers = walker['peers']
                     self.strategies.append((strategy_class(overlay_instance, **args), target_peers))

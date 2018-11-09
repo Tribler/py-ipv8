@@ -6,7 +6,7 @@ ipv8/test/test_requestcache.py:TestRequestCache
 ipv8/test/test_taskmanager.py:TestTaskManager
 
 ipv8/test/peerdiscovery/test_network.py:TestNetwork
-ipv8/test/peerdiscovery/deprecated/test_discovery.py:TestDiscoveryCommunity
+ipv8/test/peerdiscovery/test_community.py:TestDiscoveryCommunity
 ipv8/test/peerdiscovery/test_edge_discovery.py:TestEdgeWalk
 ipv8/test/peerdiscovery/test_random_discovery.py:TestRandomWalk
 ipv8/test/peerdiscovery/test_churn.py:TestChurn

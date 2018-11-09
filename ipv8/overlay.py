@@ -78,6 +78,16 @@ class Overlay(six.with_metaclass(abc.ABCMeta, EndpointListener, TaskManager)):
         if global_time > self.global_time:
             self.my_peer.update_clock(global_time)
 
+    def get_available_strategies(self):
+        """
+        Supply custom DiscoveryStrategies for use with this Overlay.
+        This is used by the configuration system to allow for non-globally defined strategies.
+
+        :return: a dictionary of names and DiscoveryStrategy subclass classes
+        :rtype: {str: class<DiscoveryStrategy>}
+        """
+        return {}
+
     def bootstrap(self):
         """
         Perform introduction logic to get into the network.
