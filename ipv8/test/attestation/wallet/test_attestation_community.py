@@ -59,7 +59,7 @@ class TestCommunity(TestBase):
         def f(peer, attribute_name, metadata):
             self.assertEqual(peer.address, self.nodes[1].endpoint.wan_address)
             self.assertEqual(attribute_name, "MyAttribute")
-            self.assertDictEqual(metadata, {'test': 123})
+            self.assertDictEqual(metadata, {u'test': u'123'})
 
             f.called = True
 

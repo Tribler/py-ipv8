@@ -20,7 +20,7 @@ if sys.version_info.major > 2:
     is_long_or_int = lambda x: isinstance(x, int)
     is_unicode = lambda x: isinstance(x, str)
     cast_to_long = lambda x: x
-    cast_to_unicode = lambda x: str(x)
+    cast_to_unicode = lambda x: "".join([chr(c) for c in x]) if isinstance(x, bytes) else str(x)
     cast_to_bin = lambda x: x if isinstance(x, bytes) else bytes([ord(c) for c in x])
     cast_to_chr = lambda x: "".join([chr(c) for c in x])
     maximum_integer = sys.maxsize
