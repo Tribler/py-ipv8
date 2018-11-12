@@ -56,7 +56,7 @@ class RESTRequest(server.Request):
             u"error": {
                 u"handled": False,
                 u"code": failure.value.__class__.__name__,
-                u"message": failure.value.message
+                u"message": str(failure.value)
             }
         }
         if self.site.displayTracebacks:

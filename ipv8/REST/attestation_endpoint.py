@@ -14,6 +14,7 @@ from ..attestation.wallet.primitives.attestation import binary_relativity_sha256
 from ..attestation.wallet.primitives.cryptosystem.boneh import generate_keypair
 from ..keyvault.crypto import default_eccrypto
 from ..peer import Peer
+from ..util import cast_to_bin, cast_to_unicode
 
 
 class AttestationEndpoint(resource.Resource):
@@ -42,7 +43,7 @@ class AttestationEndpoint(resource.Resource):
         Return the measurement of an attribute for a certain peer.
         """
         deferred = Deferred()
-        self.attestation_requests[(b64encode(peer.mid), attribute_name)] = \
+        self.attestation_requests[(b64encode(peer.mid), cast_to_bin(attribute_name))] = \
             (deferred, b64encode(json.dumps(metadata).encode('utf-8')))
         self.attestation_metadata[(peer, attribute_name)] = metadata
         return deferred
@@ -106,12 +107,13 @@ class AttestationEndpoint(resource.Resource):
             formatted = []
             for k, v in self.attestation_requests.items():
                 formatted.append(k + (v[1], ))
-            return json.dumps([(x.decode('utf-8'), y, z.decode('utf-8')) for x, y, z in formatted]).encode('utf-8')
+            return json.dumps([(x.decode('utf-8'), y.decode('utf-8'), z.decode('utf-8'))
+                               for x, y, z in formatted]).encode('utf-8')
         if request.args[b'type'][0] == b'outstanding_verify':
             formatted = []
             for k, v in self.verify_requests.items():
                 formatted.append(k)
-            return json.dumps([(x.decode('utf-8'), y) for x, y in formatted]).encode('utf-8')
+            return json.dumps([(x.decode('utf-8'), y.decode('utf-8')) for x, y in formatted]).encode('utf-8')
         if request.args[b'type'][0] == b'verification_output':
             formatted = {}
             for k, v in self.verification_output.items():
@@ -136,8 +138,10 @@ class AttestationEndpoint(resource.Resource):
                         previous = trimmed.get((attester, b.transaction[b"name"]), None)
                         if not previous or previous.sequence_number < b.sequence_number:
                             trimmed[(attester, b.transaction[b"name"])] = b
-                return json.dumps([(b.transaction[b"name"], b64encode(b.transaction[b"hash"]).decode('utf-8'),
-                                    b.transaction[b"metadata"],
+                return json.dumps([(b.transaction[b"name"].decode('utf-8'),
+                                    b64encode(b.transaction[b"hash"]).decode('utf-8'),
+                                    {cast_to_unicode(k):
+                                         cast_to_unicode(v) for k, v in b.transaction[b"metadata"].items()},
                                     b64encode(sha1(b.link_public_key).digest()).decode('utf-8'))
                                    for b in trimmed.values()]).encode('utf-8')
         if request.args[b'type'][0] == b'drop_identity':
@@ -162,31 +166,33 @@ class AttestationEndpoint(resource.Resource):
             return b""
         if request.args[b'type'][0] == b'request':
             mid_b64 = request.args[b'mid'][0]
-            attribute_name = request.args[b'attribute_name'][0].decode('utf-8')
+            attribute_name = request.args[b'attribute_name'][0]
             peer = self.get_peer_from_mid(mid_b64)
             if peer:
                 _, key = generate_keypair()
                 metadata = {}
                 if b'metadata' in request.args:
-                    metadata = json.loads(b64decode(request.args[b'metadata'][0]))
+                    metadata_unicode = json.loads(b64decode(request.args[b'metadata'][0]))
+                    for k, v in metadata_unicode.items():
+                        metadata[cast_to_bin(k)] = cast_to_bin(v)
                     self.attestation_metadata[(self.identity_overlay.my_peer, attribute_name)] = metadata
                 self.attestation_overlay.request_attestation(peer, attribute_name, key, metadata)
             return b""
         if request.args[b'type'][0] == b'attest':
             mid_b64 = request.args[b'mid'][0]
-            attribute_name = request.args[b'attribute_name'][0].decode('utf-8')
+            attribute_name = request.args[b'attribute_name'][0]
             attribute_value_b64 = request.args[b'attribute_value'][0]
             outstanding = self.attestation_requests.pop((mid_b64, attribute_name))
             outstanding[0].callback(b64decode(attribute_value_b64))
             return b""
         if request.args[b'type'][0] == b'allow_verify':
             mid_b64 = request.args[b'mid'][0]
-            attribute_name = request.args[b'attribute_name'][0].decode('utf-8')
+            attribute_name = request.args[b'attribute_name'][0]
             self.verify_requests[(mid_b64, attribute_name)].callback(True)
             return b""
         if request.args[b'type'][0] == b'verify':
             mid_b64 = request.args[b'mid'][0]
-            attribute_hash = b64decode(request.args[b'attribute_hash'][0].decode('utf-8'))
+            attribute_hash = b64decode(request.args[b'attribute_hash'][0])
             reference_values = [binary_relativity_sha256_4(b64decode(v))
                                 for v in request.args[b'attribute_values'][0].split(b',')]
             peer = self.get_peer_from_mid(mid_b64)

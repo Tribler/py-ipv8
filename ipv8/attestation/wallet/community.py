@@ -21,7 +21,7 @@ from .primitives.attestation import (attest_sha256_4, binary_relativity_certaint
 from .primitives.structs import Attestation, BonehPrivateKey, BonehPublicKey, pack_pair, unpack_pair
 from ...peer import Peer
 from ...requestcache import RequestCache
-from ...util import cast_to_bin, cast_to_chr
+from ...util import cast_to_bin, cast_to_chr, cast_to_unicode
 
 
 from threading import Lock
@@ -129,7 +129,7 @@ class AttestationCommunity(Community):
             "public_key": cast_to_chr(encodestring(public_key.serialize()))
         }
         meta_dict.update(metadata)
-        metadata = cast_to_bin(json.dumps(meta_dict))
+        metadata = cast_to_bin(json.dumps({cast_to_unicode(k): cast_to_unicode(v) for k, v in meta_dict.items()}))
 
         global_time = self.claim_global_time()
         auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
