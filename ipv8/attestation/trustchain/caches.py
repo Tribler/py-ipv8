@@ -5,6 +5,7 @@ from functools import reduce
 import logging
 
 from twisted.internet import reactor
+from twisted.internet.defer import Deferred
 from twisted.python.failure import Failure
 
 from ...requestcache import NumberCache
@@ -99,11 +100,19 @@ class HalfBlockSignCache(NumberCache):
         return 10.0
 
     def on_timeout(self):
+        if self.sign_deferred.called:
+            self._logger.debug("Race condition encountered with timeout/removal of HalfBlockSignCache, recovering.")
+            return
         self._logger.info("Timeout for sign request for half block %s, note that it can still arrive!", self.half_block)
         if self.timeouts < 360:
             self.community.send_block(self.half_block, address=self.socket_address)
-            self.community.request_cache.add(HalfBlockSignCache(self.community, self.half_block, self.sign_deferred,
-                                                                self.socket_address, self.timeouts + 1))
+
+            def add_later():
+                self.community.request_cache.add(HalfBlockSignCache(self.community, self.half_block, self.sign_deferred,
+                                                                    self.socket_address, self.timeouts + 1))
+            later = Deferred()
+            self.community.request_cache.register_anonymous_task("add-later", later, delay=0.0)
+            later.addCallbacks(add_later, lambda _: None) # If the re-add is cancelled, just exit.
         else:
             self.sign_deferred.errback(Failure(RuntimeError("Signature request timeout")))
 
