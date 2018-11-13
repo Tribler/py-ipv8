@@ -54,8 +54,6 @@ class TaskManager(object):
 
             if delay is not None:
                 if isinstance(task, Deferred):
-                    if value is None:
-                        raise ValueError("Expecting value to fire the Deferred with")
                     dc = self._reactor.callLater(delay, task.callback, value)
                 elif isinstance(task, LoopingCall):
                     if interval is None:
