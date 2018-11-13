@@ -3,6 +3,8 @@
 ## What is IPv8 ?
 
 IPv8 aims to provide authenticated communication with privacy.
+This Python 2/3 package is an amalgamation of peer-to-peer communication functionality from [Dispersy](https://github.com/Tribler/dispersy) and [Tribler](https://github.com/Tribler/tribler), developed over the last 13 years by students and employees of the Delft University of Technology.
+The IPv8 library allows you to easily create network overlays on which to build your own applications.
 
 ### IPv8 Objectives
 
@@ -11,21 +13,6 @@ IPv8 aims to provide authenticated communication with privacy.
 - **No infrastructure dependency**. Everybody is equal in the world of IPv8. No central web server, discovery server, or support foundation is needed.
 - **NAT traversal**. IPv8 can establish direct communication in difficult network situations. This includes connecting people behind a NAT or firewall.   IPv8 includes a single simple and effective NAT traversal technique: UDP hole-punching. This is essential when offering privacy without infrastructure and consumer-grade donated resources.
 - **Trust**. You can enhance your security if you tell IPv8 which people you know and trust. It tries to build a web-of-trust automatically.
-
-This Python 2 package contains IPv8: an amalgamation of peer-to-peer communication functionality from [Dispersy](https://github.com/Tribler/dispersy) and [Tribler](https://github.com/Tribler/tribler), developed over the last 13 years by students and employees of the Delft University of Technology.
-The IPv8 library allows you to interface with the existing Dispersy network to build your own applications.
-
-Functionality included by IPv8 at this point is:
- - *Cryptographically signed messaging*
- - *Tor-like anonymous messaging*
- - *Public service discovery*
- - *Hidden service discovery*
- - *TrustChain self-sovereign blockchain* 
- - *Peer discovery using random walks and (sybil resistant) edge walks*
- - *Peer keep-alive mechanisms*
- - *Hidden attribute attestation*
- 
-Implementations on the horizon of this library are *stream-based messaging* (instead of packet-based), *scalable TrustChain concensus* and *mixnet functionality*.
 
 ### Dependencies
 The dependencies for IPv8 are collected in the `requirements.txt` file and can be installed using `pip`:
