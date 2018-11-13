@@ -107,7 +107,7 @@ class HalfBlockSignCache(NumberCache):
         if self.timeouts < 360:
             self.community.send_block(self.half_block, address=self.socket_address)
 
-            def add_later():
+            def add_later(_):
                 self.community.request_cache.add(HalfBlockSignCache(self.community, self.half_block, self.sign_deferred,
                                                                     self.socket_address, self.timeouts + 1))
             later = Deferred()

@@ -56,9 +56,6 @@ class TestTaskManager(TestBase):
     def test_delayed_looping_call_requires_interval(self):
         self.assertRaises(ValueError, self.tm.register_task, "test", LoopingCall(lambda: None), delay=1)
 
-    def test_delayed_deferred_requires_value(self):
-        self.assertRaises(ValueError, self.tm.register_task, "test", deferLater(reactor, 0.0, lambda: None), delay=1)
-
     def test_delayed_looping_call_requires_LoopingCall_or_Deferred(self):
         self.assertRaises(ValueError, self.tm.register_task, "test not Deferred nor LoopingCall",
                           self.tm._reactor.callLater(0, lambda: None), delay=1)
