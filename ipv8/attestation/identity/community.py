@@ -10,14 +10,14 @@ from ...peer import Peer
 
 class IdentityCommunity(TrustChainCommunity, BlockListener):
 
-    master_peer = Peer(unhexlify("3081a7301006072a8648ce3d020106052b810400270381920004009ad2a2e35c328a3e92019873820d"
-                                 "70b53b82a752490febbce8bbbe2531a06a165121b8068e674236f26055a59b12c2139445f14dd86c4c"
-                                 "3c9598e8c999109f184556dac595f69001b5b16d2c14fe5f641f1a25227152df1989f0c8fb71a107ec"
-                                 "55e8e67f464391491c2390bb53fc9b314c7eeb46be1955024ad9e632130e4e92e61295ed1bb1783663"
-                                 "fd47fae71293"))
+    master_peer = Peer(unhexlify("307e301006072a8648ce3d020106052b81040024036a000400c9104b573ea18b795cb23b1defe6e5b7" +
+                                 "41afa4b2b5edfe7d211c9342dfb753a22e850fb1bff01d5ca66cfe0b1a845fa3e333d200b6d742151f" +
+                                 "3e4db3fe8b8508720744c70afe692c73264f789aa36a8c219acebeaa2b6ba652743d6580300fa1d98d" +
+                                 "96b766dfcd"))
 
     def __init__(self, *args, **kwargs):
-        super(IdentityCommunity, self).__init__(*args, **kwargs)
+        TrustChainCommunity.__init__(self, *args, **kwargs)
+        BlockListener.__init__(self)
 
         self.add_listener(self, [b'id_metadata'])
 
