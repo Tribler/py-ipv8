@@ -4,7 +4,6 @@ from base64 import b64encode, b64decode
 from binascii import hexlify, unhexlify
 from hashlib import sha1
 import json
-import struct
 
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.web import http, resource
@@ -14,6 +13,9 @@ from ..dht.community import DHTCommunity, MAX_ENTRY_SIZE
 from ..attestation.trustchain.community import TrustChainCommunity
 from ..dht.discovery import DHTDiscoveryCommunity
 from ..attestation.trustchain.listener import BlockListener
+from ..attestation.trustchain.payload import DHTBlockPayload
+from ..messaging.serialization import Serializer
+from ..keyvault.public.libnaclkey import LibNaCLPK
 
 
 class DHTEndpoint(resource.Resource):
@@ -53,22 +55,25 @@ class DHTBlockEndpoint(resource.Resource, BlockListener):
         pass
 
     KEY_SUFFIX = b'_BLOCK'
+    CHUNK_SIZE = MAX_ENTRY_SIZE - DHTBlockPayload.PREAMBLE_OVERHEAD - 1
 
     def __init__(self, dht, trustchain):
         resource.Resource.__init__(self)
         self.dht = dht
         self.trustchain = trustchain
         self.block_version = 0
+        self.serializer = Serializer()
 
-        self._hashed_dht_key = sha1(self.trustchain.my_peer.mid + self.KEY_SUFFIX).digest()
+        self._hashed_dht_key = sha1(self.trustchain.my_peer.public_key.key_to_bin() + self.KEY_SUFFIX).digest()
 
         trustchain.add_listener(self, [trustchain.UNIVERSAL_BLOCK_LISTENER])
 
-    def reconstruct_all_blocks(self, block_chunks):
+    def reconstruct_all_blocks(self, block_chunks, public_key):
         """
         Given a list of block chunks, reconstruct all the blocks in a dictionary indexed by their version
 
         :param block_chunks: the list of block chunks
+        :param public_key: the public key of the publishing node, which will be used for verifying the chunks
         :return: a dictionary of reconstructed blocks (in packed format), indexed by the version of the blocks,
                  and the maximal version
         """
@@ -76,22 +81,26 @@ class DHTBlockEndpoint(resource.Resource, BlockListener):
         max_version = 0
 
         for entry in block_chunks:
-            this_version = struct.unpack("H", entry[1:3])[0]
-            max_version = max_version if max_version > this_version else this_version
+            package = self.serializer.unpack_to_serializables([DHTBlockPayload, ], entry[1:])[0]
 
-            new_blocks[this_version] = entry[3:] + new_blocks[this_version] if this_version in new_blocks else entry[3:]
+            if public_key.verify(package.signature, str(package.version).encode('utf-8') + package.payload):
+                max_version = max_version if max_version > package.version else package.version
+
+                new_blocks[package.version] = package.payload + new_blocks[package.version] \
+                    if package.version in new_blocks else package.payload
 
         return new_blocks, max_version
 
-    def _is_duplicate(self, latest_block):
+    def _is_duplicate(self, latest_block, public_key):
         """
         Checks to see if this block has already been published to the DHT
 
         :param latest_block: the PACKED version of the latest block
+        :param public_key: the public key of the publishing node, which will be used for verifying the chunks
         :return: True if the block has indeed been published before, False otherwise
         """
         block_chunks = self.dht.storage.get(self._hashed_dht_key)
-        new_blocks, _ = self.reconstruct_all_blocks(block_chunks)
+        new_blocks, _ = self.reconstruct_all_blocks(block_chunks, public_key)
 
         for val in new_blocks.values():
             if val == latest_block:
@@ -109,15 +118,20 @@ class DHTBlockEndpoint(resource.Resource, BlockListener):
         if latest_block:
             # Get all the previously published blocks for this peer from the DHT, and check if this is a duplicate
             latest_block = latest_block.pack()
-            if self._is_duplicate(latest_block):
+            if self._is_duplicate(latest_block, self.trustchain.my_peer.public_key):
                 returnValue(None)
 
-            version = struct.pack("H", self.block_version)
-            self.block_version += 1
+            my_private_key = self.trustchain.my_peer.key
 
-            for i in range(0, len(latest_block), MAX_ENTRY_SIZE - 3):
-                blob_chunk = version + latest_block[i:i + MAX_ENTRY_SIZE - 3]
-                yield self.dht.store_value(self._hashed_dht_key, blob_chunk)
+            for i in range(0, len(latest_block), self.CHUNK_SIZE):
+                chunk = latest_block[i: i + self.CHUNK_SIZE]
+                signature = my_private_key.signature(str(self.block_version).encode('utf-8') + chunk)
+                blob_chunk = self.serializer.pack_multiple(
+                    DHTBlockPayload(signature, self.block_version, chunk).to_pack_list())
+
+                yield self.dht.store_value(self._hashed_dht_key, blob_chunk[0])
+
+            self.block_version += 1
 
     def render_GET(self, request):
         """
@@ -135,14 +149,16 @@ class DHTBlockEndpoint(resource.Resource, BlockListener):
             request.setResponseCode(http.BAD_REQUEST)
             return json.dumps({"error": "Must specify the peer's public key"}).encode('utf-8')
 
-        hash_key = sha1(b64decode(request.args[b'public_key'][0]) + self.KEY_SUFFIX).digest()
+        raw_public_key = b64decode(request.args[b'public_key'][0])
+        hash_key = sha1(raw_public_key + self.KEY_SUFFIX).digest()
         block_chunks = self.dht.storage.get(hash_key)
 
         if not block_chunks:
             request.setResponseCode(http.NOT_FOUND)
             return json.dumps({"error": "Could not find a block for the specified key."}).encode('utf-8')
 
-        new_blocks, max_version = self.reconstruct_all_blocks(block_chunks)
+        target_public_key = LibNaCLPK(binarykey=raw_public_key[10:])
+        new_blocks, max_version = self.reconstruct_all_blocks(block_chunks, target_public_key)
 
         return json.dumps({"block": b64encode(new_blocks[max_version]).decode('utf-8')}).encode('utf-8')
 

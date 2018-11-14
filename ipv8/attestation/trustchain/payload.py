@@ -333,3 +333,28 @@ class HalfBlockPairBroadcastPayload(HalfBlockPairPayload):
     @classmethod
     def from_unpack_list(cls, *args):
         return HalfBlockPairBroadcastPayload(*args)
+
+
+class DHTBlockPayload(Payload):
+    """
+    Class which represents the payloads published to the DHT for
+    """
+    format_list = ['64s', 'H', 'raw']
+    PREAMBLE_OVERHEAD = 66  # This stems from the 64 byte signature and the 2 byte unsigned short
+
+    def __init__(self, signature, version, payload):
+        super(DHTBlockPayload, self).__init__()
+        self.signature = signature
+        self.version = version
+        self.payload = payload
+
+    def to_pack_list(self):
+        return [
+            ('64s', self.signature),
+            ('H', self.version),
+            ('raw', self.payload)
+        ]
+
+    @classmethod
+    def from_unpack_list(cls, signature, version, payload):
+        return DHTBlockPayload(signature, version, payload)

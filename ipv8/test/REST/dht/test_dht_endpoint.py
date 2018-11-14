@@ -1,7 +1,7 @@
-import struct
-
 from hashlib import sha1
 from base64 import b64encode, b64decode
+from collections import deque
+
 from twisted.internet.defer import inlineCallbacks
 
 from .rest_peer_communication import HTTPGetRequesterDHT
@@ -10,9 +10,9 @@ from ...mocking.rest.base import RESTTestBase
 from ...mocking.rest.rest_peer_communication import string_to_url
 from ...mocking.rest.rest_api_peer import RestTestPeer
 from ...mocking.rest.comunities import TestDHTCommunity, TestTrustchainCommunity
-from ....attestation.trustchain.payload import HalfBlockPayload
+from ....attestation.trustchain.payload import HalfBlockPayload, DHTBlockPayload
 from ....attestation.trustchain.community import TrustChainCommunity
-from ....dht.community import DHTCommunity, MAX_ENTRY_SIZE
+from ....dht.community import DHTCommunity
 from ....REST.dht_endpoint import DHTBlockEndpoint
 from ....messaging.serialization import Serializer
 
@@ -41,11 +41,15 @@ class TestDHTEndpoint(RESTTestBase):
         :param numeric_version: the version of the data
         :return: None
         """
-        version = struct.pack("H", numeric_version)
+        my_private_key = peer.get_keys()['my_peer'].key
 
-        for i in range(0, len(data), MAX_ENTRY_SIZE - 3):
-            blob_chunk = version + data[i:i + MAX_ENTRY_SIZE - 3]
-            yield peer.get_overlay_by_class(DHTCommunity).store_value(key, blob_chunk)
+        for i in range(0, len(data), DHTBlockEndpoint.CHUNK_SIZE):
+            chunk = data[i: i + DHTBlockEndpoint.CHUNK_SIZE]
+            signature = my_private_key.signature(str(numeric_version).encode('utf-8') + chunk)
+
+            blob_chunk = self.serializer.pack_multiple(DHTBlockPayload(signature, numeric_version, chunk)
+                                                       .to_pack_list())
+            yield peer.get_overlay_by_class(DHTCommunity).store_value(key, blob_chunk[0])
 
     def deserialize_payload(self, serializables, data):
         """
@@ -58,6 +62,13 @@ class TestDHTEndpoint(RESTTestBase):
         payload = self.serializer.unpack_to_serializables(serializables, data)
         return payload[:-1][0]
 
+    def _increase_request_limit(self, new_request_limit):
+        for node in self.nodes:
+            routing_table = node.get_overlay_by_class(DHTCommunity).routing_table
+            for other in routing_table.closest_nodes(routing_table.my_node_id):
+                if other != node:
+                    routing_table.get(other.id).last_queries = deque(maxlen=new_request_limit)
+
     @inlineCallbacks
     def test_added_block_explicit(self):
         """
@@ -67,14 +78,15 @@ class TestDHTEndpoint(RESTTestBase):
             'port': self.nodes[0].port,
             'interface': self.nodes[0].interface,
             'endpoint': 'dht/block',
-            'public_key': string_to_url(b64encode(self.nodes[0].get_keys()['my_peer'].mid))
+            'public_key': string_to_url(b64encode(self.nodes[0].get_keys()['my_peer'].public_key.key_to_bin()))
         }
         # Introduce the nodes
         yield self.introduce_nodes(DHTCommunity)
 
         # Manually add a block to the Trustchain
         original_block = TestBlock()
-        hash_key = sha1(self.nodes[0].get_keys()['my_peer'].mid + DHTBlockEndpoint.KEY_SUFFIX).digest()
+        hash_key = sha1(self.nodes[0].get_keys()['my_peer'].public_key.key_to_bin() +
+                        DHTBlockEndpoint.KEY_SUFFIX).digest()
 
         yield self.publish_to_DHT(self.nodes[0], hash_key, original_block.pack(), 4536)
 
@@ -99,7 +111,7 @@ class TestDHTEndpoint(RESTTestBase):
             'port': self.nodes[1].port,
             'interface': self.nodes[1].interface,
             'endpoint': 'dht/block',
-            'public_key': string_to_url(b64encode(self.nodes[0].get_keys()['my_peer'].mid))
+            'public_key': string_to_url(b64encode(self.nodes[0].get_keys()['my_peer'].public_key.key_to_bin()))
         }
         # Introduce the nodes
         yield self.introduce_nodes(DHTCommunity)
@@ -109,6 +121,7 @@ class TestDHTEndpoint(RESTTestBase):
         yield self.nodes[0].get_overlay_by_class(TrustChainCommunity).create_source_block(b'test', {})
         original_block = self.nodes[0].get_overlay_by_class(TrustChainCommunity).persistence.get(publisher_pk, 1)
         yield self.deliver_messages()
+        yield self.sleep()
 
         # Get the block through the REST API
         response = yield self._get_style_requests.make_dht_block(param_dict)
@@ -116,7 +129,7 @@ class TestDHTEndpoint(RESTTestBase):
         response = b64decode(response['block'])
 
         # Reconstruct the block from what was received in the response
-        payload = self.deserialize_payload((HalfBlockPayload,), response)
+        payload = self.deserialize_payload((HalfBlockPayload, ), response)
         reconstructed_block = self.nodes[0].get_overlay_by_class(TrustChainCommunity).get_block_class(payload.type)\
             .from_payload(payload, self.serializer)
 
@@ -132,15 +145,17 @@ class TestDHTEndpoint(RESTTestBase):
             'port': self.nodes[1].port,
             'interface': self.nodes[1].interface,
             'endpoint': 'dht/block',
-            'public_key': string_to_url(b64encode(self.nodes[0].get_keys()['my_peer'].mid))
+            'public_key': string_to_url(b64encode(self.nodes[0].get_keys()['my_peer'].public_key.key_to_bin()))
         }
-        # Introduce the nodes
+        # Introduce the nodes and increase the size of the request queues
         yield self.introduce_nodes(DHTCommunity)
+        self._increase_request_limit(20)
 
         # Manually add a block to the Trustchain
         original_block_1 = TestBlock(transaction={1: 'asd'})
         original_block_2 = TestBlock(transaction={1: 'mmm'})
-        hash_key = sha1(self.nodes[0].get_keys()['my_peer'].mid + DHTBlockEndpoint.KEY_SUFFIX).digest()
+        hash_key = sha1(self.nodes[0].get_keys()['my_peer'].public_key.key_to_bin() +
+                        DHTBlockEndpoint.KEY_SUFFIX).digest()
 
         # Publish the two blocks under the same key in the first peer
         yield self.publish_to_DHT(self.nodes[0], hash_key, original_block_1.pack(), 4536)
