@@ -62,11 +62,13 @@ class RESTTestBase(unittest.TestCase):
         while attempts > 0:
             try:
                 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                s.connect(("127.0.0.1", port))
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                s.bind(("127.0.0.1", port))
                 s.close()
                 return port
             except socket.error:
                 attempts -= 1
+                port = random.randint(1024, 49152)
 
         raise socket.error("Could not find a valid port")
 
@@ -86,7 +88,7 @@ class RESTTestBase(unittest.TestCase):
         """
         raise NotImplementedError("The create_new_peer method should be implemented in the subclasses of RESTTestBase")
 
-    def _create_new_peer_inner(self, peer_cls, port, overaly_classes, *args, **kwargs):
+    def _create_new_peer_inner(self, peer_cls, port, overlay_classes, *args, **kwargs):
         """
         Create and return a new peer for testing. This is an internal method, which should ideally be wrapped by the
         create_new_peer method which calls this method, and automatically passes a list of the overlay classes which
@@ -97,7 +99,7 @@ class RESTTestBase(unittest.TestCase):
         :param port: the port of the peer mai be optionally provided, however, this is not advised as it might overlap
                      with an existing peer. Thus, it should be set to None. In this case, the port will be chosen by
                      this method.
-        :param overaly_classes: a list of overlay classes which should be instantiated as overlays in a new peer
+        :param overlay_classes: a list of overlay classes which should be instantiated as overlays in a new peer
         :param args: peer arguments (not considering the path and port)
         :param kwargs: keyworded peer arguments
         :return: the newly created peer and its index in the peer list
@@ -110,7 +112,7 @@ class RESTTestBase(unittest.TestCase):
             port = RESTTestBase.generate_local_port()
 
         # Create the new peer arguments
-        temp_args = [port, overaly_classes] + list(args)
+        temp_args = [port, overlay_classes] + list(args)
 
         # Create a directory if this peer requires it.
         if not kwargs.get('memory_dbs', True):
