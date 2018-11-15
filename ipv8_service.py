@@ -63,7 +63,7 @@ else:
 
     class IPv8(object):
 
-        def __init__(self, configuration, endpoint_override=None, enable_statistics=False):
+        def __init__(self, configuration, endpoint_override=None, enable_statistics=False, extra_communities=None):
             if endpoint_override:
                 self.endpoint = endpoint_override
             else:
@@ -108,7 +108,7 @@ else:
             self.overlays = []
 
             for overlay in configuration['overlays']:
-                overlay_class = _COMMUNITIES[overlay['class']]
+                overlay_class = _COMMUNITIES.get(overlay['class'], (extra_communities or {}).get(overlay['class']))
                 my_peer = self.keys[overlay['key']]
                 overlay_instance = overlay_class(my_peer, self.endpoint, self.network, **overlay['initialize'])
                 self.overlays.append(overlay_instance)
