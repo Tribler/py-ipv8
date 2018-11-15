@@ -80,7 +80,7 @@ To do this, fill your `main.py` file with the following code:
 from twisted.internet import reactor
 
 from pyipv8.ipv8.deprecated.community import Community
-from pyipv8.ipv8_service import _COMMUNITIES, IPv8
+from pyipv8.ipv8_service import IPv8
 from pyipv8.ipv8.configuration import get_default_configuration
 from pyipv8.ipv8.keyvault.crypto import ECCrypto
 from pyipv8.ipv8.peer import Peer
@@ -92,10 +92,6 @@ class MyCommunity(Community):
     # Other peers will connect to this community based on the sha-1
     # hash of this peer's public key.
     master_peer = Peer(ECCrypto().generate_key(u"medium"))
-
-
-# Register our community class, so we can invoke it from the configuration.
-_COMMUNITIES['MyCommunity'] = MyCommunity
 
 
 for i in [1, 2]:
@@ -129,7 +125,7 @@ for i in [1, 2]:
         'initialize': {},
         'on_start': []
     }]
-    IPv8(configuration)
+    IPv8(configuration, extra_communities={'MyCommunity': MyCommunity})
 
 reactor.run()
 ```
@@ -146,7 +142,7 @@ from twisted.internet import reactor
 from twisted.internet.task import LoopingCall
 
 from pyipv8.ipv8.deprecated.community import Community
-from pyipv8.ipv8_service import _COMMUNITIES, IPv8
+from pyipv8.ipv8_service import IPv8
 from pyipv8.ipv8.configuration import get_default_configuration
 from pyipv8.ipv8.keyvault.crypto import ECCrypto
 from pyipv8.ipv8.peer import Peer
@@ -162,9 +158,6 @@ class MyCommunity(Community):
         # This makes sure that the task ends when this overlay is unloaded.
         # We call the 'print_peers' function every 5.0 seconds, starting now.
         self.register_task("print_peers", LoopingCall(print_peers)).start(5.0, True)
-
-
-_COMMUNITIES['MyCommunity'] = MyCommunity
 
 
 for i in [1, 2]:
@@ -190,7 +183,7 @@ for i in [1, 2]:
         'initialize': {},
         'on_start': [('started', )]
     }]
-    IPv8(configuration)
+    IPv8(configuration, extra_communities={'MyCommunity': MyCommunity})
 
 reactor.run()
 ```
@@ -219,7 +212,7 @@ from twisted.internet.task import LoopingCall
 from pyipv8.ipv8.deprecated.community import Community
 from pyipv8.ipv8.deprecated.payload import Payload
 from pyipv8.ipv8.deprecated.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
-from pyipv8.ipv8_service import _COMMUNITIES, IPv8
+from pyipv8.ipv8_service import IPv8
 from pyipv8.ipv8.configuration import get_default_configuration
 from pyipv8.ipv8.keyvault.crypto import ECCrypto
 from pyipv8.ipv8.peer import Peer
@@ -290,9 +283,6 @@ class MyCommunity(Community):
         self.endpoint.send(source_address, packet)
 
 
-_COMMUNITIES['MyCommunity'] = MyCommunity
-
-
 for i in [1, 2, 3]:
     configuration = get_default_configuration()
     configuration['keys'] = [{
@@ -313,7 +303,7 @@ for i in [1, 2, 3]:
         'initialize': {},
         'on_start': [('started', )]
     }]
-    IPv8(configuration)
+    IPv8(configuration, extra_communities={'MyCommunity': MyCommunity})
 
 reactor.run()
 ```
