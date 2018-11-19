@@ -236,8 +236,20 @@ class TrustChainDB(Database):
         :return: the latest block or None if it is not known
         """
         return self._get(u"WHERE public_key = ? AND sequence_number = ? OR link_public_key = ? AND "
-                         u"link_sequence_number = ?", (database_blob(block.link_public_key), block.link_sequence_number,
-                                                       database_blob(block.public_key), block.sequence_number))
+                         u"link_sequence_number = ? ORDER BY block_timestamp ASC",
+                         (database_blob(block.link_public_key), block.link_sequence_number,
+                          database_blob(block.public_key), block.sequence_number))
+
+    def get_all_linked(self, block):
+        """
+        Return all linked blocks for a specific block.
+        :param block: The block for which to get the linked block
+        :return: A list of all linked blocks
+        """
+        return self._getall(u"WHERE public_key = ? AND sequence_number = ? OR link_public_key = ? AND "
+                            u"link_sequence_number = ?", (database_blob(block.link_public_key),
+                                                          block.link_sequence_number, database_blob(block.public_key),
+                                                          block.sequence_number))
 
     def crawl(self, public_key, start_seq_num, end_seq_num, limit=100):
         query = u"SELECT * FROM (%s WHERE sequence_number >= ? AND sequence_number <= ? AND public_key = ? LIMIT ?) " \

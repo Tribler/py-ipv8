@@ -447,7 +447,8 @@ class TestTrustChainCommunity(TestBase):
         self.assertIsNotNone(block)
 
         # Create a Link Block
-        yield self.nodes[1].overlay.create_link(block, block_type=b'link', additional_info={b'a': 1, b'b': 2})
+        link_block, _ = yield self.nodes[1].overlay.create_link(block, b'link', additional_info={b'a': 1, b'b': 2})
+        self.assertEqual(link_block.type, b'link')
         yield self.deliver_messages()
 
         # Check the dissemination of the link block
@@ -459,6 +460,24 @@ class TestTrustChainCommunity(TestBase):
 
         self.assertEqual(block_node_0.transaction, {b'a': 1, b'b': 2})
         self.assertEqual(block_node_1.transaction, {b'a': 1, b'b': 2})
+
+    @inlineCallbacks
+    def test_link_block_multiple(self):
+        """
+        Test whether we can create multiple link blocks for the same source block
+        """
+        source_peer_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
+
+        source_block, _ = yield self.nodes[0].overlay.create_source_block(b'test', {})
+        yield self.deliver_messages()
+
+        block = self.nodes[1].overlay.persistence.get(source_peer_pubkey, 1)
+
+        yield self.nodes[1].overlay.create_link(block, b'link', additional_info={b'a': 1, b'b': 2})
+        yield self.nodes[1].overlay.create_link(block, b'link', additional_info={b'a': 2, b'b': 3})
+        yield self.deliver_messages()
+
+        self.assertEqual(len(self.nodes[0].overlay.persistence.get_all_linked(source_block)), 2)
 
     def test_db_remove(self):
         """
