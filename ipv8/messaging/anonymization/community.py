@@ -7,9 +7,7 @@ from __future__ import absolute_import
 from __future__ import division
 
 from binascii import hexlify, unhexlify
-import sys
 import random
-from traceback import format_exception
 from cryptography.exceptions import InvalidTag
 from twisted.internet.defer import Deferred
 from twisted.internet.task import LoopingCall
@@ -24,6 +22,7 @@ from ...peer import Peer
 from ...requestcache import RequestCache
 from .tunnel import *
 from .tunnelcrypto import CryptoException, TunnelCrypto
+from ...util import addCallback
 
 message_to_payload = {
     u"data": (0, DataPayload),
@@ -770,7 +769,7 @@ class TunnelCommunity(Community):
             else:
                 self.logger.warning("We're not joining circuit with ID %s", payload.circuit_id)
 
-        self.should_join_circuit(payload, source_address).addCallback(determined_to_join)
+        addCallback(self.should_join_circuit(payload, source_address), determined_to_join)
 
     @tc_lazy_wrapper_unsigned(CreatedPayload)
     def on_created(self, source_address, payload, _):

@@ -6,7 +6,7 @@ import sys
 import traceback
 
 from twisted.internet import reactor, defer
-from twisted.python import failure
+from twisted.python.failure import Failure
 from twisted.python.threadable import isInIOThread
 
 logger = logging.getLogger(__name__)
@@ -67,7 +67,7 @@ def blockingCallFromThread(reactor, f, *args, **kwargs):
             result.addBoth(queue.put)
         reactor.callFromThread(_callFromThread)
         result = queue.get()
-        if isinstance(result, failure.Failure):
+        if isinstance(result, Failure):
             other_thread_tb = traceback.extract_tb(result.getTracebackObject())
             this_thread_tb = traceback.extract_stack()
             logger.error("Exception raised on the reactor's thread %s: \"%s\".\n Traceback from this thread:\n%s\n"
@@ -75,3 +75,15 @@ def blockingCallFromThread(reactor, f, *args, **kwargs):
                          ''.join(traceback.format_list(this_thread_tb)), ''.join(traceback.format_list(other_thread_tb)))
             result.raiseException()
         return result
+
+
+def defaultErrback(failure):
+    logger.error("Deferred errback fired: %s", failure)
+
+
+def addCallback(deferred, callback, errback=defaultErrback):
+    """
+    This global method can be used to add a callback (and optionally an errback) to a given Deferred object.
+    If no errback is provided, it uses the default errback, which simply logs the failure.
+    """
+    return deferred.addCallbacks(callback, errback)
