@@ -340,7 +340,8 @@ class TrustChainBlock(object):
                 # self counter signs another block (link). If link has a linked block that is not equal to self,
                 # then self is fraudulent, since it tries to countersign a block that is already countersigned
                 linklinked = database.get_linked(link)
-                if linklinked is not None and linklinked.hash != self.hash:
+                if linklinked is not None and linklinked.hash != self.hash and \
+                        link.link_public_key != ANY_COUNTERPARTY_PK:
                     result.err("Double countersign fraud")
 
     def update_chain_consistency(self, prev_blk, next_blk, result):
