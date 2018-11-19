@@ -447,7 +447,8 @@ class TestTrustChainCommunity(TestBase):
         self.assertIsNotNone(block)
 
         # Create a Link Block
-        yield self.nodes[1].overlay.create_link(block, block_type=b'link', additional_info={b'a': 1, b'b': 2})
+        link_block, _ = yield self.nodes[1].overlay.create_link(block, b'link', additional_info={b'a': 1, b'b': 2})
+        self.assertEqual(link_block.type, b'link')
         yield self.deliver_messages()
 
         # Check the dissemination of the link block

@@ -404,7 +404,7 @@ class TrustChainBlock(object):
         blk = database.get_latest(public_key)
         ret = cls()
         if link:
-            ret.type = link.type
+            ret.type = link.type if link.link_public_key != ANY_COUNTERPARTY_PK else block_type
             ret.transaction = link.transaction if additional_info is None else additional_info
             ret.link_public_key = link.public_key
             ret.link_sequence_number = link.sequence_number

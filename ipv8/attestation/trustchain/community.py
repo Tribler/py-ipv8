@@ -188,7 +188,7 @@ class TrustChainCommunity(Community):
         return self.sign_block(peer=None, public_key=ANY_COUNTERPARTY_PK,
                                block_type=block_type, transaction=transaction)
 
-    def create_link(self, source, block_type=b'unknown', additional_info=None, public_key=None):
+    def create_link(self, source, block_type, additional_info=None, public_key=None):
         """
         Create a Link Block to a source block
 
@@ -200,8 +200,8 @@ class TrustChainCommunity(Community):
         """
         public_key = source.public_key if public_key is None else public_key
 
-        self.sign_block(self.my_peer, linked=source, public_key=public_key, block_type=block_type,
-                        additional_info=additional_info)
+        return self.sign_block(self.my_peer, linked=source, public_key=public_key, block_type=block_type,
+                               additional_info=additional_info)
 
     @synchronized
     def sign_block(self, peer, public_key=EMPTY_PK, block_type=b'unknown', transaction=None, linked=None,
@@ -235,7 +235,10 @@ class TrustChainCommunity(Community):
         assert additional_info is None or isinstance(additional_info, dict), "Additional info should be a dictionary"
 
         self.persistence_integrity_check()
-        block_type = linked.type if linked else block_type
+
+        if linked and linked.link_public_key != ANY_COUNTERPARTY_PK:
+            block_type = linked.type
+
         block = self.get_block_class(block_type).create(block_type, transaction, self.persistence,
                                                         self.my_peer.public_key.key_to_bin(),
                                                         link=linked, additional_info=additional_info,
