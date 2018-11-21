@@ -64,11 +64,11 @@ class TestPeer(unittest.TestCase):
 
     def test_peer_inequality_address(self):
         """
-        Check if peers with the same key and a different address are not equal.
+        Check if peers with the same key and a different address are equal.
         """
         other = Peer(self.peer.key)
 
-        self.assertNotEqual(self.peer, other)
+        self.assertEqual(self.peer, other)
 
     def test_to_string(self):
         """
