@@ -132,12 +132,10 @@ class AttestationEndpoint(resource.Resource):
                 blocks = self.identity_overlay.persistence.get_latest_blocks(peer.public_key.key_to_bin(), 200)
                 trimmed = {}
                 for b in blocks:
-                    # Only include identity blocks we initiated (otherwise it would be an attestation)
-                    if b.link_sequence_number == UNKNOWN_SEQ:
-                        attester = b64encode(sha1(b.link_public_key).digest())
-                        previous = trimmed.get((attester, b.transaction[b"name"]), None)
-                        if not previous or previous.sequence_number < b.sequence_number:
-                            trimmed[(attester, b.transaction[b"name"])] = b
+                    attester = b64encode(sha1(b.link_public_key).digest())
+                    previous = trimmed.get((attester, b.transaction[b"name"]), None)
+                    if not previous or previous.sequence_number < b.sequence_number:
+                        trimmed[(attester, b.transaction[b"name"])] = b
                 return json.dumps([(b.transaction[b"name"].decode('utf-8'),
                                     b64encode(b.transaction[b"hash"]).decode('utf-8'),
                                     {cast_to_unicode(k):
