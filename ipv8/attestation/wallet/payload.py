@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 
-from ...deprecated.payload import Payload
+from ...messaging.payload import Payload
 
 
 class RequestAttestationPayload(Payload):

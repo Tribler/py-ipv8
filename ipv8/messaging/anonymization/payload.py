@@ -3,7 +3,7 @@ from __future__ import absolute_import
 import socket
 from struct import pack, unpack_from
 
-from ...deprecated.payload import Payload
+from ...messaging.payload import Payload
 from ...util import cast_to_bin, cast_to_chr
 
 ADDRESS_TYPE_IPV4 = 0x01

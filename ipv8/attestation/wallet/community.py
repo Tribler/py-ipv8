@@ -11,9 +11,9 @@ from twisted.internet.defer import inlineCallbacks
 
 from .caches import *
 from .database import AttestationsDB
-from ...deprecated.community import Community
-from ...deprecated.lazy_community import lazy_wrapper
-from ...deprecated.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
+from ...community import Community
+from ...lazy_community import lazy_wrapper
+from ...messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from .payload import *
 from .primitives.attestation import (attest_sha256_4, binary_relativity_certainty, create_challenge,
                                      create_challenge_response_from_pair, create_empty_relativity_map,

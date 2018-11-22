@@ -3,7 +3,7 @@ from __future__ import absolute_import
 import time
 
 from ...messaging.interfaces.endpoint import EndpointListener
-from ...deprecated.network_stats import NetworkStat
+from .network_stats import NetworkStat
 
 
 class StatisticsEndpoint(EndpointListener):
