@@ -14,5 +14,13 @@ setup(
     version='1.3',
     url='https://github.com/Tribler/py-ipv8',
     package_data={'': ['*.*']},
-    packages=find_packages()
+    packages=find_packages(),
+    install_requires=[
+        "cryptography",
+        "libnacl",
+        "netifaces",
+        "Twisted",
+        "pyOpenSSL",
+        "six"
+    ]
 )
