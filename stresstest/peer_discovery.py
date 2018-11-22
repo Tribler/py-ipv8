@@ -18,7 +18,7 @@ except ImportError:
 
 from ipv8_service import _COMMUNITIES, IPv8
 from ipv8.configuration import get_default_configuration
-from ipv8.deprecated.community import Community
+from ipv8.community import Community
 from ipv8.keyvault.crypto import ECCrypto
 from ipv8.peer import Peer
 

@@ -4,8 +4,8 @@ from functools import reduce
 
 from twisted.internet.defer import inlineCallbacks
 
-from ...deprecated.community import _DEFAULT_ADDRESSES
-from ...deprecated.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
+from ...community import _DEFAULT_ADDRESSES
+from ...messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from ..base import TestBase
 from ..mocking.community import MockCommunity
 from ...keyvault.crypto import default_eccrypto

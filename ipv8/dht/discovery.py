@@ -10,8 +10,8 @@ from twisted.internet.defer import fail
 from twisted.internet.task import LoopingCall
 from twisted.python.failure import Failure
 
-from ..deprecated.lazy_community import lazy_wrapper, lazy_wrapper_wd
-from ..deprecated.payload_headers import GlobalTimeDistributionPayload
+from ..lazy_community import lazy_wrapper, lazy_wrapper_wd
+from ..messaging.payload_headers import GlobalTimeDistributionPayload
 from .community import DHTCommunity, Request, PING_INTERVAL, TARGET_NODES, \
                        gatherResponses, MAX_NODES_IN_FIND
 from .routing import NODE_STATUS_BAD, Node

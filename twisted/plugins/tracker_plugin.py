@@ -22,8 +22,8 @@ from twisted.python import usage
 from twisted.python.log import msg
 from zope.interface import implements
 
-from ipv8.deprecated.community import Community
-from ipv8.deprecated.payload import IntroductionRequestPayload
+from ipv8.community import Community
+from ipv8.messaging.payload import IntroductionRequestPayload
 from ipv8.keyvault.crypto import default_eccrypto
 from ipv8.messaging.interfaces.udp.endpoint import UDPEndpoint
 from ipv8.peer import Peer

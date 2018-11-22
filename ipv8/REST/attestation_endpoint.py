@@ -8,7 +8,6 @@ from twisted.internet.defer import Deferred, succeed
 from twisted.web import resource
 
 from ..attestation.identity.community import IdentityCommunity
-from ..attestation.trustchain.block import UNKNOWN_SEQ
 from ..attestation.wallet.community import AttestationCommunity
 from ..attestation.wallet.primitives.attestation import binary_relativity_sha256_4
 from ..attestation.wallet.primitives.cryptosystem.boneh import generate_keypair

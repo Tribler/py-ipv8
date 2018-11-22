@@ -4,10 +4,10 @@ from binascii import unhexlify
 
 from .churn import RandomChurn
 from ..peer import Peer
-from ..deprecated.community import Community
-from ..deprecated.lazy_community import lazy_wrapper, lazy_wrapper_unsigned, PacketDecodingError
-from ..deprecated.payload import IntroductionRequestPayload
-from ..deprecated.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
+from ..community import Community
+from ..lazy_community import lazy_wrapper, lazy_wrapper_unsigned, PacketDecodingError
+from ..messaging.payload import IntroductionRequestPayload
+from ..messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from .payload import PingPayload, PongPayload, SimilarityRequestPayload, SimilarityResponsePayload, \
     DiscoveryIntroductionRequestPayload
 from ..messaging.serialization import PackError

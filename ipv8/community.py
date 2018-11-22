@@ -16,9 +16,10 @@ from socket import error, gethostbyname
 from time import time
 from traceback import format_exception
 
-from .lazy_community import lazy_wrapper, lazy_wrapper_unsigned, EZPackOverlay, lazy_wrapper_wd
-from .payload import IntroductionRequestPayload, IntroductionResponsePayload, PuncturePayload, PunctureRequestPayload
-from .payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
+from .lazy_community import lazy_wrapper, lazy_wrapper_unsigned, EZPackOverlay
+from .messaging.payload import (IntroductionRequestPayload, IntroductionResponsePayload, PuncturePayload,
+                                PunctureRequestPayload)
+from .messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 
 
 _DEFAULT_ADDRESSES = [

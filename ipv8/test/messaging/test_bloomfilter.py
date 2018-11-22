@@ -3,7 +3,7 @@ from __future__ import division
 
 from unittest import TestCase
 
-from ...deprecated.bloomfilter import BloomFilter
+from ...messaging.bloomfilter import BloomFilter
 from ...util import grange
 
 

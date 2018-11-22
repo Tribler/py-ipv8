@@ -13,9 +13,9 @@ from twisted.internet.defer import Deferred
 from twisted.internet.task import LoopingCall
 
 from .caches import *
-from ...deprecated.community import Community
-from ...deprecated.lazy_community import lazy_wrapper, lazy_wrapper_unsigned, lazy_wrapper_unsigned_wd
-from ...deprecated.payload_headers import BinMemberAuthenticationPayload
+from ...community import Community
+from ...lazy_community import lazy_wrapper, lazy_wrapper_unsigned, lazy_wrapper_unsigned_wd
+from ...messaging.payload_headers import BinMemberAuthenticationPayload
 from ...messaging.deprecated.encoding import encode, decode
 from .payload import *
 from ...peer import Peer

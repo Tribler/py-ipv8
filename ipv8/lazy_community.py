@@ -3,11 +3,11 @@ from __future__ import absolute_import
 from binascii import hexlify
 from functools import wraps
 
-from .payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
-from ..keyvault.crypto import default_eccrypto
-from ..overlay import Overlay
-from ..peer import Peer
-from ..util import cast_to_bin
+from .messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
+from .keyvault.crypto import default_eccrypto
+from .overlay import Overlay
+from .peer import Peer
+from .util import cast_to_bin
 
 
 def lazy_wrapper(*payloads):

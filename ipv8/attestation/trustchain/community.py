@@ -20,10 +20,9 @@ from ...attestation.trustchain.settings import TrustChainSettings
 from .block import TrustChainBlock, ValidationResult, EMPTY_PK, GENESIS_SEQ, UNKNOWN_SEQ, ANY_COUNTERPARTY_PK
 from .caches import CrawlRequestCache, HalfBlockSignCache, IntroCrawlTimeout, ChainCrawlCache
 from .database import TrustChainDB
-from ...deprecated.community import Community
-from ...deprecated.lazy_community import lazy_wrapper, lazy_wrapper_unsigned, lazy_wrapper_unsigned_wd, lazy_wrapper_wd
-from ...deprecated.payload import IntroductionResponsePayload
-from ...deprecated.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
+from ...community import Community
+from ...lazy_community import lazy_wrapper, lazy_wrapper_unsigned, lazy_wrapper_unsigned_wd
+from ...messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from .payload import *
 from ...peer import Peer
 from ...requestcache import RandomNumberCache, RequestCache

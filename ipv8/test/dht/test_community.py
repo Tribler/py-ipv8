@@ -9,7 +9,6 @@ from ..mocking.ipv8 import MockIPv8
 from ...dht.community import DHTCommunity
 from ...dht.provider import DHTCommunityProvider
 from ...dht.routing import Node, distance, NODE_LIMIT_QUERIES
-from ...util import maximum_integer
 
 
 class TestDHTCommunity(TestBase):

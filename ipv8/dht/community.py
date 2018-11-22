@@ -14,11 +14,10 @@ from twisted.python.failure import Failure
 
 from ..peer import Peer
 from ..requestcache import RandomNumberCache, RequestCache
-from ..deprecated.payload_headers import BinMemberAuthenticationPayload
-from ..deprecated.payload_headers import GlobalTimeDistributionPayload
-from ..deprecated.community import Community
-from ..deprecated.lazy_community import lazy_wrapper, lazy_wrapper_wd
-from ..deprecated.payload import PuncturePayload
+from ..messaging.payload import PuncturePayload
+from ..messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
+from ..community import Community
+from ..lazy_community import lazy_wrapper, lazy_wrapper_wd
 
 from .storage import Storage
 from .routing import RoutingTable, Node, distance, calc_node_id

@@ -79,7 +79,7 @@ To do this, fill your `main.py` file with the following code:
 ```python
 from twisted.internet import reactor
 
-from pyipv8.ipv8.deprecated.community import Community
+from pyipv8.ipv8.community import Community
 from pyipv8.ipv8_service import IPv8
 from pyipv8.ipv8.configuration import get_default_configuration
 from pyipv8.ipv8.keyvault.crypto import ECCrypto
@@ -141,7 +141,7 @@ We will now modify `main.py` again to print the current amount of peers:
 from twisted.internet import reactor
 from twisted.internet.task import LoopingCall
 
-from pyipv8.ipv8.deprecated.community import Community
+from pyipv8.ipv8.community import Community
 from pyipv8.ipv8_service import IPv8
 from pyipv8.ipv8.configuration import get_default_configuration
 from pyipv8.ipv8.keyvault.crypto import ECCrypto
@@ -209,9 +209,9 @@ Update your `main.py` once again to contain the following code:
 from twisted.internet import reactor
 from twisted.internet.task import LoopingCall
 
-from pyipv8.ipv8.deprecated.community import Community
-from pyipv8.ipv8.deprecated.payload import Payload
-from pyipv8.ipv8.deprecated.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
+from pyipv8.ipv8.community import Community
+from pyipv8.ipv8.messaging.payload import Payload
+from pyipv8.ipv8.messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from pyipv8.ipv8_service import IPv8
 from pyipv8.ipv8.configuration import get_default_configuration
 from pyipv8.ipv8.keyvault.crypto import ECCrypto
