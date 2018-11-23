@@ -23,26 +23,39 @@ from .messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTim
 
 
 _DEFAULT_ADDRESSES = [
+    # Dispersy
     ("130.161.119.206", 6421),
     ("130.161.119.206", 6422),
     ("131.180.27.155", 6423),
+    ("131.180.27.156", 6424),
     ("131.180.27.161", 6427),
-    ("83.149.70.6", 6424),
-    ("95.211.155.142", 6427),
-    ("95.211.155.131", 6428)
+    # IPv8
+    ("131.180.27.161", 6521),
+    ("131.180.27.161", 6522),
+    ("131.180.27.162", 6523),
+    ("131.180.27.162", 6524),
+    ("130.161.119.215", 6525),
+    ("130.161.119.215", 6526),
+    ("81.171.27.194", 6527),
+    ("81.171.27.194", 6528)
 ]
 
 
 _DNS_ADDRESSES = [
-    (u"dispersy1.tribler.org", 6421),
-    (u"dispersy2.tribler.org", 6422),
-    (u"dispersy3.tribler.org", 6423),
+    # Dispersy
+    (u"dispersy1.tribler.org", 6421), (u"dispersy1.st.tudelft.nl", 6421),
+    (u"dispersy2.tribler.org", 6422), (u"dispersy2.st.tudelft.nl", 6422),
+    (u"dispersy3.tribler.org", 6423), (u"dispersy3.st.tudelft.nl", 6423),
     (u"dispersy4.tribler.org", 6424),
-    (u"dispersy7.tribler.org", 6427),
-    (u"dispersy8.tribler.org", 6428),
-    (u"dispersy1.st.tudelft.nl", 6421),
-    (u"dispersy2.st.tudelft.nl", 6422),
-    (u"dispersy3.st.tudelft.nl", 6423)
+    # IPv8
+    (u"tracker1.ip-v8.org", 6521),
+    (u"tracker2.ip-v8.org", 6522),
+    (u"tracker3.ip-v8.org", 6523),
+    (u"tracker4.ip-v8.org", 6524),
+    (u"tracker5.ip-v8.org", 6525),
+    (u"tracker6.ip-v8.org", 6526),
+    (u"tracker7.ip-v8.org", 6527),
+    (u"tracker8.ip-v8.org", 6528)
 ]
 
 
