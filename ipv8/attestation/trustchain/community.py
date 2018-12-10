@@ -26,7 +26,7 @@ from ...messaging.payload_headers import BinMemberAuthenticationPayload, GlobalT
 from .payload import *
 from ...peer import Peer
 from ...requestcache import RandomNumberCache, RequestCache
-from ...util import grange
+from ...util import addCallback, grange
 
 receive_block_lock = RLock()
 
@@ -398,11 +398,13 @@ class TrustChainCommunity(Community):
                              validation)
             # Note that this code does not cover the scenario where we obtain this block indirectly.
             if not self.request_cache.has(u"crawl", blk.hash_number):
-                self.send_crawl_request(peer,
-                                        blk.public_key,
-                                        max(GENESIS_SEQ, blk.sequence_number - self.settings.validation_range),
-                                        max(GENESIS_SEQ, blk.sequence_number - 1),
-                                        for_half_block=blk).addCallback(lambda _: self.process_half_block(blk, peer))
+                crawl_deferred = self.send_crawl_request(peer,
+                                                         blk.public_key,
+                                                         max(GENESIS_SEQ, (blk.sequence_number -
+                                                                           self.settings.validation_range)),
+                                                         max(GENESIS_SEQ, blk.sequence_number - 1),
+                                                         for_half_block=blk)
+                addCallback(crawl_deferred, lambda _: self.process_half_block(blk, peer))
         else:
             self.sign_block(peer, linked=blk)
 
@@ -465,7 +467,7 @@ class TrustChainCommunity(Community):
         cache.current_request_attempts += 1
         cache.current_crawl_deferred = self.send_crawl_request(cache.peer, cache.peer.public_key.key_to_bin(),
                                                                start, stop)
-        cache.current_crawl_deferred.addCallback(lambda _: self.send_next_partial_chain_crawl_request(cache))
+        addCallback(cache.current_crawl_deferred, lambda _: self.send_next_partial_chain_crawl_request(cache))
 
     def send_next_partial_chain_crawl_request(self, cache):
         """

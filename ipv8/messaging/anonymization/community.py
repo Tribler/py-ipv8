@@ -451,7 +451,7 @@ class TunnelCommunity(Community):
                         # Remove old session key
                         self.relay_session_keys.pop(circuit_id, None)
 
-                    exit_socket.close().addCallback(on_exit_socket_closed)
+                    addCallback(exit_socket.close(), on_exit_socket_closed)
 
         if self.settings.remove_tunnel_delay == 0 or remove_now:
             remove_exit_socket_info()
