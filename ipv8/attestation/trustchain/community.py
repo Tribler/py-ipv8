@@ -12,6 +12,7 @@ import struct
 from functools import wraps
 from threading import RLock
 
+from six.moves import xrange
 from twisted.internet import reactor
 from twisted.internet.defer import Deferred, succeed, fail
 from twisted.internet.task import LoopingCall
@@ -26,7 +27,7 @@ from ...messaging.payload_headers import BinMemberAuthenticationPayload, GlobalT
 from .payload import *
 from ...peer import Peer
 from ...requestcache import RandomNumberCache, RequestCache
-from ...util import addCallback, grange
+from ...util import addCallback
 
 receive_block_lock = RLock()
 
@@ -631,7 +632,7 @@ class TrustChainCommunity(Community):
         total_trust = sum([self.get_trust(peer) for peer in eligible])
         random_trust_i = random.randint(0, total_trust - 1)
         current_trust_i = 0
-        for i in grange(0, len(eligible)):
+        for i in xrange(0, len(eligible)):
             next_trust_i = self.get_trust(eligible[i])
             if current_trust_i + next_trust_i > random_trust_i:
                 return eligible[i]

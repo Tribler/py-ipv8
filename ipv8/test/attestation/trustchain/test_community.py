@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 
+from six.moves import xrange
 from twisted.internet.defer import inlineCallbacks
 
 from ....attestation.trustchain.block import TrustChainBlock
@@ -11,7 +12,6 @@ from ....database import database_blob
 from ....keyvault.crypto import default_eccrypto
 from ...base import TestBase
 from ...mocking.ipv8 import MockIPv8
-from ....util import grange
 
 
 class DummyBlock(TrustChainBlock):
@@ -485,7 +485,7 @@ class TestTrustChainCommunity(TestBase):
         """
         self.nodes[0].overlay.settings.max_db_blocks = 5
 
-        for _ in grange(10):
+        for _ in xrange(10):
             test_block = TestBlock()
             self.nodes[0].overlay.persistence.add_block(test_block)
 

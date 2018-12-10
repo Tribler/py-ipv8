@@ -4,12 +4,14 @@ from binascii import hexlify
 from hashlib import sha256
 import time
 
+from six import string_types
+
 from ...database import database_blob
 from ...keyvault.crypto import default_eccrypto
 from ...messaging.deprecated.encoding import decode, encode
 from ...messaging.serialization import default_serializer
 from .payload import HalfBlockPayload
-from ...util import is_unicode, old_round
+from ...util import old_round
 
 
 GENESIS_HASH = b'0'*32    # ID of the first block of the chain.
@@ -443,7 +445,7 @@ class TrustChainBlock(object):
         for key, value in self.__dict__.items():
             if key == 'key' or key == 'serializer' or key == 'crypto' or key == '_transaction':
                 continue
-            if (isinstance(value, str) or is_unicode(value)) and key != "insert_time" and key != "type":
+            if isinstance(value, string_types) and key != "insert_time" and key != "type":
                 yield key, hexlify(value)
             else:
                 yield key, value

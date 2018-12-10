@@ -1,10 +1,10 @@
 from __future__ import absolute_import
 
-from collections import namedtuple
 import logging
 import sys
 import traceback
 
+from six.moves.queue import Queue
 from twisted.internet import reactor, defer
 from twisted.python.failure import Failure
 from twisted.python.threadable import isInIOThread
@@ -12,13 +12,7 @@ from twisted.python.threadable import isInIOThread
 logger = logging.getLogger(__name__)
 
 if sys.version_info.major > 2:
-    from io import StringIO
     import math
-    import queue as Queue
-    from urllib.parse import parse_qsl, ParseResult, unquote, urlencode, urlparse, quote
-    grange = range
-    is_long_or_int = lambda x: isinstance(x, int)
-    is_unicode = lambda x: isinstance(x, str)
     cast_to_long = lambda x: x
     cast_to_unicode = lambda x: "".join([chr(c) for c in x]) if isinstance(x, bytes) else str(x)
     cast_to_bin = lambda x: x if isinstance(x, bytes) else bytes([ord(c) for c in x])
@@ -26,22 +20,12 @@ if sys.version_info.major > 2:
     maximum_integer = sys.maxsize
     old_round = lambda x: float(math.floor((x) + math.copysign(0.5, x)))
 else:
-    from StringIO import StringIO
-    import Queue
-    from urllib import unquote, urlencode, quote
-    from urlparse import urlparse, parse_qsl, ParseResult
-    grange = xrange
-    is_long_or_int = lambda x: isinstance(x, (int, long))
-    is_unicode = lambda x: isinstance(x, unicode)
     cast_to_long = lambda x: long(x)
     cast_to_unicode = lambda x: unicode(x)
     cast_to_bin = str
     cast_to_chr = lambda x: x
     maximum_integer = sys.maxint
     old_round = round
-StringIO = StringIO
-urllib_future = namedtuple('urllib_future', ['unquote', 'urlencode', 'urlparse', 'parse_qsl', 'ParseResult', 'quote'])\
-    (unquote, urlencode, urlparse, parse_qsl, ParseResult, quote)
 
 
 def blocking_call_on_reactor_thread(func):
@@ -60,7 +44,7 @@ def blockingCallFromThread(reactor, f, *args, **kwargs):
     if isInIOThread():
             return f(*args, **kwargs)
     else:
-        queue = Queue.Queue()
+        queue = Queue()
 
         def _callFromThread():
             result = defer.maybeDeferred(f, *args, **kwargs)

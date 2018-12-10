@@ -6,6 +6,7 @@ import time
 
 from collections import defaultdict
 
+from six.moves import xrange
 from twisted.internet.defer import fail
 from twisted.internet.task import LoopingCall
 from twisted.python.failure import Failure
@@ -18,7 +19,6 @@ from .routing import NODE_STATUS_BAD, Node
 from .payload import StorePeerRequestPayload, StorePeerResponsePayload, \
                      ConnectPeerRequestPayload, ConnectPeerResponsePayload, \
                      PingRequestPayload, PingResponsePayload
-from ..util import grange
 
 MSG_STORE_PEER_REQUEST = 13
 MSG_STORE_PEER_RESPONSE = 14
@@ -182,7 +182,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
 
         now = time.time()
         for key, nodes in self.store_for_me.items():
-            for index in grange(len(nodes) - 1, -1, -1):
+            for index in xrange(len(nodes) - 1, -1, -1):
                 node = nodes[index]
                 if node.status == NODE_STATUS_BAD:
                     del self.store_for_me[key][index]
@@ -191,7 +191,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
                     self.ping(node).addErrback(lambda _: None)
 
         for key, nodes in self.store.items():
-            for index in grange(len(nodes) - 1, -1, -1):
+            for index in xrange(len(nodes) - 1, -1, -1):
                 node = nodes[index]
                 if now > node.last_query + 60:
                     self.logger.debug('Deleting peer %s (key %s)', node, hexlify(key))
