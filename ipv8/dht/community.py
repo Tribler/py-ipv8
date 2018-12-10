@@ -24,7 +24,7 @@ from .routing import RoutingTable, Node, distance, calc_node_id
 from .payload import PingRequestPayload, PingResponsePayload, StoreRequestPayload, \
                      StoreResponsePayload, FindRequestPayload, FindResponsePayload, \
                      SignedStrPayload, StrPayload
-from ..util import cast_to_bin
+from ..util import addCallback, cast_to_bin
 
 PING_INTERVAL = 25
 
@@ -58,7 +58,7 @@ MSG_FIND_RESPONSE = 12
 def gatherResponses(deferreds, **kwargs):
     def on_finished(results):
         return [x[1] for x in results if x[0]]
-    return DeferredList(deferreds, **kwargs).addCallback(on_finished)
+    return addCallback(DeferredList(deferreds, **kwargs), on_finished)
 
 
 class Request(RandomNumberCache):
