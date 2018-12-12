@@ -15,7 +15,7 @@ this can be addressed with a counting filter).  The more elements that are added
 larger the probability of false positives.
 
 Initial Bloomfilter implementation based on pybloom by Jay Baird <jay@mochimedia.com> and Bob
-Ippolito <bob@redivi.com>.  Simplified, and optimized to use just python code.
+Ippolito <bobchain@redivi.com>.  Simplified, and optimized to use just python code.
 
 @author: Boudewijn Schoon
 @organization: Technical University Delft
