@@ -19,13 +19,13 @@ EMPTY_PK = b'0' * 74
 ANY_COUNTERPARTY_PK = EMPTY_PK
 
 
-class TrustChainBlock(object):
+class BobChainBlock(object):
     """
     Container for TrustChain block information
     """
 
     def __init__(self, data=None, serializer=default_serializer):
-        super(TrustChainBlock, self).__init__()
+        super(BobChainBlock, self).__init__()
         self.serializer = serializer
         if data is None:
             # data
@@ -100,7 +100,7 @@ class TrustChainBlock(object):
         return self.hash
 
     def __eq__(self, other):
-        if not isinstance(other, TrustChainBlock):
+        if not isinstance(other, BobChainBlock):
             return False
         return self.pack() == other.pack()
 
