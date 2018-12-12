@@ -25,10 +25,12 @@ def synchronized(f):
     """
     Due to database inconsistencies, we can't allow multiple threads to handle a received_half_block at the same time.
     """
+
     @wraps(f)
     def wrapper(self, *args, **kwargs):
         with receive_block_lock:
             return f(self, *args, **kwargs)
+
     return wrapper
 
 
@@ -45,8 +47,8 @@ class BOBChainCommunity(Community):
     def started(self):
         def print_peers():
             print "I am:", self.my_peer, "\nI know:", [str(p) for p in self.get_peers()]
+
         # We register a Twisted task with this overlay.
         # This makes sure that the task ends when this overlay is unloaded.
         # We call the 'print_peers' function every 5.0 seconds, starting now.
         self.register_task("print_peers", LoopingCall(print_peers)).start(5.0, True)
-
