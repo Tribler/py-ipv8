@@ -49,6 +49,19 @@ default = {
                 ('resolve_dns_bootstrap_addresses', )
             ]
         },
+        {
+            'class': 'BOBChainCommunity',
+            'key': 'my peer',
+            'walkers': [{
+                'strategy': "RandomWalk",
+                'peers': 10,
+                'init': {
+                    'timeout': 3.0
+                }
+            }],
+            'initialize': {},
+            'on_start': [('started', )]
+        },
         # {
         #     'class': 'HiddenTunnelCommunity',
         #     'key': "anonymous id",
@@ -78,21 +91,21 @@ default = {
         #         ('build_tunnels', 1)
         #     ]
         # },
-        {
-            'class': 'TrustChainCommunity',
-            'key': "anonymous id",
-            'walkers': [{
-                'strategy': "EdgeWalk",
-                'peers': 20,
-                'init': {
-                    'edge_length': 4,
-                    'neighborhood_size': 6,
-                    'edge_timeout': 3.0
-                }
-            }],
-            'initialize': {},
-            'on_start': []
-        },
+        # {
+        #     'class': 'TrustChainCommunity',
+        #     'key': "anonymous id",
+        #     'walkers': [{
+        #         'strategy': "EdgeWalk",
+        #         'peers': 20,
+        #         'init': {
+        #             'edge_length': 4,
+        #             'neighborhood_size': 6,
+        #             'edge_timeout': 3.0
+        #         }
+        #     }],
+        #     'initialize': {},
+        #     'on_start': []
+        # },
         # {
         #     'class': 'AttestationCommunity',
         #     'key': "anonymous id",

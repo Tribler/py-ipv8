@@ -10,6 +10,8 @@ from twisted.internet import reactor
 from twisted.internet.defer import DeferredList, inlineCallbacks, maybeDeferred
 from twisted.internet.task import LoopingCall
 
+from pyipv8.ipv8.attestation.bobchain.community import BOBChainCommunity
+
 if hasattr(sys.modules['__main__'], "IPv8"):
     sys.modules[__name__] = sys.modules['__main__']
 else:
@@ -53,6 +55,7 @@ else:
         'TunnelCommunity': TunnelCommunity,
         'DHTDiscoveryCommunity': DHTDiscoveryCommunity,
         'TrustChainTestnetCommunity': TrustChainTestnetCommunity,
+        'BOBChainCommunity': BOBChainCommunity,
     }
 
     _WALKERS = {
