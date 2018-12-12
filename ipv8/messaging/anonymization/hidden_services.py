@@ -11,6 +11,8 @@ import hashlib
 import os
 import struct
 
+from six.moves import xrange
+
 from .caches import *
 from .community import TunnelCommunity, message_to_payload, tc_lazy_wrapper_unsigned
 from ...messaging.deprecated.encoding import decode, encode
@@ -18,7 +20,6 @@ from .payload import *
 from ...peer import Peer
 from .tunnel import CIRCUIT_ID_PORT, CIRCUIT_TYPE_IP, CIRCUIT_TYPE_RENDEZVOUS, CIRCUIT_TYPE_RP, EXIT_NODE, \
                     EXIT_NODE_SALT, Hop, RelayRoute, RendezvousPoint, TunnelExitSocket
-from ...util import grange
 
 
 class HiddenTunnelCommunity(TunnelCommunity):
@@ -176,7 +177,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         blacklist = self.dht_blacklist[info_hash]
 
         # cleanup dht_blacklist
-        for i in grange(len(blacklist) - 1, -1, -1):
+        for i in xrange(len(blacklist) - 1, -1, -1):
             if time.time() - blacklist[i][0] > 60:
                 blacklist.pop(i)
         exclude = [rp[2] for rp in self.my_download_points.values()] + [sock_addr for _, sock_addr in blacklist]

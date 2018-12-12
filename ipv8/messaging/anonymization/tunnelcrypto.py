@@ -6,11 +6,11 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.hkdf import HKDFExpand
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-
 import libnacl
+from six import integer_types
 
 from ...keyvault.crypto import ECCrypto, LibNaCLPK
-from ...util import cast_to_bin, is_long_or_int
+from ...util import cast_to_bin
 
 
 class CryptoException(Exception):
@@ -62,7 +62,7 @@ class TunnelCrypto(ECCrypto):
 
     def _bulid_iv(self, salt, salt_explicit):
         assert isinstance(salt, (bytes, str)), type(salt)
-        assert is_long_or_int(salt_explicit), type(salt_explicit)
+        assert isinstance(salt_explicit, integer_types), type(salt_explicit)
 
         if salt_explicit == 0:
             raise CryptoException("salt_explicit wrapped")

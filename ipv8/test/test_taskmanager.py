@@ -1,12 +1,12 @@
 from __future__ import absolute_import
 
+from six.moves import xrange
 from twisted.internet import reactor
 from twisted.internet.defer import Deferred, succeed
 from twisted.internet.task import Clock, deferLater, LoopingCall
 
 from .base import TestBase
 from ..taskmanager import CLEANUP_FREQUENCY, TaskManager
-from ..util import grange
 
 
 class TestTaskManager(TestBase):
@@ -134,7 +134,7 @@ class TestTaskManager(TestBase):
         Test if the tasks are cleaned up after the cleanup frequency has been met.
         """
         deferred = succeed(None)
-        for _ in grange(CLEANUP_FREQUENCY):
+        for _ in xrange(CLEANUP_FREQUENCY):
             self.tm.register_anonymous_task("test", deferred)
 
         deferred_list = self.tm.wait_for_deferred_tasks()
@@ -146,7 +146,7 @@ class TestTaskManager(TestBase):
         """
         deferred = succeed(None)
         self.tm.register_anonymous_task("test", Deferred()).addErrback(lambda _: None)
-        for _ in grange(CLEANUP_FREQUENCY-1):
+        for _ in xrange(CLEANUP_FREQUENCY-1):
             self.tm.register_anonymous_task("test", deferred)
 
         deferred_list = self.tm.wait_for_deferred_tasks()

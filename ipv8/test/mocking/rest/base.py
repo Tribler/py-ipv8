@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 import os
 import random
 import socket
@@ -5,13 +7,13 @@ from shutil import rmtree
 from string import ascii_uppercase, digits
 from threading import Thread
 
+from six.moves import xrange
 from twisted.internet import reactor
 from twisted.internet.defer import inlineCallbacks
 from twisted.internet.task import deferLater
 from twisted.trial import unittest
 
 from .rest_api_peer import RestTestPeer
-from ....util import grange
 
 TEST_FOLDER_PREFIX = "test_temp"
 
@@ -42,7 +44,7 @@ class RESTTestBase(unittest.TestCase):
             "peer_configurations not properly structured"
 
         for count, peer_type in peer_configurations:
-            for _ in grange(count):
+            for _ in xrange(count):
                 self.create_new_peer(peer_type, None)
 
         self._get_style_requests = get_style_requests

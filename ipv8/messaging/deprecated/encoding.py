@@ -3,8 +3,10 @@ from __future__ import absolute_import
 import logging
 from json import dumps
 
-from .sorting import sortable_sort
-from ...util import cast_to_bin, cast_to_long, is_long_or_int, is_unicode, urllib_future
+from six import integer_types, text_type
+from six.moves.urllib_parse import ParseResult, unquote, urlencode, urlparse, parse_qsl
+
+from ...util import cast_to_bin, cast_to_long
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +24,7 @@ def _a_encode_long(value, mapping):
     """
     42 --> ('2', 'J', '42')
     """
-    assert is_long_or_int(value) and not isinstance(value, int), "VALUE has invalid type: %s" % type(value)
+    assert isinstance(value, integer_types) and not isinstance(value, int), "VALUE has invalid type: %s" % type(value)
     value = str(value).encode("UTF-8")
     return str(len(value)).encode("UTF-8"), b"J", value
 
@@ -40,7 +42,7 @@ def _a_encode_unicode(value, mapping):
     """
     'foo-bar' --> ('7', 's', 'foo-bar')
     """
-    assert is_unicode(value), "VALUE has invalid type: %s" % type(value)
+    assert isinstance(value, text_type), "VALUE has invalid type: %s" % type(value)
     value = value.encode("UTF-8")
     return str(len(value)).encode("UTF-8"), b"s", value
 
@@ -58,7 +60,7 @@ def _a_encode_str(value, mapping):
     This can either be a Python3 str (unicode) or Python2 str (bytes).
     The difference is that a Python3 str is unicode and a Python2 str is not.
     """
-    if is_unicode(value):
+    if isinstance(value, text_type):
         return _a_encode_unicode(value, mapping)
     else:
         return _a_encode_bytes(value, mapping)
@@ -147,7 +149,7 @@ _a_encode_mapping = {'int': _a_encode_int,
 
 def bytes_to_uint(stream, offset=0):
     assert isinstance(stream, str)
-    assert is_long_or_int(offset)
+    assert isinstance(offset, integer_types)
     assert offset >= 0
     bit8 = 16 * 8
     mask7 = 2 ** 7 - 1
@@ -369,13 +371,13 @@ def add_url_params(url, params):
     'http://stackoverflow.com/test?data=some&data=values&answers=false'
     """
     # Unquoting URL first so we don't loose existing args
-    url = urllib_future.unquote(url)
+    url = unquote(url)
     # Extracting url info
-    parsed_url = urllib_future.urlparse(url)
+    parsed_url = urlparse(url)
     # Extracting URL arguments from parsed URL
     get_args = parsed_url.query
     # Converting URL arguments to dict
-    parsed_get_args = dict(urllib_future.parse_qsl(get_args))
+    parsed_get_args = dict(parse_qsl(get_args))
     # Merging URL arguments dict with new params
     parsed_get_args.update(params)
 
@@ -387,10 +389,10 @@ def add_url_params(url, params):
     )
 
     # Converting URL argument to proper query string
-    encoded_get_args = urllib_future.urlencode(parsed_get_args, doseq=True)
+    encoded_get_args = urlencode(parsed_get_args, doseq=True)
     # Creating new parsed result object based on provided with new
     # URL arguments. Same thing happens inside of urlparse.
-    new_url = urllib_future.ParseResult(
+    new_url = ParseResult(
         parsed_url.scheme, parsed_url.netloc, parsed_url.path,
         parsed_url.params, encoded_get_args, parsed_url.fragment
     ).geturl()

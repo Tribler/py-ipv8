@@ -15,7 +15,7 @@ import six
 import sys
 from threading import RLock
 
-from .util import is_long_or_int, is_unicode, cast_to_unicode
+from .util import cast_to_unicode
 
 if sys.platform == "darwin":
     # Workaround for annoying MacOS Sierra bug: https://bugs.python.org/issue27126
@@ -90,7 +90,7 @@ class Database(six.with_metaclass(ABCMeta, object)):
         @param file_path: the path to the database file.
         @type file_path: unicode
         """
-        self._assert(is_unicode(file_path),
+        self._assert(isinstance(file_path, six.text_type),
                      "expected file_path to be unicode, but was %s" % str(type(file_path)))
 
         super(Database, self).__init__()
@@ -230,7 +230,7 @@ class Database(six.with_metaclass(ABCMeta, object)):
             version = u"0"
 
         self._database_version = self.check_database(version)
-        self._assert(is_long_or_int(self._database_version),
+        self._assert(isinstance(self._database_version, six.integer_types),
                      "expected databse version to be int or long, but was type %s" % str(type(self._database_version)))
 
     @property
@@ -324,7 +324,7 @@ class Database(six.with_metaclass(ABCMeta, object)):
                      "Database.close() has been called or Database.open() has not been called")
         self._assert(self._connection is not None,
                      "Database.close() has been called or Database.open() has not been called")
-        self._assert(is_unicode(statements), "The SQL statement must be given in unicode")
+        self._assert(isinstance(statements, six.text_type), "The SQL statement must be given in unicode")
 
         self._logger.log(logging.NOTSET, "%s [%s]", statements, self._file_path)
 

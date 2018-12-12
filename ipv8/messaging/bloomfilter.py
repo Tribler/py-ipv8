@@ -30,7 +30,9 @@ from struct import Struct
 from binascii import hexlify, unhexlify
 import logging
 
-from ..util import cast_to_bin, cast_to_chr, is_long_or_int
+from six import integer_types
+
+from ..util import cast_to_bin, cast_to_chr
 
 logger = logging.getLogger(__name__)
 
@@ -133,7 +135,7 @@ class BloomFilter(object):
         assert 0 < self._k_functions <= self._m_size, [self._k_functions, self._m_size]
         assert isinstance(self._prefix, str), type(self._prefix)
         assert 0 <= len(self._prefix) < 256, len(self._prefix)
-        assert is_long_or_int(self._filter), type(self._filter)
+        assert isinstance(self._filter, integer_types), type(self._filter)
 
         # determine hash function
         if self._m_size >= (1 << 31):

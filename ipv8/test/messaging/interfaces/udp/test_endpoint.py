@@ -4,12 +4,12 @@ import socket
 import sys
 from unittest import skipIf
 
+from six.moves import xrange
 from twisted.internet.defer import inlineCallbacks
 
 from .....messaging.interfaces.endpoint import EndpointListener
 from .....messaging.interfaces.udp.endpoint import UDPEndpoint, UDP_MAX_SIZE
 from ....base import TestBase
-from .....util import grange
 
 
 class DummyEndpointListener(EndpointListener):
@@ -65,7 +65,7 @@ class TestUDPEndpoint(TestBase):
         """
         Test sending multiple messages through the UDP endpoint.
         """
-        for ind in grange(0, 50):
+        for ind in xrange(0, 50):
             self.endpoint1.send(self.ep2_address, b'a' * ind)
         yield self.sleep(0.05)
         self.assertEqual(len(self.endpoint2_listener.incoming), 50)
@@ -121,7 +121,7 @@ class TestUDPEndpoint(TestBase):
         self.endpoint1.transport.socket.sendto = cb_err_sendto
 
         # The following send raises a WSAEWOULDBLOCK and should queue the packet
-        for i in grange(102):
+        for i in xrange(102):
             self.endpoint1.send(self.ep2_address, str(i))
         self.endpoint1.transport.socket.sendto = real_sendto
         yield self.sleep(0.05)
@@ -134,4 +134,4 @@ class TestUDPEndpoint(TestBase):
         yield self.sleep(0.05)
         self.assertEqual(len(self.endpoint2_listener.incoming), 101)
         self.assertSetEqual({data for _, data in self.endpoint2_listener.incoming},
-                            {str(i) for i in grange(2, 103)})
+                            {str(i) for i in xrange(2, 103)})

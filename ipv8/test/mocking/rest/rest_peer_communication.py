@@ -1,13 +1,15 @@
+from __future__ import absolute_import
+
 import logging
 from json import loads
 
+from six.moves.urllib_parse import quote
 from twisted.internet import reactor
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.web.client import Agent, readBody
 from twisted.web.http_headers import Headers
 
 from .peer_communication import IGetStyleRequestsAE, RequestException, IPostStyleRequestsAE
-from ....util import quote
 
 
 def process_json_response(func):

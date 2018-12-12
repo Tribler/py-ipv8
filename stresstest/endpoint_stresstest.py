@@ -9,6 +9,7 @@ from subprocess import call
 from sys import exit as _exit
 from time import sleep, time
 
+from six.moves import xrange
 from twisted.internet import reactor
 from twisted.internet.defer import Deferred, DeferredList
 
@@ -26,7 +27,6 @@ from ipv8.configuration import get_default_configuration
 from ipv8.keyvault.crypto import default_eccrypto
 from ipv8.overlay import Overlay
 from ipv8.peer import Peer
-from ipv8.util import grange
 
 
 test_results = {}
@@ -219,7 +219,7 @@ if retcode > 0:
         6: 'data_asnd_initiator',
         7: 'data_asnd_counterparty'
     }
-    for i in grange(len(binretcode)):
+    for i in xrange(len(binretcode)):
         if binretcode[i] == '1':
             print("Significant slowdown in %s" % errmap[i])
 else:
