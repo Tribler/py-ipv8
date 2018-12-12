@@ -178,7 +178,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
         cache.deferred.callback(payload.nodes)
 
     def ping_all(self):
-        pinged = super(DHTDiscoveryCommunity, self).ping_all()
+        pinged = self.get_available_strategies()['PingChurn'](self).take_step()
 
         now = time.time()
         for key, nodes in self.store_for_me.items():

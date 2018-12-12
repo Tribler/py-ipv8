@@ -70,30 +70,6 @@ class TestDHTCommunity(TestBase):
         self.assertFailure(d, RuntimeError)
 
     @inlineCallbacks
-    def test_ping_all(self):
-        yield self.introduce_nodes()
-        bucket = self.nodes[0].overlay.routing_table.trie[u'']
-        node1 = bucket.get(self.nodes[1].overlay.my_node_id)
-        node1.failed = 1
-        node1.last_response = 0
-
-        self.nodes[0].overlay.ping_all()
-        yield self.deliver_messages()
-        self.assertTrue(node1.failed == 0)
-        self.assertNotEqual(node1.last_response, 0)
-
-    @inlineCallbacks
-    def test_ping_all_skip(self):
-        yield self.introduce_nodes()
-        bucket = self.nodes[0].overlay.routing_table.trie[u'']
-        node1 = bucket.get(self.nodes[1].overlay.my_node_id)
-        node1.failed = 1
-        node1.last_response = time.time()
-
-        self.nodes[0].overlay.ping_all()
-        self.assertTrue(node1.failed == 1)
-
-    @inlineCallbacks
     def test_store_value(self):
         yield self.introduce_nodes()
         node = yield self.nodes[0].overlay.store_value(self.key, self.value)
