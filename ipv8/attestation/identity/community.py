@@ -15,6 +15,8 @@ class IdentityCommunity(TrustChainCommunity, BlockListener):
                                  "3e4db3fe8b8508720744c70afe692c73264f789aa36a8c219acebeaa2b6ba652743d6580300fa1d98d" +
                                  "96b766dfcd"))
 
+    DB_NAME = 'identity'
+
     def __init__(self, *args, **kwargs):
         TrustChainCommunity.__init__(self, *args, **kwargs)
         BlockListener.__init__(self)
