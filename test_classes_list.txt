@@ -10,6 +10,7 @@ ipv8/test/peerdiscovery/test_community.py:TestDiscoveryCommunity
 ipv8/test/peerdiscovery/test_edge_discovery.py:TestEdgeWalk
 ipv8/test/peerdiscovery/test_random_discovery.py:TestRandomWalk
 ipv8/test/peerdiscovery/test_churn.py:TestChurn
+ipv8/test/peerdiscovery/test_churn.py:TestPingChurn
 
 ipv8/test/keyvault/test_crypto.py:TestECCrypto
 ipv8/test/keyvault/test_serialization.py:TestSerialization

@@ -14,6 +14,7 @@ from twisted.python.failure import Failure
 
 from ..peer import Peer
 from ..requestcache import RandomNumberCache, RequestCache
+from ..peerdiscovery.churn import PingChurn
 from ..messaging.payload import PuncturePayload
 from ..messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from ..community import Community
@@ -108,7 +109,6 @@ class DHTCommunity(Community):
         self.request_cache = RequestCache()
         self.tokens = {}
         self.token_secrets = deque(maxlen=2)
-        self.register_task('ping_all', LoopingCall(self.ping_all)).start(10, now=False)
         self.register_task('value_maintenance', LoopingCall(self.value_maintenance)).start(3600, now=False)
         self.register_task('token_maintenance', LoopingCall(self.token_maintenance)).start(300, now=True)
 
@@ -123,6 +123,9 @@ class DHTCommunity(Community):
         })
 
         self.logger.info('DHT community initialized (peer mid %s)', hexlify(self.my_peer.mid))
+
+    def get_available_strategies(self):
+        return {'PingChurn': PingChurn}
 
     def unload(self):
         self.request_cache.shutdown()
@@ -175,18 +178,6 @@ class DHTCommunity(Community):
                 self.logger.debug('Added node %s to the routing table', node)
                 # Ping the node in order to determine RTT
                 self.ping(rt_node).addErrback(lambda _: None)
-
-    def ping_all(self):
-        self.routing_table.remove_bad_nodes()
-
-        pinged = []
-        now = time.time()
-        for bucket in self.routing_table.trie.values():
-            for node in bucket.nodes.values():
-                if node.last_response + PING_INTERVAL <= now:
-                    self.ping(node).addErrback(lambda _: None)
-                    pinged.append(node)
-        return pinged
 
     def ping(self, node):
         self.logger.debug('Pinging node %s', node)
