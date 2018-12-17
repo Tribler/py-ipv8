@@ -15,11 +15,12 @@ from twisted.internet import reactor
 from twisted.internet.task import LoopingCall
 
 from pyipv8 import gui_holder
+from pyipv8.ipv8.attestation.trustchain.community import TrustChainCommunity
+from pyipv8.ipv8.attestation.trustchain.database import TrustChainDB
 from ...keyvault.crypto import ECCrypto
 from ...community import Community
 from ...peer import Peer
 import tkinter as tk
-import thread
 
 receive_block_lock = RLock()
 
@@ -37,15 +38,11 @@ def synchronized(f):
     return wrapper
 
 
-class BOBChainCommunity(Community):
+class BOBChainCommunity(TrustChainCommunity):
     """
     Community for reputation based on TrustChain tamper proof interaction history.
     """
     master_peer = Peer(ECCrypto().generate_key(u"medium"))
-
-    # DB_CLASS = TrustChainDB
-    # DB_NAME = 'trustchain'
-    # version = b'\x02'
 
     def started(self):
         def print_peers():

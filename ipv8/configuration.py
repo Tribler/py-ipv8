@@ -46,7 +46,7 @@ default = {
             ],
             'initialize': {},
             'on_start': [
-                ('resolve_dns_bootstrap_addresses', )
+                ('resolve_dns_bootstrap_addresses',)
             ]
         },
         {
@@ -60,7 +60,7 @@ default = {
                 }
             }],
             'initialize': {},
-            'on_start': [('started', )]
+            'on_start': [('started',)]
         },
         # {
         #     'class': 'HiddenTunnelCommunity',
@@ -148,7 +148,74 @@ default = {
     ]
 }
 
+config = {
+    'address': '0.0.0.0',
+    'port': 8090,
+    'keys': [
+        {
+            'alias': "my peer",
+            'generation': u"medium",
+            'file': u"ec.pem"
+        },
+        {
+            'alias': "anonymous id",
+            'generation': u"curve25519",
+            'file': u"ec_multichain.pem"
+        }
+    ],
+    'logger': {
+        'level': "INFO"
+    },
+    'walker_interval': 0.5,
+    'overlays': [
+        {
+            'class': 'DiscoveryCommunity',
+            'key': "my peer",
+            'walkers': [
+                {
+                    'strategy': "RandomWalk",
+                    'peers': 20,
+                    'init': {
+                        'timeout': 3.0
+                    }
+                },
+                {
+                    'strategy': "RandomChurn",
+                    'peers': -1,
+                    'init': {
+                        'sample_size': 8,
+                        'ping_interval': 10.0,
+                        'inactive_time': 27.5,
+                        'drop_time': 57.5
+                    }
+                }
+            ],
+            'initialize': {},
+            'on_start': [
+                ('resolve_dns_bootstrap_addresses',)
+            ]
+        },
+        {
+            'class': 'BOBChainCommunity',
+            'key': "my peer",
+            'walkers': [{
+                'strategy': "EdgeWalk",
+                'peers': 20,
+                'init': {
+                    'edge_length': 4,
+                    'neighborhood_size': 6,
+                    'edge_timeout': 3.0
+                }
+            }],
+            'initialize': {},
+            'on_start': [('started',)]
+        },
+    ]
+}
+
+
 def get_default_configuration():
-    return copy.deepcopy(default)
+    return copy.deepcopy(config)
+
 
 __all__ = ['get_default_configuration']
