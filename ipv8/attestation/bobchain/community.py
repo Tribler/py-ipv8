@@ -39,11 +39,21 @@ def synchronized(f):
     return wrapper
 
 
-class BOBChainCommunity(TrustChainCommunity):
+class BOBChainCommunity(Community):
     """
     Community for reputation based on TrustChain tamper proof interaction history.
     """
     master_peer = Peer(ECCrypto().generate_key(u"medium"))
+
+    def __init__(self, *args, **kwargs):
+        working_directory = kwargs.pop('working_directory', '')
+        super(BOBChainCommunity, self).__init__(*args, **kwargs)
+        self.logger = logging.getLogger(self.__class__.__name__)
+        self.relayed_broadcasts = []
+        self.logger.debug("The trustchain community started with Public Key: %s",
+                          hexlify(self.my_peer.public_key.key_to_bin()))
+        self.shutting_down = False
+        self.listeners_map = {}  # Map of block_type -> [callbacks]
 
     def started(self):
         def print_peers():
