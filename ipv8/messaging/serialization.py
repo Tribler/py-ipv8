@@ -2,6 +2,8 @@ from __future__ import absolute_import
 from __future__ import division
 
 import abc
+from binascii import hexlify
+import itertools
 from struct import pack, unpack, unpack_from, Struct
 import six
 import sys
@@ -74,12 +76,9 @@ class NestedPayload(object):
         :rtype: (Serializable, int)
         """
         raw, size = self.serializer.unpack('varlenH', data, offset)
-        unpacked = self.serializer.unpack_to_serializables([serializable_class], raw)
-        output, unknown_data = unpacked[:-1], unpacked[-1]
-        if len(unknown_data) != 0:
-            raise PackError("Found leftover data when unpacking %s" % serializable_class.__name__)
+        unpacked = self.serializer.ez_unpack_serializables([serializable_class], raw)
         # We only ever have 1 serializable, only return item 0.
-        return output[0], size
+        return unpacked[0], size
 
 
 class Bits(object):
@@ -271,6 +270,19 @@ class Serializer(object):
             index += 1
         return out, size
 
+    def ez_pack_serializables(self, serializables):
+        """
+        Serialize a list of Serializable instances.
+
+        :param serializables: the Serializables to pack
+        :type serializables: [Serializable]
+        :return: the serialized list
+        :rtype: bytes or str
+        """
+        out, _ = self.pack_multiple(list(itertools.chain.from_iterable(serializable.to_pack_list()
+                                                                       for serializable in serializables)))
+        return out
+
     def unpack(self, format, data, offset=0):
         """
         Use a certain named format to unpack from some data.
@@ -357,6 +369,9 @@ class Serializer(object):
 
         :param serializables: the serializable classes to get the format from and unpack to
         :param data: the data to unpack from
+        :except PackError: if the data could not be fit into the specified serializables
+        :return: the list of Serializable instances, with the list of remaining data as the last element
+        :rtype: [Serializable] + [bytes or str]
         """
         offset = 0
         out = []
@@ -374,6 +389,26 @@ class Serializer(object):
             out.append(serializable.from_unpack_list(*unpack_list))
         out.append(data[offset:])
         return out
+
+    def ez_unpack_serializables(self, serializables, data):
+        """
+        Use the formats specified in a serializable object and unpack to it.
+
+        :param serializables: the serializable classes to get the format from and unpack to
+        :param data: the data to unpack from
+        :except PackError: if the data could not be fit into the specified serializables
+        :except PackError: if not all of the data was consumed when parsing the serializables
+        :return: the list of Serializable instances
+        :rtype: [Serializable]
+        """
+        unpacked = self.unpack_to_serializables(serializables, data)
+        unknown_data = unpacked.pop()
+        if unknown_data:
+            raise PackError("Incoming packet %s (%s) has extra data: (%s)" %
+                            (str([serializable_class.__name__ for serializable_class in serializables]),
+                             hexlify(data),
+                             hexlify(unknown_data)))
+        return unpacked
 
 
 class Serializable(six.with_metaclass(abc.ABCMeta, object)):

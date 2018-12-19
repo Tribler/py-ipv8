@@ -1,6 +1,5 @@
 from __future__ import absolute_import
 
-from binascii import hexlify
 from functools import wraps
 
 from .messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
@@ -33,20 +32,13 @@ def lazy_wrapper(*payloads):
             # UNPACK
             auth, remainder = self.serializer.unpack_to_serializables([BinMemberAuthenticationPayload, ], data[23:])
             signature_valid, remainder = self._verify_signature(auth, data)
-            unpacked = self.serializer.unpack_to_serializables(payloads, remainder[23:])
-            output, unknown_data = unpacked[:-1], unpacked[-1]
+            unpacked = self.serializer.ez_unpack_serializables(payloads, remainder[23:])
             # ASSERT
-            if len(unknown_data) != 0:
-                raise PacketDecodingError("Incoming packet %s (%s) has extra data: (%s)" %
-                                          (str([payload_class.__name__ for payload_class in payloads]),
-                                           hexlify(data),
-                                           hexlify(unknown_data)))
-
             if not signature_valid:
                 raise PacketDecodingError("Incoming packet %s has an invalid signature" % \
                                           str([payload_class.__name__ for payload_class in payloads]))
             # PRODUCE
-            return func(self, Peer(auth.public_key_bin, source_address), *output)
+            return func(self, Peer(auth.public_key_bin, source_address), *unpacked)
         return wrapper
     return decorator
 
@@ -75,20 +67,13 @@ def lazy_wrapper_wd(*payloads):
             # UNPACK
             auth, remainder = self.serializer.unpack_to_serializables([BinMemberAuthenticationPayload, ], data[23:])
             signature_valid, remainder = self._verify_signature(auth, data)
-            unpacked = self.serializer.unpack_to_serializables(payloads, remainder[23:])
-            output, unknown_data = unpacked[:-1], unpacked[-1]
+            unpacked = self.serializer.ez_unpack_serializables(payloads, remainder[23:])
             # ASSERT
-            if len(unknown_data) != 0:
-                raise PacketDecodingError("Incoming packet %s (%s) has extra data: (%s)" %
-                                          (str([payload_class.__name__ for payload_class in payloads]),
-                                           hexlify(data),
-                                           hexlify(unknown_data)))
-
             if not signature_valid:
                 raise PacketDecodingError("Incoming packet %s has an invalid signature" % \
                                           str([payload_class.__name__ for payload_class in payloads]))
             # PRODUCE
-            output = output + [data]
+            output = unpacked + [data]
             return func(self, Peer(auth.public_key_bin, source_address), *output)
         return wrapper
     return decorator
@@ -115,17 +100,8 @@ def lazy_wrapper_unsigned(*payloads):
         @wraps(func)
         def wrapper(self, source_address, data):
             # UNPACK
-            unpacked = self.serializer.unpack_to_serializables(payloads, data[23:])
-            output, unknown_data = unpacked[:-1], unpacked[-1]
-            # ASSERT
-            if len(unknown_data) != 0:
-                raise PacketDecodingError("Incoming packet %s (%s) has extra data: (%s)" %
-                                          (str([payload_class.__name__ for payload_class in payloads]),
-                                           hexlify(data),
-                                           hexlify(unknown_data)))
-
-            # PRODUCE
-            return func(self, source_address, *output)
+            unpacked = self.serializer.ez_unpack_serializables(payloads, data[23:])
+            return func(self, source_address, *unpacked)
         return wrapper
     return decorator
 
@@ -186,14 +162,8 @@ class EZPackOverlay(Overlay):
         auth, remainder = self.serializer.unpack_to_serializables([BinMemberAuthenticationPayload, ], data[23:])
         signature_valid, remainder = self._verify_signature(auth, data)
         format = [GlobalTimeDistributionPayload, payload_class]
-        dist, payload, unknown_data = self.serializer.unpack_to_serializables(format, remainder[23:])
+        dist, payload = self.serializer.ez_unpack_serializables(format, remainder[23:])
         # ASSERT
-        if len(unknown_data) != 0:
-            raise PacketDecodingError("Incoming packet %s (%s) has extra data: (%s)" %
-                                      (payload_class.__name__,
-                                       hexlify(data),
-                                       hexlify(unknown_data)))
-
         if not signature_valid:
             raise PacketDecodingError("Incoming packet %s has an invalid signature" % payload_class.__name__)
         # PRODUCE
@@ -202,14 +172,7 @@ class EZPackOverlay(Overlay):
     def _ez_unpack_noauth(self, payload_class, data, global_time=True):
         # UNPACK
         format = [GlobalTimeDistributionPayload, payload_class] if global_time else [payload_class]
-        unpacked = self.serializer.unpack_to_serializables(format, data[23:])
-        unknown_data = unpacked.pop()
-        # ASSERT
-        if len(unknown_data) != 0:
-            raise PacketDecodingError("Incoming packet %s (%s) has extra data: (%s)" %
-                                      (payload_class.__name__,
-                                       hexlify(data),
-                                       hexlify(unknown_data)))
+        unpacked = self.serializer.ez_unpack_serializables(format, data[23:])
         # PRODUCE
         return unpacked if global_time else unpacked[0]
 
