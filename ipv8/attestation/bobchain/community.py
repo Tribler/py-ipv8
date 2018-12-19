@@ -5,23 +5,15 @@ Every node has a chain and these chains intertwine by blocks shared by chains.
 """
 from __future__ import absolute_import
 
-from binascii import hexlify, unhexlify
-import logging
-import random
-import struct
 from functools import wraps
 from threading import RLock
-from twisted.internet import reactor
+
+import tkinter as tk
 from twisted.internet.task import LoopingCall
 
 from pyipv8 import gui_holder
 from pyipv8.ipv8.attestation.bobchain.block import BobChainBlock
 from pyipv8.ipv8.attestation.trustchain.community import TrustChainCommunity
-from pyipv8.ipv8.attestation.trustchain.database import TrustChainDB
-from ...keyvault.crypto import ECCrypto
-from ...community import Community
-from ...peer import Peer
-import tkinter as tk
 
 receive_block_lock = RLock()
 
@@ -39,28 +31,15 @@ def synchronized(f):
     return wrapper
 
 
-class BOBChainCommunity(Community):
-    """
-    Community for reputation based on TrustChain tamper proof interaction history.
-    """
-    master_peer = Peer(ECCrypto().generate_key(u"medium"))
-
-    def __init__(self, *args, **kwargs):
-        working_directory = kwargs.pop('working_directory', '')
-        super(BOBChainCommunity, self).__init__(*args, **kwargs)
-        self.logger = logging.getLogger(self.__class__.__name__)
-        self.relayed_broadcasts = []
-        self.logger.debug("The trustchain community started with Public Key: %s",
-                          hexlify(self.my_peer.public_key.key_to_bin()))
-        self.shutting_down = False
-        self.listeners_map = {}  # Map of block_type -> [callbacks]
+class BOBChainCommunity(TrustChainCommunity):
 
     def started(self):
         def print_peers():
             print "I am:", self.my_peer, "\nI know:", [str(p) for p in self.get_peers()]
 
         def book_apartment():
-            BobChainBlock.create(b'test', {b'id': 42}, self.persistence, self.my_peer.public_key.key_to_bin(), link=None)
+            BobChainBlock.create(b'test', {b'id': 42}, self.persistence, self.my_peer.public_key.key_to_bin(),
+                                 link=None)
             print "Booked apartment"
 
         # We register a Twisted task with this overlay.
