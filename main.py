@@ -1,18 +1,12 @@
 import thread
 import threading
+from base64 import b64encode
 
 from twisted.internet import reactor
 
-import pyipv8.gui_holder
+from pyipv8.ipv8.REST.rest_manager import RESTManager
 from pyipv8.ipv8_service import IPv8
 from pyipv8.ipv8.configuration import get_default_configuration
-import tkinter as tk
-
-# Create an IPv8 object with the default settings.
-# It will come to life once the Twisted reactor starts running.
-IPv8(get_default_configuration())
-# Start the Twisted reactor: this is the engine scheduling all of the
-# asynchronous calls.
 
 for i in [1, 2]:
     configuration = get_default_configuration()
@@ -26,7 +20,19 @@ for i in [1, 2]:
         'generation': u"medium",
         'file': u"ec%d.pem" % i
     }]
-    IPv8(configuration)
+    # Give each peer a separate working directory
+    working_directory_overlays = ['BOBChainCommunity']
+    for overlay in configuration['overlays']:
+        if overlay['class'] in working_directory_overlays:
+            overlay['initialize'] = {'working_directory': 'state_%d' % i}
+
+    # Start the IPv8 service
+    ipv8 = IPv8(configuration)
+    rest_manager = RESTManager(ipv8)
+    rest_manager.start(14410 + i)
+
+    # Print the peer for reference
+    print "Starting peer", b64encode(ipv8.keys["my peer"].mid)
 
 
 def book_apartment():
@@ -35,4 +41,6 @@ def book_apartment():
 
 night_cap = 8
 
+# Start the Twisted reactor: this is the engine scheduling all of the
+# asynchronous calls.
 reactor.run()

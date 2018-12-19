@@ -15,6 +15,7 @@ from twisted.internet import reactor
 from twisted.internet.task import LoopingCall
 
 from pyipv8 import gui_holder
+from pyipv8.ipv8.attestation.bobchain.block import BobChainBlock
 from pyipv8.ipv8.attestation.trustchain.community import TrustChainCommunity
 from pyipv8.ipv8.attestation.trustchain.database import TrustChainDB
 from ...keyvault.crypto import ECCrypto
@@ -49,6 +50,7 @@ class BOBChainCommunity(TrustChainCommunity):
             print "I am:", self.my_peer, "\nI know:", [str(p) for p in self.get_peers()]
 
         def book_apartment():
+            BobChainBlock.create(b'test', {b'id': 42}, self.persistence, self.my_peer.public_key.key_to_bin(), link=None)
             print "Booked apartment"
 
         # We register a Twisted task with this overlay.
