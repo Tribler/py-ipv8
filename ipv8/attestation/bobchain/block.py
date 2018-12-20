@@ -17,4 +17,4 @@ class BobChainBlock(TrustChainBlock):
     """
 
     def __init__(self, data=None, serializer=default_serializer):
-        super(TrustChainBlock, self).__init__()
+        super(BobChainBlock, self).__init__(data, serializer)
