@@ -4,20 +4,23 @@ from base64 import b64encode
 from binascii import hexlify, unhexlify
 import json
 
-from twisted.web import http, resource
+from twisted.web import http
 from twisted.web.server import NOT_DONE_YET
 
 from ..dht.community import DHTCommunity
 from ..dht.discovery import DHTDiscoveryCommunity
+from .formal_endpoint import FormalEndpoint
+from .validation.annotations import RESTInput, RESTOutput
+from .validation.types import BOOLEAN_TYPE, NUMBER_TYPE, OptionalKey, STR_TYPE, TUPLE_TYPE
 
 
-class DHTEndpoint(resource.Resource):
+class DHTEndpoint(FormalEndpoint):
     """
     This endpoint is responsible for handling requests for DHT data.
     """
 
     def __init__(self, session):
-        resource.Resource.__init__(self)
+        super(DHTEndpoint, self).__init__()
 
         dht_overlays = [overlay for overlay in session.overlays if isinstance(overlay, DHTCommunity)]
         if dht_overlays:
@@ -26,15 +29,38 @@ class DHTEndpoint(resource.Resource):
             self.putChild("peers", DHTPeersEndpoint(dht_overlays[0]))
 
 
-class DHTStatisticsEndpoint(resource.Resource):
+class DHTStatisticsEndpoint(FormalEndpoint):
     """
     This endpoint is responsible for returning statistics about the DHT.
     """
 
     def __init__(self, dht):
-        resource.Resource.__init__(self)
+        super(DHTStatisticsEndpoint, self).__init__()
         self.dht = dht
 
+    @RESTOutput(lambda request: True,
+                {
+                    "statistics": {
+                        "node_id": STR_TYPE["HEX"],
+                        "peer_id": STR_TYPE["HEX"],
+                        "routing_table_size": NUMBER_TYPE,
+                        "routing_table_buckets": NUMBER_TYPE,
+                        "num_keys_in_store": NUMBER_TYPE,
+                        "num_tokens": NUMBER_TYPE,
+                        OptionalKey("num_peers_in_store"): {
+                            STR_TYPE["HEX"]: NUMBER_TYPE
+                        },
+                        OptionalKey("num_store_for_me"): {
+                            STR_TYPE["HEX"]: NUMBER_TYPE
+                        }
+                    }
+                },
+                http.OK)
+    @RESTOutput(lambda request: True,
+                {
+                    "error": (STR_TYPE["ASCII"], "The available information in case of no success.")
+                },
+                http.NOT_FOUND)
     def render_GET(self, request):
         if not self.dht:
             request.setResponseCode(http.NOT_FOUND)
@@ -57,29 +83,55 @@ class DHTStatisticsEndpoint(resource.Resource):
         return json.dumps({"statistics": stats})
 
 
-class DHTPeersEndpoint(resource.Resource):
+class DHTPeersEndpoint(FormalEndpoint):
     """
     This endpoint is responsible for handling requests for DHT peers.
     """
 
     def __init__(self, dht):
-        resource.Resource.__init__(self)
+        super(DHTPeersEndpoint, self).__init__()
         self.dht = dht
 
     def getChild(self, path, request):
         return SpecificDHTPeerEndpoint(self.dht, path)
 
+    def generate_documentation(self, absolute_path=[]):
+        super(DHTPeersEndpoint, self).generate_documentation(absolute_path)
+        SpecificDHTPeerEndpoint(None, "").generate_documentation(absolute_path + ["%s"])
 
-class SpecificDHTPeerEndpoint(resource.Resource):
+
+class SpecificDHTPeerEndpoint(FormalEndpoint):
     """
     This class handles requests for a specific DHT peer.
     """
 
     def __init__(self, dht, key):
-        resource.Resource.__init__(self)
+        super(SpecificDHTPeerEndpoint, self).__init__()
         self.mid = bytes(unhexlify(key))
         self.dht = dht
 
+    @RESTOutput(lambda request: True,
+                {
+                    "peers": {
+                        "public_key": STR_TYPE["BASE64"],
+                        "address": TUPLE_TYPE(STR_TYPE["ASCII"], NUMBER_TYPE)
+                    }
+                },
+                http.OK)
+    @RESTOutput(lambda request: True,
+                {
+                    "error": (STR_TYPE["ASCII"], "The available information in case of no success.")
+                },
+                http.NOT_FOUND)
+    @RESTOutput(lambda request: True,
+                {
+                    "error": {
+                        "handled": BOOLEAN_TYPE,
+                        "code": STR_TYPE["ASCII"],
+                        "message": STR_TYPE["ASCII"]
+                    }
+                },
+                http.INTERNAL_SERVER_ERROR)
     def render_GET(self, request):
         if not self.dht:
             request.setResponseCode(http.NOT_FOUND)
@@ -110,29 +162,55 @@ class SpecificDHTPeerEndpoint(resource.Resource):
         return NOT_DONE_YET
 
 
-class DHTValuesEndpoint(resource.Resource):
+class DHTValuesEndpoint(FormalEndpoint):
     """
     This endpoint is responsible for handling requests for DHT values.
     """
 
     def __init__(self, dht):
-        resource.Resource.__init__(self)
+        super(DHTValuesEndpoint, self).__init__()
         self.dht = dht
 
     def getChild(self, path, request):
         return SpecificDHTValueEndpoint(self.dht, path)
 
+    def generate_documentation(self, absolute_path=[]):
+        super(DHTValuesEndpoint, self).generate_documentation(absolute_path)
+        SpecificDHTValueEndpoint(None, "").generate_documentation(absolute_path + ["%s"])
 
-class SpecificDHTValueEndpoint(resource.Resource):
+
+class SpecificDHTValueEndpoint(FormalEndpoint):
     """
     This class handles requests for a specific DHT value.
     """
 
     def __init__(self, dht, key):
-        resource.Resource.__init__(self)
+        super(SpecificDHTValueEndpoint, self).__init__()
         self.key = bytes(unhexlify(key))
         self.dht = dht
 
+    @RESTOutput(lambda request: True,
+                {
+                    "values": {
+                        "public_key": STR_TYPE["BASE64"],
+                        "value": STR_TYPE["HEX"]
+                    }
+                },
+                http.OK)
+    @RESTOutput(lambda request: True,
+                {
+                    "error": (STR_TYPE["ASCII"], "The available information in case of no success.")
+                },
+                http.NOT_FOUND)
+    @RESTOutput(lambda request: True,
+                {
+                    "error": {
+                        "handled": BOOLEAN_TYPE,
+                        "code": STR_TYPE["ASCII"],
+                        "message": STR_TYPE["ASCII"]
+                    }
+                },
+                http.INTERNAL_SERVER_ERROR)
     def render_GET(self, request):
         if not self.dht:
             request.setResponseCode(http.NOT_FOUND)
@@ -142,7 +220,7 @@ class SpecificDHTValueEndpoint(resource.Resource):
             dicts = []
             for value in values:
                 data, public_key = value
-                dicts.append({'public_key': b64encode(public_key) if public_key else None,
+                dicts.append({'public_key': b64encode(public_key) if public_key else "",
                               'value': hexlify(data)})
             request.write(json.dumps({"values": dicts}))
             request.finish()
@@ -163,6 +241,26 @@ class SpecificDHTValueEndpoint(resource.Resource):
 
         return NOT_DONE_YET
 
+    @RESTInput("value", (STR_TYPE["HEX"], "The value to store."))
+    @RESTOutput(lambda request: True,
+                {
+                    "stored": BOOLEAN_TYPE
+                },
+                http.OK)
+    @RESTOutput(lambda request: True,
+                {
+                    "error": (STR_TYPE["ASCII"], "The available information in case of no success.")
+                },
+                [http.BAD_REQUEST, http.NOT_FOUND])
+    @RESTOutput(lambda request: True,
+                {
+                    "error": {
+                        "handled": BOOLEAN_TYPE,
+                        "code": STR_TYPE["ASCII"],
+                        "message": STR_TYPE["ASCII"]
+                    }
+                },
+                http.INTERNAL_SERVER_ERROR)
     def render_PUT(self, request):
         if not self.dht:
             request.setResponseCode(http.NOT_FOUND)

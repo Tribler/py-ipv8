@@ -3,18 +3,21 @@ from __future__ import absolute_import
 from binascii import hexlify
 import json
 
-from twisted.web import resource, http
+from twisted.web import http
 
+from .formal_endpoint import FormalEndpoint
 from ..messaging.interfaces.statistics_endpoint import StatisticsEndpoint
+from .validation.annotations import RESTInput, RESTOutput
+from .validation.types import BOOLEAN_TYPE, NUMBER_TYPE, STR_TYPE
 
 
-class OverlaysEndpoint(resource.Resource):
+class OverlaysEndpoint(FormalEndpoint):
     """
     This endpoint is responsible for handing all requests regarding the status of overlays.
     """
 
     def __init__(self, session):
-        resource.Resource.__init__(self)
+        super(OverlaysEndpoint, self).__init__()
         self.session = session
         self.putChild("statistics", OverlayStatisticsEndpoint(session))
 
@@ -31,17 +34,30 @@ class OverlaysEndpoint(resource.Resource):
             })
         return overlay_stats
 
+    @RESTOutput(lambda request: True,
+                ({
+                     "overlays": [
+                         {
+                             "master_peer": (STR_TYPE["HEX"], "Public key of the overlay Community."),
+                             "my_peer": (STR_TYPE["HEX"], "Public key of my member."),
+                             "global_time": NUMBER_TYPE,
+                             "peers": ([STR_TYPE["ASCII"]], "Pretty printed list of peers in this overlay."),
+                             "overlay_name": STR_TYPE["ASCII"]
+                         }
+                     ]
+                 },
+                 "All of the known overlays and their state."))
     def render_GET(self, request):
         return json.dumps({"overlays": self.get_overlays()})
 
 
-class OverlayStatisticsEndpoint(resource.Resource):
+class OverlayStatisticsEndpoint(FormalEndpoint):
     """
     This endpoint is responsible for handing all requests regarding the statistics of overlays.
     """
 
     def __init__(self, session):
-        resource.Resource.__init__(self)
+        super(OverlayStatisticsEndpoint, self).__init__()
         self.session = session
         self.statistics_supported = isinstance(self.session.endpoint, StatisticsEndpoint)
 
@@ -62,9 +78,44 @@ class OverlayStatisticsEndpoint(resource.Resource):
             named_statistics[mapped_name] = mapped_value
         return named_statistics
 
+    @RESTOutput(lambda request: True,
+                ({
+                     "statistics": [
+                         {
+                             (STR_TYPE["ASCII"], "The Community name."): {
+                                 (STR_TYPE["ASCII"], "The message name."): {
+                                     "identifier": (NUMBER_TYPE, "The message number."),
+                                     "num_up": NUMBER_TYPE,
+                                     "num_down": NUMBER_TYPE,
+                                     "bytes_up": NUMBER_TYPE,
+                                     "bytes_down": NUMBER_TYPE,
+                                     "first_measured_up": NUMBER_TYPE,
+                                     "first_measured_down": NUMBER_TYPE,
+                                     "last_measured_up": NUMBER_TYPE,
+                                     "last_measured_down": NUMBER_TYPE
+                                 }
+                             }
+                         }
+                     ]
+                 },
+                 "The statistics per message per community, if available."))
     def render_GET(self, _):
         return json.dumps({"statistics": self.get_statistics()})
 
+    @RESTInput("enable", (BOOLEAN_TYPE, "Whether to enable or disable the statistics."))
+    @RESTInput("overlay_name", (STR_TYPE["ASCII"], "Class name of the overlay."))
+    @RESTInput("all", (BOOLEAN_TYPE, "Update applies to all overlays."))
+    @RESTOutput(lambda request: True,
+                {
+                    "success": (BOOLEAN_TYPE, "Whether the request succeeded, see error.")
+                },
+                http.OK)
+    @RESTOutput(lambda request: True,
+                {
+                    "success": (BOOLEAN_TYPE, "Whether the request succeeded, see error."),
+                    "error": (STR_TYPE["ASCII"], "The available information in case of no success.")
+                },
+                [http.BAD_REQUEST, http.PRECONDITION_FAILED])
     def render_POST(self, request):
         """
         .. http:post:: /overlays/statistics

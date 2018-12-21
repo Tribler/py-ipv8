@@ -4,7 +4,7 @@ import json
 import logging
 from traceback import format_tb
 from twisted.internet import reactor
-from twisted.internet.defer import maybeDeferred
+from twisted.internet.defer import maybeDeferred, succeed
 from twisted.python.compat import intToBytes
 from twisted.web import server, http
 
@@ -37,7 +37,7 @@ class RESTManager(TaskManager):
         """
         Stop the HTTP API and return a deferred that fires when the server has shut down.
         """
-        return maybeDeferred(self.site.stopListening)
+        return maybeDeferred(self.site.stopListening if self.site else succeed(None))
 
 
 class RESTRequest(server.Request):

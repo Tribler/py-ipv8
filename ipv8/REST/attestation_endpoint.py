@@ -5,24 +5,26 @@ from base64 import b64decode, b64encode
 import json
 
 from twisted.internet.defer import Deferred, succeed
-from twisted.web import resource
 
 from ..attestation.identity.community import IdentityCommunity
 from ..attestation.wallet.community import AttestationCommunity
 from ..attestation.wallet.primitives.attestation import binary_relativity_sha256_4
 from ..attestation.wallet.primitives.cryptosystem.boneh import generate_keypair
+from .formal_endpoint import FormalEndpoint
 from ..keyvault.crypto import default_eccrypto
 from ..peer import Peer
 from ..util import cast_to_bin, cast_to_unicode
+from .validation.annotations import RESTInput, RESTOutput
+from .validation.types import NUMBER_TYPE, STR_TYPE, TUPLE_TYPE, UNKNOWN_OBJECT
 
 
-class AttestationEndpoint(resource.Resource):
+class AttestationEndpoint(FormalEndpoint):
     """
     This endpoint is responsible for handing all requests regarding attestation.
     """
 
     def __init__(self, session):
-        resource.Resource.__init__(self)
+        super(AttestationEndpoint, self).__init__()
         self.session = session
         attestation_overlays = [overlay for overlay in session.overlays if isinstance(overlay, AttestationCommunity)]
         identity_overlays = [overlay for overlay in session.overlays if isinstance(overlay, IdentityCommunity)]
@@ -91,6 +93,39 @@ class AttestationEndpoint(resource.Resource):
         matches = [p for p in peers if p.mid == mid]
         return matches[0] if matches else None
 
+    @RESTInput("type", STR_TYPE["ASCII"])
+    @RESTInput("mid", (STR_TYPE["BASE64"], "The member id to use for 'attributes' type requests."))
+    @RESTOutput(lambda request: request.get(b'type', None) == b"outstanding",
+                ([TUPLE_TYPE((STR_TYPE["BASE64"], "The member id who requested attestation."),
+                             (STR_TYPE["ASCII"], "The requested attribute name."),
+                             (STR_TYPE["BASE64"], "The JSON metadata as a string."))],
+                 "Poll outstanding attestation requests."))
+    @RESTOutput(lambda request: request.get(b'type', None) == b"outstanding_verify",
+                ([TUPLE_TYPE((STR_TYPE["BASE64"], "The member id who requested attestation."),
+                             (STR_TYPE["ASCII"], "The requested attribute name."))],
+                 "Poll outstanding verification requests."))
+    @RESTOutput(lambda request: request.get(b'type', None) == b"verification_output",
+                ({
+                    STR_TYPE["BASE64"]: [TUPLE_TYPE(
+                        (STR_TYPE["BASE64"], "Attribute hash."),
+                        (NUMBER_TYPE, "Confidence in tested value.")
+                    )]
+                 },
+                 "Poll available verification output."))
+    @RESTOutput(lambda request: request.get(b'type', None) == b"peers",
+                ([STR_TYPE["BASE64"]],
+                 "Fetch all known overlay member identifiers."))
+    @RESTOutput(lambda request: request.get(b'type', None) == b"attributes",
+                ([TUPLE_TYPE(
+                    (STR_TYPE["ASCII"], "The attribute name."),
+                    (STR_TYPE["BASE64"], "The attribute hash."),
+                    (UNKNOWN_OBJECT, "The user metadata."),
+                    (STR_TYPE["BASE64"], "The attester's member id.")
+                )],
+                 "Get the known attributes for a given member id (our own if no member id is supplied)."))
+    @RESTOutput(lambda request: request.get(b'type', None) == b"drop_identity",
+                ("",
+                 "Drop all identity data (used for debugging)."))
     def render_GET(self, request):
         """
         type=drop_identity
@@ -152,6 +187,26 @@ class AttestationEndpoint(resource.Resource):
             self.attestation_overlay.my_peer = my_new_peer
         return b""
 
+    @RESTInput("type", STR_TYPE["ASCII"])
+    @RESTInput("mid", (STR_TYPE["BASE64"], "The member id to use for 'attributes' type requests."))
+    @RESTInput("attibute_name", STR_TYPE["ASCII"])
+    @RESTInput("attribute_value", STR_TYPE["BASE64"])
+    @RESTInput("attribute_values", ([STR_TYPE["BASE64"]], "The values to match to/test for, when verifying."))
+    @RESTInput("attribute_hash", (STR_TYPE["BASE64"], "The hash of the attribute to prove."))
+    @RESTOutput(lambda request: request.get(b'type', None) == b"request",
+                ("",
+                 "Request attestation for an attribute from an identifier. Takes mid and attribute_name." +
+                 "Optionally supply a custom metadata (string to string map) object."))
+    @RESTOutput(lambda request: request.get(b'type', None) == b"allow_verify",
+                ("",
+                 "Allow verification of an attribute by someone. Takes mid and attribute_name."))
+    @RESTOutput(lambda request: request.get(b'type', None) == b"attest",
+                ("",
+                 "Attest an attribute for someone. Takes mid, attribute_name and attribute_value."))
+    @RESTOutput(lambda request: request.get(b'type', None) == b"verify",
+                ("",
+                 "Request verification of someone's attribute. Takes mid, attribute_values, attribute_hash "+
+                 "and attribute_values."))
     def render_POST(self, request):
         """
         type=request&mid=mid_b64&attibute_name=attribute_name
