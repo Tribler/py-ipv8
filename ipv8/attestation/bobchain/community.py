@@ -35,7 +35,7 @@ def synchronized(f):
 class BOBChainCommunity(TrustChainCommunity):
     bobChainCommunity = None
 
-    def _init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super(BOBChainCommunity, self).__init__(*args, **kwargs)
 
     def book_apartment(self):
@@ -71,6 +71,9 @@ class BOBChainCommunity(TrustChainCommunity):
                 result.add(property_id)
         return result
 
+    def publish_license(self):
+        self.persistence.add_block()
+
     def started(self):
         def print_peers():
             print "I am: ", self.my_peer, "\nI know: ", [str(p) for p in self.get_peers()]
@@ -101,33 +104,79 @@ class Page(tk.Frame):
         self.winfo_toplevel().title(self.window_title)
 
 
-class PageLogin(Page):
+class PageLogin(object, Page):
     window_title = "Login"
 
     def __init__(self, *args, **kwargs):
         Page.__init__(self, *args, **kwargs)
 
     def init(self, page_government, page_home_owner, page_ota):
-        b1 = tk.Button(self, text="Government", command=page_government.show)
-        b2 = tk.Button(self, text="Home owner", command=page_home_owner.show)
-        b3 = tk.Button(self, text="OTA", command=page_ota.show)
+        self.page_government = page_government
+        self.page_home_owner = page_home_owner
+        self.page_ota = page_ota
+
+    def show(self):
+        super(PageLogin, self).show()
+        b1 = tk.Button(self, text="Government", command=self.page_government.show)
+        b2 = tk.Button(self, text="Home owner", command=self.page_home_owner.show)
+        b3 = tk.Button(self, text="OTA", command=self.page_ota.show)
 
         b1.pack(side="top", fill="both")
         b2.pack(side="top", fill="both")
         b3.pack(side="top", fill="both")
 
 
-class PageGovernment(Page):
+class PageGovernment(object, Page):
     window_title = "Government"
 
     def __init__(self, *args, **kwargs):
         Page.__init__(self, *args, **kwargs)
 
-    def init(self):
-        pass
+    def init(self, get_apartments, publish_license):
+        self.get_apartments = get_apartments
+        self.publish_license = publish_license
+        tk.Label(self, text="Registered properties")
+        self.listbox = tk.Listbox(self)
+        self.listbox.pack()
 
+        tk.Label(self, text="Country").pack()
+        entry_country = tk.Entry(self)
+        entry_country.pack()
 
-class PageHomeOwner(Page):
+        tk.Label(self, text="State").pack()
+        entry_state = tk.Entry(self)
+        entry_state.pack()
+
+        tk.Label(self, text="City").pack()
+        entry_city = tk.Entry(self)
+        entry_city.pack()
+
+        tk.Label(self, text="Street").pack()
+        entry_street = tk.Entry(self)
+        entry_street.pack()
+
+        tk.Label(self, text="Number").pack()
+        entry_number = tk.Entry(self)
+        entry_number.pack()
+
+        button = tk.Button(self,
+                           text="Publish license",
+                           command=lambda: self.publish_license(
+                               entry_country.get(),
+                               entry_state.get(),
+                               entry_city.get(),
+                               entry_street.get(),
+                               entry_number.get()
+                           ))
+        button.pack()
+
+    def show(self):
+        super(PageGovernment, self).show()
+        for property_id in self.get_apartments():
+            self.listbox.insert(tk.END, "Property: " + str(property_id))
+        self.get_apartments()
+
+class PageHomeOwner(object,Page):
     window_title = "Home Owner"
 
     def __init__(self, *args, **kwargs):
@@ -144,9 +193,12 @@ class PageOTA(Page):
         Page.__init__(self, *args, **kwargs)
 
     def init(self, page_book_apartment):
+        self.page_book_apartment = page_book_apartment
+
+    def show(self):
         button = tk.Button(self,
                            text="Book apartment",
-                           command=page_book_apartment.show)
+                           command=self.page_book_apartment.show)
         button.pack()
 
 
@@ -158,20 +210,20 @@ class PageBookApartment(object, Page):
 
     def init(self, get_apartments, book_apartment):
         self.get_apartments = get_apartments
+        self.book_apartment = book_apartment
+
+    def show(self):
+        super(PageBookApartment, self).show()
         self.listbox = tk.Listbox(self)
         self.listbox.pack()
 
         button = tk.Button(self,
                            text="Book apartment",
-                           command=book_apartment)
+                           command=self.book_apartment)
         button.pack()
-
-    def show(self):
-        super(PageBookApartment, self).show()
         for property_id in self.get_apartments():
             self.listbox.insert(tk.END, "Property: " + str(property_id))
         self.get_apartments()
-
 
 
 class MainFrame(tk.Frame):
@@ -193,10 +245,12 @@ class MainFrame(tk.Frame):
         self.page_book_apartment = PageBookApartment(self)
 
         self.page_login.init(self.page_government, self.page_home_owner, self.page_ota)
-        self.page_government.init()
+        self.page_government.init(lambda: BOBChainCommunity.bobChainCommunity.get_apartments(),
+                                  lambda: BOBChainCommunity.bobChainCommunity.publish_license())
         self.page_home_owner.init()
         self.page_ota.init(self.page_book_apartment)
-        self.page_book_apartment.init(lambda: BOBChainCommunity.bobChainCommunity.get_apartments(), lambda: BOBChainCommunity.bobChainCommunity.book_apartment())
+        self.page_book_apartment.init(lambda: BOBChainCommunity.bobChainCommunity.get_apartments(),
+                                      lambda: BOBChainCommunity.bobChainCommunity.book_apartment())
 
         self.page_login.place(in_=container, x=0, y=0, relwidth=1, relheight=1)
         self.page_government.place(in_=container, x=0, y=0, relwidth=1, relheight=1)
