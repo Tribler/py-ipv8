@@ -1,7 +1,7 @@
 import threading
 import time
 
-import tkinter as tk
+import Tkinter as tk
 
 
 def delayed_start():
