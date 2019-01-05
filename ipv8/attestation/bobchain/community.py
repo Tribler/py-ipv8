@@ -13,10 +13,12 @@ from threading import RLock
 from twisted.internet.defer import succeed
 from twisted.internet.task import LoopingCall
 
-from pyipv8.ipv8.attestation.bobchain.block import BobChainBlock
-from pyipv8.ipv8.attestation.trustchain.block import ANY_COUNTERPARTY_PK, ValidationResult
-from pyipv8.ipv8.community import Community
-from pyipv8.ipv8.peer import Peer
+from .block import BobChainBlock
+from .database import BobChainDB
+from .settings import BobChainSettings
+from ..trustchain.block import ANY_COUNTERPARTY_PK, ValidationResult
+from ...community import Community
+from ...peer import Peer
 
 receive_block_lock = RLock()
 
@@ -53,7 +55,15 @@ class BOBChainCommunity(Community):
                                  "66f0373ca425015cc9fad75b267de0cfb46ed798796058b23e12fc4c42ce9868f1eb7d59cc2023c039"
                                  "14175ebb9703"))
 
+    DB_CLASS = BobChainDB
+    DB_NAME = 'bobchain'
+
     def _init__(self, *args, **kwargs):
+
+        #initialize the database:
+        working_directory = kwargs.pop('working_directory', '')
+        db_name = kwargs.pop('db_name', self.DB_NAME)
+        self.settings = kwargs.pop('settings', BobChainSettings())
         super(BOBChainCommunity, self).__init__(*args, **kwargs)
 
     def started(self):
