@@ -5,6 +5,7 @@ Every node has a chain and these chains intertwine by blocks shared by chains.
 """
 from __future__ import absolute_import
 
+from binascii import unhexlify
 from datetime import datetime
 from functools import wraps
 from threading import RLock
@@ -14,7 +15,8 @@ from twisted.internet.task import LoopingCall
 
 from pyipv8.ipv8.attestation.bobchain.block import BobChainBlock
 from pyipv8.ipv8.attestation.trustchain.block import ANY_COUNTERPARTY_PK, ValidationResult
-from pyipv8.ipv8.attestation.trustchain.community import TrustChainCommunity
+from pyipv8.ipv8.community import Community
+from pyipv8.ipv8.peer import Peer
 
 receive_block_lock = RLock()
 
@@ -41,7 +43,16 @@ def synchronized(f):
     return wrapper
 
 
-class BOBChainCommunity(TrustChainCommunity):
+class BOBChainCommunity(Community):
+
+    # TODO figure this out
+    # Took the trustchain community values...
+    master_peer = Peer(unhexlify("3081a7301006072a8648ce3d020106052b8104002703819200040672297aa47c7bb2648ba0385275bc"
+                                 "8ade5aedc3677a615f5f9ca83b9b28c75e543342875f7f353bbf74baff7e3dae895ee9c9a9f80df023"
+                                 "dbfb72362426b50ce35549e6f0e0a319015a2fd425e2e34c92a3fb33b26929bcabb73e14f63684129b"
+                                 "66f0373ca425015cc9fad75b267de0cfb46ed798796058b23e12fc4c42ce9868f1eb7d59cc2023c039"
+                                 "14175ebb9703"))
+
     def _init__(self, *args, **kwargs):
         super(BOBChainCommunity, self).__init__(*args, **kwargs)
 
@@ -202,7 +213,9 @@ class BOBChainCommunity(TrustChainCommunity):
         # if linked and linked.link_public_key != ANY_COUNTERPARTY_PK:
         #     block_type = linked.type
 
-        block = self.get_block_class(BLOCK_TYPE).create(BLOCK_TYPE, transaction, self.persistence,
+        # TODO
+        # Fix input for the get_block_class, this should not be a static string
+        block = self.get_block_class(b'HOME_PROPERTY').create(BLOCK_TYPE, transaction, self.persistence,
                                                         self.my_peer.public_key.key_to_bin(),
                                                         linked=linked, additional_info=additional_info,
                                                         link_pk=public_key)
@@ -278,7 +291,8 @@ class BOBChainCommunity(TrustChainCommunity):
         """
         Get the block class for a specific block type.
         """
-        assert block_type is BLOCK_TYPE, "Wrong type of block is being created"
+        print "get_block_class block_type:", block_type, " BLOCK_TYPE", BLOCK_TYPE
+        assert block_type == BLOCK_TYPE, "Wrong type of block is being created"
 
         return BobChainBlock
 
