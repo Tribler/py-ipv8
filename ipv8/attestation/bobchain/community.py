@@ -58,13 +58,13 @@ class BOBChainCommunity(Community):
     DB_CLASS = BobChainDB
     DB_NAME = 'bobchain'
 
-    def _init__(self, *args, **kwargs):
-
+    def __init__(self, *args, **kwargs):
         #initialize the database:
         working_directory = kwargs.pop('working_directory', '')
         db_name = kwargs.pop('db_name', self.DB_NAME)
         self.settings = kwargs.pop('settings', BobChainSettings())
         super(BOBChainCommunity, self).__init__(*args, **kwargs)
+        self.persistence = self.DB_CLASS(working_directory, db_name)
 
     def started(self):
         def print_peers():
@@ -96,8 +96,6 @@ class BOBChainCommunity(Community):
                              additional_info={"Booking": 'Date_2'})
 
             print "Number of linked blocks:", len(self.persistence.get_all_linked(source_block))
-
-            return 0
 
         def create_block(house_number):
 
@@ -145,7 +143,7 @@ class BOBChainCommunity(Community):
             #     create_block(j)
             #     j += 1
 
-            print_blocks()
+            # print_blocks()
 
             remove_all_created_blocks()
 
@@ -227,7 +225,7 @@ class BOBChainCommunity(Community):
         # Fix input for the get_block_class, this should not be a static string
         block = self.get_block_class(b'HOME_PROPERTY').create(BLOCK_TYPE, transaction, self.persistence,
                                                         self.my_peer.public_key.key_to_bin(),
-                                                        linked=linked, additional_info=additional_info,
+                                                        link=linked, additional_info=additional_info,
                                                         link_pk=public_key)
 
         print "self my peer key: ", self.my_peer.key
@@ -240,12 +238,13 @@ class BOBChainCommunity(Community):
         # Add block to database:
         if not self.persistence.contains(block):
             self.persistence.add_block(block)
-            self.notify_listeners(block)
+            # self.notify_listeners(block)
 
         # This is a source block with no counterparty
         if not peer and public_key == ANY_COUNTERPARTY_PK:
-            if self.settings.broadcast_blocks:
-                self.send_block(block)
+            # TODO figure this out
+            # if self.settings.broadcast_blocks:
+            #     self.send_block(block)
             return succeed((block, None))
 
         # TODO
@@ -263,8 +262,9 @@ class BOBChainCommunity(Community):
         # Self signed block, this seems to be the situation
         if peer == self.my_peer:
             # We created a self-signed block
-            if self.settings.broadcast_blocks:
-                self.send_block(block)
+            # TODO figure out how to send this
+            # if self.settings.broadcast_blocks:
+            #     self.send_block(block)
 
             return succeed((block, None)) if public_key == ANY_COUNTERPARTY_PK else succeed((block, linked))
         # elif not linked:
@@ -279,7 +279,20 @@ class BOBChainCommunity(Community):
         #
         #     return succeed((linked, block))
 
+    def create_link(self, source, block_type, additional_info=None, public_key=None):
+        """
+        Create a Link Block to a source block
 
+        :param source: The source block which had no initial counterpary to sign
+        :param block_type: The type of the block to be constructed, as a string
+        :param additional_info: a dictionary with supplementary information concerning the transaction
+        :param public_key: The public key of the counterparty (usually of the source's owner)
+        :return: None
+        """
+        public_key = source.public_key if public_key is None else public_key
+
+        return self.sign_block(self.my_peer, linked=source, public_key=public_key, block_type=block_type,
+                               additional_info=additional_info)
 
 
     def validate_persist_block(self, block):

@@ -2,9 +2,11 @@ from __future__ import absolute_import
 
 import time
 from _sha256 import sha256
+from binascii import hexlify
 
-from pyipv8.ipv8.attestation.trustchain.payload import HalfBlockPayload
-from pyipv8.ipv8.keyvault.crypto import default_eccrypto
+from ..trustchain.payload import HalfBlockPayload
+from ...database import database_blob
+from ...keyvault.crypto import default_eccrypto
 from ...util import old_round
 from ...messaging.serialization import default_serializer
 from ...messaging.deprecated.encoding import decode, encode
@@ -23,7 +25,7 @@ class BobChainBlock(object):
     """
 
     def __init__(self, data=None, serializer=default_serializer):
-        super(BobChainBlock, self).__init__(data, serializer)
+        super(BobChainBlock, self).__init__()
         self.serializer = serializer
 
         # TODO see what is needed from below
@@ -98,6 +100,18 @@ class BobChainBlock(object):
         ret.hash = ret.calculate_hash()
         return ret
 
+    @property
+    def block_id(self):
+        return b"%s.%d" % (hexlify(self.public_key), self.sequence_number)
+
+    @property
+    def linked_block_id(self):
+        return b"%s.%d" % (hexlify(self.link_public_key), self.link_sequence_number)
+
+    @property
+    def is_genesis(self):
+        return self.sequence_number == GENESIS_SEQ or self.previous_hash == GENESIS_HASH
+
     def sign(self, key):
         """
         Signs this block with the given key
@@ -108,6 +122,16 @@ class BobChainBlock(object):
 
     def calculate_hash(self):
         return sha256(self.pack()).digest()
+
+    def pack_db_insert(self):
+        """
+        Prepare a tuple to use for inserting into the database
+        :return: A database insertable tuple
+        """
+        return (self.type, database_blob(self._transaction), database_blob(self.public_key),
+                self.sequence_number, database_blob(self.link_public_key), self.link_sequence_number,
+                database_blob(self.previous_hash), database_blob(self.signature), self.timestamp,
+                database_blob(self.hash))
 
     def pack(self, signature=True):
         """
