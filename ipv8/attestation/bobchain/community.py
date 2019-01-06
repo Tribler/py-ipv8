@@ -26,11 +26,11 @@ receive_block_lock = RLock()
 BLOCK_TYPE = b'HOME_PROPERTY'
 
 PUBLIC_KEY = [b'0'*74,
-              b'0'*73 + b'1',
-              b'0'*73 + b'2',
-              b'0'*73 + b'3',
-              b'0'*73 + b'4',
-              b'0'*73 + b'5']
+              b'4jpvnlpbnesusvlkxh7d34u8mfq1gxc0la4usd54oooeulraw7dwv72d4nfn7czhaulen9fjbn',
+              b'xtkbp3zv88ruj2k63rizkelbhzg58gzcp09od1pt867ksn8i5xrn2zafqjfzua8hhdzhgp7376',
+              b'vvt6ng10p1w50jg9rmyy10tqqmmemrw59uf0ifa22odjg9hfuxoxx8ngv2apd7w6rlzh3cjfbu',
+              b'3f0xw1jtns6heuk478h58k3dburaeig6s2bt5vo5oz3bz2dfvel85g0edt3qsmgn06npr0we5s',
+              b'ev46dkjzfrc7vjywv7i3h0qcxpquuj9v5xit9z0lshzz53t6exb3vblrtnthupulthstdi7svh']
 
 def synchronized(f):
     """
@@ -59,35 +59,39 @@ class BOBChainCommunity(Community):
     DB_NAME = 'bobchain'
 
     def __init__(self, *args, **kwargs):
-        #initialize the database:
+
+        # initialize the database:
         working_directory = kwargs.pop('working_directory', '')
         db_name = kwargs.pop('db_name', self.DB_NAME)
         self.settings = kwargs.pop('settings', BobChainSettings())
+
         super(BOBChainCommunity, self).__init__(*args, **kwargs)
         self.persistence = self.DB_CLASS(working_directory, db_name)
+        self.public_key_iterator = 0
 
     def started(self):
-        def print_peers():
-            print "I am: ", self.my_peer, ". Number of peers found: ", len(self.get_peers()), "\nI know: ", [str(p) for p in self.get_peers()]
-
         def create_genesis_block():
 
+            # TODO Find out what a transaction is
             transaction = {'House number': 11,
                            'Adres': 'Hopetoun Ave.',
                            'Country': 'Australia',
                            'Zip Code': '2611CP'}
 
-            self.create_source_block(BLOCK_TYPE, transaction)
+            self.create_source_block(BLOCK_TYPE, transaction, public_key=PUBLIC_KEY[self.public_key_iterator])
+
+            self.public_key_iterator += 1
 
         def create_link_bob():
 
             # Gets the public key of this peer
-            source_peer_pubkey = self.my_peer.public_key.key_to_bin()
+            source_peer_pubkey = PUBLIC_KEY[1]
 
             # Check if the public key returns the source_block
             source_block = self.persistence.get(source_peer_pubkey, 1)
 
-            print "Source block is genesis: ", source_block.is_genesis
+            print "Souce block's public key", source_block.public_key
+            # print "Source block is genesis: ", source_block.is_genesis
 
             self.create_link(source=source_block, block_type=BLOCK_TYPE,
                              additional_info={"Booking": 'Date_1'})
@@ -130,9 +134,14 @@ class BOBChainCommunity(Community):
                 print "block number: ", i, " is_genesis: ", block.is_genesis
                 print "has id: ", block.block_id
                 print "linked_block_id: ", block.linked_block_id
+                print "additional_information", block.transaction
                 i += 1
 
         def wrapper_create_and_remove_blocks():
+
+            create_genesis_block()
+
+            create_genesis_block()
 
             create_genesis_block()
 
@@ -143,7 +152,7 @@ class BOBChainCommunity(Community):
             #     create_block(j)
             #     j += 1
 
-            # print_blocks()
+            print_blocks()
 
             remove_all_created_blocks()
 
@@ -154,32 +163,7 @@ class BOBChainCommunity(Community):
         self.register_task("print_blocks", LoopingCall(wrapper_create_and_remove_blocks)).start(5.0, True)
 
 
-        def book_apartment():
-            blocks = self.persistence.get_blocks_with_type("property")
-            for block in blocks:
-                start_day = block.transaction["start_day"].split("-")
-                end_day = block.transaction["end_day"].split("-")
-                start_day_tuple = (int(start_day[0]), int(start_day[1]), int(start_day[2]))
-                end_day_tuple = (int(end_day[0]), int(end_day[1]), int(end_day[2]))
-                current_day = datetime.now()
-                current_day_tuple = (current_day.year, current_day.month, current_day.day)
-                if start_day_tuple <= current_day_tuple <= end_day_tuple:
-                    print "Overbooking!"
-                    return
-            self.sign_block(
-                block_type=b"property",
-                transaction=
-                {
-                    b"property_id": 42,
-                    b"start_day": datetime.now().strftime("%Y-%m-%d"),  # 2000-01-31
-                    b"end_day": "2999-01-01",
-                },
-                public_key=ANY_COUNTERPARTY_PK,
-                peer=None
-            )
-            print "Booked apartment"
-
-    def create_source_block(self, block_type=BLOCK_TYPE, transaction=None, public_key=ANY_COUNTERPARTY_PK):
+    def create_source_block(self, block_type=BLOCK_TYPE, transaction=None, public_key=ANY_COUNTERPARTY_PK, additional_info=None):
         """
         Create a source block without any initial counterparty to sign.
 
@@ -188,12 +172,24 @@ class BOBChainCommunity(Community):
         :param public_key: A string of 74 characters that is a public key
         :return: A deferred that fires with a (block, None) tuple
         """
+        assert transaction is None or isinstance(transaction, dict), "Transaction should be a dictionary"
+        assert additional_info is None or isinstance(additional_info, dict), "Additional info should be a dictionary"
 
-        return self.sign_block(peer=None, public_key=public_key,
-                               block_type=block_type, transaction=transaction)
+        source_block = self.get_block_class(block_type).create(block_type, transaction, self.persistence,
+                                                               public_key=public_key)
+
+        # TODO self.my_peer.key is not the right input
+        source_block.sign(self.my_peer.key)
+
+        if not self.persistence.contains(source_block):
+            self.persistence.add_block(source_block)
+
+            return succeed((source_block, None))
+
+
 
     @synchronized
-    def sign_block(self, peer=None, public_key=PUBLIC_KEY[0], block_type=BLOCK_TYPE, transaction=None, linked=None,
+    def sign_block(self, peer=None, public_key=None, block_type=BLOCK_TYPE, transaction=None, linked=None,
                    additional_info=None):
         """
         Create, sign, persist and send a block signed message
@@ -224,13 +220,10 @@ class BOBChainCommunity(Community):
         # TODO
         # Fix input for the get_block_class, this should not be a static string
         block = self.get_block_class(b'HOME_PROPERTY').create(BLOCK_TYPE, transaction, self.persistence,
-                                                        self.my_peer.public_key.key_to_bin(),
-                                                        link=linked, additional_info=additional_info,
-                                                        link_pk=public_key)
+                                                              public_key=public_key, link=linked,
+                                                              additional_info=additional_info)
 
-        print "self my peer key: ", self.my_peer.key
-
-        block.sign(self.my_peer.key)
+        block.sign(public_key)
 
         # TODO
         # Write validation logic
@@ -314,7 +307,6 @@ class BOBChainCommunity(Community):
         """
         Get the block class for a specific block type.
         """
-        print "get_block_class block_type:", block_type, " BLOCK_TYPE", BLOCK_TYPE
         assert block_type == BLOCK_TYPE, "Wrong type of block is being created"
 
         return BobChainBlock

@@ -78,6 +78,7 @@ class BobChainBlock(object):
         :return: A newly created block
         """
         blk = database.get_latest(public_key)
+
         ret = cls()
         if link:
             ret.type = link.type if link.link_public_key != ANY_COUNTERPARTY_PK else block_type
@@ -110,6 +111,8 @@ class BobChainBlock(object):
 
     @property
     def is_genesis(self):
+        # print "sequence_number is Genesis_seq", self.sequence_number == GENESIS_SEQ
+        # print "previous hash si genesis_hash", self.previous_hash == GENESIS_HASH
         return self.sequence_number == GENESIS_SEQ or self.previous_hash == GENESIS_HASH
 
     def sign(self, key):
@@ -128,6 +131,7 @@ class BobChainBlock(object):
         Prepare a tuple to use for inserting into the database
         :return: A database insertable tuple
         """
+        print "packing_db_insert: ", self.public_key
         return (self.type, database_blob(self._transaction), database_blob(self.public_key),
                 self.sequence_number, database_blob(self.link_public_key), self.link_sequence_number,
                 database_blob(self.previous_hash), database_blob(self.signature), self.timestamp,
