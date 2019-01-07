@@ -200,3 +200,30 @@ class TestSerializer(TestCase):
         output, _ = self.serializer.unpack(TestSerializable, data, 0)
 
         self.assertEqual(instance.number, output.number)
+
+    def test_ez_pack_serializables(self):
+        """
+        Check if we can (un)pack serializables easily.
+        """
+        instance1 = TestSerializable(123)
+        instance2 = TestSerializable(456)
+
+        data = self.serializer.ez_pack_serializables([instance1, instance2])
+        deserialized1, deserialized2 = self.serializer.ez_unpack_serializables([TestSerializable, TestSerializable],
+                                                                               data)
+
+        self.assertEqual(instance1.number, 123)
+        self.assertEqual(instance1.number, deserialized1.number)
+        self.assertEqual(instance2.number, 456)
+        self.assertEqual(instance2.number, deserialized2.number)
+
+    def test_ez_unpack_serializables_extra_data(self):
+        """
+        Check if we throw an error when we have too much data to unpack.
+        """
+        instance1 = TestSerializable(123)
+        instance2 = TestSerializable(456)
+
+        data = self.serializer.ez_pack_serializables([instance1, instance2])
+        self.assertRaises(PackError, self.serializer.ez_unpack_serializables, [TestSerializable, TestSerializable],
+                          data + b"Nope.avi")
