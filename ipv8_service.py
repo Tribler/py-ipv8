@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 
+from base64 import b64decode
 import logging
 from os.path import isfile
 import sys
@@ -86,7 +87,7 @@ else:
                         except ValueError:
                             try:
                                 # Try old Tribler M2Crypto PEM format
-                                content = content[31:-30].replace('\n', '').decode("BASE64")
+                                content = b64decode(content[31:-30].replace('\n', ''))
                                 peer = Peer(M2CryptoSK(keystring=content))
                                 peer.mid # This will error out if the keystring is not M2Crypto
                                 self.keys[key_block['alias']] = peer
