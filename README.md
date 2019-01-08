@@ -3,7 +3,7 @@
 ## What is IPv8 ?
 
 IPv8 aims to provide authenticated communication with privacy.
-The design paradigm behind IPv8 is enabling end-to-end authenticated communication between any public key pair through an overlay, IP adresses with fixed network attachment are abstracted away.
+The design principle is to enable communication between public key pairs: IP addresses and physical network attachment points are abstracted away.
 This Python 2/3 package is an amalgamation of peer-to-peer communication functionality from [Dispersy](https://github.com/Tribler/dispersy) and [Tribler](https://github.com/Tribler/tribler), developed over the last 13 years by students and employees of the Delft University of Technology.
 The IPv8 library allows you to easily create network overlays on which to build your own applications.
 
