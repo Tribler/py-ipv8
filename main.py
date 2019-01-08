@@ -8,6 +8,7 @@ from pyipv8.ipv8.REST.rest_manager import RESTManager
 from pyipv8.ipv8_service import IPv8
 from pyipv8.ipv8.configuration import get_default_configuration
 
+
 for i in [1, 2]:
     configuration = get_default_configuration()
     # If we actually want to communicate between two different peers
@@ -18,7 +19,7 @@ for i in [1, 2]:
     configuration['keys'] = [{
         'alias': "my peer",
         'generation': u"medium",
-        'file': u"ec%d.pem" % i
+        'file': u"ec.pem"
     }]
     # Give each peer a separate working directory
     working_directory_overlays = ['BOBChainCommunity']

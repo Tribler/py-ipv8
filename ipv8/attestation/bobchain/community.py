@@ -5,15 +5,18 @@ Every node has a chain and these chains intertwine by blocks shared by chains.
 """
 from __future__ import absolute_import
 
+import os
 from binascii import unhexlify
 from datetime import datetime
 from functools import wraps
 from threading import RLock
+import json
 
 import tkinter as tk
 from twisted.internet.defer import succeed
 
 from pyipv8 import gui_holder
+from pyipv8.ipv8.keyvault.crypto import ECCrypto
 from .block import BobChainBlock
 from .database import BobChainDB
 from .settings import BobChainSettings
@@ -26,12 +29,23 @@ receive_block_lock = RLock()
 # Static block_type, using home_property instead of property to not use the same name as a property type in python
 BLOCK_TYPE_PROPERTY = b'HOME_PROPERTY'
 
-PUBLIC_KEY = [b'0' * 74,
-              b'4jpvnlpbnesusvlkxh7d34u8mfq1gxc0la4usd54oooeulraw7dwv72d4nfn7czhaulen9fjbn',
-              b'xtkbp3zv88ruj2k63rizkelbhzg58gzcp09od1pt867ksn8i5xrn2zafqjfzua8hhdzhgp7376',
-              b'vvt6ng10p1w50jg9rmyy10tqqmmemrw59uf0ifa22odjg9hfuxoxx8ngv2apd7w6rlzh3cjfbu',
-              b'3f0xw1jtns6heuk478h58k3dburaeig6s2bt5vo5oz3bz2dfvel85g0edt3qsmgn06npr0we5s',
-              b'ev46dkjzfrc7vjywv7i3h0qcxpquuj9v5xit9z0lshzz53t6exb3vblrtnthupulthstdi7svh']
+PROPERTY_TO_DETAILS_KEY = {}  # Maps property hash to (property details, keypair)
+
+try:
+    with open('property_to_key_mappings.json', 'r') as file:
+        json = json.load(file)
+        for property in json:
+            with open("keys/" + property[1]) as key:
+                PROPERTY_TO_DETAILS_KEY[property[1]] = (property[0], ECCrypto().key_from_private_bin(key))
+except IOError:
+    with open('property_to_key_mappings.json', 'w') as file:
+        json.dump([], file)
+# PUBLIC_KEY = [b'0' * 74,
+#               b'4jpvnlpbnesusvlkxh7d34u8mfq1gxc0la4usd54oooeulraw7dwv72d4nfn7czhaulen9fjbn',
+#               b'xtkbp3zv88ruj2k63rizkelbhzg58gzcp09od1pt867ksn8i5xrn2zafqjfzua8hhdzhgp7376',
+#               b'vvt6ng10p1w50jg9rmyy10tqqmmemrw59uf0ifa22odjg9hfuxoxx8ngv2apd7w6rlzh3cjfbu',
+#               b'3f0xw1jtns6heuk478h58k3dburaeig6s2bt5vo5oz3bz2dfvel85g0edt3qsmgn06npr0we5s',
+#               b'ev46dkjzfrc7vjywv7i3h0qcxpquuj9v5xit9z0lshzz53t6exb3vblrtnthupulthstdi7svh']
 
 
 def synchronized(f):
@@ -70,7 +84,6 @@ class BOBChainCommunity(Community):
 
         super(BOBChainCommunity, self).__init__(*args, **kwargs)
         self.persistence = self.DB_CLASS(working_directory, db_name)
-        self.public_key_iterator = 0
 
     def book_apartment(self):
         blocks = self.persistence.get_blocks_with_type(BLOCK_TYPE_PROPERTY)
@@ -99,6 +112,8 @@ class BOBChainCommunity(Community):
     def get_apartments(self):
         result = set()
         for block in self.persistence.get_blocks_with_type(BLOCK_TYPE_PROPERTY):
+            if not block.is_genesis:
+                continue
             property_id = block.transaction["city"]
             if property_id not in result:
                 result.add(property_id)
@@ -113,7 +128,7 @@ class BOBChainCommunity(Community):
             "number": number,
         })
 
-    def create_genesis_block(self, block_type, transaction):
+    def create_genesis_block(self, block_type, property):
         """
         Create a genesis block without any initial counterparty to sign.
 
@@ -122,19 +137,31 @@ class BOBChainCommunity(Community):
         :param public_key: A string of 74 characters that is a public key
         :return: A deferred that fires with a (block, None) tuple
         """
-        assert transaction is None or isinstance(transaction, dict), "Transaction should be a dictionary"
+        assert property is None or isinstance(property, dict), "Property should be a dictionary"
 
-        source_block = self.get_block_class(block_type).create(block_type, transaction, self.persistence,
-                                                               public_key=PUBLIC_KEY[1])
+        property_key = ECCrypto().generate_key(u"medium")
+        property_id = hash(property)
+        PROPERTY_TO_DETAILS_KEY[property_id] = (property, property_key)
+
+        with open('property_to_key_mappings.json', 'w') as file:
+            l = []
+            for property_id, details_key in PROPERTY_TO_DETAILS_KEY.items():
+                l.append([details_key[0], property_id])
+            json.dump(l, file)
+
+        with open("keys/" + str(property_id) + ".pem", 'w') as f:
+            f.write(PROPERTY_TO_DETAILS_KEY[property_id][1].key.key_to_bin())
+
+        source_block = self.get_block_class(block_type).create(block_type, property, self.persistence,
+                                                               public_key=PROPERTY_TO_DETAILS_KEY[property_id][1].pub().key_to_bin())
 
         # TODO self.my_peer.key is not the right input
-        source_block.sign(self.my_peer.key)
+        source_block.sign(PROPERTY_TO_DETAILS_KEY[property_id][1])
 
         if not self.persistence.contains(source_block):
             self.persistence.add_block(source_block)
 
             return succeed((source_block, None))
-        self.public_key_iterator += 1
 
     def create_link_bob(self, block_type, transaction):
 
