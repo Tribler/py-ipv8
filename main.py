@@ -1,47 +1,93 @@
+import json
 import thread
-import threading
 from base64 import b64encode
 
 from twisted.internet import reactor
 
+from pyipv8.gui import open_gui
 from pyipv8.ipv8.REST.rest_manager import RESTManager
+from pyipv8.ipv8.keyvault.crypto import ECCrypto
 from pyipv8.ipv8_service import IPv8
-from pyipv8.ipv8.configuration import get_default_configuration
 
-
-for i in [1, 2]:
-    configuration = get_default_configuration()
-    # If we actually want to communicate between two different peers
-    # we need to assign them different keys.
-    # We will generate an EC key called 'my peer' which has 'medium'
-    # security and will be stored in file 'ecI.pem' where 'I' is replaced
-    # by the peer number (1 or 2).
-    configuration['keys'] = [{
+config = {
+    'address': '0.0.0.0',
+    'port': 8090,
+    'keys': [{
         'alias': "my peer",
         'generation': u"medium",
         'file': u"ec.pem"
-    }]
-    # Give each peer a separate working directory
-    working_directory_overlays = ['BOBChainCommunity']
-    for overlay in configuration['overlays']:
-        if overlay['class'] in working_directory_overlays:
-            overlay['initialize'] = {'working_directory': 'state_%d' % i}
+    }],
+    'logger': {
+        'level': "INFO"
+    },
+    'walker_interval': 0.5,
+    'overlays': [
+        {
+            'class': 'DiscoveryCommunity',
+            'key': "my peer",
+            'walkers': [
+                {
+                    'strategy': "RandomWalk",
+                    'peers': 20,
+                    'init': {
+                        'timeout': 3.0
+                    }
+                },
+                {
+                    'strategy': "RandomChurn",
+                    'peers': -1,
+                    'init': {
+                        'sample_size': 8,
+                        'ping_interval': 10.0,
+                        'inactive_time': 27.5,
+                        'drop_time': 57.5
+                    }
+                }
+            ],
+            'initialize': {},
+            'on_start': [
+                ('resolve_dns_bootstrap_addresses',)
+            ]
+        }
+    ]
+}
 
-    # Start the IPv8 service
-    ipv8 = IPv8(configuration)
-    rest_manager = RESTManager(ipv8)
-    rest_manager.start(14410 + i)
+try:
+    with open('property_to_key_mappings.json', 'r') as file:
+        json_file = json.load(file)
+        for property in json_file:
+            with open("keys/" + property[1] + ".pem", 'r') as key:
+                key_content = key.read()
+                config['overlays'].append(
+                    {
+                        'class': 'BOBChainCommunity',
+                        'key': "my peer",
+                        'walkers': [{
+                            'strategy': "EdgeWalk",
+                            'peers': 20,
+                            'init': {
+                                'edge_length': 4,
+                                'neighborhood_size': 6,
+                                'edge_timeout': 3.0
+                            }
+                        }],
+                        'initialize': {'property_details': property[0],
+                                       'property_key': ECCrypto().key_from_private_bin(key_content)},
+                        'on_start': [('started',)]
+                    }
+                )
+except IOError:
+    with open('property_to_key_mappings.json', 'w') as file:
+        json.dump([], file)
 
-    # Print the peer for reference
-    print "Starting peer", b64encode(ipv8.keys["my peer"].mid)
+# Start the IPv8 service
+ipv8 = IPv8(config)
+rest_manager = RESTManager(ipv8)
+rest_manager.start(14410)
 
-
-def book_apartment():
-    print("Book apartment")
-
-
-night_cap = 8
-
+# Print the peer for reference
+print "Starting peer", b64encode(ipv8.keys["my peer"].mid)
+thread.start_new_thread(open_gui, ())
 # Start the Twisted reactor: this is the engine scheduling all of the
 # asynchronous calls.
 reactor.run()
