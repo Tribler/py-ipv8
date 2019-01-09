@@ -90,22 +90,20 @@ class BOBChainCommunity(Community):
         super(BOBChainCommunity, self).__init__(*args, **kwargs)
         self.persistence = self.DB_CLASS(working_directory, db_name)
 
-    def book_apartment(self):
-        blocks = self.persistence.get_blocks_with_type(BLOCK_TYPE_PROPERTY)
-        for block in blocks:
-            if block.is_genesis:
-                continue
-            start_day = block.transaction["start_day"].split("-")
-            end_day = block.transaction["end_day"].split("-")
-            start_day_tuple = (int(start_day[0]), int(start_day[1]), int(start_day[2]))
-            end_day_tuple = (int(end_day[0]), int(end_day[1]), int(end_day[2]))
-            current_day = datetime.now()
-            current_day_tuple = (current_day.year, current_day.month, current_day.day)
-            if start_day_tuple <= current_day_tuple <= end_day_tuple:
-                print "Overbooking!"
-                return
+    def book_apartment(self, property_public_key):
+        # if block.is_genesis:
+        #     continue
+        # start_day = block.transaction["start_day"].split("-")
+        # end_day = block.transaction["end_day"].split("-")
+        # start_day_tuple = (int(start_day[0]), int(start_day[1]), int(start_day[2]))
+        # end_day_tuple = (int(end_day[0]), int(end_day[1]), int(end_day[2]))
+        # current_day = datetime.now()
+        # current_day_tuple = (current_day.year, current_day.month, current_day.day)
+        # if start_day_tuple <= current_day_tuple <= end_day_tuple:
+        #     print "Overbooking!"
+        #     return
         self.create_link_bob(
-            block_type=BLOCK_TYPE_PROPERTY,
+            property_public_key=property_public_key,
             transaction=
             {
                 b"start_day": datetime.now().strftime("%Y-%m-%d"),  # 2000-01-31
@@ -119,9 +117,9 @@ class BOBChainCommunity(Community):
         for block in self.persistence.get_blocks_with_type(BLOCK_TYPE_PROPERTY):
             if not block.is_genesis:
                 continue
-            property_id = block.transaction["city"]
-            if property_id not in result:
-                result.add(property_id)
+            property = (block.public_key, block.transaction["city"])
+            if property not in result:
+                result.add(property)
         return result
 
     def publish_license(self, country, state, city, street, number):
@@ -168,18 +166,13 @@ class BOBChainCommunity(Community):
 
             return succeed((source_block, None))
 
-    def create_link_bob(self, block_type, transaction):
-
-        # Gets the public key of this peer
-        source_peer_pubkey = PUBLIC_KEY[1]
-
-        # Check if the public key returns the source_block
-        source_block = self.persistence.get(source_peer_pubkey, 1)
-
-        print "Source block's public key", source_block.public_key
+    def create_link_bob(self, property_public_key, transaction):
+        print "Source block's public key", property_public_key
         # print "Source block is genesis: ", source_block.is_genesis
 
-        self.create_link(source=source_block, block_type=block_type, transaction=transaction, public_key=PUBLIC_KEY[1])
+        source_block = self.persistence.get_latest(property_public_key)
+
+        self.create_link(source=source_block, block_type=BLOCK_TYPE_PROPERTY, transaction=transaction)
 
         print "Number of linked blocks:", len(self.persistence.get_all_linked(source_block))
 
@@ -213,13 +206,13 @@ class BOBChainCommunity(Community):
 
         def wrapper_create_and_remove_blocks():
 
-            self.create_genesis_block()
-
-            self.create_genesis_block()
-
-            self.create_genesis_block()
-
-            self.create_link_bob()
+            # self.create_genesis_block()
+            #
+            # self.create_genesis_block()
+            #
+            # self.create_genesis_block()
+            #
+            # self.create_link_bob()
 
             # j = 0
             # for i in range(0, 5):
@@ -456,9 +449,8 @@ class PageGovernment(object, Page):
 
     def show(self):
         super(PageGovernment, self).show()
-        for property_id in self.get_apartments():
-            self.listbox.insert(tk.END, "Property: " + str(property_id))
-        self.get_apartments()
+        for property in self.get_apartments():
+            self.listbox.insert(tk.END, "Property: " + str(property[1]))
 
 
 class PageHomeOwner(object, Page):
@@ -498,6 +490,7 @@ class PageBookApartment(object, Page):
         self.get_apartments = get_apartments
         self.book_apartment = book_apartment
         self.clear_database = clear_database
+        self.property_public_keys = []
 
     def show(self):
         super(PageBookApartment, self).show()
@@ -506,7 +499,7 @@ class PageBookApartment(object, Page):
 
         btn_book_apartment = tk.Button(self,
                            text="Book apartment",
-                           command=self.book_apartment)
+                           command=lambda: self.book_apartment(self.property_public_keys[self.listbox.curselection()[0]]))
         btn_book_apartment.pack()
 
         btn_clear_database = tk.Button(self,
@@ -514,9 +507,10 @@ class PageBookApartment(object, Page):
                                        command=self.clear_database)
         btn_clear_database.pack()
 
-        for property_id in self.get_apartments():
-            self.listbox.insert(tk.END, "Property: " + str(property_id))
-        self.get_apartments()
+        self.property_public_keys = []
+        for property in self.get_apartments():
+            self.property_public_keys.append(property[0])
+            self.listbox.insert(tk.END, "Property: " + str(property[1]))
 
 
 class MainFrame(object, tk.Frame):
@@ -543,7 +537,7 @@ class MainFrame(object, tk.Frame):
         self.page_home_owner.init()
         self.page_ota.init(self.page_book_apartment)
         self.page_book_apartment.init(lambda: BOBChainCommunity.bobChainCommunity.get_apartments(),
-                                      lambda: BOBChainCommunity.bobChainCommunity.book_apartment(),
+                                      lambda property_public_key: BOBChainCommunity.bobChainCommunity.book_apartment(property_public_key),
                                       lambda: BOBChainCommunity.bobChainCommunity.remove_all_created_blocks())
 
         self.page_login.place(in_=container, x=0, y=0, relwidth=1, relheight=1)
