@@ -5,6 +5,7 @@ Every node has a chain and these chains intertwine by blocks shared by chains.
 """
 from __future__ import absolute_import
 
+import hashlib
 import os
 from binascii import unhexlify
 from datetime import datetime
@@ -33,8 +34,8 @@ PROPERTY_TO_DETAILS_KEY = {}  # Maps property hash to (property details, keypair
 
 try:
     with open('property_to_key_mappings.json', 'r') as file:
-        json = json.load(file)
-        for property in json:
+        json_file = json.load(file)
+        for property in json_file:
             with open("keys/" + property[1]) as key:
                 PROPERTY_TO_DETAILS_KEY[property[1]] = (property[0], ECCrypto().key_from_private_bin(key))
 except IOError:
@@ -140,7 +141,7 @@ class BOBChainCommunity(Community):
         assert property is None or isinstance(property, dict), "Property should be a dictionary"
 
         property_key = ECCrypto().generate_key(u"medium")
-        property_id = hash(property)
+        property_id = hashlib.sha224(json.dumps(property)).hexdigest()
         PROPERTY_TO_DETAILS_KEY[property_id] = (property, property_key)
 
         with open('property_to_key_mappings.json', 'w') as file:
@@ -150,7 +151,7 @@ class BOBChainCommunity(Community):
             json.dump(l, file)
 
         with open("keys/" + str(property_id) + ".pem", 'w') as f:
-            f.write(PROPERTY_TO_DETAILS_KEY[property_id][1].key.key_to_bin())
+            f.write(PROPERTY_TO_DETAILS_KEY[property_id][1].key_to_bin())
 
         source_block = self.get_block_class(block_type).create(block_type, property, self.persistence,
                                                                public_key=PROPERTY_TO_DETAILS_KEY[property_id][1].pub().key_to_bin())
@@ -489,19 +490,26 @@ class PageBookApartment(object, Page):
     def __init__(self, *args, **kwargs):
         Page.__init__(self, *args, **kwargs)
 
-    def init(self, get_apartments, book_apartment):
+    def init(self, get_apartments, book_apartment, clear_database):
         self.get_apartments = get_apartments
         self.book_apartment = book_apartment
+        self.clear_database = clear_database
 
     def show(self):
         super(PageBookApartment, self).show()
         self.listbox = tk.Listbox(self)
         self.listbox.pack()
 
-        button = tk.Button(self,
+        btn_book_apartment = tk.Button(self,
                            text="Book apartment",
                            command=self.book_apartment)
-        button.pack()
+        btn_book_apartment.pack()
+
+        btn_clear_database = tk.Button(self,
+                                       text="Clear database",
+                                       command=self.clear_database)
+        btn_clear_database.pack()
+
         for property_id in self.get_apartments():
             self.listbox.insert(tk.END, "Property: " + str(property_id))
         self.get_apartments()
@@ -531,7 +539,8 @@ class MainFrame(object, tk.Frame):
         self.page_home_owner.init()
         self.page_ota.init(self.page_book_apartment)
         self.page_book_apartment.init(lambda: BOBChainCommunity.bobChainCommunity.get_apartments(),
-                                      lambda: BOBChainCommunity.bobChainCommunity.book_apartment())
+                                      lambda: BOBChainCommunity.bobChainCommunity.book_apartment(),
+                                      lambda: BOBChainCommunity.bobChainCommunity.remove_all_created_blocks())
 
         self.page_login.place(in_=container, x=0, y=0, relwidth=1, relheight=1)
         self.page_government.place(in_=container, x=0, y=0, relwidth=1, relheight=1)
