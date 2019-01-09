@@ -12,7 +12,11 @@ from functools import wraps
 from threading import RLock
 import json
 
-import tkinter as tk
+try:
+    import tkinter as tk
+except ImportError:
+    import Tkinter as tk
+
 from twisted.internet.defer import succeed
 
 from pyipv8 import gui_holder
