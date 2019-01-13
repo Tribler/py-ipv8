@@ -5,18 +5,14 @@ Every node has a chain and these chains intertwine by blocks shared by chains.
 """
 from __future__ import absolute_import
 
-import hashlib
-import os
 from binascii import unhexlify
 from datetime import datetime
 from functools import wraps
 from threading import RLock
-import json
 
 from twisted.internet.defer import succeed
 
 from pyipv8 import NewCommunityCreatedEvent
-from pyipv8.ipv8.keyvault.crypto import ECCrypto
 from .block import BobChainBlock
 from .database import BobChainDB
 from .settings import BobChainSettings
@@ -28,6 +24,7 @@ receive_block_lock = RLock()
 
 # Static block_type, using home_property instead of property to not use the same name as a property type in python
 BLOCK_TYPE_PROPERTY = b'HOME_PROPERTY'
+
 
 # PROPERTY_TO_DETAILS_KEY = {}  # Maps property hash to (property details, keypair)
 
@@ -92,7 +89,7 @@ class BOBChainCommunity(Community):
         self.number = kwargs["number"]
         NewCommunityCreatedEvent.event(self)
 
-    def book_apartment(self, property_public_key):
+    def book_apartment(self):
         # if block.is_genesis:
         #     continue
         # start_day = block.transaction["start_day"].split("-")
@@ -104,14 +101,18 @@ class BOBChainCommunity(Community):
         # if start_day_tuple <= current_day_tuple <= end_day_tuple:
         #     print "Overbooking!"
         #     return
-        self.create_link_bob(
-            property_public_key=property_public_key,
+
+        source_block = self.persistence.get_latest(self.my_peer.public_key.key_to_bin())
+        self.create_link(
+            source=source_block,
+            block_type=BLOCK_TYPE_PROPERTY,
             transaction=
             {
                 b"start_day": datetime.now().strftime("%Y-%m-%d"),  # 2000-01-31
                 b"end_day": "2999-01-01",
             }
         )
+        print "Number of linked blocks:", len(self.persistence.get_all_linked(source_block))
         print "Booked apartment"
 
     def get_apartments(self):
@@ -124,16 +125,7 @@ class BOBChainCommunity(Community):
                 result.add(property)
         return result
 
-    def publish_license(self, country, state, city, street, number):
-        self.create_genesis_block(BLOCK_TYPE_PROPERTY, {
-            "country": country,
-            "state": state,
-            "city": city,
-            "street": street,
-            "number": number,
-        })
-
-    def create_genesis_block(self, block_type, property):
+    def create_genesis_block(self):
         """
         Create a genesis block without any initial counterparty to sign.
 
@@ -142,41 +134,16 @@ class BOBChainCommunity(Community):
         :param public_key: A string of 74 characters that is a public key
         :return: A deferred that fires with a (block, None) tuple
         """
-        assert property is None or isinstance(property, dict), "Property should be a dictionary"
-
-        property_key = ECCrypto().generate_key(u"medium")
-        property_id = hashlib.sha224(json.dumps(property)).hexdigest()
-        PROPERTY_TO_DETAILS_KEY[property_id] = (property, property_key)
-
-        with open('property_to_key_mappings.json', 'w') as file:
-            l = []
-            for property_id, details_key in PROPERTY_TO_DETAILS_KEY.items():
-                l.append([details_key[0], property_id])
-            json.dump(l, file)
-
-        with open("keys/" + str(property_id) + ".pem", 'w') as f:
-            f.write(PROPERTY_TO_DETAILS_KEY[property_id][1].key_to_bin())
-
-        source_block = self.get_block_class(block_type).create(block_type, property, self.persistence,
-                                                               public_key=PROPERTY_TO_DETAILS_KEY[property_id][1].pub().key_to_bin())
-
-        # TODO self.my_peer.key is not the right input
-        source_block.sign(PROPERTY_TO_DETAILS_KEY[property_id][1])
-
-        if not self.persistence.contains(source_block):
-            self.persistence.add_block(source_block)
-
-            return succeed((source_block, None))
-
-    def create_link_bob(self, property_public_key, transaction):
-        print "Source block's public key", property_public_key
-        # print "Source block is genesis: ", source_block.is_genesis
-
-        source_block = self.persistence.get_latest(property_public_key)
-
-        self.create_link(source=source_block, block_type=BLOCK_TYPE_PROPERTY, transaction=transaction)
-
-        print "Number of linked blocks:", len(self.persistence.get_all_linked(source_block))
+        return self.sign_block(peer=None,
+                               public_key=ANY_COUNTERPARTY_PK,
+                               block_type=BLOCK_TYPE_PROPERTY,
+                               transaction={
+                                   "country": self.country,
+                                   "state": self.state,
+                                   "city": self.city,
+                                   "street": self.street,
+                                   "number": self.number,
+                               })
 
     # This function will remove all the created blocks in the bobchain community
     def remove_all_created_blocks(self):
@@ -205,30 +172,7 @@ class BOBChainCommunity(Community):
             i += 1
 
     def started(self):
-
-        def wrapper_create_and_remove_blocks():
-
-            # self.create_genesis_block()
-            #
-            # self.create_genesis_block()
-            #
-            # self.create_genesis_block()
-            #
-            # self.create_link_bob()
-
-            # j = 0
-            # for i in range(0, 5):
-            #     create_block(j)
-            #     j += 1
-
-            self.print_blocks()
-
-            self.remove_all_created_blocks()
-
-        BOBChainCommunity.bobChainCommunity = self
-        # We register a Twisted task with this overlay.
-        # This makes sure that the task ends when this overlay is unloaded.
-        # We call the 'print_peers' function every 5.0 seconds, starting now.
+        self.create_genesis_block()
         # self.register_task("print_peers", LoopingCall(print_peers)).start(5.0, True)
         # self.register_task("print_blocks", LoopingCall(wrapper_create_and_remove_blocks)).start(5.0, True)
 
@@ -263,9 +207,13 @@ class BOBChainCommunity(Community):
 
         # TODO
         # Fix input for the get_block_class, this should not be a static string
-        block = self.get_block_class(b'HOME_PROPERTY').create(block_type, transaction, self.persistence,
-                                                              public_key=public_key, link=linked,
-                                                              additional_info=transaction)
+        block = self.get_block_class(BLOCK_TYPE_PROPERTY).create(block_type,
+                                                              transaction,
+                                                              self.persistence,
+                                                              public_key=self.my_peer.public_key.key_to_bin(),
+                                                              link=linked,
+                                                              additional_info=additional_info,
+                                                              link_pk=public_key)
 
         block.sign(self.my_peer.key)
 
@@ -328,7 +276,8 @@ class BOBChainCommunity(Community):
         """
         public_key = source.public_key if public_key is None else public_key
 
-        return self.sign_block(self.my_peer, transaction=transaction, linked=source, public_key=public_key, block_type=block_type)
+        return self.sign_block(self.my_peer, transaction=transaction, linked=source, public_key=public_key,
+                               block_type=block_type)
 
     def validate_persist_block(self, block):
         """

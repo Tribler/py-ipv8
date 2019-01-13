@@ -39,16 +39,16 @@ class Controller:
         NewCommunityRegisteredEvent.event()
 
     def create_community(self, country, state, city, street, number):
-        property = {"country": country,
-                    "state": state,
-                    "city": city,
-                    "street": street,
-                    "number": number}
+        property_details = {"country": country,
+                            "state": state,
+                            "city": city,
+                            "street": street,
+                            "number": number}
         community_key = ECCrypto().generate_key(u"medium")
-        community_key_hash = hashlib.sha224(json.dumps(property)).hexdigest()
+        community_key_hash = hashlib.sha224(json.dumps(property_details)).hexdigest()
         community_peer = Peer(community_key)
-        overlay_instance = BOBChainCommunity(community_peer, self.ipv8.endpoint, self.ipv8.network, **property)
-        self.ipv8.overlays.append(overlay_instance)
+        community = BOBChainCommunity(community_peer, self.ipv8.endpoint, self.ipv8.network, **property_details)
+        self.ipv8.overlays.append(community)
         for walker in [{
             'strategy': "EdgeWalk",
             'peers': 20,
@@ -59,13 +59,13 @@ class Controller:
             }
         }]:
             strategy_class = _WALKERS.get(walker['strategy'],
-                                          overlay_instance.get_available_strategies().get(walker['strategy']))
+                                          community.get_available_strategies().get(walker['strategy']))
             args = walker['init']
             target_peers = walker['peers']
-            self.ipv8.strategies.append((strategy_class(overlay_instance, **args), target_peers))
+            self.ipv8.strategies.append((strategy_class(community, **args), target_peers))
         for config in [('started',)]:
-            reactor.callWhenRunning(getattr(overlay_instance, config[0]), *config[1:])
-        communities[country][state][city][street][number] = (property, community_key)
+            reactor.callWhenRunning(getattr(community, config[0]), *config[1:])
+        communities[country][state][city][street][number] = community
 
         with open("keys/" + str(community_key_hash) + ".pem", 'w') as f:
             f.write(community_key.key_to_bin())
@@ -84,3 +84,11 @@ class Controller:
                                 community_id["number"] = number
                                 l.append([community_id, community_key_hash])
             json.dump(l, file)
+
+    def book_apartment(self, property_details):
+        country = property_details["country"]
+        state = property_details["state"]
+        city = property_details["city"]
+        street = property_details["street"]
+        number = property_details["number"]
+        communities[country][state][city][street][number].book_apartment()

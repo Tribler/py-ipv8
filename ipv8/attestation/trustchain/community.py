@@ -218,7 +218,6 @@ class TrustChainCommunity(Community):
         # this method is allowed to execute in parallel, be sure to lock from before .create up to after .add_block
 
         # In this particular case there must be an implicit transaction due to the following assert
-        a = 5
         assert peer is not None or peer is None and linked is None and public_key == ANY_COUNTERPARTY_PK, \
             "Peer, linked block should not be provided when creating a no counterparty source block. Public key " \
             "should be that reserved for any counterpary."
