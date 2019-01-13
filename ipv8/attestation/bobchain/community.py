@@ -15,6 +15,7 @@ import json
 
 from twisted.internet.defer import succeed
 
+from pyipv8 import NewCommunityEvent
 from pyipv8.ipv8.keyvault.crypto import ECCrypto
 from .block import BobChainBlock
 from .database import BobChainDB
@@ -28,7 +29,7 @@ receive_block_lock = RLock()
 # Static block_type, using home_property instead of property to not use the same name as a property type in python
 BLOCK_TYPE_PROPERTY = b'HOME_PROPERTY'
 
-PROPERTY_TO_DETAILS_KEY = {}  # Maps property hash to (property details, keypair)
+# PROPERTY_TO_DETAILS_KEY = {}  # Maps property hash to (property details, keypair)
 
 # try:
 #     with open('property_to_key_mappings.json', 'r') as file:
@@ -82,8 +83,14 @@ class BOBChainCommunity(Community):
         db_name = kwargs.pop('db_name', self.DB_NAME)
         self.settings = kwargs.pop('settings', BobChainSettings())
 
-        super(BOBChainCommunity, self).__init__(*args, **kwargs)
+        super(BOBChainCommunity, self).__init__(*args)
         self.persistence = self.DB_CLASS(working_directory, db_name)
+        self.country = kwargs["country"]
+        self.state = kwargs["state"]
+        self.city = kwargs["city"]
+        self.street = kwargs["street"]
+        self.number = kwargs["number"]
+        NewCommunityEvent.event(self)
 
     def book_apartment(self, property_public_key):
         # if block.is_genesis:

@@ -4,6 +4,7 @@ from base64 import b64encode
 
 from twisted.internet import reactor
 
+from pyipv8.controller import Controller
 from pyipv8.gui import open_gui
 from pyipv8.ipv8.REST.rest_manager import RESTManager
 from pyipv8.ipv8.keyvault.crypto import ECCrypto
@@ -87,7 +88,8 @@ rest_manager.start(14410)
 
 # Print the peer for reference
 print "Starting peer", b64encode(ipv8.keys["my peer"].mid)
-thread.start_new_thread(open_gui, ())
+controller = Controller(ipv8)
+thread.start_new_thread(open_gui, (controller,))
 # Start the Twisted reactor: this is the engine scheduling all of the
 # asynchronous calls.
 reactor.run()
