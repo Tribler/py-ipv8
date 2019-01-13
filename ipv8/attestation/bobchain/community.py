@@ -15,7 +15,7 @@ import json
 
 from twisted.internet.defer import succeed
 
-from pyipv8 import NewCommunityEvent
+from pyipv8 import NewCommunityCreatedEvent
 from pyipv8.ipv8.keyvault.crypto import ECCrypto
 from .block import BobChainBlock
 from .database import BobChainDB
@@ -90,7 +90,7 @@ class BOBChainCommunity(Community):
         self.city = kwargs["city"]
         self.street = kwargs["street"]
         self.number = kwargs["number"]
-        NewCommunityEvent.event(self)
+        NewCommunityCreatedEvent.event(self)
 
     def book_apartment(self, property_public_key):
         # if block.is_genesis:

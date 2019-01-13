@@ -14,9 +14,9 @@ config = {
     'address': '0.0.0.0',
     'port': 8090,
     'keys': [{
-        'alias': "my peer",
+        'alias': "discovery",
         'generation': u"medium",
-        'file': u"ec.pem"
+        'file': u"keys/discovery.pem"
     }],
     'logger': {
         'level': "INFO"
@@ -25,7 +25,7 @@ config = {
     'overlays': [
         {
             'class': 'DiscoveryCommunity',
-            'key': "my peer",
+            'key': "discovery",
             'walkers': [
                 {
                     'strategy': "RandomWalk",
@@ -57,38 +57,43 @@ try:
     with open('property_to_key_mappings.json', 'r') as file:
         json_file = json.load(file)
         for property in json_file:
-            with open("keys/" + property[1] + ".pem", 'r') as key:
-                key_content = key.read()
-                config['overlays'].append(
-                    {
-                        'class': 'BOBChainCommunity',
-                        'key': "my peer",
-                        'walkers': [{
-                            'strategy': "EdgeWalk",
-                            'peers': 20,
-                            'init': {
-                                'edge_length': 4,
-                                'neighborhood_size': 6,
-                                'edge_timeout': 3.0
-                            }
-                        }],
-                        'initialize': {'property_details': property[0],
-                                       'property_key': ECCrypto().key_from_private_bin(key_content)},
-                        'on_start': [('started',)]
-                    }
-                )
+            # with open("keys/" + property[1] + ".pem", 'r') as key:
+            #     key_content = key.read()
+            config['keys'].append({
+                'alias': property[1],
+                'generation': u"medium",
+                'file': u"keys/" + property[1] + ".pem"
+            })
+            config['overlays'].append(
+                {
+                    'class': 'BOBChainCommunity',
+                    'key': property[1],
+                    'walkers': [{
+                        'strategy': "EdgeWalk",
+                        'peers': 20,
+                        'init': {
+                            'edge_length': 4,
+                            'neighborhood_size': 6,
+                            'edge_timeout': 3.0
+                        }
+                    }],
+                    'initialize': property[0],
+                    'on_start': [('started',)]
+                }
+            )
 except IOError:
     with open('property_to_key_mappings.json', 'w') as file:
         json.dump([], file)
 
 # Start the IPv8 service
-ipv8 = IPv8(config)
+ipv8 = IPv8.__new__(IPv8)
+controller = Controller(ipv8)
+ipv8.__init__(config)
 rest_manager = RESTManager(ipv8)
 rest_manager.start(14410)
 
 # Print the peer for reference
-print "Starting peer", b64encode(ipv8.keys["my peer"].mid)
-controller = Controller(ipv8)
+print "Starting peer", b64encode(ipv8.keys["discovery"].mid)
 thread.start_new_thread(open_gui, (controller,))
 # Start the Twisted reactor: this is the engine scheduling all of the
 # asynchronous calls.

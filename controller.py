@@ -4,7 +4,7 @@ from collections import defaultdict
 
 from twisted.internet import reactor
 
-from pyipv8 import NewCommunityEvent
+from pyipv8 import NewCommunityCreatedEvent, NewCommunityRegisteredEvent
 from pyipv8.ipv8.attestation.bobchain.community import BOBChainCommunity
 from pyipv8.ipv8.keyvault.crypto import ECCrypto
 from pyipv8.ipv8.peer import Peer
@@ -29,14 +29,14 @@ class Controller:
     def __init__(self, ipv8):
         self.ipv8 = ipv8
         Controller.controller = self
-        NewCommunityEvent.event.append(self.add_existing_community)
+        NewCommunityCreatedEvent.event.append(self.register_existing_community)
 
     def get_communities(self):
         return communities
 
-    def add_existing_community(self, community):
+    def register_existing_community(self, community):
         communities[community.country][community.state][community.city][community.street][community.number] = community
-        a = 1
+        NewCommunityRegisteredEvent.event()
 
     def create_community(self, country, state, city, street, number):
         property = {"country": country,
