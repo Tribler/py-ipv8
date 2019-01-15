@@ -1,4 +1,5 @@
 import json
+import sys
 import thread
 from base64 import b64encode
 
@@ -90,7 +91,10 @@ ipv8 = IPv8.__new__(IPv8)
 controller = Controller(ipv8)
 ipv8.__init__(config)
 rest_manager = RESTManager(ipv8)
-rest_manager.start(14410)
+if len(sys.argv) > 1:
+    rest_manager.start(int(sys.argv[1]))
+else:
+    rest_manager.start(14410)
 
 # Print the peer for reference
 print "Starting peer", b64encode(ipv8.keys["discovery"].mid)
