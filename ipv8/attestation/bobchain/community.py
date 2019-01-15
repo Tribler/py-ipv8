@@ -7,13 +7,12 @@ from __future__ import absolute_import
 
 import hashlib
 from binascii import unhexlify
-from datetime import datetime
 from functools import wraps
 from threading import RLock
 
 from twisted.internet.defer import succeed
 
-from pyipv8 import NewCommunityCreatedEvent
+from pyipv8 import NewCommunityCreatedEvent, PropertyBookedEvent
 from .block import BobChainBlock
 from .database import BobChainDB
 from .settings import BobChainSettings
@@ -99,12 +98,14 @@ class BOBChainCommunity(Community):
             if block.is_genesis:
                 continue
             block_start_day_split = block.transaction["start_day"].split("-")
-            block_end_day_split = block.transaction["start_day"].split("-")
-            block_start_day_tuple = (int(block_start_day_split[0]), int(block_start_day_split[1]), int(block_start_day_split[2]))
-            block_end_day_tuple = (int(block_end_day_split[0]), int(block_end_day_split[1]), int(block_end_day_split[2]))
+            block_end_day_split = block.transaction["end_day"].split("-")
+            block_start_day_tuple = (
+            int(block_start_day_split[0]), int(block_start_day_split[1]), int(block_start_day_split[2]))
+            block_end_day_tuple = (
+            int(block_end_day_split[0]), int(block_end_day_split[1]), int(block_end_day_split[2]))
             if not (block_end_day_tuple <= start_day_tuple or block_start_day_tuple >= end_day_tuple):
                 print "Overbooking!"
-                return
+                return False
 
         source_block = self.persistence.get_latest(self.my_peer.public_key.key_to_bin())
         self.create_link(
@@ -116,8 +117,16 @@ class BOBChainCommunity(Community):
                 b"end_day": end_day  # yyyy-mm-dd
             }
         )
+        PropertyBookedEvent.event({"country": self.country,
+                              "state": self.state,
+                              "city": self.city,
+                              "street": self.street,
+                              "number": self.number},
+                                  start_day,
+                                  end_day)
         print "Number of linked blocks:", len(self.persistence.get_all_linked(source_block))
         print "Booked property"
+        return True
 
     def get_bookings(self):
         result = []

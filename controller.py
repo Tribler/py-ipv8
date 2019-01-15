@@ -102,7 +102,7 @@ class Controller:
         city = property_details["city"]
         street = property_details["street"]
         number = property_details["number"]
-        communities[country][state][city][street][number].book_apartment(start_day, end_day)
+        return communities[country][state][city][street][number].book_apartment(start_day, end_day)
 
     def remove_all_created_blocks(self):
         for country, states in communities.items():
