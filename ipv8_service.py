@@ -83,20 +83,8 @@ else:
                 if key_block['file'] and isfile(key_block['file']):
                     with open(key_block['file'], 'r') as f:
                         content = f.read()
-                        try:
-                            # IPv8 Standardized bin format
-                            self.keys[key_block['alias']] = Peer(default_eccrypto.key_from_private_bin(content))
-                        except ValueError:
-                            try:
-                                # Try old Tribler M2Crypto PEM format
-                                content = content[31:-30].replace('\n', '').decode("BASE64")
-                                peer = Peer(M2CryptoSK(keystring=content))
-                                peer.mid # This will error out if the keystring is not M2Crypto
-                                self.keys[key_block['alias']] = peer
-                            except:
-                                # Try old LibNacl format
-                                content = "LibNaCLSK:" + content
-                                self.keys[key_block['alias']] = Peer(default_eccrypto.key_from_private_bin(content))
+                        # IPv8 Standardized bin format
+                        self.keys[key_block['alias']] = Peer(default_eccrypto.key_from_private_bin(content))
                 else:
                     self.keys[key_block['alias']] = Peer(default_eccrypto.generate_key(key_block['generation']))
                     if key_block['file']:
