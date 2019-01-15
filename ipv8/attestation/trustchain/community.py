@@ -5,10 +5,10 @@ Every node has a chain and these chains intertwine by blocks shared by chains.
 """
 from __future__ import absolute_import
 
-from binascii import hexlify, unhexlify
 import logging
 import random
 import struct
+from binascii import hexlify, unhexlify
 from functools import wraps
 from threading import RLock
 
@@ -16,14 +16,14 @@ from twisted.internet import reactor
 from twisted.internet.defer import Deferred, succeed, fail
 from twisted.internet.task import LoopingCall
 
-from ...attestation.trustchain.settings import TrustChainSettings
 from .block import TrustChainBlock, ValidationResult, EMPTY_PK, GENESIS_SEQ, UNKNOWN_SEQ, ANY_COUNTERPARTY_PK
 from .caches import CrawlRequestCache, HalfBlockSignCache, IntroCrawlTimeout, ChainCrawlCache
 from .database import TrustChainDB
+from .payload import *
+from ...attestation.trustchain.settings import TrustChainSettings
 from ...community import Community
 from ...lazy_community import lazy_wrapper, lazy_wrapper_unsigned, lazy_wrapper_unsigned_wd
 from ...messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
-from .payload import *
 from ...peer import Peer
 from ...requestcache import RandomNumberCache, RequestCache
 from ...util import grange
@@ -35,10 +35,12 @@ def synchronized(f):
     """
     Due to database inconsistencies, we can't allow multiple threads to handle a received_half_block at the same time.
     """
+
     @wraps(f)
     def wrapper(self, *args, **kwargs):
         with receive_block_lock:
             return f(self, *args, **kwargs)
+
     return wrapper
 
 
@@ -226,8 +228,7 @@ class TrustChainCommunity(Community):
         assert additional_info is None or additional_info is not None and linked is not None and \
                transaction is None and peer == self.my_peer and public_key == linked.public_key, \
             "Either no additional info is provided or one provides it for a linked block"
-        assert linked is None or linked.link_public_key == self.my_peer.public_key.key_to_bin() or \
-               linked.link_public_key == ANY_COUNTERPARTY_PK, "Cannot counter sign block not addressed to self"
+        assert linked is None or linked.link_public_key == self.my_peer.public_key.key_to_bin() or linked.link_public_key == ANY_COUNTERPARTY_PK, "Cannot counter sign block not addressed to self"
         assert linked is None or linked.link_sequence_number == UNKNOWN_SEQ, \
             "Cannot counter sign block that is not a request"
         assert transaction is None or isinstance(transaction, dict), "Transaction should be a dictionary"
@@ -378,8 +379,8 @@ class TrustChainCommunity(Community):
 
         # Is this a request, addressed to us, and have we not signed it already?
         if blk.link_sequence_number != UNKNOWN_SEQ or \
-                        blk.link_public_key != self.my_peer.public_key.key_to_bin() or \
-                        self.persistence.get_linked(blk) is not None:
+                blk.link_public_key != self.my_peer.public_key.key_to_bin() or \
+                self.persistence.get_linked(blk) is not None:
             return
 
         self.logger.info("Received request block addressed to us (%s)", blk)
@@ -393,7 +394,7 @@ class TrustChainCommunity(Community):
         # this point. We already dropped invalids, so here we delay this message if the result is partial,
         # partial_previous or no-info. We send a crawl request to the requester to (hopefully) close the gap
         if (validation[0] == ValidationResult.partial_previous or validation[0] == ValidationResult.partial or \
-                        validation[0] == ValidationResult.no_info) and self.settings.validation_range > 0:
+            validation[0] == ValidationResult.no_info) and self.settings.validation_range > 0:
             self.logger.info("Request block could not be validated sufficiently, crawling requester. %s",
                              validation)
             # Note that this code does not cover the scenario where we obtain this block indirectly.

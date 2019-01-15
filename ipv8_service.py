@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 
+from base64 import b64decode
 import logging
 from os.path import isfile
 import sys
@@ -35,7 +36,7 @@ else:
         from .ipv8.attestation.identity.community import IdentityCommunity
         from .ipv8.attestation.trustchain.community import TrustChainCommunity, TrustChainTestnetCommunity
         from .ipv8.attestation.wallet.community import AttestationCommunity
-        from .ipv8.keyvault.crypto import default_eccrypto, ECCrypto
+        from .ipv8.keyvault.crypto import default_eccrypto
         from .ipv8.keyvault.private.m2crypto import M2CryptoSK
         from .ipv8.messaging.anonymization.community import TunnelCommunity
         from .ipv8.messaging.anonymization.hidden_services import HiddenTunnelCommunity
@@ -48,6 +49,7 @@ else:
 
     _COMMUNITIES = {
         'AttestationCommunity': AttestationCommunity,
+        'BOBChainCommunity': BOBChainCommunity,
         'DiscoveryCommunity': DiscoveryCommunity,
         'HiddenTunnelCommunity': HiddenTunnelCommunity,
         'IdentityCommunity': IdentityCommunity,
@@ -55,7 +57,6 @@ else:
         'TunnelCommunity': TunnelCommunity,
         'DHTDiscoveryCommunity': DHTDiscoveryCommunity,
         'TrustChainTestnetCommunity': TrustChainTestnetCommunity,
-        'BOBChainCommunity': BOBChainCommunity,
     }
 
     _WALKERS = {
@@ -83,10 +84,22 @@ else:
                 if key_block['file'] and isfile(key_block['file']):
                     with open(key_block['file'], 'r') as f:
                         content = f.read()
-                        # IPv8 Standardized bin format
-                        self.keys[key_block['alias']] = Peer(ECCrypto().key_from_private_bin(content))
+                        try:
+                            # IPv8 Standardized bin format
+                            self.keys[key_block['alias']] = Peer(default_eccrypto.key_from_private_bin(content))
+                        except ValueError:
+                            try:
+                                # Try old Tribler M2Crypto PEM format
+                                content = b64decode(content[31:-30].replace('\n', ''))
+                                peer = Peer(M2CryptoSK(keystring=content))
+                                peer.mid # This will error out if the keystring is not M2Crypto
+                                self.keys[key_block['alias']] = peer
+                            except:
+                                # Try old LibNacl format
+                                content = "LibNaCLSK:" + content
+                                self.keys[key_block['alias']] = Peer(default_eccrypto.key_from_private_bin(content))
                 else:
-                    self.keys[key_block['alias']] = Peer(ECCrypto().generate_key(key_block['generation']))
+                    self.keys[key_block['alias']] = Peer(default_eccrypto.generate_key(key_block['generation']))
                     if key_block['file']:
                         with open(key_block['file'], 'w') as f:
                             f.write(self.keys[key_block['alias']].key.key_to_bin())

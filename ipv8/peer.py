@@ -4,7 +4,7 @@ from base64 import b64encode
 from struct import unpack
 from time import time
 
-from .keyvault.crypto import default_eccrypto, ECCrypto
+from .keyvault.crypto import ECCrypto
 from .keyvault.keys import Key
 
 

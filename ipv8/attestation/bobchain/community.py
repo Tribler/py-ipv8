@@ -10,15 +10,11 @@ from binascii import unhexlify
 from functools import wraps
 from threading import RLock
 
-from twisted.internet.defer import succeed
-
 from pyipv8 import NewCommunityCreatedEvent, PropertyBookedEvent
+from pyipv8.ipv8.attestation.trustchain.block import ANY_COUNTERPARTY_PK
 from pyipv8.ipv8.attestation.trustchain.community import TrustChainCommunity
 from .block import BobChainBlock
 from .database import BobChainDB
-from .settings import BobChainSettings
-from ..trustchain.block import ANY_COUNTERPARTY_PK, ValidationResult
-from ...community import Community
 from ...peer import Peer
 
 receive_block_lock = RLock()
@@ -87,44 +83,43 @@ class BOBChainCommunity(TrustChainCommunity):
         end_day_split = end_day.split("-")
         start_day_tuple = (int(start_day_split[0]), int(start_day_split[1]), int(start_day_split[2]))
         end_day_tuple = (int(end_day_split[0]), int(end_day_split[1]), int(end_day_split[2]))
-        blocks = self.persistence.get_latest_blocks(self.my_peer.public_key.key_to_bin(), limit=99999)
+        blocks = self.persistence.get_blocks_with_type(self.block_type_property)
         for block in blocks:
             if block.is_genesis:
                 continue
             block_start_day_split = block.transaction["start_day"].split("-")
             block_end_day_split = block.transaction["end_day"].split("-")
             block_start_day_tuple = (
-            int(block_start_day_split[0]), int(block_start_day_split[1]), int(block_start_day_split[2]))
+                int(block_start_day_split[0]), int(block_start_day_split[1]), int(block_start_day_split[2]))
             block_end_day_tuple = (
-            int(block_end_day_split[0]), int(block_end_day_split[1]), int(block_end_day_split[2]))
+                int(block_end_day_split[0]), int(block_end_day_split[1]), int(block_end_day_split[2]))
             if not (block_end_day_tuple <= start_day_tuple or block_start_day_tuple >= end_day_tuple):
                 print "Overbooking!"
                 return False
 
-        source_block = self.persistence.get_latest(self.my_peer.public_key.key_to_bin())
-        self.create_link(
-            source=source_block,
+        self.sign_block(
+            peer=None,
+            public_key=ANY_COUNTERPARTY_PK,
             block_type=self.block_type_property,
-            additional_info=
+            transaction=
             {
                 b"start_day": start_day,  # yyyy-mm-dd
                 b"end_day": end_day  # yyyy-mm-dd
             }
         )
         PropertyBookedEvent.event({"country": self.country,
-                              "state": self.state,
-                              "city": self.city,
-                              "street": self.street,
-                              "number": self.number},
+                                   "state": self.state,
+                                   "city": self.city,
+                                   "street": self.street,
+                                   "number": self.number},
                                   start_day,
                                   end_day)
-        print "Number of linked blocks:", len(self.persistence.get_all_linked(source_block))
         print "Booked property"
         return True
 
     def get_bookings(self):
         result = []
-        for block in self.persistence.get_latest_blocks(self.my_peer.public_key.key_to_bin(), limit=99999):
+        for block in self.persistence.get_blocks_with_type(self.block_type_property):
             if block.is_genesis:
                 continue
             result.append(block.transaction)
@@ -146,23 +141,14 @@ class BOBChainCommunity(TrustChainCommunity):
         else:
             print "Not all blocks have been removed, number of blocks remaining: ", len(blocks)
 
-    def print_blocks(self):
-        blocks = self.persistence.get_all_blocks()
-        i = 0
-        for block in blocks:
-            print "block number: ", i, " is_genesis: ", block.is_genesis
-            print "transaction", block.transaction
-            print "has id: ", block.block_id
-            print "linked_block_id: ", block.linked_block_id
-            i += 1
-
     def started(self):
         if len(self.persistence.get_blocks_with_type(self.block_type_property)) == 0:
-            self.create_source_block(transaction={"country": self.country,
-                                            "state": self.state,
-                                            "city": self.city,
-                                            "street": self.street,
-                                            "number": self.number})
+            self.create_source_block(block_type=self.block_type_property,
+                                     transaction={"country": self.country,
+                                                  "state": self.state,
+                                                  "city": self.city,
+                                                  "street": self.street,
+                                                  "number": self.number})
         # self.register_task("print_peers", LoopingCall(print_peers)).start(5.0, True)
         # self.register_task("print_blocks", LoopingCall(wrapper_create_and_remove_blocks)).start(5.0, True)
 
