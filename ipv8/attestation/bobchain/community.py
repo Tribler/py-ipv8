@@ -11,6 +11,7 @@ from functools import wraps
 from threading import RLock
 
 from pyipv8 import NewCommunityCreatedEvent, PropertyBookedEvent
+from pyipv8.ipv8.attestation.bobchain.settings import BobChainSettings
 from pyipv8.ipv8.attestation.trustchain.block import ANY_COUNTERPARTY_PK
 from pyipv8.ipv8.attestation.trustchain.community import TrustChainCommunity
 from .block import BobChainBlock
