@@ -69,6 +69,7 @@ class BOBChainCommunity(TrustChainCommunity):
 
     def __init__(self, *args, **kwargs):
         super(BOBChainCommunity, self).__init__(*args)
+        self.settings = kwargs.pop('settings', BobChainSettings())
         self.country = kwargs["country"]
         self.state = kwargs["state"]
         self.city = kwargs["city"]

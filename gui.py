@@ -1,6 +1,5 @@
 import tkSimpleDialog
 
-from tkinter import messagebox
 
 from pyipv8 import NewCommunityRegisteredEvent
 
@@ -166,7 +165,7 @@ class PageBookProperty(object, Page):
                     tkSimpleDialog.askstring("Input", "Enter the end date (yyyy-mm-dd)")):
                 self.refresh_bookings()
             else:
-                messagebox.showerror("Error", "Overbooking!")
+                tk.messagebox.showerror("Error", "Overbooking!")
 
         super(PageBookProperty, self).show()
         self.lb_properties = tk.Listbox(self)

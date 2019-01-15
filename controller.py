@@ -112,7 +112,7 @@ class Controller:
                         for number in numbers:
                             communities[country][state][city][street][number].remove_all_created_blocks()
 
-        for f in glob.glob("keys/*"):
+        for f in glob.glob("keys\\*"):
             os.remove(f)
 
         with open('property_to_key_mappings.json', 'w') as file:

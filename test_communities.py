@@ -55,7 +55,7 @@ config = {
     'keys': [{
         'alias': "discovery",
         'generation': u"medium",
-        'file': u"keys/discovery.pem"
+        'file': u"keys\\discovery.pem"
     }],
     'logger': {
         'level': "INFO"
