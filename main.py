@@ -10,6 +10,7 @@ from pyipv8.gui import open_gui
 from pyipv8.ipv8.REST.rest_manager import RESTManager
 from pyipv8.ipv8.keyvault.crypto import ECCrypto
 from pyipv8.ipv8_service import IPv8
+import os
 
 config = {
     'address': '0.0.0.0',
@@ -17,7 +18,7 @@ config = {
     'keys': [{
         'alias': "discovery",
         'generation': u"medium",
-        'file': u"keys/discovery.pem"
+        'file': u"keys\\discovery.pem"
     }],
     'logger': {
         'level': "INFO"
@@ -63,7 +64,7 @@ try:
             config['keys'].append({
                 'alias': property[1],
                 'generation': u"medium",
-                'file': u"keys/" + property[1] + ".pem"
+                'file': u"keys\\" + property[1] + ".pem"
             })
             config['overlays'].append(
                 {
