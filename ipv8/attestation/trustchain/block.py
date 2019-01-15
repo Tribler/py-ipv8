@@ -275,9 +275,6 @@ class TrustChainBlock(object):
                 self.link_public_key != ANY_COUNTERPARTY_PK and \
                 self.link_public_key != EMPTY_PK:
             result.err("Linked public key is not valid")
-        if self.public_key == self.link_public_key:
-            # Blocks to self serve no purpose and are thus invalid.
-            result.err("Self signed block")
         if self.is_genesis:
             if self.sequence_number == GENESIS_SEQ and self.previous_hash != GENESIS_HASH:
                 result.err("Sequence number implies previous hash should be Genesis ID")

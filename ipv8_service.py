@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 
+from base64 import b64decode
 import logging
 from os.path import isfile
 import sys
@@ -9,6 +10,8 @@ from traceback import format_exception
 from twisted.internet import reactor
 from twisted.internet.defer import DeferredList, inlineCallbacks, maybeDeferred
 from twisted.internet.task import LoopingCall
+
+from pyipv8.ipv8.attestation.bobchain.community import BOBChainCommunity
 
 if hasattr(sys.modules['__main__'], "IPv8"):
     sys.modules[__name__] = sys.modules['__main__']
@@ -46,6 +49,7 @@ else:
 
     _COMMUNITIES = {
         'AttestationCommunity': AttestationCommunity,
+        'BOBChainCommunity': BOBChainCommunity,
         'DiscoveryCommunity': DiscoveryCommunity,
         'HiddenTunnelCommunity': HiddenTunnelCommunity,
         'IdentityCommunity': IdentityCommunity,
@@ -86,7 +90,7 @@ else:
                         except ValueError:
                             try:
                                 # Try old Tribler M2Crypto PEM format
-                                content = content[31:-30].replace('\n', '').decode("BASE64")
+                                content = b64decode(content[31:-30].replace('\n', ''))
                                 peer = Peer(M2CryptoSK(keystring=content))
                                 peer.mid # This will error out if the keystring is not M2Crypto
                                 self.keys[key_block['alias']] = peer
