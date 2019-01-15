@@ -17,7 +17,7 @@ config = {
     'keys': [{
         'alias': "discovery",
         'generation': u"medium",
-        'file': u"keys/discovery.pem"
+        'file': u"keys\\discovery.pem"
     }],
     'logger': {
         'level': "INFO"
@@ -63,7 +63,7 @@ try:
             config['keys'].append({
                 'alias': property[1],
                 'generation': u"medium",
-                'file': u"keys/" + property[1] + ".pem"
+                'file': u"keys\\" + property[1] + ".pem"
             })
             config['overlays'].append(
                 {

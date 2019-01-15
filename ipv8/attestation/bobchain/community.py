@@ -76,7 +76,6 @@ class BOBChainCommunity(Community):
         working_directory = kwargs.pop('working_directory', '')
         db_name = kwargs.pop('db_name', self.DB_NAME)
         self.settings = kwargs.pop('settings', BobChainSettings())
-
         super(BOBChainCommunity, self).__init__(*args)
         self.persistence = self.DB_CLASS(working_directory, db_name)
         self.country = kwargs["country"]
@@ -106,6 +105,8 @@ class BOBChainCommunity(Community):
             if not (block_end_day_tuple <= start_day_tuple or block_start_day_tuple >= end_day_tuple):
                 print "Overbooking!"
                 return False
+
+
 
         source_block = self.persistence.get_latest(self.my_peer.public_key.key_to_bin())
         self.create_link(
