@@ -13,6 +13,7 @@ from threading import RLock
 from twisted.internet.defer import succeed
 
 from pyipv8 import NewCommunityCreatedEvent, PropertyBookedEvent
+from pyipv8.ipv8.attestation.trustchain.community import TrustChainCommunity
 from .block import BobChainBlock
 from .database import BobChainDB
 from .settings import BobChainSettings
@@ -56,7 +57,7 @@ def synchronized(f):
     return wrapper
 
 
-class BOBChainCommunity(Community):
+class BOBChainCommunity(TrustChainCommunity):
     bobChainCommunity = None
 
     # TODO figure this out
@@ -71,14 +72,7 @@ class BOBChainCommunity(Community):
     DB_NAME = 'bobchain'
 
     def __init__(self, *args, **kwargs):
-
-        # initialize the database:
-        working_directory = kwargs.pop('working_directory', '')
-        db_name = kwargs.pop('db_name', self.DB_NAME)
-        self.settings = kwargs.pop('settings', BobChainSettings())
-
         super(BOBChainCommunity, self).__init__(*args)
-        self.persistence = self.DB_CLASS(working_directory, db_name)
         self.country = kwargs["country"]
         self.state = kwargs["state"]
         self.city = kwargs["city"]
@@ -136,24 +130,6 @@ class BOBChainCommunity(Community):
             result.append(block.transaction)
         return result
 
-    def create_genesis_block(self):
-        """
-        Create a genesis block without any initial counterparty to sign.
-
-        :param block_type: The type of the block to be constructed, as a string
-        :param transaction: A string describing the interaction in this block
-        :param public_key: A string of 74 characters that is a public key
-        :return: A deferred that fires with a (block, None) tuple
-        """
-        return self.sign_block(peer=None,
-                               public_key=ANY_COUNTERPARTY_PK,
-                               block_type=self.block_type_property,
-                               transaction={"country": self.country,
-                                            "state": self.state,
-                                            "city": self.city,
-                                            "street": self.street,
-                                            "number": self.number})
-
     # This function will remove all the created blocks in the bobchain community
     def remove_all_created_blocks(self):
         print "Going to remove all blocks"
@@ -182,146 +158,16 @@ class BOBChainCommunity(Community):
 
     def started(self):
         if len(self.persistence.get_blocks_with_type(self.block_type_property)) == 0:
-            self.create_genesis_block()
+            self.create_source_block(transaction={"country": self.country,
+                                            "state": self.state,
+                                            "city": self.city,
+                                            "street": self.street,
+                                            "number": self.number})
         # self.register_task("print_peers", LoopingCall(print_peers)).start(5.0, True)
         # self.register_task("print_blocks", LoopingCall(wrapper_create_and_remove_blocks)).start(5.0, True)
-
-    @synchronized
-    def sign_block(self, peer, public_key, block_type, transaction=None, linked=None,
-                   additional_info=None):
-        """
-        Create, sign, persist and send a block signed message
-        :param peer: The peer with whom you have interacted, as a IPv8 peer
-        :param public_key: The public key of the other party you transact with
-        :param block_type: The type of the block to be constructed, as a string
-        :param transaction: A string describing the interaction in this block
-        :param linked: The block that the requester is asking us to sign
-        :param additional_info: Stores additional information, on the transaction
-        """
-
-        # TODO:
-        # Should add assertion checks below that makes sense for the BOBChain
-        # check the trustchain/community sign_block() to get an idea of what are good assertions
-        assert transaction is None or isinstance(transaction, dict), "Transaction should be a dictionary"
-        assert additional_info is None or isinstance(additional_info, dict), "Additional info should be a dictionary"
-
-        # TODO:
-        # Check below should be implemented, this check makes sure that the latest block in the chain
-        # can be validated, otherwise the database needs to be sanitized
-        # self.persistence_integrity_check()
-
-        # TODO:
-        # Add linkage logic
-        # if linked and linked.link_public_key != ANY_COUNTERPARTY_PK:
-        #     block_type = linked.type
-
-        # TODO
-        # Fix input for the get_block_class, this should not be a static string
-        block = self.get_block_class(self.block_type_property).create(block_type,
-                                                                      transaction,
-                                                                      self.persistence,
-                                                                      public_key=self.my_peer.public_key.key_to_bin(),
-                                                                      link=linked,
-                                                                      additional_info=additional_info,
-                                                                      link_pk=public_key)
-
-        block.sign(self.my_peer.key)
-
-        # TODO
-        # Write validation logic
-
-        # Add block to database:
-        if not self.persistence.contains(block):
-            self.persistence.add_block(block)
-            # self.notify_listeners(block)
-
-        # This is a source block with no counterparty
-        if not peer and public_key == ANY_COUNTERPARTY_PK:
-            # TODO figure this out
-            # if self.settings.broadcast_blocks:
-            #     self.send_block(block)
-            return succeed((block, None))
-
-        # TODO
-        # No Counter party is ever needed, see how we need to handle this
-        # If there is a counterparty to sign, we send it
-        # self.send_block(block, address=peer.address)
-
-        # TODO
-        # Find logic when we broadcast the block
-        # Probably when we think it is validated
-        # We broadcast the block in the network if we initiated a transaction
-        # if self.settings.broadcast_blocks and not linked:
-        #     self.send_block(block)
-
-        # Self signed block, this seems to be the situation
-        if peer == self.my_peer:
-            # We created a self-signed block
-            # TODO figure out how to send this
-            # if self.settings.broadcast_blocks:
-            #     self.send_block(block)
-
-            return succeed((block, None)) if public_key == ANY_COUNTERPARTY_PK else succeed((block, linked))
-        # elif not linked:
-        #     # We keep track of this outstanding sign request.
-        #     sign_deferred = Deferred()
-        #     self.request_cache.add(HalfBlockSignCache(self, block, sign_deferred, peer.address))
-        #     return sign_deferred
-        # else:
-        #     # We return a deferred that fires immediately with both half blocks.
-        #     if self.settings.broadcast_blocks:
-        #         self.send_block_pair(linked, block)
-        #
-        #     return succeed((linked, block))
-
-    def create_link(self, source, block_type, additional_info, public_key=None):
-        """
-        Create a Link Block to a source block
-
-        :param source: The source block which had no initial counterpary to sign
-        :param block_type: The type of the block to be constructed, as a string
-        :param additional_info: a dictionary with supplementary information concerning the transaction
-        :param public_key: The public key of the counterparty (usually of the source's owner)
-        :return: None
-        """
-        public_key = source.public_key if public_key is None else public_key
-
-        return self.sign_block(self.my_peer, additional_info=additional_info, linked=source, public_key=public_key,
-                               block_type=block_type)
-
-    def validate_persist_block(self, block):
-        """
-        Validate a block and if it's valid, persist it. Return the validation result.
-        :param block: The block to validate and persist.
-        :return: [ValidationResult]
-        """
-        validation = block.validate(self.persistence)
-        if validation[0] == ValidationResult.invalid:
-            pass
-        elif not self.persistence.contains(block):
-            self.persistence.add_block(block)
-            self.notify_listeners(block)
-
-        return validation
 
     def get_block_class(self, block_type):
         """
         Get the block class for a specific block type.
         """
-        assert block_type == self.block_type_property, "Wrong type of block is being created"
-
         return BobChainBlock
-
-    def persistence_integrity_check(self):
-        """
-        Perform an integrity check of our own chain. Recover it if needed.
-        """
-        block = self.persistence.get_latest(self.my_peer.public_key.key_to_bin())
-        if not block:
-            return
-
-        # TODO
-        # validation = self.validate_persist_block(block)
-        # if validation[0] != ValidationResult.partial_next and validation[0] != ValidationResult.valid:
-        #     self.logger.error("Our chain did not validate. Result %s", repr(validation))
-        #     self.sanitize_database()

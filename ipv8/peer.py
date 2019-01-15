@@ -4,7 +4,7 @@ from base64 import b64encode
 from struct import unpack
 from time import time
 
-from .keyvault.crypto import default_eccrypto
+from .keyvault.crypto import default_eccrypto, ECCrypto
 from .keyvault.keys import Key
 
 
@@ -20,7 +20,7 @@ class Peer(object):
         :param intro: is this peer suggested to us (otherwise it contacted us)
         """
         if not isinstance(key, Key):
-            self.key = default_eccrypto.key_from_public_bin(key)
+            self.key = ECCrypto().key_from_public_bin(key)
         else:
             self.key = key
         self.mid = self.key.key_to_hash()
