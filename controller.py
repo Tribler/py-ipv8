@@ -77,7 +77,7 @@ class Controller:
         communities[country][state][city][street][number] = community
 
         community_key_hash = hashlib.sha224(json.dumps(property_details)).hexdigest()
-        with open("keys/" + str(community_key_hash) + ".pem", 'w') as f:
+        with open("keys\\" + str(community_key_hash) + ".pem", 'w') as f:
             f.write(community_key.key_to_bin())
 
         with open('property_to_key_mappings.json', 'w') as file:
@@ -112,7 +112,7 @@ class Controller:
                         for number in numbers:
                             communities[country][state][city][street][number].remove_all_created_blocks()
 
-        for f in glob.glob("keys/*"):
+        for f in glob.glob("keys\\*"):
             os.remove(f)
 
         with open('property_to_key_mappings.json', 'w') as file:
