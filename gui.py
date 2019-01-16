@@ -159,13 +159,16 @@ class PageBookProperty(object, Page):
 
     def show(self):
         def book_property():
-            if self.book_property(
+            error = self.book_property(
                     self.property_details[self.lb_properties.curselection()[0]],
                     tkSimpleDialog.askstring("Input", "Enter the start date (yyyy-mm-dd)"),
-                    tkSimpleDialog.askstring("Input", "Enter the end date (yyyy-mm-dd)")):
+                    tkSimpleDialog.askstring("Input", "Enter the end date (yyyy-mm-dd)"))
+            if error == 0:
                 self.refresh_bookings()
-            else:
+            elif error == 1:
                 tkMessageBox.showerror("Error", "Overbooking!")
+            elif error == 2:
+                tkMessageBox.showerror("Error", "Nightcap exceeded!")
 
         super(PageBookProperty, self).show()
         self.lb_properties = tk.Listbox(self)

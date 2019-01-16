@@ -88,6 +88,7 @@ else:
                             # IPv8 Standardized bin format
                             self.keys[key_block['alias']] = Peer(default_eccrypto.key_from_private_bin(content))
                         except ValueError:
+                            print("Keys went wrong again...")
                             try:
                                 # Try old Tribler M2Crypto PEM format
                                 content = b64decode(content[31:-30].replace('\n', ''))

@@ -7,6 +7,7 @@ from __future__ import absolute_import
 
 import hashlib
 from binascii import unhexlify
+from datetime import date, timedelta
 from functools import wraps
 from threading import RLock
 
@@ -86,6 +87,8 @@ class BOBChainCommunity(TrustChainCommunity):
         start_day_tuple = (int(start_day_split[0]), int(start_day_split[1]), int(start_day_split[2]))
         end_day_tuple = (int(end_day_split[0]), int(end_day_split[1]), int(end_day_split[2]))
         blocks = self.persistence.get_blocks_with_type(self.block_type_property)
+        nightcap = timedelta(9)
+        total_days_booked = date(end_day_tuple[0], end_day_tuple[1], end_day_tuple[2]) - date(start_day_tuple[0], start_day_tuple[1], start_day_tuple[2])
         for block in blocks:
             if block.is_genesis:
                 continue
@@ -95,9 +98,13 @@ class BOBChainCommunity(TrustChainCommunity):
                 int(block_start_day_split[0]), int(block_start_day_split[1]), int(block_start_day_split[2]))
             block_end_day_tuple = (
                 int(block_end_day_split[0]), int(block_end_day_split[1]), int(block_end_day_split[2]))
+            total_days_booked += date(block_end_day_tuple[0], block_end_day_tuple[1], block_end_day_tuple[2]) - date(block_start_day_tuple[0], block_start_day_tuple[1], block_start_day_tuple[2])
             if not (block_end_day_tuple <= start_day_tuple or block_start_day_tuple >= end_day_tuple):
                 print "Overbooking!"
-                return False
+                return 1
+        if total_days_booked > nightcap:
+            print "Nightcap exceeded!"
+            return 2
 
         self.sign_block(
             peer=None,
@@ -117,7 +124,7 @@ class BOBChainCommunity(TrustChainCommunity):
                                   start_day,
                                   end_day)
         print "Booked property"
-        return True
+        return 0
 
     def get_bookings(self):
         result = []
