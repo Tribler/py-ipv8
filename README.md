@@ -1,13 +1,13 @@
-# **Booked on Blockchain, BOBChain**
+# **Proof of Concept: Booked on Blockchain, BOBChain**
 
 BOBChain is an implementation of a blockchain. The blockchain technology powering BOBChain is *TrustChain* created by Tribler at the Technical University of Delft.
 
 The aim of this document is to give the reader insights into:
 
-- Why BOBChain?
+- Why BOBChain
 - Architecture of BOBChain.
 - How to make use of BOBChain.
-- Limitations of BOBChain.
+- Challenges that still need to be faced on POC: BOBChain.
 
 ---
 
@@ -56,8 +56,6 @@ BOBChain is a direct extension of Triblers *TrustChainCommunity*; with some modi
 
 To better describe the architecture of BOBChain the process of how a homeowner is able to get a license, to authorize an OTA to use its license and how an OTA or Municipality can interact with the license.
 
-![alt text](https://github.com/simionAndrei/BobChain/blob/master/images/arch.png "Stakeholder Architecture BOBChain")
-
 ### **Homeowner Attaining a License**
 
 To ensure each homeowner is a private *BOBChainCommunity*, the homeowner must attain a license from the municipality. The advantage of registering the home with the municipality is that the municipality is able to monitor all the homes on the market.
@@ -85,6 +83,12 @@ Allowing all OTAs to stay anonymous allows for the business sensitive informatio
 Functionality that is given to the municipality is allowing it to check the amount of nightcaps used per home and the total amount of bookings to a home. The right to disallow or revoke a license on the BOBChain is also possible.
 
 The municipality is expected to run all *BOBChainCommunities*, this allows the municipality to play as a safe fail to ensure that data is not lost if networks go down. Though this means *BOBChain* entrusts the municipality to not interfere with bookings that are happening on the *BOBChain*.
+
+### **Overview BOBChain Stakeholder Interaction**
+
+![alt text](https://github.com/simionAndrei/BobChain/blob/master/images/arch.png "Stakeholder Architecture BOBChain")
+
+
 
 ---
 
@@ -121,3 +125,38 @@ This should launch the GUI interface an all interactions with the BOBChain can b
 
 ---
 
+## **Challenges that still need to be faced on POC: BOBChain.**
+
+Within this section a discussion will be held about the current limitations of the BOBChain implementation. Suggestions will be made in how to tackle this limitations in future testing of the BOBChain infrastructure.
+
+#### **Complete Decentralization**
+
+With the current implementation of BOBChain and the network it will be running on means, a lot of trust is put into the municipality. The municipality has to be trusted to share all private and public keys to OTAs if a truthful request is done to gain access to a homeowners BOBChain. Secondly a large amount of trust is placed on the municipality to always run all the homeowners BOBChains to increase the risk of tampering with the BOBChains.
+
+A solution to this problem would be to move the BOBChain to all participating parties. Thus homeowners would also need to run part of the network or soley their BOBChains. This would require trust and home-owners to be compliant to be continously running a service from their homes. This would disperse a lot of trust from the municipality and increase trustworhtyness in the BOBChain network.  
+
+#### **BOBChain entanglement**
+
+At the current time no entanglement is taking place when blocks are added to the chain. A timestamp is taken and is used to measure if a block can be added to the chain. This makes the validation of the chain straight forward but due to only one party part taking in the creation of the chain it loses entanglement.
+
+Entanglement is a feature in TrustChain that allows for easy verification of blocks and ensuring that no manipulation has occured to the chain. Enabling the type of entanglement that TrustChain offers could be done in one of two ways:
+
+The first way this could be achieved is by having the municipality and OTAs both join in the BOBChainCommuntie with their own BOBChain. This would mean for every booking an OTA does it could entangle its own BOBChain to the booking, though too keep anonymity  would be more challenging in this scenario.
+
+The second solution would be having the previous booking transaction entangle the next bookings transaction. This would mean that OTAs would have to use a previous BOBChain to entangle the new booking. Depending on the amount of bookings happening this could cause throughput to slow down, as the state of each BOBChain would have to be continuously up-to-date. Though this may be only of minor concern.
+
+#### **Dealing with Malicious OTAs**
+
+Within the network all OTAs are trusted to not be malicious. Malicious behaviour like cancelling bookings, removing blocks from a chain are just some examples of the type of behaviour that is currently not monitored. With proper entanglement certain issues in malicious behaviour will be removed.
+
+OTAs would have to come up with some set of policies they all agree on. Secondly after having a consensus on policies some type of system needs to be inplace to ensure malicious behaviour is not happening. One could envision a third-party or the municipality monitoring the behaviour happening on the BOBChain, though the monitoring party needs to be trustworthy.
+
+Due to all parties being able to read the chain or parts of the chain, if malicious events are happening the OTAs could be able to see this in the chain. This could mean an investigation into the malicious events could take place.
+
+#### **Business Model**
+
+To bring this POC of BOBChain to production would require a capital investment. At this moment it is unsure where an investment would come from or even where it is invested in. One could envision a third-party company or some type of committee that is created between different OTAs and municipalities.
+
+If a third-party company would bring forth a solution to this problem, they could be able to monitor and give a higher guarantee that all OTAs are playing by the rules. Though this party would have to be trusted by all parties involved.
+
+If a committee was created between different OTAs to work on this problem together or entrust one OTA to create and manage the BOBCHain under the supervision of the other OTAs. This tool could be maintained by the biggest stakeholders in this technology. Though figuring out investment and agreements may be a difficult task.
