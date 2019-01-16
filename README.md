@@ -56,6 +56,8 @@ BOBChain is a direct extension of Triblers *TrustChainCommunity*; with some modi
 
 To better describe the architecture of BOBChain the process of how a homeowner is able to get a license, to authorize an OTA to use its license and how an OTA or Municipality can interact with the license.
 
+![alt text](https://github.com/simionAndrei/BobChain/blob/master/images/arch.png "Stakeholder Architecture BOBChain")
+
 ### **Homeowner Attaining a License**
 
 To ensure each homeowner is a private *BOBChainCommunity*, the homeowner must attain a license from the municipality. The advantage of registering the home with the municipality is that the municipality is able to monitor all the homes on the market.
