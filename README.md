@@ -146,7 +146,7 @@ The first way this could be achieved is by having the municipality and OTAs both
 The second solution would be having the previous booking transaction entangle the next bookings transaction. This would mean that OTAs would have to use a previous BOBChain to entangle the new booking. Depending on the amount of bookings happening this could cause throughput to slow down, as the state of each BOBChain would have to be continuously up-to-date. Though this may be only of minor concern.
 
 The image belows shows how TrustChain entanglement looks like between blocks in the chain:
-![alt text](https://github.com/simionAndrei/BobChain/blob/master/images/trustchain_entanglement.png "TustChain Entanglement")
+![alt text](https://github.com/simionAndrei/BobChain/blob/master/images/trustchain_engta.png "TustChain Entanglement")
 
 #### **Dealing with Malicious OTAs**
 
