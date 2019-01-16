@@ -12,6 +12,15 @@ from pyipv8.ipv8.keyvault.crypto import ECCrypto
 from pyipv8.ipv8_service import IPv8
 import os
 
+import socket 
+def get_open_port(): 
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
+    s.bind(("",0)) 
+    s.listen(1) 
+    port = s.getsockname()[1] 
+    s.close() 
+    return port
+
 config = {
     'address': '0.0.0.0',
     'port': 8090,
@@ -92,10 +101,13 @@ ipv8 = IPv8.__new__(IPv8)
 controller = Controller(ipv8)
 ipv8.__init__(config)
 rest_manager = RESTManager(ipv8)
+'''
 if len(sys.argv) > 1:
     rest_manager.start(int(sys.argv[1]))
 else:
     rest_manager.start(14410)
+'''
+rest_manager.start(get_open_port())
 
 # Print the peer for reference
 print "Starting peer", b64encode(ipv8.keys["discovery"].mid)
