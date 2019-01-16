@@ -13,7 +13,7 @@ The aim of this document is to give the reader insights into:
 
 ### **Why BOBChain?** 
 
-#### **The Problem:**
+### **The Problem:**
 
 Globalization, budget airlines and the sharing economy have lead to an increase in the tourism market around the world. Highly popular touristic cities such as London, Paris, Amsterdam, etc. are experiencing a high influx of tourists. Due to the rise in tourism it has become profitable and exceedingly easy to out ones home too incoming tourists by services such as AirBnB. The increase in tourism and the rise in sharing economy, has lead to some cities to overflow. Causing grief to permanent residents of these cities.
 
@@ -28,7 +28,7 @@ Over-tourism has caused enough problems that municipality are taking notice and 
 
 The main issue with this enforcement is that OTAs do not have a platform where they can communicate with one another to see if residents, who are on multiple OTAs, are exceeding the nightcaps. At the moment OTAs can only internally check their service to see if a resident is exceeding nightcaps, allowing residents to use multiple OTA platforms to avoid such restrictions.
 
-#### **Why blockchain?**
+### **Why blockchain?**
 
 The rise in popularity of *blockchain technology* has been immense since cryptocurrencies like *bitcoin*, *Ethereum*, *Ripple*, etc. entered the attention of mainstream media outlets. Blockchain technology has also been implemented outside of being a currency, the rise of enterprise solutions like *Ethereum Smart-Contracts*, *HyperLedger*, *TrustChain*, etc.. Many different problems have been thrown at the new technology to see if it offers a viable solution.
 
@@ -38,7 +38,7 @@ OTAs have noticed the increase in legal consequences for having customers/partne
 
 Having a decentralized way of checking if nightcap limits are not exceeded, allows for the OTAs to ensure the laws of the muncipality are being followed. Without having to worry that a cartel is being formed. Blockchain at first glance is the perfect solution for this problem. Since it allows for a decentralized ledger to be created, without having a central party control how it is run. 
 
-#### **BOBChain Features**
+### **BOBChain Features**
 
 **BOBChain** offers a blockchain solution to tackle the problem of legal nightcap limits that will allow current and future OTA to communicate on a decentralized ledger to ensure that no legal limits are exceeded. 
 
@@ -56,20 +56,20 @@ BOBChain is a direct extenstion of Triblers TrustChainCommunity; with some modif
 
 To better describe the aritechture of BOBChain the process of how a home-owner is able to get a liscense, to authroize an OTA to use its liscense and how an OTA or Municipality can interact with the liscense. 
 
-#### **Home-owner Attaining a Liscense** 
+### **Home-owner Attaining a Liscense** 
 
 To ensure each home-owner is a private 'BOBChainCommunity', the home-owner must attain a liscense from the municiplality. The advantage of registering the home with the municipality is that the muncipality is able to monitor all the homes on the market. 
 
 The creation of the private 'BOBChainCommunity' is done by generating a private and public key pair for the home-owner and storing it on local servers. The municipality will create a *genisis* block with the private and public key-pair of the home-owner, which will act as an agreement and a liscense for the home-owner. Too ensure that chains are kept up-to-date the municipality will have to continuously run all the 'BOBChainCommunities' and store there respective BOBChains in the database. 
 
-#### **Home-owner Authorizing use of a Liscense**
+### **Home-owner Authorizing use of a Liscense**
 
 Once a home-owner has registered his or her home, it can go to an OTA and authorize it to use it. This can either be done by registering the address by the OTA or giving the public-key the home-owner was given during the creation of the liscense. From here the OTA can request the private and public key pair to start the 'BOBChainCommunity'. 
 
 
 Once a key pair has been acquired the OTA can start the 'BOBChainCommunity' for the newly regeistered home-owner. The home-owners 'BOBChainCommunity', will look for the same 'BOBChainCommunities' running elsewhere in the network and validate and obtain the chain. This chain will be stored locally. 
 
-#### **OTA Interaction BOBChain**
+### **OTA Interaction BOBChain**
 
 Though an OTA is never registered as a memember of the 'BOBChainCommunity', it is able to create transactions on the chain in the name of the home-owner. This allows the transactions happening on the chain to stay annoymous, seeing as all blocks created on the chain were done with the private and public key of the home-owner. 
 
@@ -78,7 +78,7 @@ Each transaction pushed to the chain will be validated for both night-caps and o
 Allowing all OTAs to stay annoymous allows for the business sensitive information on the BOBChain to only be a rough sketch of the whole market instead of the output of individual OTAs bookings. Though this advantage restricts the use of TrustChain's entanglement, seeing as all transactions on the chain are done only within one single party instead of between different parties.
 
 
-#### **Municipality Interaction BOBChain**
+### **Municipality Interaction BOBChain**
 
 Functionality that is given to the municipality is allowing it to check the amount of nightcaps used per home and the total amount of bookings to a home. The right to disallow or revoke a liscense on the BOBChain is also possible. 
 
