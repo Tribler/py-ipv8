@@ -15,6 +15,7 @@ setup(
     url='https://github.com/Tribler/py-ipv8',
     package_data={'': ['*.*']},
     packages=find_packages(),
+    py_modules=['ipv8_service'],
     install_requires=[
         "cryptography",
         "libnacl",
