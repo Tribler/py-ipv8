@@ -32,17 +32,18 @@ class PageLogin(object, Page):
         self.page_ota = page_ota
         self.clear_database = clear_database
 
-    def show(self):
-        super(PageLogin, self).show()
         b1 = tk.Button(self, text="Government", command=self.page_government.show)
-        b2 = tk.Button(self, text="Home owner", command=self.page_home_owner.show)
+        # b2 = tk.Button(self, text="Home owner", command=self.page_home_owner.show)
         b3 = tk.Button(self, text="OTA", command=self.page_ota.show)
         btn_clear_database = tk.Button(self, text="Clear database", command=self.clear_database)
 
         b1.pack(side="top", fill="both")
-        b2.pack(side="top", fill="both")
+        # b2.pack(side="top", fill="both")
         b3.pack(side="top", fill="both")
         btn_clear_database.pack(side="top", fill="both")
+
+    def show(self):
+        super(PageLogin, self).show()
 
 
 class PageGovernment(object, Page):
@@ -52,7 +53,8 @@ class PageGovernment(object, Page):
         Page.__init__(self, *args, **kwargs)
         self.property_details = []
 
-    def init(self, get_apartments, publish_license):
+    def init(self, page_login, get_apartments, publish_license):
+        self.page_login = page_login;
         self.get_apartments = get_apartments
         self.publish_license = publish_license
         tk.Label(self, text="Registered properties")
@@ -90,7 +92,10 @@ class PageGovernment(object, Page):
                                entry_street.get(),
                                entry_number.get()
                            ))
+
+        back = tk.Button(self, text="Back", command=self.page_login.show)
         button.pack()
+        back.pack()
 
     def refresh_listbox(self):
         self.listbox.delete(0, 'end')
@@ -129,15 +134,20 @@ class PageOTA(object, Page):
     def __init__(self, *args, **kwargs):
         Page.__init__(self, *args, **kwargs)
 
-    def init(self, page_book_apartment):
+    def init(self, page_login, page_book_apartment):
         self.page_book_apartment = page_book_apartment
+        self.page_login = page_login
 
-    def show(self):
-        super(PageOTA, self).show()
         button = tk.Button(self,
                            text="Book property",
                            command=self.page_book_apartment.show)
+
+        back = tk.Button(self, text="Back", command=self.page_login.show)
         button.pack()
+        back.pack()
+
+    def show(self):
+        super(PageOTA, self).show()
 
 
 class PageBookProperty(object, Page):
@@ -146,18 +156,8 @@ class PageBookProperty(object, Page):
     def __init__(self, *args, **kwargs):
         Page.__init__(self, *args, **kwargs)
 
-    def init(self, get_properties, book_property, get_bookings):
-        self.get_properties = get_properties
-        self.book_property = book_property
-        self.get_bookings = get_bookings
-        self.property_details = []
-        self.selected_property = None
+    def init(self, page_login, get_properties, book_property, get_bookings):
 
-    def onPropertySelected(self, event):
-        self.selected_property = int(event.widget.curselection()[0])
-        self.refresh_bookings()
-
-    def show(self):
         def book_property():
             if self.book_property(
                     self.property_details[self.lb_properties.curselection()[0]],
@@ -167,7 +167,13 @@ class PageBookProperty(object, Page):
             else:
                 tkMessageBox.showerror("Error", "Overbooking!")
 
-        super(PageBookProperty, self).show()
+        self.page_login = page_login
+        self.get_properties = get_properties
+        self.book_property = book_property
+        self.get_bookings = get_bookings
+        self.property_details = []
+        self.selected_property = None
+
         self.lb_properties = tk.Listbox(self)
         self.lb_properties.bind("<<ListboxSelect>>", self.onPropertySelected)
         self.lb_properties.pack()
@@ -179,6 +185,17 @@ class PageBookProperty(object, Page):
 
         self.lb_bookings = tk.Listbox(self, width=50)
         self.lb_bookings.pack()
+
+        back = tk.Button(self, text="Back", command=self.page_login.show)
+        back.pack()
+
+    def onPropertySelected(self, event):
+        self.selected_property = int(event.widget.curselection()[0])
+        self.refresh_bookings()
+
+    def show(self):
+
+        super(PageBookProperty, self).show()
 
         self.refresh_properties()
 
@@ -220,19 +237,21 @@ class MainFrame(object, tk.Frame):
         self.page_login = PageLogin(self)
         self.page_government = PageGovernment(self)
         self.page_home_owner = PageHomeOwner(self)
-        self.page_ota = PageOTA(self)
+        # self.page_ota = PageOTA(self)
         self.page_book_apartment = PageBookProperty(self)
 
         self.page_login.init(self.page_government,
                              self.page_home_owner,
-                             self.page_ota,
+                             self.page_book_apartment,
                              lambda: self.controller.remove_all_created_blocks())
-        self.page_government.init(lambda: self.controller.get_communities(),
+        self.page_government.init(self.page_login,
+                                  lambda: self.controller.get_communities(),
                                   lambda country, state, city, street,
                                          number: self.controller.create_community(country, state, city, street, number))
         self.page_home_owner.init()
-        self.page_ota.init(self.page_book_apartment)
-        self.page_book_apartment.init(lambda: self.controller.get_communities(),
+        # self.page_ota.init(self.page_login, self.page_book_apartment)
+        self.page_book_apartment.init(self.page_login,
+                                      lambda: self.controller.get_communities(),
                                       lambda property_details, start_day, end_day: self.controller.book_apartment(
                                           property_details, start_day, end_day),
                                       lambda property: self.controller.get_bookings(property))
@@ -240,7 +259,7 @@ class MainFrame(object, tk.Frame):
         self.page_login.place(in_=container, x=0, y=0, relwidth=1, relheight=1)
         self.page_government.place(in_=container, x=0, y=0, relwidth=1, relheight=1)
         self.page_home_owner.place(in_=container, x=0, y=0, relwidth=1, relheight=1)
-        self.page_ota.place(in_=container, x=0, y=0, relwidth=1, relheight=1)
+        # self.page_ota.place(in_=container, x=0, y=0, relwidth=1, relheight=1)
         self.page_book_apartment.place(in_=container, x=0, y=0, relwidth=1, relheight=1)
 
         self.page_login.show()
