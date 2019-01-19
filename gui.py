@@ -157,6 +157,12 @@ class PageBookProperty(object, Page):
         Page.__init__(self, *args, **kwargs)
 
     def init(self, page_login, get_properties, book_property, get_bookings):
+        self.page_login = page_login
+        self.get_properties = get_properties
+        self.book_property = book_property
+        self.get_bookings = get_bookings
+        self.property_details = []
+        self.selected_property = None
 
         def book_property():
             if self.book_property(
@@ -166,13 +172,6 @@ class PageBookProperty(object, Page):
                 self.refresh_bookings()
             else:
                 tkMessageBox.showerror("Error", "Overbooking!")
-
-        self.page_login = page_login
-        self.get_properties = get_properties
-        self.book_property = book_property
-        self.get_bookings = get_bookings
-        self.property_details = []
-        self.selected_property = None
 
         self.lb_properties = tk.Listbox(self)
         self.lb_properties.bind("<<ListboxSelect>>", self.onPropertySelected)
