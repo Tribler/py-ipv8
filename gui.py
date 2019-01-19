@@ -94,7 +94,10 @@ class PageGovernment(object, Page):
                            ))
 
         back = tk.Button(self, text="Back", command=self.page_login.show)
+        refresh = tk.Button(self, text="Refresh", command=self.refresh_listbox())
+
         button.pack()
+        refresh.pack()
         back.pack()
 
     def refresh_listbox(self):
@@ -184,6 +187,9 @@ class PageBookProperty(object, Page):
 
         self.lb_bookings = tk.Listbox(self, width=50)
         self.lb_bookings.pack()
+
+        refresh = tk.Button(self, text="Refresh", command=self.refresh_properties())
+        refresh.pack()
 
         back = tk.Button(self, text="Back", command=self.page_login.show)
         back.pack()
