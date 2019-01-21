@@ -175,9 +175,27 @@ class PageBookProperty(object, Page):
             if error == 0:
                 self.refresh_bookings()
             elif error == 1:
-                tkMessageBox.showerror("Error", "Overbooking!")
+                t1 = tk.Toplevel(self)
+                t1.title("Error")
+                t1.configure(background="red")
+                t1.geometry("800x600")
+                # frame = tk.Frame(t1)
+                # frame.configure(background="red")
+                msg = tk.Label(t1, text="Overbooking!", font=("Times New Roman", 50, "bold"))
+                msg.pack()
+                btn_okay = tk.Button(t1, text="Okay", command=lambda: t1.destroy(), width=10)
+                btn_okay.pack()
             elif error == 2:
-                tkMessageBox.showerror("Error", "Nightcap exceeded!")
+                t1 = tk.Toplevel(self)
+                t1.title("Error")
+                t1.configure(background="red")
+                t1.geometry("800x600")
+                # frame = tk.Frame(t1)
+                # frame.configure(background="red")
+                msg = tk.Label(t1, text="Nightcap exceeded!", font=("Times New Roman", 50, "bold"))
+                msg.pack()
+                btn_okay = tk.Button(t1, text="Okay", command=lambda: t1.destroy(), width=10)
+                btn_okay.pack()
 
         self.lb_properties = tk.Listbox(self)
         self.lb_properties.bind("<<ListboxSelect>>", self.onPropertySelected)
@@ -280,3 +298,4 @@ def open_gui(controller):
     frame = MainFrame(root)
     frame.pack(side="top", fill="both", expand=True)
     root.mainloop()
+
