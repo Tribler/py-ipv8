@@ -28,6 +28,9 @@ from ...peer import Peer
 from ...requestcache import RandomNumberCache, RequestCache
 from ...util import grange
 
+
+import inspect
+
 receive_block_lock = RLock()
 
 
@@ -146,11 +149,13 @@ class TrustChainCommunity(Community):
             packet = self._ez_pack(self._prefix, 1, [dist, payload], False)
             self.endpoint.send(address, packet)
         else:
+            self.logger.info("[%s] Start broadcasting...", inspect.stack()[0][3])
             self.logger.debug("Broadcasting block %s", block)
             payload = HalfBlockBroadcastPayload.from_half_block(block, ttl).to_pack_list()
             packet = self._ez_pack(self._prefix, 5, [dist, payload], False)
             for peer in random.sample(self.network.verified_peers, min(len(self.network.verified_peers),
                                                                        self.settings.broadcast_fanout)):
+                self.logger.info("[%s] Broadcasting to peer %s...", inspect.stack()[0][3], peer)
                 self.endpoint.send(peer.address, packet)
             self.relayed_broadcasts.append(block.block_id)
 
@@ -259,7 +264,9 @@ class TrustChainCommunity(Community):
         # This is a source block with no counterparty
         if not peer and public_key == ANY_COUNTERPARTY_PK:
             if self.settings.broadcast_blocks:
+                self.logger.info("[%s] Before self.send_block...", inspect.stack()[0][3])
                 self.send_block(block)
+                self.logger.info("[%s] After self.send_block...", inspect.stack()[0][3])
             return succeed((block, None))
 
         # If there is a counterparty to sign, we send it

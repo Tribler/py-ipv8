@@ -45,6 +45,7 @@ class Controller:
         return communities[country][state][city][street][number].get_bookings()
 
     def register_existing_community(self, community):
+        print "Register exiting community %s with peer %s...." %  (community, community.my_peer)
         communities[community.country][community.state][community.city][community.street][community.number] = community
         NewCommunityRegisteredEvent.event()
 
@@ -56,6 +57,7 @@ class Controller:
                             "number": number}
         community_key = ECCrypto().generate_key(u"medium")
         community_peer = Peer(community_key)
+        print "Community peer %s ...." % community_peer
         community = BOBChainCommunity(community_peer, self.ipv8.endpoint, self.ipv8.network, **property_details)
         self.ipv8.overlays.append(community)
         for walker in [{
