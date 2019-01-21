@@ -231,29 +231,19 @@ class TunnelCommunity(Community):
             self.logger.info("Want %d data circuits of length %d", num_to_build, circuit_length)
             for _ in range(num_to_build):
                 if not self.create_circuit(circuit_length):
-                    self.logger.info("circuit creation of %d circuits failed, no need to continue" %
-                                             num_to_build)
+                    self.logger.info("circuit creation of %d circuits failed, no need to continue", num_to_build)
                     break
         self.do_remove()
 
-    def tunnels_ready(self, hops):
-        if hops > 0:
-            if self.num_hops_by_downloads[hops] < 1 or self.circuits_needed[hops] < 1:
-                # if nothing sets the need for this number of tunnels they will eventually die. So the tunnels for this
-                # number of hops is not in fact ready, and build_tunnels should be called.
-                return 0
-
-            if self.settings.min_circuits:
-                return min(1, len(self.active_data_circuits(hops)) / float(self.settings.min_circuits))
-
-            return 1 if self.active_data_circuits(hops) else 0
-        return 1
-
     def build_tunnels(self, hops):
         if hops > 0:
-            self.num_hops_by_downloads[hops] += 1
-            self.circuits_needed[hops] = max(1, self.settings.max_circuits, self.circuits_needed[hops])
+            self.circuits_needed[hops] = min(self.settings.max_circuits, self.circuits_needed.get(hops, 0) + 1)
             self.do_circuits()
+
+    def tunnels_ready(self, hops):
+        if hops > 0 and self.circuits_needed.get(hops, 0):
+            return len(self.active_data_circuits(hops)) / float(self.circuits_needed[hops])
+        return 1.0
 
     def do_remove(self):
         # Remove circuits that are inactive / are too old / have transferred too many bytes.
