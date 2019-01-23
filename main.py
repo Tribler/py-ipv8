@@ -120,14 +120,8 @@ else:
 
 #rest_manager.start(get_open_port())
 
-root = tk.Tk()
-root.geometry("900x900")
 
-
-thread.start_new_thread(open_gui, (controller,root))
-#subprocess.call(["python2", "main.py", "14411"])
-thread.start_new_thread(open_gui, (controller,root))
-root.mainloop()
+thread.start_new_thread(open_gui, (controller,))
 # Start the Twisted reactor: this is the engine scheduling all of the
 # asynchronous calls.
 reactor.run()

@@ -291,7 +291,9 @@ class MainFrame(object, tk.Frame):
         self.page_login.show()
 
 
-def open_gui(controller, root):
+def open_gui(controller):
+    root = tk.Tk()
+    root.geometry("500x500")
     MainFrame.controller = controller
     frame = MainFrame(root)
     frame.pack(side="top", fill="both", expand=True)
