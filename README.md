@@ -13,6 +13,8 @@ The aim of this document is to give the reader insights into:
 
 ### **Why BOBChain?**
 
+![alt text](https://github.com/simionAndrei/BobChain/blob/master/images/bob_simple.jpg "BoBChain Simple Diagram")
+
 ### **The Problem:**
 
 Globalization, budget airlines and the sharing economy have lead to an increase in the tourism market around the world. Highly popular touristic cities such as London, Paris, Amsterdam, etc. are experiencing a high influx of tourists. Due to the rise in tourism it has become profitable and exceedingly easy to out ones home too incoming tourists by services such as AirBnB. The increase in tourism and the rise in sharing economy, has lead to some cities to overflow. Causing grief to permanent residents of these cities.
