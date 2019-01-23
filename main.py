@@ -12,6 +12,14 @@ from pyipv8.ipv8.keyvault.crypto import ECCrypto
 from pyipv8.ipv8_service import IPv8
 
 
+import subprocess
+
+try:
+    import tkinter as tk
+except ImportError:
+    import Tkinter as tk
+
+
 import socket 
 def get_open_port(): 
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
@@ -112,8 +120,14 @@ else:
 
 #rest_manager.start(get_open_port())
 
-thread.start_new_thread(open_gui, (controller,))
-thread.start_new_thread(open_gui, (controller,))
+root = tk.Tk()
+root.geometry("900x900")
+
+
+thread.start_new_thread(open_gui, (controller,root))
+#subprocess.call(["python2", "main.py", "14411"])
+thread.start_new_thread(open_gui, (controller,root))
+root.mainloop()
 # Start the Twisted reactor: this is the engine scheduling all of the
 # asynchronous calls.
 reactor.run()
