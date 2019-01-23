@@ -13,7 +13,7 @@ The aim of this document is to give the reader insights into:
 
 ### **Why BOBChain?**
 
-![alt text](https://github.com/simionAndrei/BobChain/blob/master/images/bob_simple.jpg =100x20 "BoBChain Simple Diagram")
+<img src="https://github.com/simionAndrei/BobChain/blob/master/images/bob_simple.jpg" width="350" height="200" />
 
 ### **The Problem:**
 
