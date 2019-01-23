@@ -13,6 +13,8 @@ The aim of this document is to give the reader insights into:
 
 ### **Why BOBChain?**
 
+![alt text](https://github.com/simionAndrei/BobChain/blob/master/images/bob_simple.jpg "BoBChain Simple Diagram")
+
 ### **The Problem:**
 
 Globalization, budget airlines and the sharing economy have lead to an increase in the tourism market around the world. Highly popular touristic cities such as London, Paris, Amsterdam, etc. are experiencing a high influx of tourists. Due to the rise in tourism it has become profitable and exceedingly easy to out ones home too incoming tourists by services such as AirBnB. The increase in tourism and the rise in sharing economy, has lead to some cities to overflow. Causing grief to permanent residents of these cities.
@@ -55,6 +57,8 @@ Having a decentralized way of checking if nightcap limits are not exceeded, allo
 BOBChain is a direct extension of Triblers *TrustChainCommunity*; with some modifications to the validation of transactions and communications with other TrustChainCommunities. BOBChain's artitecture is centered around the idea that every homeowner gets a license and this license is seen as an accommodations private *TrustChain* or in this case a *BOBChain*. A design choice was made to have the municipality and OTAs run the TrustChainCommunities for the home-owners. Allowing *BOBChain* not to depend on homeowners keeping the service running but the municipality and OTAs.
 
 To better describe the architecture of BOBChain the process of how a homeowner is able to get a license, to authorize an OTA to use its license and how an OTA or Municipality can interact with the license.
+
+![alt text](https://github.com/simionAndrei/BobChain/blob/master/images/BobChain.jpg "How we used TrustChain for this problem")
 
 ### **Homeowner Attaining a License**
 
