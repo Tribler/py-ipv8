@@ -153,7 +153,9 @@ class TrustChainCommunity(Community):
             self.logger.debug("Broadcasting block %s", block)
             payload = HalfBlockBroadcastPayload.from_half_block(block, ttl).to_pack_list()
             packet = self._ez_pack(self._prefix, 5, [dist, payload], False)
-            for peer in random.sample(self.network.verified_peers, min(len(self.network.verified_peers),
+            # random.sample(self.network.verified_peers, min(len(self.network.verified_peers),
+                                                                       #self.settings.broadcast_fanout)):
+            for peer in random.sample(self.get_peers(), min(len(self.get_peers()),
                                                                        self.settings.broadcast_fanout)):
                 self.logger.info("[%s] Broadcasting to peer %s...", inspect.stack()[0][3], peer)
                 self.endpoint.send(peer.address, packet)
@@ -310,6 +312,7 @@ class TrustChainCommunity(Community):
         """
         We received a half block, part of a broadcast. Disseminate it further.
         """
+        print "Received broadcast from %s ....................." % source_address
         payload.ttl -= 1
         block = self.get_block_class(payload.type).from_payload(payload, self.serializer)
         self.validate_persist_block(block)

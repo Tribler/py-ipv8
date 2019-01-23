@@ -18,6 +18,11 @@ from pyipv8.ipv8.attestation.trustchain.community import TrustChainCommunity
 from .block import BobChainBlock
 from .database import BobChainDB
 from ...peer import Peer
+from twisted.internet.task import LoopingCall
+from pyipv8.ipv8.community import Community
+
+
+from pyipv8.ipv8.attestation.bobchain.listener import BoBListener
 
 receive_block_lock = RLock()
 
@@ -71,6 +76,11 @@ class BOBChainCommunity(TrustChainCommunity):
 
     def __init__(self, *args, **kwargs):
         super(BOBChainCommunity, self).__init__(*args)
+        print "BoBChain args[0] %s" % args[0]
+
+        #print "I am:", self.my_peer, "\nI know:", [str(p) for p in self.get_peers()]
+
+        #self.network.verified_peers.append(args[0])
         self.settings = kwargs.pop('settings', BobChainSettings())
         self.country = kwargs["country"]
         self.state = kwargs["state"]
@@ -80,6 +90,12 @@ class BOBChainCommunity(TrustChainCommunity):
         NewCommunityCreatedEvent.event(self)
         self.block_type_property = hashlib.sha224(
             self.country + self.state + self.city + self.street + self.number).hexdigest()
+        #self.register_task("print_peers", LoopingCall(self.print_peers)).start(5.0, True)
+        self.add_listener(BoBListener(), [self.get_block_class()])
+
+    def print_peers(self):
+        print "I am:", self.my_peer, "\nI know:", [str(p) for p in self.get_peers()]
+
 
     def book_apartment(self, start_day, end_day):
         start_day_split = start_day.split("-")
@@ -161,7 +177,7 @@ class BOBChainCommunity(TrustChainCommunity):
         # self.register_task("print_peers", LoopingCall(print_peers)).start(5.0, True)
         # self.register_task("print_blocks", LoopingCall(wrapper_create_and_remove_blocks)).start(5.0, True)
 
-    def get_block_class(self, block_type):
+    def get_block_class(self, block_type = None):
         """
         Get the block class for a specific block type.
         """
