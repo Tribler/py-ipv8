@@ -115,8 +115,9 @@ class TrustChainDB(Database):
         :param my_pub_key: Your public key, specified since we don't want to remove your own blocks.
         """
         self.execute(u"DELETE FROM blocks WHERE block_hash IN "
-                     u"(SELECT block_hash FROM blocks WHERE public_key != ? ORDER BY block_timestamp LIMIT ?)",
-                     (database_blob(my_pub_key), num_blocks_to_remove))
+                     u"(SELECT block_hash FROM blocks WHERE public_key != ? AND link_public_key != ?"
+                     u" ORDER BY block_timestamp LIMIT ?)",
+                     (database_blob(my_pub_key), database_blob(my_pub_key), num_blocks_to_remove))
 
     def get_block_with_hash(self, block_hash):
         """
