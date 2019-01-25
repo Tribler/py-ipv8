@@ -69,6 +69,11 @@ class TunnelCrypto(ECCrypto):
 
         return salt + cast_to_bin(str(salt_explicit))
 
+    def get_session_keys(self, keys, direction):
+        # increment salt_explicit
+        keys[direction + 4] += 1
+        return keys[direction], keys[direction + 2], keys[direction + 4]
+
     def encrypt_str(self, content, key, salt, salt_explicit):
         # return the encrypted content prepended with the
         # gcm tag and salt_explicit

@@ -8,7 +8,6 @@ from __future__ import division
 
 from binascii import hexlify, unhexlify
 import random
-from cryptography.exceptions import InvalidTag
 from twisted.internet.defer import Deferred
 from twisted.internet.task import LoopingCall
 
@@ -47,7 +46,6 @@ message_to_payload = {
     u"dht-request": (21, DHTRequestPayload),
     u"dht-response": (22, DHTResponsePayload)
 }
-SINGLE_HOP_ENC_PACKETS = [u'create', u'created']
 
 
 def tc_lazy_wrapper_unsigned(*payloads):
@@ -237,7 +235,8 @@ class TunnelCommunity(Community):
 
     def build_tunnels(self, hops):
         if hops > 0:
-            self.circuits_needed[hops] = min(self.settings.max_circuits, self.circuits_needed.get(hops, 0) + 1)
+            self.circuits_needed[hops] = max(self.settings.max_circuits,
+                                             min(self.settings.max_circuits, self.circuits_needed.get(hops, 0) + 1))
             self.do_circuits()
 
     def tunnels_ready(self, hops):
@@ -495,30 +494,18 @@ class TunnelCommunity(Community):
 
     def send_cell(self, candidates, message_type, payload, circuit_id=None):
         message_id, _ = message_to_payload[message_type]
-        packet = self._ez_pack(self._prefix, message_id, [payload.to_pack_list()], False)
-        packet = convert_to_cell(packet)
-        return self.send_message(candidates, message_type, packet, circuit_id if circuit_id else payload.circuit_id)
+        circuit_id = circuit_id or payload.circuit_id
+        message = self.serializer.pack_multiple(payload.to_pack_list()[1:])[0]
+        cell = CellPayload(circuit_id, message_id, message)
+        cell.encrypt(self.crypto, self.circuits.get(circuit_id), self.relay_session_keys.get(circuit_id))
+        packet = self._ez_pack(self._prefix, 1, [cell.to_pack_list()], False)
+        return self.send_packet(candidates, packet)
 
     def send_data(self, candidates, circuit_id, dest_address, source_address, data):
         payload = DataPayload(circuit_id, dest_address, source_address, data)
         return self.send_cell(candidates, u"data", payload, circuit_id)
 
-    def send_message(self, candidates, message_type, packet, circuit_id):
-        is_data = message_type == u"data"
-
-        if message_type not in SINGLE_HOP_ENC_PACKETS:
-            plaintext, encrypted = split_encrypted_packet(packet)
-            try:
-                encrypted = self.crypto_out(circuit_id, encrypted, is_data=is_data)
-                packet = plaintext + encrypted
-
-            except CryptoException as e:
-                self.logger.error(str(e))
-                return 0
-
-        return self.send_packet(candidates, message_type, packet)
-
-    def send_packet(self, candidates, message_type, packet):
+    def send_packet(self, candidates, packet):
         for candidate in candidates:
             address = candidate if isinstance(candidate, tuple) else candidate.address
             self.endpoint.send(address, packet)
@@ -528,34 +515,27 @@ class TunnelCommunity(Community):
         auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
         payload = DestroyPayload(circuit_id, reason).to_pack_list()
         packet = self._ez_pack(self._prefix, 10, [auth, payload])
-        self.send_packet([candidate], u"destroy", packet)
+        self.send_packet([candidate], packet)
 
-    def relay_packet(self, circuit_id, message_type, packet):
-        next_relay = self.relay_from_to[circuit_id]
-        this_relay = self.relay_from_to.get(next_relay.circuit_id, None)
-
-        self.logger.debug("Relay %s from %d to %d", message_type, circuit_id, next_relay.circuit_id)
-
-        if this_relay:
-            this_relay.last_incoming = time.time()
-            self.increase_bytes_received(this_relay, len(packet))
-
-        plaintext, encrypted = split_encrypted_packet(packet)
+    def relay_cell(self, cell):
+        next_relay = self.relay_from_to[cell.circuit_id]
         try:
             if next_relay.rendezvous_relay:
-                decrypted = self.crypto_in(circuit_id, encrypted)
-                encrypted = self.crypto_out(next_relay.circuit_id, decrypted)
+                cell.decrypt(self.crypto, relay_session_keys=self.relay_session_keys[cell.circuit_id])
+                cell.encrypt(self.crypto, relay_session_keys=self.relay_session_keys[next_relay.circuit_id])
             else:
-                encrypted = self.crypto_relay(circuit_id, encrypted)
-            packet = plaintext + encrypted
-
+                direction = self.directions[cell.circuit_id]
+                if direction == ORIGINATOR:
+                    cell.encrypt(self.crypto, relay_session_keys=self.relay_session_keys[cell.circuit_id])
+                elif direction == EXIT_NODE:
+                    cell.decrypt(self.crypto, relay_session_keys=self.relay_session_keys[cell.circuit_id])
         except CryptoException as e:
-            self.logger.error(str(e))
-            return False
+            self.logger.warning(str(e))
+            return
 
-        packet = swap_circuit_id(packet, message_type, circuit_id, next_relay.circuit_id)
-        self.increase_bytes_sent(next_relay, self.send_packet([next_relay.peer], message_type, packet))
-        return True
+        cell.circuit_id = next_relay.circuit_id
+        packet = self._ez_pack(self._prefix, 1, [cell.to_pack_list()], False)
+        self.increase_bytes_sent(next_relay, self.send_packet([next_relay.peer], packet))
 
     def _ours_on_created_extended(self, circuit, payload):
         hop = circuit.unverified_hop
@@ -666,38 +646,33 @@ class TunnelCommunity(Community):
                                                                          identifier, introduction, extra_bytes)
 
     @lazy_wrapper_unsigned_wd(CellPayload)
-    def on_cell(self, source_address, payload, data):
-        message_type = [k for k, v in message_to_payload.items() if v[0] == payload.message_type][0]
-        circuit_id = payload.circuit_id
-        self.logger.debug("Got %s (%d) from %s, I am %s", message_type,
-                          payload.circuit_id, source_address, self.my_peer)
+    def on_cell(self, source_address, cell, data):
+        message_type = [k for k, v in message_to_payload.items() if v[0] == cell.message_type][0]
+        circuit_id = cell.circuit_id
+        self.logger.debug("Got %s (%d) from %s, I am %s", message_type, circuit_id, source_address, self.my_peer)
 
         if self.is_relay(circuit_id):
-            if not self.relay_packet(circuit_id, message_type, data):
-                circuit = self.circuits.get(circuit_id, None)
-                if circuit:
-                    self.send_destroy(circuit.peer, circuit_id, 0)
+            next_relay = self.relay_from_to[circuit_id]
+            this_relay = self.relay_from_to.get(next_relay.circuit_id, None)
+            if this_relay:
+                this_relay.last_incoming = time.time()
+                self.increase_bytes_received(this_relay, len(data))
+            self.logger.debug("Relaying %s from %d to %d", message_type, circuit_id, next_relay.circuit_id)
+            self.relay_cell(cell)
+            return
 
-        else:
-            circuit = self.circuits.get(circuit_id, None)
-
-            if message_type not in SINGLE_HOP_ENC_PACKETS:
-                plaintext, encrypted = split_encrypted_packet(data)
-                try:
-                    encrypted = self.crypto_in(circuit_id, encrypted, is_data=message_type == u'data')
-                    data = plaintext + encrypted
-
-                except CryptoException as e:
-                    self.logger.warning(str(e))
-                    if circuit:
-                        self.send_destroy(circuit.peer, circuit_id, 0)
-                    return
-
-            self.on_packet_from_circuit(source_address, convert_from_cell(data), circuit_id)
-
+        circuit = self.circuits.get(circuit_id, None)
+        try:
+            cell.decrypt(self.crypto, circuit=circuit, relay_session_keys=self.relay_session_keys.get(circuit_id))
+        except CryptoException:
             if circuit:
-                circuit.beat_heart()
-                self.increase_bytes_received(circuit, len(data))
+                self.send_destroy(circuit.peer, circuit_id, 0)
+            return
+        self.on_packet_from_circuit(source_address, cell.unwrap(self._prefix), circuit_id)
+
+        if circuit:
+            circuit.beat_heart()
+            self.increase_bytes_received(circuit, len(data))
 
     def on_packet_from_circuit(self, source_address, data, circuit_id):
         if self._prefix != data[:22]:
@@ -950,98 +925,6 @@ class TunnelCommunity(Community):
                 self.logger.warning("Dropping data packets while EXITing")
         else:
             self.logger.error("Dropping data packets with unknown circuit_id")
-
-    def crypto_out(self, circuit_id, content, is_data=False):
-        circuit = self.circuits.get(circuit_id, None)
-        if circuit:
-            if circuit and is_data and circuit.ctype in [CIRCUIT_TYPE_RENDEZVOUS, CIRCUIT_TYPE_RP]:
-                direction = int(circuit.ctype == CIRCUIT_TYPE_RP)
-                content = self.crypto.encrypt_str(content, *self.get_session_keys(circuit.hs_session_keys, direction))
-
-            for hop in reversed(circuit.hops):
-                content = self.crypto.encrypt_str(content, *self.get_session_keys(hop.session_keys, EXIT_NODE))
-            return content
-
-        elif circuit_id in self.relay_session_keys:
-            return self.crypto.encrypt_str(content,
-                                           *self.get_session_keys(self.relay_session_keys[circuit_id], ORIGINATOR))
-
-        raise CryptoException("Don't know how to encrypt outgoing message for circuit_id %d" % circuit_id)
-
-    def crypto_in(self, circuit_id, content, is_data=False):
-        circuit = self.circuits.get(circuit_id, None)
-        if circuit:
-            if len(circuit.hops) > 0:
-                # Remove all the encryption layers
-                layer = 0
-                for hop in self.circuits[circuit_id].hops:
-                    layer += 1
-                    try:
-                        content = self.crypto.decrypt_str(content,
-                                                          hop.session_keys[ORIGINATOR],
-                                                          hop.session_keys[ORIGINATOR_SALT])
-                    except InvalidTag as e:
-                        raise CryptoException("Got exception %r when trying to remove encryption layer %s "
-                                              "for message: %r received for circuit_id: %s, is_data: %i, circuit_hops:"
-                                              " %r" % (e, layer, content, circuit_id, is_data, circuit.hops))
-
-                if is_data and circuit.ctype in [CIRCUIT_TYPE_RENDEZVOUS, CIRCUIT_TYPE_RP]:
-                    direction = int(circuit.ctype != CIRCUIT_TYPE_RP)
-                    direction_salt = direction + 2
-                    content = self.crypto.decrypt_str(content,
-                                                      circuit.hs_session_keys[direction],
-                                                      circuit.hs_session_keys[direction_salt])
-                return content
-
-            else:
-                raise CryptoException("Error decrypting message for circuit %d, circuit is set to 0 hops.")
-
-        elif circuit_id in self.relay_session_keys:
-            try:
-                return self.crypto.decrypt_str(content,
-                                               self.relay_session_keys[circuit_id][EXIT_NODE],
-                                               self.relay_session_keys[circuit_id][EXIT_NODE_SALT])
-            except InvalidTag as e:
-                raise CryptoException("Got exception %r when trying to decrypt relay message: "
-                                      "%r received for circuit_id: %s, is_data: %i, " %
-                                      (e, content, circuit_id, is_data))
-
-        raise CryptoException("Received message for unknown circuit ID: %d" % circuit_id)
-
-    def crypto_relay(self, circuit_id, content):
-        direction = self.directions[circuit_id]
-        if direction == ORIGINATOR:
-            return self.crypto.encrypt_str(content,
-                                           *self.get_session_keys(self.relay_session_keys[circuit_id], ORIGINATOR))
-        elif direction == EXIT_NODE:
-            try:
-                return self.crypto.decrypt_str(content,
-                                               self.relay_session_keys[circuit_id][EXIT_NODE],
-                                               self.relay_session_keys[circuit_id][EXIT_NODE_SALT])
-            except InvalidTag:
-                # Reasons that can cause this:
-                # - The introductionpoint circuit is extended with a candidate
-                # that is already part of the circuit, causing a crypto error.
-                # Should not happen anyway, thorough analysis of the debug log
-                # may reveal why and how this candidate is discovered.
-                #
-                # - The pubkey of the introduction point changed (e.g. due to a
-                # restart), while other peers in the network are still exchanging
-                # the old key information.
-                # - A hostile peer may have forged the key of a candidate while
-                # pexing information about candidates, thus polluting the network
-                # with wrong information. I doubt this is the case but it's
-                # possible. :)
-                # (from https://github.com/Tribler/tribler/issues/1932#issuecomment-182035383)
-
-                self.logger.warning("Could not decrypt message:\n"
-                                     "  direction %s\n"
-                                     "  circuit_id: %r\n"
-                                     "  content: : %r\n"
-                                     "  Possibly corrupt data?",
-                                     direction, circuit_id, content)
-
-        raise CryptoException("Direction must be either ORIGINATOR or EXIT_NODE")
 
     def increase_bytes_sent(self, obj, num_bytes):
         if isinstance(obj, Circuit):
