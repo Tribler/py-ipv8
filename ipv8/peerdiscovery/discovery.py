@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 
 import abc
-from random import choice
+from random import choice, randint
 import six
 from time import time
 from threading import Lock
@@ -26,11 +26,24 @@ class RandomWalk(DiscoveryStrategy):
     Walk randomly through the network.
     """
 
-    def __init__(self, overlay, timeout=3.0, window_size=5):
+    def __init__(self, overlay, timeout=3.0, window_size=5, reset_chance=200):
+        """
+        Create a new walk strategy.
+
+        :param overlay: the Overlay to walk over
+        :type overlay: Overlay
+        :param timeout: the timeout (in seconds) after which peers are considered unreachable
+        :type timeout: float
+        :param window_size: the amount of unanswered packets we can have in-flight
+        :type window_size: int
+        :param reset_chance: the chance (0-255) to go back to the tracker
+        :type reset_chance: int
+        """
         super(RandomWalk, self).__init__(overlay)
         self.intro_timeouts = {}
         self.node_timeout = timeout
         self.window_size = window_size
+        self.reset_chance = reset_chance
 
     def take_step(self, service_id=None):
         """
@@ -53,7 +66,8 @@ class RandomWalk(DiscoveryStrategy):
             known = self.overlay.network.get_walkable_addresses(service_id)
             available = list(set(known) - set(self.intro_timeouts.keys()))
 
-            if available:
+            # We can get stuck in an infinite loop of unreachable peers if we never contact the tracker again
+            if available and randint(0, 255) > self.reset_chance:
                 peer = choice(available)
                 self.overlay.walk_to(peer)
                 self.intro_timeouts[peer] = time()

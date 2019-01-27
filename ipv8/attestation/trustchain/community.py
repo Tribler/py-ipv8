@@ -47,11 +47,8 @@ class TrustChainCommunity(Community):
     """
     Community for reputation based on TrustChain tamper proof interaction history.
     """
-    master_peer = Peer(unhexlify("3081a7301006072a8648ce3d020106052b8104002703819200040672297aa47c7bb2648ba0385275bc"
-                                 "8ade5aedc3677a615f5f9ca83b9b28c75e543342875f7f353bbf74baff7e3dae895ee9c9a9f80df023"
-                                 "dbfb72362426b50ce35549e6f0e0a319015a2fd425e2e34c92a3fb33b26929bcabb73e14f63684129b"
-                                 "66f0373ca425015cc9fad75b267de0cfb46ed798796058b23e12fc4c42ce9868f1eb7d59cc2023c039"
-                                 "14175ebb9703"))
+    master_peer = Peer(unhexlify("4c69624e61434c504b3a5730f52156615ecbcedb36c442992ea8d3c26b418edd8bd00e01dce26028cd"
+                                 "1ebe5f7dce59f4ed59f8fcee268fd7f1c6dc2fa2af8c22e3170e00cdecca487745"))
 
     DB_CLASS = TrustChainDB
     DB_NAME = 'trustchain'
@@ -650,13 +647,13 @@ class TrustChainCommunity(Community):
 
     @synchronized
     def create_introduction_request(self, socket_address, extra_bytes=b''):
-        extra_bytes = struct.pack('>H', self.get_chain_length())
+        extra_bytes = struct.pack('>l', self.get_chain_length())
         return super(TrustChainCommunity, self).create_introduction_request(socket_address, extra_bytes)
 
     @synchronized
     def create_introduction_response(self, lan_socket_address, socket_address, identifier,
                                      introduction=None, extra_bytes=b''):
-        extra_bytes = struct.pack('>H', self.get_chain_length())
+        extra_bytes = struct.pack('>l', self.get_chain_length())
         return super(TrustChainCommunity, self).create_introduction_response(lan_socket_address, socket_address,
                                                                              identifier, introduction, extra_bytes)
 
@@ -664,7 +661,7 @@ class TrustChainCommunity(Community):
     def introduction_response_callback(self, peer, dist, payload):
         chain_length = None
         if payload.extra_bytes:
-            chain_length = struct.unpack('>H', payload.extra_bytes)[0]
+            chain_length = struct.unpack('>l', payload.extra_bytes)[0]
 
         if peer.address in self.network.blacklist:  # Do not crawl addresses in our blacklist (trackers)
             return

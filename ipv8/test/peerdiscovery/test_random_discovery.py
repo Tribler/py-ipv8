@@ -17,7 +17,7 @@ class TestRandomWalk(TestBase):
 
         node_count = 3
         self.overlays = [MockCommunity() for _ in range(node_count)]
-        self.strategies = [RandomWalk(self.overlays[i]) for i in range(node_count)]
+        self.strategies = [RandomWalk(self.overlays[i], reset_chance=0) for i in range(node_count)]
 
     def tearDown(self):
         for overlay in self.overlays:
