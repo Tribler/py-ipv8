@@ -699,8 +699,5 @@ class TrustChainTestnetCommunity(TrustChainCommunity):
     """
     DB_NAME = 'trustchain_testnet'
 
-    master_peer = Peer(unhexlify("3081a7301006072a8648ce3d020106052b81040027038192000403554c843faae4d443d72064cd7b2c"
-                                 "31a87251c43fd901011b8b28a2b03f18bd8b6888342e77a9b824aee73d9ee797f34805f6a67948f609"
-                                 "60bf87a2e502476bd7e9967221d041f20328acfb5859eebaf01b9285496ec9f2e32e0645e2a77f6ade"
-                                 "accd28d39755601dae2d545e35b49c088e5045fc2d1fda20dd4798cdf8863382950171d10f6b19ff60"
-                                 "6f630ec365b0"))
+    master_peer = Peer(unhexlify("4c69624e61434c504b3aa90c1e65d68e9f0ccac1385b58e4a605add2406aff9952b1b6435ab07e5385"
+                                 "5eb07b062ca33af9ec55b45446dbbefc3752523a4fd3b659ecd1d8e172b7b7f30d"))
