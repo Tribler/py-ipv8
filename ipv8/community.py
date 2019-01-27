@@ -60,6 +60,7 @@ _DNS_ADDRESSES = [
 
 
 BOOTSTRAP_TIMEOUT = 30.0  # Timeout before we bootstrap again (bootstrap kills performance)
+DEFAULT_MAX_PEERS = 30
 
 
 class Community(EZPackOverlay):
@@ -67,11 +68,14 @@ class Community(EZPackOverlay):
     version = b'\x02'
     master_peer = ""
 
-    def __init__(self, my_peer, endpoint, network):
+    def __init__(self, my_peer, endpoint, network, max_peers=DEFAULT_MAX_PEERS):
         super(Community, self).__init__(self.master_peer, my_peer, endpoint, network)
 
         self._prefix = b'\x00' + self.version + self.master_peer.key.key_to_hash()
         self.logger.debug("Launching %s with prefix %s.", self.__class__.__name__, hexlify(self._prefix))
+
+        self.max_peers = max_peers
+
         self.network.register_service_provider(self.master_peer.mid, self)
         self.network.blacklist_mids.append(my_peer.mid)
         self.network.blacklist.extend(_DEFAULT_ADDRESSES)
@@ -234,6 +238,11 @@ class Community(EZPackOverlay):
 
     @lazy_wrapper(GlobalTimeDistributionPayload, IntroductionRequestPayload)
     def on_introduction_request(self, peer, dist, payload):
+        if self.max_peers >= 0 and len(self.get_peers()) > self.max_peers:
+            self.logger.info("Dropping introduction request from (%s, %d): too many peers!",
+                             peer.address[0], peer.address[1])
+            return
+
         self.network.add_verified_peer(peer)
         self.network.discover_services(peer, [self.master_peer.mid, ])
 
