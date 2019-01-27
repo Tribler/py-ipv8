@@ -1,9 +1,11 @@
 from __future__ import absolute_import
+from __future__ import division
 
 from base64 import b64decode
 import logging
 from os.path import isfile
 import sys
+import time
 from threading import RLock
 from traceback import format_exception
 
@@ -128,9 +130,12 @@ else:
         def on_tick(self):
             if self.endpoint.is_open():
                 with self.overlay_lock:
+                    smooth = self.state_machine_lc.interval//len(self.strategies) if self.strategies else 0
+                    ticker = len(self.strategies)
                     for strategy, target_peers in self.strategies:
                         service = strategy.overlay.master_peer.mid
                         peer_count = len(self.network.get_peers_for_service(service))
+                        start_time = time.time()
                         if (target_peers == -1) or (peer_count < target_peers):
                             # We wrap the take_step into a general except as it is prone to programmer error.
                             try:
@@ -138,6 +143,10 @@ else:
                             except:
                                 logging.error("Exception occurred while trying to walk!\n" +
                                               ''.join(format_exception(*sys.exc_info())))
+                        ticker -= 1 if ticker else 0
+                        sleep_time = smooth - (time.time() - start_time)
+                        if ticker and sleep_time > 0.01:
+                            time.sleep(sleep_time)
 
         def unload_overlay(self, instance):
             with self.overlay_lock:
