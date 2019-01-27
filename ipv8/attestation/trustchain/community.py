@@ -650,13 +650,13 @@ class TrustChainCommunity(Community):
 
     @synchronized
     def create_introduction_request(self, socket_address, extra_bytes=b''):
-        extra_bytes = struct.pack('>H', self.get_chain_length())
+        extra_bytes = struct.pack('>l', self.get_chain_length())
         return super(TrustChainCommunity, self).create_introduction_request(socket_address, extra_bytes)
 
     @synchronized
     def create_introduction_response(self, lan_socket_address, socket_address, identifier,
                                      introduction=None, extra_bytes=b''):
-        extra_bytes = struct.pack('>H', self.get_chain_length())
+        extra_bytes = struct.pack('>l', self.get_chain_length())
         return super(TrustChainCommunity, self).create_introduction_response(lan_socket_address, socket_address,
                                                                              identifier, introduction, extra_bytes)
 
@@ -664,7 +664,7 @@ class TrustChainCommunity(Community):
     def introduction_response_callback(self, peer, dist, payload):
         chain_length = None
         if payload.extra_bytes:
-            chain_length = struct.unpack('>H', payload.extra_bytes)[0]
+            chain_length = struct.unpack('>l', payload.extra_bytes)[0]
 
         if peer.address in self.network.blacklist:  # Do not crawl addresses in our blacklist (trackers)
             return
