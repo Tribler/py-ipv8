@@ -11,7 +11,7 @@ setup(
     description='The Python implementation of the IPV8 library',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    version='1.4.1',
+    version='1.5.0',
     url='https://github.com/Tribler/py-ipv8',
     package_data={'': ['*.*']},
     packages=find_packages(),
