@@ -1,16 +1,16 @@
 from __future__ import absolute_import
 
 import logging
-import sys
 import traceback
 
+from six import PY3
 from six.moves.queue import Queue
 from twisted.internet import reactor, defer
 from twisted.python.failure import Failure
 from twisted.python.threadable import isInIOThread
 
 logger = logging.getLogger(__name__)
-maximum_integer = sys.maxsize
+maximum_integer = 2147483647
 
 try:
     cast_to_long = long  # pylint: disable=long-builtin
@@ -19,7 +19,7 @@ except NameError:
     cast_to_long = int
     cast_to_unicode = lambda x: "".join([chr(c) for c in x]) if isinstance(x, bytes) else str(x)
 
-if sys.version_info.major > 2:
+if PY3:
     import math
     cast_to_bin = lambda x: x if isinstance(x, bytes) else bytes([ord(c) for c in x])
     cast_to_chr = lambda x: "".join([chr(c) for c in x])
