@@ -13,10 +13,10 @@ logger = logging.getLogger(__name__)
 maximum_integer = sys.maxsize
 
 try:
-    cast_to_long = lambda x: long(x)
-    cast_to_unicode = lambda x: unicode(x)
+    cast_to_long = long  # pylint: disable=long-builtin
+    cast_to_unicode = unicode  # pylint: disable=unicode-builtin
 except NameError:
-    cast_to_long = lambda x: int(x)
+    cast_to_long = int
     cast_to_unicode = lambda x: "".join([chr(c) for c in x]) if isinstance(x, bytes) else str(x)
 
 if sys.version_info.major > 2:
