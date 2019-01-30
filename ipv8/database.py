@@ -40,10 +40,10 @@ def execute_or_script(cursor, statement):
 
 
 # In Python 3 sqlite expects bytes instead of buffer objects.
-if sys.version_info.major > 2:
-    database_blob = bytes
-else:
+try:
     database_blob = buffer
+except NameError:
+    database_blob = bytes
 
 
 db_locks = defaultdict(RLock)
