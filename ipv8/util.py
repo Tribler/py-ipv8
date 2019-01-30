@@ -10,21 +10,23 @@ from twisted.python.failure import Failure
 from twisted.python.threadable import isInIOThread
 
 logger = logging.getLogger(__name__)
+maximum_integer = sys.maxsize
+
+try:
+    cast_to_long = lambda x: long(x)
+    cast_to_unicode = lambda x: unicode(x)
+except NameError:
+    cast_to_long = lambda x: int(x)
+    cast_to_unicode = lambda x: "".join([chr(c) for c in x]) if isinstance(x, bytes) else str(x)
 
 if sys.version_info.major > 2:
     import math
-    cast_to_long = lambda x: x
-    cast_to_unicode = lambda x: "".join([chr(c) for c in x]) if isinstance(x, bytes) else str(x)
     cast_to_bin = lambda x: x if isinstance(x, bytes) else bytes([ord(c) for c in x])
     cast_to_chr = lambda x: "".join([chr(c) for c in x])
-    maximum_integer = sys.maxsize
     old_round = lambda x: float(math.floor((x) + math.copysign(0.5, x)))
 else:
-    cast_to_long = lambda x: long(x)
-    cast_to_unicode = lambda x: unicode(x)
     cast_to_bin = str
     cast_to_chr = lambda x: x
-    maximum_integer = sys.maxint
     old_round = round
 
 
