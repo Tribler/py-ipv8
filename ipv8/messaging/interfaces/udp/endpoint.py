@@ -44,8 +44,11 @@ class UDPEndpoint(Endpoint, protocol.DatagramProtocol):
             self.transport.write(packet, socket_address)
             self.bytes_up += len(packet)
             # If the write succeeded, try sending one of our previously blocked packets
-            if self._delayed_packets:
+            try:
                 self.send(*self._delayed_packets.popleft())
+            except IndexError:
+                # This can happen if the queue is empty, in which case we don't care
+                pass
         except socket.error as exc:
             # Not all OSes have WSAEWOULDBLOCK: Windows may have a blocked output buffer
             errnum = exc[0] if hasattr(exc, "__getitem__") else exc.errno
