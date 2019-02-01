@@ -42,6 +42,11 @@ default = {
                         'inactive_time': 27.5,
                         'drop_time': 57.5
                     }
+                },
+                {
+                    'strategy': "PeriodicSimilarity",
+                    'peers': -1,
+                    'init': {}
                 }
             ],
             'initialize': {},
@@ -98,9 +103,9 @@ default = {
             'key': "anonymous id",
             'walkers': [{
                 'strategy': "RandomWalk",
-                'peers': 4,
+                'peers': 20,
                 'init': {
-                    'timeout': 60.0
+                    'timeout': 3.0
                 }
             }],
             'initialize': {},
@@ -111,9 +116,9 @@ default = {
             'key': "anonymous id",
             'walkers': [{
                 'strategy': "RandomWalk",
-                'peers': 4,
+                'peers': 20,
                 'init': {
-                    'timeout': 60.0
+                    'timeout': 3.0
                 }
             }],
             'initialize': {},

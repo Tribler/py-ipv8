@@ -1,8 +1,10 @@
 from __future__ import absolute_import
 
 from binascii import unhexlify
+from random import choice
+from time import time
 
-from .churn import RandomChurn
+from .churn import DiscoveryStrategy, RandomChurn
 from ..peer import Peer
 from ..community import Community
 from ..lazy_community import lazy_wrapper, lazy_wrapper_unsigned, PacketDecodingError
@@ -13,6 +15,21 @@ from .payload import PingPayload, PongPayload, SimilarityRequestPayload, Similar
 from ..messaging.serialization import PackError
 from ..keyvault.crypto import default_eccrypto
 from ..util import cast_to_bin
+
+
+class PeriodicSimilarity(DiscoveryStrategy):
+
+    def __init__(self, overlay):
+        super(PeriodicSimilarity, self).__init__(overlay)
+        self.last_step = 0
+
+    def take_step(self, service_id=None):
+        now = time()
+        if (now - self.last_step < 0.2) or not self.overlay.network.verified_peers:
+            return
+        self.last_step = now
+        with self.walk_lock:
+            self.overlay.send_similarity_request(choice(self.overlay.network.verified_peers).address)
 
 
 class DiscoveryCommunity(Community):
@@ -36,7 +53,7 @@ class DiscoveryCommunity(Community):
         })
 
     def get_available_strategies(self):
-        return {'RandomChurn': RandomChurn}
+        return {'PeriodicSimilarity': PeriodicSimilarity, 'RandomChurn': RandomChurn}
 
     def on_introduction_request(self, source_address, data):
         try:
@@ -58,13 +75,14 @@ class DiscoveryCommunity(Community):
                                                    introduction=introduction)
         self.endpoint.send(source_address, packet)
 
-    def on_introduction_response(self, source_address, data):
-        super(DiscoveryCommunity, self).on_introduction_response(source_address, data)
+    def introduction_response_callback(self, peer, dist, payload):
+        self.send_similarity_request(peer.address)
 
+    def send_similarity_request(self, address):
         my_peer_set = set([overlay.my_peer for overlay in self.network.service_overlays.values()])
         for peer in my_peer_set:
             packet = self.create_similarity_request(peer)
-            self.endpoint.send(source_address, packet)
+            self.endpoint.send(address, packet)
 
     @lazy_wrapper(GlobalTimeDistributionPayload, SimilarityRequestPayload)
     def on_similarity_request(self, node, dist, payload):

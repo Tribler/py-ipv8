@@ -67,7 +67,7 @@ class RandomWalk(DiscoveryStrategy):
             available = list(set(known) - set(self.intro_timeouts.keys()))
 
             # We can get stuck in an infinite loop of unreachable peers if we never contact the tracker again
-            if available and randint(0, 255) > self.reset_chance:
+            if available and randint(0, 255) >= self.reset_chance:
                 peer = choice(available)
                 self.overlay.walk_to(peer)
                 self.intro_timeouts[peer] = time()
