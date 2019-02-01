@@ -624,7 +624,7 @@ class TrustChainCommunity(Community):
         """
         eligible = [p for p in self.get_peers() if p != exclude]
         if not eligible:
-            return None
+            return super(TrustChainCommunity, self).get_peer_for_introduction(exclude)
 
         total_trust = sum([self.get_trust(peer) for peer in eligible])
         random_trust_i = random.randint(0, total_trust - 1)
