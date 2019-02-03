@@ -36,7 +36,6 @@ class HiddenTunnelCommunity(TunnelCommunity):
 
         self.intro_point_for = {}
         self.rendezvous_point_for = {}
-        self.infohash_rp_circuits = defaultdict(list)
         self.infohash_ip_circuits = defaultdict(list)
         self.infohash_pex = defaultdict(set)
 
@@ -450,8 +449,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
                            u'establish-rendezvous', EstablishRendezvousPayload(circuit_id, cache.number, rp.cookie))
 
         # Create a new circuit to be used for transferring data
-        circuit_id = self.create_circuit_for_infohash(info_hash, CIRCUIT_TYPE_RP, callback)
-        self.infohash_rp_circuits[info_hash].append((circuit_id, time.time()))
+        self.create_circuit_for_infohash(info_hash, CIRCUIT_TYPE_RP, callback)
 
     @tc_lazy_wrapper_unsigned(EstablishRendezvousPayload)
     def on_establish_rendezvous(self, source_address, payload, circuit_id):
