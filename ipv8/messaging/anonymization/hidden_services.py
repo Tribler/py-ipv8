@@ -243,7 +243,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
             self.logger.info('On key response: forward message because received over socket')
             payload = KeyResponsePayload(cache.identifier, payload.public_key, payload.pex_peers).to_pack_list()
             packet = self._ez_pack(self._prefix, 14, [payload], False)
-            self.send_packet([cache.return_sock_addr], u"key-response", packet)
+            self.send_packet([cache.return_sock_addr], packet)
         else:
             # pop key-request cache and notify gui
             self.logger.info("On key response: received keys")
