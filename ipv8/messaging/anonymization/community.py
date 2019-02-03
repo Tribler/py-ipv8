@@ -313,8 +313,9 @@ class TunnelCommunity(Community):
         else:
             self.logger.info("Look for a first hop that is not an exit node and is not used before")
             first_hops = set([c.peer.address for c in self.circuits.values()])
-            first_hop = next((c for c in self.compatible_candidates
-                              if c.address not in first_hops and c.address != required_exit.address), None)
+            choices = [c for c in self.compatible_candidates
+                       if c.address not in first_hops and c.address != required_exit.address]
+            first_hop = random.choice(choices) if choices else None
 
         if not first_hop:
             self.logger.info("Could not create circuit, no first hop available")
