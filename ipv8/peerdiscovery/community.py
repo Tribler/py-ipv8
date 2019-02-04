@@ -56,6 +56,11 @@ class DiscoveryCommunity(Community):
         return {'PeriodicSimilarity': PeriodicSimilarity, 'RandomChurn': RandomChurn}
 
     def on_introduction_request(self, source_address, data):
+        if self.max_peers >= 0 and len(self.get_peers()) > self.max_peers:
+            self.logger.info("Dropping introduction request from (%s, %d): too many peers!",
+                             source_address[0], source_address[1])
+            return
+
         try:
             auth, dist, payload = self._ez_unpack_auth(DiscoveryIntroductionRequestPayload, data)
         except (PacketDecodingError, PackError):
