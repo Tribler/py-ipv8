@@ -37,7 +37,8 @@ class TestEdgeWalk(TestBase):
         self.overlays[1].network.add_verified_peer(self.overlays[2].my_peer)
         self.overlays[1].network.discover_services(self.overlays[2].my_peer, [self.overlays[2].master_peer.mid, ])
         # We expect NODE1 to introduce NODE0 to NODE2
-        self.strategies[0].take_step()
+        self.strategies[0].take_step() # First it's added in the neighborhood
+        self.strategies[0].take_step() # Second it introduces its neighbor
 
         yield self.deliver_messages()
 
