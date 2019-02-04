@@ -110,7 +110,7 @@ class EdgeWalk(DiscoveryStrategy):
             if not self._neighborhood or len(self._neighborhood) < self.neighborhood_size:
                 # Wait for our immediate neighborhood to be discovered
                 self._neighborhood = self.overlay.get_peers()[:self.neighborhood_size]
-                self.overlay.get_new_introduction(service_id=service_id)
+                self.overlay.bootstrap()
             else:
                 waiting_root = self.get_available_root()
                 # Make sure we have as many outstanding/actively growing edges as roots
