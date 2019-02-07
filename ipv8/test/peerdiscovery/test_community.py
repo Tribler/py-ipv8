@@ -24,6 +24,8 @@ class TestDiscoveryCommunity(TestBase):
 
         node_count = 2
         self.overlays = [MockCommunity() for _ in range(node_count)]
+        for overlay in self.overlays:
+            overlay.network.blacklist.append(self.tracker.endpoint.wan_address)
 
     def tearDown(self):
         self.tracker.unload()

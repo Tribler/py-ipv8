@@ -111,6 +111,8 @@ class EdgeWalk(DiscoveryStrategy):
                 # Wait for our immediate neighborhood to be discovered
                 self._neighborhood = self.overlay.get_peers()[:self.neighborhood_size]
                 self.overlay.bootstrap()
+                for peer in self.overlay.network.get_walkable_addresses(service_id)[:self.neighborhood_size]:
+                    self.overlay.walk_to(peer)
             else:
                 waiting_root = self.get_available_root()
                 # Make sure we have as many outstanding/actively growing edges as roots

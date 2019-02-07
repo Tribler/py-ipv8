@@ -25,7 +25,7 @@ class PeriodicSimilarity(DiscoveryStrategy):
 
     def take_step(self, service_id=None):
         now = time()
-        if (now - self.last_step < 0.2) or not self.overlay.network.verified_peers:
+        if (now - self.last_step < 1.0) or not self.overlay.network.verified_peers:
             return
         self.last_step = now
         with self.walk_lock:

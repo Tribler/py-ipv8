@@ -29,8 +29,6 @@ from ...peer import Peer
 from ...requestcache import RandomNumberCache, RequestCache
 from ...util import addCallback
 
-receive_block_lock = RLock()
-
 
 def synchronized(f):
     """
@@ -38,7 +36,7 @@ def synchronized(f):
     """
     @wraps(f)
     def wrapper(self, *args, **kwargs):
-        with receive_block_lock:
+        with self.receive_block_lock:
             return f(self, *args, **kwargs)
     return wrapper
 
@@ -58,6 +56,7 @@ class TrustChainCommunity(Community):
         working_directory = kwargs.pop('working_directory', '')
         db_name = kwargs.pop('db_name', self.DB_NAME)
         self.settings = kwargs.pop('settings', TrustChainSettings())
+        self.receive_block_lock = RLock()
         super(TrustChainCommunity, self).__init__(*args, **kwargs)
         self.request_cache = RequestCache()
         self.logger = logging.getLogger(self.__class__.__name__)

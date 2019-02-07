@@ -257,12 +257,17 @@ class Community(EZPackOverlay):
 
         self.network.add_verified_peer(peer)
         self.network.discover_services(peer, [self.master_peer.mid, ])
-        if (payload.wan_introduction_address != ("0.0.0.0", 0)) and \
-                (payload.wan_introduction_address[0] != self.my_estimated_wan[0] or
-                 payload.lan_introduction_address == ("0.0.0.0", 0)):
+
+        if (payload.wan_introduction_address != ("0.0.0.0", 0) and
+                payload.wan_introduction_address[0] != self.my_estimated_wan[0]):
             self.network.discover_address(peer, payload.wan_introduction_address, self.master_peer.mid)
-        elif payload.lan_introduction_address != ("0.0.0.0", 0):
+        elif (payload.lan_introduction_address != ("0.0.0.0", 0) and
+              payload.wan_introduction_address[0] == self.my_estimated_wan[0]):
             self.network.discover_address(peer, payload.lan_introduction_address, self.master_peer.mid)
+        elif payload.wan_introduction_address != ("0.0.0.0", 0):
+            self.network.discover_address(peer, payload.wan_introduction_address, self.master_peer.mid)
+            self.network.discover_address(peer, (self.my_estimated_lan[0], payload.wan_introduction_address[1]),
+                                          self.master_peer.mid)
 
         self.introduction_response_callback(peer, dist, payload)
 
