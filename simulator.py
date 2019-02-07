@@ -87,15 +87,25 @@ else:
 #rest_manager.start(get_open_port())
 
 
-def open_gui():
+def open_gui(controller):
     root = tk.Tk()
     root.geometry("500x500")
+    lbl_warning = tk.Label(root, text="Warning: Will remove all blocks")
+    lbl_warning.pack()
     entry_filename = tk.Entry(root)
     entry_filename.pack()
+    lbl_successfull = tk.Label(root, text="Succesful booking: ")
+    lbl_successfull.pack()
     lbl_overbookings = tk.Label(root, text="Overbookings: ")
     lbl_overbookings.pack()
+    lbl_nightcapped = tk.Label(root, text="Nightcapped Bookings: ")
+    lbl_nightcapped.pack()
 
     def simulate():
+        controller.remove_all_created_blocks()
+        successfulBookings = 0
+        overBookings = 0
+        nightcapBookings = 0
         with open(os.path.join("simulation", entry_filename.get() or "bookings_500_per_50_filter.csv"), 'r') as file:
             reader = csv.reader(file, delimiter=';')
             firstline = True
@@ -106,26 +116,38 @@ def open_gui():
                 row = int(booking[0])
                 ota = booking[1]
                 address = {
-                    "country": "a",
-                    "state": "b",
-                    "city": "c",
-                    "street": "d",
-                    "number": int(booking[2].split("_")[1])
+                    "country": booking[2].split("_")[1],
+                    "state": booking[2].split("_")[1],
+                    "city": booking[2].split("_")[1],
+                    "street": booking[2].split("_")[1],
+                    "number": booking[2].split("_")[1]
                 }
                 start_date = booking[3]
                 end_date = booking[4]
-                print(", ".join(booking))
+
+                try:
+                    controller.get_bookings(address)
+                except AttributeError:
+                    controller.create_community(address["country"], address["state"], address["city"],
+                                                address["street"], address["number"])
+                finally:
+                    result = controller.book_apartment(address, start_date, end_date)
+                    if result == 0: successfulBookings += 1
+                    elif result == 1: overBookings += 1
+                    elif result == 2: nightcapBookings += 1
+
+        lbl_successfull.config(text="SuccessfulBookings: " + str(successfulBookings))
+        lbl_overbookings.config(text="Overbookings: " + str(overBookings))
+        lbl_nightcapped.config(text="Nightcapped Bookings: " + str(nightcapBookings))
 
     button = tk.Button(root,
                        text="Simulate",
                        command=simulate)
     button.pack()
-    tk.Label(root, text="Overbookings:").pack()
 
     root.mainloop()
 
-
-thread.start_new_thread(open_gui, (controller))
+thread.start_new_thread(open_gui, (controller,))
 # Start the Twisted reactor: this is the engine scheduling all of the
 # asynchronous calls.
 reactor.run()
