@@ -337,24 +337,38 @@ class HalfBlockPairBroadcastPayload(HalfBlockPairPayload):
 
 class DHTBlockPayload(Payload):
     """
-    Class which represents the payloads published to the DHT for
+    Class which represents the payloads published to the DHT for disseminating chunks of TrustChain blocks
     """
-    format_list = ['64s', 'H', 'raw']
-    PREAMBLE_OVERHEAD = 66  # This stems from the 64 byte signature and the 2 byte unsigned short
+    format_list = ['64s', 'H', 'H', 'H', 'raw']
+    PREAMBLE_OVERHEAD = 70  # This stems from the 64 byte signature and the 6 bytes of unsigned shorts
 
-    def __init__(self, signature, version, payload):
+    def __init__(self, signature, version, block_position, block_count, payload):
+        """
+        Construct a DHTBlockPayload object (which generally represents a chuck of a TrustChain block),
+        which should normally be serialized and published to the DHT
+
+        :param signature: A signature of this block's body (version + block_position + block_count + payload)
+        :param version: This block's version (greater values indicate newer blocks)
+        :param block_position: This chunk's position in the original block (among the other chunks)
+        :param block_count: The total number of chunks in the block
+        :param payload: The chunk itself
+        """
         super(DHTBlockPayload, self).__init__()
         self.signature = signature
         self.version = version
+        self.block_position = block_position
+        self.block_count = block_count
         self.payload = payload
 
     def to_pack_list(self):
         return [
             ('64s', self.signature),
             ('H', self.version),
+            ('H', self.block_position),
+            ('H', self.block_count),
             ('raw', self.payload)
         ]
 
     @classmethod
-    def from_unpack_list(cls, signature, version, payload):
-        return DHTBlockPayload(signature, version, payload)
+    def from_unpack_list(cls, signature, version, payload, block_position, block_count):
+        return DHTBlockPayload(signature, version, payload, block_position, block_count)

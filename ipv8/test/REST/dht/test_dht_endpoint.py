@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 from hashlib import sha1
 from base64 import b64encode, b64decode
 from collections import deque
@@ -43,12 +45,21 @@ class TestDHTEndpoint(RESTTestBase):
         """
         my_private_key = peer.get_keys()['my_peer'].key
 
-        for i in range(0, len(data), DHTBlockEndpoint.CHUNK_SIZE):
-            chunk = data[i: i + DHTBlockEndpoint.CHUNK_SIZE]
-            signature = my_private_key.signature(str(numeric_version).encode('utf-8') + chunk)
+        # Get the total number of chunks in this blocks
+        total_blocks = len(data) // DHTBlockEndpoint.CHUNK_SIZE
+        total_blocks += 1 if len(data) % DHTBlockEndpoint.CHUNK_SIZE != 0 else 0
 
-            blob_chunk = self.serializer.pack_multiple(DHTBlockPayload(signature, numeric_version, chunk)
-                                                       .to_pack_list())
+        # To make this faster we'll use addition instead of multiplication, and use a pointer
+        slice_pointer = 0
+
+        for i in range(total_blocks):
+            chunk = data[slice_pointer: slice_pointer + DHTBlockEndpoint.CHUNK_SIZE]
+            slice_pointer += DHTBlockEndpoint.CHUNK_SIZE
+            signature = my_private_key.signature(str(numeric_version).encode('utf-8') + str(i).encode('utf-8') +
+                                                 str(total_blocks).encode('utf-8') + chunk)
+
+            blob_chunk = self.serializer.pack_multiple(DHTBlockPayload(signature, numeric_version, i, total_blocks,
+                                                                       chunk).to_pack_list())
             yield peer.get_overlay_by_class(DHTCommunity).store_value(key, blob_chunk[0])
 
     def deserialize_payload(self, serializables, data):
@@ -175,10 +186,10 @@ class TestDHTEndpoint(RESTTestBase):
         self.assertNotEqual(reconstructed_block, original_block_1, "The received block was equal to the older block")
 
     @inlineCallbacks
-    def test_block_duplication(self):
+    def test_block_duplication_explicit(self):
         """
-        Test that a block which has already been pubished in the DHT will not be republished again; i.e. no
-        duplicate blocks in the DHT under different (embedded) versions.
+        Test that a block which has already been published in the DHT (explicitly) will not be republished again;
+        i.e. no duplicate blocks in the DHT under different (embedded) versions.
         """
         # Introduce the nodes
         yield self.introduce_nodes(DHTCommunity)
@@ -188,14 +199,15 @@ class TestDHTEndpoint(RESTTestBase):
         self.nodes[0].get_overlay_by_class(TrustChainCommunity).persistence.add_block(original_block)
 
         # Publish the node to the DHT
-        hash_key = sha1(self.nodes[0].get_keys()['my_peer'].mid + DHTBlockEndpoint.KEY_SUFFIX).digest()
+        hash_key = sha1(self.nodes[0].get_keys()['my_peer'].public_key.key_to_bin() +
+                        DHTBlockEndpoint.KEY_SUFFIX).digest()
 
-        result = self.nodes[0].get_overlay_by_class(DHTCommunity).storage.get(hash_key)
+        result = yield self.nodes[1].get_overlay_by_class(DHTCommunity).find_values(hash_key)
         self.assertEqual(result, [], "There shouldn't be any blocks for this key")
 
         yield self.publish_to_DHT(self.nodes[0], hash_key, original_block.pack(), 4536)
 
-        result = self.nodes[0].get_overlay_by_class(DHTCommunity).storage.get(hash_key)
+        result = yield self.nodes[1].get_overlay_by_class(DHTCommunity).find_values(hash_key)
         self.assertNotEqual(result, [], "There should be at least one chunk for this key")
 
         chunk_number = len(result)
@@ -203,7 +215,45 @@ class TestDHTEndpoint(RESTTestBase):
         # Force call the method which publishes the latest block to the DHT and check that it did not affect the DHT
         self.nodes[0].get_overlay_by_class(TrustChainCommunity) \
             .notify_listeners(TestBlock(TrustChainCommunity.UNIVERSAL_BLOCK_LISTENER))
+        yield self.deliver_messages()
+        yield self.sleep()
 
         # Query the DHT again
-        result = self.nodes[0].get_overlay_by_class(DHTCommunity).storage.get(hash_key)
+        result = yield self.nodes[1].get_overlay_by_class(DHTCommunity).find_values(hash_key)
+        self.assertEqual(len(result), chunk_number, "The contents of the DHT have been changed. This should not happen")
+
+    @inlineCallbacks
+    def test_block_duplication_implicit(self):
+        """
+        Test that a block which has already been published in the DHT (implicitly) will not be republished again;
+        i.e. no duplicate blocks in the DHT under different (embedded) versions.
+        """
+        # Introduce the nodes
+        yield self.introduce_nodes(DHTCommunity)
+
+        # Publish the node to the DHT
+        hash_key = sha1(self.nodes[0].get_keys()['my_peer'].public_key.key_to_bin() +
+                        DHTBlockEndpoint.KEY_SUFFIX).digest()
+
+        result = yield self.nodes[1].get_overlay_by_class(DHTCommunity).find_values(hash_key)
+        self.assertEqual(result, [], "There shouldn't be any blocks for this key")
+
+        # Create a source block, and implicitly disseminate it
+        yield self.nodes[0].get_overlay_by_class(TrustChainCommunity).create_source_block(b'test', {})
+        yield self.deliver_messages()
+        yield self.sleep()
+
+        result = yield self.nodes[1].get_overlay_by_class(DHTCommunity).find_values(hash_key)
+        self.assertNotEqual(result, [], "There should be at least one chunk for this key")
+
+        chunk_number = len(result)
+
+        # Force call the method which publishes the latest block to the DHT and check that it did not affect the DHT
+        self.nodes[0].get_overlay_by_class(TrustChainCommunity) \
+            .notify_listeners(TestBlock(TrustChainCommunity.UNIVERSAL_BLOCK_LISTENER))
+        yield self.deliver_messages()
+        yield self.sleep()
+
+        # Query the DHT again
+        result = yield self.nodes[1].get_overlay_by_class(DHTCommunity).find_values(hash_key)
         self.assertEqual(len(result), chunk_number, "The contents of the DHT have been changed. This should not happen")

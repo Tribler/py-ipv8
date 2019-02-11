@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 from twisted.internet.defer import inlineCallbacks, returnValue
 
 from .peer_communication import IGetStyleRequestsAE, IPostStyleRequestsAE

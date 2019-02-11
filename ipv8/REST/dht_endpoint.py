@@ -5,7 +5,6 @@ from binascii import hexlify, unhexlify
 from hashlib import sha1
 import json
 
-from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.web import http, resource
 from twisted.web.server import NOT_DONE_YET
 
@@ -81,34 +80,24 @@ class DHTBlockEndpoint(resource.Resource, BlockListener):
         max_version = 0
 
         for entry in block_chunks:
-            package = self.serializer.unpack_to_serializables([DHTBlockPayload, ], entry[1:])[0]
+            package = self.serializer.unpack_to_serializables([DHTBlockPayload, ], entry)[0]
 
-            if public_key.verify(package.signature, str(package.version).encode('utf-8') + package.payload):
+            if public_key.verify(package.signature, str(package.version).encode('utf-8') +
+                                 str(package.block_position).encode('utf-8') +
+                                 str(package.block_count).encode('utf-8') + package.payload):
                 max_version = max_version if max_version > package.version else package.version
 
-                new_blocks[package.version] = package.payload + new_blocks[package.version] \
-                    if package.version in new_blocks else package.payload
+                if package.version not in new_blocks:
+                    new_blocks[package.version] = [''] * package.block_count
+
+                new_blocks[package.version][package.block_position] = package.payload
+
+        # Concatenate the blocks
+        for version in new_blocks:
+            new_blocks[version] = b''.join(new_blocks[version])
 
         return new_blocks, max_version
 
-    def _is_duplicate(self, latest_block, public_key):
-        """
-        Checks to see if this block has already been published to the DHT
-
-        :param latest_block: the PACKED version of the latest block
-        :param public_key: the public key of the publishing node, which will be used for verifying the chunks
-        :return: True if the block has indeed been published before, False otherwise
-        """
-        block_chunks = self.dht.storage.get(self._hashed_dht_key)
-        new_blocks, _ = self.reconstruct_all_blocks(block_chunks, public_key)
-
-        for val in new_blocks.values():
-            if val == latest_block:
-                return True
-
-        return False
-
-    @inlineCallbacks
     def publish_latest_block(self):
         """
         Publish the latest block of this node's TrustChain to the DHT
@@ -118,20 +107,41 @@ class DHTBlockEndpoint(resource.Resource, BlockListener):
         if latest_block:
             # Get all the previously published blocks for this peer from the DHT, and check if this is a duplicate
             latest_block = latest_block.pack()
-            if self._is_duplicate(latest_block, self.trustchain.my_peer.public_key):
-                returnValue(None)
 
-            my_private_key = self.trustchain.my_peer.key
+            def on_success(block_chunks):
+                new_blocks, _ = self.reconstruct_all_blocks([x[0] for x in block_chunks],
+                                                            self.trustchain.my_peer.public_key)
 
-            for i in range(0, len(latest_block), self.CHUNK_SIZE):
-                chunk = latest_block[i: i + self.CHUNK_SIZE]
-                signature = my_private_key.signature(str(self.block_version).encode('utf-8') + chunk)
-                blob_chunk = self.serializer.pack_multiple(
-                    DHTBlockPayload(signature, self.block_version, chunk).to_pack_list())
+                # Check for duplication
+                for val in new_blocks.values():
+                    if val == latest_block:
+                        return
 
-                yield self.dht.store_value(self._hashed_dht_key, blob_chunk[0])
+                # If we reached this point, it means the latest_block is novel
+                my_private_key = self.trustchain.my_peer.key
 
-            self.block_version += 1
+                # Get the total number of chunks in this blocks
+                total_blocks = len(latest_block) // self.CHUNK_SIZE
+                total_blocks += 1 if len(latest_block) % self.CHUNK_SIZE != 0 else 0
+
+                # To make this faster we'll use addition instead of multiplication, and use a pointer
+                slice_pointer = 0
+
+                for i in range(total_blocks):
+                    chunk = latest_block[slice_pointer: slice_pointer + self.CHUNK_SIZE]
+                    slice_pointer += self.CHUNK_SIZE
+                    signature = my_private_key.signature(
+                        str(self.block_version).encode('utf-8') + str(i).encode('utf-8') +
+                        str(total_blocks).encode('utf-8') + chunk)
+                    blob_chunk = self.serializer.pack_multiple(
+                        DHTBlockPayload(signature, self.block_version, i, total_blocks, chunk).to_pack_list())
+
+                    self.dht.store_value(self._hashed_dht_key, blob_chunk[0])
+
+                self.block_version += 1
+
+            deferred = self.dht.find_values(self._hashed_dht_key)
+            deferred.addCallback(on_success)
 
     def render_GET(self, request):
         """
@@ -149,18 +159,35 @@ class DHTBlockEndpoint(resource.Resource, BlockListener):
             request.setResponseCode(http.BAD_REQUEST)
             return json.dumps({"error": "Must specify the peer's public key"}).encode('utf-8')
 
+        def on_success(block_chunks):
+            if not block_chunks:
+                request.setResponseCode(http.NOT_FOUND)
+                return json.dumps({"error": "Could not find any blocks for the specified key."}).encode('utf-8')
+
+            target_public_key = LibNaCLPK(binarykey=raw_public_key[10:])
+            # Discard the 2nd half of the tuples retrieved as a result of the DHT query
+            new_blocks, max_version = self.reconstruct_all_blocks([x[0] for x in block_chunks], target_public_key)
+            request.write(json.dumps({"block": b64encode(new_blocks[max_version]).decode('utf-8')}).encode('utf-8'))
+            request.finish()
+
+        def on_failure(failure):
+            request.setResponseCode(http.INTERNAL_SERVER_ERROR)
+            request.write(json.dumps({
+                u"error": {
+                    u"handled": True,
+                    u"code": failure.value.__class__.__name__,
+                    u"message": failure.value.message
+                }
+            }))
+
         raw_public_key = b64decode(request.args[b'public_key'][0])
         hash_key = sha1(raw_public_key + self.KEY_SUFFIX).digest()
-        block_chunks = self.dht.storage.get(hash_key)
 
-        if not block_chunks:
-            request.setResponseCode(http.NOT_FOUND)
-            return json.dumps({"error": "Could not find a block for the specified key."}).encode('utf-8')
+        deferred = self.dht.find_values(hash_key)
+        deferred.addCallback(on_success)
+        deferred.addErrback(on_failure)
 
-        target_public_key = LibNaCLPK(binarykey=raw_public_key[10:])
-        new_blocks, max_version = self.reconstruct_all_blocks(block_chunks, target_public_key)
-
-        return json.dumps({"block": b64encode(new_blocks[max_version]).decode('utf-8')}).encode('utf-8')
+        return NOT_DONE_YET
 
 
 class DHTStatisticsEndpoint(resource.Resource):

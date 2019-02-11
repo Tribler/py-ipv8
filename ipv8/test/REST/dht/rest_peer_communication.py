@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 from twisted.internet.defer import inlineCallbacks, returnValue
 
 from ...mocking.rest.rest_peer_communication import HTTPRequester, RequestException, process_json_response
