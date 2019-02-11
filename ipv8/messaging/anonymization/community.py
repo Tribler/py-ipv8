@@ -788,7 +788,6 @@ class TunnelCommunity(Community):
             extend_candidate = self.network.get_verified_by_public_key_bin(payload.node_public_key)
             if not extend_candidate:
                 extend_candidate = Peer(payload.node_public_key, payload.node_addr)
-                self.network.add_verified_peer(extend_candidate)
 
         self.logger.info("On_extend send CREATE for circuit (%s, %d) to %s:%d", source_address,
                          circuit_id, *extend_candidate.address)
