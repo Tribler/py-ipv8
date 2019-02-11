@@ -273,8 +273,7 @@ class Community(EZPackOverlay):
 
     @lazy_wrapper(GlobalTimeDistributionPayload, PuncturePayload)
     def on_puncture(self, peer, dist, payload):
-        self.network.add_verified_peer(peer)
-        self.network.discover_services(peer, [self.master_peer.mid, ])
+        pass
 
     @lazy_wrapper_unsigned(GlobalTimeDistributionPayload, PunctureRequestPayload)
     def on_puncture_request(self, source_address, dist, payload):

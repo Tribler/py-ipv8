@@ -160,13 +160,6 @@ class DHTCommunity(Community):
     def introduction_response_callback(self, peer, dist, payload):
         self.on_node_discovered(peer.public_key.key_to_bin(), peer.address)
 
-    @lazy_wrapper(GlobalTimeDistributionPayload, PuncturePayload)
-    def on_puncture(self, peer, dist, payload):
-        # Since the DHT sends punctures manually, we often discover peers that the
-        # DiscoveryStrategy did not ask for. In order to keep these peers from entering
-        # our list of verified peers, we ignore punctures.
-        pass
-
     def on_node_discovered(self, public_key_bin, source_address):
         # Filter out trackers
         if source_address not in self.network.blacklist:

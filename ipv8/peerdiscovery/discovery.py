@@ -130,6 +130,8 @@ class EdgeWalk(DiscoveryStrategy):
                             verified = self.overlay.network.get_verified_by_address(intro)
                             if verified:
                                 introductions.append(verified)
+                            else:
+                                self.overlay.walk_to(intro)
                         if introductions:
                             # We got (multiple?) introductions from this peer, add it as verified
                             self.last_edge_responses[root] = time()

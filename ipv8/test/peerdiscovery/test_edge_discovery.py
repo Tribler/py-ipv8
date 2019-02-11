@@ -42,6 +42,9 @@ class TestEdgeWalk(TestBase):
 
         yield self.deliver_messages()
 
+        self.strategies[0].take_step() # Find out the neighbor has been introduced and walk to it
+        yield self.deliver_messages()
+
         self.assertEqual(len(self.overlays[0].network.verified_peers), 2)
 
     @inlineCallbacks
@@ -68,7 +71,9 @@ class TestEdgeWalk(TestBase):
         # 2. Detect intro (NODE2) from root and query for nodes
         # 3. Detect no more intros from NODE2 and finish edge
         for _ in range(3):
-            self.strategies[0].take_step()
+            self.strategies[0].take_step() # Attempt intro
+            yield self.deliver_messages()
+            self.strategies[0].take_step() # Complete intro
             yield self.deliver_messages()
 
         self.assertEqual(len(self.overlays[0].network.verified_peers), 2)
@@ -110,7 +115,7 @@ class TestEdgeWalk(TestBase):
         Check if we can complete an edge.
         """
         self.strategies[0].edge_length = 2 # Finish with one other node
-        self.strategies[0].edge_timeout = 0.0  # Finish the edge immediately
+        self.strategies[0].edge_timeout = 0.1  # Finish the edge, but allow the network to walk
         self.overlays[0].network.add_verified_peer(self.overlays[1].my_peer)
         self.overlays[0].network.discover_services(self.overlays[1].my_peer, [self.overlays[1].master_peer.mid, ])
 

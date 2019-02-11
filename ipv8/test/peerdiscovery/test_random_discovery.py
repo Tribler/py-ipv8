@@ -38,7 +38,8 @@ class TestRandomWalk(TestBase):
         self.overlays[1].network.discover_services(self.overlays[2].my_peer, [self.overlays[2].master_peer.mid, ])
         # We expect NODE1 to introduce NODE0 to NODE2
         self.strategies[0].take_step()
-
+        yield self.deliver_messages()
+        self.strategies[0].take_step()
         yield self.deliver_messages()
 
         self.assertEqual(len(self.overlays[0].network.verified_peers), 2)
@@ -58,7 +59,8 @@ class TestRandomWalk(TestBase):
         self.overlays[0].network.discover_services(self.overlays[1].my_peer, [self.overlays[1].master_peer.mid, ])
         # We expect NODE0 to visit NODE2
         self.strategies[0].take_step()
-
+        yield self.deliver_messages()
+        self.strategies[0].take_step()
         yield self.deliver_messages()
 
         self.assertEqual(len(self.overlays[0].network.verified_peers), 2)
