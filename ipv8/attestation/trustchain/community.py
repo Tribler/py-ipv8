@@ -605,38 +605,6 @@ class TrustChainCommunity(Community):
             self.logger.info("Received empty crawl response for crawl with ID %d", payload.crawl_id)
             cache.received_empty_response()
 
-    def get_trust(self, peer):
-        """
-        Return the trust score for a specific peer. For the basic Trustchain, this is the length of their chain.
-        """
-        block = self.persistence.get_latest(peer.public_key.key_to_bin())
-        if block:
-            return block.sequence_number
-        else:
-            # We need a minimum of 1 trust to have a chance to be selected in the categorical distribution.
-            return 1
-
-    def get_peer_for_introduction(self, exclude=None):
-        """
-        Choose a trusted peer to introduce you to someone else.
-        The more trust you have for someone, the higher the chance is to forward them.
-        """
-        eligible = [p for p in self.get_peers() if p != exclude]
-        if not eligible:
-            return super(TrustChainCommunity, self).get_peer_for_introduction(exclude)
-
-        total_trust = sum([self.get_trust(peer) for peer in eligible])
-        random_trust_i = random.randint(0, total_trust - 1)
-        current_trust_i = 0
-        for i in xrange(0, len(eligible)):
-            next_trust_i = self.get_trust(eligible[i])
-            if current_trust_i + next_trust_i > random_trust_i:
-                return eligible[i]
-            else:
-                current_trust_i += next_trust_i
-
-        return eligible[-1]
-
     def get_chain_length(self):
         """
         Return the length of your own chain.
