@@ -48,8 +48,8 @@ crawler_config = {
     'keys': [
         {
             'alias': "my peer",
-            'generation': u"medium",
-            'file': u"ec.pem"
+            'generation': u"curve25519",
+            'file': u"crawler_key.pem"
         }
     ],
     'logger': {
@@ -73,13 +73,15 @@ crawler_config = {
                     'peers': -1,
                     'init': {
                         'sample_size': 64,
-                        'ping_interval': 1.0,
-                        'inactive_time': 1.0,
-                        'drop_time': 3.0
+                        'ping_interval': 10.0,
+                        'inactive_time': 30.0,
+                        'drop_time': 50.0
                     }
                 }
             ],
-            'initialize': {},
+            'initialize': {
+                'max_peers': -1
+            },
             'on_start': [
                 ('resolve_dns_bootstrap_addresses', )
             ]
@@ -96,6 +98,7 @@ crawler_config = {
                 },
             ],
             'initialize': {
+                'max_peers': -1,
                 'settings': tc_settings
             },
             'on_start': [],
