@@ -77,6 +77,11 @@ crawler_config = {
                         'inactive_time': 30.0,
                         'drop_time': 50.0
                     }
+                },
+                {
+                    'strategy': "PeriodicSimilarity",
+                    'peers': -1,
+                    'init': {}
                 }
             ],
             'initialize': {
