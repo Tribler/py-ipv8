@@ -43,7 +43,7 @@ class DiscoveryCommunity(Community):
                                  "2a02716ccef5a22f7968"))
 
     def __init__(self, my_peer, endpoint, network, max_peers=DEFAULT_MAX_PEERS):
-        super(DiscoveryCommunity, self).__init__(my_peer, endpoint, network, max_peers=DEFAULT_MAX_PEERS)
+        super(DiscoveryCommunity, self).__init__(my_peer, endpoint, network, max_peers=max_peers)
 
         self.decode_map.update({
             chr(1): self.on_similarity_request,
