@@ -67,6 +67,8 @@ class MyCommunity(Community):
                 RESULTS[(cache.hostname, cache.address)].append(time.time()-cache.starttime)
             else:
                 RESULTS[(cache.hostname, cache.address)] = [time.time() - cache.starttime]
+        elif (cache.hostname, cache.address) not in RESULTS:
+            RESULTS[(cache.hostname, cache.address)] = []
 
         self.next_ping()
 
