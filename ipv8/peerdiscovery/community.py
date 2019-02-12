@@ -6,7 +6,7 @@ from time import time
 
 from .churn import DiscoveryStrategy, RandomChurn
 from ..peer import Peer
-from ..community import Community
+from ..community import Community, DEFAULT_MAX_PEERS
 from ..lazy_community import lazy_wrapper, lazy_wrapper_unsigned, PacketDecodingError
 from ..messaging.payload import IntroductionRequestPayload
 from ..messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
@@ -42,8 +42,8 @@ class DiscoveryCommunity(Community):
                                  "cd500624376aec875a6e3028aab784cfaf0bac6527245db8d93900d904ac2a92"
                                  "2a02716ccef5a22f7968"))
 
-    def __init__(self, my_peer, endpoint, network):
-        super(DiscoveryCommunity, self).__init__(my_peer, endpoint, network)
+    def __init__(self, my_peer, endpoint, network, max_peers=DEFAULT_MAX_PEERS):
+        super(DiscoveryCommunity, self).__init__(my_peer, endpoint, network, max_peers=DEFAULT_MAX_PEERS)
 
         self.decode_map.update({
             chr(1): self.on_similarity_request,
