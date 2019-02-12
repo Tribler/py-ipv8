@@ -621,21 +621,30 @@ class TrustChainCommunity(Community):
         Choose a trusted peer to introduce you to someone else.
         The more trust you have for someone, the higher the chance is to forward them.
         """
+        if self.settings.crawler:
+            return self.bootstrap()
+
         eligible = [p for p in self.get_peers() if p != exclude]
         if not eligible:
             return super(TrustChainCommunity, self).get_peer_for_introduction(exclude)
 
-        total_trust = sum([self.get_trust(peer) for peer in eligible])
+        # Generate a sorted list of all trust scores (and the peers belonging to it)
+        trust_scores = sorted([(self.get_trust(peer), peer) for peer in eligible], key=lambda tup: tup[0])
+        median_trust = trust_scores[len(trust_scores)//2][0]
+        # We use the real trust scores up to the max of the median
+        total_trust = (sum([tup[0] for tup in trust_scores[:len(trust_scores)//2]])
+                       + median_trust * (len(trust_scores)-len(trust_scores)//2))
+        # Sample a categorical distribution of trust
         random_trust_i = random.randint(0, total_trust - 1)
         current_trust_i = 0
-        for i in xrange(0, len(eligible)):
-            next_trust_i = self.get_trust(eligible[i])
-            if current_trust_i + next_trust_i > random_trust_i:
-                return eligible[i]
+        for tup in trust_scores:
+            trust, peer = tup
+            if current_trust_i + min(median_trust, trust) > random_trust_i:
+                return peer
             else:
-                current_trust_i += next_trust_i
-
-        return eligible[-1]
+                current_trust_i += min(median_trust, trust)
+        # Out of peers, pick the last one
+        return trust_scores[-1][1]
 
     def get_chain_length(self):
         """
