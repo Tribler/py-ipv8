@@ -130,9 +130,3 @@ class Overlay(six.with_metaclass(abc.ABCMeta, EndpointListener, TaskManager)):
         :return: a Peer to send an introduction request to, or None if there are no available
         """
         pass
-
-    def get_trust(self, peer):
-        """
-        Get the trust score for a specific peer. This defaults to 1
-        """
-        return 1
