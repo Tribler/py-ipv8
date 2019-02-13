@@ -3,18 +3,25 @@ from __future__ import absolute_import
 import logging
 import time
 
+from twisted.internet.defer import Deferred
+
+from .tunnel import CIRCUIT_STATE_CLOSING, CIRCUIT_STATE_READY, PING_INTERVAL
 from ...requestcache import NumberCache, RandomNumberCache
-from .tunnel import CIRCUIT_STATE_READY, PING_INTERVAL
 
 
 class CircuitRequestCache(NumberCache):
-
-    def __init__(self, community, circuit):
-        super(CircuitRequestCache, self).__init__(community.request_cache, u"anon-circuit", circuit.circuit_id)
-        self.tunnel_logger = logging.getLogger('TunnelLogger')
+    """
+    Used to track the total circuit creation time
+    """
+    def __init__(self, community, circuit, timeout):
+        super(CircuitRequestCache, self).__init__(community.request_cache, u"circuit", circuit.circuit_id)
         self.community = community
         self.circuit = circuit
-        self.should_forward = False
+        self.timeout = timeout
+
+    @property
+    def timeout_delay(self):
+        return float(self.timeout)
 
     def on_timeout(self):
         if self.circuit.state != CIRCUIT_STATE_READY:
@@ -23,15 +30,17 @@ class CircuitRequestCache(NumberCache):
             self.community.remove_circuit(self.number, reason)
 
 
-class ExtendRequestCache(NumberCache):
+class CreateRequestCache(NumberCache):
+    """
+    Used to track outstanding create messages
+    """
     def __init__(self, community, to_circuit_id, from_circuit_id, peer, to_peer):
-        super(ExtendRequestCache, self).__init__(community.request_cache, u"anon-circuit", to_circuit_id)
+        super(CreateRequestCache, self).__init__(community.request_cache, u"create", to_circuit_id)
         self.community = community
         self.to_circuit_id = to_circuit_id
         self.from_circuit_id = from_circuit_id
         self.peer = peer
         self.to_peer = to_peer
-        self.should_forward = True
 
     def on_timeout(self):
         to_circuit = self.community.circuits.get(self.to_circuit_id)
@@ -40,22 +49,57 @@ class ExtendRequestCache(NumberCache):
 
 
 class CreatedRequestCache(NumberCache):
-
-    def __init__(self, community, circuit_id, candidate, candidates):
-        super(CreatedRequestCache, self).__init__(community.request_cache, u"anon-created", circuit_id)
+    """
+    Used to track outstanding created messages
+    """
+    def __init__(self, community, circuit_id, candidate, candidates, timeout):
+        super(CreatedRequestCache, self).__init__(community.request_cache, u"created", circuit_id)
         self.circuit_id = circuit_id
         self.candidate = candidate
         self.candidates = candidates
+        self.timeout = timeout
+
+    @property
+    def timeout_delay(self):
+        return float(self.timeout)
 
     def on_timeout(self):
         pass
+
+
+class RetryRequestCache(NumberCache):
+    """
+    Used to retry adding additional hops to the circuit.
+    """
+    def __init__(self, community, circuit, candidates, retry_func, timeout):
+        super(RetryRequestCache, self).__init__(community.request_cache, u"retry", circuit.circuit_id)
+        self.community = community
+        self.circuit = circuit
+        self.candidates = candidates
+        self.retry_func = retry_func
+        self.timeout = timeout
+
+    @property
+    def timeout_delay(self):
+        return float(self.timeout)
+
+    def on_timeout(self):
+        if not self.candidates or self.circuit.state == CIRCUIT_STATE_CLOSING:
+            return
+
+        def retry_later(_):
+            self.retry_func(self.circuit, self.candidates)
+
+        later = Deferred()
+        self.community.request_cache.register_anonymous_task("retry-later", later, delay=0.0)
+        later.addCallbacks(retry_later, lambda _: None)
 
 
 class PingRequestCache(RandomNumberCache):
 
     def __init__(self, community, circuit):
         super(PingRequestCache, self).__init__(community.request_cache, u"ping")
-        self.tunnel_logger = logging.getLogger('TunnelLogger')
+        self.logger = logging.getLogger(__name__)
         self.circuit = circuit
         self.community = community
 
@@ -65,8 +109,8 @@ class PingRequestCache(RandomNumberCache):
 
     def on_timeout(self):
         if self.circuit.last_incoming < time.time() - self.timeout_delay:
-            self.tunnel_logger.info("PingRequestCache: no response on ping, circuit %d timed out",
-                                    self.circuit.circuit_id)
+            self.logger.info("PingRequestCache: no response on ping, circuit %d timed out",
+                             self.circuit.circuit_id)
             self.community.remove_circuit(self.circuit.circuit_id, 'ping timeout')
 
 
@@ -74,12 +118,12 @@ class IPRequestCache(RandomNumberCache):
 
     def __init__(self, community, circuit):
         super(IPRequestCache, self).__init__(community.request_cache, u"establish-intro")
-        self.tunnel_logger = logging.getLogger('TunnelLogger')
+        self.logger = logging.getLogger(__name__)
         self.circuit = circuit
         self.community = community
 
     def on_timeout(self):
-        self.tunnel_logger.info("IPRequestCache: no response on establish-intro (circuit %d)", self.circuit.circuit_id)
+        self.logger.info("IPRequestCache: no response on establish-intro (circuit %d)", self.circuit.circuit_id)
         self.community.remove_circuit(self.circuit.circuit_id, 'establish-intro timeout')
 
 
@@ -87,13 +131,13 @@ class RPRequestCache(RandomNumberCache):
 
     def __init__(self, community, rp):
         super(RPRequestCache, self).__init__(community.request_cache, u"establish-rendezvous")
-        self.tunnel_logger = logging.getLogger('TunnelLogger')
+        self.logger = logging.getLogger(__name__)
         self.community = community
         self.rp = rp
 
     def on_timeout(self):
-        self.tunnel_logger.info("RPRequestCache: no response on establish-rendezvous (circuit %d)",
-                                self.rp.circuit.circuit_id)
+        self.logger.info("RPRequestCache: no response on establish-rendezvous (circuit %d)",
+                         self.rp.circuit.circuit_id)
         self.community.remove_circuit(self.rp.circuit.circuit_id, 'establish-rendezvous timeout')
 
 
@@ -101,17 +145,17 @@ class KeyRequestCache(RandomNumberCache):
 
     def __init__(self, community, circuit, sock_addr, info_hash):
         super(KeyRequestCache, self).__init__(community.request_cache, u"key-request")
-        self.tunnel_logger = logging.getLogger('TunnelLogger')
+        self.logger = logging.getLogger(__name__)
         self.circuit = circuit
         self.sock_addr = sock_addr
         self.info_hash = info_hash
         self.community = community
 
     def on_timeout(self):
-        self.tunnel_logger.info("KeyRequestCache: no response on key-request to %s",
-                                self.sock_addr)
+        self.logger.info("KeyRequestCache: no response on key-request to %s",
+                         self.sock_addr)
         if self.info_hash in self.community.infohash_pex:
-            self.tunnel_logger.info("Remove peer %s from the peer exchange cache" % repr(self.sock_addr))
+            self.logger.info("Remove peer %s from the peer exchange cache", repr(self.sock_addr))
             peers = self.community.infohash_pex[self.info_hash]
             for peer in peers.copy():
                 peer_sock, _ = peer

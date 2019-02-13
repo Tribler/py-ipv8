@@ -1,13 +1,13 @@
 from __future__ import absolute_import
 
-from twisted.internet.defer import inlineCallbacks
+from twisted.internet.defer import inlineCallbacks, succeed
 
-from ....messaging.anonymization.community import TunnelCommunity, TunnelSettings
-from ....messaging.anonymization.tunnel import CIRCUIT_STATE_EXTENDING
-from ....messaging.interfaces.udp.endpoint import UDPEndpoint
 from ...base import TestBase
 from ...mocking.endpoint import MockEndpointListener
 from ...mocking.ipv8 import MockIPv8
+from ....messaging.anonymization.community import TunnelCommunity, TunnelSettings
+from ....messaging.anonymization.tunnel import CIRCUIT_STATE_EXTENDING
+from ....messaging.interfaces.udp.endpoint import UDPEndpoint
 from ....util import cast_to_bin
 
 
@@ -308,3 +308,72 @@ class TestTunnelCommunity(TestBase):
         self.assertEqual(len(self.nodes[0].overlay.circuits), 2)
         # Two exit sockets are open between node 1 and 2 (NOT evenly spread)
         self.assertEqual(len(self.nodes[1].overlay.exit_sockets) + len(self.nodes[2].overlay.exit_sockets), 2)
+
+    @inlineCallbacks
+    def test_reuse_partial_circuit(self):
+        """
+        Check if we can change the unverified hop of a circuit.
+        """
+        self.add_node_to_experiment(self.create_node())
+
+        self.nodes[2].overlay.settings.become_exitnode = True
+        self.nodes[2].overlay.should_join_circuit = lambda *args: succeed(False)
+        yield self.introduce_nodes()
+        self.nodes[0].overlay.build_tunnels(2)
+        yield self.deliver_messages()
+
+        # We wanted to create circuit 0 -> 1 -> 2, but node 2 is not responding
+        circuit = list(self.nodes[0].overlay.circuits.values())[0]
+        self.assertEqual([h.mid for h in circuit.hops], [self.nodes[1].overlay.my_peer.mid])
+        self.assertEqual(circuit.unverified_hop.mid, self.nodes[2].overlay.my_peer.mid)
+
+        # Let's add a new exit node, and retry to extend the circuit
+        self.add_node_to_experiment(self.create_node())
+        self.nodes[3].overlay.settings.become_exitnode = True
+        yield self.introduce_nodes()
+        # Let's pretend that node 1 selected node 3 as a possible node for circuit extension
+        cache = self.nodes[1].overlay.request_cache.get(u"created", circuit.circuit_id)
+        cache.candidates[self.nodes[3].overlay.my_peer.public_key.key_to_bin()] = self.nodes[3].overlay.my_peer
+
+        # Retry to extend the circuit
+        circuit.required_exit = None
+        self.nodes[0].overlay.send_extend(circuit, [self.nodes[3].overlay.my_peer.public_key.key_to_bin()])
+        yield self.deliver_messages()
+
+        # Circuit should now be 0 -> 1 -> 3
+        self.assertEqual([h.mid for h in circuit.hops], [self.nodes[1].overlay.my_peer.mid,
+                                                         self.nodes[3].overlay.my_peer.mid])
+        self.assertEqual(circuit.unverified_hop, None)
+        self.assertEqual(self.nodes[0].overlay.tunnels_ready(2), 1.0)
+
+    @inlineCallbacks
+    def test_reuse_partial_circuit_first_hop(self):
+        """
+        Check if we can change the first unverified hop of a circuit.
+        """
+        self.add_node_to_experiment(self.create_node())
+
+        self.nodes[2].overlay.settings.become_exitnode = True
+        self.nodes[1].overlay.should_join_circuit = lambda *args: succeed(False)
+        yield self.introduce_nodes()
+        self.nodes[0].overlay.build_tunnels(2)
+        yield self.deliver_messages()
+
+        # Adding the first hop fails, since hop 1 is not responding
+        circuit = list(self.nodes[0].overlay.circuits.values())[0]
+        self.assertEqual(circuit.hops, ())
+        self.assertEqual(circuit.unverified_hop.mid, self.nodes[1].overlay.my_peer.mid)
+
+        # Let's add a new node, and retry to extend the circuit
+        self.add_node_to_experiment(self.create_node())
+        yield self.introduce_nodes()
+
+        # Retry to extend the circuit
+        self.nodes[0].overlay.send_initial_create(circuit, [self.nodes[3].overlay.my_peer])
+        yield self.deliver_messages()
+
+        # Circuit should now be 0 -> 2 -> 3
+        self.assertEqual([h.mid for h in circuit.hops], [self.nodes[3].overlay.my_peer.mid,
+                                                         self.nodes[2].overlay.my_peer.mid])
+        self.assertEqual(circuit.unverified_hop, None)
+        self.assertEqual(self.nodes[0].overlay.tunnels_ready(2), 1.0)

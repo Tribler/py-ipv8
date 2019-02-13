@@ -1,17 +1,17 @@
 from __future__ import absolute_import
 
-from collections import defaultdict
 import logging
 import socket
-from struct import unpack_from
 import sys
 import time
+from collections import defaultdict
+from struct import unpack_from
 from traceback import format_exception
 
 from twisted.internet import reactor
+from twisted.internet.defer import inlineCallbacks, maybeDeferred, returnValue, succeed
 from twisted.internet.error import MessageLengthError
 from twisted.internet.protocol import DatagramProtocol
-from twisted.internet.defer import inlineCallbacks, maybeDeferred, returnValue, succeed
 
 from ...keyvault.public.libnaclkey import LibNaCLPK
 from ...taskmanager import TaskManager
@@ -90,11 +90,15 @@ class Tunnel(object):
 
     def __init__(self, circuit_id, peer):
         self.circuit_id = circuit_id
-        self.peer = peer
+        self._peer = peer
         self.creation_time = time.time()
         self.last_incoming = time.time()
         self.bytes_up = self.bytes_down = 0
         self.logger = logging.getLogger(self.__class__.__name__)
+
+    @property
+    def peer(self):
+        return self._peer
 
 
 class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
@@ -196,9 +200,9 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
 
 class Circuit(Tunnel):
 
-    def __init__(self, circuit_id, peer, goal_hops=0, ctype=CIRCUIT_TYPE_DATA,
+    def __init__(self, circuit_id, goal_hops=0, ctype=CIRCUIT_TYPE_DATA,
                  callback=None, required_exit=None, info_hash=None):
-        super(Circuit, self).__init__(circuit_id, peer)
+        super(Circuit, self).__init__(circuit_id, None)
         self.goal_hops = goal_hops
         self.ctype = ctype
         self.callback = callback
@@ -209,6 +213,10 @@ class Circuit(Tunnel):
         self._hops = []
         self.unverified_hop = None
         self.hs_session_keys = None
+
+    @property
+    def peer(self):
+        return self._hops[0] if self._hops else self.unverified_hop
 
     @property
     def hops(self):
@@ -301,6 +309,10 @@ class Hop(object):
             return self.public_key.key_to_bin()
 
         raise RuntimeError("public key unknown")
+
+    @property
+    def mid(self):
+        return self.public_key.key_to_hash()
 
 
 class RelayRoute(Tunnel):
