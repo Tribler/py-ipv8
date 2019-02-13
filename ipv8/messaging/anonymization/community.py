@@ -6,21 +6,21 @@ Author(s): Egbert Bouman
 from __future__ import absolute_import
 from __future__ import division
 
-from binascii import hexlify, unhexlify
 import random
-from twisted.internet.defer import Deferred
+from binascii import hexlify, unhexlify
+
 from twisted.internet.task import LoopingCall
 
 from .caches import *
-from ...community import Community
-from ...lazy_community import lazy_wrapper, lazy_wrapper_unsigned, lazy_wrapper_unsigned_wd
-from ...messaging.payload_headers import BinMemberAuthenticationPayload
-from ...messaging.deprecated.encoding import encode, decode
 from .payload import *
-from ...peer import Peer
-from ...requestcache import RequestCache
 from .tunnel import *
 from .tunnelcrypto import CryptoException, TunnelCrypto
+from ...community import Community
+from ...lazy_community import lazy_wrapper, lazy_wrapper_unsigned, lazy_wrapper_unsigned_wd
+from ...messaging.deprecated.encoding import decode, encode
+from ...messaging.payload_headers import BinMemberAuthenticationPayload
+from ...peer import Peer
+from ...requestcache import RequestCache
 from ...util import addCallback
 
 message_to_payload = {
@@ -83,8 +83,6 @@ def tc_lazy_wrapper_unsigned(*payloads):
 class TunnelSettings(object):
 
     def __init__(self):
-        self.tunnel_logger = logging.getLogger('TunnelLogger')
-
         self.crypto = TunnelCrypto()
 
         self.min_circuits = 1
@@ -99,6 +97,14 @@ class TunnelSettings(object):
 
         self.max_packets_without_reply = 50
         self.dht_lookup_interval = 30
+        # Maximum number of seconds circuit creation is allowed to take. Within this time period, the unverified hop
+        # of the circuit can still change in case it is unresponsive.
+        # TODO: set this to ~60s next time we change the community ID, or after enough nodes are using the newer code
+        self.circuit_timeout = 10
+        # Maximum number of seconds that a hop allows us to change the next hop
+        self.unstable_timeout = 60
+        # Maximum number of seconds adding a single hop to a circuit is allowed to take.
+        self.next_hop_timeout = 10
 
         # We have a small delay when removing circuits/relays/exit nodes. This is to allow some post-mortem data
         # to flow over the circuit (i.e. bandwidth payouts to intermediate nodes in a circuit).
@@ -186,7 +192,7 @@ class TunnelCommunity(Community):
 
         self.crypto = self.settings.crypto
 
-        self.logger.info("TunnelCommunity: setting become_exitnode = %s" % self.settings.become_exitnode)
+        self.logger.info("Setting become_exitnode = %s", self.settings.become_exitnode)
 
         self.crypto.initialize(self.my_peer.key)
 
@@ -214,11 +220,11 @@ class TunnelCommunity(Community):
         keys[direction + 4] += 1
         return keys[direction], keys[direction + 2], keys[direction + 4]
 
-    def _generate_circuit_id(self, neighbour=None):
+    def _generate_circuit_id(self):
         circuit_id = random.getrandbits(32)
 
         # Prevent collisions.
-        while circuit_id in self.circuits or (neighbour and (neighbour, circuit_id) in self.relay_from_to):
+        while circuit_id in self.circuits:
             circuit_id = random.getrandbits(32)
 
         return circuit_id
@@ -247,7 +253,8 @@ class TunnelCommunity(Community):
     def do_remove(self):
         # Remove circuits that are inactive / are too old / have transferred too many bytes.
         for key, circuit in self.circuits.items():
-            if circuit.last_incoming < time.time() - self.settings.max_time_inactive:
+            if circuit.state == CIRCUIT_STATE_READY and \
+               circuit.last_incoming < time.time() - self.settings.max_time_inactive:
                 self.remove_circuit(key, 'no activity')
             elif circuit.creation_time < time.time() - self.settings.max_time:
                 self.remove_circuit(key, 'too old')
@@ -309,40 +316,46 @@ class TunnelCommunity(Community):
         if goal_hops == 1 and required_exit:
             # If the number of hops is 1, it should immediately be the required_exit hop.
             self.logger.info("First hop is required exit")
-            first_hop = required_exit
+            possible_first_hops = [required_exit]
         else:
             self.logger.info("Look for a first hop that is not an exit node and is not used before")
             first_hops = set([c.peer.address for c in self.circuits.values()])
-            choices = [c for c in self.compatible_candidates
-                       if c.address not in first_hops and c.address != required_exit.address]
-            first_hop = random.choice(choices) if choices else None
+            possible_first_hops = [c for c in self.compatible_candidates
+                                   if c.address not in first_hops and c.address != required_exit.address]
 
-        if not first_hop:
+        if not possible_first_hops:
             self.logger.info("Could not create circuit, no first hop available")
             return False
 
         # Finally, construct the Circuit object and send the CREATE message
-        circuit_id = self._generate_circuit_id(first_hop.address)
-        circuit = Circuit(circuit_id, first_hop, goal_hops, ctype, callback, required_exit, info_hash)
+        circuit_id = self._generate_circuit_id()
+        self.circuits[circuit_id] = circuit = Circuit(circuit_id, goal_hops, ctype, callback, required_exit, info_hash)
+        self.request_cache.add(CircuitRequestCache(self, circuit, self.settings.circuit_timeout))
+        self.send_initial_create(circuit, possible_first_hops)
 
-        self.request_cache.add(CircuitRequestCache(self, circuit))
+        return circuit_id
+
+    def send_initial_create(self, circuit, candidate_list):
+        if self.request_cache.has(u"retry", circuit.circuit_id):
+            self.request_cache.pop(u"retry", circuit.circuit_id)
+
+        first_hop = random.choice(candidate_list)
+        alt_first_hops = [c for c in candidate_list if c != first_hop]
 
         circuit.unverified_hop = Hop(first_hop.public_key)
         circuit.unverified_hop.address = first_hop.address
         circuit.unverified_hop.dh_secret, circuit.unverified_hop.dh_first_part = self.crypto.generate_diffie_secret()
 
-        self.logger.info("Creating circuit %d of %d hops. First hop: %s:%d",
-                         circuit_id, circuit.goal_hops, *first_hop.address)
+        self.logger.info("Adding first hop %s:%d to circuit %d", *(first_hop.address + (circuit.circuit_id,)))
 
-        self.circuits[circuit_id] = circuit
+        self.request_cache.add(RetryRequestCache(self, circuit, alt_first_hops,
+                                                 self.send_initial_create, self.settings.next_hop_timeout))
 
         self.increase_bytes_sent(circuit, self.send_cell([first_hop],
                                                          u"create",
-                                                         CreatePayload(circuit_id,
+                                                         CreatePayload(circuit.circuit_id,
                                                                        self.my_peer.public_key.key_to_bin(),
                                                                        circuit.unverified_hop.dh_first_part)))
-
-        return circuit_id
 
     def remove_circuit(self, circuit_id, additional_info='', remove_now=False, destroy=False):
         """
@@ -375,7 +388,6 @@ class TunnelCommunity(Community):
         if self.settings.remove_tunnel_delay == 0 or remove_now:
             remove_circuit_info()
         elif not self.is_pending_task_active("remove_circuit_%s" % circuit_id):
-
             self.register_task("remove_circuit_%s" % circuit_id,
                                reactor.callLater(self.settings.remove_tunnel_delay, remove_circuit_info))
 
@@ -460,8 +472,7 @@ class TunnelCommunity(Community):
                   if cid_from in self.relay_from_to}
 
         if got_destroy_from and got_destroy_from not in relays.values():
-            self.logger.error("%s not allowed send destroy for circuit %s",
-                              *reversed(got_destroy_from))
+            self.logger.error("%s not allowed send destroy for circuit %s", *reversed(got_destroy_from))
             return
 
         for cid_from, (cid_to, sock_addr) in relays.items():
@@ -539,6 +550,9 @@ class TunnelCommunity(Community):
         self.increase_bytes_sent(next_relay, self.send_packet([next_relay.peer], packet))
 
     def _ours_on_created_extended(self, circuit, payload):
+        if self.request_cache.has(u"retry", payload.circuit_id):
+            self.request_cache.pop(u"retry", payload.circuit_id)
+
         hop = circuit.unverified_hop
 
         try:
@@ -554,58 +568,14 @@ class TunnelCommunity(Community):
         circuit.unverified_hop = None
 
         if circuit.state == CIRCUIT_STATE_EXTENDING:
-            ignore_candidates = [self.crypto.key_to_bin(chop.public_key) for chop in circuit.hops] + \
-                                [self.my_peer.public_key]
-            if circuit.required_exit:
-                ignore_candidates.append(circuit.required_exit.public_key.key_to_bin())
-
-            become_exit = circuit.goal_hops - 1 == len(circuit.hops)
-            if become_exit and circuit.required_exit:
-                # Set the required exit according to the circuit setting (e.g. for linking e2e circuits)
-                extend_hop_public_bin = circuit.required_exit.public_key.key_to_bin()
-                extend_hop_addr = circuit.required_exit.address
-
-            else:
-                # The next candidate is chosen from the returned list of possible candidates
-                candidate_list_enc = payload.candidate_list
-                _, candidate_list = decode(self.crypto.decrypt_str(candidate_list_enc,
-                                                                   hop.session_keys[EXIT_NODE],
-                                                                   hop.session_keys[EXIT_NODE_SALT]))
-
-                for ignore_candidate in ignore_candidates:
-                    if ignore_candidate in candidate_list:
-                        candidate_list.remove(ignore_candidate)
-
-                for i in range(len(candidate_list) - 1, -1, -1):
-                    public_key = self.crypto.key_from_public_bin(candidate_list[i])
-                    if not self.crypto.is_key_compatible(public_key):
-                        candidate_list.pop(i)
-
-                pub_key = next(iter(candidate_list), None)
-                extend_hop_public_bin = pub_key
-                extend_hop_addr = None
-
-            if extend_hop_public_bin:
-                extend_hop_public_key = self.crypto.key_from_public_bin(extend_hop_public_bin)
-                circuit.unverified_hop = Hop(extend_hop_public_key)
-                circuit.unverified_hop.dh_secret, circuit.unverified_hop.dh_first_part = \
-                    self.crypto.generate_diffie_secret()
-
-                self.logger.info("Extending circuit %d with %s", circuit.circuit_id,
-                                 hexlify(extend_hop_public_bin))
-
-                self.increase_bytes_sent(circuit, self.send_cell([circuit.peer],
-                                                                 u"extend",
-                                                                 ExtendPayload(circuit.circuit_id,
-                                                                               circuit.unverified_hop.node_public_key,
-                                                                               extend_hop_addr,
-                                                                               circuit.unverified_hop.dh_first_part)))
-
-            else:
-                self.remove_circuit(circuit.circuit_id, "no candidates to extend, bailing out.")
+            candidate_list_enc = payload.candidate_list
+            _, candidate_list = decode(self.crypto.decrypt_str(candidate_list_enc,
+                                                               hop.session_keys[EXIT_NODE],
+                                                               hop.session_keys[EXIT_NODE_SALT]))
+            self.send_extend(circuit, candidate_list)
 
         elif circuit.state == CIRCUIT_STATE_READY:
-            self.request_cache.pop(u"anon-circuit", circuit.circuit_id)
+            self.request_cache.pop(u"circuit", circuit.circuit_id)
 
             # Execute callback
             if circuit.callback:
@@ -613,6 +583,57 @@ class TunnelCommunity(Community):
                 circuit.callback = None
         else:
             return
+
+    def send_extend(self, circuit, candidate_list):
+        ignore_candidates = [self.crypto.key_to_bin(chop.public_key) for chop in circuit.hops] + \
+                            [self.my_peer.public_key]
+        if circuit.required_exit:
+            ignore_candidates.append(circuit.required_exit.public_key.key_to_bin())
+
+        become_exit = circuit.goal_hops - 1 == len(circuit.hops)
+        if become_exit and circuit.required_exit:
+            # Set the required exit according to the circuit setting (e.g. for linking e2e circuits)
+            extend_hop_public_bin = circuit.required_exit.public_key.key_to_bin()
+            extend_hop_addr = circuit.required_exit.address
+
+        else:
+            # The next candidate is chosen from the returned list of possible candidates
+            for ignore_candidate in ignore_candidates:
+                if ignore_candidate in candidate_list:
+                    candidate_list.remove(ignore_candidate)
+
+            for i in range(len(candidate_list) - 1, -1, -1):
+                public_key = self.crypto.key_from_public_bin(candidate_list[i])
+                if not self.crypto.is_key_compatible(public_key):
+                    candidate_list.pop(i)
+
+            pub_key = next(iter(candidate_list), None)
+            extend_hop_public_bin = pub_key
+            extend_hop_addr = None
+
+        if extend_hop_public_bin:
+            extend_hop_public_key = self.crypto.key_from_public_bin(extend_hop_public_bin)
+            circuit.unverified_hop = Hop(extend_hop_public_key)
+            circuit.unverified_hop.dh_secret, circuit.unverified_hop.dh_first_part = \
+                self.crypto.generate_diffie_secret()
+
+            self.logger.info("Extending circuit %d with %s", circuit.circuit_id, hexlify(extend_hop_public_bin))
+
+            # Only retry if we are allowed to use another node
+            if not become_exit or not circuit.required_exit:
+                alt_candidates = [c for c in candidate_list if c != extend_hop_public_bin]
+                self.request_cache.add(RetryRequestCache(self, circuit, alt_candidates,
+                                                         self.send_extend, self.settings.next_hop_timeout))
+
+            self.increase_bytes_sent(circuit, self.send_cell([circuit.peer],
+                                                             u"extend",
+                                                             ExtendPayload(circuit.circuit_id,
+                                                                           circuit.unverified_hop.node_public_key,
+                                                                           extend_hop_addr,
+                                                                           circuit.unverified_hop.dh_first_part)))
+
+        else:
+            self.remove_circuit(circuit.circuit_id, "no candidates to extend, bailing out.")
 
     def update_exit_candidates(self, peer, become_exit):
         public_key = peer.public_key
@@ -704,8 +725,7 @@ class TunnelCommunity(Community):
         circuit_id = create_payload.circuit_id
 
         self.directions[circuit_id] = EXIT_NODE
-        self.logger.info('TunnelCommunity: we joined circuit %d with neighbour %s',
-                         circuit_id, previous_node_address)
+        self.logger.info('We joined circuit %d with neighbour %s', circuit_id, previous_node_address)
 
         shared_secret, key, auth = self.crypto.generate_diffie_shared_secret(create_payload.key)
         self.relay_session_keys[circuit_id] = self.crypto.generate_session_keys(shared_secret)
@@ -715,7 +735,7 @@ class TunnelCommunity(Community):
         peers_keys = {c.public_key.key_to_bin(): c for c in peers_list}
 
         peer = Peer(create_payload.node_public_key, previous_node_address)
-        self.request_cache.add(CreatedRequestCache(self, circuit_id, peer, peers_keys))
+        self.request_cache.add(CreatedRequestCache(self, circuit_id, peer, peers_keys, self.settings.unstable_timeout))
         self.exit_sockets[circuit_id] = TunnelExitSocket(circuit_id, peer, self)
 
         keys_list_enc = self.crypto.encrypt_str(encode(list(peers_keys.keys())),
@@ -725,7 +745,7 @@ class TunnelCommunity(Community):
 
     @tc_lazy_wrapper_unsigned(CreatePayload)
     def on_create(self, source_address, payload, _):
-        if self.request_cache.has(u"anon-created", payload.circuit_id):
+        if self.request_cache.has(u"created", payload.circuit_id):
             self.logger.warning("Already have a request for this circuit_id")
             return
 
@@ -739,45 +759,41 @@ class TunnelCommunity(Community):
 
     @tc_lazy_wrapper_unsigned(CreatedPayload)
     def on_created(self, source_address, payload, _):
-        if not self.request_cache.has(u"anon-circuit", payload.circuit_id):
-            self.logger.warning("Invalid extended response circuit_id")
-            return
-
         circuit_id = payload.circuit_id
         self.directions[circuit_id] = ORIGINATOR
 
-        request = self.request_cache.get(u"anon-circuit", circuit_id)
-        if request.should_forward:
-            self.request_cache.pop(u"anon-circuit", circuit_id)
+        if self.request_cache.has(u"create", payload.circuit_id):
+            request = self.request_cache.pop(u"create", circuit_id)
 
             self.logger.info("Got CREATED message forward as EXTENDED to origin.")
 
-            self.relay_from_to[request.to_circuit_id] = forwarding_relay = RelayRoute(request.from_circuit_id,
-                                                                                      request.peer)
-
+            self.relay_from_to[request.to_circuit_id] = relay = RelayRoute(request.from_circuit_id, request.peer)
             self.relay_from_to[request.from_circuit_id] = RelayRoute(request.to_circuit_id, request.to_peer)
-
             self.relay_session_keys[request.to_circuit_id] = self.relay_session_keys[request.from_circuit_id]
 
             self.directions[request.from_circuit_id] = EXIT_NODE
             self.remove_exit_socket(request.from_circuit_id)
 
-            self.send_cell([forwarding_relay.peer], u"extended", ExtendedPayload(forwarding_relay.circuit_id,
-                                                                                 payload.key,
-                                                                                 payload.auth,
-                                                                                 payload.candidate_list))
-        else:
+            self.send_cell([relay.peer], u"extended", ExtendedPayload(relay.circuit_id,
+                                                                      payload.key,
+                                                                      payload.auth,
+                                                                      payload.candidate_list))
+        elif self.request_cache.has(u"circuit", payload.circuit_id) and \
+                self.request_cache.has(u"retry", payload.circuit_id):
             circuit = self.circuits[circuit_id]
             self._ours_on_created_extended(circuit, payload)
+        else:
+            self.logger.warning("Received unexpected created for circuit %d", payload.circuit_id)
 
     @tc_lazy_wrapper_unsigned(ExtendPayload)
     def on_extend(self, source_address, payload, _):
-        if not self.request_cache.has(u"anon-created", payload.circuit_id):
-            self.logger.warning("Invalid extend request circuit_id")
+        if not self.request_cache.has(u"created", payload.circuit_id):
+            self.logger.warning("Received unexpected extend for circuit %d", payload.circuit_id)
             return
 
         circuit_id = payload.circuit_id
-        request = self.request_cache.pop(u"anon-created", circuit_id)
+        # Leave the RequestCache in case the circuit owner wants to reuse the tunnel for a different next-hop
+        request = self.request_cache.get(u"created", circuit_id)
         if not (payload.node_addr or payload.node_public_key in request.candidates):
             self.logger.warning("Node public key not in request candidates and no ip specified")
             return
@@ -792,7 +808,7 @@ class TunnelCommunity(Community):
         self.logger.info("On_extend send CREATE for circuit (%s, %d) to %s:%d", source_address,
                          circuit_id, *extend_candidate.address)
 
-        to_circuit_id = self._generate_circuit_id(extend_candidate.address)
+        to_circuit_id = self._generate_circuit_id()
 
         if circuit_id in self.circuits:
             candidate = self.circuits[circuit_id].peer
@@ -806,7 +822,7 @@ class TunnelCommunity(Community):
 
         self.logger.info("Extending circuit, got candidate with IP %s:%d from cache", *extend_candidate.address)
 
-        self.request_cache.add(ExtendRequestCache(self, to_circuit_id, circuit_id,
+        self.request_cache.add(CreateRequestCache(self, to_circuit_id, circuit_id,
                                                   candidate, extend_candidate))
 
         self.send_cell([extend_candidate], u"create",
@@ -814,8 +830,8 @@ class TunnelCommunity(Community):
 
     @tc_lazy_wrapper_unsigned(ExtendedPayload)
     def on_extended(self, source_address, payload, _):
-        if not self.request_cache.has(u"anon-circuit", payload.circuit_id):
-            self.logger.warning("Invalid extended response circuit_id")
+        if not self.request_cache.has(u"circuit", payload.circuit_id):
+            self.logger.warning("Received unexpected extended for circuit %s", payload.circuit_id)
             return
 
         circuit_id = payload.circuit_id

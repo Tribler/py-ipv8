@@ -146,12 +146,13 @@ class RequestCache(TaskManager):
         assert isinstance(cache, NumberCache), type(cache)
 
         self._logger.debug("timeout on %s", cache)
-        cache.on_timeout()
 
         # the on_timeout call could have already removed the identifier from the cache using pop
         identifier = self._create_identifier(cache.number, cache.prefix)
         if identifier in self._identifiers:
             del self._identifiers[identifier]
+
+        cache.on_timeout()
 
         self.cancel_pending_task(cache)
 
