@@ -48,6 +48,7 @@ class TrustChainCommunity(Community):
     master_peer = Peer(unhexlify("4c69624e61434c504b3a5730f52156615ecbcedb36c442992ea8d3c26b418edd8bd00e01dce26028cd"
                                  "1ebe5f7dce59f4ed59f8fcee268fd7f1c6dc2fa2af8c22e3170e00cdecca487745"))
 
+    UNIVERSAL_BLOCK_LISTENER = 'UNIVERSAL_BLOCK_LISTENER'
     DB_CLASS = TrustChainDB
     DB_NAME = 'trustchain'
     version = b'\x02'
@@ -349,7 +350,12 @@ class TrustChainCommunity(Community):
         """
         Notify listeners of a specific new block.
         """
-        if block.type not in self.listeners_map or self.shutting_down:
+        # Call the listeners associated to the universal block, if there are any
+        for listener in self.listeners_map.get(self.UNIVERSAL_BLOCK_LISTENER, []):
+            listener.received_block(block)
+
+        # Avoid proceeding any further if the type of the block coincides with the UNIVERSAL_BLOCK_LISTENER
+        if block.type not in self.listeners_map or self.shutting_down or block.type == self.UNIVERSAL_BLOCK_LISTENER:
             return
 
         for listener in self.listeners_map[block.type]:
