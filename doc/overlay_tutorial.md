@@ -214,7 +214,6 @@ from pyipv8.ipv8.configuration import get_default_configuration
 from pyipv8.ipv8.keyvault.crypto import ECCrypto
 from pyipv8.ipv8.lazy_community import lazy_wrapper
 from pyipv8.ipv8.messaging.lazy_payload import VariablePayload
-from pyipv8.ipv8.messaging.payload_headers import BinMemberAuthenticationPayload
 from pyipv8.ipv8.peer import Peer
 from pyipv8.ipv8_service import IPv8
 
@@ -229,9 +228,8 @@ class MyCommunity(Community):
 
     def __init__(self, my_peer, endpoint, network):
         super(MyCommunity, self).__init__(my_peer, endpoint, network)
-        # Register the message handler for messages with the
-        # chr(1) identifier.
-        self.decode_map[chr(1)] = self.on_message
+        # Register the message handler for messages with the identifier "1".
+        self.add_message_handler(1, self.on_message)
         # The Lamport clock this peer maintains.
         # This is for the example of global clock synchronization.
         self.lamport_clock = 0
@@ -242,28 +240,23 @@ class MyCommunity(Community):
                 # If we have not started counting, try boostrapping
                 # communication with our other known peers.
                 for p in self.get_peers():
-                    packet = self.create_message()
-                    self.endpoint.send(p.address, packet)
+                    self.send_message(p.address)
             else:
                 self.cancel_pending_task("start_communication")
         self.register_task("start_communication", LoopingCall(start_communication)).start(5.0, True)
 
-    def create_message(self):
-        # Create a message with our digital signature on it.
-        auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
-        payload = MyMessage(self.lamport_clock).to_pack_list()
-        # We pack our arguments as message 1 (corresponding to the
-        # 'self.decode_map' entry.
-        return self._ez_pack(self._prefix, 1, [auth, payload])
+    def send_message(self, address):
+        # Send a message with our digital signature on it.
+        # We use the latest version of our Lamport clock.
+        self.endpoint.send(address, self.ezr_pack(1, MyMessage(self.lamport_clock)))
 
     @lazy_wrapper(MyMessage)
     def on_message(self, peer, payload):
-        # If unpacking was successful, update our Lamport clock.
+        # Update our Lamport clock.
         self.lamport_clock = max(self.lamport_clock, payload.clock) + 1
         print self.my_peer, "current clock:", self.lamport_clock
         # Then synchronize with the rest of the network again.
-        packet = self.create_message()
-        self.endpoint.send(peer.address, packet)
+        self.send_message(peer.address)
 
 
 for i in [1, 2, 3]:
