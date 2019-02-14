@@ -210,32 +210,18 @@ from twisted.internet import reactor
 from twisted.internet.task import LoopingCall
 
 from pyipv8.ipv8.community import Community
-from pyipv8.ipv8.messaging.payload import Payload
-from pyipv8.ipv8.messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
-from pyipv8.ipv8_service import IPv8
 from pyipv8.ipv8.configuration import get_default_configuration
 from pyipv8.ipv8.keyvault.crypto import ECCrypto
+from pyipv8.ipv8.lazy_community import lazy_wrapper
+from pyipv8.ipv8.messaging.lazy_payload import VariablePayload
+from pyipv8.ipv8.messaging.payload_headers import BinMemberAuthenticationPayload
 from pyipv8.ipv8.peer import Peer
+from pyipv8.ipv8_service import IPv8
 
 
-class MyMessage(Payload):
-    # When reading data, we unpack an unsigned integer from it.
-    format_list = ['I']
-
-    def __init__(self, clock):
-        self.clock = clock
-
-    def to_pack_list(self):
-        # We convert this object by writing 'self.clock' as
-        # an unsigned int. This conforms to the 'format_list'.
-        return [('I', self.clock)]
-
-    @classmethod
-    def from_unpack_list(cls, clock):
-        # We received arguments in the format of 'format_list'.
-        # We instantiate our class using the unsigned int we
-        # read from the raw input.
-        return cls(clock)
+class MyMessage(VariablePayload):
+    format_list = ['I'] # When reading data, we unpack an unsigned integer from it.
+    names = ["clock"] # We will name this unsigned integer "clock"
 
 
 class MyCommunity(Community):
@@ -265,22 +251,19 @@ class MyCommunity(Community):
     def create_message(self):
         # Create a message with our digital signature on it.
         auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
-        dist = GlobalTimeDistributionPayload(self.claim_global_time()).to_pack_list()
         payload = MyMessage(self.lamport_clock).to_pack_list()
         # We pack our arguments as message 1 (corresponding to the
         # 'self.decode_map' entry.
-        return self._ez_pack(self._prefix, 1, [auth, dist, payload])
+        return self._ez_pack(self._prefix, 1, [auth, payload])
 
-    def on_message(self, source_address, data):
-        # We received a message with identifier 1.
-        # Try unpacking it.
-        auth, dist, payload = self._ez_unpack_auth(MyMessage, data)
+    @lazy_wrapper(MyMessage)
+    def on_message(self, peer, payload):
         # If unpacking was successful, update our Lamport clock.
         self.lamport_clock = max(self.lamport_clock, payload.clock) + 1
         print self.my_peer, "current clock:", self.lamport_clock
         # Then synchronize with the rest of the network again.
         packet = self.create_message()
-        self.endpoint.send(source_address, packet)
+        self.endpoint.send(peer.address, packet)
 
 
 for i in [1, 2, 3]:
