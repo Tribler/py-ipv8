@@ -27,6 +27,7 @@ ipv8/test/attestation/wallet/primitives/test_structs.py:TestStructs
 ipv8/test/attestation/wallet/test_attestation_community.py:TestCommunity
 
 ipv8/test/messaging/test_serialization.py:TestSerializer
+ipv8/test/messaging/test_lazy_payload.py:TestVariablePayload
 ipv8/test/messaging/deprecated/test_sorting.py:TestSorting
 ipv8/test/messaging/deprecated/test_encoding.py:TestEncoding
 ipv8/test/messaging/interfaces/udp/test_endpoint.py:TestUDPEndpoint
