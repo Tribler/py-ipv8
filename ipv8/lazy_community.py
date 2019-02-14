@@ -141,6 +141,27 @@ def lazy_wrapper_unsigned_wd(*payloads):
 
 class EZPackOverlay(Overlay):
 
+    def ezr_pack(self, msg_num, *payloads, **kwargs):
+        """
+        The easier way to pack your messages. Supply with the message number and the Payloads you want to serialize.
+        Optionally you can choose to sign the message.
+
+        :param msg_num: the message number to claim for this message
+        :type msg_num: int
+        :param sig: whether or not to sign this message
+        :type sig: bool
+        :param payloads: the list of Payload instances to serialize
+        :type payloads: [Payload]
+        :return: the serialized message
+        :rtype: bytes or str
+        """
+        sig = kwargs.get('sig', True)
+        format_list_list = ([BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()]
+                            if sig else [])
+        for payload in payloads:
+            format_list_list += [payload.to_pack_list()]
+        return self._ez_pack(self._prefix, msg_num, format_list_list, sig)
+
     def _ez_pack(self, prefix, msg_num, format_list_list, sig=True):
         packet = prefix + cast_to_bin(chr(msg_num))
         for format_list in format_list_list:

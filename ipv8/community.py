@@ -130,6 +130,24 @@ class Community(EZPackOverlay):
     def get_prefix(self):
         return self._prefix
 
+    def add_message_handler(self, msg_num, callback):
+        """
+        Add a handler for a message identifier. Any messages coming in with this identifier will be delivered to
+        the specified callback function.
+
+        :param msg_num: the message id to listen for
+        :type msg_num: int
+        :param callback: the callback function for this message id
+        :type callback: function
+        :returns: None
+        """
+        if msg_num < 0 or msg_num > 255:
+            raise RuntimeError("Attempted to add a handler for message number %d, which is not a byte!" % msg_num)
+        if chr(msg_num) in self.decode_map:
+            raise RuntimeError("Attempted to add a handler for message number %d, already mapped to %s!" %
+                               (msg_num, self.decode_map[chr(msg_num)]))
+        self.decode_map[chr(msg_num)] = callback
+
     def on_deprecated_message(self, source_address, data):
         self.logger.warning("Received deprecated message: %s from (%s, %d)",
                             self.deprecated_message_names[data[22]], *source_address)
