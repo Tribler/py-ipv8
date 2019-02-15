@@ -64,6 +64,7 @@ class RESTRequest(server.Request):
 
         body = json.dumps(response)
         self.setResponseCode(http.INTERNAL_SERVER_ERROR)
+        self.setHeader(b'Access-Control-Allow-Origin', b'*')
         self.setHeader(b'content-type', self.defaultContentType)
         self.setHeader(b'content-length', intToBytes(len(body)))
         self.write(body)
