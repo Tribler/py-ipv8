@@ -378,11 +378,8 @@ class Serializer(object):
         out = []
         for serializable in serializables:
             try:
-                if serializable.is_list_descriptor:
-                    unpack_list, offset = self.unpack_multiple_as_list(serializable.format_list, data, offset)
-                else:
-                    unpack_list, offset = self.unpack_multiple(serializable.format_list, data,
-                                                               serializable.optional_format_list, offset)
+                unpack_list, offset = self.unpack_multiple(serializable.format_list, data,
+                                                           serializable.optional_format_list, offset)
             except Exception as e:
                 six.reraise(PackError, PackError("Failed to unserialize %s\n%s: %s" % (serializable.__name__,
                                                                                        type(e).__name__, str(e))),
@@ -419,7 +416,6 @@ class Serializable(six.with_metaclass(abc.ABCMeta, object)):
 
     format_list = []
     optional_format_list = []
-    is_list_descriptor = False
 
     @abc.abstractmethod
     def to_pack_list(self):
