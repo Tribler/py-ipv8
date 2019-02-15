@@ -83,7 +83,7 @@ class LoadOverlay(Overlay):
     def walk_to(self, address):
         pass
 
-    def get_new_introduction(self, from_peer=None, service_id=None):
+    def get_new_introduction(self, from_peer=None):
         return None
 
     def get_peers(self):

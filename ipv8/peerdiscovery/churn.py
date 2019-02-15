@@ -44,7 +44,7 @@ class RandomChurn(DiscoveryStrategy):
             return False
         return time() > (peer.last_response + self.inactive_time)
 
-    def take_step(self, service_id=None):
+    def take_step(self):
         """
         Select a new (set of) peer(s) to investigate liveness for.
         """
@@ -74,7 +74,7 @@ class PingChurn(DiscoveryStrategy):
         super(PingChurn, self).__init__(overlay)
         self.ping_interval = ping_interval
 
-    def take_step(self, service_id=None):
+    def take_step(self):
         with self.walk_lock:
             self.overlay.routing_table.remove_bad_nodes()
 
