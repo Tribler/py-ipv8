@@ -71,7 +71,7 @@ class Community(EZPackOverlay):
     def __init__(self, my_peer, endpoint, network, max_peers=DEFAULT_MAX_PEERS):
         super(Community, self).__init__(self.master_peer, my_peer, endpoint, network)
 
-        self._prefix = b'\x00' + self.version + self.master_peer.key.key_to_hash()
+        self._prefix = b'\x00' + self.version + self.master_peer.mid
         self.logger.debug("Launching %s with prefix %s.", self.__class__.__name__, hexlify(self._prefix))
 
         self.max_peers = max_peers
@@ -323,18 +323,14 @@ class Community(EZPackOverlay):
         packet = self.create_introduction_request(address)
         self.endpoint.send(address, packet)
 
-    def send_introduction_request(self, peer, service_id=None):
+    def send_introduction_request(self, peer):
         """
         Send an introduction request to a specific peer.
         """
         packet = self.create_introduction_request(peer.address)
-
-        if service_id:
-            packet = packet[:2] + service_id + packet[22:]
-
         self.endpoint.send(peer.address, packet)
 
-    def get_new_introduction(self, from_peer=None, service_id=None):
+    def get_new_introduction(self, from_peer=None):
         """
         Get a new introduction, or bootstrap if there are no available peers.
         """
@@ -351,10 +347,6 @@ class Community(EZPackOverlay):
                 return
 
         packet = self.create_introduction_request(from_peer)
-
-        if service_id:
-            packet = packet[:2] + service_id + packet[22:]
-
         self.endpoint.send(from_peer, packet)
 
     def get_peer_for_introduction(self, exclude=None):
@@ -364,5 +356,8 @@ class Community(EZPackOverlay):
         available = [p for p in self.get_peers() if p != exclude]
         return choice(available) if available else None
 
+    def get_walkable_addresses(self):
+        return self.network.get_walkable_addresses(self.master_peer.mid)
+
     def get_peers(self):
-        return self.network.get_peers_for_service(self.master_peer.key.key_to_hash())
+        return self.network.get_peers_for_service(self.master_peer.mid)

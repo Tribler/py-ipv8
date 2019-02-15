@@ -104,12 +104,11 @@ class Overlay(six.with_metaclass(abc.ABCMeta, EndpointListener, TaskManager)):
         pass
 
     @abc.abstractmethod
-    def get_new_introduction(self, from_peer=None, service_id=None):
+    def get_new_introduction(self, from_peer=None):
         """
         Get a new IP address to walk to from a random, or selected peer.
 
         :param from_peer: the peer to ask for an introduction
-        :param service_id: try to get a new introduction for a certain service
         """
         pass
 
@@ -119,6 +118,16 @@ class Overlay(six.with_metaclass(abc.ABCMeta, EndpointListener, TaskManager)):
         Get the peers for this specific overlay.
 
         :return: the peers in the Network that use this overlay
+        """
+        pass
+
+    @abc.abstractmethod
+    def get_walkable_addresses(self):
+        """
+        Get the list of IPv4 addresses we can walk to on this overlay.
+
+        :return: a list of IPv4 addresses
+        :rtype: [(str, int)]
         """
         pass
 

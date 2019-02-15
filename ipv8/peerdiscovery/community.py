@@ -23,7 +23,7 @@ class PeriodicSimilarity(DiscoveryStrategy):
         super(PeriodicSimilarity, self).__init__(overlay)
         self.last_step = 0
 
-    def take_step(self, service_id=None):
+    def take_step(self):
         now = time()
         if (now - self.last_step < 1.0) or not self.overlay.network.verified_peers:
             return

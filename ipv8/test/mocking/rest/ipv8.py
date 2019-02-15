@@ -43,10 +43,9 @@ class TestRestIPv8(object):
         if self.endpoint.is_open():
             with self.overlay_lock:
                 for strategy, target_peers in self.strategies:
-                    service = strategy.overlay.master_peer.mid
-                    peer_count = len(self.network.get_peers_for_service(service))
+                    peer_count = len(strategy.overlay.get_peers())
                     if (target_peers == -1) or (peer_count < target_peers):
-                        strategy.take_step(service)
+                        strategy.take_step()
 
     def unload(self):
         # Make sure the state machine is running before closing it

@@ -17,7 +17,7 @@ class DiscoveryStrategy(six.with_metaclass(abc.ABCMeta, object)):
         self.walk_lock = Lock()
 
     @abc.abstractmethod
-    def take_step(self, service_id=None):
+    def take_step(self):
         pass
 
 
@@ -45,7 +45,7 @@ class RandomWalk(DiscoveryStrategy):
         self.window_size = window_size
         self.reset_chance = reset_chance
 
-    def take_step(self, service_id=None):
+    def take_step(self):
         """
         Walk to random walkable peer.
         """
@@ -63,7 +63,7 @@ class RandomWalk(DiscoveryStrategy):
             if self.window_size and self.window_size > 0 and len(self.intro_timeouts) >= self.window_size:
                 return
             # Take step
-            known = self.overlay.network.get_walkable_addresses(service_id)
+            known = self.overlay.network.get_walkable_addresses()
             available = list(set(known) - set(self.intro_timeouts.keys()))
 
             # We can get stuck in an infinite loop of unreachable peers if we never contact the tracker again
@@ -72,7 +72,7 @@ class RandomWalk(DiscoveryStrategy):
                 self.overlay.walk_to(peer)
                 self.intro_timeouts[peer] = time()
             else:
-                self.overlay.get_new_introduction(service_id=service_id)
+                self.overlay.get_new_introduction()
 
 
 class EdgeWalk(DiscoveryStrategy):
@@ -102,7 +102,7 @@ class EdgeWalk(DiscoveryStrategy):
         available = list(set(self._neighborhood) - set(self.under_construction.keys()))
         return choice(available) if available else None
 
-    def take_step(self, service_id=None):
+    def take_step(self):
         """
         Attempt to grow an edge.
         """
@@ -111,7 +111,7 @@ class EdgeWalk(DiscoveryStrategy):
                 # Wait for our immediate neighborhood to be discovered
                 self._neighborhood = self.overlay.get_peers()[:self.neighborhood_size]
                 self.overlay.bootstrap()
-                for peer in self.overlay.network.get_walkable_addresses(service_id)[:self.neighborhood_size]:
+                for peer in self.overlay.get_walkable_addresses()[:self.neighborhood_size]:
                     self.overlay.walk_to(peer)
             else:
                 waiting_root = self.get_available_root()
@@ -119,7 +119,7 @@ class EdgeWalk(DiscoveryStrategy):
                 if waiting_root:
                     self.under_construction[waiting_root] = [waiting_root]
                     self.last_edge_responses[waiting_root] = time()
-                    self.overlay.get_new_introduction(waiting_root.address, service_id=service_id)
+                    self.overlay.get_new_introduction(waiting_root.address)
                 else:
                     # Check if our introduced peer has answered yet
                     completed = []

@@ -36,7 +36,7 @@ class SimpleChurn(DiscoveryStrategy):
     Remove peers every 120 seconds.
     """
 
-    def take_step(self, service_id=None):
+    def take_step(self):
         with self.walk_lock:
             for peer in self.overlay.network.verified_peers[:]:
                 if time.time() - peer.last_response > 120:
