@@ -254,7 +254,7 @@ class TunnelCommunity(Community):
         # Remove circuits that are inactive / are too old / have transferred too many bytes.
         for key, circuit in self.circuits.items():
             if circuit.state == CIRCUIT_STATE_READY and \
-               circuit.last_incoming < time.time() - self.settings.max_time_inactive:
+               circuit.last_activity < time.time() - self.settings.max_time_inactive:
                 self.remove_circuit(key, 'no activity')
             elif circuit.creation_time < time.time() - self.settings.max_time:
                 self.remove_circuit(key, 'too old')
@@ -263,7 +263,7 @@ class TunnelCommunity(Community):
 
         # Remove relays that are inactive / are too old / have transferred too many bytes.
         for key, relay in self.relay_from_to.items():
-            if relay.last_incoming < time.time() - self.settings.max_time_inactive:
+            if relay.last_activity < time.time() - self.settings.max_time_inactive:
                 self.remove_relay(key, 'no activity', both_sides=False)
             elif relay.creation_time < time.time() - self.settings.max_time:
                 self.remove_relay(key, 'too old', both_sides=False)
@@ -272,7 +272,7 @@ class TunnelCommunity(Community):
 
         # Remove exit sockets that are too old / have transferred too many bytes.
         for circuit_id, exit_socket in self.exit_sockets.items():
-            if exit_socket.last_incoming < time.time() - self.settings.max_time_inactive:
+            if exit_socket.last_activity < time.time() - self.settings.max_time_inactive:
                 self.remove_exit_socket(circuit_id, 'no activity')
             elif exit_socket.creation_time < time.time() - self.settings.max_time:
                 self.remove_exit_socket(circuit_id, 'too old')
@@ -677,7 +677,7 @@ class TunnelCommunity(Community):
             next_relay = self.relay_from_to[circuit_id]
             this_relay = self.relay_from_to.get(next_relay.circuit_id, None)
             if this_relay:
-                this_relay.last_incoming = time.time()
+                this_relay.beat_heart()
                 self.increase_bytes_received(this_relay, len(data))
             self.logger.debug("Relaying %s from %d to %d", message_type, circuit_id, next_relay.circuit_id)
             self.relay_cell(cell)
@@ -881,6 +881,10 @@ class TunnelCommunity(Community):
                 or payload.circuit_id in self.exit_sockets
                 or payload.circuit_id in self.relay_from_to):
             return
+
+        exit_socket = self.exit_sockets.get(payload.circuit_id)
+        if exit_socket:
+            exit_socket.beat_heart()
 
         self.send_cell([source_address], u"pong", PongPayload(payload.circuit_id, payload.identifier))
         self.logger.debug("Got ping from %s", source_address)

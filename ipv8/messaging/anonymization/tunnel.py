@@ -92,13 +92,16 @@ class Tunnel(object):
         self.circuit_id = circuit_id
         self._peer = peer
         self.creation_time = time.time()
-        self.last_incoming = time.time()
+        self.last_activity = time.time()
         self.bytes_up = self.bytes_down = 0
         self.logger = logging.getLogger(self.__class__.__name__)
 
     @property
     def peer(self):
         return self._peer
+
+    def beat_heart(self):
+        self.last_activity = time.time()
 
 
 class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
@@ -120,7 +123,7 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
         return self.port is not None
 
     def sendto(self, data, destination):
-        self.last_incoming = time.time()
+        self.beat_heart()
         if self.check_num_packets(destination, False):
             if DataChecker.is_allowed(data):
                 def on_error(failure):
@@ -145,7 +148,7 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
                                   self.circuit_id)
 
     def datagramReceived(self, data, source):
-        self.last_incoming = time.time()
+        self.beat_heart()
         self.overlay.increase_bytes_received(self, len(data))
         if self.check_num_packets(source, True):
             if DataChecker.is_allowed(data):
@@ -247,12 +250,6 @@ class Circuit(Tunnel):
             return CIRCUIT_STATE_EXTENDING
         else:
             return CIRCUIT_STATE_READY
-
-    def beat_heart(self):
-        """
-        Mark the circuit as active
-        """
-        self.last_incoming = time.time()
 
     def close(self):
         """

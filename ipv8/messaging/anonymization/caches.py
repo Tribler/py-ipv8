@@ -108,7 +108,7 @@ class PingRequestCache(RandomNumberCache):
         return PING_INTERVAL + 5
 
     def on_timeout(self):
-        if self.circuit.last_incoming < time.time() - self.timeout_delay:
+        if self.circuit.last_activity < time.time() - self.timeout_delay:
             self.logger.info("PingRequestCache: no response on ping, circuit %d timed out",
                              self.circuit.circuit_id)
             self.community.remove_circuit(self.circuit.circuit_id, 'ping timeout')
