@@ -185,7 +185,8 @@ class AttestationEndpoint(resource.Resource):
         if request.args[b'type'][0] == b'allow_verify':
             mid_b64 = request.args[b'mid'][0]
             attribute_name = request.args[b'attribute_name'][0]
-            self.verify_requests[(mid_b64, attribute_name)].callback(True)
+            outstanding = self.verify_requests.pop((mid_b64, attribute_name))
+            outstanding.callback(True)
             return b""
         if request.args[b'type'][0] == b'verify':
             mid_b64 = request.args[b'mid'][0]
