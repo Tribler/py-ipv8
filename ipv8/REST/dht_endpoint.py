@@ -4,6 +4,7 @@ from base64 import b64encode, b64decode
 from binascii import hexlify, unhexlify
 from hashlib import sha1
 import json
+import logging
 
 from twisted.web import http, resource
 from twisted.web.server import NOT_DONE_YET
@@ -108,6 +109,10 @@ class DHTBlockEndpoint(resource.Resource, BlockListener):
             # Get all the previously published blocks for this peer from the DHT, and check if this is a duplicate
             latest_block = latest_block.pack()
 
+            def on_failure(failure):
+                logging.error("Publishing latest block failed with %s:\n%s", failure.value.__class__.__name__,
+                              failure.value.message)
+
             def on_success(block_chunks):
                 new_blocks, _ = self.reconstruct_all_blocks([x[0] for x in block_chunks],
                                                             self.trustchain.my_peer.public_key)
@@ -136,12 +141,11 @@ class DHTBlockEndpoint(resource.Resource, BlockListener):
                     blob_chunk = self.serializer.pack_multiple(
                         DHTBlockPayload(signature, self.block_version, i, total_blocks, chunk).to_pack_list())
 
-                    self.dht.store_value(self._hashed_dht_key, blob_chunk[0])
+                    self.dht.store_value(self._hashed_dht_key, blob_chunk[0]).addErrback(on_failure)
 
                 self.block_version += 1
 
-            deferred = self.dht.find_values(self._hashed_dht_key)
-            deferred.addCallback(on_success)
+            self.dht.find_values(self._hashed_dht_key).addCallbacks(on_success, on_failure)
 
     def render_GET(self, request):
         """
@@ -183,9 +187,7 @@ class DHTBlockEndpoint(resource.Resource, BlockListener):
         raw_public_key = b64decode(request.args[b'public_key'][0])
         hash_key = sha1(raw_public_key + self.KEY_SUFFIX).digest()
 
-        deferred = self.dht.find_values(hash_key)
-        deferred.addCallback(on_success)
-        deferred.addErrback(on_failure)
+        self.dht.find_values(hash_key).addCallbacks(on_success, on_failure)
 
         return NOT_DONE_YET
 
@@ -267,9 +269,7 @@ class SpecificDHTPeerEndpoint(resource.Resource):
                 }
             }))
 
-        deferred = self.dht.connect_peer(self.mid)
-        deferred.addCallback(on_success)
-        deferred.addErrback(on_failure)
+        self.dht.connect_peer(self.mid).addCallbacks(on_success, on_failure)
 
         return NOT_DONE_YET
 
@@ -321,9 +321,7 @@ class SpecificDHTValueEndpoint(resource.Resource):
                 }
             }))
 
-        deferred = self.dht.find_values(self.key)
-        deferred.addCallback(on_success)
-        deferred.addErrback(on_failure)
+        self.dht.find_values(self.key).addCallbacks(on_success, on_failure)
 
         return NOT_DONE_YET
 
@@ -351,8 +349,7 @@ class SpecificDHTValueEndpoint(resource.Resource):
             request.setResponseCode(http.BAD_REQUEST)
             return json.dumps({"error": "incorrect parameters"})
 
-        deferred = self.dht.store_value(self.key, unhexlify(parameters['value'][0]), sign=True)
-        deferred.addCallback(on_success)
-        deferred.addErrback(on_failure)
+        self.dht.store_value(self.key, unhexlify(parameters['value'][0]), sign=True).addCallbacks(on_success,
+                                                                                                  on_failure)
 
         return NOT_DONE_YET
