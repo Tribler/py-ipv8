@@ -120,41 +120,6 @@ class TestSerializer(TestCase):
 
         self.assertRaises(PackError, self.serializer.unpack_multiple, ["H"], serialized)
 
-    def test_unpack_multiple_list_empty(self):
-        """
-        Check if a unpack_multiple_as_list can unpack an empty list.
-        """
-        serialized, _ = self.serializer.pack_multiple([])
-        unserialized, _ = self.serializer.unpack_multiple_as_list([], serialized)
-
-        self.assertEqual([], unserialized)
-
-    def test_unpack_multiple_list_bits(self):
-        """
-        Check if a unpack_multiple_as_list can unpack bits.
-        """
-        serialized, _ = self.serializer.pack("bits", 0, 1, 0, 1, 0, 1, 0, 1)
-        unserialized, _ = self.serializer.unpack_multiple_as_list(["bits"], serialized)
-
-        self.assertEqual(1, len(unserialized))
-        self.assertListEqual([0, 1, 0, 1, 0, 1, 0, 1], unserialized[0])
-
-    def test_unpack_multiple_list_short_from_byte(self):
-        """
-        Check if a unpack_multiple_as_list of a short from a byte raises a PackError.
-        """
-        serialized, _ = self.serializer.pack_multiple([("B", 1)])
-
-        self.assertRaises(PackError, self.serializer.unpack_multiple_as_list, ["H"], serialized)
-
-    def test_unpack_multiple_list_short_from_byte_3rd(self):
-        """
-        Check if a unpack_multiple_as_list of a short from a byte raises a PackError in the third repetition.
-        """
-        serialized, _ = self.serializer.pack_multiple([("H", 1), ("H", 2), ("B", 3)])
-
-        self.assertRaises(PackError, self.serializer.unpack_multiple_as_list, ["H"], serialized)
-
     def test_unpack_serializables_list_short_from_byte(self):
         """
         Check if a unpack_to_serializables of a short from a byte raises a PackError.
