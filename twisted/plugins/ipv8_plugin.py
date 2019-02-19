@@ -23,7 +23,10 @@ from ipv8.REST.rest_manager import RESTManager
 
 class Options(usage.Options):
     optParameters = []
-    optFlags = [["no-rest-api", "a", "Autonomous: disable the REST api"], ]
+    optFlags = [
+        ["no-rest-api", "a", "Autonomous: disable the REST api"],
+        ["statistics", "s", "Enable IPv8 overlay statistics"],
+    ]
 
 
 class IPV8ServiceMaker(object):
@@ -44,7 +47,7 @@ class IPV8ServiceMaker(object):
         """
         Main method to startup IPv8.
         """
-        self.ipv8 = IPv8(get_default_configuration())
+        self.ipv8 = IPv8(get_default_configuration(), enable_statistics=options['statistics'])
 
         def signal_handler(sig, _):
             msg("Received shut down signal %s" % sig)
