@@ -330,6 +330,40 @@ class Serializer(object):
             index += 1
         return out, current_offset
 
+    def unpack_multiple_as_list(self, unpack_list, data, offset=0):
+        """
+        Unpack repeated list elements from a data string.
+
+        Each of the tuples in the pack_list are built as (format, arg1, arg2, .., argn)
+
+        Note that this method cannot have any optional unpack_list arguments.
+
+        :param unpack_list: the list of formats
+        :param data: the data to unpack from
+        :param offset: the optional offset to unpack data from
+        """
+        current_offset = offset
+        out = []
+        index = 0
+        data_length = len(data)
+        while current_offset < data_length:
+            list_element = []
+            for format in unpack_list:
+                try:
+                    unpacked, unpacked_size = self.unpack(format, data, current_offset)
+                    if format == 'bits':
+                        list_element.extend(unpacked)
+                    else:
+                        list_element.append(unpacked)
+                except Exception as e:
+                    six.reraise(PackError, PackError("Could not unpack #%d repetition of item %d: %s\n%s: %s" %
+                                                     (index+1, len(list_element), format, type(e).__name__, str(e))),
+                                sys.exc_info()[2])
+                current_offset += unpacked_size
+                index += 1
+            out.append(list_element)
+        return out, current_offset
+
     def unpack_to_serializables(self, serializables, data):
         """
         Use the formats specified in a serializable object and unpack to it.
