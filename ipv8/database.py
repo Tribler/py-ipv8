@@ -315,7 +315,7 @@ class Database(six.with_metaclass(ABCMeta, object)):
         self._logger.log(logging.NOTSET, "%s <-- %s [%s]", statement, bindings, self._file_path)
         result = self._cursor.execute(statement, bindings)
         if get_lastrowid:
-            result = self._cursor.lastrowid
+            return self._cursor.lastrowid
         return _thread_safe_result_it(result, fetch_all)
 
     @db_call
