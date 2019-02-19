@@ -100,6 +100,12 @@ class DiscoveryCommunity(Community):
 
     @lazy_wrapper(GlobalTimeDistributionPayload, SimilarityResponsePayload)
     def on_similarity_response(self, node, dist, payload):
+        if self.max_peers >= 0 and len(self.get_peers()) > self.max_peers and node not in self.network.verified_peers:
+            self.logger.info("Dropping similarity response from (%s, %d): too many peers!",
+                             node.address[0], node.address[1])
+            return
+
+        self.network.add_verified_peer(node)
         self.network.discover_services(node, payload.preference_list)
 
     @lazy_wrapper_unsigned(GlobalTimeDistributionPayload, PingPayload)
