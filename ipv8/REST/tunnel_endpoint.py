@@ -5,9 +5,10 @@ import json
 from twisted.web import http, resource
 
 from ..messaging.anonymization.community import TunnelCommunity
+from .base_endpoint import BaseEndpoint
 
 
-class TunnelEndpoint(resource.Resource):
+class TunnelEndpoint(BaseEndpoint):
     """
     This endpoint is responsible for handling requests for DHT data.
     """
@@ -22,7 +23,7 @@ class TunnelEndpoint(resource.Resource):
             self.putChild("exits", TunnelExitsEndpoint(tunnel_overlays[0]))
 
 
-class TunnelCircuitsEndpoint(resource.Resource):
+class TunnelCircuitsEndpoint(BaseEndpoint):
     """
     This endpoint is responsible for returning circuit information from the TunnelCommunity.
     """
@@ -48,7 +49,7 @@ class TunnelCircuitsEndpoint(resource.Resource):
             } for circuit in self.tunnels.circuits.itervalues()]})
 
 
-class TunnelRelaysEndpoint(resource.Resource):
+class TunnelRelaysEndpoint(BaseEndpoint):
     """
     This endpoint is responsible for returning relay information from the TunnelCommunity.
     """
@@ -72,7 +73,7 @@ class TunnelRelaysEndpoint(resource.Resource):
             } for circuit_from, relay in self.tunnels.relay_from_to.iteritems()]})
 
 
-class TunnelExitsEndpoint(resource.Resource):
+class TunnelExitsEndpoint(BaseEndpoint):
     """
     This endpoint is responsible for returning exit socket information from the TunnelCommunity.
     """

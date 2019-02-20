@@ -9,6 +9,7 @@ import logging
 from twisted.web import http, resource
 from twisted.web.server import NOT_DONE_YET
 
+from .base_endpoint import BaseEndpoint
 from ..dht.community import DHTCommunity, MAX_ENTRY_SIZE
 from ..attestation.trustchain.community import TrustChainCommunity
 from ..dht.discovery import DHTDiscoveryCommunity
@@ -18,7 +19,7 @@ from ..messaging.serialization import Serializer
 from ..keyvault.public.libnaclkey import LibNaCLPK
 
 
-class DHTEndpoint(resource.Resource):
+class DHTEndpoint(BaseEndpoint):
     """
     This endpoint is responsible for handling requests for DHT data.
     """
@@ -35,7 +36,7 @@ class DHTEndpoint(resource.Resource):
             self.putChild(b"block", DHTBlockEndpoint(dht_overlays[0], tc_overlays[0]))
 
 
-class DHTBlockEndpoint(resource.Resource, BlockListener):
+class DHTBlockEndpoint(BaseEndpoint, BlockListener):
     """
     This endpoint is responsible for returning the latest Trustchain block of a peer. Additionally, it ensures
     this peer's latest TC block is available
@@ -192,7 +193,7 @@ class DHTBlockEndpoint(resource.Resource, BlockListener):
         return NOT_DONE_YET
 
 
-class DHTStatisticsEndpoint(resource.Resource):
+class DHTStatisticsEndpoint(BaseEndpoint):
     """
     This endpoint is responsible for returning statistics about the DHT.
     """
@@ -223,7 +224,7 @@ class DHTStatisticsEndpoint(resource.Resource):
         return json.dumps({"statistics": stats})
 
 
-class DHTPeersEndpoint(resource.Resource):
+class DHTPeersEndpoint(BaseEndpoint):
     """
     This endpoint is responsible for handling requests for DHT peers.
     """
@@ -236,7 +237,7 @@ class DHTPeersEndpoint(resource.Resource):
         return SpecificDHTPeerEndpoint(self.dht, path)
 
 
-class SpecificDHTPeerEndpoint(resource.Resource):
+class SpecificDHTPeerEndpoint(BaseEndpoint):
     """
     This class handles requests for a specific DHT peer.
     """
@@ -274,7 +275,7 @@ class SpecificDHTPeerEndpoint(resource.Resource):
         return NOT_DONE_YET
 
 
-class DHTValuesEndpoint(resource.Resource):
+class DHTValuesEndpoint(BaseEndpoint):
     """
     This endpoint is responsible for handling requests for DHT values.
     """
@@ -287,7 +288,7 @@ class DHTValuesEndpoint(resource.Resource):
         return SpecificDHTValueEndpoint(self.dht, path)
 
 
-class SpecificDHTValueEndpoint(resource.Resource):
+class SpecificDHTValueEndpoint(BaseEndpoint):
     """
     This class handles requests for a specific DHT value.
     """

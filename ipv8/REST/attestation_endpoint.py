@@ -7,6 +7,7 @@ import json
 from twisted.internet.defer import Deferred, succeed
 from twisted.web import resource
 
+from .base_endpoint import BaseEndpoint
 from ..attestation.identity.community import IdentityCommunity
 from ..attestation.wallet.community import AttestationCommunity
 from ..attestation.wallet.primitives.attestation import binary_relativity_sha256_4
@@ -16,7 +17,7 @@ from ..peer import Peer
 from ..util import cast_to_bin, cast_to_unicode
 
 
-class AttestationEndpoint(resource.Resource):
+class AttestationEndpoint(BaseEndpoint):
     """
     This endpoint is responsible for handing all requests regarding attestation.
     """

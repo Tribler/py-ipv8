@@ -5,10 +5,11 @@ import json
 
 from twisted.web import resource, http
 
+from .base_endpoint import BaseEndpoint
 from ..messaging.interfaces.statistics_endpoint import StatisticsEndpoint
 
 
-class OverlaysEndpoint(resource.Resource):
+class OverlaysEndpoint(BaseEndpoint):
     """
     This endpoint is responsible for handing all requests regarding the status of overlays.
     """
@@ -38,7 +39,7 @@ class OverlaysEndpoint(resource.Resource):
         return json.dumps({"overlays": self.get_overlays()})
 
 
-class OverlayStatisticsEndpoint(resource.Resource):
+class OverlayStatisticsEndpoint(BaseEndpoint):
     """
     This endpoint is responsible for handing all requests regarding the statistics of overlays.
     """

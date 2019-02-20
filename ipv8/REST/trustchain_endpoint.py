@@ -7,9 +7,10 @@ from twisted.web import http
 from twisted.web import resource
 
 from ..attestation.trustchain.community import TrustChainCommunity
+from .base_endpoint import BaseEndpoint
 
 
-class TrustchainEndpoint(resource.Resource):
+class TrustchainEndpoint(BaseEndpoint):
     """
     This endpoint is responsible for handing all requests regarding TrustChain.
     """
@@ -24,7 +25,7 @@ class TrustchainEndpoint(resource.Resource):
             self.putChild("users", TrustchainUsersEndpoint(trustchain_overlays[0]))
 
 
-class TrustchainRecentEndpoint(resource.Resource):
+class TrustchainRecentEndpoint(BaseEndpoint):
 
     def __init__(self, trustchain):
         resource.Resource.__init__(self)
@@ -43,7 +44,7 @@ class TrustchainRecentEndpoint(resource.Resource):
                                       self.trustchain.persistence.get_recent_blocks(limit=limit, offset=offset)]})
 
 
-class TrustchainBlocksEndpoint(resource.Resource):
+class TrustchainBlocksEndpoint(BaseEndpoint):
 
     def __init__(self, trustchain):
         resource.Resource.__init__(self)
@@ -53,7 +54,7 @@ class TrustchainBlocksEndpoint(resource.Resource):
         return TrustchainSpecificBlockEndpoint(self.trustchain, path)
 
 
-class TrustchainSpecificBlockEndpoint(resource.Resource):
+class TrustchainSpecificBlockEndpoint(BaseEndpoint):
 
     def __init__(self, trustchain, block_hash):
         resource.Resource.__init__(self)
@@ -83,7 +84,7 @@ class TrustchainSpecificBlockEndpoint(resource.Resource):
         return json.dumps({"block": block_dict})
 
 
-class TrustchainUsersEndpoint(resource.Resource):
+class TrustchainUsersEndpoint(BaseEndpoint):
 
     def __init__(self, trustchain):
         resource.Resource.__init__(self)
@@ -101,7 +102,7 @@ class TrustchainUsersEndpoint(resource.Resource):
         return json.dumps({"users": users_info})
 
 
-class TrustchainSpecificUserEndpoint(resource.Resource):
+class TrustchainSpecificUserEndpoint(BaseEndpoint):
 
     def __init__(self, trustchain, pub_key):
         resource.Resource.__init__(self)
@@ -111,7 +112,7 @@ class TrustchainSpecificUserEndpoint(resource.Resource):
         self.putChild("blocks", TrustchainSpecificUserBlocksEndpoint(self.trustchain, self.pub_key))
 
 
-class TrustchainSpecificUserBlocksEndpoint(resource.Resource):
+class TrustchainSpecificUserBlocksEndpoint(BaseEndpoint):
 
     def __init__(self, trustchain, pub_key):
         resource.Resource.__init__(self)
