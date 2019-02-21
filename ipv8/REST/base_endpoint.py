@@ -4,11 +4,14 @@ from twisted.web import resource
 from twisted.web.resource import _computeAllowedMethods
 
 
-class BaseEndpoint(resource.Resource):
+class BaseEndpoint(resource.Resource, object):
     """
     The base endpoint from which all other endpoints should extend to make them compatible with Cross-Origin Resource
     Sharing requests.
     """
+    def __init__(self):
+        resource.Resource.__init__(self)
+        object.__init__(self)
 
     def render_OPTIONS(self, request):
         """

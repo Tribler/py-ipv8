@@ -5,7 +5,6 @@ from base64 import b64decode, b64encode
 import json
 
 from twisted.internet.defer import Deferred, succeed
-from twisted.web import resource
 
 from .base_endpoint import BaseEndpoint
 from ..attestation.identity.community import IdentityCommunity
@@ -23,7 +22,7 @@ class AttestationEndpoint(BaseEndpoint):
     """
 
     def __init__(self, session):
-        resource.Resource.__init__(self)
+        super(AttestationEndpoint, self).__init__()
         self.session = session
         attestation_overlays = [overlay for overlay in session.overlays if isinstance(overlay, AttestationCommunity)]
         identity_overlays = [overlay for overlay in session.overlays if isinstance(overlay, IdentityCommunity)]

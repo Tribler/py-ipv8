@@ -3,8 +3,6 @@ from __future__ import absolute_import
 from base64 import b64encode
 import json
 
-from twisted.web import resource
-
 from .base_endpoint import BaseEndpoint
 
 
@@ -14,7 +12,7 @@ class NetworkEndpoint(BaseEndpoint):
     """
 
     def __init__(self, session):
-        resource.Resource.__init__(self)
+        super(NetworkEndpoint, self).__init__()
         self.session = session
 
     def retrieve_peers(self):

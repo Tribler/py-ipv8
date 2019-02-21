@@ -4,7 +4,6 @@ from binascii import unhexlify
 import json
 
 from twisted.web import http
-from twisted.web import resource
 
 from ..attestation.trustchain.community import TrustChainCommunity
 from .base_endpoint import BaseEndpoint
@@ -16,7 +15,7 @@ class TrustchainEndpoint(BaseEndpoint):
     """
 
     def __init__(self, session):
-        resource.Resource.__init__(self)
+        super(TrustchainEndpoint, self).__init__()
 
         trustchain_overlays = [overlay for overlay in session.overlays if isinstance(overlay, TrustChainCommunity)]
         if trustchain_overlays:
@@ -28,7 +27,7 @@ class TrustchainEndpoint(BaseEndpoint):
 class TrustchainRecentEndpoint(BaseEndpoint):
 
     def __init__(self, trustchain):
-        resource.Resource.__init__(self)
+        super(TrustchainRecentEndpoint, self).__init__()
         self.trustchain = trustchain
 
     def render_GET(self, request):
@@ -47,7 +46,7 @@ class TrustchainRecentEndpoint(BaseEndpoint):
 class TrustchainBlocksEndpoint(BaseEndpoint):
 
     def __init__(self, trustchain):
-        resource.Resource.__init__(self)
+        super(TrustchainBlocksEndpoint, self).__init__()
         self.trustchain = trustchain
 
     def getChild(self, path, request):
@@ -57,7 +56,7 @@ class TrustchainBlocksEndpoint(BaseEndpoint):
 class TrustchainSpecificBlockEndpoint(BaseEndpoint):
 
     def __init__(self, trustchain, block_hash):
-        resource.Resource.__init__(self)
+        super(TrustchainSpecificBlockEndpoint, self).__init__()
         self.trustchain = trustchain
         try:
             self.block_hash = unhexlify(block_hash)
@@ -87,7 +86,7 @@ class TrustchainSpecificBlockEndpoint(BaseEndpoint):
 class TrustchainUsersEndpoint(BaseEndpoint):
 
     def __init__(self, trustchain):
-        resource.Resource.__init__(self)
+        super(TrustchainUsersEndpoint, self).__init__()
         self.trustchain = trustchain
 
     def getChild(self, path, request):
@@ -105,7 +104,7 @@ class TrustchainUsersEndpoint(BaseEndpoint):
 class TrustchainSpecificUserEndpoint(BaseEndpoint):
 
     def __init__(self, trustchain, pub_key):
-        resource.Resource.__init__(self)
+        super(TrustchainSpecificUserEndpoint, self).__init__()
         self.trustchain = trustchain
         self.pub_key = pub_key
 
@@ -115,7 +114,7 @@ class TrustchainSpecificUserEndpoint(BaseEndpoint):
 class TrustchainSpecificUserBlocksEndpoint(BaseEndpoint):
 
     def __init__(self, trustchain, pub_key):
-        resource.Resource.__init__(self)
+        super(TrustchainSpecificUserBlocksEndpoint, self).__init__()
         self.trustchain = trustchain
         try:
             self.pub_key = unhexlify(pub_key)

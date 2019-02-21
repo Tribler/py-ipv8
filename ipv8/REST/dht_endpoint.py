@@ -6,7 +6,7 @@ from hashlib import sha1
 import json
 import logging
 
-from twisted.web import http, resource
+from twisted.web import http
 from twisted.web.server import NOT_DONE_YET
 
 from .base_endpoint import BaseEndpoint
@@ -25,8 +25,7 @@ class DHTEndpoint(BaseEndpoint):
     """
 
     def __init__(self, session):
-        resource.Resource.__init__(self)
-
+        super(DHTEndpoint, self).__init__()
         dht_overlays = [overlay for overlay in session.overlays if isinstance(overlay, DHTCommunity)]
         tc_overlays = [overlay for overlay in session.overlays if isinstance(overlay, TrustChainCommunity)]
         if dht_overlays:
@@ -59,7 +58,7 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
     CHUNK_SIZE = MAX_ENTRY_SIZE - DHTBlockPayload.PREAMBLE_OVERHEAD - 1
 
     def __init__(self, dht, trustchain):
-        resource.Resource.__init__(self)
+        super(DHTBlockEndpoint, self).__init__()
         self.dht = dht
         self.trustchain = trustchain
         self.block_version = 0
@@ -199,7 +198,7 @@ class DHTStatisticsEndpoint(BaseEndpoint):
     """
 
     def __init__(self, dht):
-        resource.Resource.__init__(self)
+        super(DHTStatisticsEndpoint, self).__init__()
         self.dht = dht
 
     def render_GET(self, request):
@@ -230,7 +229,7 @@ class DHTPeersEndpoint(BaseEndpoint):
     """
 
     def __init__(self, dht):
-        resource.Resource.__init__(self)
+        super(DHTPeersEndpoint, self).__init__()
         self.dht = dht
 
     def getChild(self, path, request):
@@ -243,7 +242,7 @@ class SpecificDHTPeerEndpoint(BaseEndpoint):
     """
 
     def __init__(self, dht, key):
-        resource.Resource.__init__(self)
+        super(SpecificDHTPeerEndpoint, self).__init__()
         self.mid = bytes(unhexlify(key))
         self.dht = dht
 
@@ -281,7 +280,7 @@ class DHTValuesEndpoint(BaseEndpoint):
     """
 
     def __init__(self, dht):
-        resource.Resource.__init__(self)
+        super(DHTValuesEndpoint, self).__init__()
         self.dht = dht
 
     def getChild(self, path, request):
@@ -294,7 +293,7 @@ class SpecificDHTValueEndpoint(BaseEndpoint):
     """
 
     def __init__(self, dht, key):
-        resource.Resource.__init__(self)
+        super(SpecificDHTValueEndpoint, self).__init__()
         self.key = bytes(unhexlify(key))
         self.dht = dht
 

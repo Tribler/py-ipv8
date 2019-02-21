@@ -2,7 +2,7 @@ from __future__ import absolute_import
 
 import json
 
-from twisted.web import http, resource
+from twisted.web import http
 
 from ..messaging.anonymization.community import TunnelCommunity
 from .base_endpoint import BaseEndpoint
@@ -14,7 +14,7 @@ class TunnelEndpoint(BaseEndpoint):
     """
 
     def __init__(self, session):
-        resource.Resource.__init__(self)
+        super(TunnelEndpoint, self).__init__()
 
         tunnel_overlays = [overlay for overlay in session.overlays if isinstance(overlay, TunnelCommunity)]
         if tunnel_overlays:
@@ -29,7 +29,7 @@ class TunnelCircuitsEndpoint(BaseEndpoint):
     """
 
     def __init__(self, tunnels):
-        resource.Resource.__init__(self)
+        super(TunnelCircuitsEndpoint, self).__init__()
         self.tunnels = tunnels
 
     def render_GET(self, request):
@@ -55,7 +55,7 @@ class TunnelRelaysEndpoint(BaseEndpoint):
     """
 
     def __init__(self, tunnels):
-        resource.Resource.__init__(self)
+        super(TunnelRelaysEndpoint, self).__init__()
         self.tunnels = tunnels
 
     def render_GET(self, request):
@@ -79,7 +79,7 @@ class TunnelExitsEndpoint(BaseEndpoint):
     """
 
     def __init__(self, tunnels):
-        resource.Resource.__init__(self)
+        super(TunnelExitsEndpoint, self).__init__()
         self.tunnels = tunnels
 
     def render_GET(self, request):
