@@ -1,8 +1,7 @@
 from __future__ import absolute_import
 
-from twisted.web import resource
-
 from .attestation_endpoint import AttestationEndpoint
+from .base_endpoint import BaseEndpoint
 from .dht_endpoint import DHTEndpoint
 from .network_endpoint import NetworkEndpoint
 from .overlays_endpoint import OverlaysEndpoint
@@ -10,7 +9,7 @@ from .trustchain_endpoint import TrustchainEndpoint
 from .tunnel_endpoint import TunnelEndpoint
 
 
-class RootEndpoint(resource.Resource):
+class RootEndpoint(BaseEndpoint):
     """
     The root endpoint of the HTTP API is the root resource in the request tree.
     It will dispatch requests regarding torrents, channels, settings etc to the right child endpoint.
@@ -21,7 +20,7 @@ class RootEndpoint(resource.Resource):
         During the initialization of the REST API, we only start the event sockets and the state endpoint.
         We enable the other endpoints after completing the starting procedure.
         """
-        resource.Resource.__init__(self)
+        super(RootEndpoint, self).__init__()
         self.session = session
         self.putChild(b'attestation', AttestationEndpoint(session))
         self.putChild(b'network', NetworkEndpoint(session))

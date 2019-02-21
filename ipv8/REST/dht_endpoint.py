@@ -6,9 +6,10 @@ from hashlib import sha1
 import json
 import logging
 
-from twisted.web import http, resource
+from twisted.web import http
 from twisted.web.server import NOT_DONE_YET
 
+from .base_endpoint import BaseEndpoint
 from ..dht.community import DHTCommunity, MAX_ENTRY_SIZE
 from ..attestation.trustchain.community import TrustChainCommunity
 from ..dht.discovery import DHTDiscoveryCommunity
@@ -18,14 +19,13 @@ from ..messaging.serialization import Serializer
 from ..keyvault.public.libnaclkey import LibNaCLPK
 
 
-class DHTEndpoint(resource.Resource):
+class DHTEndpoint(BaseEndpoint):
     """
     This endpoint is responsible for handling requests for DHT data.
     """
 
     def __init__(self, session):
-        resource.Resource.__init__(self)
-
+        super(DHTEndpoint, self).__init__()
         dht_overlays = [overlay for overlay in session.overlays if isinstance(overlay, DHTCommunity)]
         tc_overlays = [overlay for overlay in session.overlays if isinstance(overlay, TrustChainCommunity)]
         if dht_overlays:
@@ -35,7 +35,7 @@ class DHTEndpoint(resource.Resource):
             self.putChild(b"block", DHTBlockEndpoint(dht_overlays[0], tc_overlays[0]))
 
 
-class DHTBlockEndpoint(resource.Resource, BlockListener):
+class DHTBlockEndpoint(BaseEndpoint, BlockListener):
     """
     This endpoint is responsible for returning the latest Trustchain block of a peer. Additionally, it ensures
     this peer's latest TC block is available
@@ -58,7 +58,7 @@ class DHTBlockEndpoint(resource.Resource, BlockListener):
     CHUNK_SIZE = MAX_ENTRY_SIZE - DHTBlockPayload.PREAMBLE_OVERHEAD - 1
 
     def __init__(self, dht, trustchain):
-        resource.Resource.__init__(self)
+        super(DHTBlockEndpoint, self).__init__()
         self.dht = dht
         self.trustchain = trustchain
         self.block_version = 0
@@ -192,13 +192,13 @@ class DHTBlockEndpoint(resource.Resource, BlockListener):
         return NOT_DONE_YET
 
 
-class DHTStatisticsEndpoint(resource.Resource):
+class DHTStatisticsEndpoint(BaseEndpoint):
     """
     This endpoint is responsible for returning statistics about the DHT.
     """
 
     def __init__(self, dht):
-        resource.Resource.__init__(self)
+        super(DHTStatisticsEndpoint, self).__init__()
         self.dht = dht
 
     def render_GET(self, request):
@@ -223,26 +223,26 @@ class DHTStatisticsEndpoint(resource.Resource):
         return json.dumps({"statistics": stats})
 
 
-class DHTPeersEndpoint(resource.Resource):
+class DHTPeersEndpoint(BaseEndpoint):
     """
     This endpoint is responsible for handling requests for DHT peers.
     """
 
     def __init__(self, dht):
-        resource.Resource.__init__(self)
+        super(DHTPeersEndpoint, self).__init__()
         self.dht = dht
 
     def getChild(self, path, request):
         return SpecificDHTPeerEndpoint(self.dht, path)
 
 
-class SpecificDHTPeerEndpoint(resource.Resource):
+class SpecificDHTPeerEndpoint(BaseEndpoint):
     """
     This class handles requests for a specific DHT peer.
     """
 
     def __init__(self, dht, key):
-        resource.Resource.__init__(self)
+        super(SpecificDHTPeerEndpoint, self).__init__()
         self.mid = bytes(unhexlify(key))
         self.dht = dht
 
@@ -274,26 +274,26 @@ class SpecificDHTPeerEndpoint(resource.Resource):
         return NOT_DONE_YET
 
 
-class DHTValuesEndpoint(resource.Resource):
+class DHTValuesEndpoint(BaseEndpoint):
     """
     This endpoint is responsible for handling requests for DHT values.
     """
 
     def __init__(self, dht):
-        resource.Resource.__init__(self)
+        super(DHTValuesEndpoint, self).__init__()
         self.dht = dht
 
     def getChild(self, path, request):
         return SpecificDHTValueEndpoint(self.dht, path)
 
 
-class SpecificDHTValueEndpoint(resource.Resource):
+class SpecificDHTValueEndpoint(BaseEndpoint):
     """
     This class handles requests for a specific DHT value.
     """
 
     def __init__(self, dht, key):
-        resource.Resource.__init__(self)
+        super(SpecificDHTValueEndpoint, self).__init__()
         self.key = bytes(unhexlify(key))
         self.dht = dht
 

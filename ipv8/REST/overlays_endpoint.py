@@ -3,18 +3,19 @@ from __future__ import absolute_import
 from binascii import hexlify
 import json
 
-from twisted.web import resource, http
+from twisted.web import http
 
+from .base_endpoint import BaseEndpoint
 from ..messaging.interfaces.statistics_endpoint import StatisticsEndpoint
 
 
-class OverlaysEndpoint(resource.Resource):
+class OverlaysEndpoint(BaseEndpoint):
     """
     This endpoint is responsible for handing all requests regarding the status of overlays.
     """
 
     def __init__(self, session):
-        resource.Resource.__init__(self)
+        super(OverlaysEndpoint, self).__init__()
         self.session = session
         self.putChild("statistics", OverlayStatisticsEndpoint(session))
 
@@ -38,13 +39,13 @@ class OverlaysEndpoint(resource.Resource):
         return json.dumps({"overlays": self.get_overlays()})
 
 
-class OverlayStatisticsEndpoint(resource.Resource):
+class OverlayStatisticsEndpoint(BaseEndpoint):
     """
     This endpoint is responsible for handing all requests regarding the statistics of overlays.
     """
 
     def __init__(self, session):
-        resource.Resource.__init__(self)
+        super(OverlayStatisticsEndpoint, self).__init__()
         self.session = session
         self.statistics_supported = isinstance(self.session.endpoint, StatisticsEndpoint)
 

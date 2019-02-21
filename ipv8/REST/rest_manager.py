@@ -44,11 +44,14 @@ class RESTRequest(server.Request):
     """
     This class gracefully takes care of unhandled exceptions raised during the processing of any request.
     """
-    defaultContentType = b"text/json"
+    defaultContentType = b"application/json"
 
     def __init__(self, *args, **kw):
         server.Request.__init__(self, *args, **kw)
         self._logger = logging.getLogger(self.__class__.__name__)
+
+        # Default headers
+        self.setHeader(b'Access-Control-Allow-Origin', b'*')
 
     def processingFailed(self, failure):
         self._logger.exception(failure)
@@ -64,9 +67,8 @@ class RESTRequest(server.Request):
 
         body = json.dumps(response)
         self.setResponseCode(http.INTERNAL_SERVER_ERROR)
-        self.setHeader(b'Access-Control-Allow-Origin', b'*')
-        self.setHeader(b'content-type', self.defaultContentType)
-        self.setHeader(b'content-length', intToBytes(len(body)))
+        self.setHeader(b'Content-Type', self.defaultContentType)
+        self.setHeader(b'Content-Length', intToBytes(len(body)))
         self.write(body)
         self.finish()
         return failure

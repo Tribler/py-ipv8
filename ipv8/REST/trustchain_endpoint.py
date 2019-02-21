@@ -4,18 +4,18 @@ from binascii import unhexlify
 import json
 
 from twisted.web import http
-from twisted.web import resource
 
 from ..attestation.trustchain.community import TrustChainCommunity
+from .base_endpoint import BaseEndpoint
 
 
-class TrustchainEndpoint(resource.Resource):
+class TrustchainEndpoint(BaseEndpoint):
     """
     This endpoint is responsible for handing all requests regarding TrustChain.
     """
 
     def __init__(self, session):
-        resource.Resource.__init__(self)
+        super(TrustchainEndpoint, self).__init__()
 
         trustchain_overlays = [overlay for overlay in session.overlays if isinstance(overlay, TrustChainCommunity)]
         if trustchain_overlays:
@@ -24,10 +24,10 @@ class TrustchainEndpoint(resource.Resource):
             self.putChild("users", TrustchainUsersEndpoint(trustchain_overlays[0]))
 
 
-class TrustchainRecentEndpoint(resource.Resource):
+class TrustchainRecentEndpoint(BaseEndpoint):
 
     def __init__(self, trustchain):
-        resource.Resource.__init__(self)
+        super(TrustchainRecentEndpoint, self).__init__()
         self.trustchain = trustchain
 
     def render_GET(self, request):
@@ -43,20 +43,20 @@ class TrustchainRecentEndpoint(resource.Resource):
                                       self.trustchain.persistence.get_recent_blocks(limit=limit, offset=offset)]})
 
 
-class TrustchainBlocksEndpoint(resource.Resource):
+class TrustchainBlocksEndpoint(BaseEndpoint):
 
     def __init__(self, trustchain):
-        resource.Resource.__init__(self)
+        super(TrustchainBlocksEndpoint, self).__init__()
         self.trustchain = trustchain
 
     def getChild(self, path, request):
         return TrustchainSpecificBlockEndpoint(self.trustchain, path)
 
 
-class TrustchainSpecificBlockEndpoint(resource.Resource):
+class TrustchainSpecificBlockEndpoint(BaseEndpoint):
 
     def __init__(self, trustchain, block_hash):
-        resource.Resource.__init__(self)
+        super(TrustchainSpecificBlockEndpoint, self).__init__()
         self.trustchain = trustchain
         try:
             self.block_hash = unhexlify(block_hash)
@@ -83,10 +83,10 @@ class TrustchainSpecificBlockEndpoint(resource.Resource):
         return json.dumps({"block": block_dict})
 
 
-class TrustchainUsersEndpoint(resource.Resource):
+class TrustchainUsersEndpoint(BaseEndpoint):
 
     def __init__(self, trustchain):
-        resource.Resource.__init__(self)
+        super(TrustchainUsersEndpoint, self).__init__()
         self.trustchain = trustchain
 
     def getChild(self, path, request):
@@ -101,20 +101,20 @@ class TrustchainUsersEndpoint(resource.Resource):
         return json.dumps({"users": users_info})
 
 
-class TrustchainSpecificUserEndpoint(resource.Resource):
+class TrustchainSpecificUserEndpoint(BaseEndpoint):
 
     def __init__(self, trustchain, pub_key):
-        resource.Resource.__init__(self)
+        super(TrustchainSpecificUserEndpoint, self).__init__()
         self.trustchain = trustchain
         self.pub_key = pub_key
 
         self.putChild("blocks", TrustchainSpecificUserBlocksEndpoint(self.trustchain, self.pub_key))
 
 
-class TrustchainSpecificUserBlocksEndpoint(resource.Resource):
+class TrustchainSpecificUserBlocksEndpoint(BaseEndpoint):
 
     def __init__(self, trustchain, pub_key):
-        resource.Resource.__init__(self)
+        super(TrustchainSpecificUserBlocksEndpoint, self).__init__()
         self.trustchain = trustchain
         try:
             self.pub_key = unhexlify(pub_key)
