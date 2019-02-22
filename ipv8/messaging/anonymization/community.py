@@ -6,7 +6,6 @@ Author(s): Egbert Bouman
 from __future__ import absolute_import
 from __future__ import division
 
-import random
 from binascii import hexlify, unhexlify
 
 from twisted.internet.task import LoopingCall
@@ -114,8 +113,7 @@ class TunnelSettings(object):
         self.remove_tunnel_delay = 5
 
         self.num_ip_circuits = 3
-
-        self.become_exitnode = False
+        self.peer_flags = PEER_FLAG_RELAY
 
 
 class TunnelCommunity(Community):
@@ -162,20 +160,16 @@ class TunnelCommunity(Community):
         self.exit_sockets = {}
         self.circuits_needed = defaultdict(int)
         self.num_hops_by_downloads = defaultdict(int)  # Keeps track of the number of hops required by downloads
-        self.exit_candidates = {}  # Keeps track of the candidates that want to be an exit node
-        self.creation_time = time.time()
+        self.candidates = {}  # Keeps track of the candidates that want to be a relay/exit node
 
         self.crypto = self.settings.crypto
 
-        self.logger.info("Setting become_exitnode = %s", self.settings.become_exitnode)
+        self.logger.info("Setting exitnode = %s", self.settings.peer_flags & PEER_FLAG_EXIT_ANY)
 
         self.crypto.initialize(self.my_peer.key)
 
         self.register_task("do_circuits", LoopingCall(self.do_circuits)).start(5, now=True)
         self.register_task("do_ping", LoopingCall(self.do_ping)).start(PING_INTERVAL)
-
-    def become_exitnode(self):
-        return self.settings.become_exitnode
 
     def unload(self):
         # Remove all circuits/relays/exitsockets
@@ -252,21 +246,19 @@ class TunnelCommunity(Community):
             elif exit_socket.bytes_up + exit_socket.bytes_down > self.settings.max_traffic:
                 self.remove_exit_socket(circuit_id, 'traffic limit exceeded')
 
-        # Remove exit_candidates that are not returned as dispersy verified candidates
-        current_peers = set(p.public_key.key_to_bin() for p in self.network.get_peers_for_service(self.master_peer.mid))
-        ckeys = list(self.exit_candidates.keys())
-        for pubkey in ckeys:
-            if pubkey not in current_peers:
-                self.exit_candidates.pop(pubkey)
-                self.logger.info("Removed candidate from exit_candidates dictionary")
+        # Remove candidates that are not returned as verified peers
+        current_peers = set(self.network.get_peers_for_service(self.master_peer.mid))
+        for peer in list(self.candidates):
+            if peer not in current_peers:
+                self.candidates.pop(peer)
+                self.logger.info("Removed candidate from candidates dictionary")
+
+    def get_candidates(self, flag):
+        return [peer for peer, flags in self.candidates.items()
+                if flags & flag and self.crypto.is_key_compatible(peer.public_key)]
 
     def get_max_time(self, circuit_id):
         return self.settings.max_time
-
-    @property
-    def compatible_candidates(self):
-        return [p for p in self.network.get_peers_for_service(self.master_peer.mid)
-                if self.crypto.is_key_compatible(p.public_key)]
 
     def find_circuits(self, ctype=CIRCUIT_TYPE_DATA, state=CIRCUIT_STATE_READY, hops=None):
         return [c for c in self.circuits.values()
@@ -285,21 +277,23 @@ class TunnelCommunity(Community):
     def create_circuit(self, goal_hops, ctype=CIRCUIT_TYPE_DATA, callback=None, required_exit=None, info_hash=None):
 
         self.logger.info("Creating a new circuit of length %d (type: %s)", goal_hops, ctype)
+        exit_candidates = self.get_candidates(PEER_FLAG_EXIT_ANY)
+        relay_candidates = self.get_candidates(PEER_FLAG_RELAY)
 
         # Determine the last hop
         if not required_exit:
             if ctype in [CIRCUIT_TYPE_DATA, CIRCUIT_TYPE_IP_SEEDER]:
-                required_exit = random.choice(list(self.exit_candidates.values())) if self.exit_candidates else None
-                # For introduction points we prefer exit nodes, but perhaps a normal peer would also suffice..
-                if not required_exit and self.compatible_candidates and ctype == CIRCUIT_TYPE_IP_SEEDER:
-                    required_exit = random.choice(self.compatible_candidates)
+                required_exit = random.choice(exit_candidates) if exit_candidates else None
+                # For introduction points we prefer exit nodes, but perhaps a relay peer would also suffice..
+                if not required_exit and relay_candidates and ctype == CIRCUIT_TYPE_IP_SEEDER:
+                    required_exit = random.choice(relay_candidates)
             else:
-                # For exit nodes that don't exit actual data, we prefer verified candidates,
+                # For exit nodes that don't exit actual data, we prefer relay candidates,
                 # but we also consider exit candidates.
-                if self.compatible_candidates:
-                    required_exit = random.choice(self.compatible_candidates)
-                elif self.exit_candidates:
-                    required_exit = random.choice(list(self.exit_candidates.values()))
+                if relay_candidates:
+                    required_exit = random.choice(relay_candidates)
+                elif exit_candidates:
+                    required_exit = random.choice(exit_candidates)
 
         if not required_exit:
             self.logger.info("Could not create circuit, no available exit-nodes")
@@ -313,8 +307,8 @@ class TunnelCommunity(Community):
         else:
             self.logger.info("Look for a first hop that is not an exit node and is not used before")
             first_hops = set([c.peer.address for c in self.circuits.values()])
-            possible_first_hops = [c for c in self.compatible_candidates
-                                   if c.address not in first_hops and c.address != required_exit.address]
+            possible_first_hops = [c for c in relay_candidates if c.address not in first_hops
+                                   and c.address != required_exit.address]
 
         if not possible_first_hops:
             self.logger.info("Could not create circuit, no first hop available")
@@ -622,34 +616,27 @@ class TunnelCommunity(Community):
         else:
             self.remove_circuit(circuit.circuit_id, "no candidates to extend, bailing out.")
 
-    def update_exit_candidates(self, peer, become_exit):
-        public_key = peer.public_key
-        if become_exit:
-            self.exit_candidates[public_key.key_to_bin()] = peer
-        else:
-            self.exit_candidates.pop(public_key.key_to_bin(), None)
-
-    def parse_extra_bytes(self, extra_bytes):
+    def extract_peer_flags(self, extra_bytes):
         if not extra_bytes:
-            return False
+            return 0
 
         payload = self.serializer.unpack_to_serializables([ExtraIntroductionPayload], extra_bytes)[0]
-        return payload.exitnode
+        return payload.flags
 
     def introduction_request_callback(self, peer, dist, payload):
-        self.update_exit_candidates(peer, self.parse_extra_bytes(payload.extra_bytes))
+        self.candidates[peer] = self.extract_peer_flags(payload.extra_bytes)
 
     def introduction_response_callback(self, peer, dist, payload):
-        self.update_exit_candidates(peer, self.parse_extra_bytes(payload.extra_bytes))
+        self.candidates[peer] = self.extract_peer_flags(payload.extra_bytes)
 
     def create_introduction_request(self, socket_address, extra_bytes=b''):
-        extra_payload = ExtraIntroductionPayload(self.become_exitnode())
+        extra_payload = ExtraIntroductionPayload(self.settings.peer_flags)
         extra_bytes = self.serializer.pack_multiple(extra_payload.to_pack_list())[0]
         return super(TunnelCommunity, self).create_introduction_request(socket_address, extra_bytes)
 
     def create_introduction_response(self, lan_socket_address, socket_address, identifier,
                                      introduction=None, extra_bytes=b''):
-        extra_payload = ExtraIntroductionPayload(self.become_exitnode())
+        extra_payload = ExtraIntroductionPayload(self.settings.peer_flags)
         extra_bytes = self.serializer.pack_multiple(extra_payload.to_pack_list())[0]
         return super(TunnelCommunity, self).create_introduction_response(lan_socket_address, socket_address,
                                                                          identifier, introduction, extra_bytes)
@@ -717,8 +704,8 @@ class TunnelCommunity(Community):
         shared_secret, key, auth = self.crypto.generate_diffie_shared_secret(create_payload.key)
         self.relay_session_keys[circuit_id] = self.crypto.generate_session_keys(shared_secret)
 
-        peers_list = [peer for peer in self.compatible_candidates
-                      if peer.public_key.key_to_bin() not in self.exit_candidates][:4]
+        peers_list = [peer for peer in self.get_candidates(PEER_FLAG_RELAY)
+                      if peer.public_key.key_to_bin() not in self.get_candidates(PEER_FLAG_EXIT_ANY)][:4]
         peers_keys = {c.public_key.key_to_bin(): c for c in peers_list}
 
         peer = Peer(create_payload.node_public_key, previous_node_address)
@@ -733,8 +720,11 @@ class TunnelCommunity(Community):
 
     @tc_lazy_wrapper_unsigned(CreatePayload)
     def on_create(self, source_address, payload, _):
+        if not self.settings.peer_flags:
+            self.logger.warning("Ignoring create for circuit %d", payload.circuit_id)
+            return
         if self.request_cache.has(u"created", payload.circuit_id):
-            self.logger.warning("Already have a request for this circuit_id")
+            self.logger.warning("Already have a request for circuit %d", payload.circuit_id)
             return
 
         def determined_to_join(result):
@@ -776,6 +766,9 @@ class TunnelCommunity(Community):
     @inlineCallbacks
     @tc_lazy_wrapper_unsigned(ExtendPayload)
     def on_extend(self, source_address, payload, _):
+        if not self.settings.peer_flags & PEER_FLAG_RELAY:
+            self.logger.warning("Ignoring create for circuit %d", payload.circuit_id)
+            returnValue(None)
         if not self.request_cache.has(u"created", payload.circuit_id):
             self.logger.warning("Received unexpected extend for circuit %d", payload.circuit_id)
             returnValue(None)
@@ -924,8 +917,16 @@ class TunnelCommunity(Community):
             self.logger.warning("Invalid or unauthorized destroy")
 
     def exit_data(self, circuit_id, sock_addr, destination, data):
-        if not self.become_exitnode() and not DataChecker.could_be_ipv8(data):
+        is_ipv8 = DataChecker.could_be_ipv8(data)
+        is_ipv8_tunnel = is_ipv8 and self._prefix == data[:22]
+
+        if not (is_ipv8 or self.settings.peer_flags & PEER_FLAG_EXIT_ANY):
             self.logger.error("Dropping data packets, refusing to be an exit node for data")
+
+        elif not (is_ipv8_tunnel
+                  or self.settings.peer_flags & PEER_FLAG_EXIT_IPV8
+                  or self.settings.peer_flags & PEER_FLAG_EXIT_ANY):
+            self.logger.error("Dropping data packets, refusing to be an exit node for ipv8")
 
         elif circuit_id in self.exit_sockets:
             if not self.exit_sockets[circuit_id].enabled:

@@ -51,8 +51,8 @@ def decode_address(packet):
 
 class ExtraIntroductionPayload(VariablePayload):
 
-    format_list = ['?']
-    names = ['exitnode']
+    format_list = ['H']
+    names = ['flags']
 
 
 class DataPayload(object):

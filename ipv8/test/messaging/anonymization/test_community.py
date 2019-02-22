@@ -8,7 +8,7 @@ from ...base import TestBase
 from ...mocking.endpoint import MockEndpointListener
 from ...mocking.ipv8 import MockIPv8
 from ....messaging.anonymization.community import TunnelCommunity, TunnelSettings
-from ....messaging.anonymization.tunnel import CIRCUIT_STATE_EXTENDING
+from ....messaging.anonymization.tunnel import CIRCUIT_STATE_EXTENDING, PEER_FLAG_EXIT_ANY
 from ....messaging.interfaces.udp.endpoint import UDPEndpoint
 from ....util import cast_to_bin
 
@@ -54,7 +54,6 @@ class TestTunnelCommunity(TestBase):
     def create_node(self):
         # Initialize a TunnelCommunity without circuits or exit node functionality
         settings = TunnelSettings()
-        settings.become_exitnode = False
         settings.min_circuits = 0
         settings.max_circuits = 0
         settings.remove_tunnel_delay = 0
@@ -81,46 +80,42 @@ class TestTunnelCommunity(TestBase):
         """
         Check if introduction requests share the fact that nodes are exit nodes.
         """
-        self.nodes[0].overlay.settings.become_exitnode = True
-        self.nodes[1].overlay.settings.become_exitnode = False
+        self.nodes[0].overlay.settings.peer_flags |= PEER_FLAG_EXIT_ANY
 
         yield self.introduce_nodes()
 
-        self.assertIn(self.nodes[0].my_peer.public_key.key_to_bin(), self.nodes[1].overlay.exit_candidates)
-        self.assertNotIn(self.nodes[1].my_peer.public_key.key_to_bin(), self.nodes[0].overlay.exit_candidates)
+        self.assertIn(self.nodes[0].my_peer, self.nodes[1].overlay.get_candidates(PEER_FLAG_EXIT_ANY))
+        self.assertNotIn(self.nodes[1].my_peer, self.nodes[0].overlay.get_candidates(PEER_FLAG_EXIT_ANY))
 
     @inlineCallbacks
     def test_introduction_as_exit_twoway(self):
         """
         Check if two nodes can have each other as exit nodes.
         """
-        self.nodes[0].overlay.settings.become_exitnode = True
-        self.nodes[1].overlay.settings.become_exitnode = True
+        self.nodes[0].overlay.settings.peer_flags |= PEER_FLAG_EXIT_ANY
+        self.nodes[1].overlay.settings.peer_flags |= PEER_FLAG_EXIT_ANY
 
         yield self.introduce_nodes()
 
-        self.assertIn(self.nodes[0].my_peer.public_key.key_to_bin(), self.nodes[1].overlay.exit_candidates)
-        self.assertIn(self.nodes[1].my_peer.public_key.key_to_bin(), self.nodes[0].overlay.exit_candidates)
+        self.assertIn(self.nodes[0].my_peer, self.nodes[1].overlay.get_candidates(PEER_FLAG_EXIT_ANY))
+        self.assertIn(self.nodes[1].my_peer, self.nodes[0].overlay.get_candidates(PEER_FLAG_EXIT_ANY))
 
     @inlineCallbacks
     def test_introduction_as_exit_noway(self):
         """
         Check if two nodes don't advertise themselves as exit node incorrectly.
         """
-        self.nodes[0].overlay.settings.become_exitnode = False
-        self.nodes[1].overlay.settings.become_exitnode = False
-
         yield self.introduce_nodes()
 
-        self.assertEqual(len(self.nodes[0].overlay.exit_candidates), 0)
-        self.assertEqual(len(self.nodes[1].overlay.exit_candidates), 0)
+        self.assertEqual(len(self.nodes[0].overlay.get_candidates(PEER_FLAG_EXIT_ANY)), 0)
+        self.assertEqual(len(self.nodes[1].overlay.get_candidates(PEER_FLAG_EXIT_ANY)), 0)
 
     @inlineCallbacks
     def test_create_circuit(self):
         """
         Check if 1 hop circuit creation works.
         """
-        self.nodes[1].overlay.settings.become_exitnode = True
+        self.nodes[1].overlay.settings.peer_flags |= PEER_FLAG_EXIT_ANY
         yield self.introduce_nodes()
 
         # Let node 0 build tunnels of 1 hop (settings.min_circuits = settings.max_circuits = 1)
@@ -140,7 +135,6 @@ class TestTunnelCommunity(TestBase):
         """
         Check if 1 hop circuit creation fails without exit nodes.
         """
-        self.nodes[1].overlay.settings.become_exitnode = False
         yield self.introduce_nodes()
         self.nodes[0].overlay.build_tunnels(1)
 
@@ -157,7 +151,7 @@ class TestTunnelCommunity(TestBase):
         """
         Check if circuit creation is aborted when it's already building the requested circuit.
         """
-        self.nodes[1].overlay.settings.become_exitnode = True
+        self.nodes[1].overlay.settings.peer_flags |= PEER_FLAG_EXIT_ANY
         yield self.introduce_nodes()
 
         # Don't allow the exit node to answer, this keeps peer 0's circuit in EXTENDING state
@@ -177,7 +171,7 @@ class TestTunnelCommunity(TestBase):
         Check if a 2 hop circuit can be destroyed (by the exit node)
         """
         self.add_node_to_experiment(self.create_node())
-        self.nodes[2].overlay.settings.become_exitnode = True
+        self.nodes[2].overlay.settings.peer_flags |= PEER_FLAG_EXIT_ANY
         yield self.introduce_nodes()
         self.nodes[0].overlay.build_tunnels(2)
         yield self.deliver_messages()
@@ -194,7 +188,7 @@ class TestTunnelCommunity(TestBase):
         Check if a 2 hop circuit can be destroyed (by the exit node)
         """
         self.add_node_to_experiment(self.create_node())
-        self.nodes[2].overlay.settings.become_exitnode = True
+        self.nodes[2].overlay.settings.peer_flags |= PEER_FLAG_EXIT_ANY
         yield self.introduce_nodes()
         self.nodes[0].overlay.build_tunnels(2)
         yield self.deliver_messages()
@@ -210,7 +204,7 @@ class TestTunnelCommunity(TestBase):
         Check if a 2 hop circuit can be destroyed (by the relay node)
         """
         self.add_node_to_experiment(self.create_node())
-        self.nodes[2].overlay.settings.become_exitnode = True
+        self.nodes[2].overlay.settings.peer_flags |= PEER_FLAG_EXIT_ANY
         yield self.introduce_nodes()
         self.nodes[0].overlay.build_tunnels(2)
         yield self.deliver_messages()
@@ -225,7 +219,7 @@ class TestTunnelCommunity(TestBase):
         """
         Check if the correct circuit gets destroyed.
         """
-        self.nodes[1].overlay.settings.become_exitnode = True
+        self.nodes[1].overlay.settings.peer_flags |= PEER_FLAG_EXIT_ANY
         yield self.introduce_nodes()
         self.nodes[0].overlay.build_tunnels(1)
         yield self.deliver_messages()
@@ -251,7 +245,7 @@ class TestTunnelCommunity(TestBase):
         ep_listener = MockEndpointListener(self.public_endpoint)
 
         # Build a tunnel
-        self.nodes[1].overlay.settings.become_exitnode = True
+        self.nodes[1].overlay.settings.peer_flags |= PEER_FLAG_EXIT_ANY
         yield self.introduce_nodes()
         self.nodes[0].overlay.build_tunnels(1)
         yield self.deliver_messages()
@@ -282,7 +276,7 @@ class TestTunnelCommunity(TestBase):
         self.add_node_to_experiment(self.create_node())
 
         # Build a tunnel
-        self.nodes[1].overlay.settings.become_exitnode = True
+        self.nodes[1].overlay.settings.peer_flags |= PEER_FLAG_EXIT_ANY
         yield self.introduce_nodes()
         self.nodes[0].overlay.build_tunnels(2)
         yield self.deliver_messages()
@@ -300,7 +294,7 @@ class TestTunnelCommunity(TestBase):
         self.add_node_to_experiment(self.create_node())
 
         # Build a tunnel
-        self.nodes[1].overlay.settings.become_exitnode = True
+        self.nodes[1].overlay.settings.peer_flags |= PEER_FLAG_EXIT_ANY
         yield self.introduce_nodes()
         self.nodes[0].overlay.build_tunnels(3)
         yield self.deliver_messages()
@@ -315,8 +309,8 @@ class TestTunnelCommunity(TestBase):
         self.add_node_to_experiment(self.create_node())
         self.nodes[0].overlay.settings.min_circuits = 2
         self.nodes[0].overlay.settings.max_circuits = 2
-        self.nodes[1].overlay.settings.become_exitnode = True
-        self.nodes[2].overlay.settings.become_exitnode = True
+        self.nodes[1].overlay.settings.peer_flags |= PEER_FLAG_EXIT_ANY
+        self.nodes[2].overlay.settings.peer_flags |= PEER_FLAG_EXIT_ANY
         yield self.introduce_nodes()
 
         # Let node 0 build tunnels of 1 hop (settings.min_circuits = settings.max_circuits = 2)
@@ -339,7 +333,7 @@ class TestTunnelCommunity(TestBase):
         """
         self.add_node_to_experiment(self.create_node())
 
-        self.nodes[2].overlay.settings.become_exitnode = True
+        self.nodes[2].overlay.settings.peer_flags |= PEER_FLAG_EXIT_ANY
         self.nodes[2].overlay.should_join_circuit = lambda *args: succeed(False)
         yield self.introduce_nodes()
         self.nodes[0].overlay.build_tunnels(2)
@@ -352,7 +346,7 @@ class TestTunnelCommunity(TestBase):
 
         # Let's add a new exit node, and retry to extend the circuit
         self.add_node_to_experiment(self.create_node())
-        self.nodes[3].overlay.settings.become_exitnode = True
+        self.nodes[3].overlay.settings.peer_flags |= PEER_FLAG_EXIT_ANY
         yield self.introduce_nodes()
         # Let's pretend that node 1 selected node 3 as a possible node for circuit extension
         cache = self.nodes[1].overlay.request_cache.get(u"created", circuit.circuit_id)
@@ -376,7 +370,7 @@ class TestTunnelCommunity(TestBase):
         """
         self.add_node_to_experiment(self.create_node())
 
-        self.nodes[2].overlay.settings.become_exitnode = True
+        self.nodes[2].overlay.settings.peer_flags |= PEER_FLAG_EXIT_ANY
         self.nodes[1].overlay.should_join_circuit = lambda *args: succeed(False)
         yield self.introduce_nodes()
         self.nodes[0].overlay.build_tunnels(2)
