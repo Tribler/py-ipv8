@@ -571,3 +571,45 @@ class TestTrustChainCommunity(TestBase):
         yield self.sleep(0.2)  # Let blocks propagate
 
         self.assertEqual(self.nodes[1].overlay.persistence.get_number_of_known_blocks(), 4)
+
+    @inlineCallbacks
+    def test_process_block_unrelated_block(self):
+        """
+        Test whether we can invoke process_block directly with a block not made by node 0 or node 1
+        """
+        block1 = TestBlock()
+        result = yield self.nodes[1].overlay.process_half_block(block1, self.nodes[0].my_peer)
+        self.assertIsNone(result)
+
+    @inlineCallbacks
+    def test_process_block(self):
+        """
+        Test whether we can invoke process_block directly with a block made between node 0 and 1
+        """
+        self.nodes[0].endpoint.close()
+        his_key = self.nodes[1].my_peer.public_key.key_to_bin()
+        self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_key,
+                                         block_type=b'test', transaction={})
+        block = self.nodes[0].overlay.persistence.get_latest(self.nodes[0].my_peer.public_key.key_to_bin())
+        self.nodes[0].endpoint.open()
+
+        blocks = yield self.nodes[1].overlay.process_half_block(block, self.nodes[0].my_peer)
+        self.assertTrue(blocks)
+
+    @inlineCallbacks
+    def test_process_block_crawl(self):
+        """
+        Test whether we can invoke process_block directly while node 1 has to crawl the chain of node 0
+        """
+        self.nodes[0].endpoint.close()
+        key = default_eccrypto.generate_key(u'very-low').pub().key_to_bin()
+        self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=key,
+                                         block_type=b'test', transaction={})
+        his_key = self.nodes[1].my_peer.public_key.key_to_bin()
+        self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_key,
+                                         block_type=b'test', transaction={})
+        block = self.nodes[0].overlay.persistence.get_latest(self.nodes[0].my_peer.public_key.key_to_bin())
+        self.nodes[0].endpoint.open()
+
+        blocks = yield self.nodes[1].overlay.process_half_block(block, self.nodes[0].my_peer)
+        self.assertTrue(blocks)
