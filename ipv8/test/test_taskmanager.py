@@ -146,7 +146,7 @@ class TestTaskManager(TestBase):
         """
         deferred = succeed(None)
         self.tm.register_anonymous_task("test", Deferred()).addErrback(lambda _: None)
-        for _ in xrange(CLEANUP_FREQUENCY-1):
+        for _ in xrange(CLEANUP_FREQUENCY - 1):
             self.tm.register_anonymous_task("test", deferred)
 
         deferred_list = self.tm.wait_for_deferred_tasks()

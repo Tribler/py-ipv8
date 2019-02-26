@@ -1,11 +1,8 @@
 from __future__ import absolute_import
 
 from socket import inet_ntoa, inet_aton
-import struct
 
-from .bloomfilter import BloomFilter
 from ..messaging.serialization import Serializable
-from ..peer import Peer
 
 
 def encode_connection_type(type):

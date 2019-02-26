@@ -68,7 +68,7 @@ def is_good_wp(n, wp):
     """
     is_one = wp == FP2Value(wp.mod, 1)
     is_zero = wp == FP2Value(wp.mod)
-    good_order = wp.intpow(n+1) == wp
+    good_order = wp.intpow(n + 1) == wp
     return good_order and not is_zero and not is_one
 
 
@@ -85,7 +85,7 @@ def get_good_wp(n, p=None):
         g1x, g1y = get_random_base(n)
         wp = bilinear_group(n, p, g1x, g1y, g1x, g1y)
         if not is_good_wp(n, wp):
-            wp = wp.intpow((p+1)//n)
+            wp = wp.intpow((p + 1) // n)
     return p, wp
 
 
@@ -115,7 +115,7 @@ def generate_keypair(key_size=32):
     while not u or (u.intpow(t2) == FP2Value(p, 1)):
         _, u = get_good_wp(n, p)
     h = u.intpow(t2)
-    return BonehPublicKey(p, g, h), BonehPrivateKey(p, g, h, t1*t2, t1)
+    return BonehPublicKey(p, g, h), BonehPrivateKey(p, g, h, t1 * t2, t1)
 
 
 def encode(pubkey, m):

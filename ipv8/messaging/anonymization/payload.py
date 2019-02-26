@@ -6,8 +6,8 @@ from struct import pack, unpack_from
 from cryptography.exceptions import InvalidTag
 
 from ...messaging.serialization import default_serializer
-from ...messaging.anonymization.tunnel import CIRCUIT_TYPE_RENDEZVOUS, CIRCUIT_TYPE_RP,\
-                                              ORIGINATOR, EXIT_NODE, ORIGINATOR_SALT, EXIT_NODE_SALT
+from ...messaging.anonymization.tunnel import (CIRCUIT_TYPE_RENDEZVOUS, CIRCUIT_TYPE_RP, ORIGINATOR, EXIT_NODE,
+                                               ORIGINATOR_SALT, EXIT_NODE_SALT)
 from ...messaging.anonymization.tunnelcrypto import CryptoException
 from ...messaging.payload import Payload
 from ...util import cast_to_bin, cast_to_chr
@@ -269,10 +269,10 @@ class ExtendPayload(Payload):
     @classmethod
     def from_unpack_list(cls, circuit_id, pubkey_len, key_len, pubkey_key_node_addr):
         node_public_key = pubkey_key_node_addr[:pubkey_len]
-        key = pubkey_key_node_addr[pubkey_len:pubkey_len+key_len]
+        key = pubkey_key_node_addr[pubkey_len:pubkey_len + key_len]
         node_addr = None
-        if pubkey_len+key_len < len(pubkey_key_node_addr):
-            host, port = unpack_from('>4sH', pubkey_key_node_addr, pubkey_len+key_len)
+        if pubkey_len + key_len < len(pubkey_key_node_addr):
+            host, port = unpack_from('>4sH', pubkey_key_node_addr, pubkey_len + key_len)
             node_addr = (socket.inet_ntoa(host), port)
         return ExtendPayload(circuit_id, node_public_key, node_addr, key)
 

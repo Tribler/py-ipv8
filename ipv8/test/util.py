@@ -28,4 +28,3 @@ def make_decorator(func):
         return newfunc
 
     return decorate
-

@@ -137,8 +137,8 @@ class AttestationEndpoint(BaseEndpoint):
                         trimmed[(attester, b.transaction[b"name"])] = b
                 return json.dumps([(b.transaction[b"name"].decode('utf-8'),
                                     b64encode(b.transaction[b"hash"]).decode('utf-8'),
-                                    {cast_to_unicode(k):
-                                         cast_to_unicode(v) for k, v in b.transaction[b"metadata"].items()},
+                                    {cast_to_unicode(k): cast_to_unicode(v)
+                                     for k, v in b.transaction[b"metadata"].items()},
                                     b64encode(sha1(b.link_public_key).digest()).decode('utf-8'))
                                    for b in trimmed.values()]).encode('utf-8')
         if request.args[b'type'][0] == b'drop_identity':

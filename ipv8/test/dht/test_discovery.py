@@ -58,6 +58,7 @@ class TestDHTDiscoveryCommunity(TestBase):
         self.nodes[0].overlay.store_for_me[self.nodes[0].my_peer.mid].append(self.nodes[1].my_peer)
 
         org_func = self.nodes[1].overlay.create_puncture_request
+
         def create_puncture_request(*args):
             self.puncture_to = args[1]
             return org_func(*args)

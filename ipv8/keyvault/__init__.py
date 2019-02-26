@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 
+
 def _should_use_new_crypto_version():
     """
     Checks if this python-cryptography supports the new signing and verifying methods.

@@ -69,6 +69,7 @@ class PingRequestCache(RandomNumberCache):
                                     self.circuit.circuit_id)
             self.community.remove_circuit(self.circuit.circuit_id, 'ping timeout')
 
+
 class IPRequestCache(RandomNumberCache):
 
     def __init__(self, community, circuit):

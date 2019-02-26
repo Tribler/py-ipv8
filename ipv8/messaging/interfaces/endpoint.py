@@ -25,9 +25,8 @@ class Endpoint(six.with_metaclass(abc.ABCMeta, object)):
 
         :raises: IllegalEndpointListenerError if the provided listener is not an EndpointListener
         """
-        # TODO: bring this check back when we get rid of Dispersy !!!
-        #if not isinstance(listener, EndpointListener):
-            #raise IllegalEndpointListenerError(listener)
+        if not isinstance(listener, EndpointListener):
+            raise IllegalEndpointListenerError(listener)
         self._listeners.append(listener)
 
     def remove_listener(self, listener):
@@ -226,7 +225,7 @@ class EndpointListener(six.with_metaclass(abc.ABCMeta, object)):
             local_ip = s.getsockname()[0]
             s.close()
             return local_ip
-        except socket.error as exception:
+        except socket.error:
             return "0.0.0.0"
 
     def _get_lan_address(self, bootstrap=False):
@@ -254,12 +253,12 @@ class EndpointListener(six.with_metaclass(abc.ABCMeta, object)):
 
         # prefer interfaces where we have a broadcast address
         for interface in interfaces:
-            if interface.broadcast and interface.address and not interface.address in blacklist:
+            if interface.broadcast and interface.address and interface.address not in blacklist:
                 return interface
 
         # Exception for virtual machines/containers
         for interface in interfaces:
-            if interface.address and not interface.address in blacklist:
+            if interface.address and interface.address not in blacklist:
                 return interface
 
         self._netifaces_failed = True
@@ -284,6 +283,7 @@ class EndpointClosedException(Exception):
     def __init__(self, endpoint):
         super(EndpointClosedException, self).__init__('%s is unexpectedly closed' % type(endpoint))
 
+
 class DataTooBigException(Exception):
     """
     Exception raised when the data being sent exceeds the maximum size.
@@ -291,6 +291,7 @@ class DataTooBigException(Exception):
 
     def __init__(self, size, max_size):
         super(DataTooBigException, self).__init__('Tried to send packet of size %s > MAX_SIZE(%d)' % (size, max_size))
+
 
 class IllegalDestination(Exception):
     """

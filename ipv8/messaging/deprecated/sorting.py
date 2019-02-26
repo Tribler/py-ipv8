@@ -100,8 +100,8 @@ class Sortable(object):
 
         :param value: a wrappable value
         """
-        self.source = value # The source value
-        self.value = value # The sorted value
+        self.source = value  # The source value
+        self.value = value  # The sorted value
         if self.value is None:
             self.type = SortableTypeEnum.NONE
         elif isinstance(self.value, bool):

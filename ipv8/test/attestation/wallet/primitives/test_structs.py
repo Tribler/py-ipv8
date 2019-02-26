@@ -169,7 +169,7 @@ class TestStructs(unittest.TestCase):
         c = FP2Value(p, 8468548546854654, 6846843513131351)
         attest = BitPairAttestation(a, b, c)
 
-        self.assertEqual(a*b*c, attest.compress())
+        self.assertEqual(a * b * c, attest.compress())
 
     def test_serialize_attestation_empty(self):
         """

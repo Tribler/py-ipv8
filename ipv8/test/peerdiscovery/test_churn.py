@@ -79,9 +79,9 @@ class TestChurn(TestBase):
         """
         Nothing should happen if we have no nodes to check.
         """
-        self.strategies[0].sample_size = 0 # Don't check anything
+        self.strategies[0].sample_size = 0  # Don't check anything
         peer = self.overlays[1].my_peer
-        peer.last_response = 1 # 50 years ago
+        peer.last_response = 1  # 50 years ago
         self.overlays[0].network.add_verified_peer(peer)
 
         self.strategies[0].take_step()

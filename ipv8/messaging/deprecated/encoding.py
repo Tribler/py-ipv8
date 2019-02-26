@@ -131,6 +131,7 @@ def _a_encode_bool(value, mapping):
     """
     return [b'0T' if value else b'0F']
 
+
 _a_encode_mapping = {'int': _a_encode_int,
                      'long': _a_encode_long,
                      'float': _a_encode_float,
@@ -234,9 +235,9 @@ def _a_decode_list(stream, offset, count, mapping):
     for _ in range(count):
 
         index = offset
-        while 48 <= ord(stream[index:index+1]) <= 57:
+        while 48 <= ord(stream[index:index + 1]) <= 57:
             index += 1
-        offset, value = mapping[stream[index:index+1]](stream, index + 1, int(stream[offset:index]), mapping)
+        offset, value = mapping[stream[index:index + 1]](stream, index + 1, int(stream[offset:index]), mapping)
         container.append(value)
 
     return offset, container
@@ -251,9 +252,9 @@ def _a_decode_set(stream, offset, count, mapping):
     for _ in range(count):
 
         index = offset
-        while 48 <= ord(stream[index:index+1]) <= 57:
+        while 48 <= ord(stream[index:index + 1]) <= 57:
             index += 1
-        offset, value = mapping[stream[index:index+1]](stream, index + 1, int(stream[offset:index]), mapping)
+        offset, value = mapping[stream[index:index + 1]](stream, index + 1, int(stream[offset:index]), mapping)
         container.add(value)
 
     return offset, container
@@ -268,9 +269,9 @@ def _a_decode_tuple(stream, offset, count, mapping):
     for _ in range(count):
 
         index = offset
-        while 48 <= ord(stream[index:index+1]) <= 57:
+        while 48 <= ord(stream[index:index + 1]) <= 57:
             index += 1
-        offset, value = mapping[stream[index:index+1]](stream, index + 1, int(stream[offset:index]), mapping)
+        offset, value = mapping[stream[index:index + 1]](stream, index + 1, int(stream[offset:index]), mapping)
         container.append(value)
 
     return offset, tuple(container)
@@ -284,14 +285,14 @@ def _a_decode_dictionary(stream, offset, count, mapping):
     for _ in range(count):
 
         index = offset
-        while 48 <= ord(stream[index:index+1]) <= 57:
+        while 48 <= ord(stream[index:index + 1]) <= 57:
             index += 1
-        offset, key = mapping[stream[index:index+1]](stream, index + 1, int(stream[offset:index]), mapping)
+        offset, key = mapping[stream[index:index + 1]](stream, index + 1, int(stream[offset:index]), mapping)
 
         index = offset
-        while 48 <= ord(stream[index:index+1]) <= 57:
+        while 48 <= ord(stream[index:index + 1]) <= 57:
             index += 1
-        offset, value = mapping[stream[index:index+1]](stream, index + 1, int(stream[offset:index]), mapping)
+        offset, value = mapping[stream[index:index + 1]](stream, index + 1, int(stream[offset:index]), mapping)
 
         container[key] = value
 
@@ -323,6 +324,7 @@ def _a_decode_false(stream, offset, count, mapping):
     assert count == 0
     return offset, False
 
+
 _a_decode_mapping = {b"i": _a_decode_int,
                      b"J": _a_decode_long,
                      b"f": _a_decode_float,
@@ -349,14 +351,15 @@ def decode(stream, offset=0):
     """
     assert isinstance(stream, bytes), "STREAM has invalid type: %s" % type(stream)
     assert isinstance(offset, int), "OFFSET has invalid type: %s" % type(offset)
-    if stream[offset:offset+1] == b"a":
+    if stream[offset:offset + 1] == b"a":
         index = offset + 1
-        while 48 <= ord(stream[index:index+1]) <= 57:
+        while 48 <= ord(stream[index:index + 1]) <= 57:
             index += 1
-        return _a_decode_mapping[stream[index:index+1]](stream, index + 1, int(stream[offset + 1:index]),
-                                                        _a_decode_mapping)
+        return _a_decode_mapping[stream[index:index + 1]](stream, index + 1, int(stream[offset + 1:index]),
+                                                          _a_decode_mapping)
 
     raise ValueError("Unknown version found")
+
 
 def add_url_params(url, params):
     """ Add GET params to provided URL being aware of existing.

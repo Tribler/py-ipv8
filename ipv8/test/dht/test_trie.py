@@ -32,10 +32,12 @@ class TestNode(TestBase):
             # pylint: disable=W0104
             self.trie[u'111']
 
-        with self.assertRaises(KeyError): del self.trie[u'1111']
+        with self.assertRaises(KeyError):
+            del self.trie[u'1111']
 
     def test_longest_prefix(self):
-        with self.assertRaises(KeyError): self.trie.longest_prefix(u'111')
+        with self.assertRaises(KeyError):
+            self.trie.longest_prefix(u'111')
         self.assertEqual(self.trie.longest_prefix(u'111', default=None), None)
 
         self.trie[u'0'] = 1
@@ -46,7 +48,8 @@ class TestNode(TestBase):
         self.assertEqual(self.trie.longest_prefix(u'111'), u'111')
 
     def test_longest_prefix_item(self):
-        with self.assertRaises(KeyError): self.trie.longest_prefix_item(u'111')
+        with self.assertRaises(KeyError):
+            self.trie.longest_prefix_item(u'111')
         self.assertEqual(self.trie.longest_prefix_item(u'111', default=None), None)
 
         self.trie[u'0'] = 1
@@ -57,7 +60,8 @@ class TestNode(TestBase):
         self.assertEqual(self.trie.longest_prefix_item(u'111'), (u'111', 3))
 
     def test_longest_prefix_value(self):
-        with self.assertRaises(KeyError): self.trie.longest_prefix_value(u'111')
+        with self.assertRaises(KeyError):
+            self.trie.longest_prefix_value(u'111')
         self.assertEqual(self.trie.longest_prefix_value(u'111', default=None), None)
 
         self.trie[u'0'] = 1

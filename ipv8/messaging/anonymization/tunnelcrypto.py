@@ -33,7 +33,7 @@ class TunnelCrypto(ECCrypto):
         return tmp_key, X
 
     def generate_diffie_shared_secret(self, dh_received, key=None):
-        if key == None:
+        if key is None:
             key = self.key
 
         tmp_key = self.generate_key(u"curve25519")

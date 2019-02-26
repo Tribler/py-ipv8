@@ -56,7 +56,7 @@ def is_prime(number, backend=default_backend()):
     if err == 0:
         backend._lib.BN_clear_free(generated)
         raise RuntimeError("Failed to read BIGNUM from hex string!")
-    result = backend._lib.BN_is_prime_ex(generated, backend._lib.BN_prime_checks_for_size(int(len(hex_n)*8)),
+    result = backend._lib.BN_is_prime_ex(generated, backend._lib.BN_prime_checks_for_size(int(len(hex_n) * 8)),
                                          backend._ffi.NULL, backend._ffi.NULL)
     backend._lib.BN_clear_free(generated)
     return True if result == 1 else False

@@ -302,8 +302,6 @@ class TrustChainDB(Database):
                                   (database_blob(public_key),)))[0][0]
         return count > 0
 
-
-
     def get_sql_header(self):
         """
         Return the first part of a generic sql select query.
@@ -337,7 +335,7 @@ class TrustChainDB(Database):
         """
         return u"""
         %s
-        
+
         %s
 
         CREATE TABLE IF NOT EXISTS option(key TEXT PRIMARY KEY, value BLOB);

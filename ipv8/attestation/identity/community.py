@@ -10,9 +10,9 @@ from ...peer import Peer
 
 class IdentityCommunity(TrustChainCommunity, BlockListener):
 
-    master_peer = Peer(unhexlify("307e301006072a8648ce3d020106052b81040024036a000400c9104b573ea18b795cb23b1defe6e5b7" +
-                                 "41afa4b2b5edfe7d211c9342dfb753a22e850fb1bff01d5ca66cfe0b1a845fa3e333d200b6d742151f" +
-                                 "3e4db3fe8b8508720744c70afe692c73264f789aa36a8c219acebeaa2b6ba652743d6580300fa1d98d" +
+    master_peer = Peer(unhexlify("307e301006072a8648ce3d020106052b81040024036a000400c9104b573ea18b795cb23b1defe6e5b7"
+                                 "41afa4b2b5edfe7d211c9342dfb753a22e850fb1bff01d5ca66cfe0b1a845fa3e333d200b6d742151f"
+                                 "3e4db3fe8b8508720744c70afe692c73264f789aa36a8c219acebeaa2b6ba652743d6580300fa1d98d"
                                  "96b766dfcd"))
 
     DB_NAME = 'identity'
@@ -59,8 +59,8 @@ class IdentityCommunity(TrustChainCommunity, BlockListener):
             return False
         if transaction[b'name'] != self.known_attestation_hashes[attribute_hash][0]:
             return False
-        if (self.known_attestation_hashes[attribute_hash][3] and
-                transaction.get(b'metadata', None) != self.known_attestation_hashes[attribute_hash][3]):
+        if (self.known_attestation_hashes[attribute_hash][3]
+                and transaction.get(b'metadata', None) != self.known_attestation_hashes[attribute_hash][3]):
             return False
         return True
 

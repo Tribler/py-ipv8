@@ -40,7 +40,7 @@ class Peer(object):
         :param timestamp: a received timestamp
         """
         self._lamport_timestamp = max(self._lamport_timestamp, timestamp)
-        self.last_response = time() # This is in seconds since the epoch
+        self.last_response = time()  # This is in seconds since the epoch
 
     def get_lamport_timestamp(self):
         return self._lamport_timestamp

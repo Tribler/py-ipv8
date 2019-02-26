@@ -35,7 +35,7 @@ def attest(PK, value, bitspace):
     for i in range(0, len(A) - 1, 2):
         t_out_private.append((i, encode(PK, PK.p - ((R[i] + R[i + 1]) % (PK.p + 1)) + 1)))
     # Shuffle:
-    t_out_public = [(i, t_out_public[i], t_out_public[i+1]) for i in range(0, len(t_out_public), 2)]
+    t_out_public = [(i, t_out_public[i], t_out_public[i + 1]) for i in range(0, len(t_out_public), 2)]
     shuffle(t_out_public)
     out_public = []
     out_private = []
@@ -50,7 +50,7 @@ def attest(PK, value, bitspace):
     # Formalize
     bitpairs = []
     for (i, e) in out_private:
-        bitpairs.append(BitPairAttestation(out_public[i], out_public[i+1], e))
+        bitpairs.append(BitPairAttestation(out_public[i], out_public[i + 1], e))
     return Attestation(PK, bitpairs)
 
 
@@ -88,7 +88,7 @@ def sha256_as_int(value):
     hashed = sha256(value).digest()
     for i in range(len(hashed)):
         out <<= 8
-        out |= ord(hashed[i:i+1])
+        out |= ord(hashed[i:i + 1])
     return out
 
 
@@ -164,8 +164,8 @@ def binary_relativity_match(expected, value):
             return 0.0
         if not expected[k]:
             continue
-        match += float(value[k])/float(expected[k])
-    return match/(len(expected)-1)
+        match += float(value[k]) / float(expected[k])
+    return match / (len(expected) - 1)
 
 
 def binary_relativity_certainty(expected, value):

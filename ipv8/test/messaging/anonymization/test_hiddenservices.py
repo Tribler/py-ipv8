@@ -29,6 +29,7 @@ class MockDHTProvider(object):
         else:
             global_dht_services[info_hash] = [self.address]
 
+
 class TestHiddenServices(TestBase):
 
     def setUp(self):

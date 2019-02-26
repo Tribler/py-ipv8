@@ -83,9 +83,9 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
         for entry in block_chunks:
             package = self.serializer.unpack_to_serializables([DHTBlockPayload, ], entry)[0]
 
-            if public_key.verify(package.signature, str(package.version).encode('utf-8') +
-                                 str(package.block_position).encode('utf-8') +
-                                 str(package.block_count).encode('utf-8') + package.payload):
+            if public_key.verify(package.signature, str(package.version).encode('utf-8')
+                                 + str(package.block_position).encode('utf-8')
+                                 + str(package.block_count).encode('utf-8') + package.payload):
                 max_version = max_version if max_version > package.version else package.version
 
                 if package.version not in new_blocks:
@@ -136,8 +136,8 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
                     chunk = latest_block[slice_pointer: slice_pointer + self.CHUNK_SIZE]
                     slice_pointer += self.CHUNK_SIZE
                     signature = my_private_key.signature(
-                        str(self.block_version).encode('utf-8') + str(i).encode('utf-8') +
-                        str(total_blocks).encode('utf-8') + chunk)
+                        str(self.block_version).encode('utf-8') + str(i).encode('utf-8')
+                        + str(total_blocks).encode('utf-8') + chunk)
                     blob_chunk = self.serializer.pack_multiple(
                         DHTBlockPayload(signature, self.block_version, i, total_blocks, chunk).to_pack_list())
 

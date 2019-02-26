@@ -12,7 +12,6 @@ import struct
 from functools import wraps
 from threading import RLock
 
-from six.moves import xrange
 from twisted.internet import reactor
 from twisted.internet.defer import Deferred, succeed, fail
 from twisted.internet.task import LoopingCall
@@ -221,11 +220,11 @@ class TrustChainCommunity(Community):
             "should be that reserved for any counterpary."
         assert transaction is None and linked is not None or transaction is not None and linked is None, \
             "Either provide a linked block or a transaction, not both %s, %s" % (peer, self.my_peer)
-        assert additional_info is None or additional_info is not None and linked is not None and \
-               transaction is None and peer == self.my_peer and public_key == linked.public_key, \
+        assert (additional_info is None or additional_info is not None and linked is not None
+                and transaction is None and peer == self.my_peer and public_key == linked.public_key), \
             "Either no additional info is provided or one provides it for a linked block"
-        assert linked is None or linked.link_public_key == self.my_peer.public_key.key_to_bin() or \
-               linked.link_public_key == ANY_COUNTERPARTY_PK, "Cannot counter sign block not addressed to self"
+        assert (linked is None or linked.link_public_key == self.my_peer.public_key.key_to_bin()
+                or linked.link_public_key == ANY_COUNTERPARTY_PK), "Cannot counter sign block not addressed to self"
         assert linked is None or linked.link_sequence_number == UNKNOWN_SEQ, \
             "Cannot counter sign block that is not a request"
         assert transaction is None or isinstance(transaction, dict), "Transaction should be a dictionary"
@@ -380,9 +379,9 @@ class TrustChainCommunity(Community):
             reactor.callFromThread(cache.sign_deferred.callback, (blk, self.persistence.get_linked(blk)))
 
         # Is this a request, addressed to us, and have we not signed it already?
-        if blk.link_sequence_number != UNKNOWN_SEQ or \
-                        blk.link_public_key != self.my_peer.public_key.key_to_bin() or \
-                        self.persistence.get_linked(blk) is not None:
+        if (blk.link_sequence_number != UNKNOWN_SEQ
+                or blk.link_public_key != self.my_peer.public_key.key_to_bin()
+                or self.persistence.get_linked(blk) is not None):
             return succeed(None)
 
         self.logger.info("Received request block addressed to us (%s)", blk)
@@ -395,16 +394,16 @@ class TrustChainCommunity(Community):
         # It is important that the request matches up with its previous block, gaps cannot be tolerated at
         # this point. We already dropped invalids, so here we delay this message if the result is partial,
         # partial_previous or no-info. We send a crawl request to the requester to (hopefully) close the gap
-        if (validation[0] == ValidationResult.partial_previous or validation[0] == ValidationResult.partial or \
-                        validation[0] == ValidationResult.no_info) and self.settings.validation_range > 0:
+        if (validation[0] == ValidationResult.partial_previous or validation[0] == ValidationResult.partial
+                or validation[0] == ValidationResult.no_info) and self.settings.validation_range > 0:
             self.logger.info("Request block could not be validated sufficiently, crawling requester. %s",
                              validation)
             # Note that this code does not cover the scenario where we obtain this block indirectly.
             if not self.request_cache.has(u"crawl", blk.hash_number):
                 crawl_deferred = self.send_crawl_request(peer,
                                                          blk.public_key,
-                                                         max(GENESIS_SEQ, (blk.sequence_number -
-                                                                           self.settings.validation_range)),
+                                                         max(GENESIS_SEQ, (blk.sequence_number
+                                                                           - self.settings.validation_range)),
                                                          max(GENESIS_SEQ, blk.sequence_number - 1),
                                                          for_half_block=blk)
                 return addCallback(crawl_deferred, lambda _: self.process_half_block(blk, peer))

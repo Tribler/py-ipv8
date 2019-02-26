@@ -26,8 +26,8 @@ class TestIdentityCommunity(TestBase):
 
         yield self.introduce_nodes()
 
-        self.nodes[1].overlay.add_known_hash(b"a"*20, b"attribute", self.nodes[0].my_peer.public_key.key_to_bin())
-        self.nodes[0].overlay.request_attestation_advertisement(public_peer_1, b"a"*20, b"attribute")
+        self.nodes[1].overlay.add_known_hash(b"a" * 20, b"attribute", self.nodes[0].my_peer.public_key.key_to_bin())
+        self.nodes[0].overlay.request_attestation_advertisement(public_peer_1, b"a" * 20, b"attribute")
 
         yield self.deliver_messages()
 

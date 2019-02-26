@@ -76,6 +76,7 @@ class TestBase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         TestBase.__lockup_timestamp__ = time.time()
+
         def check_twisted():
             while time.time() - TestBase.__lockup_timestamp__ < cls.MAX_TEST_TIME:
                 time.sleep(2)
@@ -84,7 +85,7 @@ class TestBase(unittest.TestCase):
                     return
             # If we made it here, there is a serious issue which we cannot recover from.
             # Most likely the Twisted threadpool got into a deadlock while shutting down.
-            import os, traceback
+            import traceback
             print("The test-suite locked up! Force quitting! Thread dump:", file=sys.stderr)
             for tid, stack in sys._current_frames().items():
                 if tid != threading.currentThread().ident:

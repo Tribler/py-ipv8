@@ -146,11 +146,11 @@ class TestSerializer(TestCase):
         """
         Check if we can add a format on the fly.
         """
-        self.serializer.add_packing_format("my_cool_format", "<H") # little-endian
+        self.serializer.add_packing_format("my_cool_format", "<H")  # little-endian
 
-        serialized, _ = self.serializer.pack("my_cool_format", 1) # Packed as 01 00
-        [unserialized], _ = self.serializer.unpack("my_cool_format", serialized) # little-endian, unpacked as 00 01 = 1
-        unpack_other_end, _ = self.serializer.unpack("H", serialized) # big-endian, unpacked as 01 00 = 256
+        serialized, _ = self.serializer.pack("my_cool_format", 1)  # Packed as 01 00
+        [unserialized], _ = self.serializer.unpack("my_cool_format", serialized)  # little-endian, unpacked as 00 01 = 1
+        unpack_other_end, _ = self.serializer.unpack("H", serialized)  # big-endian, unpacked as 01 00 = 256
 
         self.assertEqual(1, unserialized)
         self.assertEqual(256, unpack_other_end)

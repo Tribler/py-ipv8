@@ -29,7 +29,7 @@ class IntroCrawlTimeout(NumberCache):
         """
         charlist = []
         for i in range(len(peer.mid)):
-            charlist.append(ord(peer.mid[i:i+1]))
+            charlist.append(ord(peer.mid[i:i + 1]))
         return reduce(lambda a, b: ((a << 8) | b), charlist, 0)
 
     @property
@@ -112,7 +112,7 @@ class HalfBlockSignCache(NumberCache):
                                                                     self.socket_address, self.timeouts + 1))
             later = Deferred()
             self.community.request_cache.register_anonymous_task("add-later", later, delay=0.0)
-            later.addCallbacks(add_later, lambda _: None) # If the re-add is cancelled, just exit.
+            later.addCallbacks(add_later, lambda _: None)  # If the re-add is cancelled, just exit.
         else:
             self.sign_deferred.errback(Failure(RuntimeError("Signature request timeout")))
 

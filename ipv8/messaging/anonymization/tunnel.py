@@ -60,8 +60,8 @@ class DataChecker(object):
     @staticmethod
     def could_be_udp_tracker(data):
         # For the UDP tracker protocol the action field is either at position 0 or 8, and should be 0..3
-        if len(data) >= 8 and (0 <= unpack_from('!I', data, 0)[0] <= 3) or \
-                                len(data) >= 12 and (0 <= unpack_from('!I', data, 8)[0] <= 3):
+        if len(data) >= 8 and (0 <= unpack_from('!I', data, 0)[0] <= 3)\
+                or len(data) >= 12 and (0 <= unpack_from('!I', data, 8)[0] <= 3):
             return True
         return False
 
@@ -80,10 +80,10 @@ class DataChecker(object):
 
     @staticmethod
     def is_allowed(data):
-        return (DataChecker.could_be_utp(data) or
-                DataChecker.could_be_udp_tracker(data) or
-                DataChecker.could_be_dht(data) or
-                DataChecker.could_be_ipv8(data))
+        return (DataChecker.could_be_utp(data)
+                or DataChecker.could_be_udp_tracker(data)
+                or DataChecker.could_be_dht(data)
+                or DataChecker.could_be_ipv8(data))
 
 
 class Tunnel(object):
@@ -121,7 +121,7 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
             if DataChecker.is_allowed(data):
                 def on_error(failure):
                     self.logger.error("Can't resolve ip address for hostname %s. Failure: %s",
-                                             destination[0], failure)
+                                      destination[0], failure)
 
                 def on_ip_address(ip_address):
                     self.logger.debug("Resolved hostname %s to ip_address %s", destination[0], ip_address)
@@ -138,7 +138,7 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
                 self.register_task("resolving_%r" % destination[0], resolve_ip_address_deferred)
             else:
                 self.logger.error("dropping forbidden packets from exit socket with circuit_id %d",
-                                         self.circuit_id)
+                                  self.circuit_id)
 
     def datagramReceived(self, data, source):
         self.last_incoming = time.time()
@@ -148,11 +148,11 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
                 try:
                     self.tunnel_data(source, data)
                 except:
-                    self.logger.error("Exception occurred while handling incoming exit node data!\n" +
-                                      ''.join(format_exception(*sys.exc_info())))
+                    self.logger.error("Exception occurred while handling incoming exit node data!\n"
+                                      + ''.join(format_exception(*sys.exc_info())))
             else:
                 self.logger.warning("dropping forbidden packets to exit socket with circuit_id %d",
-                                           self.circuit_id)
+                                    self.circuit_id)
 
     def tunnel_data(self, source, data):
         self.logger.debug("Tunnel data to origin %s for circuit %s", ('0.0.0.0', 0), self.circuit_id)
@@ -183,7 +183,7 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
         if self.ips[ip] >= (max_packets_without_reply + 1 if incoming else max_packets_without_reply):
             self.overlay.remove_exit_socket(self.circuit_id, destroy=True)
             self.logger.error("too many packets to a destination without a reply, "
-                               "removing exit socket with circuit_id %d", self.circuit_id)
+                              "removing exit socket with circuit_id %d", self.circuit_id)
             return False
 
         if incoming:

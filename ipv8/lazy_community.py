@@ -35,7 +35,7 @@ def lazy_wrapper(*payloads):
             unpacked = self.serializer.ez_unpack_serializables(payloads, remainder[23:])
             # ASSERT
             if not signature_valid:
-                raise PacketDecodingError("Incoming packet %s has an invalid signature" % \
+                raise PacketDecodingError("Incoming packet %s has an invalid signature" %
                                           str([payload_class.__name__ for payload_class in payloads]))
             # PRODUCE
             return func(self, Peer(auth.public_key_bin, source_address), *unpacked)
@@ -70,7 +70,7 @@ def lazy_wrapper_wd(*payloads):
             unpacked = self.serializer.ez_unpack_serializables(payloads, remainder[23:])
             # ASSERT
             if not signature_valid:
-                raise PacketDecodingError("Incoming packet %s has an invalid signature" % \
+                raise PacketDecodingError("Incoming packet %s has an invalid signature" %
                                           str([payload_class.__name__ for payload_class in payloads]))
             # PRODUCE
             output = unpacked + [data]

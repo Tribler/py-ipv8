@@ -47,6 +47,8 @@ except NameError:
 
 
 db_locks = defaultdict(RLock)
+
+
 def db_call(f):
     def wrapper(self, *args, **kwargs):
         with db_locks[self._file_path]:
@@ -146,7 +148,7 @@ class Database(six.with_metaclass(ABCMeta, object)):
         return True
 
     def _connect(self):
-        self._connection = sqlite3.connect(self._file_path, check_same_thread = False)
+        self._connection = sqlite3.connect(self._file_path, check_same_thread=False)
         self._cursor = self._connection.cursor()
 
         assert self._cursor
@@ -199,7 +201,7 @@ class Database(six.with_metaclass(ABCMeta, object)):
         # PRAGMA synchronous = 0 | OFF | 1 | NORMAL | 2 | FULL;
         # http://www.sqlite.org/pragma.html#pragma_synchronous
         #
-        if not synchronous in (u"NORMAL", u"1"):
+        if synchronous not in (u"NORMAL", u"1"):
             self._logger.debug("PRAGMA synchronous = NORMAL (previously: %s) [%s]", synchronous, self._file_path)
             execute_or_script(self._cursor, u"PRAGMA synchronous = NORMAL")
 

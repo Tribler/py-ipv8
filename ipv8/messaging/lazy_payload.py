@@ -114,7 +114,7 @@ class VariablePayload(Payload):
             out.append((self._to_packlist_fmt(self.format_list[index]), self._fix_pack(self.names[index])))
             index += 1
         while index < len(self.names) and hasattr(self, self.names[index]):
-            out.append((self._to_packlist_fmt(self.optional_format_list[index-len(self.format_list)]),
+            out.append((self._to_packlist_fmt(self.optional_format_list[index - len(self.format_list)]),
                         self._fix_pack(self.names[index])))
         index += 1
         return out

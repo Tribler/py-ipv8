@@ -138,10 +138,10 @@ class RoundRobin(object):
 class TunnelCommunity(Community):
 
     version = b'\x02'
-    master_peer = Peer(unhexlify("3081a7301006072a8648ce3d020106052b8104002703819200040733caf0902748547efc04be6a7e0" +
-                                 "64384e1939622b38cde42237eff06674e07f8c4dd364e207a8c3eee30cd5751bed76d7071e8af7b91" +
-                                 "0a62ccf9fbbfde7eb724a8ebdb54b738e306744ad6b96ef4549f6335c4bac10799fbe63477d8fd939" +
-                                 "5e8439685de72fabf3efc32f6cb28075fff6ad605891eaba161ecec2f9b65aab45e121defa47d098f" +
+    master_peer = Peer(unhexlify("3081a7301006072a8648ce3d020106052b8104002703819200040733caf0902748547efc04be6a7e0"
+                                 "64384e1939622b38cde42237eff06674e07f8c4dd364e207a8c3eee30cd5751bed76d7071e8af7b91"
+                                 "0a62ccf9fbbfde7eb724a8ebdb54b738e306744ad6b96ef4549f6335c4bac10799fbe63477d8fd939"
+                                 "5e8439685de72fabf3efc32f6cb28075fff6ad605891eaba161ecec2f9b65aab45e121defa47d098f"
                                  "16bad7dac6025687"))
 
     def __init__(self, *args, **kwargs):
@@ -481,8 +481,8 @@ class TunnelCommunity(Community):
 
     def active_data_circuits(self, hops=None):
         return {cid: c for cid, c in self.circuits.items()
-                if c.state == CIRCUIT_STATE_READY and c.ctype == CIRCUIT_TYPE_DATA and
-                (hops is None or hops == c.goal_hops)}
+                if c.state == CIRCUIT_STATE_READY and c.ctype == CIRCUIT_TYPE_DATA
+                and (hops is None or hops == c.goal_hops)}
 
     def is_relay(self, circuit_id):
         return circuit_id > 0 and circuit_id in self.relay_from_to
@@ -683,8 +683,8 @@ class TunnelCommunity(Community):
             try:
                 self.decode_map_private[msg_id](source_address, data, circuit_id)
             except:
-                self.logger.error("Exception occurred while handling packet!\n" +
-                                  ''.join(format_exception(*sys.exc_info())))
+                self.logger.error("Exception occurred while handling packet!\n"
+                                  + ''.join(format_exception(*sys.exc_info())))
 
     def should_join_circuit(self, create_payload, previous_node_address):
         """
@@ -934,8 +934,8 @@ class TunnelCommunity(Community):
         elif isinstance(obj, TunnelExitSocket):
             obj.bytes_up += num_bytes
         else:
-            raise TypeError("Increase_bytes_sent() was called with an object that is not a Circuit, " +
-                            "RelayRoute or TunnelExitSocket")
+            raise TypeError("Increase_bytes_sent() was called with an object that is not a Circuit, "
+                            + "RelayRoute or TunnelExitSocket")
 
     def increase_bytes_received(self, obj, num_bytes):
         if isinstance(obj, Circuit):
@@ -945,5 +945,5 @@ class TunnelCommunity(Community):
         elif isinstance(obj, TunnelExitSocket):
             obj.bytes_down += num_bytes
         else:
-            raise TypeError("Increase_bytes_received() was called with an object that is not a Circuit, " +
-                            "RelayRoute or TunnelExitSocket")
+            raise TypeError("Increase_bytes_received() was called with an object that is not a Circuit, "
+                            + "RelayRoute or TunnelExitSocket")
