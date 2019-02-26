@@ -41,8 +41,8 @@ class Network(object):
             return
 
         with self.graph_lock:
-            if ((address not in self._all_addresses) or
-                    (self._all_addresses[address][0] not in [p.mid for p in self.verified_peers])):
+            if ((address not in self._all_addresses)
+                    or (self._all_addresses[address][0] not in [p.mid for p in self.verified_peers])):
                 # This is a new address, or our previous parent has been removed
                 self._all_addresses[address] = (peer.mid, service)
 
@@ -230,7 +230,7 @@ class Network(object):
             return
         with self.graph_lock:
             for i in xrange(0, snaplen, 6):
-                sub = snapshot[i:i+6]
+                sub = snapshot[i:i + 6]
                 ip = inet_ntoa(sub[0:4])
                 port = unpack(">H", sub[4:])[0]
                 self._all_addresses[(ip, port)] = ('', None)

@@ -26,6 +26,8 @@ from ...util import cast_to_bin, cast_to_chr, cast_to_unicode
 
 from threading import Lock
 receive_block_lock = Lock()
+
+
 def synchronized(f):
     """
     Due to database inconsistencies, we can't allow multiple threads to handle a received_half_block at the same time.
@@ -42,10 +44,10 @@ class AttestationCommunity(Community):
 
     Note that the logic for giving out Attestations is in the TrustChain.
     """
-    master_peer = Peer(unhexlify("3081a7301006072a8648ce3d020106052b810400270381920004057a009787f66ea54d5082ea2f56a8" +
-                                 "42488e319c14c98967c39286433233f769a73e9c894149cf9053a9a0c2548f07171df9c46c3bdb106a" +
-                                 "fa9e9a8a06926e0ec35871c91f2ab1a20651d0a7b5fda209a3500a09b630a193b281a266230472ef0c" +
-                                 "c0622c793dc18eed6c57d7bcd1eeca33e2e38277ea99c28d4c62f850f81b5eb3eb19fcb601747bd87a" +
+    master_peer = Peer(unhexlify("3081a7301006072a8648ce3d020106052b810400270381920004057a009787f66ea54d5082ea2f56a8"
+                                 "42488e319c14c98967c39286433233f769a73e9c894149cf9053a9a0c2548f07171df9c46c3bdb106a"
+                                 "fa9e9a8a06926e0ec35871c91f2ab1a20651d0a7b5fda209a3500a09b630a193b281a266230472ef0c"
+                                 "c0622c793dc18eed6c57d7bcd1eeca33e2e38277ea99c28d4c62f850f81b5eb3eb19fcb601747bd87a"
                                  "a0b04e360ae9"))
 
     def __init__(self, *args, **kwargs):
@@ -55,8 +57,8 @@ class AttestationCommunity(Community):
         super(AttestationCommunity, self).__init__(*args, **kwargs)
 
         self.attestation_request_callback = lambda peer, attribute_name, metadata: None
-        self.attestation_request_complete_callback = (lambda for_peer, attribute_name,
-                                                             attribute_hash, from_peer=None: None)
+        self.attestation_request_complete_callback = (lambda for_peer, attribute_name, attribute_hash, from_peer=None:
+                                                      None)
         self.verify_request_callback = lambda attribute_name, attribute_hash: True
 
         # Map of attestation hash -> BonehPrivateKey
@@ -218,8 +220,8 @@ class AttestationCommunity(Community):
     def send_attestation(self, socket_address, blob):
         # If we want to serve this request send the attestation in chunks of 800 bytes
         sequence_number = 0
-        for i in range (0, len(blob), 800):
-            blob_chunk = blob[i:i+800]
+        for i in range(0, len(blob), 800):
+            blob_chunk = blob[i:i + 800]
 
             global_time = self.claim_global_time()
             auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()

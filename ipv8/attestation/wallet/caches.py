@@ -19,7 +19,7 @@ class HashCache(NumberCache):
     def id_from_hash(cls, prefix, cache_hash):
         number = 0
         for i in range(len(cache_hash)):
-            b, = unpack('>B', cache_hash[i:i+1])
+            b, = unpack('>B', cache_hash[i:i + 1])
             number <<= 8
             number |= b
         return prefix, number

@@ -13,12 +13,10 @@ from twisted.python.failure import Failure
 
 from ..lazy_community import lazy_wrapper, lazy_wrapper_wd
 from ..messaging.payload_headers import GlobalTimeDistributionPayload
-from .community import DHTCommunity, Request, PING_INTERVAL, TARGET_NODES, \
-                       gatherResponses, MAX_NODES_IN_FIND
+from .community import DHTCommunity, Request, PING_INTERVAL, TARGET_NODES, gatherResponses, MAX_NODES_IN_FIND
 from .routing import NODE_STATUS_BAD, Node
-from .payload import StorePeerRequestPayload, StorePeerResponsePayload, \
-                     ConnectPeerRequestPayload, ConnectPeerResponsePayload, \
-                     PingRequestPayload, PingResponsePayload
+from .payload import (StorePeerRequestPayload, StorePeerResponsePayload, ConnectPeerRequestPayload,
+                      ConnectPeerResponsePayload, PingRequestPayload, PingResponsePayload)
 
 MSG_STORE_PEER_REQUEST = 13
 MSG_STORE_PEER_RESPONSE = 14
@@ -92,8 +90,8 @@ class DHTDiscoveryCommunity(DHTCommunity):
             else:
                 self.logger.debug('Not sending store-peer-request to %s (no token available)', node)
 
-        return gatherResponses(deferreds, consumeErrors=True) \
-               if deferreds else fail(RuntimeError('Peer was not stored'))
+        return (gatherResponses(deferreds, consumeErrors=True) if deferreds
+                else fail(RuntimeError('Peer was not stored')))
 
     def connect_peer(self, mid):
         return self.find_nodes(mid).addCallback(lambda nodes, mid=mid:

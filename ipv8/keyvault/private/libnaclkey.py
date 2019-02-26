@@ -22,9 +22,9 @@ class LibNaCLSK(PrivateKey, LibNaCLPK):
         """
         # Load the key, if specified
         if binarykey:
-            crypt, seed = binarykey[:libnacl.crypto_box_SECRETKEYBYTES], \
-                          binarykey[libnacl.crypto_box_SECRETKEYBYTES :
-                                    libnacl.crypto_box_SECRETKEYBYTES + libnacl.crypto_sign_SEEDBYTES]
+            crypt, seed = (binarykey[:libnacl.crypto_box_SECRETKEYBYTES],
+                           binarykey[libnacl.crypto_box_SECRETKEYBYTES: libnacl.crypto_box_SECRETKEYBYTES
+                                     + libnacl.crypto_sign_SEEDBYTES])
             self.key = libnacl.dual.DualSecret(crypt, seed)
         else:
             self.key = libnacl.dual.DualSecret()

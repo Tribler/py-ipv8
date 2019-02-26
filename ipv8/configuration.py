@@ -140,7 +140,9 @@ default = {
     ]
 }
 
+
 def get_default_configuration():
     return copy.deepcopy(default)
+
 
 __all__ = ['get_default_configuration']

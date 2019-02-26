@@ -19,7 +19,7 @@ def _num_to_str(num):
     if (len(h) % 2) == 1:
         h = '0' + h
     for b in range(0, len(h), 2):
-        out += struct.pack(">B", int(h[b] + h[b+1], 16))
+        out += struct.pack(">B", int(h[b] + h[b + 1], 16))
     return out
 
 
@@ -30,7 +30,7 @@ def _str_to_num(s):
     out = 0
     for i in range(len(s)):
         out <<= 8
-        out |= struct.unpack(">B", s[i:i+1])[0]
+        out |= struct.unpack(">B", s[i:i + 1])[0]
     return out
 
 
@@ -48,8 +48,8 @@ def _unpack(s):
     Unserialize an integer from a str.
     """
     llen = struct.unpack(">B", s[0:1])[0]
-    l = _str_to_num(s[1:1+llen])
-    return _str_to_num(s[1+llen:llen+l+1]), s[llen+l+1:]
+    l = _str_to_num(s[1:1 + llen])
+    return _str_to_num(s[1 + llen:llen + l + 1]), s[llen + l + 1:]
 
 
 def pack_pair(a, b):
@@ -132,8 +132,8 @@ class BitPairAttestation(object):
         return self.a * self.b * self.complement
 
     def serialize(self):
-        return _pack(self.a.a) + _pack(self.a.b) + _pack(self.b.a) + _pack(self.b.b) +\
-               _pack(self.complement.a) + _pack(self.complement.b)
+        return (_pack(self.a.a) + _pack(self.a.b) + _pack(self.b.a) + _pack(self.b.b)
+                + _pack(self.complement.a) + _pack(self.complement.b))
 
     @classmethod
     def unserialize(cls, s, p):

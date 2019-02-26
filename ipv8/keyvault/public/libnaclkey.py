@@ -24,9 +24,9 @@ class LibNaCLPK(PublicKey):
         """
         # Load the key, if specified
         if binarykey:
-            pk, vk = binarykey[:libnacl.crypto_box_SECRETKEYBYTES], \
-                     binarykey[libnacl.crypto_box_SECRETKEYBYTES:
-                               libnacl.crypto_box_SECRETKEYBYTES + libnacl.crypto_sign_SEEDBYTES]
+            pk, vk = (binarykey[:libnacl.crypto_box_SECRETKEYBYTES],
+                      binarykey[libnacl.crypto_box_SECRETKEYBYTES: libnacl.crypto_box_SECRETKEYBYTES
+                                + libnacl.crypto_sign_SEEDBYTES])
             hex_vk = libnacl.encode.hex_encode(vk)
         # Construct the public key and verifier objects
         self.key = libnacl.public.PublicKey(pk)

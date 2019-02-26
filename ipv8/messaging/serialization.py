@@ -107,7 +107,7 @@ class Bits(object):
 
         :returns: list of 8 values in [0, 1] MSB first
         """
-        byte, = unpack('>B', data[offset:offset+1])
+        byte, = unpack('>B', data[offset:offset + 1])
         bit_7 = 1 if 0x80 & byte else 0
         bit_6 = 1 if 0x40 & byte else 0
         bit_5 = 1 if 0x20 & byte else 0
@@ -150,7 +150,7 @@ class VarLen(object):
 
     def pack(self, *data):
         raw = b''.join(data)
-        length = len(raw)//self.base
+        length = len(raw) // self.base
         size = self.format_size + len(raw)
         return pack('>%s%ds' % (self.format, len(raw)), length, raw), size
 

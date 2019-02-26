@@ -13,7 +13,7 @@ from ...base import MockIPv8, TestBase
 
 class TestCommunity(TestBase):
 
-    private_key = BonehPrivateKey.unserialize(unhexlify("01064c65dcb113f901064228da3ea57101064793a4f9c77901062b083e" +
+    private_key = BonehPrivateKey.unserialize(unhexlify("01064c65dcb113f901064228da3ea57101064793a4f9c77901062b083e"
                                                         "8690fb0106408293c67e9f010601d1a9d3744901030f4243"))
 
     def setUp(self):
@@ -149,7 +149,7 @@ class TestCommunity(TestBase):
         # Create an attestation and write it to file.
         # Then close the database.
         attestation = Attestation(TestCommunity.private_key.public_key(), [])
-        overlay.on_attestation_complete(attestation, TestCommunity.private_key, None, "test", b"a"*20)
+        overlay.on_attestation_complete(attestation, TestCommunity.private_key, None, "test", b"a" * 20)
         overlay.database.close(True)
 
         # Reload the community with the same database.

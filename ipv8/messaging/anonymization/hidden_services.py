@@ -18,8 +18,8 @@ from .community import TunnelCommunity, message_to_payload, tc_lazy_wrapper_unsi
 from ...messaging.deprecated.encoding import decode, encode
 from .payload import *
 from ...peer import Peer
-from .tunnel import CIRCUIT_ID_PORT, CIRCUIT_TYPE_IP, CIRCUIT_TYPE_RENDEZVOUS, CIRCUIT_TYPE_RP, EXIT_NODE, \
-                    EXIT_NODE_SALT, Hop, RelayRoute, RendezvousPoint, TunnelExitSocket
+from .tunnel import (CIRCUIT_ID_PORT, CIRCUIT_TYPE_IP, CIRCUIT_TYPE_RENDEZVOUS, CIRCUIT_TYPE_RP, EXIT_NODE,
+                     EXIT_NODE_SALT, Hop, RelayRoute, RendezvousPoint, TunnelExitSocket)
 
 
 class HiddenTunnelCommunity(TunnelCommunity):
@@ -347,8 +347,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
                                          CIRCUIT_TYPE_RENDEZVOUS,
                                          callback=lambda circuit, cookie=cookie, session_keys=session_keys,
                                                          info_hash=cache.info_hash, sock_addr=cache.sock_addr:
-                                                         self.create_link_e2e(circuit, cookie, session_keys,
-                                                                              info_hash, sock_addr),
+                                         self.create_link_e2e(circuit, cookie, session_keys, info_hash, sock_addr),
                                          required_exit=required_exit)
 
     def create_link_e2e(self, circuit, cookie, session_keys, info_hash, sock_addr):

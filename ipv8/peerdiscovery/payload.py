@@ -36,7 +36,7 @@ class SimilarityRequestPayload(Payload):
                 (inet_ntoa(lan_address[0]), lan_address[1]),
                 (inet_ntoa(wan_address[0]), wan_address[1]),
                 decode_connection_type(connection_type_0, connection_type_1),
-                [preference_list[i:i+20] for i in range(0, len(preference_list), 20)]]
+                [preference_list[i:i + 20] for i in range(0, len(preference_list), 20)]]
 
         return SimilarityRequestPayload(*args)
 
@@ -62,8 +62,9 @@ class SimilarityResponsePayload(Payload):
     @classmethod
     def from_unpack_list(cls, identifier, preference_list, tb_overlap):
         args = [identifier,
-                [preference_list[i:i+20] for i in range(0, len(preference_list), 20)],
-                [(tb_overlap[i:i+20], unpack(">I", tb_overlap[i+20:i+24])[0]) for i in range(0, len(tb_overlap), 24)]]
+                [preference_list[i:i + 20] for i in range(0, len(preference_list), 20)],
+                [(tb_overlap[i:i + 20], unpack(">I", tb_overlap[i + 20:i + 24])[0])
+                 for i in range(0, len(tb_overlap), 24)]]
 
         return SimilarityResponsePayload(*args)
 

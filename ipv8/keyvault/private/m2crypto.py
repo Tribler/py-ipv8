@@ -94,6 +94,6 @@ class M2CryptoSK(PrivateKey, M2CryptoPK):
         # Now we can turn this into a binary string
         r = unhexlify(r)
         s = unhexlify(s)
-        key_len = self.get_signature_length()//2
+        key_len = self.get_signature_length() // 2
         # For easy decoding, prepend 0 to r and s until they are of >equal length<
         return b"".join((b"\x00" * (key_len - len(r)), r, b"\x00" * (key_len - len(s)), s))

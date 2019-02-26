@@ -15,16 +15,14 @@ from twisted.python.failure import Failure
 from ..peer import Peer
 from ..requestcache import RandomNumberCache, RequestCache
 from ..peerdiscovery.churn import PingChurn
-from ..messaging.payload import PuncturePayload
 from ..messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from ..community import Community
 from ..lazy_community import lazy_wrapper, lazy_wrapper_wd
 
 from .storage import Storage
 from .routing import RoutingTable, Node, distance, calc_node_id
-from .payload import PingRequestPayload, PingResponsePayload, StoreRequestPayload, \
-                     StoreResponsePayload, FindRequestPayload, FindResponsePayload, \
-                     SignedStrPayload, StrPayload
+from .payload import (PingRequestPayload, PingResponsePayload, StoreRequestPayload, StoreResponsePayload,
+                      FindRequestPayload, FindResponsePayload, SignedStrPayload, StrPayload)
 from ..util import addCallback, cast_to_bin
 
 PING_INTERVAL = 25
@@ -262,8 +260,8 @@ class DHTCommunity(Community):
             else:
                 self.logger.debug('Not sending store-request to %s (no token available)', node)
 
-        return gatherResponses(deferreds, consumeErrors=True) \
-               if deferreds else fail(RuntimeError('Value was not stored'))
+        return (gatherResponses(deferreds, consumeErrors=True) if deferreds
+                else fail(RuntimeError('Value was not stored')))
 
     @lazy_wrapper(GlobalTimeDistributionPayload, StoreRequestPayload)
     def on_store_request(self, peer, dist, payload):
@@ -455,8 +453,8 @@ class DHTCommunity(Community):
         elif cache.params[0]:
             cache.deferred.callback((cache.node, {'nodes': payload.nodes}))
         else:
-            cache.deferred.callback((cache.node, {'values': payload.values} if payload.values else \
-                                                 {'nodes': payload.nodes}))
+            cache.deferred.callback((cache.node, {'values': payload.values} if payload.values
+                                     else {'nodes': payload.nodes}))
 
     def value_maintenance(self):
         # Refresh buckets

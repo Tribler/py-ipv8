@@ -14,11 +14,11 @@ from .payload import HalfBlockPayload
 from ...util import old_round
 
 
-GENESIS_HASH = b'0'*32    # ID of the first block of the chain.
+GENESIS_HASH = b'0' * 32    # ID of the first block of the chain.
 GENESIS_SEQ = 1
 UNKNOWN_SEQ = 0
-EMPTY_SIG = b'0'*64
-EMPTY_PK = b'0'*74
+EMPTY_SIG = b'0' * 64
+EMPTY_PK = b'0' * 74
 ANY_COUNTERPARTY_PK = EMPTY_PK
 
 
@@ -333,8 +333,8 @@ class TrustChainBlock(object):
         if link:
             if link.public_key != self.link_public_key:
                 result.err("Known link public key does not match this block")
-            elif (link.link_sequence_number != self.sequence_number and
-                  link.sequence_number != self.link_sequence_number):
+            elif (link.link_sequence_number != self.sequence_number
+                  and link.sequence_number != self.link_sequence_number):
                 result.err("No link to linked block")
             elif self.public_key != link.link_public_key and link.link_public_key != ANY_COUNTERPARTY_PK:
                 result.err("Public key mismatch on linked block")

@@ -86,6 +86,7 @@ class TestDiscoveryCommunity(TestBase):
         If we have different peers under our control, don't claim to be the other identity.
         """
         custom_master_peer = Peer(default_eccrypto.generate_key(u"very-low"))
+
         class OtherMockCommunity(MockCommunity):
             master_peer = custom_master_peer
         custom_overlay = OtherMockCommunity()

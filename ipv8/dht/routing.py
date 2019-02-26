@@ -38,7 +38,7 @@ def calc_node_id(ip, mid):
     # first 3 bytes of crc32c(ip & 0x030f3fff) + first 17 bytes of sha1(public_key)
     ip_bin = inet_aton(ip)
     ip_mask = '\x03\x0f\x3f\0xff'
-    ip_masked = ''.join([chr(ord(ip_bin[i:i+1]) & ord(ip_mask[i:i+1])) for i in range(4)])
+    ip_masked = ''.join([chr(ord(ip_bin[i:i + 1]) & ord(ip_mask[i:i + 1])) for i in range(4)])
 
     crc32_unsigned = binascii.crc32(cast_to_bin(ip_masked)) % (2 ** 32)
     crc32_bin = binascii.unhexlify('%08x' % crc32_unsigned)
@@ -222,8 +222,8 @@ class RoutingTable(object):
                 for suffix in self.trie.suffixes(prefix[:i]):
                     bucket = self.trie[prefix[:i] + suffix]
                     nodes |= {node for node in list(bucket.nodes.values())
-                              if node.status != NODE_STATUS_BAD and (exclude_node is None or
-                                                                     node.id != exclude_node.id)}
+                              if node.status != NODE_STATUS_BAD and (exclude_node is None
+                                                                     or node.id != exclude_node.id)}
 
                 # Limit number of nodes returned
                 if len(nodes) > max_nodes:

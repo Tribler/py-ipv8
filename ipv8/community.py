@@ -184,8 +184,8 @@ class Community(EZPackOverlay):
     def create_introduction_response(self, lan_socket_address, socket_address, identifier,
                                      introduction=None, extra_bytes=b''):
         global_time = self.claim_global_time()
-        introduction_lan = ("0.0.0.0",0)
-        introduction_wan = ("0.0.0.0",0)
+        introduction_lan = ("0.0.0.0", 0)
+        introduction_wan = ("0.0.0.0", 0)
         introduced = False
         other = self.network.get_verified_by_address(socket_address)
         if not introduction:
@@ -211,7 +211,7 @@ class Community(EZPackOverlay):
 
         if introduced:
             packet = self.create_puncture_request(lan_socket_address, socket_address, identifier)
-            self.endpoint.send(introduction_wan if introduction_lan == ("0.0.0.0",0) else introduction_lan, packet)
+            self.endpoint.send(introduction_wan if introduction_lan == ("0.0.0.0", 0) else introduction_lan, packet)
 
         return self._ez_pack(self._prefix, 245, [auth, dist, payload])
 
@@ -276,11 +276,11 @@ class Community(EZPackOverlay):
         self.network.add_verified_peer(peer)
         self.network.discover_services(peer, [self.master_peer.mid, ])
 
-        if (payload.wan_introduction_address != ("0.0.0.0", 0) and
-                payload.wan_introduction_address[0] != self.my_estimated_wan[0]):
+        if (payload.wan_introduction_address != ("0.0.0.0", 0)
+                and payload.wan_introduction_address[0] != self.my_estimated_wan[0]):
             self.network.discover_address(peer, payload.wan_introduction_address, self.master_peer.mid)
-        elif (payload.lan_introduction_address != ("0.0.0.0", 0) and
-              payload.wan_introduction_address[0] == self.my_estimated_wan[0]):
+        elif (payload.lan_introduction_address != ("0.0.0.0", 0)
+              and payload.wan_introduction_address[0] == self.my_estimated_wan[0]):
             self.network.discover_address(peer, payload.lan_introduction_address, self.master_peer.mid)
         elif payload.wan_introduction_address != ("0.0.0.0", 0):
             self.network.discover_address(peer, payload.wan_introduction_address, self.master_peer.mid)
@@ -314,8 +314,8 @@ class Community(EZPackOverlay):
             try:
                 self.decode_map[msg_id](source_address, data)
             except:
-                self.logger.error("Exception occurred while handling packet!\n" +
-                                  ''.join(format_exception(*sys.exc_info())))
+                self.logger.error("Exception occurred while handling packet!\n"
+                                  + ''.join(format_exception(*sys.exc_info())))
         elif warn_unknown:
             self.logger.warning("Received unknown message: %d from (%s, %d)", ord(msg_id), *source_address)
 

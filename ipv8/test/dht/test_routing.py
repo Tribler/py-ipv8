@@ -5,8 +5,7 @@ import time
 
 from ..base import TestBase
 from ...keyvault.private.libnaclkey import LibNaCLSK
-from ...dht.routing import Node, Bucket, RoutingTable, \
-                           NODE_STATUS_GOOD, NODE_STATUS_UNKNOWN, NODE_STATUS_BAD
+from ...dht.routing import Node, Bucket, RoutingTable, NODE_STATUS_GOOD, NODE_STATUS_UNKNOWN, NODE_STATUS_BAD
 
 
 class FakeNode(object):

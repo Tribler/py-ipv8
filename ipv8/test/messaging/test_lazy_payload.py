@@ -44,7 +44,7 @@ class OldA(Payload):
 
     @classmethod
     def from_unpack_list(cls, *args):
-        return OldA(*args) # pylint: disable=E1120
+        return OldA(*args)  # pylint: disable=E1120
 
 
 class D(VariablePayload):

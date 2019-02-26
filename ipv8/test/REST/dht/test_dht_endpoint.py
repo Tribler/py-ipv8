@@ -55,8 +55,8 @@ class TestDHTEndpoint(RESTTestBase):
         for i in range(total_blocks):
             chunk = data[slice_pointer: slice_pointer + DHTBlockEndpoint.CHUNK_SIZE]
             slice_pointer += DHTBlockEndpoint.CHUNK_SIZE
-            signature = my_private_key.signature(str(numeric_version).encode('utf-8') + str(i).encode('utf-8') +
-                                                 str(total_blocks).encode('utf-8') + chunk)
+            signature = my_private_key.signature(str(numeric_version).encode('utf-8') + str(i).encode('utf-8')
+                                                 + str(total_blocks).encode('utf-8') + chunk)
 
             blob_chunk = self.serializer.pack_multiple(DHTBlockPayload(signature, numeric_version, i, total_blocks,
                                                                        chunk).to_pack_list())
@@ -96,8 +96,8 @@ class TestDHTEndpoint(RESTTestBase):
 
         # Manually add a block to the Trustchain
         original_block = TestBlock()
-        hash_key = sha1(self.nodes[0].get_keys()['my_peer'].public_key.key_to_bin() +
-                        DHTBlockEndpoint.KEY_SUFFIX).digest()
+        hash_key = sha1(self.nodes[0].get_keys()['my_peer'].public_key.key_to_bin()
+                        + DHTBlockEndpoint.KEY_SUFFIX).digest()
 
         yield self.publish_to_DHT(self.nodes[0], hash_key, original_block.pack(), 4536)
 
@@ -165,8 +165,8 @@ class TestDHTEndpoint(RESTTestBase):
         # Manually add a block to the Trustchain
         original_block_1 = TestBlock(transaction={1: 'asd'})
         original_block_2 = TestBlock(transaction={1: 'mmm'})
-        hash_key = sha1(self.nodes[0].get_keys()['my_peer'].public_key.key_to_bin() +
-                        DHTBlockEndpoint.KEY_SUFFIX).digest()
+        hash_key = sha1(self.nodes[0].get_keys()['my_peer'].public_key.key_to_bin()
+                        + DHTBlockEndpoint.KEY_SUFFIX).digest()
 
         # Publish the two blocks under the same key in the first peer
         yield self.publish_to_DHT(self.nodes[0], hash_key, original_block_1.pack(), 4536)
@@ -199,8 +199,8 @@ class TestDHTEndpoint(RESTTestBase):
         self.nodes[0].get_overlay_by_class(TrustChainCommunity).persistence.add_block(original_block)
 
         # Publish the node to the DHT
-        hash_key = sha1(self.nodes[0].get_keys()['my_peer'].public_key.key_to_bin() +
-                        DHTBlockEndpoint.KEY_SUFFIX).digest()
+        hash_key = sha1(self.nodes[0].get_keys()['my_peer'].public_key.key_to_bin()
+                        + DHTBlockEndpoint.KEY_SUFFIX).digest()
 
         result = yield self.nodes[1].get_overlay_by_class(DHTCommunity).find_values(hash_key)
         self.assertEqual(result, [], "There shouldn't be any blocks for this key")
@@ -232,8 +232,8 @@ class TestDHTEndpoint(RESTTestBase):
         yield self.introduce_nodes(DHTCommunity)
 
         # Publish the node to the DHT
-        hash_key = sha1(self.nodes[0].get_keys()['my_peer'].public_key.key_to_bin() +
-                        DHTBlockEndpoint.KEY_SUFFIX).digest()
+        hash_key = sha1(self.nodes[0].get_keys()['my_peer'].public_key.key_to_bin()
+                        + DHTBlockEndpoint.KEY_SUFFIX).digest()
 
         result = yield self.nodes[1].get_overlay_by_class(DHTCommunity).find_values(hash_key)
         self.assertEqual(result, [], "There shouldn't be any blocks for this key")

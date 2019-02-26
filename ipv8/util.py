@@ -44,7 +44,7 @@ def blockingCallFromThread(reactor, f, *args, **kwargs):
     If being called from the reactor thread already, just return the result of execution of the callable.
     """
     if isInIOThread():
-            return f(*args, **kwargs)
+        return f(*args, **kwargs)
     else:
         queue = Queue()
 

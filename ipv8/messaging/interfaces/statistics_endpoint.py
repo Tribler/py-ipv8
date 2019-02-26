@@ -86,10 +86,10 @@ class StatisticsEndpoint(EndpointListener):
             return a if not b else b if b < a or not a else a
 
         aggregate_stats = {
-            "num_up":  0,
-            "num_down":  0,
-            "bytes_up":  0,
-            "bytes_down":  0,
+            "num_up": 0,
+            "num_down": 0,
+            "bytes_up": 0,
+            "bytes_down": 0,
             "diff_time": 0
         }
 
@@ -142,6 +142,6 @@ class StatisticsEndpoint(EndpointListener):
         return bytes_received
 
     def is_excluded(self, identifier, include_introduction, include_puncture, include_deprecated):
-        return identifier in StatisticsEndpoint.IDS_DEPRECATED and not include_deprecated \
-               or identifier in StatisticsEndpoint.IDS_INTRODUCTION and not include_introduction \
-               or identifier in StatisticsEndpoint.IDS_PUNCTURE and not include_puncture
+        return (identifier in StatisticsEndpoint.IDS_DEPRECATED and not include_deprecated
+                or identifier in StatisticsEndpoint.IDS_INTRODUCTION and not include_introduction
+                or identifier in StatisticsEndpoint.IDS_PUNCTURE and not include_puncture)

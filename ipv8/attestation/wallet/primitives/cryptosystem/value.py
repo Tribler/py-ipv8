@@ -62,15 +62,15 @@ class FP2Value(object):
         """
         assert self.mod == other.mod
 
-        a = self.aC * other.a - self.cC * other.a + self.a * other.aC - self.c * other.aC - self.bC * other.b + \
-            self.cC * other.b - self.aC * other.c + self.bC * other.c - self.a * other.cC + self.b * other.cC
-        b = self.bC * other.a - self.cC * other.a + self.b * other.aC - self.c * other.aC + self.aC * other.b - \
-            self.bC * other.b + self.a * other.bC - self.b * other.bC - self.aC * other.c + self.cC * other.c - \
-            self.a * other.cC + self.c * other.cC
-        aC = self.aC * other.aC - self.cC * other.aC - self.bC * other.bC + \
-             self.cC * other.bC - self.aC * other.cC + self.bC * other.cC
-        bC = self.bC * other.aC - self.cC * other.aC + self.aC * other.bC - \
-             self.bC * other.bC - self.aC * other.cC + self.cC * other.cC
+        a = (self.aC * other.a - self.cC * other.a + self.a * other.aC - self.c * other.aC - self.bC * other.b
+             + self.cC * other.b - self.aC * other.c + self.bC * other.c - self.a * other.cC + self.b * other.cC)
+        b = (self.bC * other.a - self.cC * other.a + self.b * other.aC - self.c * other.aC + self.aC * other.b
+             - self.bC * other.b + self.a * other.bC - self.b * other.bC - self.aC * other.c + self.cC * other.c
+             - self.a * other.cC + self.c * other.cC)
+        aC = (self.aC * other.aC - self.cC * other.aC - self.bC * other.bC
+              + self.cC * other.bC - self.aC * other.cC + self.bC * other.cC)
+        bC = (self.bC * other.aC - self.cC * other.aC + self.aC * other.bC
+              - self.bC * other.bC - self.aC * other.cC + self.cC * other.cC)
         return FP2Value(self.mod, a=a, b=b, aC=aC, bC=bC)
 
     def __sub__(self, other):
@@ -78,16 +78,16 @@ class FP2Value(object):
         Subtract another value from this value and return a new FP2Value.
         """
         assert self.mod == other.mod
-        a = -self.aC * other.a + self.cC * other.a + self.a * other.aC - self.c * other.aC + self.bC * other.b - \
-            self.cC * other.b - self.b * other.bC + self.c * other.bC + self.aC * other.c - self.bC * other.c - \
-            self.a * other.cC + self.b * other.cC
-        b = -self.bC * other.a + self.cC * other.a + self.b * other.aC - self.c * other.aC - self.aC * other.b + \
-            self.bC * other.b + self.a * other.bC - self.b * other.bC + self.aC * other.c - self.cC * other.c - \
-            self.a * other.cC + self.c * other.cC
-        aC = self.aC * other.aC - self.cC * other.aC - self.bC * other.bC + \
-             self.cC * other.bC - self.aC * other.cC + self.bC * other.cC
-        bC = self.bC * other.aC - self.cC * other.aC + self.aC * other.bC - \
-             self.bC * other.bC - self.aC * other.cC + self.cC * other.cC
+        a = (-self.aC * other.a + self.cC * other.a + self.a * other.aC - self.c * other.aC + self.bC * other.b
+             - self.cC * other.b - self.b * other.bC + self.c * other.bC + self.aC * other.c - self.bC * other.c
+             - self.a * other.cC + self.b * other.cC)
+        b = (-self.bC * other.a + self.cC * other.a + self.b * other.aC - self.c * other.aC - self.aC * other.b
+             + self.bC * other.b + self.a * other.bC - self.b * other.bC + self.aC * other.c - self.cC * other.c
+             - self.a * other.cC + self.c * other.cC)
+        aC = (self.aC * other.aC - self.cC * other.aC - self.bC * other.bC
+              + self.cC * other.bC - self.aC * other.cC + self.bC * other.cC)
+        bC = (self.bC * other.aC - self.cC * other.aC + self.aC * other.bC
+              - self.bC * other.bC - self.aC * other.cC + self.cC * other.cC)
         return FP2Value(self.mod, a=a, b=b, aC=aC, bC=bC)
 
     def __mul__(self, other):
@@ -95,14 +95,14 @@ class FP2Value(object):
         Multiply this value with another value and return a new FP2Value.
         """
         assert self.mod == other.mod
-        a = self.a * other.a - self.c * other.a - self.b * other.b +\
-            self.c * other.b - self.a * other.c + self.b * other.c
-        b = self.b * other.a - self.c * other.a + self.a * other.b -\
-            self.b * other.b - self.a * other.c + self.c * other.c
-        aC = self.aC * other.aC - self.cC * other.aC - self.bC * other.bC +\
-             self.cC * other.bC - self.aC * other.cC + self.bC * other.cC
-        bC = self.bC * other.aC - self.cC * other.aC + self.aC * other.bC -\
-             self.bC * other.bC - self.aC * other.cC + self.cC * other.cC
+        a = (self.a * other.a - self.c * other.a - self.b * other.b
+             + self.c * other.b - self.a * other.c + self.b * other.c)
+        b = (self.b * other.a - self.c * other.a + self.a * other.b
+             - self.b * other.b - self.a * other.c + self.c * other.c)
+        aC = (self.aC * other.aC - self.cC * other.aC - self.bC * other.bC
+              + self.cC * other.bC - self.aC * other.cC + self.bC * other.cC)
+        bC = (self.bC * other.aC - self.cC * other.aC + self.aC * other.bC
+              - self.bC * other.bC - self.aC * other.cC + self.cC * other.cC)
         return FP2Value(self.mod, a=a, b=b, aC=aC, bC=bC)
 
     def __floordiv__(self, other):
@@ -110,14 +110,14 @@ class FP2Value(object):
         Divide this value by another value and return a new FP2Value.
         """
         assert self.mod == other.mod
-        a = self.a * other.aC - self.c * other.aC - self.b * other.bC + \
-            self.c * other.bC - self.a * other.cC + self.b * other.cC
-        b = self.b * other.aC - self.c * other.aC + self.a * other.bC - \
-            self.b * other.bC - self.a * other.cC + self.c * other.cC
-        aC = self.aC * other.a - self.cC * other.a - self.bC * other.b + \
-             self.cC * other.b - self.aC * other.c + self.bC * other.c
-        bC = self.bC * other.a - self.cC * other.a + self.aC * other.b - \
-             self.bC * other.b - self.aC * other.c + self.cC * other.c
+        a = (self.a * other.aC - self.c * other.aC - self.b * other.bC
+             + self.c * other.bC - self.a * other.cC + self.b * other.cC)
+        b = (self.b * other.aC - self.c * other.aC + self.a * other.bC
+             - self.b * other.bC - self.a * other.cC + self.c * other.cC)
+        aC = (self.aC * other.a - self.cC * other.a - self.bC * other.b
+              + self.cC * other.b - self.aC * other.c + self.bC * other.c)
+        bC = (self.bC * other.a - self.cC * other.a + self.aC * other.b
+              - self.bC * other.b - self.aC * other.c + self.cC * other.c)
         return FP2Value(self.mod, a=a, b=b, aC=aC, bC=bC)
 
     def __eq__(self, other):
@@ -126,7 +126,7 @@ class FP2Value(object):
         """
         if not isinstance(other, FP2Value):
             return False
-        divd = (self//other).normalize()
+        divd = (self // other).normalize()
         return all([divd.a == divd.aC, divd.b == divd.bC, divd.c == divd.cC])
 
     def __hash__(self):
@@ -149,7 +149,7 @@ class FP2Value(object):
             if (n % 2) == 1:
                 R *= U
             U *= U
-            n = n//2
+            n = n // 2
         return R
 
     def normalize(self):
