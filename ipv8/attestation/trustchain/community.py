@@ -292,7 +292,7 @@ class TrustChainCommunity(Community):
         """
         peer = Peer(payload.public_key, source_address)
         block = self.get_block_class(payload.type).from_payload(payload, self.serializer)
-        self.process_half_block(block, peer)
+        self.process_half_block(block, peer).addErrback(lambda _: None)
 
     @synchronized
     @lazy_wrapper_unsigned(GlobalTimeDistributionPayload, HalfBlockBroadcastPayload)
@@ -369,7 +369,7 @@ class TrustChainCommunity(Community):
         validation = self.validate_persist_block(blk)
         self.logger.info("Block validation result %s, %s, (%s)", validation[0], validation[1], blk)
         if validation[0] == ValidationResult.invalid:
-            return
+            return fail(RuntimeError("Block could not be validated: %s, %s" % (validation[0], validation[1])))
 
         # Check if we are waiting for this signature response
         link_block_id_int = int(hexlify(blk.linked_block_id), 16) % 100000000
@@ -383,14 +383,14 @@ class TrustChainCommunity(Community):
         if blk.link_sequence_number != UNKNOWN_SEQ or \
                         blk.link_public_key != self.my_peer.public_key.key_to_bin() or \
                         self.persistence.get_linked(blk) is not None:
-            return
+            return succeed(None)
 
         self.logger.info("Received request block addressed to us (%s)", blk)
 
         # determine if we want to sign this block
         if not self.should_sign(blk):
             self.logger.info("Not signing block %s", blk)
-            return
+            return succeed(None)
 
         # It is important that the request matches up with its previous block, gaps cannot be tolerated at
         # this point. We already dropped invalids, so here we delay this message if the result is partial,
@@ -407,9 +407,9 @@ class TrustChainCommunity(Community):
                                                                            self.settings.validation_range)),
                                                          max(GENESIS_SEQ, blk.sequence_number - 1),
                                                          for_half_block=blk)
-                addCallback(crawl_deferred, lambda _: self.process_half_block(blk, peer))
+                return addCallback(crawl_deferred, lambda _: self.process_half_block(blk, peer))
         else:
-            self.sign_block(peer, linked=blk)
+            return self.sign_block(peer, linked=blk)
 
     def crawl_chain(self, peer, latest_block_num=None):
         """
