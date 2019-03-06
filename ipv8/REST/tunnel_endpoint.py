@@ -1,11 +1,12 @@
 from __future__ import absolute_import
 
 import json
+from binascii import hexlify
 
 from twisted.web import http
 
-from ..messaging.anonymization.community import TunnelCommunity
 from .base_endpoint import BaseEndpoint
+from ..messaging.anonymization.community import TunnelCommunity
 
 
 class TunnelEndpoint(BaseEndpoint):
@@ -42,6 +43,8 @@ class TunnelCircuitsEndpoint(BaseEndpoint):
                 "circuit_id": circuit.circuit_id,
                 "goal_hops": circuit.goal_hops,
                 "actual_hops": len(circuit.hops),
+                "verified_hops": [hexlify(hop.mid) for hop in circuit.hops],
+                "unverified_hop": hexlify(circuit.unverified_hop.mid) if circuit.unverified_hop else '',
                 "type": circuit.ctype,
                 "state": circuit.state,
                 "bytes_up": circuit.bytes_up,
