@@ -118,11 +118,8 @@ class TunnelSettings(object):
 class TunnelCommunity(Community):
 
     version = b'\x02'
-    master_peer = Peer(unhexlify("3081a7301006072a8648ce3d020106052b8104002703819200040733caf0902748547efc04be6a7e0"
-                                 "64384e1939622b38cde42237eff06674e07f8c4dd364e207a8c3eee30cd5751bed76d7071e8af7b91"
-                                 "0a62ccf9fbbfde7eb724a8ebdb54b738e306744ad6b96ef4549f6335c4bac10799fbe63477d8fd939"
-                                 "5e8439685de72fabf3efc32f6cb28075fff6ad605891eaba161ecec2f9b65aab45e121defa47d098f"
-                                 "16bad7dac6025687"))
+    master_peer = Peer(unhexlify("4c69624e61434c504b3adbd575f1902f1d39debeb3d7b576dff1652ab6cede21c14545d134219b57b"
+                                 "413a597c87c2e37b8c9f99938e0d4db3cd4a79d6b53fb5bc0cb7d222d5c6eabfaa9"))
 
     def __init__(self, *args, **kwargs):
         self.settings = kwargs.pop('settings', TunnelSettings())
