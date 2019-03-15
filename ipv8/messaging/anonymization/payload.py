@@ -193,7 +193,7 @@ class CellPayload(Payload):
 
 class CreatePayload(Payload):
 
-    format_list = ['I', 'H', 'H', 'raw']
+    format_list = ['I', 'varlenH', 'varlenH']
 
     def __init__(self, circuit_id, node_public_key, key):
         super(CreatePayload, self).__init__()
@@ -202,23 +202,18 @@ class CreatePayload(Payload):
         self.key = key
 
     def to_pack_list(self):
-        data = [('I', self.circuit_id),
-                ('H', len(self.node_public_key)),
-                ('H', len(self.key)),
-                ('raw', self.node_public_key + self.key)]
-
-        return data
+        return [('I', self.circuit_id),
+                ('varlenH', self.node_public_key),
+                ('varlenH', self.key)]
 
     @classmethod
-    def from_unpack_list(cls, circuit_id, pubkey_len, key_len, pubkey_key):
-        node_public_key = pubkey_key[:pubkey_len]
-        key = pubkey_key[-key_len:]
+    def from_unpack_list(cls, circuit_id, node_public_key, key):
         return CreatePayload(circuit_id, node_public_key, key)
 
 
 class CreatedPayload(Payload):
 
-    format_list = ['I', 'H', '32s', 'raw']
+    format_list = ['I', 'varlenH', '32s', 'raw']
 
     def __init__(self, circuit_id, key, auth, candidate_list):
         super(CreatedPayload, self).__init__()
@@ -228,36 +223,31 @@ class CreatedPayload(Payload):
         self.candidate_list = candidate_list
 
     def to_pack_list(self):
-        data = [('I', self.circuit_id),
-                ('H', len(self.key)),
+        return [('I', self.circuit_id),
+                ('varlenH', self.key),
                 ('32s', self.auth),
-                ('raw', self.key + self.candidate_list)]
-
-        return data
+                ('raw', self.candidate_list)]
 
     @classmethod
-    def from_unpack_list(cls, circuit_id, key_len, auth, key_clist):
-        key = key_clist[:key_len]
-        candidate_list = key_clist[key_len:]
+    def from_unpack_list(cls, circuit_id, key, auth, candidate_list):
         return CreatedPayload(circuit_id, key, auth, candidate_list)
 
 
 class ExtendPayload(Payload):
 
-    format_list = ['I', 'H', 'H', 'raw']
+    format_list = ['I', 'varlenH', 'varlenH', 'raw']
 
     def __init__(self, circuit_id, node_public_key, node_addr, key):
         super(ExtendPayload, self).__init__()
         self.circuit_id = circuit_id
         self.node_public_key = node_public_key
-        self.node_addr = node_addr
         self.key = key
+        self.node_addr = node_addr
 
     def to_pack_list(self):
         data = [('I', self.circuit_id),
-                ('H', len(self.node_public_key)),
-                ('H', len(self.key)),
-                ('raw', self.node_public_key + self.key)]
+                ('varlenH', self.node_public_key),
+                ('varlenH', self.key)]
 
         if self.node_addr:
             host, port = self.node_addr
@@ -268,19 +258,16 @@ class ExtendPayload(Payload):
         return data
 
     @classmethod
-    def from_unpack_list(cls, circuit_id, pubkey_len, key_len, pubkey_key_node_addr):
-        node_public_key = pubkey_key_node_addr[:pubkey_len]
-        key = pubkey_key_node_addr[pubkey_len:pubkey_len + key_len]
-        node_addr = None
-        if pubkey_len + key_len < len(pubkey_key_node_addr):
-            host, port = unpack_from('>4sH', pubkey_key_node_addr, pubkey_len + key_len)
+    def from_unpack_list(cls, circuit_id, node_public_key, key, node_addr):
+        if node_addr:
+            host, port = unpack_from('>4sH', node_addr)
             node_addr = (socket.inet_ntoa(host), port)
-        return ExtendPayload(circuit_id, node_public_key, node_addr, key)
+        return ExtendPayload(circuit_id, node_public_key, node_addr or None, key)
 
 
 class ExtendedPayload(Payload):
 
-    format_list = ['I', 'H', '32s', 'raw']
+    format_list = ['I', 'varlenH', '32s', 'raw']
 
     def __init__(self, circuit_id, key, auth, candidate_list):
         super(ExtendedPayload, self).__init__()
@@ -290,17 +277,13 @@ class ExtendedPayload(Payload):
         self.candidate_list = candidate_list
 
     def to_pack_list(self):
-        data = [('I', self.circuit_id),
-                ('H', len(self.key)),
+        return [('I', self.circuit_id),
+                ('varlenH', self.key),
                 ('32s', self.auth),
-                ('raw', self.key + self.candidate_list)]
-
-        return data
+                ('raw', self.candidate_list)]
 
     @classmethod
-    def from_unpack_list(cls, circuit_id, key_len, auth, key_clist):
-        key = key_clist[:key_len]
-        candidate_list = key_clist[key_len:]
+    def from_unpack_list(cls, circuit_id, key, auth, candidate_list):
         return ExtendedPayload(circuit_id, key, auth, candidate_list)
 
 
@@ -314,10 +297,8 @@ class PingPayload(Payload):
         self.identifier = identifier
 
     def to_pack_list(self):
-        data = [('I', self.circuit_id),
+        return [('I', self.circuit_id),
                 ('H', self.identifier)]
-
-        return data
 
     @classmethod
     def from_unpack_list(cls, circuit_id, identifier):
@@ -338,10 +319,8 @@ class DestroyPayload(Payload):
         self.reason = reason
 
     def to_pack_list(self):
-        data = [('I', self.circuit_id),
+        return [('I', self.circuit_id),
                 ('H', self.reason)]
-
-        return data
 
     @classmethod
     def from_unpack_list(cls, circuit_id, reason):
@@ -360,12 +339,10 @@ class EstablishIntroPayload(Payload):
         self.public_key = public_key
 
     def to_pack_list(self):
-        data = [('I', self.circuit_id),
+        return [('I', self.circuit_id),
                 ('H', self.identifier),
                 ('20s', self.info_hash),
                 ('varlenH', self.public_key)]
-
-        return data
 
     @classmethod
     def from_unpack_list(cls, circuit_id, identifier, info_hash, public_key):
@@ -382,10 +359,8 @@ class IntroEstablishedPayload(Payload):
         self.identifier = identifier
 
     def to_pack_list(self):
-        data = [('I', self.circuit_id),
+        return [('I', self.circuit_id),
                 ('H', self.identifier)]
-
-        return data
 
     @classmethod
     def from_unpack_list(cls, circuit_id, identifier):
@@ -403,11 +378,9 @@ class EstablishRendezvousPayload(Payload):
         self.cookie = cookie
 
     def to_pack_list(self):
-        data = [('I', self.circuit_id),
+        return [('I', self.circuit_id),
                 ('H', self.identifier),
                 ('20s', self.cookie)]
-
-        return data
 
     @classmethod
     def from_unpack_list(cls, circuit_id, identifier, cookie):
@@ -429,7 +402,6 @@ class RendezvousEstablishedPayload(Payload):
         data = [('I', self.circuit_id),
                 ('H', self.identifier),
                 ('4SH', socket.inet_aton(host), port)]
-
         return data
 
     @classmethod
@@ -440,7 +412,7 @@ class RendezvousEstablishedPayload(Payload):
 
 class CreateE2EPayload(Payload):
 
-    format_list = ['H', '20s', 'H', 'H', 'raw']
+    format_list = ['H', '20s', 'varlenH', 'varlenH']
 
     def __init__(self, identifier, info_hash, node_public_key, key):
         super(CreateE2EPayload, self).__init__()
@@ -450,24 +422,19 @@ class CreateE2EPayload(Payload):
         self.key = key
 
     def to_pack_list(self):
-        data = [('H', self.identifier),
+        return [('H', self.identifier),
                 ('20s', self.info_hash),
-                ('H', len(self.node_public_key)),
-                ('H', len(self.key)),
-                ('raw', self.node_public_key + self.key)]
-
-        return data
+                ('varlenH', self.node_public_key),
+                ('varlenH', self.key)]
 
     @classmethod
-    def from_unpack_list(cls, identifier, info_hash, pubkey_len, key_len, pubkey_key):
-        node_public_key = pubkey_key[:pubkey_len]
-        key = pubkey_key[pubkey_len:]
+    def from_unpack_list(cls, identifier, info_hash, node_public_key, key):
         return CreateE2EPayload(identifier, info_hash, node_public_key, key)
 
 
 class CreatedE2EPayload(Payload):
 
-    format_list = ['H', 'H', '32s', 'raw']
+    format_list = ['H', 'varlenH', '32s', 'raw']
 
     def __init__(self, identifier, key, auth, rp_sock_addr):
         super(CreatedE2EPayload, self).__init__()
@@ -477,17 +444,13 @@ class CreatedE2EPayload(Payload):
         self.rp_sock_addr = rp_sock_addr
 
     def to_pack_list(self):
-        data = [('H', self.identifier),
-                ('H', len(self.key)),
+        return [('H', self.identifier),
+                ('varlenH', self.key),
                 ('32s', self.auth),
-                ('raw', self.key + self.rp_sock_addr)]
-
-        return data
+                ('raw', self.rp_sock_addr)]
 
     @classmethod
-    def from_unpack_list(cls, identifier, key_len, auth, key_rpsockaddr):
-        key = key_rpsockaddr[:key_len]
-        rp_sock_addr = key_rpsockaddr[key_len:]
+    def from_unpack_list(cls, identifier, key, auth, rp_sock_addr):
         return CreatedE2EPayload(identifier, key, auth, rp_sock_addr)
 
 
@@ -502,11 +465,9 @@ class PeersRequestPayload(Payload):
         self.info_hash = info_hash
 
     def to_pack_list(self):
-        data = [('I', self.circuit_id),
+        return [('I', self.circuit_id),
                 ('H', self.identifier),
                 ('20s', self.info_hash)]
-
-        return data
 
     @classmethod
     def from_unpack_list(cls, circuit_id, identifier, info_hash):
@@ -525,12 +486,10 @@ class PeersResponsePayload(Payload):
         self.peers = peers
 
     def to_pack_list(self):
-        data = [('I', self.circuit_id),
+        return [('I', self.circuit_id),
                 ('H', self.identifier),
                 ('20s', self.info_hash),
                 ('raw', self.peers)]
-
-        return data
 
     @classmethod
     def from_unpack_list(cls, circuit_id, identifier, info_hash, peers):
@@ -548,11 +507,9 @@ class LinkE2EPayload(Payload):
         self.cookie = cookie
 
     def to_pack_list(self):
-        data = [('I', self.circuit_id),
+        return [('I', self.circuit_id),
                 ('H', self.identifier),
                 ('20s', self.cookie)]
-
-        return data
 
     @classmethod
     def from_unpack_list(cls, circuit_id, identifier, cookie):
@@ -569,10 +526,8 @@ class LinkedE2EPayload(Payload):
         self.identifier = identifier
 
     def to_pack_list(self):
-        data = [('I', self.circuit_id),
+        return [('I', self.circuit_id),
                 ('H', self.identifier)]
-
-        return data
 
     @classmethod
     def from_unpack_list(cls, circuit_id, identifier):
