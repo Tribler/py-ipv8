@@ -149,7 +149,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         # Make sure we have at least 1 data circuit for every hop count. This circuit will be used for
         # communication with introduction points.
         for hop_count in {swarm.hops for swarm in self.swarms.values()}:
-            if not self.active_data_circuits(hop_count):
+            if not self.find_circuits(state=None, hops=hop_count):
                 self.create_circuit(hop_count)
 
     def remove_circuit(self, circuit_id, additional_info='', remove_now=False, destroy=False):

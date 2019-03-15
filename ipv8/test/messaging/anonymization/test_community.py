@@ -165,13 +165,11 @@ class TestTunnelCommunity(TestBase):
         self.nodes[0].overlay.build_tunnels(1)
 
         # Node 0 should have 1 circuit in the CIRCUIT_STATE_EXTENDING state
-        self.assertEqual(len(self.nodes[0].overlay.data_circuits()), 1)
-        self.assertEqual(list(self.nodes[0].overlay.circuits.values())[0].state, CIRCUIT_STATE_EXTENDING)
+        self.assertEqual(len(self.nodes[0].overlay.find_circuits(state=CIRCUIT_STATE_EXTENDING)), 1)
 
         # Subsequent calls to build_circuits should not change this
         self.nodes[0].overlay.build_tunnels(1)
-        self.assertEqual(len(self.nodes[0].overlay.data_circuits()), 1)
-        self.assertEqual(list(self.nodes[0].overlay.circuits.values())[0].state, CIRCUIT_STATE_EXTENDING)
+        self.assertEqual(len(self.nodes[0].overlay.find_circuits(state=CIRCUIT_STATE_EXTENDING)), 1)
 
     @inlineCallbacks
     def test_destroy_circuit_from_originator(self):

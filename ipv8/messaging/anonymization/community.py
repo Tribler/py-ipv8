@@ -203,7 +203,7 @@ class TunnelCommunity(Community):
 
     def do_circuits(self):
         for circuit_length, num_circuits in self.circuits_needed.items():
-            num_to_build = max(0, num_circuits - len(self.data_circuits(circuit_length)))
+            num_to_build = max(0, num_circuits - len(self.find_circuits(state=None, hops=circuit_length)))
             self.logger.info("Want %d data circuits of length %d", num_to_build, circuit_length)
             for _ in range(num_to_build):
                 if not self.create_circuit(circuit_length):
@@ -219,7 +219,7 @@ class TunnelCommunity(Community):
 
     def tunnels_ready(self, hops):
         if hops > 0 and self.circuits_needed.get(hops, 0):
-            return len(self.active_data_circuits(hops)) / float(self.circuits_needed[hops])
+            return len(self.find_circuits(hops=hops)) / float(self.circuits_needed[hops])
         return 1.0
 
     def do_remove(self):
@@ -264,8 +264,14 @@ class TunnelCommunity(Community):
         return [p for p in self.network.get_peers_for_service(self.master_peer.mid)
                 if self.crypto.is_key_compatible(p.public_key)]
 
+    def find_circuits(self, ctype=CIRCUIT_TYPE_DATA, state=CIRCUIT_STATE_READY, hops=None):
+        return {cid: c for cid, c in self.circuits.items()
+                if (state is None or c.state == state)
+                and (ctype is None or c.ctype == ctype)
+                and (hops is None or hops == c.goal_hops)}
+
     def select_circuit(self, destination, hops):
-        circuits = sorted(self.active_data_circuits(hops).values(), key=lambda c: c.circuit_id)
+        circuits = sorted(self.find_circuits(hops=hops).values(), key=lambda c: c.circuit_id)
         if not circuits:
             return None
 
@@ -468,15 +474,6 @@ class TunnelCommunity(Community):
         sock_addr = exit_socket.peer.address
         self.send_destroy(sock_addr, exit_socket.circuit_id, reason)
         self.logger.info("Destroy_exit_socket %s %s", exit_socket.circuit_id, sock_addr)
-
-    def data_circuits(self, hops=None):
-        return {cid: c for cid, c in self.circuits.items()
-                if c.ctype == CIRCUIT_TYPE_DATA and (hops is None or hops == c.goal_hops)}
-
-    def active_data_circuits(self, hops=None):
-        return {cid: c for cid, c in self.circuits.items()
-                if c.state == CIRCUIT_STATE_READY and c.ctype == CIRCUIT_TYPE_DATA
-                and (hops is None or hops == c.goal_hops)}
 
     def is_relay(self, circuit_id):
         return circuit_id > 0 and circuit_id in self.relay_from_to
