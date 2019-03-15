@@ -548,7 +548,7 @@ class TunnelCommunity(Community):
         circuit.unverified_hop = None
 
         if circuit.state == CIRCUIT_STATE_EXTENDING:
-            candidate_list_enc = payload.candidate_list
+            candidate_list_enc = payload.candidate_list_enc
             _, candidate_list = decode(self.crypto.decrypt_str(candidate_list_enc,
                                                                hop.session_keys[EXIT_NODE],
                                                                hop.session_keys[EXIT_NODE_SALT]))
@@ -718,10 +718,11 @@ class TunnelCommunity(Community):
         self.request_cache.add(CreatedRequestCache(self, circuit_id, peer, peers_keys, self.settings.unstable_timeout))
         self.exit_sockets[circuit_id] = TunnelExitSocket(circuit_id, peer, self)
 
-        keys_list_enc = self.crypto.encrypt_str(encode(list(peers_keys.keys())),
-                                                *self.get_session_keys(self.relay_session_keys[circuit_id], EXIT_NODE))
+        candidate_list_enc = self.crypto.encrypt_str(encode(list(peers_keys.keys())),
+                                                     *self.get_session_keys(self.relay_session_keys[circuit_id],
+                                                                            EXIT_NODE))
         self.send_cell([Peer(create_payload.node_public_key, previous_node_address)], u"created",
-                       CreatedPayload(circuit_id, key, auth, keys_list_enc))
+                       CreatedPayload(circuit_id, key, auth, candidate_list_enc))
 
     @tc_lazy_wrapper_unsigned(CreatePayload)
     def on_create(self, source_address, payload, _):
@@ -757,7 +758,7 @@ class TunnelCommunity(Community):
             self.send_cell([relay.peer], u"extended", ExtendedPayload(relay.circuit_id,
                                                                       payload.key,
                                                                       payload.auth,
-                                                                      payload.candidate_list))
+                                                                      payload.candidate_list_enc))
         elif self.request_cache.has(u"circuit", payload.circuit_id) and \
                 self.request_cache.has(u"retry", payload.circuit_id):
             circuit = self.circuits[circuit_id]

@@ -321,7 +321,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
                                                                       cache.hop.public_key.key.pk)
         session_keys = self.crypto.generate_session_keys(shared_secret)
 
-        _, decoded = decode(self.crypto.decrypt_str(payload.rp_sock_addr,
+        _, decoded = decode(self.crypto.decrypt_str(payload.rp_info_enc,
                                                     session_keys[EXIT_NODE],
                                                     session_keys[EXIT_NODE_SALT]))
         rp_info, cookie = decoded
