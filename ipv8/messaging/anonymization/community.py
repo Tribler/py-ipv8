@@ -103,7 +103,7 @@ class TunnelSettings(object):
         # Maximum number of seconds adding a single hop to a circuit is allowed to take.
         self.next_hop_timeout = 10
 
-        self.swarm_lookup_interval = 300
+        self.swarm_lookup_interval = 30
         self.swarm_connection_limit = 5
 
         # We have a small delay when removing circuits/relays/exit nodes. This is to allow some post-mortem data
