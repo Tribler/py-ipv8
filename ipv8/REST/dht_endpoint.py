@@ -283,6 +283,23 @@ class DHTValuesEndpoint(BaseEndpoint):
         super(DHTValuesEndpoint, self).__init__()
         self.dht = dht
 
+    def render_GET(self, request):
+        if not self.dht:
+            request.setResponseCode(http.NOT_FOUND)
+            return json.dumps({"error": "DHT community not found"})
+
+        results = {}
+        for key, raw_values in self.dht.storage.items.items():
+            values = self.dht.post_process_values([v.data for v in raw_values])
+            dicts = []
+            for value in values:
+                data, public_key = value
+                dicts.append({'public_key': b64encode(public_key) if public_key else None,
+                              'value': hexlify(data)})
+            results[hexlify(key)] = dicts
+
+        return json.dumps(results)
+
     def getChild(self, path, request):
         return SpecificDHTValueEndpoint(self.dht, path)
 
