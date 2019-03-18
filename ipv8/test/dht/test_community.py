@@ -13,7 +13,6 @@ from ...dht.routing import Node, distance, NODE_LIMIT_QUERIES
 
 
 class TestDHTCommunity(TestBase):
-
     def setUp(self):
         super(TestDHTCommunity, self).setUp()
         self.initialize(DHTCommunity, 2)
@@ -181,8 +180,8 @@ class TestDHTCommunity(TestBase):
         dht_provider_1 = DHTCommunityProvider(self.nodes[0].overlay, 1337)
         dht_provider_2 = DHTCommunityProvider(self.nodes[1].overlay, 1338)
         dht_provider_3 = DHTCommunityProvider(self.nodes[2].overlay, 1338)
-        dht_provider_1.announce(b'a' * 20, IntroductionPoint(self.nodes[0].overlay.my_peer, 'key1'))
-        dht_provider_2.announce(b'a' * 20, IntroductionPoint(self.nodes[1].overlay.my_peer, 'key2'))
+        dht_provider_1.announce(b'a' * 20, IntroductionPoint(self.nodes[0].overlay.my_peer, '\x01'*20))
+        dht_provider_2.announce(b'a' * 20, IntroductionPoint(self.nodes[1].overlay.my_peer, '\x02'*20))
 
         yield self.deliver_messages()
 

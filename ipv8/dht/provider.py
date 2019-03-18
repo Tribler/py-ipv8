@@ -2,7 +2,7 @@ from __future__ import absolute_import
 
 from binascii import hexlify
 import logging
-from socket import inet_aton
+from socket import inet_aton, inet_ntoa
 from struct import pack, unpack_from
 
 from ..peer import Peer
@@ -28,12 +28,13 @@ class DHTCommunityProvider(object):
             results = []
             for value, _ in values:
                 try:
-                    ip, port, intro_key_len = unpack_from('!4sHH', value)
-                    intro_pk = value[8:8 + intro_key_len]
+                    ip_bin, port, intro_key_len = unpack_from('!4sHH', value)
+                    ip = inet_ntoa(ip_bin)
+                    intro_pk = 'LibNaCLPK:' + value[8:8 + intro_key_len]
                     intro_peer = Peer(intro_pk, address=(ip, port))
 
                     seeder_key_len, = unpack_from('!H', value, 8 + intro_key_len)
-                    seeder_pk = value[8 + intro_key_len:8 + intro_key_len + seeder_key_len]
+                    seeder_pk = 'LibNaCLPK:' + value[8 + intro_key_len:8 + intro_key_len + seeder_key_len]
 
                     results.append(IntroductionPoint(intro_peer, seeder_pk))
                 except:
@@ -51,7 +52,8 @@ class DHTCommunityProvider(object):
 
         intro_pk = intro_point.peer.public_key.key_to_bin()
         value = inet_aton(intro_point.peer.address[0]) + pack("!H", intro_point.peer.address[1])
-        value += pack('!H', len(intro_pk)) + intro_pk
-        value += pack('!H', len(intro_point.seeder_pk)) + intro_point.seeder_pk
+        # We strip away the LibNaCLPK part of the public key to avoid going over the DHT size limit.
+        value += pack('!H', len(intro_pk)) + intro_pk[10:]
+        value += pack('!H', len(intro_point.seeder_pk)) + intro_point.seeder_pk[10:]
 
         self.dht_community.store_value(info_hash, value).addCallbacks(callback, errback)
