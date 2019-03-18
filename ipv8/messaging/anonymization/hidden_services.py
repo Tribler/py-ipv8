@@ -97,10 +97,10 @@ class HiddenTunnelCommunity(TunnelCommunity):
         swarm = self.swarms.pop(info_hash, None)
         if swarm:
             for rp_circuit, _ in swarm.connections.values():
-                self.destroy_circuit(rp_circuit, 'leaving hidden swarm', destroy=True)
+                self.remove_circuit(rp_circuit, 'leaving hidden swarm', destroy=True)
         for ip_circuit in self.circuits.values():
             if ip_circuit.info_hash == info_hash and ip_circuit.ctype == CIRCUIT_TYPE_IP_SEEDER:
-                self.destroy_circuit(ip_circuit, 'leaving hidden swarm', destroy=True)
+                self.remove_circuit(ip_circuit, 'leaving hidden swarm', destroy=True)
 
     def select_circuit_for_infohash(self, info_hash):
         swarm = self.swarms.get(info_hash)
@@ -139,9 +139,10 @@ class HiddenTunnelCommunity(TunnelCommunity):
                and swarm.get_num_connections() < self.settings.swarm_connection_limit:
                 swarm.last_lookup = now
                 ips = yield self.send_peers_request(info_hash).addErrback(lambda _: [])
-                for ip in ips:
+                for ip in set(ips):
+                    ip = swarm.add_intro_point(ip)
                     if not swarm.has_connection(ip.seeder_pk):
-                        self.create_e2e(info_hash, swarm.add_intro_point(ip))
+                        self.create_e2e(info_hash, ip)
 
     def do_circuits(self):
         super(HiddenTunnelCommunity, self).do_circuits()
@@ -234,7 +235,8 @@ class HiddenTunnelCommunity(TunnelCommunity):
             self.send_peers_response(source_address, payload, intro_points, circuit_id)
         elif circuit_id in self.exit_sockets:
             # Get peers from DHT community
-            def dht_callback(intro_points):
+            def dht_callback(result):
+                info_hash, intro_points = result
                 self.send_peers_response(source_address, payload, intro_points, circuit_id)
             self.dht_lookup(info_hash, dht_callback)
         else:
@@ -267,7 +269,8 @@ class HiddenTunnelCommunity(TunnelCommunity):
 
         _, peers = decode(payload.peers)
         self.logger.info("Received peers-response containing %d peers" % len(peers))
-        ips = [IntroductionPoint(Peer(ip_pk, address=address), seeder_pk) for address, ip_pk, seeder_pk in peers]
+        ips = [IntroductionPoint(Peer(ip_pk, address=address), seeder_pk)
+               for address, ip_pk, seeder_pk in peers if address != ('0.0.0.0', 0)]
         cache.deferred.callback(ips)
 
     def create_e2e(self, info_hash, intro_point):
@@ -414,16 +417,21 @@ class HiddenTunnelCommunity(TunnelCommunity):
         circuit = self.exit_sockets[circuit_id]
         self.intro_point_for[payload.public_key] = circuit
 
-        # PEX announce
-        if payload.info_hash not in self.pex:
+        if not self.ipv8:
+            self.logger.error('No IPv8 service object available, cannot start PEXCommunity')
+        elif payload.info_hash not in self.pex:
             community = PexCommunity(self.my_peer, self.ipv8.endpoint, self.ipv8.network, info_hash=payload.info_hash)
             self.ipv8.overlays.append(community)
             self.ipv8.strategies.append((RandomWalk(community), 20))
             self.pex[payload.info_hash] = community
-        self.pex[payload.info_hash].start_announce(payload.public_key)
+
+        # PEX announce
+        if payload.info_hash in self.pex:
+            self.pex[payload.info_hash].start_announce(payload.public_key)
 
         # DHT announce
-        self.dht_announce(payload.info_hash, IntroductionPoint(self.my_peer, payload.public_key))
+        self.dht_announce(payload.info_hash,
+                          IntroductionPoint(Peer(self.my_peer.key, self.my_estimated_wan), payload.public_key))
 
         self.send_cell([source_address], u"intro-established",
                        IntroEstablishedPayload(circuit.circuit_id, payload.identifier))

@@ -350,6 +350,9 @@ class IntroductionPoint(object):
     def __eq__(self, other):
         return self.peer == other.peer and self.seeder_pk == other.seeder_pk
 
+    def __hash__(self):
+        return hash((self.peer, self.seeder_pk))
+
 
 class Swarm(object):
 
@@ -378,7 +381,10 @@ class Swarm(object):
         return seeder_pk in [ip.seeder_pk for _, ip in self.connections.values()]
 
     def get_num_connections(self):
-        return len([c for c in self.connections if c.state == CIRCUIT_STATE_READY])
+        return len([c for c, _ in self.connections.values() if c.state == CIRCUIT_STATE_READY])
+
+    def get_num_connections_incomplete(self):
+        return len([c for c, _ in self.connections.values() if c.state == CIRCUIT_STATE_EXTENDING])
 
     def add_intro_point(self, ip):
         old_ip = next((i for i in self.intro_points if i == ip), None)

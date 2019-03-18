@@ -5,6 +5,7 @@ from collections import deque
 from ...community import Community
 from ...messaging.deprecated.encoding import encode, decode
 from ...messaging.anonymization.tunnel import IntroductionPoint
+from ...peer import Peer
 
 MAX_INTRODUCTION_POINTS = 20
 
@@ -27,8 +28,8 @@ class PexCommunity(Community):
         Get a list of the most recent introduction points that were discovered using PexCommunity.
         :return : list of IntroductionPoint objects
         """
-        return list(self.intro_points) + \
-               [IntroductionPoint(self.my_peer, seeder_pk) for seeder_pk in self.intro_points_for]
+        my_peer = Peer(self.my_peer.key, self.my_estimated_wan)
+        return list(self.intro_points) + [IntroductionPoint(my_peer, seeder_pk) for seeder_pk in self.intro_points_for]
 
     def start_announce(self, seeder_pk):
         """
@@ -49,6 +50,9 @@ class PexCommunity(Community):
         return bool(self.intro_points_for)
 
     def process_extra_bytes(self, peer, extra_bytes):
+        if not extra_bytes:
+            return
+
         for seeder_pk in decode(extra_bytes)[1]:
             ip = IntroductionPoint(peer, seeder_pk)
             if ip in self.intro_points:

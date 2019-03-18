@@ -122,6 +122,7 @@ class TunnelSwarmsEndpoint(BaseEndpoint):
                 "info_hash": hexlify(swarm.info_hash),
                 "num_seeders": swarm.get_num_seeders(),
                 "num_connections": swarm.get_num_connections(),
+                "num_connections_incomplete": swarm.get_num_connections_incomplete(),
                 "seeding": swarm.seeding,
                 "last_lookup": swarm.last_lookup
             } for swarm in self.tunnels.swarms.values()]})
