@@ -9,6 +9,15 @@ import six
 import sys
 
 
+def make_bytes(s):
+    """Utility function for gracefully dealing with str input in Python 3
+    """
+    try:
+        return s.encode('utf-8')  # Python 3 str --> bytes
+    except AttributeError:
+        return s
+
+
 class PackError(RuntimeError):
     pass
 
@@ -149,7 +158,7 @@ class VarLen(object):
         self.base = base
 
     def pack(self, *data):
-        raw = b''.join(data)
+        raw = b''.join(*(make_bytes(s) for s in data))
         length = len(raw) // self.base
         size = self.format_size + len(raw)
         return pack('>%s%ds' % (self.format, len(raw)), length, raw), size
@@ -168,7 +177,7 @@ class DefaultStruct(Struct):
         self.single_value = single_value
 
     def pack(self, *data):
-        return super(DefaultStruct, self).pack(*data), self.size
+        return super(DefaultStruct, self).pack(*(make_bytes(s) for s in data)), self.size
 
     def unpack_from(self, buffer, offset=0):
         out = super(DefaultStruct, self).unpack_from(buffer, offset)
