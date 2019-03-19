@@ -158,7 +158,7 @@ class VarLen(object):
         self.base = base
 
     def pack(self, *data):
-        raw = b''.join(*(make_bytes(s) for s in data))
+        raw = b''.join(make_bytes(s) for s in data)
         length = len(raw) // self.base
         size = self.format_size + len(raw)
         return pack('>%s%ds' % (self.format, len(raw)), length, raw), size
@@ -177,7 +177,7 @@ class DefaultStruct(Struct):
         self.single_value = single_value
 
     def pack(self, *data):
-        return super(DefaultStruct, self).pack(make_bytes(s) for s in data), self.size
+        return super(DefaultStruct, self).pack(*(make_bytes(s) for s in data)), self.size
 
     def unpack_from(self, buffer, offset=0):
         out = super(DefaultStruct, self).unpack_from(buffer, offset)
