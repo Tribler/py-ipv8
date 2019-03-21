@@ -21,18 +21,15 @@ Ippolito <bob@redivi.com>.  Simplified, and optimized to use just python code.
 @organization: Technical University Delft
 @contact: dispersy@frayja.com
 """
-from __future__ import absolute_import
-from __future__ import division
+from __future__ import absolute_import, division
 
-from hashlib import sha1, sha256, sha384, sha512, md5
+import logging
+from binascii import hexlify, unhexlify
+from hashlib import md5, sha1, sha256, sha384, sha512
 from math import ceil, log
 from struct import Struct
-from binascii import hexlify, unhexlify
-import logging
 
-from six import integer_types
-
-from ..util import cast_to_bin, cast_to_chr
+from six import binary_type, integer_types
 
 logger = logging.getLogger(__name__)
 
@@ -83,11 +80,11 @@ class BloomFilter(object):
     @classmethod
     def _overload_constructor_arguments(cls, args, kargs):
         # matches: BloomFilter(str:bytes, int:k_functions, str:prefix="")
-        if len(args) >= 2 and isinstance(args[0], str) and isinstance(args[1], int):
-            bytes_ = cast_to_bin(args[0])
+        if len(args) >= 2 and isinstance(args[0], binary_type) and isinstance(args[1], int):
+            bytes_ = args[0]
             m_size = len(bytes_) * 8
             k_functions = args[1]
-            prefix = kargs.get("prefix", args[2] if len(args) >= 3 else "")
+            prefix = kargs.get("prefix", args[2] if len(args) >= 3 else b"")
             assert 0 < len(bytes_), len(bytes_)
             logger.debug("bloom filter based on %d bytes and k_functions %d", len(bytes_), k_functions)
             filter_ = int(hexlify(bytes_[::-1]), 16)
@@ -96,7 +93,7 @@ class BloomFilter(object):
         elif len(args) >= 2 and isinstance(args[0], int) and isinstance(args[1], float):
             m_size = args[0]
             f_error_rate = args[1]
-            prefix = kargs.get("prefix", args[2] if len(args) >= 3 else "")
+            prefix = kargs.get("prefix", args[2] if len(args) >= 3 else b"")
             assert 0 < m_size, m_size
             assert m_size % 8 == 0, "size must be a multiple of eight (%d)" % m_size
             assert 0.0 < f_error_rate < 1.0, f_error_rate
@@ -108,7 +105,7 @@ class BloomFilter(object):
         elif len(args) >= 2 and isinstance(args[0], float) and isinstance(args[1], int):
             f_error_rate = args[0]
             n_capacity = args[1]
-            prefix = kargs.get("prefix", args[2] if len(args) >= 3 else "")
+            prefix = kargs.get("prefix", args[2] if len(args) >= 3 else b"")
             assert 0.0 < f_error_rate < 1.0, f_error_rate
             assert 0 < n_capacity, n_capacity
             logger.debug("constructing bloom filter based on f_error_rate %f and %d n_capacity", f_error_rate,
@@ -133,7 +130,7 @@ class BloomFilter(object):
         assert self._m_size % 8 == 0, "size must be a multiple of eight (%d)" % self._m_size
         assert isinstance(self._k_functions, int), type(self._k_functions)
         assert 0 < self._k_functions <= self._m_size, [self._k_functions, self._m_size]
-        assert isinstance(self._prefix, str), type(self._prefix)
+        assert isinstance(self._prefix, binary_type), type(self._prefix)
         assert 0 <= len(self._prefix) < 256, len(self._prefix)
         assert isinstance(self._filter, integer_types), type(self._filter)
 
@@ -164,7 +161,7 @@ class BloomFilter(object):
         self._fmt_unpack = Struct("".join((">",
                                            fmt_code * self._k_functions,
                                            "x" * (hashfn().digest_size - bits_required // 8)))).unpack
-        self._salt = hashfn(self._prefix.encode())
+        self._salt = hashfn(self._prefix)
 
     def add(self, key):
         """
@@ -187,9 +184,9 @@ class BloomFilter(object):
         fmt_unpack = self._fmt_unpack
 
         for key in keys:
-            assert isinstance(key, str)
+            assert isinstance(key, binary_type)
             hash_ = salt_copy()
-            hash_.update(key.encode())
+            hash_.update(key)
 
             # 04/05/12 Boudewijn: using a list instead of a generator is significantly faster.
             # while generators are more memory efficient, this list will be relatively short.
@@ -210,7 +207,7 @@ class BloomFilter(object):
         m_size_ = self._m_size
 
         hash_ = self._salt.copy()
-        hash_.update(key.encode())
+        hash_.update(key)
 
         for pos in self._fmt_unpack(hash_.digest()):
             if not filter_ & (1 << (pos % m_size_)):
@@ -230,9 +227,9 @@ class BloomFilter(object):
         for tup in iterator:
             assert isinstance(tup, tuple)
             assert len(tup) > 0
-            assert isinstance(tup[0], str)
+            assert isinstance(tup[0], binary_type)
             hash_ = salt_copy()
-            hash_.update(tup[0].encode())
+            hash_.update(tup[0])
 
             # 04/05/12 Boudewijn: using a list instead of a generator is significantly faster.
             # while generators are more memory efficient, this list will be relatively short.
@@ -301,4 +298,4 @@ class BloomFilter(object):
         # hex should be m_size/4, hex is 16 instead of 8 -> hence half the number of "hexes" in m_size
         hex_ = '%x' % self._filter
         padding = '0' * (self._m_size // 4 - len(hex_))
-        return cast_to_chr(unhexlify(padding + hex_)[::-1])
+        return unhexlify(padding + hex_)[::-1]
