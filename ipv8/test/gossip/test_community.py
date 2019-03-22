@@ -1,8 +1,11 @@
+from __future__ import absolute_import
+
+from twisted.internet.defer import inlineCallbacks
+
 from ...gossip.community import GossipOverlay, GossipRule, IGossipOverlayListener
 from ...peer import Peer
 from ...test.base import TestBase
 from ...test.mocking.ipv8 import MockIPv8
-from ...test.util import twisted_wrapper
 
 
 class MockGossipOverlayListener(IGossipOverlayListener):
@@ -23,7 +26,7 @@ class MockGossipOverlayListener(IGossipOverlayListener):
 
 
 class MockGossipOverlayListenerAppending(MockGossipOverlayListener):
-    APPENDED_LITERAL = "_APPENDED_LITERAL"
+    APPENDED_LITERAL = b"_APPENDED_LITERAL"
 
     def on_gossip(self, public_key, message):
         """
@@ -110,11 +113,11 @@ class TestGossipOverlay(TestBase):
         :param count: the number of steps to be made by the peer
         :return:
         """
-        for _ in xrange(count):
+        for _ in range(count):
             self.nodes[peer_idx].overlay.take_step()
 
     @staticmethod
-    def generate_signed_payload(signer_peer, true_data=""):
+    def generate_signed_payload(signer_peer, true_data=b""):
         """
         Generate a signed payload for a given data for a given peer
 
@@ -124,7 +127,7 @@ class TestGossipOverlay(TestBase):
         """
         return signer_peer.my_peer.key.signature(true_data) + true_data
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_time_change_neighbor(self):
         """
         Test the fact that the clock changes (locally) in neighboring peers when a local peer receives a message
@@ -135,7 +138,7 @@ class TestGossipOverlay(TestBase):
         first_node_pk = self.nodes[0].my_peer.key.pub().key_to_bin()
         second_node_pk = self.nodes[1].my_peer.key.pub().key_to_bin()
 
-        message_contents = "asd"
+        message_contents = b"asd"
 
         # Store the message in the second peer's DB and set the local rule for the first peer
         self.nodes[1].overlay.store(first_node_pk, self.generate_signed_payload(self.nodes[0], message_contents))
@@ -156,10 +159,10 @@ class TestGossipOverlay(TestBase):
                             .get_verified_by_public_key_bin(second_node_pk).last_response, "Last response time did not"
                                                                                            "change")
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_message_rule_SUPPRESS_success(self):
         """
-        Test the voting scheme for changing the GossipRule for a particular to SUPPRESS peer on success
+        Test the voting scheme for changing the GossipRule for a particular peer to SUPPRESS peer on success
 
         :return: None
         """
@@ -177,7 +180,7 @@ class TestGossipOverlay(TestBase):
         self.assertEqual(self.nodes[0].overlay.get_rule(target_public_key), GossipRule.SUPPRESS,
                          "The rule was not changed")
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_message_rule_SUPPRESS_fail(self):
         """
         Test the voting scheme for changing the GossipRule for a particular peer to SUPPRESS on failure
@@ -204,7 +207,7 @@ class TestGossipOverlay(TestBase):
 
         self.assertRaises(KeyError, lambda: self.nodes[0].overlay.rule_change_db[target_public_key])
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_message_rule_SUPPRESS_non_neighbor(self):
         """
         Test the voting scheme for changing the GossipRule for a particular peer to SUPPRESS when non-neighbor. This
@@ -231,7 +234,7 @@ class TestGossipOverlay(TestBase):
 
         self.assertEqual(self.nodes[0].overlay.get_rule(target_public_key), GossipRule.DEFAULT, "The rule was changed.")
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_peer_rule_DEFAULT_persistence(self):
         """
         Test the persistence of a message stored in a peers' DB, upon receiving an (already) stored message from a
@@ -244,7 +247,7 @@ class TestGossipOverlay(TestBase):
 
         first_node_pk = self.nodes[0].my_peer.key.pub().key_to_bin()
 
-        message_contents = "asd"
+        message_contents = b"asd"
 
         # Store the message in the second peer's DB and set the local rule for the first peer
         self.nodes[1].overlay.store(first_node_pk, self.generate_signed_payload(self.nodes[0], message_contents))
@@ -265,7 +268,7 @@ class TestGossipOverlay(TestBase):
         self.assertTrue(self.nodes[0].overlay.has_message(first_node_pk, message_contents), "The message was deleted "
                                                                                             "from the first node's DB.")
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_peer_rule_DEFAULT_removal(self):
         """
         Test the removal of a message stored in a peers' DB, upon receiving a message from a DEFAULT rule peer
@@ -278,7 +281,7 @@ class TestGossipOverlay(TestBase):
 
         first_node_pk = self.nodes[0].my_peer.key.pub().key_to_bin()
 
-        message_contents = "asd"
+        message_contents = b"asd"
 
         # Store the message in the second peer's DB and set the local rule for the first peer
         self.nodes[1].overlay.store(first_node_pk, self.generate_signed_payload(self.nodes[0], message_contents))
@@ -300,7 +303,7 @@ class TestGossipOverlay(TestBase):
                                                                                              "deleted from the first "
                                                                                              "node's DB.")
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_peer_rule_DEFAULT_neighbor(self):
         """
         Test the case where a neighboring DEFAULT rule peer (as set in the other peer) sends a SPREAD message to the
@@ -310,7 +313,7 @@ class TestGossipOverlay(TestBase):
         """
         first_node_pk = self.nodes[0].my_peer.key.pub().key_to_bin()
 
-        message_contents = "asd"
+        message_contents = b"asd"
 
         # Store the message in the second peer's DB and set the local rule for the first peer
         self.nodes[1].overlay.store(first_node_pk, self.generate_signed_payload(self.nodes[0], message_contents))
@@ -337,7 +340,7 @@ class TestGossipOverlay(TestBase):
                                                                                                     "should be stored "
                                                                                                     "in the DB.")
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_message_rule_SPREAD_neighbor(self):
         """
         Test the SPREAD Gossip Rule, when received from a neighboring peer
@@ -346,7 +349,7 @@ class TestGossipOverlay(TestBase):
         """
         first_node_pk = self.nodes[0].my_peer.key.pub().key_to_bin()
 
-        message_contents = "asd"
+        message_contents = b"asd"
 
         # Store the message in the second peer's DB and set the local rule for the first peer
         self.nodes[1].overlay.store(first_node_pk, self.generate_signed_payload(self.nodes[0], message_contents))
@@ -373,7 +376,7 @@ class TestGossipOverlay(TestBase):
                                                                                                     "should be stored "
                                                                                                     "in the DB.")
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_message_rule_SPREAD_non_neighbor(self):
         """
         Test the SPREAD Gossip Rule, when received from a non-neighboring peer whose rule is set to COLLECT (generally
@@ -386,7 +389,7 @@ class TestGossipOverlay(TestBase):
         first_node_pk = self.nodes[0].my_peer.key.pub().key_to_bin()
         second_node_pk = self.nodes[1].my_peer.key.pub().key_to_bin()
 
-        message_contents = "asd"
+        message_contents = b"asd"
 
         # Store the message in the second peer's DB and set the local rule for the first peer
         self.nodes[1].overlay.store(first_node_pk, self.generate_signed_payload(self.nodes[0], message_contents))
@@ -415,7 +418,7 @@ class TestGossipOverlay(TestBase):
                                                                                                     "not stored in "
                                                                                                     "the DB")
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_message_rule_COLLECT_neighbor(self):
         """
         Test the COLLECT Gossip Rule, when the interaction is carried out from a neighboring peer whose rule is set
@@ -429,7 +432,7 @@ class TestGossipOverlay(TestBase):
         self.nodes[0].overlay.set_rule(second_node_pk, GossipRule.COLLECT)
 
         # Add a simple message in the second peer
-        message_contents = "asd"
+        message_contents = b"asd"
         self.nodes[1].overlay.store(second_node_pk, message_contents)
 
         # Make sure the first peer has no messages for this peer
@@ -442,7 +445,7 @@ class TestGossipOverlay(TestBase):
         self.assertTrue(self.nodes[0].overlay.has_message(second_node_pk, message_contents), "The message should have "
                                                                                              "been added")
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_message_rule_COLLECT_non_neighbor(self):
         """
         Test the COLLECT Gossip Rule, when the interaction is carried out from a non-neighboring peer whose rule is set
@@ -470,7 +473,7 @@ class TestGossipOverlay(TestBase):
         self.assertIsNone(self.nodes[0].overlay.message_db.get(second_node_pk, None), "The message DB should be empty "
                                                                                       "for this peer.")
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_message_rule_SUPPRESS_when_SUPPRESSED(self):
         """
         Test the gossip message rule SUPPRESS when one interacting peer is SUPPRESSED
@@ -493,13 +496,13 @@ class TestGossipOverlay(TestBase):
 
         yield self.deliver_messages()
 
-        self.assertTrue(voting_public_key in self.nodes[0].overlay.rule_change_db[target_public_key]._votes and
-                        source_public_key not in self.nodes[0].overlay.rule_change_db[target_public_key]._votes,
+        self.assertTrue(voting_public_key in self.nodes[0].overlay.rule_change_db[target_public_key]._votes
+                        and source_public_key not in self.nodes[0].overlay.rule_change_db[target_public_key]._votes,
                         "Either one vote was not recorded or the other was recorded when it shouldn't have been.")
 
         self.assertEqual(self.nodes[0].overlay.get_rule(target_public_key), GossipRule.DEFAULT, "The rule was changed.")
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_peer_rule_DEFAULT_when_SUPPRESSED(self):
         """
         Test the gossip peer rule DEFAULT when the other interacting peer is SUPPRESSED
@@ -512,7 +515,7 @@ class TestGossipOverlay(TestBase):
         first_node_pk = self.nodes[0].my_peer.key.pub().key_to_bin()
         second_node_pk = self.nodes[1].my_peer.key.pub().key_to_bin()
 
-        message_contents = "asd"
+        message_contents = b"asd"
 
         # Store the message in the second peer's DB and set the local rule for the first peer
         self.nodes[1].overlay.store(first_node_pk, self.generate_signed_payload(self.nodes[0], message_contents))
@@ -537,7 +540,7 @@ class TestGossipOverlay(TestBase):
         self.assertTrue(self.nodes[0].overlay.has_message(first_node_pk, message_contents), "The message was deleted "
                                                                                             "from the first node's DB.")
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_message_rule_SPREAD_when_SUPPRESSED(self):
         """
         Test the gossip message rule SPREAD when one interacting peer is SUPPRESSED
@@ -547,7 +550,7 @@ class TestGossipOverlay(TestBase):
         first_node_pk = self.nodes[0].my_peer.key.pub().key_to_bin()
         second_node_pk = self.nodes[1].my_peer.key.pub().key_to_bin()
 
-        message_contents = "asd"
+        message_contents = b"asd"
 
         # Store the message in the second peer's DB and set the local rule for the first peer
         self.nodes[1].overlay.store(first_node_pk, self.generate_signed_payload(self.nodes[0], message_contents))
@@ -575,7 +578,7 @@ class TestGossipOverlay(TestBase):
                                                                                                     "be stored in the "
                                                                                                     "DB.")
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_message_rule_COLLECT_when_SUPPRESSED_target(self):
         """
         Test the gossip message rule COLLECT when the receiving peer is SUPPRESSED in the requesting peer
@@ -588,7 +591,7 @@ class TestGossipOverlay(TestBase):
         self.nodes[0].overlay.set_rule(second_node_pk, GossipRule.COLLECT)
 
         # Add a simple message in the second peer
-        message_contents = "asd"
+        message_contents = b"asd"
         self.nodes[1].overlay.store(second_node_pk, message_contents)
 
         # Make the source second peer is SUPPRESSED in the first
@@ -604,7 +607,7 @@ class TestGossipOverlay(TestBase):
         self.assertIsNone(self.nodes[0].overlay.message_db.get(second_node_pk, None), "The message DB should be empty "
                                                                                       "for this peer")
 
-    @twisted_wrapper
+    @inlineCallbacks
     def test_message_rule_COLLECT_when_SUPPRESSED_source(self):
         """
         Test the gossip message rule COLLECT when the requesting peer is SUPPRESSED in the receiving peer
@@ -618,7 +621,7 @@ class TestGossipOverlay(TestBase):
         self.nodes[0].overlay.set_rule(second_node_pk, GossipRule.COLLECT)
 
         # Add a simple message in the second peer
-        message_contents = "asd"
+        message_contents = b"asd"
         self.nodes[1].overlay.store(second_node_pk, message_contents)
 
         # Make the source second peer SUPPRESSED in the first

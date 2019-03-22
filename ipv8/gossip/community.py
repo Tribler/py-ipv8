@@ -1,19 +1,24 @@
+from __future__ import absolute_import
+
 from abc import abstractmethod
-from random import sample, choice
+from binascii import unhexlify
+from random import choice, sample
 from string import hexdigits
 
 from twisted.internet import reactor
 from twisted.internet.base import DelayedCall
 from twisted.internet.task import LoopingCall
 
-from ..peer import Peer
-from ..deprecated.bloomfilter import BloomFilter
 from ..keyvault.public.libnaclkey import LibNaCLPK
+from ..messaging.bloomfilter import BloomFilter
 from ..messaging.serialization import PackError, Serializable
 from ..overlay import Overlay
+from ..peer import Peer
 
 # The time required to gather all the necessary votes for carrying out a vote
 VOTE_TIMEOUT = 5
+
+BYTE_HEXDIGITS = [x.encode('utf-8') for x in hexdigits]
 
 
 class IGossipOverlayListener(object):
@@ -45,9 +50,8 @@ class GossipMessage(Serializable):
         self.payload = payload
         self.rule = rule
         self.target_public_key = target_public_key
-
-        self.signature = my_private_key.signature(self.public_key + str(self.rule) + self.target_public_key +
-                                                  self.payload)
+        self.signature = my_private_key.signature(
+            self.public_key + str(self.rule).encode('utf-8') + self.target_public_key + self.payload)
 
     def to_pack_list(self):
         return [
@@ -62,7 +66,7 @@ class GossipMessage(Serializable):
     def from_unpack_list(cls, signature, public_key, rule, target_public_key, payload):
         key = LibNaCLPK(binarykey=public_key[10:])
 
-        if key.verify(signature, public_key + str(rule) + target_public_key + payload):
+        if key.verify(signature, public_key + str(rule).encode('utf-8') + target_public_key + payload):
             out = object.__new__(GossipMessage)
             out.public_key = public_key
             out.signature = signature
@@ -78,7 +82,7 @@ class GossipRuleChangeBallot(object):
 
     def __init__(self, rule, initial_votes, callback_name, callback, required_majority_param):
         """
-        Initializer for GossipRuleChangeBallot
+        Initializer for GossipRuleChangeBallot.
 
         :param rule: the GossipRule for which voting is initiated
         :param initial_votes: a set containing the public keys of the peers voting for rule changing
@@ -87,9 +91,9 @@ class GossipRuleChangeBallot(object):
                          (target_public_key : str) => None
         :param required_majority_param: the number of votes required for the vote to pass (greater or equal)
         """
-        assert isinstance(rule, int) and isinstance(initial_votes, set) and isinstance(callback_name, str) and \
-            isinstance(callback, DelayedCall) and isinstance(required_majority_param, int), \
-            "Incorrect initialization parameters"
+        assert isinstance(rule, int) and isinstance(initial_votes, set) and \
+            isinstance(callback_name, (str, bytes)) and isinstance(callback, DelayedCall) and \
+            isinstance(required_majority_param, int), "Incorrect initialization parameters"
 
         self._rule = rule
         self._votes = initial_votes
@@ -141,7 +145,8 @@ class GossipRuleChangeBallot(object):
         :param timeout: the timeout period of the callback
         :return: None
         """
-        self._callback.reset(timeout)
+        if not self._callback.cancelled:
+            self._callback.reset(timeout)
 
 
 class GossipOverlay(Overlay):
@@ -151,9 +156,12 @@ class GossipOverlay(Overlay):
      - set_rule(public_key : str, rule : GossipRule)
     """
 
-    master_peer = Peer(("3052301006072a8648ce3d020106052b8104001a033e000400d1aaecf1acc0db3aecc0" +
-                        "efb07f66f815d1a4e0804c7aa233bf144ed9cd002e2579265ef30e0a4355460a50f12f" +
-                        "5a4a5ad5033095aec4f9111f5376").decode("HEX"))
+    def get_walkable_addresses(self):
+        raise NotImplementedError("One must implement this method before using it")
+
+    master_peer = Peer(unhexlify("3052301006072a8648ce3d020106052b8104001a033e000400d1aaecf1acc0db3aecc0efb07f66f81"
+                                 "5d1a4e0804c7aa233bf144ed9cd002e2579265ef30e0a4355460a50f12f5a4a5ad5033095aec4f911"
+                                 "1f5376"))
 
     PREFIX_LENGTH = 22
 
@@ -164,7 +172,7 @@ class GossipOverlay(Overlay):
         self.rules_db = {}  # Pk: rule
         self.rule_change_db = {}  # Pk: GossipRuleChangeBallot
         self.listeners = []
-        self.prefix = "\x01\x00GossipCommunity\x00\x00\x00\x00\x00"
+        self.prefix = b"\x01\x00GossipCommunity\x00\x00\x00\x00\x00"
 
         # Avoid conflicts when it comes to naming voting tasks
         self._vote_ballot_names = set()
@@ -190,7 +198,7 @@ class GossipOverlay(Overlay):
         :return: None
         """
         if not self.update_list:
-            self.update_list = self.rules_db.keys()
+            self.update_list = list(self.rules_db.keys())
         next_public_key = self.update_list.pop(0) if self.update_list else None
         if next_public_key:
             self.enforce(next_public_key, self.get_rule(next_public_key))
@@ -205,7 +213,7 @@ class GossipOverlay(Overlay):
         """
         if rule == GossipRule.SUPPRESS:
             # Send suppress requests (for the peer associated to the public_key peer) to all our neighbors
-            self.send_to_neighbors(rule, public_key, "")
+            self.send_to_neighbors(rule, public_key, b"")
         elif rule == GossipRule.DEFAULT:
             pass
         elif rule == GossipRule.COLLECT:
@@ -213,8 +221,11 @@ class GossipOverlay(Overlay):
             # This bloom filter will hold the messages from the public_key peer, as stored in the DB of this peer
             bloomfilter.add_keys(self.message_db.get(public_key, set()))
             # Spread these messages in the Bloom Filter to all our neighbors
-            self.send_to_neighbors(rule, public_key, self.serializer.pack("I", bloomfilter.functions) +
-                                   bloomfilter.bytes)
+
+            self.send_to_neighbors(rule, public_key,
+                                   self.serializer.pack("I", bloomfilter.functions)[0] + bloomfilter.bytes.encode(
+                                       'utf-8'))
+
         elif rule == GossipRule.SPREAD:
             # Send a random message from the DB associated to the public_key peer
             self.send_to_neighbors(rule, public_key, sample(self.message_db[public_key], 1)[0])
@@ -364,11 +375,17 @@ class GossipOverlay(Overlay):
             # Our neighbor asked us to ignore someone else
             self._vote_suppress(message)
         elif message.rule == GossipRule.DEFAULT or message.rule == GossipRule.SPREAD:
-            (signature, data), _ = self.serializer.unpack_multiple(['64s', 'raw'], message.payload)
+            # Get the true payload of the received message (i.e. the contents of the message)
+            (_, data), _ = self.serializer.unpack_multiple(['64s', 'raw'], message.payload)
 
-            key = LibNaCLPK(binarykey=message.target_public_key[10:])
+            # Construct the raw data used for the signature
+            signature_check = message.public_key + str(message.rule).encode('utf-8') + message.target_public_key + \
+                message.payload
 
-            if not key.verify(signature, data):
+            # Build a key to check the message's signature
+            key = LibNaCLPK(binarykey=message.public_key[10:])
+
+            if not key.verify(message.signature, signature_check):
                 # Target public key did not actually make the payload
                 return
             if rule == GossipRule.DEFAULT and not is_neighbor:
@@ -382,9 +399,10 @@ class GossipOverlay(Overlay):
                 self.update(message.target_public_key, data)
                 self.store(message.target_public_key, data)
         elif message.rule == GossipRule.COLLECT:
-            bloomfilter = BloomFilter(message.payload[4:], self.serializer.unpack('I', message.payload[:4]), "")
+            bloomfilter = BloomFilter(str(message.payload[4:].decode('utf-8')),
+                                      self.serializer.unpack('I', message.payload[:4])[0], "")
             for payload in self.message_db.get(message.target_public_key):
-                if payload not in bloomfilter:
+                if payload.decode('utf-8') not in bloomfilter:
                     # We need to sign the payload
                     self.send_to_key(message.public_key, GossipRule.DEFAULT, message.target_public_key,
                                      self.my_peer.key.signature(payload) + payload)
@@ -399,7 +417,7 @@ class GossipOverlay(Overlay):
         :return: the packed gossip message
         """
         return self.prefix + self.serializer.pack_multiple(GossipMessage(self.my_peer.key, rule, target_public_key,
-                                                                         message).to_pack_list())
+                                                                         message).to_pack_list())[0]
 
     def _unpack_gossip_message(self, data):
         """
@@ -442,7 +460,7 @@ class GossipOverlay(Overlay):
         :return: None
         """
         assert message.target_public_key not in self.rule_change_db or \
-               isinstance(self.rule_change_db[message.target_public_key], GossipRuleChangeBallot), \
+            isinstance(self.rule_change_db[message.target_public_key], GossipRuleChangeBallot), \
             "The contents of the rule_change_db for this target_public_key are not correct."
 
         if self.rule_change_db.get(message.target_public_key, None) is None:
@@ -494,12 +512,12 @@ class GossipOverlay(Overlay):
         :param pk: the public key of the peer whose rule change is being voted
         :return: a unique vote task name
         """
-        prefix = 'RULE_VOTE_' + pk + '_'
-        suffix = ''.join(choice(hexdigits) for _ in range(60))
+        prefix = b'RULE_VOTE_' + pk + b'_'
+        suffix = b''.join(choice(BYTE_HEXDIGITS) for _ in range(60))
         joined = prefix + suffix
 
         while joined in self._vote_ballot_names:
-            suffix = ''.join(choice(hexdigits) for _ in range(60))
+            suffix = b''.join(choice(BYTE_HEXDIGITS) for _ in range(60))
             joined = prefix + suffix
 
         self._vote_ballot_names.add(joined)
