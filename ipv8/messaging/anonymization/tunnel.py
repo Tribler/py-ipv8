@@ -215,6 +215,8 @@ class Circuit(Tunnel):
         self._hops = []
         self.unverified_hop = None
         self.hs_session_keys = None
+        self.e2e = False
+
 
     @property
     def peer(self):
@@ -365,26 +367,36 @@ class Swarm(object):
         self.intro_points = []
         self.connections = {}
         self.last_lookup = 0
+        self.transfer_history = [0, 0]
 
     @property
     def seeding(self):
         return bool(self.seeder_sk)
+
+    @property
+    def _active_circuits(self):
+        return [c for c, _ in self.connections.values() if c.state == CIRCUIT_STATE_READY and c.e2e]
 
     def add_connection(self, rp_circuit, intro_point_used):
         if rp_circuit.circuit_id not in self.connections:
             self.connections[rp_circuit.circuit_id] = (rp_circuit, intro_point_used)
 
     def remove_connection(self, rp_circuit):
-        return bool(self.connections.pop(rp_circuit.circuit_id, None))
+        removed = self.connections.pop(rp_circuit.circuit_id, None)
+        if removed:
+            circuit, _ = removed
+            self.transfer_history[0] += circuit.bytes_up
+            self.transfer_history[1] += circuit.bytes_down
+        return bool(removed)
 
     def has_connection(self, seeder_pk):
         return seeder_pk in [ip.seeder_pk for _, ip in self.connections.values()]
 
     def get_num_connections(self):
-        return len([c for c, _ in self.connections.values() if c.state == CIRCUIT_STATE_READY])
+        return len(self._active_circuits)
 
     def get_num_connections_incomplete(self):
-        return len([c for c, _ in self.connections.values() if c.state == CIRCUIT_STATE_EXTENDING])
+        return len(self.connections) - self.get_num_connections()
 
     def add_intro_point(self, ip):
         old_ip = next((i for i in self.intro_points if i == ip), None)
@@ -410,3 +422,9 @@ class Swarm(object):
 
     def get_num_seeders(self):
         return len({ip.seeder_pk for ip in self.intro_points})
+
+    def get_total_up(self):
+        return sum([c.bytes_up for c in self._active_circuits]) + self.transfer_history[0]
+
+    def get_total_down(self):
+        return sum([c.bytes_down for c in self._active_circuits]) + self.transfer_history[1]

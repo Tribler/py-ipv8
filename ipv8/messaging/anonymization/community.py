@@ -98,6 +98,7 @@ class TunnelSettings(object):
         # of the circuit can still change in case it is unresponsive.
         # TODO: set this to ~60s next time we change the community ID, or after enough nodes are using the newer code
         self.circuit_timeout = 10
+
         # Maximum number of seconds that a hop allows us to change the next hop
         self.unstable_timeout = 60
         # Maximum number of seconds adding a single hop to a circuit is allowed to take.
@@ -265,13 +266,13 @@ class TunnelCommunity(Community):
                 if self.crypto.is_key_compatible(p.public_key)]
 
     def find_circuits(self, ctype=CIRCUIT_TYPE_DATA, state=CIRCUIT_STATE_READY, hops=None):
-        return {cid: c for cid, c in self.circuits.items()
+        return [c for cid, c in self.circuits.items()
                 if (state is None or c.state == state)
                 and (ctype is None or c.ctype == ctype)
-                and (hops is None or hops == c.goal_hops)}
+                and (hops is None or hops == c.goal_hops)]
 
     def select_circuit(self, destination, hops):
-        circuits = sorted(self.find_circuits(hops=hops).values(), key=lambda c: c.circuit_id)
+        circuits = sorted(self.find_circuits(hops=hops), key=lambda c: c.circuit_id)
         if not circuits:
             return None
 

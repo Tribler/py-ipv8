@@ -32,6 +32,7 @@ class DHTEndpoint(BaseEndpoint):
             self.putChild(b"statistics", DHTStatisticsEndpoint(dht_overlays[0]))
             self.putChild(b"values", DHTValuesEndpoint(dht_overlays[0]))
             self.putChild(b"peers", DHTPeersEndpoint(dht_overlays[0]))
+        if dht_overlays and tc_overlays:
             self.putChild(b"block", DHTBlockEndpoint(dht_overlays[0], tc_overlays[0]))
 
 

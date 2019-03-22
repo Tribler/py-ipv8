@@ -124,5 +124,7 @@ class TunnelSwarmsEndpoint(BaseEndpoint):
                 "num_connections": swarm.get_num_connections(),
                 "num_connections_incomplete": swarm.get_num_connections_incomplete(),
                 "seeding": swarm.seeding,
-                "last_lookup": swarm.last_lookup
+                "last_lookup": swarm.last_lookup,
+                "bytes_up": swarm.get_total_up(),
+                "bytes_down": swarm.get_total_down()
             } for swarm in self.tunnels.swarms.values()]})

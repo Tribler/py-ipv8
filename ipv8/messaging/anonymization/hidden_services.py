@@ -96,11 +96,17 @@ class HiddenTunnelCommunity(TunnelCommunity):
         self.e2e_callbacks.pop(info_hash, None)
         swarm = self.swarms.pop(info_hash, None)
         if swarm:
+            # If there are no other swarms with the same hop count, remove the data circuits
+            if not [s for s in self.swarms.values() if s != swarm and s.hops == swarm.hops]:
+                for circuit in self.find_circuits(hops=swarm.hops, state=None):
+                    self.remove_circuit(circuit.circuit_id, 'leaving hidden swarm', destroy=True)
+            # Remove e2e circuits
             for rp_circuit, _ in swarm.connections.values():
-                self.remove_circuit(rp_circuit, 'leaving hidden swarm', destroy=True)
+                self.remove_circuit(rp_circuit.circuit_id, 'leaving hidden swarm', destroy=True)
+        # Remove introduction points
         for ip_circuit in self.circuits.values():
             if ip_circuit.info_hash == info_hash and ip_circuit.ctype == CIRCUIT_TYPE_IP_SEEDER:
-                self.remove_circuit(ip_circuit, 'leaving hidden swarm', destroy=True)
+                self.remove_circuit(ip_circuit.circuit_id, 'leaving hidden swarm', destroy=True)
 
     def select_circuit_for_infohash(self, info_hash):
         swarm = self.swarms.get(info_hash)
@@ -295,9 +301,12 @@ class HiddenTunnelCommunity(TunnelCommunity):
             self.tunnel_data(relay_circuit, source_address, u'create-e2e', payload)
         else:
             self.logger.info('On create e2e: create rendezvous point')
-            self.create_rendezvous_point(payload.info_hash,
-                                         lambda rendezvous_point:
-                                         self.create_created_e2e(rendezvous_point, source_address, payload, circuit_id))
+            swarm = self.swarms.get(payload.info_hash)
+            if swarm and swarm.seeding:
+                self.create_rendezvous_point(payload.info_hash,
+                                             lambda rendezvous_point:
+                                             self.create_created_e2e(rendezvous_point, source_address,
+                                                                     payload, circuit_id))
 
     def create_created_e2e(self, rendezvous_point, source_address, payload, circuit_id):
         key = self.swarms[payload.info_hash].seeder_sk
@@ -338,7 +347,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
                                                    self.create_link_e2e(circuit, cookie, session_keys, info_hash),
                                                    required_exit=required_exit)
         if circuit:
-            self.swarms[cache.info_hash].add_connection(self.circuits[circuit_id], cache.intro_point)
+            self.swarms[cache.info_hash].add_connection(circuit, cache.intro_point)
 
     def create_link_e2e(self, circuit, cookie, session_keys, info_hash):
         circuit.hs_session_keys = session_keys
@@ -377,6 +386,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
 
         cache = self.request_cache.pop(u"link-request", payload.identifier)
         circuit = cache.circuit
+        circuit.e2e = True
         callback = self.e2e_callbacks.get(cache.info_hash, None)
         if callback:
             callback((self.circuit_id_to_ip(circuit.circuit_id), CIRCUIT_ID_PORT))
@@ -411,8 +421,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
     @tc_lazy_wrapper_unsigned(EstablishIntroPayload)
     def on_establish_intro(self, source_address, payload, circuit_id):
         if payload.public_key in self.intro_point_for:
-            self.logger.warning('Dropping establish-intro for %s', binascii.hexlify(payload.public_key))
-            return
+            self.logger.warning('Overwriting introduction point for %s', binascii.hexlify(payload.public_key))
 
         circuit = self.exit_sockets[circuit_id]
         self.intro_point_for[payload.public_key] = circuit
