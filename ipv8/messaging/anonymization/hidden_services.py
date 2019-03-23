@@ -36,8 +36,8 @@ class HiddenTunnelCommunity(TunnelCommunity):
 
         super(HiddenTunnelCommunity, self).__init__(*args, **kwargs)
 
-        self.intro_point_for = {}  # {seeder_pk: Circuit}
-        self.rendezvous_point_for = {}  # {cookie: Circuit}
+        self.intro_point_for = {}  # {seeder_pk: (TunnelExitSocket, info_hash)}
+        self.rendezvous_point_for = {}  # {cookie: TunnelExitSocket}
 
         # Messages that can arrive from the socket
         self.decode_map.update({
@@ -160,35 +160,36 @@ class HiddenTunnelCommunity(TunnelCommunity):
             if not self.find_circuits(state=None, hops=hop_count):
                 self.create_circuit(hop_count)
 
-    def remove_circuit(self, circuit_id, additional_info='', remove_now=False, destroy=False):
+    def remove_circuit(self, circuit_id, *args, **kwargs):
         circuit = self.circuits.get(circuit_id, None)
-        if circuit:
-            if circuit.ctype == CIRCUIT_TYPE_RP_DOWNLOADER:
-                swarm = self.swarms.get(circuit.info_hash)
-                if swarm:
-                    swarm.remove_connection(circuit)
+        if circuit and circuit.ctype == CIRCUIT_TYPE_RP_DOWNLOADER:
+            swarm = self.swarms.get(circuit.info_hash)
+            if swarm:
+                swarm.remove_connection(circuit)
+        return super(HiddenTunnelCommunity, self).remove_circuit(circuit_id, *args, **kwargs)
 
-            for seeder_pk, intro_circuit in self.intro_point_for.items():
-                if intro_circuit == circuit:
-                    del self.intro_point_for[seeder_pk]
+    def remove_exit_socket(self, circuit_id, *args, **kwargs):
+        for seeder_pk, (intro_circuit, info_hash) in self.intro_point_for.items():
+            if intro_circuit.circuit_id == circuit_id:
+                del self.intro_point_for[seeder_pk]
 
-                    # Stop announcing in PEX community
-                    pex = self.pex.get(circuit.info_hash)
-                    if pex:
-                        pex.stop_announce(seeder_pk)
+                # Stop announcing in PEX community
+                pex = self.pex.get(info_hash)
+                if pex:
+                    pex.stop_announce(seeder_pk)
 
-                        # Unload PEX community
-                        if pex.done:
-                            self.pex.pop(circuit.info_hash, None)
-                            self.ipv8.overlays.remove(pex)
-                            self.ipv8.strategies = [s for s in self.ipv8.strategies if s.overlay != pex]
-                            pex.unload()
+                    # Unload PEX community
+                    if pex.done:
+                        self.pex.pop(info_hash, None)
+                        self.ipv8.overlays.remove(pex)
+                        self.ipv8.strategies = [s for s in self.ipv8.strategies if s.overlay != pex]
+                        pex.unload()
 
-            for cookie, rendezvous_circuit in self.rendezvous_point_for.items():
-                if rendezvous_circuit == circuit:
-                    del self.rendezvous_point_for[cookie]
+        for cookie, rendezvous_circuit in self.rendezvous_point_for.items():
+            if rendezvous_circuit.circuit_id == circuit_id:
+                del self.rendezvous_point_for[cookie]
 
-        return super(HiddenTunnelCommunity, self).remove_circuit(circuit_id, additional_info, remove_now, destroy)
+        return super(HiddenTunnelCommunity, self).remove_exit_socket(circuit_id, *args, **kwargs)
 
     def tunnel_data(self, circuit, destination, message_type, payload):
         message_id, _ = message_to_payload[message_type]
@@ -251,7 +252,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
 
     def send_peers_response(self, target_addr, request, intro_points, circuit_id):
         result = encode([(ip.peer.address, ip.peer.public_key.key_to_bin(),
-                          ip.seeder_pk, ip.source) for ip in intro_points])
+                          ip.seeder_pk, ip.source) for ip in intro_points[:7]])
         payload = PeersResponsePayload(request.circuit_id, request.identifier, request.info_hash, result)
 
         if circuit_id is not None:
@@ -298,7 +299,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         # If we have received this message over a socket, we need to forward it
         if circuit_id is None:
             self.logger.info('On create e2e: forward message because received over socket')
-            relay_circuit = self.intro_point_for[payload.node_public_key]
+            relay_circuit, _ = self.intro_point_for[payload.node_public_key]
             self.tunnel_data(relay_circuit, source_address, u'create-e2e', payload)
         else:
             self.logger.info('On create e2e: create rendezvous point')
@@ -425,7 +426,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
             self.logger.warning('Overwriting introduction point for %s', binascii.hexlify(payload.public_key))
 
         circuit = self.exit_sockets[circuit_id]
-        self.intro_point_for[payload.public_key] = circuit
+        self.intro_point_for[payload.public_key] = circuit, payload.info_hash
 
         if not self.ipv8:
             self.logger.error('No IPv8 service object available, cannot start PEXCommunity')

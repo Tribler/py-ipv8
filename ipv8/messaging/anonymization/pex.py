@@ -18,7 +18,7 @@ class PexCommunity(Community):
         self.master_peer = PexMasterPeer(kwargs.pop('info_hash'))
         super(PexCommunity, self).__init__(*args, **kwargs)
 
-        self.intro_points = deque(maxlen=100)
+        self.intro_points = deque(maxlen=20)
         self.intro_points_for = []
         
     def get_intro_points(self):
@@ -58,7 +58,7 @@ class PexCommunity(Community):
                 # Remove first to put introduction point at front of the deque.
                 self.intro_points.remove(ip)
             # Add new introduction point (with up-to-date last_seen)
-            self.intro_points.append(ip)
+            self.intro_points.appendleft(ip)
 
     def introduction_request_callback(self, peer, dist, payload):
         self.process_extra_bytes(peer, payload.extra_bytes)
