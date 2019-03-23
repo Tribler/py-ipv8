@@ -4,10 +4,8 @@ from collections import deque
 
 from ...community import Community
 from ...messaging.deprecated.encoding import encode, decode
-from ...messaging.anonymization.tunnel import IntroductionPoint
+from ...messaging.anonymization.tunnel import IntroductionPoint, PEER_SOURCE_PEX
 from ...peer import Peer
-
-MAX_INTRODUCTION_POINTS = 20
 
 
 class PexMasterPeer(object):
@@ -29,7 +27,8 @@ class PexCommunity(Community):
         :return : list of IntroductionPoint objects
         """
         my_peer = Peer(self.my_peer.key, self.my_estimated_wan)
-        return list(self.intro_points) + [IntroductionPoint(my_peer, seeder_pk) for seeder_pk in self.intro_points_for]
+        return list(self.intro_points) + [IntroductionPoint(my_peer, seeder_pk, PEER_SOURCE_PEX)
+                                          for seeder_pk in self.intro_points_for]
 
     def start_announce(self, seeder_pk):
         """
@@ -54,7 +53,7 @@ class PexCommunity(Community):
             return
 
         for seeder_pk in decode(extra_bytes)[1]:
-            ip = IntroductionPoint(peer, seeder_pk)
+            ip = IntroductionPoint(peer, seeder_pk, PEER_SOURCE_PEX)
             if ip in self.intro_points:
                 # Remove first to put introduction point at front of the deque.
                 self.intro_points.remove(ip)

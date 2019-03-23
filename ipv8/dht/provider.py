@@ -6,7 +6,7 @@ from socket import inet_aton, inet_ntoa
 from struct import pack, unpack_from
 
 from ..peer import Peer
-from ..messaging.anonymization.tunnel import IntroductionPoint
+from ..messaging.anonymization.tunnel import IntroductionPoint, PEER_SOURCE_DHT
 
 
 class DHTCommunityProvider(object):
@@ -36,7 +36,7 @@ class DHTCommunityProvider(object):
                     seeder_key_len, = unpack_from('!H', value, 8 + intro_key_len)
                     seeder_pk = 'LibNaCLPK:' + value[8 + intro_key_len:8 + intro_key_len + seeder_key_len]
 
-                    results.append(IntroductionPoint(intro_peer, seeder_pk))
+                    results.append(IntroductionPoint(intro_peer, seeder_pk, PEER_SOURCE_DHT))
                 except:
                     pass
             self.logger.info("Looked up %s in the DHTCommunity, got %d results", info_hash.encode('hex'), len(results))

@@ -26,6 +26,10 @@ EXIT_NODE_SALT = 3
 ORIGINATOR_SALT_EXPLICIT = 4
 EXIT_NODE_SALT_EXPLICIT = 5
 
+PEER_SOURCE_UNKNOWN = 0
+PEER_SOURCE_DHT = 1
+PEER_SOURCE_PEX = 2
+
 # Data circuits are supposed to end in an exit peer that allows exiting data to the outside world
 CIRCUIT_TYPE_DATA = 'DATA'
 
@@ -344,9 +348,10 @@ class RendezvousPoint(object):
 
 class IntroductionPoint(object):
 
-    def __init__(self, peer, seeder_pk):
+    def __init__(self, peer, seeder_pk, source=PEER_SOURCE_UNKNOWN):
         self.peer = peer
         self.seeder_pk = seeder_pk
+        self.source = source
         self.last_seen = time.time()
 
     def __eq__(self, other):

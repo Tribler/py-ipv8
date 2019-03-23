@@ -145,6 +145,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
                and swarm.get_num_connections() < self.settings.swarm_connection_limit:
                 swarm.last_lookup = now
                 ips = yield self.send_peers_request(info_hash).addErrback(lambda _: [])
+                self.logger.info('Found %d peer(s) for swarm %s', len(ips), binascii.hexlify(info_hash))
                 for ip in set(ips):
                     ip = swarm.add_intro_point(ip)
                     if not swarm.has_connection(ip.seeder_pk):
@@ -232,7 +233,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         return cache.deferred
 
     @tc_lazy_wrapper_unsigned(PeersRequestPayload)
-    def on_peers_request(self, source_address, payload, circuit_id):
+    def on_peers_request(self, source_address, payload, circuit_id=None):
         info_hash = payload.info_hash
         self.logger.info("Doing hidden seeders lookup for info_hash %s", info_hash.encode('hex'))
         if info_hash in self.pex:
@@ -249,11 +250,11 @@ class HiddenTunnelCommunity(TunnelCommunity):
             self.logger.info("Circuit %d is not an exit, can't send back dht-response", circuit_id)
 
     def send_peers_response(self, target_addr, request, intro_points, circuit_id):
-        result = encode([(ip.peer.address, ip.peer.public_key.key_to_bin(), ip.seeder_pk) for ip in intro_points])
+        result = encode([(ip.peer.address, ip.peer.public_key.key_to_bin(),
+                          ip.seeder_pk, ip.source) for ip in intro_points])
         payload = PeersResponsePayload(request.circuit_id, request.identifier, request.info_hash, result)
 
-        circuit = self.exit_sockets.get(circuit_id)
-        if circuit:
+        if circuit_id is not None:
             # Send back to origin
             self.send_cell([target_addr], 'peers-response', payload)
         else:
@@ -275,8 +276,8 @@ class HiddenTunnelCommunity(TunnelCommunity):
 
         _, peers = decode(payload.peers)
         self.logger.info("Received peers-response containing %d peers" % len(peers))
-        ips = [IntroductionPoint(Peer(ip_pk, address=address), seeder_pk)
-               for address, ip_pk, seeder_pk in peers if address != ('0.0.0.0', 0)]
+        ips = [IntroductionPoint(Peer(ip_pk, address=address), seeder_pk, source)
+               for address, ip_pk, seeder_pk, source in peers if address != ('0.0.0.0', 0)]
         cache.deferred.callback(ips)
 
     def create_e2e(self, info_hash, intro_point):
