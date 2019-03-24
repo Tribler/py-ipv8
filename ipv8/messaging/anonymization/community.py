@@ -890,11 +890,9 @@ class TunnelCommunity(Community):
     def do_ping(self):
         # Ping circuits. Pings are only sent to the first hop, subsequent hops will relay the ping.
         for circuit in self.circuits.values():
-            if circuit.state in [CIRCUIT_STATE_READY, CIRCUIT_STATE_EXTENDING] and \
-               circuit.ctype != CIRCUIT_TYPE_RP_DOWNLOADER:
+            if circuit.state in [CIRCUIT_STATE_READY, CIRCUIT_STATE_EXTENDING]:
                 cache = self.request_cache.add(PingRequestCache(self, circuit))
-                self.increase_bytes_sent(circuit, self.send_cell([circuit.peer],
-                                                                 u"ping",
+                self.increase_bytes_sent(circuit, self.send_cell([circuit.peer], u"ping",
                                                                  PingPayload(circuit.circuit_id, cache.number)))
 
     @lazy_wrapper(DestroyPayload)
