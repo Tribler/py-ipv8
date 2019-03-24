@@ -182,7 +182,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
                     if pex.done:
                         self.pex.pop(info_hash, None)
                         self.ipv8.overlays.remove(pex)
-                        self.ipv8.strategies = [s for s in self.ipv8.strategies if s.overlay != pex]
+                        self.ipv8.strategies = [t for t in self.ipv8.strategies if t[0].overlay != pex]
                         pex.unload()
 
         for cookie, rendezvous_circuit in self.rendezvous_point_for.items():
@@ -303,7 +303,8 @@ class HiddenTunnelCommunity(TunnelCommunity):
                 relay_circuit, _ = self.intro_point_for[payload.node_public_key]
                 self.tunnel_data(relay_circuit, source_address, u'create-e2e', payload)
             else:
-                self.logger.info('On create-e2e: dropping message for unknown seeder key')
+                self.logger.info('On create-e2e: dropping message for unknown seeder key %s',
+                                 binascii.hexlify(payload.node_public_key))
         else:
             self.logger.info('On create-e2e: creating rendezvous point')
             swarm = self.swarms.get(payload.info_hash)
@@ -426,7 +427,10 @@ class HiddenTunnelCommunity(TunnelCommunity):
     @tc_lazy_wrapper_unsigned(EstablishIntroPayload)
     def on_establish_intro(self, source_address, payload, circuit_id):
         if payload.public_key in self.intro_point_for:
-            self.logger.warning('Overwriting introduction point for %s', binascii.hexlify(payload.public_key))
+            self.logger.warning('Already have an introduction point for %s', binascii.hexlify(payload.public_key))
+            return
+
+        self.logger.info('Established introduction point for %s', binascii.hexlify(payload.public_key))
 
         circuit = self.exit_sockets[circuit_id]
         self.intro_point_for[payload.public_key] = circuit, payload.info_hash
