@@ -289,7 +289,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
 
         hop = Hop(LibNaCLPK(intro_point.seeder_pk[10:]))
         hop.dh_secret, hop.dh_first_part = self.crypto.generate_diffie_secret()
-        self.logger.info("Create end to end initiated here")
+        self.logger.info('Creating e2e circuit for introduction point %s', intro_point.peer)
         cache = self.request_cache.add(E2ERequestCache(self, info_hash, hop, intro_point))
         self.tunnel_data(circuit, intro_point.peer.address, u'create-e2e',
                          CreateE2EPayload(cache.number, info_hash, hop.node_public_key, hop.dh_first_part))
@@ -298,11 +298,14 @@ class HiddenTunnelCommunity(TunnelCommunity):
     def on_create_e2e(self, source_address, payload, circuit_id=None):
         # If we have received this message over a socket, we need to forward it
         if circuit_id is None:
-            self.logger.info('On create e2e: forward message because received over socket')
-            relay_circuit, _ = self.intro_point_for[payload.node_public_key]
-            self.tunnel_data(relay_circuit, source_address, u'create-e2e', payload)
+            if payload.node_public_key in self.intro_point_for:
+                self.logger.info('On create-e2e: forwarding message because received over socket')
+                relay_circuit, _ = self.intro_point_for[payload.node_public_key]
+                self.tunnel_data(relay_circuit, source_address, u'create-e2e', payload)
+            else:
+                self.logger.info('On create-e2e: dropping message for unknown seeder key')
         else:
-            self.logger.info('On create e2e: create rendezvous point')
+            self.logger.info('On create-e2e: creating rendezvous point')
             swarm = self.swarms.get(payload.info_hash)
             if swarm and swarm.seeding:
                 self.create_rendezvous_point(payload.info_hash,
