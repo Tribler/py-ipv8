@@ -44,3 +44,5 @@ ipv8/test/dht/test_storage.py:TestStorage
 
 ipv8/test/REST/attestationendpoint/test_attestation_endpoint.py:TestAttestationEndpoint
 ipv8/test/REST/dht/test_dht_endpoint.py:TestDHTEndpoint
+
+ipv8/test/gossip/test_community.py:TestGossipOverlay
