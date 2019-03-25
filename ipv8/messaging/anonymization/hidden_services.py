@@ -144,7 +144,10 @@ class HiddenTunnelCommunity(TunnelCommunity):
             if not swarm.seeding and swarm.last_lookup + self.settings.swarm_lookup_interval <= now \
                and swarm.get_num_connections() < self.settings.swarm_connection_limit:
                 swarm.last_lookup = now
-                ips = yield self.send_peers_request(info_hash).addErrback(lambda _: [])
+                ips = yield self.send_peers_request(info_hash).addErrback(lambda _: None)
+                if ips is None:
+                    self.logger.info('Failed to do peer discovery for swarm %s', binascii.hexlify(info_hash))
+                    continue
                 self.logger.info('Found %d peer(s) for swarm %s', len(ips), binascii.hexlify(info_hash))
                 for ip in set(ips):
                     ip = swarm.add_intro_point(ip)
@@ -159,6 +162,12 @@ class HiddenTunnelCommunity(TunnelCommunity):
         for hop_count in {swarm.hops for swarm in self.swarms.values()}:
             if not self.find_circuits(state=None, hops=hop_count):
                 self.create_circuit(hop_count)
+
+    def do_ping(self):
+        # Ping all circuits, except pending e2e circuits
+        exclude = [c.circuit_id for c in self.circuits.values()
+                   if (c.ctype == CIRCUIT_TYPE_RP_SEEDER) or (c.ctype == CIRCUIT_TYPE_RP_DOWNLOADER and not c.e2e)]
+        super(HiddenTunnelCommunity, self).do_ping(exclude=exclude)
 
     def remove_circuit(self, circuit_id, *args, **kwargs):
         circuit = self.circuits.get(circuit_id, None)
@@ -247,8 +256,10 @@ class HiddenTunnelCommunity(TunnelCommunity):
                 info_hash, intro_points = result
                 self.send_peers_response(source_address, payload, intro_points, circuit_id)
             self.dht_lookup(info_hash, dht_callback)
+        elif circuit_id is not None:
+            self.logger.warning("Received a peers-request over circuit %d, but unable to do a DHT lookup", circuit_id)
         else:
-            self.logger.info("Circuit %d is not an exit, can't send back dht-response", circuit_id)
+            self.logger.warning("Received a peers-request over the socket, but unable to do a PEX lookup")
 
     def send_peers_response(self, target_addr, request, intro_points, circuit_id):
         result = encode([(ip.peer.address, ip.peer.public_key.key_to_bin(),

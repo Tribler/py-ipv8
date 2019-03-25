@@ -1,4 +1,5 @@
-import random 
+import random
+import time
 
 from collections import deque
 
@@ -26,6 +27,12 @@ class PexCommunity(Community):
         Get a list of the most recent introduction points that were discovered using PexCommunity.
         :return : list of IntroductionPoint objects
         """
+
+        # Remove old introduction points
+        now = time.time()
+        while self.intro_points and self.intro_points[-1].last_seen + 300 < now:
+            self.intro_points.pop()
+
         my_peer = Peer(self.my_peer.key, self.my_estimated_wan)
         return list(self.intro_points) + [IntroductionPoint(my_peer, seeder_pk, PEER_SOURCE_PEX)
                                           for seeder_pk in self.intro_points_for]
@@ -35,14 +42,16 @@ class PexCommunity(Community):
         Start announcing yourself as an introduction point for a certain seeder.
         :param seeder_pk: public key of the seeder (in binary format)
         """
-        self.intro_points_for.append(seeder_pk)
+        if seeder_pk not in self.intro_points_for:
+            self.intro_points_for.append(seeder_pk)
 
     def stop_announce(self, seeder_pk):
         """
         Stop announcing yourself as an introduction point for a certain seeder.
         :param seeder_pk: public key of the seeder (in binary format)
         """
-        self.intro_points_for.remove(seeder_pk)
+        if seeder_pk in self.intro_points_for:
+            self.intro_points_for.remove(seeder_pk)
 
     @property
     def done(self):

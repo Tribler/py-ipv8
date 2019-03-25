@@ -887,10 +887,10 @@ class TunnelCommunity(Community):
         self.request_cache.pop(u"ping", payload.identifier)
         self.logger.debug("Got pong from %s", source_address)
 
-    def do_ping(self):
+    def do_ping(self, exclude=[]):
         # Ping circuits. Pings are only sent to the first hop, subsequent hops will relay the ping.
         for circuit in self.circuits.values():
-            if circuit.state in [CIRCUIT_STATE_READY, CIRCUIT_STATE_EXTENDING]:
+            if circuit.state in [CIRCUIT_STATE_READY, CIRCUIT_STATE_EXTENDING] and circuit.circuit_id not in exclude:
                 cache = self.request_cache.add(PingRequestCache(self, circuit))
                 self.increase_bytes_sent(circuit, self.send_cell([circuit.peer], u"ping",
                                                                  PingPayload(circuit.circuit_id, cache.number)))
