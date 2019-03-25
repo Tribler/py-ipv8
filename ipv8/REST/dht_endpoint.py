@@ -1,22 +1,22 @@
 from __future__ import absolute_import
 
-from base64 import b64encode, b64decode
-from binascii import hexlify, unhexlify
-from hashlib import sha1
 import json
 import logging
+from base64 import b64decode, b64encode
+from binascii import hexlify, unhexlify
+from hashlib import sha1
 
 from twisted.web import http
 from twisted.web.server import NOT_DONE_YET
 
 from .base_endpoint import BaseEndpoint
-from ..dht.community import DHTCommunity, MAX_ENTRY_SIZE
 from ..attestation.trustchain.community import TrustChainCommunity
-from ..dht.discovery import DHTDiscoveryCommunity
 from ..attestation.trustchain.listener import BlockListener
 from ..attestation.trustchain.payload import DHTBlockPayload
-from ..messaging.serialization import Serializer
+from ..dht.community import DHTCommunity, MAX_ENTRY_SIZE
+from ..dht.discovery import DHTDiscoveryCommunity
 from ..keyvault.public.libnaclkey import LibNaCLPK
+from ..messaging.serialization import Serializer
 
 
 class DHTEndpoint(BaseEndpoint):

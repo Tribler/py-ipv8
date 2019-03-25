@@ -9,20 +9,20 @@ import binascii
 import os
 import struct
 
-from twisted.internet.defer import inlineCallbacks, fail
+from twisted.internet.defer import fail, inlineCallbacks
 from twisted.internet.task import LoopingCall
 
 from .caches import *
 from .community import TunnelCommunity, message_to_payload, tc_lazy_wrapper_unsigned
+from .payload import *
+from .tunnel import (CIRCUIT_ID_PORT, CIRCUIT_TYPE_IP_SEEDER, CIRCUIT_TYPE_RP_DOWNLOADER, CIRCUIT_TYPE_RP_SEEDER,
+                     EXIT_NODE, EXIT_NODE_SALT, Hop, IntroductionPoint, RelayRoute, RendezvousPoint,
+                     Swarm, TunnelExitSocket)
 from ...keyvault.public.libnaclkey import LibNaCLPK
 from ...messaging.anonymization.pex import PexCommunity
 from ...messaging.deprecated.encoding import decode, encode
-from .payload import *
 from ...peer import Peer
 from ...peerdiscovery.discovery import RandomWalk
-from .tunnel import (CIRCUIT_ID_PORT, CIRCUIT_TYPE_IP_SEEDER, CIRCUIT_TYPE_RP_SEEDER, CIRCUIT_TYPE_RP_DOWNLOADER,
-                     EXIT_NODE, EXIT_NODE_SALT, Hop, RelayRoute, Swarm, RendezvousPoint,
-                     IntroductionPoint, TunnelExitSocket)
 
 
 class HiddenTunnelCommunity(TunnelCommunity):
@@ -163,22 +163,23 @@ class HiddenTunnelCommunity(TunnelCommunity):
             if not self.find_circuits(state=None, hops=hop_count):
                 self.create_circuit(hop_count)
 
-    def do_ping(self):
+    def do_ping(self, exclude=None):
         # Ping all circuits, except pending e2e circuits
-        exclude = [c.circuit_id for c in self.circuits.values()
-                   if (c.ctype == CIRCUIT_TYPE_RP_SEEDER) or (c.ctype == CIRCUIT_TYPE_RP_DOWNLOADER and not c.e2e)]
+        exclude = [] if exclude is None else exclude
+        exclude += [c.circuit_id for c in self.circuits.values()
+                    if (c.ctype == CIRCUIT_TYPE_RP_SEEDER) or (c.ctype == CIRCUIT_TYPE_RP_DOWNLOADER and not c.e2e)]
         super(HiddenTunnelCommunity, self).do_ping(exclude=exclude)
 
-    def remove_circuit(self, circuit_id, *args, **kwargs):
+    def remove_circuit(self, circuit_id, additional_info='', remove_now=False, destroy=False):
         circuit = self.circuits.get(circuit_id, None)
         if circuit and circuit.ctype == CIRCUIT_TYPE_RP_DOWNLOADER:
             swarm = self.swarms.get(circuit.info_hash)
             if swarm:
                 swarm.remove_connection(circuit)
-        return super(HiddenTunnelCommunity, self).remove_circuit(circuit_id, *args, **kwargs)
+        return super(HiddenTunnelCommunity, self).remove_circuit(circuit_id, additional_info, remove_now, destroy)
 
-    def remove_exit_socket(self, circuit_id, *args, **kwargs):
-        for seeder_pk, (intro_circuit, info_hash) in self.intro_point_for.items():
+    def remove_exit_socket(self, circuit_id, additional_info='', remove_now=False, destroy=False):
+        for seeder_pk, (intro_circuit, info_hash) in list(self.intro_point_for.items()):
             if intro_circuit.circuit_id == circuit_id:
                 del self.intro_point_for[seeder_pk]
 
@@ -194,11 +195,11 @@ class HiddenTunnelCommunity(TunnelCommunity):
                         self.ipv8.strategies = [t for t in self.ipv8.strategies if t[0].overlay != pex]
                         pex.unload()
 
-        for cookie, rendezvous_circuit in self.rendezvous_point_for.items():
+        for cookie, rendezvous_circuit in list(self.rendezvous_point_for.items()):
             if rendezvous_circuit.circuit_id == circuit_id:
                 del self.rendezvous_point_for[cookie]
 
-        return super(HiddenTunnelCommunity, self).remove_exit_socket(circuit_id, *args, **kwargs)
+        return super(HiddenTunnelCommunity, self).remove_exit_socket(circuit_id, additional_info, remove_now, destroy)
 
     def tunnel_data(self, circuit, destination, message_type, payload):
         message_id, _ = message_to_payload[message_type]
@@ -245,7 +246,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
     @tc_lazy_wrapper_unsigned(PeersRequestPayload)
     def on_peers_request(self, source_address, payload, circuit_id=None):
         info_hash = payload.info_hash
-        self.logger.info("Doing hidden seeders lookup for info_hash %s", info_hash.encode('hex'))
+        self.logger.info("Doing hidden seeders lookup for info_hash %s", binascii.hexlify(info_hash))
         if info_hash in self.pex:
             # Get peers from PEX community
             intro_points = self.pex[info_hash].get_intro_points()
@@ -253,7 +254,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         elif circuit_id in self.exit_sockets:
             # Get peers from DHT community
             def dht_callback(result):
-                info_hash, intro_points = result
+                _, intro_points = result
                 self.send_peers_response(source_address, payload, intro_points, circuit_id)
             self.dht_lookup(info_hash, dht_callback)
         elif circuit_id is not None:
@@ -287,7 +288,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
             return
 
         _, peers = decode(payload.peers)
-        self.logger.info("Received peers-response containing %d peers" % len(peers))
+        self.logger.info("Received peers-response containing %d peers", len(peers))
         ips = [IntroductionPoint(Peer(ip_pk, address=address), seeder_pk, source)
                for address, ip_pk, seeder_pk, source in peers if address != ('0.0.0.0', 0)]
         cache.deferred.callback(ips)
@@ -358,11 +359,11 @@ class HiddenTunnelCommunity(TunnelCommunity):
         required_exit = Peer(rp_info[2], rp_info[:2])
         circuit = self.create_circuit_for_infohash(cache.info_hash,
                                                    CIRCUIT_TYPE_RP_DOWNLOADER,
-                                                   callback=lambda circuit, cookie=cookie,
-                                                                   session_keys=session_keys,
-                                                                   info_hash=cache.info_hash:
-                                                   self.create_link_e2e(circuit, cookie, session_keys, info_hash),
+                                                   callback=lambda _:
+                                                   self.create_link_e2e(circuit, cookie,
+                                                                        session_keys, cache.info_hash),
                                                    required_exit=required_exit)
+
         if circuit:
             self.swarms[cache.info_hash].add_connection(circuit, cache.intro_point)
 

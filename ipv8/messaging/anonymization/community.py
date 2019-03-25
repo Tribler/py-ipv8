@@ -266,7 +266,7 @@ class TunnelCommunity(Community):
                 if self.crypto.is_key_compatible(p.public_key)]
 
     def find_circuits(self, ctype=CIRCUIT_TYPE_DATA, state=CIRCUIT_STATE_READY, hops=None):
-        return [c for cid, c in self.circuits.items()
+        return [c for c in self.circuits.values()
                 if (state is None or c.state == state)
                 and (ctype is None or c.ctype == ctype)
                 and (hops is None or hops == c.goal_hops)]
@@ -887,8 +887,9 @@ class TunnelCommunity(Community):
         self.request_cache.pop(u"ping", payload.identifier)
         self.logger.debug("Got pong from %s", source_address)
 
-    def do_ping(self, exclude=[]):
+    def do_ping(self, exclude=None):
         # Ping circuits. Pings are only sent to the first hop, subsequent hops will relay the ping.
+        exclude = [] if exclude is None else exclude
         for circuit in self.circuits.values():
             if circuit.state in [CIRCUIT_STATE_READY, CIRCUIT_STATE_EXTENDING] and circuit.circuit_id not in exclude:
                 cache = self.request_cache.add(PingRequestCache(self, circuit))

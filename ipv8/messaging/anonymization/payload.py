@@ -1,17 +1,16 @@
 from __future__ import absolute_import
 
 import socket
-from socket import inet_ntoa, inet_aton
 from struct import pack, unpack_from
 
 from cryptography.exceptions import InvalidTag
 
-from ...messaging.lazy_payload import VariablePayload
-from ...messaging.serialization import default_serializer
-from ...messaging.anonymization.tunnel import (CIRCUIT_TYPE_RP_SEEDER, CIRCUIT_TYPE_RP_DOWNLOADER, ORIGINATOR,
-                                               EXIT_NODE, ORIGINATOR_SALT, EXIT_NODE_SALT)
+from ...messaging.anonymization.tunnel import (CIRCUIT_TYPE_RP_DOWNLOADER, CIRCUIT_TYPE_RP_SEEDER, EXIT_NODE,
+                                               EXIT_NODE_SALT, ORIGINATOR, ORIGINATOR_SALT)
 from ...messaging.anonymization.tunnelcrypto import CryptoException
+from ...messaging.lazy_payload import VariablePayload
 from ...messaging.payload import Payload
+from ...messaging.serialization import default_serializer
 from ...util import cast_to_bin, cast_to_chr
 
 ADDRESS_TYPE_IPV4 = 0x01
@@ -322,4 +321,3 @@ class LinkedE2EPayload(VariablePayload):
 
     format_list = ['I', 'H']
     names = ['circuit_id', 'identifier']
-

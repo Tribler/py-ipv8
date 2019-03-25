@@ -1,11 +1,12 @@
+from __future__ import absolute_import
+
 import random
 import time
-
 from collections import deque
 
 from ...community import Community
-from ...messaging.deprecated.encoding import encode, decode
 from ...messaging.anonymization.tunnel import IntroductionPoint, PEER_SOURCE_PEX
+from ...messaging.deprecated.encoding import decode, encode
 from ...peer import Peer
 
 
@@ -21,7 +22,7 @@ class PexCommunity(Community):
 
         self.intro_points = deque(maxlen=20)
         self.intro_points_for = []
-        
+
     def get_intro_points(self):
         """
         Get a list of the most recent introduction points that were discovered using PexCommunity.

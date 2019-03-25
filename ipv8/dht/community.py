@@ -1,28 +1,26 @@
 from __future__ import absolute_import
 from __future__ import division
 
-from binascii import hexlify, unhexlify
+import hashlib
 import os
 import time
-import hashlib
+from binascii import hexlify, unhexlify
+from collections import defaultdict, deque
 
-from collections import deque, defaultdict
-
-from twisted.internet.defer import inlineCallbacks, Deferred, fail, DeferredList, returnValue
+from twisted.internet.defer import Deferred, DeferredList, fail, inlineCallbacks, returnValue
 from twisted.internet.task import LoopingCall
 from twisted.python.failure import Failure
 
-from ..peer import Peer
-from ..requestcache import RandomNumberCache, RequestCache
-from ..peerdiscovery.churn import PingChurn
-from ..messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
+from .payload import (FindRequestPayload, FindResponsePayload, PingRequestPayload, PingResponsePayload,
+                      SignedStrPayload, StoreRequestPayload, StoreResponsePayload, StrPayload)
+from .routing import Node, RoutingTable, calc_node_id, distance
+from .storage import Storage
 from ..community import Community
 from ..lazy_community import lazy_wrapper, lazy_wrapper_wd
-
-from .storage import Storage
-from .routing import RoutingTable, Node, distance, calc_node_id
-from .payload import (PingRequestPayload, PingResponsePayload, StoreRequestPayload, StoreResponsePayload,
-                      FindRequestPayload, FindResponsePayload, SignedStrPayload, StrPayload)
+from ..messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
+from ..peer import Peer
+from ..peerdiscovery.churn import PingChurn
+from ..requestcache import RandomNumberCache, RequestCache
 from ..util import addCallback, cast_to_bin
 
 PING_INTERVAL = 25

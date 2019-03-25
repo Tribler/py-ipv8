@@ -1,16 +1,18 @@
 from __future__ import absolute_import
 
-from twisted.internet import reactor
-from twisted.internet.defer import inlineCallbacks, Deferred
+import six
 
-from ....messaging.anonymization.community import TunnelSettings, CIRCUIT_TYPE_RP_DOWNLOADER
-from ....messaging.anonymization.hidden_services import HiddenTunnelCommunity
-from ....messaging.anonymization.tunnel import IntroductionPoint
-from ....peer import Peer
+from twisted.internet import reactor
+from twisted.internet.defer import Deferred, inlineCallbacks
+
+from .test_community import MockDHTProvider
 from ...base import TestBase
 from ...mocking.exit_socket import MockTunnelExitSocket
 from ...mocking.ipv8 import MockIPv8
-from .test_community import MockDHTProvider
+from ....messaging.anonymization.community import CIRCUIT_TYPE_RP_DOWNLOADER, TunnelSettings
+from ....messaging.anonymization.hidden_services import HiddenTunnelCommunity
+from ....messaging.anonymization.tunnel import IntroductionPoint
+from ....peer import Peer
 
 
 class TestHiddenServices(TestBase):
@@ -230,7 +232,7 @@ class TestHiddenServices(TestBase):
 
         # Node 2 should be known as an introduction point
         peers = [ip.peer for ip in self.nodes[3].overlay.swarms[self.service].intro_points]
-        self.assertItemsEqual(peers, [self.nodes[1].my_peer, self.nodes[2].my_peer])
+        six.assertCountEqual(self, peers, [self.nodes[1].my_peer, self.nodes[2].my_peer])
 
     @inlineCallbacks
     def test_pex_lookup_exit_is_ip(self):
@@ -262,4 +264,4 @@ class TestHiddenServices(TestBase):
 
         # Node 2 should be known as an introduction point
         peers = [ip.peer for ip in self.nodes[3].overlay.swarms[self.service].intro_points]
-        self.assertItemsEqual(peers, [self.nodes[1].my_peer, self.nodes[2].my_peer])
+        six.assertCountEqual(self, peers, [self.nodes[1].my_peer, self.nodes[2].my_peer])

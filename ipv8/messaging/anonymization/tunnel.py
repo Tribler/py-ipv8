@@ -221,7 +221,6 @@ class Circuit(Tunnel):
         self.hs_session_keys = None
         self.e2e = False
 
-
     @property
     def peer(self):
         return self._hops[0] if self._hops else self.unverified_hop
@@ -412,7 +411,7 @@ class Swarm(object):
 
         # Cleanup old introduction points
         now = time.time()
-        self.intro_points = [ip for ip in self.intro_points if ip.last_seen + self.max_ip_age >= now]
+        self.intro_points = [i for i in self.intro_points if i.last_seen + self.max_ip_age >= now]
 
         return old_ip or ip
 

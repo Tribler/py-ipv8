@@ -169,6 +169,7 @@ class E2ERequestCache(RandomNumberCache):
             # This introduction point did not respond in time, so drop it.
             swarm.remove_intro_point(self.intro_point)
 
+
 class LinkRequestCache(RandomNumberCache):
 
     def __init__(self, community, circuit, info_hash):
