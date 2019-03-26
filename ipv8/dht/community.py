@@ -7,6 +7,8 @@ import time
 from binascii import hexlify, unhexlify
 from collections import defaultdict, deque
 
+import six
+
 from twisted.internet.defer import Deferred, DeferredList, fail, inlineCallbacks, returnValue
 from twisted.internet.task import LoopingCall
 from twisted.python.failure import Failure
@@ -244,7 +246,7 @@ class DHTCommunity(Community):
         # Check if we also need to store this key-value pair
         largest_distance = max([distance(node.id, key) for node in nodes])
         if distance(self.my_node_id, key) < largest_distance:
-            for value in values:
+            for value in reversed(values):
                 self.add_value(key, value)
 
         now = time.time()
@@ -312,13 +314,13 @@ class DHTCommunity(Community):
         return cache.deferred
 
     def _process_find_responses(self, responses, nodes_tried):
-        values = set()
+        values = []
         nodes = set()
         to_puncture = {}
 
         for sender, response in responses:
             if 'values' in response:
-                values |= set(response['values'])
+                values.append(response['values'])
             else:
                 # Pick a node that we haven't tried yet.
                 node = next((n for n in response['nodes']
@@ -340,7 +342,7 @@ class DHTCommunity(Community):
             returnValue(Failure(RuntimeError('No nodes found in the routing table')))
 
         nodes_tried = set()
-        values = set()
+        values = []
         recent = None
 
         for _ in range(MAX_FIND_STEPS):
@@ -357,7 +359,7 @@ class DHTCommunity(Community):
 
             # Process responses and puncture nodes that we haven't tried yet
             new_values, new_nodes, to_puncture = self._process_find_responses(responses, nodes_tried)
-            values |= new_values
+            values += new_values
             nodes_closest |= new_nodes
 
             deferreds = [self._send_find_request(sender, node.id, force_nodes)
@@ -375,7 +377,12 @@ class DHTCommunity(Community):
         if force_nodes:
             returnValue(sorted(nodes_tried, key=lambda n: distance(n.id, target)))
 
-        values = list(values)
+        # Merge all values received into one tuple. First pick the first value from each tuple, then the second, etc.
+        values = sum(six.moves.zip_longest(*values), ())
+
+        # Filter out duplicates while preserving order
+        seen = set()
+        values = [v for v in values if v is not None and not (v in seen or seen.add(v))]
 
         if recent and values:
             # Store the key-value pair on the most recently visited node that

@@ -347,11 +347,11 @@ class RendezvousPoint(object):
 
 class IntroductionPoint(object):
 
-    def __init__(self, peer, seeder_pk, source=PEER_SOURCE_UNKNOWN):
+    def __init__(self, peer, seeder_pk, source=PEER_SOURCE_UNKNOWN, last_seen=int(time.time())):
         self.peer = peer
         self.seeder_pk = seeder_pk
         self.source = source
-        self.last_seen = time.time()
+        self.last_seen = last_seen
 
     def __eq__(self, other):
         return self.peer == other.peer and self.seeder_pk == other.seeder_pk

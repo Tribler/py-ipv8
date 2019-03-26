@@ -29,15 +29,15 @@ class DHTCommunityProvider(object):
             results = []
             for value, _ in values:
                 try:
-                    ip_bin, port, intro_key_len = unpack_from('!4sHH', value)
+                    ip_bin, port, last_seen, intro_key_len = unpack_from('!4sHIH', value)
                     ip = inet_ntoa(ip_bin)
-                    intro_pk = b'LibNaCLPK:' + value[8:8 + intro_key_len]
+                    intro_pk = b'LibNaCLPK:' + value[12:12 + intro_key_len]
                     intro_peer = Peer(intro_pk, address=(ip, port))
 
-                    seeder_key_len, = unpack_from('!H', value, 8 + intro_key_len)
-                    seeder_pk = b'LibNaCLPK:' + value[8 + intro_key_len:8 + intro_key_len + seeder_key_len]
+                    seeder_key_len, = unpack_from('!H', value, 12 + intro_key_len)
+                    seeder_pk = b'LibNaCLPK:' + value[14 + intro_key_len:14 + intro_key_len + seeder_key_len]
 
-                    results.append(IntroductionPoint(intro_peer, seeder_pk, PEER_SOURCE_DHT))
+                    results.append(IntroductionPoint(intro_peer, seeder_pk, PEER_SOURCE_DHT, last_seen))
                 except:
                     pass
             self.logger.info("Looked up %s in the DHTCommunity, got %d results", hexlify(info_hash), len(results))
@@ -56,6 +56,7 @@ class DHTCommunityProvider(object):
         seeder_pk = intro_point.seeder_pk[10:]
 
         value = inet_aton(intro_point.peer.address[0]) + pack("!H", intro_point.peer.address[1])
+        value += pack('!I', intro_point.last_seen)
         value += pack('!H', len(intro_pk)) + cast_to_bin(intro_pk)
         value += pack('!H', len(seeder_pk)) + cast_to_bin(seeder_pk)
 
