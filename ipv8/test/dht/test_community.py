@@ -183,7 +183,7 @@ class TestDHTCommunity(TestBase):
         dht_provider_1.announce(b'a' * 20, IntroductionPoint(self.nodes[0].overlay.my_peer, '\x01' * 20))
         dht_provider_2.announce(b'a' * 20, IntroductionPoint(self.nodes[1].overlay.my_peer, '\x02' * 20))
 
-        yield self.deliver_messages()
+        yield self.deliver_messages(.5)
 
         def on_peers(peers):
             self.assertEqual(len(peers[1]), 2)
@@ -249,7 +249,7 @@ class TestDHTCommunityXL(TestBase):
     def test_full_protocol(self):
         # Fill routing tables
         yield self.introduce_nodes()
-        yield self.deliver_messages()
+        yield self.deliver_messages(.5)
 
         # Store key value pair
         kv_pair = (b'\x00' * 20, b'test1')
