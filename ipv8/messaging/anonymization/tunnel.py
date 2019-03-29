@@ -425,7 +425,10 @@ class Swarm(object):
         return random.choice(self.intro_points) if self.intro_points else None
 
     def get_num_seeders(self):
-        return len({ip.seeder_pk for ip in self.intro_points})
+        seeder_pks = {ip.seeder_pk for ip in self.intro_points}
+        for _, ip in self.connections.values():
+            seeder_pks.add(ip.seeder_pk)
+        return len(seeder_pks)
 
     def get_total_up(self):
         return sum([c.bytes_up for c in self._active_circuits]) + self.transfer_history[0]
