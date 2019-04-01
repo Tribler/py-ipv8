@@ -201,6 +201,13 @@ class HiddenTunnelCommunity(TunnelCommunity):
 
         return super(HiddenTunnelCommunity, self).remove_exit_socket(circuit_id, additional_info, remove_now, destroy)
 
+    def get_max_time(self, circuit_id):
+        if circuit_id in self.circuits and self.circuits[circuit_id].ctype == CIRCUIT_TYPE_IP_SEEDER:
+            return self.settings.max_time_ip
+        if circuit_id in self.exit_sockets and circuit_id in [c.circuit_id for c, _ in self.intro_point_for.values()]:
+            return self.settings.max_time_ip
+        return super(HiddenTunnelCommunity, self).get_max_time(circuit_id)
+
     def tunnel_data(self, circuit, destination, message_type, payload):
         message_id, _ = message_to_payload[message_type]
         packet = self._ez_pack(self._prefix, message_id, [payload.to_pack_list()], False)
@@ -433,7 +440,6 @@ class HiddenTunnelCommunity(TunnelCommunity):
             self.logger.info("Established introduction tunnel %s", circuit_id)
 
         for _ in range(amount):
-            # TODO: long-lived introduction points
             self.create_circuit_for_infohash(info_hash, CIRCUIT_TYPE_IP_SEEDER, callback, required_exit=required_ip)
 
     @tc_lazy_wrapper_unsigned(EstablishIntroPayload)

@@ -89,6 +89,8 @@ class TunnelSettings(object):
 
         # Maximum number of seconds that a circuit should exist
         self.max_time = 10 * 60
+        # Maximum number of seconds that an introduction point should exist
+        self.max_time_ip = 24 * 60 * 60
         # Maximum number of seconds before a circuit is considered inactive (and is removed)
         self.max_time_inactive = 20
         self.max_traffic = 250 * 1024 * 1024
@@ -225,29 +227,27 @@ class TunnelCommunity(Community):
 
     def do_remove(self):
         # Remove circuits that are inactive / are too old / have transferred too many bytes.
-        for key, circuit in self.circuits.items():
+        for circuit_id, circuit in self.circuits.items():
             if circuit.state == CIRCUIT_STATE_READY and \
                circuit.last_activity < time.time() - self.settings.max_time_inactive:
-                self.remove_circuit(key, 'no activity')
-            elif circuit.creation_time < time.time() - self.settings.max_time:
-                self.remove_circuit(key, 'too old')
+                self.remove_circuit(circuit_id, 'no activity')
+            elif circuit.creation_time < time.time() - self.get_max_time(circuit_id):
+                self.remove_circuit(circuit_id, 'too old')
             elif circuit.bytes_up + circuit.bytes_down > self.settings.max_traffic:
-                self.remove_circuit(key, 'traffic limit exceeded')
+                self.remove_circuit(circuit_id, 'traffic limit exceeded')
 
-        # Remove relays that are inactive / are too old / have transferred too many bytes.
-        for key, relay in self.relay_from_to.items():
+        # Remove relays that are inactive / have transferred too many bytes.
+        for circuit_id, relay in self.relay_from_to.items():
             if relay.last_activity < time.time() - self.settings.max_time_inactive:
-                self.remove_relay(key, 'no activity', both_sides=False)
-            elif relay.creation_time < time.time() - self.settings.max_time:
-                self.remove_relay(key, 'too old', both_sides=False)
+                self.remove_relay(circuit_id, 'no activity', both_sides=False)
             elif relay.bytes_up + relay.bytes_down > self.settings.max_traffic:
-                self.remove_relay(key, 'traffic limit exceeded', both_sides=False)
+                self.remove_relay(circuit_id, 'traffic limit exceeded', both_sides=False)
 
         # Remove exit sockets that are too old / have transferred too many bytes.
         for circuit_id, exit_socket in self.exit_sockets.items():
             if exit_socket.last_activity < time.time() - self.settings.max_time_inactive:
                 self.remove_exit_socket(circuit_id, 'no activity')
-            elif exit_socket.creation_time < time.time() - self.settings.max_time:
+            elif exit_socket.creation_time < time.time() - self.get_max_time(circuit_id):
                 self.remove_exit_socket(circuit_id, 'too old')
             elif exit_socket.bytes_up + exit_socket.bytes_down > self.settings.max_traffic:
                 self.remove_exit_socket(circuit_id, 'traffic limit exceeded')
@@ -259,6 +259,9 @@ class TunnelCommunity(Community):
             if pubkey not in current_peers:
                 self.exit_candidates.pop(pubkey)
                 self.logger.info("Removed candidate from exit_candidates dictionary")
+
+    def get_max_time(self, circuit_id):
+        return self.settings.max_time
 
     @property
     def compatible_candidates(self):
