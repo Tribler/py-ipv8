@@ -56,7 +56,7 @@ class PexCommunity(Community):
 
     @property
     def done(self):
-        return bool(self.intro_points_for)
+        return not bool(self.intro_points_for)
 
     def process_extra_bytes(self, peer, extra_bytes):
         if not extra_bytes:
