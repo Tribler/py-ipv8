@@ -79,7 +79,7 @@ class Request(RandomNumberCache):
 
     def on_timeout(self):
         if not self.deferred.called:
-            self._logger.info('Timeout for %s to %s', self.msg_type, self.node)
+            self._logger.debug('Timeout for %s to %s', self.msg_type, self.node)
             self.node.failed += 1
             if not self.consume_errors:
                 self.deferred.errback(Failure(RuntimeError('Timeout for {} to {}'.format(self.msg_type, self.node))))
