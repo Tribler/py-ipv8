@@ -23,6 +23,7 @@ from ...messaging.anonymization.pex import PexCommunity
 from ...messaging.deprecated.encoding import decode, encode
 from ...peer import Peer
 from ...peerdiscovery.discovery import RandomWalk
+from ...peerdiscovery.network import Network
 
 
 class HiddenTunnelCommunity(TunnelCommunity):
@@ -456,7 +457,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         if not self.ipv8:
             self.logger.error('No IPv8 service object available, cannot start PEXCommunity')
         elif payload.info_hash not in self.pex:
-            community = PexCommunity(self.my_peer, self.ipv8.endpoint, self.ipv8.network, info_hash=payload.info_hash)
+            community = PexCommunity(self.my_peer, self.ipv8.endpoint, Network(), info_hash=payload.info_hash)
             self.ipv8.overlays.append(community)
             self.ipv8.strategies.append((RandomWalk(community), 20))
             self.pex[payload.info_hash] = community
