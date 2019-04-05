@@ -7,16 +7,17 @@ from __future__ import absolute_import
 
 import binascii
 import os
+import random
 import struct
 
-from twisted.internet.defer import fail, inlineCallbacks
+from twisted.internet.defer import DeferredList, fail, inlineCallbacks, returnValue
 from twisted.internet.task import LoopingCall
 
 from .caches import *
 from .community import TunnelCommunity, message_to_payload, tc_lazy_wrapper_unsigned
 from .payload import *
 from .tunnel import (CIRCUIT_ID_PORT, CIRCUIT_TYPE_IP_SEEDER, CIRCUIT_TYPE_RP_DOWNLOADER, CIRCUIT_TYPE_RP_SEEDER,
-                     EXIT_NODE, EXIT_NODE_SALT, Hop, IntroductionPoint, RelayRoute, RendezvousPoint,
+                     EXIT_NODE, EXIT_NODE_SALT, Hop, IntroductionPoint, PEER_SOURCE_PEX, RelayRoute, RendezvousPoint,
                      Swarm, TunnelExitSocket)
 from ...keyvault.public.libnaclkey import LibNaCLPK
 from ...messaging.anonymization.pex import PexCommunity
@@ -69,8 +70,8 @@ class HiddenTunnelCommunity(TunnelCommunity):
         already part of the swarm will cause the community to drop all pre-existing connections.
         Note that the seeder should also create introduction points by calling create_introduction_point().
 
-        :param service: the swarm identifier
-        :type service: str
+        :param info_hash: the swarm identifier
+        :type info_hash: str
         :param hops: the amount of hops for our introduction/rendezvous circuits
         :type hops: int
         :param callback: the callback function to call when we have established an e2e circuit
@@ -91,8 +92,8 @@ class HiddenTunnelCommunity(TunnelCommunity):
         """
         Leave a hidden swarm. Can be called by both the downloader and the seeder.
 
-        :param service: the swarm identifier
-        :type service: str
+        :param info_hash: the swarm identifier
+        :type info_hash: str
         """
         self.e2e_callbacks.pop(info_hash, None)
         swarm = self.swarms.pop(info_hash, None)
@@ -108,6 +109,42 @@ class HiddenTunnelCommunity(TunnelCommunity):
         for ip_circuit in self.circuits.values():
             if ip_circuit.info_hash == info_hash and ip_circuit.ctype == CIRCUIT_TYPE_IP_SEEDER:
                 self.remove_circuit(ip_circuit.circuit_id, 'leaving hidden swarm', destroy=True)
+
+    @inlineCallbacks
+    def estimate_swarm_size(self, info_hash, hops=1, max_requests=10):
+        """
+        Estimate the number of unique seeders that are part of a hidden swarm.
+
+        :param info_hash: the swarm identifier
+        :type info_hash: str
+        :param hops: the amount of hops to use for contacting introduction points
+        :type hops: int
+        :param max_requests: the number of introduction points we should send a get-peers message to
+        :type max_requests: int
+        :return: number of unique seeders
+        :rtype: Deferred
+        """
+        swarm = Swarm(info_hash, hops, None)
+
+        # None represents a DHT request
+        all_ = [None]
+        tried = set()
+
+        while len(tried) < max_requests:
+            not_tried = set(all_) - tried
+            if not not_tried:
+                break
+
+            # Issue as many requests as possible in parallel
+            ips = random.sample(not_tried, min(len(not_tried), max_requests - len(tried)))
+            responses = yield DeferredList([self.send_peers_request(info_hash, swarm, ip)
+                                            for ip in ips], consumeErrors=True).addErrback(lambda _: [])
+
+            # Collect responses
+            all_ += sum([results for success, results in responses if success], [])
+            tried |= set(ips)
+
+        returnValue(len({ip.seeder_pk for ip in all_ if ip and ip.source == PEER_SOURCE_PEX}))
 
     def select_circuit_for_infohash(self, info_hash):
         swarm = self.swarms.get(info_hash)
@@ -145,7 +182,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
             if not swarm.seeding and swarm.last_lookup + self.settings.swarm_lookup_interval <= now \
                and swarm.get_num_connections() < self.settings.swarm_connection_limit:
                 swarm.last_lookup = now
-                ips = yield self.send_peers_request(info_hash).addErrback(lambda _: None)
+                ips = yield self.send_peers_request(info_hash, swarm).addErrback(lambda _: None)
                 if ips is None:
                     self.logger.info('Failed to do peer discovery for swarm %s', binascii.hexlify(info_hash))
                     continue
@@ -231,8 +268,8 @@ class HiddenTunnelCommunity(TunnelCommunity):
                 return circuit
         return super(HiddenTunnelCommunity, self).select_circuit(destination, hops)
 
-    def send_peers_request(self, info_hash):
-        circuit = self.select_circuit_for_infohash(info_hash)
+    def send_peers_request(self, info_hash, swarm, intro_point=None):
+        circuit = self.select_circuit(None, swarm.hops)
         if not circuit:
             self.logger.info("No circuit for peers-request")
             return fail(Failure(RuntimeError("No circuit for peers-request")))
@@ -244,7 +281,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
 
         # Ask an introduction point if available (in which case we'll use PEX), otherwise let
         # the exit node do a DHT request.
-        ip = self.swarms[info_hash].get_random_intro_point()
+        ip = intro_point or swarm.get_random_intro_point()
         if ip and ip.peer.public_key != circuit.hops[-1].public_key:
             self.tunnel_data(circuit, ip.peer.address, u"peers-request", payload)
         else:
@@ -289,11 +326,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         if not self.request_cache.has(u"peers-request", payload.identifier):
             self.logger.warning('Got a peers-response with an unknown identifier')
             return
-
         cache = self.request_cache.pop(u"peers-request", payload.identifier)
-        if cache.info_hash not in self.swarms:
-            self.logger.warning('Got a peers-response with an unknown infohash')
-            return
 
         _, peers = decode(payload.peers)
         self.logger.info("Received peers-response containing %d peers", len(peers))
