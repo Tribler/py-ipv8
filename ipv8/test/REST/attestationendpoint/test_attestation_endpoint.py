@@ -3,14 +3,15 @@ from __future__ import absolute_import
 from base64 import b64encode
 from hashlib import sha1
 from json import dumps
-from twisted.internet.defer import returnValue, inlineCallbacks
+
+from twisted.internet.defer import inlineCallbacks, returnValue
 
 from .rest_peer_communication import HTTPGetRequesterAE, HTTPPostRequesterAE
 from ...mocking.rest.base import RESTTestBase
-from ...mocking.rest.peer_interactive_behavior import RequesterRestTestPeer
-from ...mocking.rest.rest_peer_communication import string_to_url
-from ...mocking.rest.rest_api_peer import RestTestPeer
 from ...mocking.rest.comunities import TestAttestationCommunity, TestIdentityCommunity
+from ...mocking.rest.peer_interactive_behavior import RequesterRestTestPeer
+from ...mocking.rest.rest_api_peer import RestTestPeer
+from ...mocking.rest.rest_peer_communication import string_to_url
 from ....attestation.identity.community import IdentityCommunity
 
 
@@ -441,8 +442,6 @@ class TestAttestationEndpoint(RESTTestBase):
         responses = yield self.attest_all_outstanding_requests(param_dict.copy())
         self.assertTrue(all(x == b"" for x in responses[1]), "Something went wrong, not all responses were empty.")
 
-        # param_dict['port'] = self.peer_list[1].port
-        # attributes = yield self._get_style_requests.make_attributes(param_dict)
         param_dict.update({'port': self.nodes[1].port, 'interface': self.nodes[1].interface})
         attributes = yield self._get_style_requests.make_attributes(param_dict)
 
@@ -450,6 +449,10 @@ class TestAttestationEndpoint(RESTTestBase):
         self.assertTrue(attributes[0][0] == param_dict['attribute_name'], "Expected attestation for %s, got it for "
                                                                           "%s" % (param_dict['attribute_name'],
                                                                                   attributes[0][0]))
+
+        param_dict.update({'port': self.nodes[0].port, 'interface': self.nodes[0].interface})
+        attributes = yield self._get_style_requests.make_attributes(param_dict)
+        self.assertTrue(len(attributes) == 0, "There should be no attribute in the DB of the attester.")
 
     @inlineCallbacks
     def test_post_verify(self):

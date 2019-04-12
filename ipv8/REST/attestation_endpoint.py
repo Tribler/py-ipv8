@@ -1,8 +1,8 @@
 from __future__ import absolute_import
 
-from hashlib import sha1
-from base64 import b64decode, b64encode
 import json
+from base64 import b64decode, b64encode
+from hashlib import sha1
 
 from twisted.internet.defer import Deferred, succeed
 
@@ -131,6 +131,10 @@ class AttestationEndpoint(BaseEndpoint):
                 blocks = self.identity_overlay.persistence.get_latest_blocks(peer.public_key.key_to_bin(), 200)
                 trimmed = {}
                 for b in blocks:
+                    owner = b.public_key
+                    if owner != peer.public_key.key_to_bin() or b.link_sequence_number != 0:
+                        # We are only interested in blocks we made and are not attestations of other's attributes
+                        continue
                     attester = b64encode(sha1(b.link_public_key).digest())
                     previous = trimmed.get((attester, b.transaction[b"name"]), None)
                     if not previous or previous.sequence_number < b.sequence_number:
