@@ -943,26 +943,10 @@ class TunnelCommunity(Community):
             self.logger.error("Dropping data packets with unknown circuit_id")
 
     def increase_bytes_sent(self, obj, num_bytes):
-        if isinstance(obj, Circuit):
-            obj.bytes_up += num_bytes
-        elif isinstance(obj, RelayRoute):
-            obj.bytes_up += num_bytes
-        elif isinstance(obj, TunnelExitSocket):
-            obj.bytes_up += num_bytes
-        else:
-            raise TypeError("Increase_bytes_sent() was called with an object that is not a Circuit, "
-                            + "RelayRoute or TunnelExitSocket")
+        obj.bytes_up += num_bytes
 
     def increase_bytes_received(self, obj, num_bytes):
-        if isinstance(obj, Circuit):
-            obj.bytes_down += num_bytes
-        elif isinstance(obj, RelayRoute):
-            obj.bytes_down += num_bytes
-        elif isinstance(obj, TunnelExitSocket):
-            obj.bytes_down += num_bytes
-        else:
-            raise TypeError("Increase_bytes_received() was called with an object that is not a Circuit, "
-                            + "RelayRoute or TunnelExitSocket")
+        obj.bytes_down += num_bytes
 
     def dht_peer_lookup(self, mid, cb):
         if self.dht_provider:
