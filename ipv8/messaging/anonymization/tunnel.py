@@ -16,7 +16,7 @@ from twisted.internet.protocol import DatagramProtocol
 
 from ...keyvault.public.libnaclkey import LibNaCLPK
 from ...taskmanager import TaskManager
-from ...util import blocking_call_on_reactor_thread
+from ...util import blocking_call_on_reactor_thread, cast_to_chr
 
 
 ORIGINATOR = 0
@@ -144,9 +144,13 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
                             "Failed to write data to transport: %s. Destination: %r error was: %r",
                             exception, destination, exception)
 
-                resolve_ip_address_deferred = reactor.resolve(destination[0])
-                resolve_ip_address_deferred.addCallbacks(on_ip_address, on_error)
-                self.register_task("resolving_%r" % destination[0], resolve_ip_address_deferred)
+                try:
+                    socket.inet_aton(cast_to_chr(destination[0]))
+                    on_ip_address(destination[0])
+                except socket.error:
+                    resolve_ip_address_deferred = reactor.resolve(destination[0])
+                    resolve_ip_address_deferred.addCallbacks(on_ip_address, on_error)
+                    self.register_task("resolving_%r" % destination[0], resolve_ip_address_deferred)
             else:
                 self.logger.error("dropping forbidden packets from exit socket with circuit_id %d", self.circuit_id)
 
