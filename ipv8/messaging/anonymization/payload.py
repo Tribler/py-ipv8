@@ -10,7 +10,6 @@ from ...messaging.anonymization.tunnel import (CIRCUIT_TYPE_RP_DOWNLOADER, CIRCU
 from ...messaging.anonymization.tunnelcrypto import CryptoException
 from ...messaging.lazy_payload import VariablePayload
 from ...messaging.payload import Payload
-from ...messaging.serialization import default_serializer
 from ...util import cast_to_bin, cast_to_chr
 
 ADDRESS_TYPE_IPV4 = 0x01
@@ -56,34 +55,37 @@ class ExtraIntroductionPayload(VariablePayload):
     names = ['exitnode']
 
 
-class DataPayload(Payload):
-
-    format_list = ['I', 'varlenH', 'varlenH', 'raw']
+class DataPayload(object):
 
     def __init__(self, circuit_id, dest_address, org_address, data):
-        super(DataPayload, self).__init__()
         self.circuit_id = circuit_id
         self.dest_address = dest_address
         self.org_address = org_address
         self.data = data
 
-    def to_pack_list(self):
-        return [('I', self.circuit_id),
-                ('varlenH', encode_address(*self.dest_address)),
-                ('varlenH', encode_address(*self.org_address)),
-                ('raw', self.data)]
+    def to_bin(self):
+        # Note that since we always wrap data packets in cells, we do not need to include prefix + message_id
+        dest = encode_address(*self.dest_address)
+        org = encode_address(*self.org_address)
+        return b''.join([pack('!H', len(dest)),
+                         dest,
+                         pack('!H', len(org)),
+                         org,
+                         self.data])
 
     @classmethod
-    def from_unpack_list(cls, circuit_id, dest_address, org_address, data):
-        return DataPayload(circuit_id, decode_address(dest_address), decode_address(org_address), data)
+    def from_bin(cls, packet):
+        circuit_id, len_dest = unpack_from('!IH', packet, 23)
+        len_org, = unpack_from('!H', packet, 29 + len_dest)
+        return cls(circuit_id,
+                   decode_address(packet[29:29 + len_dest]),
+                   decode_address(packet[31 + len_dest:31 + len_dest + len_org]),
+                   packet[31 + len_dest + len_org:])
 
 
-class CellPayload(Payload):
-
-    format_list = ['I', 'B', 'raw']
+class CellPayload(object):
 
     def __init__(self, circuit_id, message_type, message=""):
-        super(CellPayload, self).__init__()
         self.circuit_id = circuit_id
         self.message_type = message_type
         self.message = message
@@ -168,18 +170,19 @@ class CellPayload(Payload):
             raise CryptoException("Error decrypting message for unknown circuit %d" % self.circuit_id)
 
     def unwrap(self, prefix):
-        return prefix + default_serializer.pack_multiple([('B', self.message_type),
-                                                          ('I', self.circuit_id),
-                                                          ('raw', self.message)])[0]
+        return b''.join([prefix,
+                         pack('!BI', self.message_type, self.circuit_id),
+                         self.message])
 
-    def to_pack_list(self):
-        return [('I', self.circuit_id),
-                ('B', self.message_type),
-                ('raw', self.message)]
+    def to_bin(self, prefix):
+        return b''.join([prefix,
+                         cast_to_bin(chr(1)),
+                         pack('!IB', self.circuit_id, self.message_type) + self.message])
 
     @classmethod
-    def from_unpack_list(cls, circuit_id, message_type, message):
-        return CellPayload(circuit_id, message_type, message)
+    def from_bin(cls, packet):
+        circuit_id, message_type = unpack_from('!IB', packet, 23)
+        return cls(circuit_id, message_type, packet[28:])
 
 
 class CreatePayload(VariablePayload):

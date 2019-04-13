@@ -16,7 +16,7 @@ from .payload import *
 from .tunnel import *
 from .tunnelcrypto import CryptoException, TunnelCrypto
 from ...community import Community
-from ...lazy_community import lazy_wrapper, lazy_wrapper_unsigned, lazy_wrapper_unsigned_wd
+from ...lazy_community import lazy_wrapper, lazy_wrapper_unsigned
 from ...messaging.deprecated.encoding import decode, encode
 from ...messaging.payload_headers import BinMemberAuthenticationPayload
 from ...peer import Peer
@@ -491,10 +491,13 @@ class TunnelCommunity(Community):
     def send_cell(self, candidates, message_type, payload, circuit_id=None):
         message_id, _ = message_to_payload[message_type]
         circuit_id = circuit_id or payload.circuit_id
-        message = self.serializer.pack_multiple(payload.to_pack_list()[1:])[0]
+        if isinstance(payload, DataPayload):
+            message = payload.to_bin()
+        else:
+            message = self.serializer.pack_multiple(payload.to_pack_list()[1:])[0]
         cell = CellPayload(circuit_id, message_id, message)
         cell.encrypt(self.crypto, self.circuits.get(circuit_id), self.relay_session_keys.get(circuit_id))
-        packet = self._ez_pack(self._prefix, 1, [cell.to_pack_list()], False)
+        packet = cell.to_bin(self._prefix)
         return self.send_packet(candidates, packet)
 
     def send_data(self, candidates, circuit_id, dest_address, source_address, data):
@@ -530,7 +533,7 @@ class TunnelCommunity(Community):
             return
 
         cell.circuit_id = next_relay.circuit_id
-        packet = self._ez_pack(self._prefix, 1, [cell.to_pack_list()], False)
+        packet = cell.to_bin(self._prefix)
         self.increase_bytes_sent(next_relay, self.send_packet([next_relay.peer], packet))
 
     def _ours_on_created_extended(self, circuit, payload):
@@ -651,10 +654,10 @@ class TunnelCommunity(Community):
         return super(TunnelCommunity, self).create_introduction_response(lan_socket_address, socket_address,
                                                                          identifier, introduction, extra_bytes)
 
-    @lazy_wrapper_unsigned_wd(CellPayload)
-    def on_cell(self, source_address, cell, data):
-        message_type = [k for k, v in message_to_payload.items() if v[0] == cell.message_type][0]
+    def on_cell(self, source_address, data):
+        cell = CellPayload.from_bin(data)
         circuit_id = cell.circuit_id
+        message_type = cell.message_type
         self.logger.debug("Got %s (%d) from %s, I am %s", message_type, circuit_id, source_address, self.my_peer)
 
         if self.is_relay(circuit_id):
@@ -837,8 +840,9 @@ class TunnelCommunity(Community):
         """
         pass
 
-    @tc_lazy_wrapper_unsigned(DataPayload)
-    def on_data(self, sock_addr, payload, _):
+    def on_data(self, sock_addr, data, _):
+        payload = DataPayload.from_bin(data)
+
         # If its our circuit, the messenger is the candidate assigned to that circuit and the DATA's destination
         # is set to the zero-address then the packet is from the outside world and addressed to us from.
         circuit_id = payload.circuit_id
