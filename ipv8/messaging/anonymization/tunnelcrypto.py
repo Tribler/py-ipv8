@@ -4,9 +4,11 @@ import struct
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDFExpand
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+
 import libnacl
+
 from six import integer_types
 
 from ...keyvault.crypto import ECCrypto, LibNaCLPK
@@ -75,23 +77,16 @@ class TunnelCrypto(ECCrypto):
         return keys[direction], keys[direction + 2], keys[direction + 4]
 
     def encrypt_str(self, content, key, salt, salt_explicit):
-        # return the encrypted content prepended with the
-        # gcm tag and salt_explicit
-        cipher = Cipher(algorithms.AES(key),
-                        modes.GCM(initialization_vector=self._bulid_iv(salt, salt_explicit)),
-                        backend=default_backend()
-                        ).encryptor()
-        ciphertext = cipher.update(content) + cipher.finalize()
-        return struct.pack('!q16s', salt_explicit, cipher.tag) + ciphertext
+        # return the encrypted content prepended with salt_explicit
+        aesgcm = AESGCM(key)
+        ciphertext = aesgcm.encrypt(self._bulid_iv(salt, salt_explicit), content, None)
+        return struct.pack('!q', salt_explicit) + ciphertext
 
     def decrypt_str(self, content, key, salt):
         # content contains the gcm tag and salt_explicit in plaintext
         if len(content) < 24:
             raise CryptoException("truncated content")
 
-        salt_explicit, gcm_tag = struct.unpack_from('!q16s', content)
-        cipher = Cipher(algorithms.AES(key),
-                        modes.GCM(initialization_vector=self._bulid_iv(salt, salt_explicit), tag=gcm_tag),
-                        backend=default_backend()
-                        ).decryptor()
-        return cipher.update(content[24:]) + cipher.finalize()
+        salt_explicit, = struct.unpack_from('!q', content)
+        aesgcm = AESGCM(key)
+        return aesgcm.decrypt(self._bulid_iv(salt, salt_explicit), content[8:], None)
