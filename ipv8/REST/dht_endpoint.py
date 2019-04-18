@@ -6,6 +6,8 @@ from base64 import b64decode, b64encode
 from binascii import hexlify, unhexlify
 from hashlib import sha1
 
+from twisted.internet import reactor
+from twisted.internet.task import deferLater
 from twisted.web import http
 from twisted.web.server import NOT_DONE_YET
 
@@ -48,15 +50,18 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
         TrustChain block to the DHT
 
         :param block: the latest block added to the Database. This is not actually used by the inner method
-        :return: None
         """
-        self.publish_latest_block()
+        # We'll retrieve the latest block for this key
+        #TODO: inquire if it's safe to always used the block passed as parameter, rather than latest_block, which might introduce a race condition
+        latest_block = self.trustchain.persistence.get_latest(self.trustchain.my_peer.public_key.key_to_bin())
+        deferLater(reactor, 0, self.publish_latest_block, latest_block, 1)
 
     def should_sign(self, block):
         pass
 
     KEY_SUFFIX = b'_BLOCK'
     CHUNK_SIZE = MAX_ENTRY_SIZE - DHTBlockPayload.PREAMBLE_OVERHEAD - 1
+    ATTEMPT_LIMIT = 3
 
     def __init__(self, dht, trustchain):
         super(DHTBlockEndpoint, self).__init__()
@@ -85,8 +90,8 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
             package = self.serializer.unpack_to_serializables([DHTBlockPayload, ], entry)[0]
 
             if public_key.verify(package.signature, str(package.version).encode('utf-8')
-                                 + str(package.block_position).encode('utf-8')
-                                 + str(package.block_count).encode('utf-8') + package.payload):
+                                                    + str(package.block_position).encode('utf-8')
+                                                    + str(package.block_count).encode('utf-8') + package.payload):
                 max_version = max_version if max_version > package.version else package.version
 
                 if package.version not in new_blocks:
@@ -100,53 +105,65 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
 
         return new_blocks, max_version
 
-    def publish_latest_block(self):
+    def publish_latest_block(self, block, attempt):
         """
         Publish the latest block of this node's TrustChain to the DHT
         """
-        latest_block = self.trustchain.persistence.get_latest(self.trustchain.my_peer.public_key.key_to_bin())
+        if attempt > self.ATTEMPT_LIMIT:
+            logging.error("Publishing latest block failed after %d attempts", self.ATTEMPT_LIMIT)
+            return
 
-        if latest_block:
-            # Get all the previously published blocks for this peer from the DHT, and check if this is a duplicate
-            latest_block = latest_block.pack()
+        if block:
+            latest_block = block.pack()
 
-            def on_failure(failure):
-                logging.error("Publishing latest block failed with %s:\n%s", failure.value.__class__.__name__,
-                              failure.value.message)
+            # Get the total number of chunks in this blocks
+            total_blocks = len(latest_block) // self.CHUNK_SIZE
+            total_blocks += 1 if len(latest_block) % self.CHUNK_SIZE != 0 else 0
 
-            def on_success(block_chunks):
+            def publish_chunk(_, slice_pointer, chunk_idx, chunk_attempt=1):
+                print("HERE", chunk_idx, chunk_attempt)
+                # TODO: In the current implementation, block_version will always be 0 at the start. Is this always the case?
+                # If we've reached the end of the block, we stop the chain, and increment the block version
+                if chunk_idx >= total_blocks:
+                    self.block_version += 1
+                    return
+
+                # If we've attempted to publish this block more times than allowed. give up on the chunk and the block
+                if chunk_attempt > self.ATTEMPT_LIMIT:
+                    logging.error("Publishing latest block failed after %d attempts on chunk %d", self.ATTEMPT_LIMIT,
+                                  chunk_idx)
+                    return
+
+                # Prepare and pack the chunk for publishing to the DHT
+                my_private_key = self.trustchain.my_peer.key
+                chunk = latest_block[slice_pointer: slice_pointer + self.CHUNK_SIZE]
+                signature = my_private_key.signature(str(self.block_version).encode('utf-8')
+                                                     + str(chunk_idx).encode('utf-8')
+                                                     + str(total_blocks).encode('utf-8') + chunk)
+                blob_chunk = self.serializer.pack_multiple(
+                    DHTBlockPayload(signature, self.block_version, chunk_idx, total_blocks, chunk).to_pack_list())
+
+                # Try to add the current chunk to the DHT; if it works, move to the next, otherwise retry
+                d = self.dht.store_value(self._hashed_dht_key, blob_chunk[0])
+                d.addCallback(publish_chunk, slice_pointer + self.CHUNK_SIZE, chunk_idx + 1, 1)
+                d.addErrback(publish_chunk, slice_pointer, chunk_idx, chunk_attempt + 1)
+
+            def on_failure_find_values(_):
+                # If for any reason, finding the values under a key failed, retry this entire operation
+                self.publish_latest_block(block, attempt + 1)
+
+            def on_success_find_values(block_chunks):
                 new_blocks, _ = self.reconstruct_all_blocks([x[0] for x in block_chunks],
                                                             self.trustchain.my_peer.public_key)
 
-                # Check for duplication
-                for val in new_blocks.values():
-                    if val == latest_block:
-                        return
+                # Check if the block we want to publish is actually a duplicate
+                if latest_block in new_blocks.values():
+                    return
 
-                # If we reached this point, it means the latest_block is novel
-                my_private_key = self.trustchain.my_peer.key
+                # We now know the block is novel, so we'll try to publish it
+                deferLater(reactor, 0, publish_chunk, None, 0, 0)
 
-                # Get the total number of chunks in this blocks
-                total_blocks = len(latest_block) // self.CHUNK_SIZE
-                total_blocks += 1 if len(latest_block) % self.CHUNK_SIZE != 0 else 0
-
-                # To make this faster we'll use addition instead of multiplication, and use a pointer
-                slice_pointer = 0
-
-                for i in range(total_blocks):
-                    chunk = latest_block[slice_pointer: slice_pointer + self.CHUNK_SIZE]
-                    slice_pointer += self.CHUNK_SIZE
-                    signature = my_private_key.signature(
-                        str(self.block_version).encode('utf-8') + str(i).encode('utf-8')
-                        + str(total_blocks).encode('utf-8') + chunk)
-                    blob_chunk = self.serializer.pack_multiple(
-                        DHTBlockPayload(signature, self.block_version, i, total_blocks, chunk).to_pack_list())
-
-                    self.dht.store_value(self._hashed_dht_key, blob_chunk[0]).addErrback(on_failure)
-
-                self.block_version += 1
-
-            self.dht.find_values(self._hashed_dht_key).addCallbacks(on_success, on_failure)
+            self.dht.find_values(self._hashed_dht_key).addCallbacks(on_success_find_values, on_failure_find_values)
 
     def render_GET(self, request):
         """
