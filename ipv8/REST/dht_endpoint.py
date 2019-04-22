@@ -51,10 +51,9 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
 
         :param block: the latest block added to the Database. This is not actually used by the inner method
         """
-        # We'll retrieve the latest block for this key
-        #TODO: inquire if it's safe to always used the block passed as parameter, rather than latest_block, which might introduce a race condition
-        latest_block = self.trustchain.persistence.get_latest(self.trustchain.my_peer.public_key.key_to_bin())
-        deferLater(reactor, 0, self.publish_latest_block, latest_block, 1)
+        # Check if the block is not null, and if it belongs to this peer
+        if block and block.public_key == self.trustchain.my_peer.public_key.key_to_bin():
+            deferLater(reactor, 0, self.publish_latest_block, block, 1)
 
     def should_sign(self, block):
         pass
@@ -90,8 +89,8 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
             package = self.serializer.unpack_to_serializables([DHTBlockPayload, ], entry)[0]
 
             if public_key.verify(package.signature, str(package.version).encode('utf-8')
-                                                    + str(package.block_position).encode('utf-8')
-                                                    + str(package.block_count).encode('utf-8') + package.payload):
+                                 + str(package.block_position).encode('utf-8')
+                                 + str(package.block_count).encode('utf-8') + package.payload):
                 max_version = max_version if max_version > package.version else package.version
 
                 if package.version not in new_blocks:
@@ -121,14 +120,12 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
             total_blocks += 1 if len(latest_block) % self.CHUNK_SIZE != 0 else 0
 
             def publish_chunk(_, slice_pointer, chunk_idx, chunk_attempt=1):
-                print("HERE", chunk_idx, chunk_attempt)
-                # TODO: In the current implementation, block_version will always be 0 at the start. Is this always the case?
                 # If we've reached the end of the block, we stop the chain, and increment the block version
                 if chunk_idx >= total_blocks:
                     self.block_version += 1
                     return
 
-                # If we've attempted to publish this block more times than allowed. give up on the chunk and the block
+                # If we've attempted to publish this block more times than allowed, give up on the chunk and the block
                 if chunk_attempt > self.ATTEMPT_LIMIT:
                     logging.error("Publishing latest block failed after %d attempts on chunk %d", self.ATTEMPT_LIMIT,
                                   chunk_idx)
@@ -163,7 +160,9 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
                 # We now know the block is novel, so we'll try to publish it
                 deferLater(reactor, 0, publish_chunk, None, 0, 0)
 
-            self.dht.find_values(self._hashed_dht_key).addCallbacks(on_success_find_values, on_failure_find_values)
+            # On the off chance that the block is actually empty, avoid publishing it
+            if total_blocks > 0:
+                self.dht.find_values(self._hashed_dht_key).addCallbacks(on_success_find_values, on_failure_find_values)
 
     def render_GET(self, request):
         """
