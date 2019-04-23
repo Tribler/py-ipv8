@@ -116,12 +116,12 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
             latest_block = block.pack()
 
             # Get the total number of chunks in this blocks
-            total_blocks = len(latest_block) // self.CHUNK_SIZE
-            total_blocks += 1 if len(latest_block) % self.CHUNK_SIZE != 0 else 0
+            total_chunks = len(latest_block) // self.CHUNK_SIZE
+            total_chunks += 1 if len(latest_block) % self.CHUNK_SIZE != 0 else 0
 
             def publish_chunk(_, slice_pointer, chunk_idx, chunk_attempt=1):
                 # If we've reached the end of the block, we stop the chain, and increment the block version
-                if chunk_idx >= total_blocks:
+                if chunk_idx >= total_chunks:
                     self.block_version += 1
                     return
 
@@ -136,9 +136,9 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
                 chunk = latest_block[slice_pointer: slice_pointer + self.CHUNK_SIZE]
                 signature = my_private_key.signature(str(self.block_version).encode('utf-8')
                                                      + str(chunk_idx).encode('utf-8')
-                                                     + str(total_blocks).encode('utf-8') + chunk)
+                                                     + str(total_chunks).encode('utf-8') + chunk)
                 blob_chunk = self.serializer.pack_multiple(
-                    DHTBlockPayload(signature, self.block_version, chunk_idx, total_blocks, chunk).to_pack_list())
+                    DHTBlockPayload(signature, self.block_version, chunk_idx, total_chunks, chunk).to_pack_list())
 
                 # Try to add the current chunk to the DHT; if it works, move to the next, otherwise retry
                 d = self.dht.store_value(self._hashed_dht_key, blob_chunk[0])
@@ -161,7 +161,7 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
                 deferLater(reactor, 0, publish_chunk, None, 0, 0)
 
             # On the off chance that the block is actually empty, avoid publishing it
-            if total_blocks > 0:
+            if total_chunks > 0:
                 self.dht.find_values(self._hashed_dht_key).addCallbacks(on_success_find_values, on_failure_find_values)
 
     def render_GET(self, request):
@@ -183,12 +183,18 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
         def on_success(block_chunks):
             if not block_chunks:
                 request.setResponseCode(http.NOT_FOUND)
-                return json.dumps({"error": "Could not find any blocks for the specified key."}).encode('utf-8')
+                request.write(json.dumps({
+                    u"error": {
+                        u"handled": True,
+                        u"message": "Could not find any blocks for the specified key."
+                    }
+                }))
+            else:
+                target_public_key = LibNaCLPK(binarykey=raw_public_key[10:])
+                # Discard the 2nd half of the tuples retrieved as a result of the DHT query
+                new_blocks, max_version = self.reconstruct_all_blocks([x[0] for x in block_chunks], target_public_key)
+                request.write(json.dumps({"block": b64encode(new_blocks[max_version]).decode('utf-8')}).encode('utf-8'))
 
-            target_public_key = LibNaCLPK(binarykey=raw_public_key[10:])
-            # Discard the 2nd half of the tuples retrieved as a result of the DHT query
-            new_blocks, max_version = self.reconstruct_all_blocks([x[0] for x in block_chunks], target_public_key)
-            request.write(json.dumps({"block": b64encode(new_blocks[max_version]).decode('utf-8')}).encode('utf-8'))
             request.finish()
 
         def on_failure(failure):
