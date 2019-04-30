@@ -18,6 +18,7 @@ ipv8/test/keyvault/test_signature.py:TestSignatures
 
 ipv8/test/attestation/trustchain/test_community.py:TestTrustChainCommunity
 ipv8/test/attestation/trustchain/test_block.py:TestTrustChainBlock
+ipv8/test/attestation/trustchain/test_database.py:TestTrustChainDB
 ipv8/test/attestation/identity/test_identity.py:TestIdentityCommunity
 ipv8/test/attestation/wallet/primitives/cryptosystem/test_boneh.py:TestBoneh
 ipv8/test/attestation/wallet/primitives/cryptosystem/test_ec.py:TestPairing
