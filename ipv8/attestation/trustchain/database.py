@@ -3,14 +3,13 @@ This file contains everything related to persistence for TrustChain.
 """
 from __future__ import absolute_import
 
-from binascii import hexlify
 import os
+from binascii import hexlify
 
 from six import text_type
 
-from ...database import database_blob, Database
 from .block import TrustChainBlock
-
+from ...database import Database, database_blob
 
 DATABASE_DIRECTORY = os.path.join(u"sqlite")
 
@@ -276,6 +275,30 @@ class TrustChainDB(Database):
         res = list(self.execute(
             u"SELECT DISTINCT public_key, MAX(sequence_number) FROM blocks GROUP BY public_key "
             u"ORDER BY MAX(sequence_number) DESC LIMIT ? ", (limit,)))
+        users_info = []
+        for user_info in res:
+            users_info.append({
+                "public_key": hexlify(user_info[0] if isinstance(user_info[0], bytes) else str(user_info[0])),
+                "blocks": user_info[1],
+            })
+        return users_info
+
+    def get_connected_users(self, public_key, limit=100):
+        """
+        Return a list of connected users for a user with the given public key.
+        :param public_key: Public key of the user
+        :param limit: Limit on number of results to return
+        :return: List of connected users (public key and latest block sequence number)
+        """
+        res = list(self.execute(
+            u"SELECT DISTINCT b1.public_key as pk, MAX(b1.sequence_number) as max_seq FROM blocks b1 "
+            u"WHERE b1.link_public_key=? GROUP BY pk "
+            u"UNION "
+            u"SELECT DISTINCT b2.link_public_key as pk, MAX(b2.sequence_number) as max_seq FROM blocks b2 "
+            u"WHERE b2.public_key=? GROUP BY pk "
+            u"ORDER BY max_seq DESC LIMIT ? ",
+            (database_blob(public_key), database_blob(public_key), limit)))
+
         users_info = []
         for user_info in res:
             users_info.append({
