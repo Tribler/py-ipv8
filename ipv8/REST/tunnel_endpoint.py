@@ -22,6 +22,7 @@ class TunnelEndpoint(BaseEndpoint):
             self.putChild("circuits", TunnelCircuitsEndpoint(tunnel_overlays[0]))
             self.putChild("relays", TunnelRelaysEndpoint(tunnel_overlays[0]))
             self.putChild("exits", TunnelExitsEndpoint(tunnel_overlays[0]))
+            self.putChild("swarms", TunnelSwarmsEndpoint(tunnel_overlays[0]))
 
 
 class TunnelCircuitsEndpoint(BaseEndpoint):
@@ -48,7 +49,8 @@ class TunnelCircuitsEndpoint(BaseEndpoint):
                 "type": circuit.ctype,
                 "state": circuit.state,
                 "bytes_up": circuit.bytes_up,
-                "bytes_down": circuit.bytes_down
+                "bytes_down": circuit.bytes_down,
+                "creation_time": circuit.creation_time
             } for circuit in self.tunnels.circuits.itervalues()]})
 
 
@@ -72,7 +74,8 @@ class TunnelRelaysEndpoint(BaseEndpoint):
                 "circuit_to": relay.circuit_id,
                 "is_rendezvous": relay.rendezvous_relay,
                 "bytes_up": relay.bytes_up,
-                "bytes_down": relay.bytes_down
+                "bytes_down": relay.bytes_down,
+                "creation_time": relay.creation_time
             } for circuit_from, relay in self.tunnels.relay_from_to.iteritems()]})
 
 
@@ -95,5 +98,33 @@ class TunnelExitsEndpoint(BaseEndpoint):
                 "circuit_from": circuit_from,
                 "enabled": exit_socket.enabled,
                 "bytes_up": exit_socket.bytes_up,
-                "bytes_down": exit_socket.bytes_down
+                "bytes_down": exit_socket.bytes_down,
+                "creation_time": exit_socket.creation_time
             } for circuit_from, exit_socket in self.tunnels.exit_sockets.iteritems()]})
+
+
+class TunnelSwarmsEndpoint(BaseEndpoint):
+    """
+    This endpoint is responsible for returning hidden swarm information from the TunnelCommunity.
+    """
+
+    def __init__(self, tunnels):
+        super(TunnelSwarmsEndpoint, self).__init__()
+        self.tunnels = tunnels
+
+    def render_GET(self, request):
+        if not self.tunnels:
+            request.setResponseCode(http.NOT_FOUND)
+            return json.dumps({"error": "tunnel community not found"})
+
+        return json.dumps({"swarms": [
+            {
+                "info_hash": hexlify(swarm.info_hash),
+                "num_seeders": swarm.get_num_seeders(),
+                "num_connections": swarm.get_num_connections(),
+                "num_connections_incomplete": swarm.get_num_connections_incomplete(),
+                "seeding": swarm.seeding,
+                "last_lookup": swarm.last_lookup,
+                "bytes_up": swarm.get_total_up(),
+                "bytes_down": swarm.get_total_down()
+            } for swarm in self.tunnels.swarms.values()]})

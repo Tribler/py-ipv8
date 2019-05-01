@@ -2,17 +2,17 @@ from __future__ import absolute_import
 
 import time
 
-from twisted.internet.defer import succeed, Deferred, inlineCallbacks
+from twisted.internet.defer import Deferred, inlineCallbacks, succeed
 
 from ..base import TestBase
 from ..mocking.ipv8 import MockIPv8
 from ...dht.community import DHTCommunity
 from ...dht.provider import DHTCommunityProvider
-from ...dht.routing import Node, distance, NODE_LIMIT_QUERIES
+from ...dht.routing import NODE_LIMIT_QUERIES, Node, distance
+from ...messaging.anonymization.tunnel import IntroductionPoint
 
 
 class TestDHTCommunity(TestBase):
-
     def setUp(self):
         super(TestDHTCommunity, self).setUp()
         self.initialize(DHTCommunity, 2)
@@ -180,10 +180,10 @@ class TestDHTCommunity(TestBase):
         dht_provider_1 = DHTCommunityProvider(self.nodes[0].overlay, 1337)
         dht_provider_2 = DHTCommunityProvider(self.nodes[1].overlay, 1338)
         dht_provider_3 = DHTCommunityProvider(self.nodes[2].overlay, 1338)
-        dht_provider_1.announce(b'a' * 20)
-        dht_provider_2.announce(b'a' * 20)
+        dht_provider_1.announce(b'a' * 20, IntroductionPoint(self.nodes[0].overlay.my_peer, '\x01' * 20))
+        dht_provider_2.announce(b'a' * 20, IntroductionPoint(self.nodes[1].overlay.my_peer, '\x02' * 20))
 
-        yield self.deliver_messages()
+        yield self.deliver_messages(.5)
 
         def on_peers(peers):
             self.assertEqual(len(peers[1]), 2)
@@ -191,6 +191,23 @@ class TestDHTCommunity(TestBase):
 
         dht_provider_3.lookup(b'a' * 20, on_peers)
 
+        yield test_deferred
+
+    @inlineCallbacks
+    def test_provider_invalid_data(self):
+        """
+        Test the DHT provider when invalid data arrives
+        """
+        self.nodes[0].overlay.find_values = lambda _: succeed([('invalid_data', None)])
+        dht_provider = DHTCommunityProvider(self.nodes[0].overlay, 1337)
+
+        test_deferred = Deferred()
+
+        def on_peers(peers):
+            self.assertEqual(len(peers[1]), 0)
+            test_deferred.callback(None)
+
+        dht_provider.lookup(b'a' * 20, on_peers)
         yield test_deferred
 
     @inlineCallbacks
@@ -232,7 +249,7 @@ class TestDHTCommunityXL(TestBase):
     def test_full_protocol(self):
         # Fill routing tables
         yield self.introduce_nodes()
-        yield self.deliver_messages()
+        yield self.deliver_messages(.5)
 
         # Store key value pair
         kv_pair = (b'\x00' * 20, b'test1')

@@ -2,9 +2,10 @@ from __future__ import absolute_import
 
 import abc
 from random import choice, randint
-import six
-from time import time
 from threading import Lock
+from time import time
+
+import six
 
 
 class DiscoveryStrategy(six.with_metaclass(abc.ABCMeta, object)):
@@ -26,7 +27,7 @@ class RandomWalk(DiscoveryStrategy):
     Walk randomly through the network.
     """
 
-    def __init__(self, overlay, timeout=3.0, window_size=5, reset_chance=50):
+    def __init__(self, overlay, timeout=3.0, window_size=5, reset_chance=50, target_interval=0):
         """
         Create a new walk strategy.
 
@@ -38,12 +39,16 @@ class RandomWalk(DiscoveryStrategy):
         :type window_size: int
         :param reset_chance: the chance (0-255) to go back to the tracker
         :type reset_chance: int
+        :param target_interval: the target interval (in seconds) between steps or 0 to use the default interval
+        :type target_interval: int
         """
         super(RandomWalk, self).__init__(overlay)
         self.intro_timeouts = {}
         self.node_timeout = timeout
         self.window_size = window_size
         self.reset_chance = reset_chance
+        self.target_interval = target_interval
+        self.last_step = 0
 
     def take_step(self):
         """
@@ -59,6 +64,9 @@ class RandomWalk(DiscoveryStrategy):
                 del self.intro_timeouts[node]
                 if not self.overlay.network.get_verified_by_address(node):
                     self.overlay.network.remove_by_address(node)
+            # Slow down the walk if a target_interval has been specified
+            if self.target_interval > 0 and self.last_step + self.target_interval >= time():
+                return
             # If a valid window size (>0) is specified and we are waiting for (at least) this many pings: return
             if self.window_size and self.window_size > 0 and len(self.intro_timeouts) >= self.window_size:
                 return
@@ -73,6 +81,7 @@ class RandomWalk(DiscoveryStrategy):
                 self.intro_timeouts[peer] = time()
             else:
                 self.overlay.get_new_introduction()
+            self.last_step = time()
 
 
 class EdgeWalk(DiscoveryStrategy):

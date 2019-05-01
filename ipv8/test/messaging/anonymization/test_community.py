@@ -1,5 +1,7 @@
 from __future__ import absolute_import
 
+from collections import defaultdict
+
 from twisted.internet.defer import inlineCallbacks, succeed
 
 from ...base import TestBase
@@ -9,6 +11,28 @@ from ....messaging.anonymization.community import TunnelCommunity, TunnelSetting
 from ....messaging.anonymization.tunnel import CIRCUIT_STATE_EXTENDING
 from ....messaging.interfaces.udp.endpoint import UDPEndpoint
 from ....util import cast_to_bin
+
+
+# Map of info_hash -> peer list
+global_dht_services = defaultdict(list)
+
+
+class MockDHTProvider(object):
+
+    def __init__(self, peer):
+        self.peer = peer
+        # DHTDiscoveryCommunity functionality
+        global_dht_services[peer.mid].append(peer)
+
+    def peer_lookup(self, mid, cb):
+        self.lookup(mid, cb)
+
+    def lookup(self, info_hash, cb):
+        if info_hash in global_dht_services:
+            cb((info_hash, global_dht_services[info_hash]))
+
+    def announce(self, info_hash, intro_point):
+        global_dht_services[info_hash].append(intro_point)
 
 
 class TestTunnelCommunity(TestBase):
@@ -40,6 +64,7 @@ class TestTunnelCommunity(TestBase):
         # Finally, use the proper exitnode and circuit settings for manual creation
         ipv8.overlay.settings.min_circuits = 1
         ipv8.overlay.settings.max_circuits = 1
+        ipv8.overlay.dht_provider = MockDHTProvider(ipv8.overlay.my_peer)
         return ipv8
 
     def assert_no_more_tunnels(self):
@@ -140,13 +165,11 @@ class TestTunnelCommunity(TestBase):
         self.nodes[0].overlay.build_tunnels(1)
 
         # Node 0 should have 1 circuit in the CIRCUIT_STATE_EXTENDING state
-        self.assertEqual(len(self.nodes[0].overlay.data_circuits()), 1)
-        self.assertEqual(list(self.nodes[0].overlay.circuits.values())[0].state, CIRCUIT_STATE_EXTENDING)
+        self.assertEqual(len(self.nodes[0].overlay.find_circuits(state=CIRCUIT_STATE_EXTENDING)), 1)
 
         # Subsequent calls to build_circuits should not change this
         self.nodes[0].overlay.build_tunnels(1)
-        self.assertEqual(len(self.nodes[0].overlay.data_circuits()), 1)
-        self.assertEqual(list(self.nodes[0].overlay.circuits.values())[0].state, CIRCUIT_STATE_EXTENDING)
+        self.assertEqual(len(self.nodes[0].overlay.find_circuits(state=CIRCUIT_STATE_EXTENDING)), 1)
 
     @inlineCallbacks
     def test_destroy_circuit_from_originator(self):

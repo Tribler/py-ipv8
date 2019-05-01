@@ -1,22 +1,22 @@
 from __future__ import absolute_import
 from __future__ import division
 
-from binascii import hexlify
 import time
-
+from binascii import hexlify
 from collections import defaultdict
 
 from six.moves import xrange
-from twisted.internet.defer import fail
+
+from twisted.internet.defer import fail, succeed
 from twisted.internet.task import LoopingCall
 from twisted.python.failure import Failure
 
+from .community import DHTCommunity, MAX_NODES_IN_FIND, PING_INTERVAL, Request, TARGET_NODES, gatherResponses
+from .payload import (ConnectPeerRequestPayload, ConnectPeerResponsePayload, PingRequestPayload, PingResponsePayload,
+                      StorePeerRequestPayload, StorePeerResponsePayload)
+from .routing import NODE_STATUS_BAD, Node
 from ..lazy_community import lazy_wrapper, lazy_wrapper_wd
 from ..messaging.payload_headers import GlobalTimeDistributionPayload
-from .community import DHTCommunity, Request, PING_INTERVAL, TARGET_NODES, gatherResponses, MAX_NODES_IN_FIND
-from .routing import NODE_STATUS_BAD, Node
-from .payload import (StorePeerRequestPayload, StorePeerResponsePayload, ConnectPeerRequestPayload,
-                      ConnectPeerResponsePayload, PingRequestPayload, PingResponsePayload)
 
 MSG_STORE_PEER_REQUEST = 13
 MSG_STORE_PEER_RESPONSE = 14
@@ -94,6 +94,8 @@ class DHTDiscoveryCommunity(DHTCommunity):
                 else fail(RuntimeError('Peer was not stored')))
 
     def connect_peer(self, mid):
+        if mid in self.store:
+            return succeed(self.store[mid])
         return self.find_nodes(mid).addCallback(lambda nodes, mid=mid:
                                                 self.send_connect_peer_request(mid, nodes[:TARGET_NODES]))
 

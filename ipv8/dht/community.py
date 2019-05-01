@@ -1,28 +1,28 @@
 from __future__ import absolute_import
 from __future__ import division
 
-from binascii import hexlify, unhexlify
+import hashlib
 import os
 import time
-import hashlib
+from binascii import hexlify, unhexlify
+from collections import defaultdict, deque
 
-from collections import deque, defaultdict
+import six
 
-from twisted.internet.defer import inlineCallbacks, Deferred, fail, DeferredList, returnValue
+from twisted.internet.defer import Deferred, DeferredList, fail, inlineCallbacks, returnValue
 from twisted.internet.task import LoopingCall
 from twisted.python.failure import Failure
 
-from ..peer import Peer
-from ..requestcache import RandomNumberCache, RequestCache
-from ..peerdiscovery.churn import PingChurn
-from ..messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
+from .payload import (FindRequestPayload, FindResponsePayload, PingRequestPayload, PingResponsePayload,
+                      SignedStrPayload, StoreRequestPayload, StoreResponsePayload, StrPayload)
+from .routing import Node, RoutingTable, calc_node_id, distance
+from .storage import Storage
 from ..community import Community
 from ..lazy_community import lazy_wrapper, lazy_wrapper_wd
-
-from .storage import Storage
-from .routing import RoutingTable, Node, distance, calc_node_id
-from .payload import (PingRequestPayload, PingResponsePayload, StoreRequestPayload, StoreResponsePayload,
-                      FindRequestPayload, FindResponsePayload, SignedStrPayload, StrPayload)
+from ..messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
+from ..peer import Peer
+from ..peerdiscovery.churn import PingChurn
+from ..requestcache import RandomNumberCache, RequestCache
 from ..util import addCallback, cast_to_bin
 
 PING_INTERVAL = 25
@@ -33,14 +33,14 @@ TOKEN_EXPIRATION_TIME = 600
 DHT_ENTRY_STR = 0
 DHT_ENTRY_STR_SIGNED = 1
 
-MAX_ENTRY_SIZE = 155
+MAX_ENTRY_SIZE = 170
 MAX_ENTRY_AGE = 86400
 
 MAX_FIND_WALKS = 8
 MAX_FIND_STEPS = 4
 
-MAX_VALUES_IN_STORE = 9
-MAX_VALUES_IN_FIND = 9
+MAX_VALUES_IN_STORE = 8
+MAX_VALUES_IN_FIND = 8
 MAX_NODES_IN_FIND = 8
 
 # Target number of nodes at which a key-value pair should be stored
@@ -79,7 +79,7 @@ class Request(RandomNumberCache):
 
     def on_timeout(self):
         if not self.deferred.called:
-            self._logger.info('Timeout for %s to %s', self.msg_type, self.node)
+            self._logger.debug('Timeout for %s to %s', self.msg_type, self.node)
             self.node.failed += 1
             if not self.consume_errors:
                 self.deferred.errback(Failure(RuntimeError('Timeout for {} to {}'.format(self.msg_type, self.node))))
@@ -94,11 +94,8 @@ class DHTCommunity(Community):
     """
     Community for storing/finding key-value pairs.
     """
-    master_peer = Peer(unhexlify('3081a7301006072a8648ce3d020106052b81040027038192000402b8dcc3bee358ff30b3bd00aa56a7f'
-                                 '9100fe546fc7fb518f197f7c1bbadeb817d8e7a0dcc44c239cfc8906cf55781235dfe24179d0450bcdb'
-                                 'dc49e851f3b03b12acbf0e7b0823e606e50e9c0c77a97af7e737ad749ff53c42fd9d636da4e71d3b7a7'
-                                 'a291734fd64304be90c86e2268490332dfa9e8f01d953538f01c2fba73acd7fe7eec480098054610855'
-                                 'b7918974'))
+    master_peer = Peer(unhexlify('4c69624e61434c504b3abd7e6ca06b2c2e5e4412eee20b5d07fab63b47ace82dc5a960407f5f0cff5c4'
+                                 '48781decbc77dcb8fb1792ba4ad91f254351b3d043cfd9db446cfcfe3539d4602'))
 
     def __init__(self, *args, **kwargs):
         super(DHTCommunity, self).__init__(*args, **kwargs)
@@ -246,7 +243,7 @@ class DHTCommunity(Community):
         # Check if we also need to store this key-value pair
         largest_distance = max([distance(node.id, key) for node in nodes])
         if distance(self.my_node_id, key) < largest_distance:
-            for value in values:
+            for value in reversed(values):
                 self.add_value(key, value)
 
         now = time.time()
@@ -314,13 +311,13 @@ class DHTCommunity(Community):
         return cache.deferred
 
     def _process_find_responses(self, responses, nodes_tried):
-        values = set()
+        values = []
         nodes = set()
         to_puncture = {}
 
         for sender, response in responses:
             if 'values' in response:
-                values |= set(response['values'])
+                values.append(response['values'])
             else:
                 # Pick a node that we haven't tried yet.
                 node = next((n for n in response['nodes']
@@ -342,7 +339,7 @@ class DHTCommunity(Community):
             returnValue(Failure(RuntimeError('No nodes found in the routing table')))
 
         nodes_tried = set()
-        values = set()
+        values = []
         recent = None
 
         for _ in range(MAX_FIND_STEPS):
@@ -359,7 +356,7 @@ class DHTCommunity(Community):
 
             # Process responses and puncture nodes that we haven't tried yet
             new_values, new_nodes, to_puncture = self._process_find_responses(responses, nodes_tried)
-            values |= new_values
+            values += new_values
             nodes_closest |= new_nodes
 
             deferreds = [self._send_find_request(sender, node.id, force_nodes)
@@ -377,7 +374,12 @@ class DHTCommunity(Community):
         if force_nodes:
             returnValue(sorted(nodes_tried, key=lambda n: distance(n.id, target)))
 
-        values = list(values)
+        # Merge all values received into one tuple. First pick the first value from each tuple, then the second, etc.
+        values = sum(six.moves.zip_longest(*values), ())
+
+        # Filter out duplicates while preserving order
+        seen = set()
+        values = [v for v in values if v is not None and not (v in seen or seen.add(v))]
 
         if recent and values:
             # Store the key-value pair on the most recently visited node that

@@ -1,22 +1,22 @@
 from __future__ import absolute_import
 
-from base64 import b64encode, b64decode
-from binascii import hexlify, unhexlify
-from hashlib import sha1
 import json
 import logging
+from base64 import b64decode, b64encode
+from binascii import hexlify, unhexlify
+from hashlib import sha1
 
 from twisted.web import http
 from twisted.web.server import NOT_DONE_YET
 
 from .base_endpoint import BaseEndpoint
-from ..dht.community import DHTCommunity, MAX_ENTRY_SIZE
 from ..attestation.trustchain.community import TrustChainCommunity
-from ..dht.discovery import DHTDiscoveryCommunity
 from ..attestation.trustchain.listener import BlockListener
 from ..attestation.trustchain.payload import DHTBlockPayload
-from ..messaging.serialization import Serializer
+from ..dht.community import DHTCommunity, MAX_ENTRY_SIZE
+from ..dht.discovery import DHTDiscoveryCommunity
 from ..keyvault.public.libnaclkey import LibNaCLPK
+from ..messaging.serialization import Serializer
 
 
 class DHTEndpoint(BaseEndpoint):
@@ -32,6 +32,7 @@ class DHTEndpoint(BaseEndpoint):
             self.putChild(b"statistics", DHTStatisticsEndpoint(dht_overlays[0]))
             self.putChild(b"values", DHTValuesEndpoint(dht_overlays[0]))
             self.putChild(b"peers", DHTPeersEndpoint(dht_overlays[0]))
+        if dht_overlays and tc_overlays:
             self.putChild(b"block", DHTBlockEndpoint(dht_overlays[0], tc_overlays[0]))
 
 
@@ -282,6 +283,23 @@ class DHTValuesEndpoint(BaseEndpoint):
     def __init__(self, dht):
         super(DHTValuesEndpoint, self).__init__()
         self.dht = dht
+
+    def render_GET(self, request):
+        if not self.dht:
+            request.setResponseCode(http.NOT_FOUND)
+            return json.dumps({"error": "DHT community not found"})
+
+        results = {}
+        for key, raw_values in self.dht.storage.items.items():
+            values = self.dht.post_process_values([v.data for v in raw_values])
+            dicts = []
+            for value in values:
+                data, public_key = value
+                dicts.append({'public_key': b64encode(public_key) if public_key else None,
+                              'value': hexlify(data)})
+            results[hexlify(key)] = dicts
+
+        return json.dumps(results)
 
     def getChild(self, path, request):
         return SpecificDHTValueEndpoint(self.dht, path)
