@@ -20,7 +20,7 @@ from .tunnel import (CIRCUIT_ID_PORT, CIRCUIT_TYPE_IP_SEEDER, CIRCUIT_TYPE_RP_DO
                      EXIT_NODE, EXIT_NODE_SALT, Hop, IntroductionPoint, PEER_SOURCE_PEX, RelayRoute, RendezvousPoint,
                      Swarm, TunnelExitSocket)
 from ...keyvault.public.libnaclkey import LibNaCLPK
-from ...messaging.anonymization.pex import PexCommunity
+from ...messaging.anonymization.pex import PexCommunity, PexEndpointAdapter
 from ...messaging.deprecated.encoding import decode, encode
 from ...peer import Peer
 from ...peerdiscovery.discovery import RandomWalk
@@ -35,6 +35,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
 
         self.swarms = {}
         self.pex = {}
+        self.pex_ep_adapter = PexEndpointAdapter(self.ipv8.endpoint) if self.ipv8 else None
 
         super(HiddenTunnelCommunity, self).__init__(*args, **kwargs)
 
@@ -490,7 +491,9 @@ class HiddenTunnelCommunity(TunnelCommunity):
         if not self.ipv8:
             self.logger.error('No IPv8 service object available, cannot start PEXCommunity')
         elif payload.info_hash not in self.pex:
-            community = PexCommunity(self.my_peer, self.ipv8.endpoint, Network(), info_hash=payload.info_hash)
+            if not self.pex_ep_adapter:
+                self.pex_ep_adapter = PexEndpointAdapter(self.ipv8.endpoint)
+            community = PexCommunity(self.my_peer, self.pex_ep_adapter, Network(), info_hash=payload.info_hash)
             self.ipv8.overlays.append(community)
             # Since IPv8 takes a step every .5s until we have 10 peers, the PexCommunity will generate
             # a lot of traffic in case there are <10 peers in existence. Therefore, we slow the walk down to a 5s/step.
