@@ -88,9 +88,12 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
         for entry in block_chunks:
             package = self.serializer.unpack_to_serializables([DHTBlockPayload, ], entry)[0]
 
-            if public_key.verify(package.signature, str(package.version).encode('utf-8')
-                                 + str(package.block_position).encode('utf-8')
-                                 + str(package.block_count).encode('utf-8') + package.payload):
+            pre_signed_content = self.serializer.pack_multiple([('H', package.version),
+                                                                ('H', package.block_position),
+                                                                ('H', package.block_count),
+                                                                ('raw', package.payload)])[0]
+
+            if public_key.verify(package.signature, pre_signed_content):
                 max_version = max_version if max_version > package.version else package.version
 
                 if package.version not in new_blocks:
@@ -134,9 +137,11 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
                 # Prepare and pack the chunk for publishing to the DHT
                 my_private_key = self.trustchain.my_peer.key
                 chunk = latest_block[slice_pointer: slice_pointer + self.CHUNK_SIZE]
-                signature = my_private_key.signature(str(self.block_version).encode('utf-8')
-                                                     + str(chunk_idx).encode('utf-8')
-                                                     + str(total_chunks).encode('utf-8') + chunk)
+
+                pre_signed_content = self.serializer.pack_multiple([('H', self.block_version), ('H', chunk_idx),
+                                                                    ('H', total_chunks), ('raw', chunk)])[0]
+
+                signature = my_private_key.signature(pre_signed_content)
                 blob_chunk = self.serializer.pack_multiple(
                     DHTBlockPayload(signature, self.block_version, chunk_idx, total_chunks, chunk).to_pack_list())
 
