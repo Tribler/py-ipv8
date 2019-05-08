@@ -172,10 +172,11 @@ class E2ERequestCache(RandomNumberCache):
 
 class LinkRequestCache(RandomNumberCache):
 
-    def __init__(self, community, circuit, info_hash):
+    def __init__(self, community, circuit, info_hash, hs_session_keys):
         super(LinkRequestCache, self).__init__(community.request_cache, u"link-request")
         self.circuit = circuit
         self.info_hash = info_hash
+        self.hs_session_keys = hs_session_keys
 
     def on_timeout(self):
         pass

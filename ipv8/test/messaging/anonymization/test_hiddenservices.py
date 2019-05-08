@@ -150,10 +150,10 @@ class TestHiddenServices(TestBase):
         Steps:
          1. Create an introduction point
          2. Do a DHT lookup
-         3. Share keys
-         4. Create a rendezvous point
-         5. Link the circuit e2e
-         6. Callback the service handler
+         3. Create a rendezvous point
+         4. Link the circuit e2e
+         5. Callback the service handler
+         6. Send data
         """
         callback_called = Deferred()
 

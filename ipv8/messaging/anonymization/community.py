@@ -489,7 +489,7 @@ class TunnelCommunity(Community):
             message = payload.to_bin()
         else:
             message = self.serializer.pack_multiple(payload.to_pack_list()[1:])[0]
-        cell = CellPayload(circuit_id, message_id, message)
+        cell = CellPayload(circuit_id, pack('!B', message_id) + message, message_id in NO_CRYPTO_PACKETS)
         cell.encrypt(self.crypto, self.circuits.get(circuit_id), self.relay_session_keys.get(circuit_id))
         packet = cell.to_bin(self._prefix)
         return self.send_packet(candidates, packet)
@@ -644,8 +644,6 @@ class TunnelCommunity(Community):
     def on_cell(self, source_address, data):
         cell = CellPayload.from_bin(data)
         circuit_id = cell.circuit_id
-        message_type = cell.message_type
-        self.logger.debug("Got %s (%d) from %s, I am %s", message_type, circuit_id, source_address, self.my_peer)
 
         if self.is_relay(circuit_id):
             next_relay = self.relay_from_to[circuit_id]
@@ -653,7 +651,7 @@ class TunnelCommunity(Community):
             if this_relay:
                 this_relay.beat_heart()
                 self.increase_bytes_received(this_relay, len(data))
-            self.logger.debug("Relaying %s from %d to %d", message_type, circuit_id, next_relay.circuit_id)
+            self.logger.debug("Relaying cell from circuit %d to %d", circuit_id, next_relay.circuit_id)
             self.relay_cell(cell)
             return
 
@@ -664,6 +662,8 @@ class TunnelCommunity(Community):
             if circuit:
                 self.send_destroy(circuit.peer, circuit_id, 0)
             return
+        self.logger.debug("Got cell(%s) from circuit %d (sender %s, receiver %s)",
+                          cell.message[0], circuit_id, source_address, self.my_peer)
         self.on_packet_from_circuit(source_address, cell.unwrap(self._prefix), circuit_id)
 
         if circuit:
