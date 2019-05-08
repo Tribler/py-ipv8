@@ -410,8 +410,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
             self.swarms[cache.info_hash].add_connection(circuit, cache.intro_point)
 
     def create_link_e2e(self, circuit, cookie, session_keys, info_hash):
-        circuit.hs_session_keys = session_keys
-        cache = self.request_cache.add(LinkRequestCache(self, circuit, info_hash))
+        cache = self.request_cache.add(LinkRequestCache(self, circuit, info_hash, session_keys))
         self.send_cell([circuit.peer], u'link-e2e', LinkE2EPayload(circuit.circuit_id, cache.number, cookie))
 
     @tc_lazy_wrapper_unsigned(LinkE2EPayload)
@@ -447,6 +446,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         cache = self.request_cache.pop(u"link-request", payload.identifier)
         circuit = cache.circuit
         circuit.e2e = True
+        circuit.hs_session_keys = cache.hs_session_keys
         callback = self.e2e_callbacks.get(cache.info_hash, None)
         if callback:
             callback((self.circuit_id_to_ip(circuit.circuit_id), CIRCUIT_ID_PORT))

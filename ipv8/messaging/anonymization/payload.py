@@ -51,8 +51,8 @@ def decode_address(packet):
 
 class ExtraIntroductionPayload(VariablePayload):
 
-    format_list = ['?']
-    names = ['exitnode']
+    format_list = ['H']
+    names = ['flags']
 
 
 class DataPayload(object):
@@ -85,25 +85,17 @@ class DataPayload(object):
 
 class CellPayload(object):
 
-    def __init__(self, circuit_id, message_type, message=""):
+    def __init__(self, circuit_id, message="", plaintext=False):
         self.circuit_id = circuit_id
-        self.message_type = message_type
         self.message = message
-
-    @property
-    def is_data(self):
-        return self.message_type == 0
-
-    @property
-    def is_encrypted_message_type(self):
-        return self.message_type not in NO_CRYPTO_PACKETS
+        self.plaintext = plaintext
 
     def encrypt(self, crypto, circuit=None, relay_session_keys=None):
-        if not self.is_encrypted_message_type:
+        if self.plaintext:
             return
 
         if circuit:
-            if self.is_data and circuit.ctype in [CIRCUIT_TYPE_RP_SEEDER, CIRCUIT_TYPE_RP_DOWNLOADER]:
+            if circuit.hs_session_keys and circuit.ctype in [CIRCUIT_TYPE_RP_SEEDER, CIRCUIT_TYPE_RP_DOWNLOADER]:
                 direction = int(circuit.ctype == CIRCUIT_TYPE_RP_SEEDER)
                 self.message = crypto.encrypt_str(self.message,
                                                   *crypto.get_session_keys(circuit.hs_session_keys, direction))
@@ -118,7 +110,7 @@ class CellPayload(object):
             raise CryptoException("Error encrypting message for unknown circuit %d" % self.circuit_id)
 
     def decrypt(self, crypto, circuit=None, relay_session_keys=None):
-        if not self.is_encrypted_message_type:
+        if self.plaintext:
             return
 
         if circuit:
@@ -133,10 +125,10 @@ class CellPayload(object):
                                                       hop.session_keys[ORIGINATOR_SALT])
                 except InvalidTag as e:
                     raise CryptoException("Got exception %r when trying to remove encryption layer %s "
-                                          "for message: %r received for circuit_id: %s, is_data: %i, circuit_hops: %r" %
-                                          (e, layer, self.message, self.circuit_id, self.is_data, circuit.hops))
+                                          "for message: %r received for circuit_id: %s, circuit_hops: %r" %
+                                          (e, layer, self.message, self.circuit_id, circuit.hops))
 
-            if self.is_data and circuit.ctype in [CIRCUIT_TYPE_RP_SEEDER, CIRCUIT_TYPE_RP_DOWNLOADER]:
+            if circuit.hs_session_keys and circuit.ctype in [CIRCUIT_TYPE_RP_SEEDER, CIRCUIT_TYPE_RP_DOWNLOADER]:
                 direction = int(circuit.ctype == CIRCUIT_TYPE_RP_DOWNLOADER)
                 direction_salt = direction + 2
                 self.message = crypto.decrypt_str(self.message,
@@ -163,26 +155,26 @@ class CellPayload(object):
                 # possible. :)
                 # (from https://github.com/Tribler/tribler/issues/1932#issuecomment-182035383)
                 raise CryptoException("Got exception %r when trying to decrypt relay message: "
-                                      "%r received for circuit_id: %s, is_data: %i, " %
-                                      (e, self.message, self.circuit_id, self.is_data))
+                                      "cell received for circuit_id: %s" % (e, self.message, self.circuit_id))
 
         else:
             raise CryptoException("Error decrypting message for unknown circuit %d" % self.circuit_id)
 
     def unwrap(self, prefix):
         return b''.join([prefix,
-                         pack('!BI', self.message_type, self.circuit_id),
-                         self.message])
+                         self.message[0:1],
+                         pack('!I', self.circuit_id),
+                         self.message[1:]])
 
     def to_bin(self, prefix):
         return b''.join([prefix,
                          cast_to_bin(chr(1)),
-                         pack('!IB', self.circuit_id, self.message_type) + self.message])
+                         pack('!I?', self.circuit_id, self.plaintext) + self.message])
 
     @classmethod
     def from_bin(cls, packet):
-        circuit_id, message_type = unpack_from('!IB', packet, 23)
-        return cls(circuit_id, message_type, packet[28:])
+        circuit_id, plaintext = unpack_from('!I?', packet, 23)
+        return cls(circuit_id, packet[28:], plaintext)
 
 
 class CreatePayload(VariablePayload):

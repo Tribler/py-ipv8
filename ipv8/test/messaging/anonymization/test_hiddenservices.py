@@ -11,7 +11,7 @@ from ...mocking.exit_socket import MockTunnelExitSocket
 from ...mocking.ipv8 import MockIPv8
 from ....messaging.anonymization.community import CIRCUIT_TYPE_RP_DOWNLOADER, TunnelSettings
 from ....messaging.anonymization.hidden_services import HiddenTunnelCommunity
-from ....messaging.anonymization.tunnel import IntroductionPoint
+from ....messaging.anonymization.tunnel import IntroductionPoint, PEER_FLAG_EXIT_ANY
 from ....peer import Peer
 
 
@@ -76,7 +76,6 @@ class TestHiddenServices(TestBase):
     def create_node(self):
         # Initialize a HiddenTunnelCommunity without circuits or exit node functionality
         settings = TunnelSettings()
-        settings.become_exitnode = False
         settings.min_circuits = 0
         settings.max_circuits = 0
         ipv8 = MockIPv8(u"curve25519", HiddenTunnelCommunity, settings=settings)
@@ -114,11 +113,11 @@ class TestHiddenServices(TestBase):
         """
         exit_node = self.create_node()
         self.private_nodes.append(exit_node)
-        exit_node.overlay.settings.become_exitnode = True
+        exit_node.overlay.settings.peer_flags |= PEER_FLAG_EXIT_ANY
         public_peer = Peer(exit_node.my_peer.public_key, exit_node.my_peer.address)
         self.nodes[node_nr].network.add_verified_peer(public_peer)
         self.nodes[node_nr].network.discover_services(public_peer, exit_node.overlay.master_peer.mid)
-        self.nodes[node_nr].overlay.update_exit_candidates(public_peer, True)
+        self.nodes[node_nr].overlay.candidates[public_peer] = exit_node.overlay.settings.peer_flags
         self.nodes[node_nr].overlay.build_tunnels(1)
         yield self.deliver_messages()
         exit_sockets = exit_node.overlay.exit_sockets
@@ -151,10 +150,10 @@ class TestHiddenServices(TestBase):
         Steps:
          1. Create an introduction point
          2. Do a DHT lookup
-         3. Share keys
-         4. Create a rendezvous point
-         5. Link the circuit e2e
-         6. Callback the service handler
+         3. Create a rendezvous point
+         4. Link the circuit e2e
+         5. Callback the service handler
+         6. Send data
         """
         callback_called = Deferred()
 

@@ -30,6 +30,10 @@ PEER_SOURCE_UNKNOWN = 0
 PEER_SOURCE_DHT = 1
 PEER_SOURCE_PEX = 2
 
+PEER_FLAG_RELAY = 1
+PEER_FLAG_EXIT_ANY = 2
+PEER_FLAG_EXIT_IPV8 = 4
+
 # Data circuits are supposed to end in an exit peer that allows exiting data to the outside world
 CIRCUIT_TYPE_DATA = 'DATA'
 

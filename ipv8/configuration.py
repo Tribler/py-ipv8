@@ -75,8 +75,7 @@ default = {
                     'max_time_inactive': 20,
                     'max_traffic': 250 * 1024 * 1024,
                     'max_packets_without_reply': 50,
-                    'dht_lookup_interval': 30,
-                    'become_exitnode': False
+                    'dht_lookup_interval': 30
                 }
             },
             'on_start': [
