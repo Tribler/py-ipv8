@@ -53,7 +53,7 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
         """
         # Check if the block is not null, and if it belongs to this peer
         if block and block.public_key == self.trustchain.my_peer.public_key.key_to_bin():
-            deferLater(reactor, 0, self.publish_latest_block, block, 1)
+            deferLater(reactor, 0, self.publish_latest_block, block)
 
     def should_sign(self, block):
         pass
@@ -97,7 +97,7 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
                 max_version = max_version if max_version > package.version else package.version
 
                 if package.version not in new_blocks:
-                    new_blocks[package.version] = [''] * package.block_count
+                    new_blocks[package.version] = [b''] * package.block_count
 
                 new_blocks[package.version][package.block_position] = package.payload
 
@@ -107,14 +107,10 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
 
         return new_blocks, max_version
 
-    def publish_latest_block(self, block, attempt):
+    def publish_latest_block(self, block):
         """
         Publish the latest block of this node's TrustChain to the DHT
         """
-        if attempt > self.ATTEMPT_LIMIT:
-            logging.error("Publishing latest block failed after %d attempts", self.ATTEMPT_LIMIT)
-            return
-
         if block:
             latest_block = block.pack()
 
@@ -150,24 +146,9 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
                 d.addCallback(publish_chunk, slice_pointer + self.CHUNK_SIZE, chunk_idx + 1, 1)
                 d.addErrback(publish_chunk, slice_pointer, chunk_idx, chunk_attempt + 1)
 
-            def on_failure_find_values(_):
-                # If for any reason, finding the values under a key failed, retry this entire operation
-                self.publish_latest_block(block, attempt + 1)
-
-            def on_success_find_values(block_chunks):
-                new_blocks, _ = self.reconstruct_all_blocks([x[0] for x in block_chunks],
-                                                            self.trustchain.my_peer.public_key)
-
-                # Check if the block we want to publish is actually a duplicate
-                if latest_block in new_blocks.values():
-                    return
-
-                # We now know the block is novel, so we'll try to publish it
-                deferLater(reactor, 0, publish_chunk, None, 0, 0)
-
             # On the off chance that the block is actually empty, avoid publishing it
             if total_chunks > 0:
-                self.dht.find_values(self._hashed_dht_key).addCallbacks(on_success_find_values, on_failure_find_values)
+                deferLater(reactor, 0, publish_chunk, None, 0, 0)
 
     def render_GET(self, request):
         """
