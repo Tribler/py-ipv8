@@ -354,7 +354,7 @@ class TestTunnelCommunity(TestBase):
 
         # Retry to extend the circuit
         circuit.required_exit = None
-        self.nodes[0].overlay.send_extend(circuit, [self.nodes[3].overlay.my_peer.public_key.key_to_bin()])
+        self.nodes[0].overlay.send_extend(circuit, [self.nodes[3].overlay.my_peer.public_key.key_to_bin()], 1)
         yield self.deliver_messages()
 
         # Circuit should now be 0 -> 1 -> 3
@@ -386,7 +386,7 @@ class TestTunnelCommunity(TestBase):
         yield self.introduce_nodes()
 
         # Retry to extend the circuit
-        self.nodes[0].overlay.send_initial_create(circuit, [self.nodes[3].overlay.my_peer])
+        self.nodes[0].overlay.send_initial_create(circuit, [self.nodes[3].overlay.my_peer], 1)
         yield self.deliver_messages()
 
         # Circuit should now be 0 -> 2 -> 3

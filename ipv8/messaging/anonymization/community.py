@@ -95,11 +95,10 @@ class TunnelSettings(object):
         self.max_traffic = 250 * 1024 * 1024
 
         self.max_packets_without_reply = 50
+
         # Maximum number of seconds circuit creation is allowed to take. Within this time period, the unverified hop
         # of the circuit can still change in case it is unresponsive.
-        # TODO: set this to ~60s next time we change the community ID, or after enough nodes are using the newer code
-        self.circuit_timeout = 10
-
+        self.circuit_timeout = 60
         # Maximum number of seconds that a hop allows us to change the next hop
         self.unstable_timeout = 60
         # Maximum number of seconds adding a single hop to a circuit is allowed to take.
@@ -317,12 +316,12 @@ class TunnelCommunity(Community):
         # Finally, construct the Circuit object and send the CREATE message
         circuit_id = self._generate_circuit_id()
         self.circuits[circuit_id] = circuit = Circuit(circuit_id, goal_hops, ctype, callback, required_exit, info_hash)
-        self.request_cache.add(CircuitRequestCache(self, circuit, self.settings.circuit_timeout))
-        self.send_initial_create(circuit, possible_first_hops)
+        self.send_initial_create(circuit, possible_first_hops,
+                                 self.settings.circuit_timeout // self.settings.next_hop_timeout)
 
         return circuit_id
 
-    def send_initial_create(self, circuit, candidate_list):
+    def send_initial_create(self, circuit, candidate_list, max_tries):
         if self.request_cache.has(u"retry", circuit.circuit_id):
             self.request_cache.pop(u"retry", circuit.circuit_id)
 
@@ -335,7 +334,7 @@ class TunnelCommunity(Community):
 
         self.logger.info("Adding first hop %s:%d to circuit %d", *(first_hop.address + (circuit.circuit_id,)))
 
-        self.request_cache.add(RetryRequestCache(self, circuit, alt_first_hops,
+        self.request_cache.add(RetryRequestCache(self, circuit, alt_first_hops, max_tries - 1,
                                                  self.send_initial_create, self.settings.next_hop_timeout))
 
         self.increase_bytes_sent(circuit, self.send_cell([first_hop],
@@ -531,9 +530,6 @@ class TunnelCommunity(Community):
         self.increase_bytes_sent(next_relay, self.send_packet([next_relay.peer], packet))
 
     def _ours_on_created_extended(self, circuit, payload):
-        if self.request_cache.has(u"retry", payload.circuit_id):
-            self.request_cache.pop(u"retry", payload.circuit_id)
-
         hop = circuit.unverified_hop
 
         try:
@@ -553,19 +549,21 @@ class TunnelCommunity(Community):
             _, candidate_list = decode(self.crypto.decrypt_str(candidate_list_enc,
                                                                hop.session_keys[EXIT_NODE],
                                                                hop.session_keys[EXIT_NODE_SALT]))
-            self.send_extend(circuit, candidate_list)
+            cache = self.request_cache.get(u"retry", payload.circuit_id)
+            self.send_extend(circuit, candidate_list, cache.max_tries if cache else 1)
 
         elif circuit.state == CIRCUIT_STATE_READY:
-            self.request_cache.pop(u"circuit", circuit.circuit_id)
+            self.request_cache.pop(u"retry", payload.circuit_id)
 
             # Execute callback
             if circuit.callback:
                 circuit.callback(circuit)
                 circuit.callback = None
-        else:
-            return
 
-    def send_extend(self, circuit, candidate_list):
+    def send_extend(self, circuit, candidate_list, max_tries):
+        if self.request_cache.has(u"retry", circuit.circuit_id):
+            self.request_cache.pop(u"retry", circuit.circuit_id)
+
         ignore_candidates = [self.crypto.key_to_bin(chop.public_key) for chop in circuit.hops] + \
                             [self.my_peer.public_key]
         if circuit.required_exit:
@@ -588,8 +586,7 @@ class TunnelCommunity(Community):
                 if not self.crypto.is_key_compatible(public_key):
                     candidate_list.pop(i)
 
-            pub_key = next(iter(candidate_list), None)
-            extend_hop_public_bin = pub_key
+            extend_hop_public_bin = next(iter(candidate_list), None)
             extend_hop_addr = None
 
         if extend_hop_public_bin:
@@ -603,8 +600,10 @@ class TunnelCommunity(Community):
             # Only retry if we are allowed to use another node
             if not become_exit or not circuit.required_exit:
                 alt_candidates = [c for c in candidate_list if c != extend_hop_public_bin]
-                self.request_cache.add(RetryRequestCache(self, circuit, alt_candidates,
-                                                         self.send_extend, self.settings.next_hop_timeout))
+            else:
+                alt_candidates = []
+            self.request_cache.add(RetryRequestCache(self, circuit, alt_candidates, max_tries - 1,
+                                                     self.send_extend, self.settings.next_hop_timeout))
 
             self.increase_bytes_sent(circuit, self.send_cell([circuit.peer],
                                                              u"extend",
@@ -756,8 +755,7 @@ class TunnelCommunity(Community):
                                                                       payload.key,
                                                                       payload.auth,
                                                                       payload.candidate_list_enc))
-        elif self.request_cache.has(u"circuit", payload.circuit_id) and \
-                self.request_cache.has(u"retry", payload.circuit_id):
+        elif self.request_cache.has(u"retry", payload.circuit_id):
             circuit = self.circuits[circuit_id]
             self._ours_on_created_extended(circuit, payload)
         else:
@@ -818,7 +816,7 @@ class TunnelCommunity(Community):
 
     @tc_lazy_wrapper_unsigned(ExtendedPayload)
     def on_extended(self, source_address, payload, _):
-        if not self.request_cache.has(u"circuit", payload.circuit_id):
+        if not self.request_cache.has(u"retry", payload.circuit_id):
             self.logger.warning("Received unexpected extended for circuit %s", payload.circuit_id)
             return
 
@@ -891,7 +889,9 @@ class TunnelCommunity(Community):
         # Ping circuits. Pings are only sent to the first hop, subsequent hops will relay the ping.
         exclude = [] if exclude is None else exclude
         for circuit in self.circuits.values():
-            if circuit.state in [CIRCUIT_STATE_READY, CIRCUIT_STATE_EXTENDING] and circuit.circuit_id not in exclude:
+            if circuit.state in [CIRCUIT_STATE_READY, CIRCUIT_STATE_EXTENDING] \
+                    and circuit.circuit_id not in exclude \
+                    and circuit.hops:
                 cache = self.request_cache.add(PingRequestCache(self, circuit))
                 self.increase_bytes_sent(circuit, self.send_cell([circuit.peer], u"ping",
                                                                  PingPayload(circuit.circuit_id, cache.number)))

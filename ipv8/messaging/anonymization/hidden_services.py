@@ -9,6 +9,7 @@ import binascii
 import os
 import random
 import struct
+import time
 
 from twisted.internet.defer import DeferredList, fail, inlineCallbacks, returnValue
 from twisted.internet.task import LoopingCall
