@@ -705,7 +705,7 @@ class TunnelCommunity(Community):
         self.relay_session_keys[circuit_id] = self.crypto.generate_session_keys(shared_secret)
 
         peers_list = [peer for peer in self.get_candidates(PEER_FLAG_RELAY)
-                      if peer.public_key.key_to_bin() not in self.get_candidates(PEER_FLAG_EXIT_ANY)][:4]
+                      if peer not in self.get_candidates(PEER_FLAG_EXIT_ANY)][:4]
         peers_keys = {c.public_key.key_to_bin(): c for c in peers_list}
 
         peer = Peer(create_payload.node_public_key, previous_node_address)
