@@ -1,21 +1,21 @@
 from __future__ import absolute_import
 
-from hashlib import sha1
-from base64 import b64encode, b64decode
+from base64 import b64decode, b64encode
 from collections import deque
+from hashlib import sha1
 
 from twisted.internet.defer import inlineCallbacks
 
 from .rest_peer_communication import HTTPGetRequesterDHT
 from ...attestation.trustchain.test_block import TestBlock
 from ...mocking.rest.base import RESTTestBase
-from ...mocking.rest.rest_peer_communication import string_to_url
-from ...mocking.rest.rest_api_peer import RestTestPeer
 from ...mocking.rest.comunities import TestDHTCommunity, TestTrustchainCommunity
-from ....attestation.trustchain.payload import HalfBlockPayload, DHTBlockPayload
-from ....attestation.trustchain.community import TrustChainCommunity
-from ....dht.community import DHTCommunity
+from ...mocking.rest.rest_api_peer import RestTestPeer
+from ...mocking.rest.rest_peer_communication import string_to_url
 from ....REST.dht_endpoint import DHTBlockEndpoint
+from ....attestation.trustchain.community import TrustChainCommunity
+from ....attestation.trustchain.payload import DHTBlockPayload, HalfBlockPayload
+from ....dht.community import DHTCommunity
 from ....messaging.serialization import Serializer
 
 
@@ -55,8 +55,9 @@ class TestDHTEndpoint(RESTTestBase):
         for i in range(total_blocks):
             chunk = data[slice_pointer: slice_pointer + DHTBlockEndpoint.CHUNK_SIZE]
             slice_pointer += DHTBlockEndpoint.CHUNK_SIZE
-            signature = my_private_key.signature(str(numeric_version).encode('utf-8') + str(i).encode('utf-8')
-                                                 + str(total_blocks).encode('utf-8') + chunk)
+            pre_signed_content = self.serializer.pack_multiple([('H', numeric_version), ('H', i), ('H', total_blocks),
+                                                                ('raw', chunk)])[0]
+            signature = my_private_key.signature(pre_signed_content)
 
             blob_chunk = self.serializer.pack_multiple(DHTBlockPayload(signature, numeric_version, i, total_blocks,
                                                                        chunk).to_pack_list())
