@@ -305,7 +305,7 @@ class TunnelCommunity(Community):
             possible_first_hops = [required_exit]
         else:
             self.logger.info("Look for a first hop that is not an exit node and is not used before")
-            first_hops = set([c.peer.address for c in self.circuits.values()])
+            first_hops = set([c.peer.address for c in self.circuits.values() if c.peer])
             possible_first_hops = [c for c in relay_candidates if c.address not in first_hops
                                    and c.address != required_exit.address]
 
