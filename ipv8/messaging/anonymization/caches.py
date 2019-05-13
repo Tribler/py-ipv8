@@ -1,34 +1,12 @@
 from __future__ import absolute_import
 
 import logging
-import time
 
 from twisted.internet.defer import Deferred
 from twisted.python.failure import Failure
 
-from .tunnel import CIRCUIT_STATE_CLOSING, CIRCUIT_STATE_READY, PING_INTERVAL
+from .tunnel import CIRCUIT_STATE_CLOSING, CIRCUIT_STATE_READY
 from ...requestcache import NumberCache, RandomNumberCache
-
-
-class CircuitRequestCache(NumberCache):
-    """
-    Used to track the total circuit creation time
-    """
-    def __init__(self, community, circuit, timeout):
-        super(CircuitRequestCache, self).__init__(community.request_cache, u"circuit", circuit.circuit_id)
-        self.community = community
-        self.circuit = circuit
-        self.timeout = timeout
-
-    @property
-    def timeout_delay(self):
-        return float(self.timeout)
-
-    def on_timeout(self):
-        if self.circuit.state != CIRCUIT_STATE_READY:
-            reason = 'timeout on CircuitRequestCache, state = %s, candidate = %s' % (
-                self.circuit.state, self.circuit.peer.address)
-            self.community.remove_circuit(self.number, reason)
 
 
 class CreateRequestCache(NumberCache):
@@ -70,13 +48,14 @@ class CreatedRequestCache(NumberCache):
 
 class RetryRequestCache(NumberCache):
     """
-    Used to retry adding additional hops to the circuit.
+    Used to track adding additional hops to the circuit.
     """
-    def __init__(self, community, circuit, candidates, retry_func, timeout):
+    def __init__(self, community, circuit, candidates, max_tries, retry_func, timeout):
         super(RetryRequestCache, self).__init__(community.request_cache, u"retry", circuit.circuit_id)
         self.community = community
         self.circuit = circuit
         self.candidates = candidates
+        self.max_tries = max_tries
         self.retry_func = retry_func
         self.timeout = timeout
 
@@ -85,11 +64,15 @@ class RetryRequestCache(NumberCache):
         return float(self.timeout)
 
     def on_timeout(self):
-        if not self.candidates or self.circuit.state == CIRCUIT_STATE_CLOSING:
+        if self.circuit.state == CIRCUIT_STATE_CLOSING:
+            return
+        if not self.candidates or self.max_tries < 1:
+            reason = 'timeout on RetryRequestCache (tries left: %d)' % self.max_tries
+            self.community.remove_circuit(self.circuit.circuit_id, reason)
             return
 
         def retry_later(_):
-            self.retry_func(self.circuit, self.candidates)
+            self.retry_func(self.circuit, self.candidates, self.max_tries)
 
         later = Deferred()
         self.community.request_cache.register_anonymous_task("retry-later", later, delay=0.0)
@@ -100,19 +83,9 @@ class PingRequestCache(RandomNumberCache):
 
     def __init__(self, community, circuit):
         super(PingRequestCache, self).__init__(community.request_cache, u"ping")
-        self.logger = logging.getLogger(__name__)
-        self.circuit = circuit
-        self.community = community
-
-    @property
-    def timeout_delay(self):
-        return PING_INTERVAL + 5
 
     def on_timeout(self):
-        if self.circuit.last_activity < time.time() - self.timeout_delay:
-            self.logger.info("PingRequestCache: no response on ping, circuit %d timed out",
-                             self.circuit.circuit_id)
-            self.community.remove_circuit(self.circuit.circuit_id, 'ping timeout')
+        pass
 
 
 class IPRequestCache(RandomNumberCache):
