@@ -304,10 +304,10 @@ class DHTCommunity(Community):
         cache.on_complete()
         cache.deferred.callback(cache.node)
 
-    def _send_find_request(self, node, target, force_nodes):
+    def _send_find_request(self, node, target, force_nodes, start_idx=0):
         cache = self.request_cache.add(Request(self, u'find', node, [force_nodes]))
         self.send_message(node.address, MSG_FIND_REQUEST, FindRequestPayload,
-                          (cache.number, self.my_estimated_lan, target, force_nodes))
+                          (cache.number, self.my_estimated_lan, target, start_idx, force_nodes))
         return cache.deferred
 
     def _process_find_responses(self, responses, nodes_tried):
@@ -333,7 +333,9 @@ class DHTCommunity(Community):
         return values, nodes, to_puncture
 
     @inlineCallbacks
-    def _find(self, target, force_nodes=False):
+    def _find(self, target, force_nodes=False, start_idx=0):
+        assert start_idx >= 0, "The query cannot start from a negative index"
+
         nodes_closest = set(self.routing_table.closest_nodes(target, max_nodes=MAX_FIND_WALKS))
         if not nodes_closest:
             returnValue(Failure(RuntimeError('No nodes found in the routing table')))
@@ -347,7 +349,8 @@ class DHTCommunity(Community):
                 break
 
             # Send closest nodes a find-node-request
-            deferreds = [self._send_find_request(node, target, force_nodes) for node in nodes_closest]
+            deferreds = [self._send_find_request(node, target, force_nodes, start_idx=start_idx)
+                         for node in nodes_closest]
             responses = yield gatherResponses(deferreds, consumeErrors=True)
             recent = next((sender for sender, response in responses if 'nodes' in response), recent)
 
@@ -410,8 +413,8 @@ class DHTCommunity(Community):
 
         return results
 
-    def find_values(self, target):
-        return self._find(target, force_nodes=False)
+    def find_values(self, target, start_idx=0):
+        return self._find(target, force_nodes=False, start_idx=start_idx)
 
     def find_nodes(self, target):
         return self._find(target, force_nodes=True)
@@ -425,7 +428,8 @@ class DHTCommunity(Community):
             return
 
         nodes = []
-        values = self.storage.get(payload.target, limit=MAX_VALUES_IN_FIND) if not payload.force_nodes else []
+        values = self.storage.get(payload.target, starting_point=payload.start_idx, limit=MAX_VALUES_IN_FIND) \
+            if not payload.force_nodes else []
 
         if payload.force_nodes or not values:
             nodes = self.routing_table.closest_nodes(payload.target, exclude_node=node, max_nodes=MAX_NODES_IN_FIND)
