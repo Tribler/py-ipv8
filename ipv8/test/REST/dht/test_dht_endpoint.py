@@ -342,3 +342,55 @@ class TestDHTEndpoint(RESTTestBase):
             payload.type).from_payload(payload, self.serializer)
 
         self.assertEqual(reconstructed_block, block_array[0][1], "The received block was not equal to the latest block")
+
+    @inlineCallbacks
+    def test_non_existent_block(self):
+        """
+        Test the block retrieval operation when the block in question does not exist
+        """
+        param_dict = {
+            'port': self.nodes[1].port,
+            'interface': self.nodes[1].interface,
+            'endpoint': 'dht/block',
+            'public_key': string_to_url(b64encode(self.nodes[0].get_keys()['my_peer'].public_key.key_to_bin()))
+        }
+        # Introduce the nodes and increase the size of the request queues
+        yield self.introduce_nodes(DHTCommunity)
+
+        # Get the block through the REST API from the second peer
+        response = yield self._get_style_requests.make_dht_block(param_dict)
+        self.assertEqual(response.get('error', {'message': ''}).get('message', ''),
+                         'Could not find any blocks for the specified key.',
+                         "The returned error is not as expected.")
+
+    @inlineCallbacks
+    def test_many_blocks_with_omissions(self):
+        """
+        Test the retrieval of large blocks when all the blocks are incomplete
+        """
+        param_dict = {
+            'port': self.nodes[1].port,
+            'interface': self.nodes[1].interface,
+            'endpoint': 'dht/block',
+            'public_key': string_to_url(b64encode(self.nodes[0].get_keys()['my_peer'].public_key.key_to_bin()))
+        }
+        # Introduce the nodes and increase the size of the request queues
+        yield self.introduce_nodes(DHTCommunity)
+
+        self._increase_request_limit(100)
+
+        hash_key = sha1(self.nodes[0].get_keys()['my_peer'].public_key.key_to_bin()
+                        + DHTBlockEndpoint.KEY_SUFFIX).digest()
+
+        # Create some blocks and publish them
+        block_array = [(i, TestBlock(transaction={1: 'asd{}'.format(i)})) for i in range(5, 0, -1)]
+
+        block_array.pop(0)
+        for version, block in block_array:
+            yield self.publish_to_DHT(self.nodes[0], hash_key, block.pack(), version, omit_last_chunk=True)
+
+        # Get the block through the REST API from the second peer
+        response = yield self._get_style_requests.make_dht_block(param_dict)
+        self.assertEqual(response.get('error', {'message': ''}).get('message', ''),
+                         'Could not reconstruct any block successfully.',
+                         "The returned error is not as expected.")

@@ -1,10 +1,10 @@
 from __future__ import absolute_import
 
-from struct import pack, unpack, unpack_from, calcsize
 from socket import inet_aton, inet_ntoa
+from struct import calcsize, pack, unpack, unpack_from
 
-from ..messaging.payload import Payload
 from .routing import Node
+from ..messaging.payload import Payload
 
 
 def encode_values(values):

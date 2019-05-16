@@ -212,25 +212,29 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
             }))
             request.finish()
 
-        def deep_reconstruction(new_chunks, chunk_dict, counts, start_idx, target_public_key):
+        def on_success(new_chunks, chunk_dict, counts, start_idx, target_public_key):
+
             if not new_chunks:
                 # If we're here it means that there are no more chunks to be retrieved
                 max_version_block = None
 
-                # Try to find a complete block which has the greatest version
-                for version in sorted(list(chunk_dict.keys()), reverse=True):
-                    if version in counts and counts[version] == 0:
-                        max_version_block = b''.join(chunk_dict[version])
-                        break
+                if chunk_dict and counts:
+                    # Try to find a complete block which has the greatest version
+                    for version in sorted(list(chunk_dict.keys()), reverse=True):
+                        if version in counts and counts[version] == 0:
+                            max_version_block = b''.join(chunk_dict[version])
+                            break
 
                 if max_version_block:
                     request.write(self.twisted_dumps({"block": b64encode(max_version_block).decode('utf-8')}))
                 else:
+                    # If start_idx is different from 0, then this means all the chunks have been consumed
                     request.setResponseCode(http.NOT_FOUND)
                     request.write(self.twisted_dumps({
                         u"error": {
                             u"handled": True,
-                            u"message": "Could not reconstruct any block successfully."
+                            u"message": "Could not reconstruct any block successfully." if start_idx != 0 else
+                            u"Could not find any blocks for the specified key."
                         }
                     }))
 
@@ -249,33 +253,15 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
                     # Continue the search from the next blocks
                     start_idx += MAX_VALUES_IN_FIND
                     self.dht.find_values(hash_key, start_idx=start_idx).addCallback(
-                        deep_reconstruction, chunk_dict, counts, start_idx, target_public_key).addErrback(on_failure)
-
-        def on_success(block_chunks):
-            if not block_chunks:
-                request.setResponseCode(http.NOT_FOUND)
-                return self.twisted_dumps({"error": "Could not find any blocks for the specified key."})
-
-            target_public_key = LibNaCLPK(binarykey=raw_public_key[10:])
-
-            # Forward an initial query for the block chunks
-            new_blocks, max_version, counts = self.reconstruct_all_blocks([x[0] for x in block_chunks],
-                                                                          target_public_key)
-
-            # Check to see if the initial query constructed a block successfully; if so, return it, else query further
-            if counts.get(max_version, -1) == 0:
-                request.write(self.twisted_dumps({"block": b64encode(b''.join(new_blocks[max_version])).decode(
-                    'utf-8')}))
-                request.finish()
-            else:
-                self.dht.find_values(hash_key, start_idx=MAX_VALUES_IN_FIND).addCallback(
-                    deep_reconstruction, new_blocks, counts, MAX_VALUES_IN_FIND, target_public_key).addErrback(
-                        on_failure)
+                        on_success, chunk_dict, counts, start_idx, target_public_key).addErrback(on_failure)
 
         raw_public_key = b64decode(request.args[b'public_key'][0])
         hash_key = sha1(raw_public_key + self.KEY_SUFFIX).digest()
 
-        self.dht.find_values(hash_key).addCallbacks(on_success, on_failure)
+        target_public_key_master = LibNaCLPK(binarykey=raw_public_key[10:])
+
+        self.dht.find_values(hash_key).addCallback(on_success, None, None, 0, target_public_key_master) \
+            .addErrback(on_failure)
 
         return NOT_DONE_YET
 
