@@ -1,11 +1,11 @@
 from __future__ import absolute_import
 from __future__ import division
 
-from base64 import b64decode
 import logging
-from os.path import isfile
 import sys
 import time
+from base64 import b64decode
+from os.path import isfile
 from threading import RLock
 from traceback import format_exception
 
@@ -63,7 +63,6 @@ else:
         'RandomWalk': RandomWalk
     }
 
-
     class IPv8(object):
 
         def __init__(self, configuration, endpoint_override=None, enable_statistics=False, extra_communities=None):
@@ -91,7 +90,7 @@ else:
                                 # Try old Tribler M2Crypto PEM format
                                 content = b64decode(content[31:-30].replace('\n', ''))
                                 peer = Peer(M2CryptoSK(keystring=content))
-                                peer.mid # This will error out if the keystring is not M2Crypto
+                                peer.mid  # This will error out if the keystring is not M2Crypto
                                 self.keys[key_block['alias']] = peer
                             except:
                                 # Try old LibNacl format
@@ -100,7 +99,7 @@ else:
                 else:
                     self.keys[key_block['alias']] = Peer(default_eccrypto.generate_key(key_block['generation']))
                     if key_block['file']:
-                        with open(key_block['file'], 'w') as f:
+                        with open(key_block['file'], 'wb') as f:
                             f.write(self.keys[key_block['alias']].key.key_to_bin())
 
             # Setup logging
@@ -130,7 +129,7 @@ else:
         def on_tick(self):
             if self.endpoint.is_open():
                 with self.overlay_lock:
-                    smooth = self.state_machine_lc.interval//len(self.strategies) if self.strategies else 0
+                    smooth = self.state_machine_lc.interval // len(self.strategies) if self.strategies else 0
                     ticker = len(self.strategies)
                     for strategy, target_peers in self.strategies:
                         peer_count = len(strategy.overlay.get_peers())
@@ -140,8 +139,8 @@ else:
                             try:
                                 strategy.take_step()
                             except:
-                                logging.error("Exception occurred while trying to walk!\n" +
-                                              ''.join(format_exception(*sys.exc_info())))
+                                logging.error("Exception occurred while trying to walk!\n"
+                                              + ''.join(format_exception(*sys.exc_info())))
                         ticker -= 1 if ticker else 0
                         sleep_time = smooth - (time.time() - start_time)
                         if ticker and sleep_time > 0.01:
