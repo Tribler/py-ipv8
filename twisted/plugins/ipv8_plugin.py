@@ -9,12 +9,13 @@ import sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-from twisted.application.service import MultiService, IServiceMaker
+from twisted.application.service import IServiceMaker, MultiService
 from twisted.internet import reactor
 from twisted.plugin import IPlugin
 from twisted.python import usage
 from twisted.python.log import msg
-from zope.interface import implements
+
+from zope.interface import implementer
 
 from ipv8.configuration import get_default_configuration
 from ipv8_service import IPv8
@@ -29,8 +30,8 @@ class Options(usage.Options):
     ]
 
 
+@implementer(IPlugin, IServiceMaker)
 class IPV8ServiceMaker(object):
-    implements(IServiceMaker, IPlugin)
     tapname = "ipv8"
     description = "IPv8 twistd plugin, starts IPv8 as a service"
     options = Options

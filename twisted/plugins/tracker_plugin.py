@@ -14,13 +14,14 @@ import time
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-from twisted.application.service import MultiService, IServiceMaker
+from twisted.application.service import IServiceMaker, MultiService
 from twisted.internet import reactor
 from twisted.internet.task import LoopingCall
 from twisted.plugin import IPlugin
 from twisted.python import usage
 from twisted.python.log import msg
-from zope.interface import implements
+
+from zope.interface import implementer
 
 from ipv8.community import Community
 from ipv8.messaging.payload import IntroductionRequestPayload
@@ -107,8 +108,8 @@ class Options(usage.Options):
     optFlags = []
 
 
+@implementer(IPlugin, IServiceMaker)
 class TrackerServiceMaker(object):
-    implements(IServiceMaker, IPlugin)
     tapname = "tracker"
     description = "IPv8 tracker twistd plugin"
     options = Options
