@@ -80,7 +80,7 @@ else:
             self.keys = {}
             for key_block in configuration['keys']:
                 if key_block['file'] and isfile(key_block['file']):
-                    with open(key_block['file'], 'r') as f:
+                    with open(key_block['file'], 'rb') as f:
                         content = f.read()
                         try:
                             # IPv8 Standardized bin format
