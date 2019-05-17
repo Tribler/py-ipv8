@@ -100,7 +100,7 @@ else:
                 else:
                     self.keys[key_block['alias']] = Peer(default_eccrypto.generate_key(key_block['generation']))
                     if key_block['file']:
-                        with open(key_block['file'], 'w') as f:
+                        with open(key_block['file'], 'wb') as f:
                             f.write(self.keys[key_block['alias']].key.key_to_bin())
 
             # Setup logging
