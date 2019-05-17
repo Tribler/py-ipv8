@@ -13,12 +13,13 @@ import yappi
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-from twisted.application.service import MultiService, IServiceMaker
+from twisted.application.service import IServiceMaker, MultiService
 from twisted.internet import reactor
 from twisted.plugin import IPlugin
 from twisted.python import usage
 from twisted.python.log import msg
-from zope.interface import implements
+
+from zope.interface import implementer
 
 from ipv8_service import IPv8
 from ipv8.attestation.trustchain.settings import TrustChainSettings
@@ -112,8 +113,8 @@ crawler_config = {
 }
 
 
+@implementer(IPlugin, IServiceMaker)
 class TrustchainCrawlerServiceMaker(object):
-    implements(IServiceMaker, IPlugin)
     tapname = "trustchain_crawler"
     description = "TrustChain crawler"
     options = Options
