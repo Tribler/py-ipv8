@@ -34,7 +34,6 @@ ipv8/test/messaging/deprecated/test_encoding.py:TestEncoding
 ipv8/test/messaging/interfaces/udp/test_endpoint.py:TestUDPEndpoint
 ipv8/test/messaging/anonymization/test_community.py:TestTunnelCommunity
 ipv8/test/messaging/anonymization/test_hiddenservices.py:TestHiddenServices
-ipv8/test/messaging/test_bloomfilter.py:TestBloomFilter
 
 ipv8/test/dht/test_community.py:TestDHTCommunity
 ipv8/test/dht/test_discovery.py:TestDHTDiscoveryCommunity
