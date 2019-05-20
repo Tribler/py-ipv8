@@ -6,8 +6,10 @@ from twisted.internet.defer import inlineCallbacks, succeed
 
 from ...base import TestBase
 from ...mocking.endpoint import MockEndpointListener
+from ...mocking.exit_socket import MockTunnelExitSocket
 from ...mocking.ipv8 import MockIPv8
 from ....messaging.anonymization.community import TunnelCommunity, TunnelSettings
+from ....messaging.anonymization.endpoint import TunnelEndpoint
 from ....messaging.anonymization.tunnel import CIRCUIT_STATE_EXTENDING, PEER_FLAG_EXIT_ANY
 from ....messaging.interfaces.udp.endpoint import UDPEndpoint
 from ....util import cast_to_bin
@@ -394,3 +396,65 @@ class TestTunnelCommunity(TestBase):
                                                          self.nodes[2].overlay.my_peer.mid])
         self.assertEqual(circuit.unverified_hop, None)
         self.assertEqual(self.nodes[0].overlay.tunnels_ready(2), 1.0)
+
+    @inlineCallbacks
+    def test_tunnel_endpoint_anon(self):
+        """
+        Check if the tunnel endpoint is routing traffic correctly with anonymity enabled.
+        """
+        self.add_node_to_experiment(self.create_node())
+        self.nodes[2].overlay.settings.peer_flags |= PEER_FLAG_EXIT_ANY
+        yield self.introduce_nodes()
+        self.nodes[0].overlay.build_tunnels(1)
+        yield self.deliver_messages()
+
+        exit_socket = list(self.nodes[2].overlay.exit_sockets.values())[0]
+        self.nodes[2].overlay.exit_sockets[exit_socket.circuit_id] = MockTunnelExitSocket(exit_socket)
+
+        sender = self.nodes[0].overlay
+        send_data_org = sender.send_data
+
+        def send_data(*args):
+            sender.called = True
+            send_data_org(*args)
+        sender.called = False
+        sender.send_data = send_data
+
+        prefix = b'\x00' * 22
+        self.nodes[0].overlay.endpoint = endpoint = TunnelEndpoint(self.nodes[0].overlay.endpoint)
+        endpoint.set_tunnel_community(self.nodes[0].overlay)
+        endpoint.set_anonymity(prefix, True)
+
+        ep_listener = MockEndpointListener(self.nodes[1].endpoint)
+        endpoint.send(self.nodes[1].overlay.my_estimated_wan, prefix + b'DATA')
+        yield self.deliver_messages()
+        self.assertEqual(len(ep_listener.received_packets), 1)
+        self.assertEqual(ep_listener.received_packets[0][1], prefix + b'DATA')
+        self.assertTrue(sender.called)
+
+        # When a circuit closes, sending data should fail
+        sender.called = False
+        circuit = self.nodes[0].overlay.find_circuits()[0]
+        self.nodes[0].overlay.remove_circuit(circuit.circuit_id)
+        endpoint.send(self.nodes[1].overlay.my_estimated_wan, prefix + b'DATA')
+        yield self.deliver_messages()
+        self.assertEqual(len(ep_listener.received_packets), 1)
+        self.assertFalse(sender.called)
+
+    @inlineCallbacks
+    def test_tunnel_endpoint_no_anon(self):
+        """
+        Check if the tunnel endpoint is routing traffic correctly with anonymity disabled.
+        """
+
+        prefix = b'\x00' * 22
+        self.nodes[0].overlay.endpoint = endpoint = TunnelEndpoint(self.nodes[0].overlay.endpoint)
+        endpoint.set_tunnel_community(self.nodes[0].overlay)
+        endpoint.set_anonymity(prefix, False)
+
+        ep_listener = MockEndpointListener(self.nodes[1].endpoint)
+        endpoint.send(self.nodes[1].overlay.my_estimated_wan, prefix + b'DATA')
+        yield self.deliver_messages()
+
+        self.assertEqual(len(ep_listener.received_packets), 1)
+        self.assertEqual(ep_listener.received_packets[0][1], prefix + b'DATA')

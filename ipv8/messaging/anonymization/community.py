@@ -11,6 +11,7 @@ from binascii import hexlify, unhexlify
 from twisted.internet.task import LoopingCall
 
 from .caches import *
+from .endpoint import TunnelEndpoint
 from .payload import *
 from .tunnel import *
 from .tunnelcrypto import CryptoException, TunnelCrypto
@@ -114,6 +115,8 @@ class TunnelSettings(object):
         self.num_ip_circuits = 3
         self.peer_flags = PEER_FLAG_RELAY
 
+        self.allow_incoming_ipv8 = True
+
 
 class TunnelCommunity(Community):
 
@@ -166,6 +169,10 @@ class TunnelCommunity(Community):
         self.logger.info("Setting exitnode = %s", self.settings.peer_flags & PEER_FLAG_EXIT_ANY)
 
         self.crypto.initialize(self.my_peer.key)
+
+        if isinstance(self.endpoint, TunnelEndpoint):
+            self.endpoint.set_tunnel_community(self)
+            self.endpoint.set_anonymity(self._prefix, False)
 
         self.register_task("do_circuits", LoopingCall(self.do_circuits)).start(5, now=True)
         self.register_task("do_ping", LoopingCall(self.do_ping)).start(PING_INTERVAL)
@@ -848,8 +855,16 @@ class TunnelCommunity(Community):
             circuit.beat_heart()
 
             if DataChecker.could_be_ipv8(data):
-                self.logger.debug("Giving incoming data packet to IPv8 (circuit ID %d)", circuit_id)
-                self.on_packet_from_circuit(origin, data, circuit_id)
+                if self._prefix == data[:22]:
+                    self.logger.debug("Incoming packet meant for us")
+                    self.on_packet_from_circuit(origin, data, circuit_id)
+                    return
+
+                if self.settings.allow_incoming_ipv8:
+                    self.logger.debug("Incoming packet meant for other community")
+                    self.endpoint.notify_listeners((origin, data))
+                else:
+                    self.logger.debug("Incoming packet meant for other community, dropping")
             else:
                 # We probably received raw data, handle it
                 self.on_raw_data(circuit, origin, data)

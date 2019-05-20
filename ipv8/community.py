@@ -9,14 +9,15 @@ Community instance.
 """
 from __future__ import absolute_import
 
-from binascii import hexlify
 import sys
+from binascii import hexlify
 from random import choice, random
 from socket import error, gethostbyname
 from time import time
 from traceback import format_exception
 
-from .lazy_community import lazy_wrapper, lazy_wrapper_unsigned, EZPackOverlay
+from .lazy_community import EZPackOverlay, lazy_wrapper, lazy_wrapper_unsigned
+from .messaging.anonymization.endpoint import TunnelEndpoint
 from .messaging.payload import (IntroductionRequestPayload, IntroductionResponsePayload, PuncturePayload,
                                 PunctureRequestPayload)
 from .messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
@@ -68,13 +69,19 @@ class Community(EZPackOverlay):
     version = b'\x02'
     master_peer = ""
 
-    def __init__(self, my_peer, endpoint, network, max_peers=DEFAULT_MAX_PEERS):
+    def __init__(self, my_peer, endpoint, network, max_peers=DEFAULT_MAX_PEERS, anonymize=False):
         super(Community, self).__init__(self.master_peer, my_peer, endpoint, network)
 
         self._prefix = b'\x00' + self.version + self.master_peer.mid
         self.logger.debug("Launching %s with prefix %s.", self.__class__.__name__, hexlify(self._prefix))
 
         self.max_peers = max_peers
+
+        if anonymize:
+            if isinstance(self.endpoint, TunnelEndpoint):
+                self.endpoint.set_anonymity(self._prefix, True)
+            else:
+                self.logger.warning('Cannot anonymize community traffic without TunnelEndpoint')
 
         self.network.register_service_provider(self.master_peer.mid, self)
         self.network.blacklist_mids.append(my_peer.mid)

@@ -5,15 +5,15 @@ from random import choice
 from time import time
 
 from .churn import DiscoveryStrategy, RandomChurn
-from ..peer import Peer
+from .payload import DiscoveryIntroductionRequestPayload, PingPayload, PongPayload, SimilarityRequestPayload, \
+    SimilarityResponsePayload
 from ..community import Community, DEFAULT_MAX_PEERS
-from ..lazy_community import lazy_wrapper, lazy_wrapper_unsigned, PacketDecodingError
+from ..keyvault.crypto import default_eccrypto
+from ..lazy_community import PacketDecodingError, lazy_wrapper, lazy_wrapper_unsigned
 from ..messaging.payload import IntroductionRequestPayload
 from ..messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
-from .payload import PingPayload, PongPayload, SimilarityRequestPayload, SimilarityResponsePayload, \
-    DiscoveryIntroductionRequestPayload
 from ..messaging.serialization import PackError
-from ..keyvault.crypto import default_eccrypto
+from ..peer import Peer
 from ..util import cast_to_bin
 
 

@@ -24,6 +24,7 @@ else:
         from ipv8.keyvault.crypto import default_eccrypto
         from ipv8.keyvault.private.m2crypto import M2CryptoSK
         from ipv8.messaging.anonymization.community import TunnelCommunity
+        from ipv8.messaging.anonymization.endpoint import TunnelEndpoint
         from ipv8.messaging.anonymization.hidden_services import HiddenTunnelCommunity
         from ipv8.messaging.interfaces.udp.endpoint import UDPEndpoint
         from ipv8.peer import Peer
@@ -39,6 +40,7 @@ else:
         from .ipv8.keyvault.crypto import default_eccrypto
         from .ipv8.keyvault.private.m2crypto import M2CryptoSK
         from .ipv8.messaging.anonymization.community import TunnelCommunity
+        from .ipv8.messaging.anonymization.endpoint import TunnelEndpoint
         from .ipv8.messaging.anonymization.hidden_services import HiddenTunnelCommunity
         from .ipv8.messaging.interfaces.udp.endpoint import UDPEndpoint
         from .ipv8.peer import Peer
@@ -73,6 +75,8 @@ else:
                 self.endpoint.open()
                 if enable_statistics:
                     self.endpoint = StatisticsEndpoint(self, self.endpoint)
+                if any([overlay.get('initialize', {}).get('anonymize') for overlay in configuration['overlays']]):
+                    self.endpoint = TunnelEndpoint(self.endpoint)
 
             self.network = Network()
 
