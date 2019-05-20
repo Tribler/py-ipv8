@@ -107,7 +107,7 @@ default = {
                     'timeout': 3.0
                 }
             }],
-            'initialize': {},
+            'initialize': {'anonymize': True},
             'on_start': []
         },
         {
@@ -120,7 +120,7 @@ default = {
                     'timeout': 3.0
                 }
             }],
-            'initialize': {},
+            'initialize': {'anonymize': True},
             'on_start': []
         },
         {
