@@ -159,10 +159,17 @@ class TrustChainDB(Database):
             return self._get(u"WHERE public_key = ? AND sequence_number = (SELECT MAX(sequence_number) FROM blocks "
                              u"WHERE public_key = ?)", (database_blob(public_key), database_blob(public_key)))
 
-    def get_latest_blocks(self, public_key, limit=25, block_type=None):
-        if block_type:
-            return self._getall(u"WHERE public_key = ? AND type = ? ORDER BY sequence_number DESC LIMIT ?",
-                                (database_blob(public_key), block_type, limit))
+    def get_latest_blocks(self, public_key, limit=25, block_types=None):
+        """
+        Return the latest blocks for a given public key, optionally of a specific type
+        :param public_key: The public_key for which the latest blocks have to be found.
+        :param limit: The maximum number of blocks to return.
+        :param block_types: A list of block types to return.
+        :return: A list of blocks matching the given block types and public key.
+        """
+        if block_types:
+            return self._getall(u"WHERE public_key = ? AND type IN (?) ORDER BY sequence_number DESC LIMIT ?",
+                                (database_blob(public_key), u','.join(block_types), limit))
         else:
             return self._getall(u"WHERE public_key = ? ORDER BY sequence_number DESC LIMIT ?",
                                 (database_blob(public_key), limit))
