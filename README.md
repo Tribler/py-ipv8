@@ -22,7 +22,7 @@ The dependencies for IPv8 are collected in the `requirements.txt` file and can b
 pip install --upgrade -r requirements.txt
 ```
 
-You will need to install `Libsodium` separately, as explained [here](./doc/install_libsodium.md). 
+On Windows or MacOS you will need to install `Libsodium` separately, as explained [here](./doc/install_libsodium.md). 
 
 ### Tests
 The test suite can run without any external packages, but the `nosetests` package is recommended (`pip install nose`).

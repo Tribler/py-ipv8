@@ -1,4 +1,5 @@
-# Installing Libsodium
+# Installing Libsodium (Windows and MacOS only)
+Running py-ipv8 on Windows or MacOS, requires manual installation of Libsodium.
 
 ## Windows
 1. Libsodium can be downloaded from https://download.libsodium.org/libsodium/releases/  
