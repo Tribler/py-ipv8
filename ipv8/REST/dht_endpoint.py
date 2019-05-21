@@ -1,6 +1,5 @@
 from __future__ import absolute_import
 
-import json
 import logging
 from base64 import b64decode, b64encode
 from binascii import hexlify, unhexlify
@@ -160,36 +159,36 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
         """
         if not self.dht:
             request.setResponseCode(http.NOT_FOUND)
-            return json.dumps({"error": "DHT community not found"}).encode('utf-8')
+            return self.twisted_dumps({"error": "DHT community not found"})
 
         if not request.args or b'public_key' not in request.args:
             request.setResponseCode(http.BAD_REQUEST)
-            return json.dumps({"error": "Must specify the peer's public key"}).encode('utf-8')
+            return self.twisted_dumps({"error": "Must specify the peer's public key"})
 
         def on_success(block_chunks):
             if not block_chunks:
                 request.setResponseCode(http.NOT_FOUND)
-                request.write(json.dumps({
-                    u"error": {
-                        u"handled": True,
-                        u"message": "Could not find any blocks for the specified key."
+                request.write(self.twisted_dumps({
+                    "error": {
+                        "handled": True,
+                        "message": "Could not find any blocks for the specified key."
                     }
                 }))
             else:
                 target_public_key = LibNaCLPK(binarykey=raw_public_key[10:])
                 # Discard the 2nd half of the tuples retrieved as a result of the DHT query
                 new_blocks, max_version = self.reconstruct_all_blocks([x[0] for x in block_chunks], target_public_key)
-                request.write(json.dumps({"block": b64encode(new_blocks[max_version]).decode('utf-8')}).encode('utf-8'))
+                request.write(self.twisted_dumps({"block": b64encode(new_blocks[max_version]).decode('utf-8')}))
 
             request.finish()
 
         def on_failure(failure):
             request.setResponseCode(http.INTERNAL_SERVER_ERROR)
-            request.write(json.dumps({
-                u"error": {
-                    u"handled": True,
-                    u"code": failure.value.__class__.__name__,
-                    u"message": failure.value.message
+            request.write(self.twisted_dumps({
+                "error": {
+                    "handled": True,
+                    "code": failure.value.__class__.__name__,
+                    "message": failure.value.message
                 }
             }))
 
@@ -213,7 +212,7 @@ class DHTStatisticsEndpoint(BaseEndpoint):
     def render_GET(self, request):
         if not self.dht:
             request.setResponseCode(http.NOT_FOUND)
-            return json.dumps({"error": "DHT community not found"})
+            return self.twisted_dumps({"error": "DHT community not found"})
 
         buckets = self.dht.routing_table.trie.values()
         stats = {"node_id": hexlify(self.dht.my_node_id),
@@ -229,7 +228,7 @@ class DHTStatisticsEndpoint(BaseEndpoint):
                 "num_store_for_me": {hexlify(key): len(peers) for key, peers in self.dht.store_for_me.items()}
             })
 
-        return json.dumps({"statistics": stats})
+        return self.twisted_dumps({"statistics": stats})
 
 
 class DHTPeersEndpoint(BaseEndpoint):
@@ -258,23 +257,25 @@ class SpecificDHTPeerEndpoint(BaseEndpoint):
     def render_GET(self, request):
         if not self.dht:
             request.setResponseCode(http.NOT_FOUND)
-            return json.dumps({"error": "DHT community not found"})
+            return self.twisted_dumps({"error": "DHT community not found"})
 
         def on_success(nodes):
             node_dicts = []
             for node in nodes:
-                node_dicts.append({'public_key': b64encode(node.public_key.key_to_bin()),
-                                   'address': node.address})
-            request.write(json.dumps({"peers": node_dicts}))
+                node_dicts.append({
+                    'public_key': b64encode(node.public_key.key_to_bin()).decode('utf-8'),
+                    'address': node.address
+                })
+            request.write(self.twisted_dumps({"peers": node_dicts}))
             request.finish()
 
         def on_failure(failure):
             request.setResponseCode(http.INTERNAL_SERVER_ERROR)
-            request.write(json.dumps({
-                u"error": {
-                    u"handled": True,
-                    u"code": failure.value.__class__.__name__,
-                    u"message": failure.value.message
+            request.write(self.twisted_dumps({
+                "error": {
+                    "handled": True,
+                    "code": failure.value.__class__.__name__,
+                    "message": failure.value.message
                 }
             }))
 
@@ -295,7 +296,7 @@ class DHTValuesEndpoint(BaseEndpoint):
     def render_GET(self, request):
         if not self.dht:
             request.setResponseCode(http.NOT_FOUND)
-            return json.dumps({"error": "DHT community not found"})
+            return self.twisted_dumps({"error": "DHT community not found"})
 
         results = {}
         for key, raw_values in self.dht.storage.items.items():
@@ -303,11 +304,13 @@ class DHTValuesEndpoint(BaseEndpoint):
             dicts = []
             for value in values:
                 data, public_key = value
-                dicts.append({'public_key': b64encode(public_key) if public_key else None,
-                              'value': hexlify(data)})
+                dicts.append({
+                    'public_key': b64encode(public_key).decode('utf-8') if public_key else None,
+                    'value': hexlify(data)
+                })
             results[hexlify(key)] = dicts
 
-        return json.dumps(results)
+        return self.twisted_dumps(results)
 
     def getChild(self, path, request):
         return SpecificDHTValueEndpoint(self.dht, path)
@@ -326,24 +329,26 @@ class SpecificDHTValueEndpoint(BaseEndpoint):
     def render_GET(self, request):
         if not self.dht:
             request.setResponseCode(http.NOT_FOUND)
-            return json.dumps({"error": "DHT community not found"})
+            return self.twisted_dumps({"error": "DHT community not found"})
 
         def on_success(values):
             dicts = []
             for value in values:
                 data, public_key = value
-                dicts.append({'public_key': b64encode(public_key) if public_key else None,
-                              'value': hexlify(data)})
-            request.write(json.dumps({"values": dicts}))
+                dicts.append({
+                    'public_key': b64encode(public_key).decode('utf-8') if public_key else None,
+                    'value': hexlify(data)
+                })
+            request.write(self.twisted_dumps({"values": dicts}))
             request.finish()
 
         def on_failure(failure):
             request.setResponseCode(http.INTERNAL_SERVER_ERROR)
-            request.write(json.dumps({
-                u"error": {
-                    u"handled": True,
-                    u"code": failure.value.__class__.__name__,
-                    u"message": failure.value.message
+            request.write(self.twisted_dumps({
+                "error": {
+                    "handled": True,
+                    "code": failure.value.__class__.__name__,
+                    "message": failure.value.message
                 }
             }))
 
@@ -354,26 +359,26 @@ class SpecificDHTValueEndpoint(BaseEndpoint):
     def render_PUT(self, request):
         if not self.dht:
             request.setResponseCode(http.NOT_FOUND)
-            return json.dumps({"error": "DHT community not found"})
+            return self.twisted_dumps({"error": "DHT community not found"})
 
-        def on_success(values):
-            request.write(json.dumps({"stored": True}))
+        def on_success(_):
+            request.write(self.twisted_dumps({"stored": True}))
             request.finish()
 
         def on_failure(failure):
             request.setResponseCode(http.INTERNAL_SERVER_ERROR)
-            request.write(json.dumps({
-                u"error": {
-                    u"handled": True,
-                    u"code": failure.value.__class__.__name__,
-                    u"message": failure.value.message
+            request.write(self.twisted_dumps({
+                "error": {
+                    "handled": True,
+                    "code": failure.value.__class__.__name__,
+                    "message": failure.value.message
                 }
             }))
 
         parameters = http.parse_qs(request.content.read(), 1)
         if 'value' not in parameters:
             request.setResponseCode(http.BAD_REQUEST)
-            return json.dumps({"error": "incorrect parameters"})
+            return self.twisted_dumps({"error": "incorrect parameters"})
 
         self.dht.store_value(self.key, unhexlify(parameters['value'][0]), sign=True).addCallbacks(on_success,
                                                                                                   on_failure)
