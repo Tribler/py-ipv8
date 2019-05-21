@@ -2,10 +2,17 @@ from __future__ import absolute_import
 
 import abc
 import logging
-import netifaces
-import six
 import socket
 import struct
+
+try:
+    # Especially on Android netifaces may fail.
+    # Generally, we also allow users not to have netifaces installed.
+    import netifaces
+except ImportError:
+    netifaces = None
+
+import six
 
 from twisted.internet import reactor
 
@@ -94,7 +101,7 @@ class EndpointListener(six.with_metaclass(abc.ABCMeta, object)):
 
         self.endpoint = endpoint
 
-        self._netifaces_failed = False
+        self._netifaces_failed = netifaces is None
         self.my_estimated_lan = (self._get_lan_address(True)[0], self.endpoint._port)
         self.my_estimated_wan = self.my_estimated_lan
 
