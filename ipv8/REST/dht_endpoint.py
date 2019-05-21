@@ -44,6 +44,15 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
     this peer's latest TC block is available
     """
 
+    # A special suffix added after a public key in order to obtain the DHT under which the TC blocks are sored
+    KEY_SUFFIX = b'_BLOCK'
+
+    # The maximal size of a TC block chunk which can be stored in a DHT entry
+    CHUNK_SIZE = MAX_ENTRY_SIZE - DHTBlockPayload.PREAMBLE_OVERHEAD - 1
+
+    # The maximal number of attempts per chunk allowed when publishing a new block
+    ATTEMPT_LIMIT = 3
+    
     def received_block(self, block):
         """
         Wrapper callback method, inherited from the BlockListener abstract class, which will publish the latest
@@ -57,10 +66,6 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
 
     def should_sign(self, block):
         pass
-
-    KEY_SUFFIX = b'_BLOCK'
-    CHUNK_SIZE = MAX_ENTRY_SIZE - DHTBlockPayload.PREAMBLE_OVERHEAD - 1
-    ATTEMPT_LIMIT = 3
 
     def __init__(self, dht, trustchain):
         super(DHTBlockEndpoint, self).__init__()

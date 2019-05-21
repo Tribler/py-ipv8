@@ -53,6 +53,9 @@ MSG_STORE_RESPONSE = 10
 MSG_FIND_REQUEST = 11
 MSG_FIND_RESPONSE = 12
 
+# Indicates the delta before the DHT entry expiration time, after which the entry is eligible for refresh
+TC_BLOCK_DELTA = 310  # seconds
+
 
 def gatherResponses(deferreds, **kwargs):
     def on_finished(results):
@@ -106,6 +109,8 @@ class DHTCommunity(Community):
         self.token_secrets = deque(maxlen=2)
         self.register_task('value_maintenance', LoopingCall(self.value_maintenance)).start(3600, now=False)
         self.register_task('token_maintenance', LoopingCall(self.token_maintenance)).start(300, now=True)
+        self.register_task('tc_block_maintenance', LoopingCall(self.block_chunk_refresh)).start(TC_BLOCK_DELTA - 10,
+                                                                                                now=False)
 
         # Register messages
         self.decode_map.update({
@@ -457,6 +462,18 @@ class DHTCommunity(Community):
         else:
             cache.deferred.callback((cache.node, {'values': payload.values} if payload.values
                                      else {'nodes': payload.nodes}))
+
+    def block_chunk_refresh(self):
+        """
+        Republish any TrustChain block chunks which are about to expire in the DHT
+        """
+        key_suffix = b'_BLOCK'
+        hashed_dht_key = hashlib.sha1(self.my_peer.public_key.key_to_bin() + key_suffix).digest()
+
+        # for value in self.storage.get(hashed_dht_key):
+        for value in self.storage.items[hashed_dht_key]:
+            if value.age + TC_BLOCK_DELTA > value.max_age:
+                self._store(hashed_dht_key, value.data).addErrback(lambda _: None)
 
     def value_maintenance(self):
         # Refresh buckets

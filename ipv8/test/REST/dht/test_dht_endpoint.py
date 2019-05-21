@@ -108,7 +108,7 @@ class TestDHTEndpoint(RESTTestBase):
         response = b64decode(response['block'])
 
         # Reconstruct the block from what was received in the response
-        payload = self.deserialize_payload((HalfBlockPayload, ), response)
+        payload = self.deserialize_payload((HalfBlockPayload,), response)
         reconstructed_block = self.nodes[0].get_overlay_by_class(TrustChainCommunity).get_block_class(payload.type) \
             .from_payload(payload, self.serializer)
 
@@ -141,8 +141,8 @@ class TestDHTEndpoint(RESTTestBase):
         response = b64decode(response['block'])
 
         # Reconstruct the block from what was received in the response
-        payload = self.deserialize_payload((HalfBlockPayload, ), response)
-        reconstructed_block = self.nodes[0].get_overlay_by_class(TrustChainCommunity).get_block_class(payload.type)\
+        payload = self.deserialize_payload((HalfBlockPayload,), response)
+        reconstructed_block = self.nodes[0].get_overlay_by_class(TrustChainCommunity).get_block_class(payload.type) \
             .from_payload(payload, self.serializer)
 
         self.assertEqual(reconstructed_block, original_block, "The received block was not the one which was expected")
@@ -258,3 +258,89 @@ class TestDHTEndpoint(RESTTestBase):
         # Query the DHT again
         result = yield self.nodes[1].get_overlay_by_class(DHTCommunity).find_values(hash_key)
         self.assertEqual(len(result), chunk_number, "The contents of the DHT have been changed. This should not happen")
+
+    @inlineCallbacks
+    def test_necessary_block_refresh(self):
+        """
+        Test the block refresh method in the scenario where there is a block close to or post expiry
+        """
+        def clear_char(l):
+            return [x[1:] for x in l]
+
+        # Introduce the nodes
+        yield self.introduce_nodes(DHTCommunity)
+
+        raw_data = "asd".encode('utf-8')
+        stored_package = self.nodes[0].get_overlay_by_class(DHTCommunity).serialize_value(raw_data, sign=False)
+
+        hash_key = sha1(self.nodes[0].get_keys()['my_peer'].public_key.key_to_bin()
+                        + DHTBlockEndpoint.KEY_SUFFIX).digest()
+        self.nodes[0].get_overlay_by_class(DHTCommunity).add_value(hash_key, stored_package, max_age=0)
+
+        # Check the contents under each node
+        self.assertEqual([raw_data], clear_char(self.nodes[0].get_overlay_by_class(DHTCommunity).storage.get(hash_key)),
+                         "The block could not be added to the local storage")
+        self.assertEqual([], clear_char(self.nodes[1].get_overlay_by_class(DHTCommunity).storage.get(hash_key)),
+                         "The local storage should be empty")
+
+        # Get the last modification time of the entry
+        initial_time = self.nodes[0].get_overlay_by_class(DHTCommunity).storage.items[hash_key][0].last_update
+
+        # Force the refresh
+        self.nodes[0].get_overlay_by_class(DHTCommunity).block_chunk_refresh()
+        yield self.deliver_messages()
+        yield self.sleep()
+
+        # Check the contents under each node again
+        self.assertEqual([raw_data], clear_char(self.nodes[0].get_overlay_by_class(DHTCommunity).storage.get(hash_key)),
+                         "The block was duplicated or went missing")
+        self.assertEqual([raw_data], clear_char(self.nodes[1].get_overlay_by_class(DHTCommunity).storage.get(hash_key)),
+                         "The storage should contain one entry")
+
+        # Check the timestamps
+        self.assertGreater(self.nodes[0].get_overlay_by_class(DHTCommunity).storage.items[hash_key][0].last_update,
+                           initial_time, "The latter entry should have a greater last_update stamp")
+        self.assertGreater(self.nodes[1].get_overlay_by_class(DHTCommunity).storage.items[hash_key][0].last_update,
+                           initial_time, "The latter entry should have a greater last_update stamp")
+
+    @inlineCallbacks
+    def test_unnecessary_block_refresh(self):
+        """
+        Test the block refresh method in the scenario where there is no block close to or post expiry
+        """
+        def clear_char(l):
+            return [x[1:] for x in l]
+
+        # Introduce the nodes
+        yield self.introduce_nodes(DHTCommunity)
+
+        raw_data = "asd".encode('utf-8')
+        stored_package = self.nodes[0].get_overlay_by_class(DHTCommunity).serialize_value(raw_data, sign=False)
+
+        hash_key = sha1(self.nodes[0].get_keys()['my_peer'].public_key.key_to_bin()
+                        + DHTBlockEndpoint.KEY_SUFFIX).digest()
+        self.nodes[0].get_overlay_by_class(DHTCommunity).add_value(hash_key, stored_package, max_age=10000)
+
+        # Check the contents under each node
+        self.assertEqual([raw_data], clear_char(self.nodes[0].get_overlay_by_class(DHTCommunity).storage.get(hash_key)),
+                         "The block could not be added to the local storage")
+        self.assertEqual([], clear_char(self.nodes[1].get_overlay_by_class(DHTCommunity).storage.get(hash_key)),
+                         "The local storage should be empty")
+
+        # Get the last modification time of the entry
+        initial_time = self.nodes[0].get_overlay_by_class(DHTCommunity).storage.items[hash_key][0].last_update
+
+        # Force the refresh
+        self.nodes[0].get_overlay_by_class(DHTCommunity).block_chunk_refresh()
+        yield self.deliver_messages()
+        yield self.sleep()
+
+        # Check the contents under each node again
+        self.assertEqual([raw_data], clear_char(self.nodes[0].get_overlay_by_class(DHTCommunity).storage.get(hash_key)),
+                         "The was lost or duplicated")
+        self.assertEqual([], clear_char(self.nodes[1].get_overlay_by_class(DHTCommunity).storage.get(hash_key)),
+                         "The local storage should be empty")
+
+        # Check the timestamps
+        self.assertEqual(self.nodes[0].get_overlay_by_class(DHTCommunity).storage.items[hash_key][0].last_update,
+                         initial_time, "The timestamps should be equal")
