@@ -12,7 +12,7 @@ from ...mocking.rest.base import RESTTestBase
 from ...mocking.rest.comunities import TestDHTCommunity, TestTrustchainCommunity
 from ...mocking.rest.rest_api_peer import RestTestPeer
 from ...mocking.rest.rest_peer_communication import string_to_url
-from ....REST.dht_endpoint import DHTBlockEndpoint
+from ....REST.dht_endpoint import DHTBlockEndpoint, TC_KEY_SUFFIX
 from ....attestation.trustchain.community import TrustChainCommunity
 from ....attestation.trustchain.payload import DHTBlockPayload, HalfBlockPayload
 from ....dht.community import DHTCommunity
@@ -98,7 +98,7 @@ class TestDHTEndpoint(RESTTestBase):
         # Manually add a block to the Trustchain
         original_block = TestBlock()
         hash_key = sha1(self.nodes[0].get_keys()['my_peer'].public_key.key_to_bin()
-                        + DHTBlockEndpoint.KEY_SUFFIX).digest()
+                        + TC_KEY_SUFFIX).digest()
 
         yield self.publish_to_DHT(self.nodes[0], hash_key, original_block.pack(), 4536)
 
@@ -167,7 +167,7 @@ class TestDHTEndpoint(RESTTestBase):
         original_block_1 = TestBlock(transaction={1: 'asd'})
         original_block_2 = TestBlock(transaction={1: 'mmm'})
         hash_key = sha1(self.nodes[0].get_keys()['my_peer'].public_key.key_to_bin()
-                        + DHTBlockEndpoint.KEY_SUFFIX).digest()
+                        + TC_KEY_SUFFIX).digest()
 
         # Publish the two blocks under the same key in the first peer
         yield self.publish_to_DHT(self.nodes[0], hash_key, original_block_1.pack(), 4536)
@@ -201,7 +201,7 @@ class TestDHTEndpoint(RESTTestBase):
 
         # Publish the node to the DHT
         hash_key = sha1(self.nodes[0].get_keys()['my_peer'].public_key.key_to_bin()
-                        + DHTBlockEndpoint.KEY_SUFFIX).digest()
+                        + TC_KEY_SUFFIX).digest()
 
         result = yield self.nodes[1].get_overlay_by_class(DHTCommunity).find_values(hash_key)
         self.assertEqual(result, [], "There shouldn't be any blocks for this key")
@@ -234,7 +234,7 @@ class TestDHTEndpoint(RESTTestBase):
 
         # Publish the node to the DHT
         hash_key = sha1(self.nodes[0].get_keys()['my_peer'].public_key.key_to_bin()
-                        + DHTBlockEndpoint.KEY_SUFFIX).digest()
+                        + TC_KEY_SUFFIX).digest()
 
         result = yield self.nodes[1].get_overlay_by_class(DHTCommunity).find_values(hash_key)
         self.assertEqual(result, [], "There shouldn't be any blocks for this key")
@@ -274,7 +274,7 @@ class TestDHTEndpoint(RESTTestBase):
         stored_package = self.nodes[0].get_overlay_by_class(DHTCommunity).serialize_value(raw_data, sign=False)
 
         hash_key = sha1(self.nodes[0].get_keys()['my_peer'].public_key.key_to_bin()
-                        + DHTBlockEndpoint.KEY_SUFFIX).digest()
+                        + TC_KEY_SUFFIX).digest()
         self.nodes[0].get_overlay_by_class(DHTCommunity).add_value(hash_key, stored_package, max_age=0)
 
         # Check the contents under each node
@@ -318,7 +318,7 @@ class TestDHTEndpoint(RESTTestBase):
         stored_package = self.nodes[0].get_overlay_by_class(DHTCommunity).serialize_value(raw_data, sign=False)
 
         hash_key = sha1(self.nodes[0].get_keys()['my_peer'].public_key.key_to_bin()
-                        + DHTBlockEndpoint.KEY_SUFFIX).digest()
+                        + TC_KEY_SUFFIX).digest()
         self.nodes[0].get_overlay_by_class(DHTCommunity).add_value(hash_key, stored_package, max_age=10000)
 
         # Check the contents under each node

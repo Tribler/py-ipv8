@@ -20,6 +20,9 @@ from ..dht.discovery import DHTDiscoveryCommunity
 from ..keyvault.public.libnaclkey import LibNaCLPK
 from ..messaging.serialization import Serializer
 
+# Suffix added after a public key in order to obtain the hash for the key under which the TC blocks are sored in the DHT
+TC_KEY_SUFFIX = b'_BLOCK'
+
 
 class DHTEndpoint(BaseEndpoint):
     """
@@ -44,15 +47,12 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
     this peer's latest TC block is available
     """
 
-    # A special suffix added after a public key in order to obtain the DHT under which the TC blocks are sored
-    KEY_SUFFIX = b'_BLOCK'
-
     # The maximal size of a TC block chunk which can be stored in a DHT entry
     CHUNK_SIZE = MAX_ENTRY_SIZE - DHTBlockPayload.PREAMBLE_OVERHEAD - 1
 
     # The maximal number of attempts per chunk allowed when publishing a new block
     ATTEMPT_LIMIT = 3
-    
+
     def received_block(self, block):
         """
         Wrapper callback method, inherited from the BlockListener abstract class, which will publish the latest
@@ -74,7 +74,7 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
         self.block_version = 0
         self.serializer = Serializer()
 
-        self._hashed_dht_key = sha1(self.trustchain.my_peer.public_key.key_to_bin() + self.KEY_SUFFIX).digest()
+        self._hashed_dht_key = sha1(self.trustchain.my_peer.public_key.key_to_bin() + TC_KEY_SUFFIX).digest()
 
         trustchain.add_listener(self, [trustchain.UNIVERSAL_BLOCK_LISTENER])
 
@@ -199,7 +199,7 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
             }))
 
         raw_public_key = b64decode(request.args[b'public_key'][0])
-        hash_key = sha1(raw_public_key + self.KEY_SUFFIX).digest()
+        hash_key = sha1(raw_public_key + TC_KEY_SUFFIX).digest()
 
         self.dht.find_values(hash_key).addCallbacks(on_success, on_failure)
 
