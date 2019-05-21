@@ -115,8 +115,6 @@ class TunnelSettings(object):
         self.num_ip_circuits = 3
         self.peer_flags = PEER_FLAG_RELAY
 
-        self.allow_incoming_ipv8 = True
-
 
 class TunnelCommunity(Community):
 
@@ -860,9 +858,9 @@ class TunnelCommunity(Community):
                     self.on_packet_from_circuit(origin, data, circuit_id)
                     return
 
-                if self.settings.allow_incoming_ipv8:
+                if isinstance(self.endpoint, TunnelEndpoint):
                     self.logger.debug("Incoming packet meant for other community")
-                    self.endpoint.notify_listeners((origin, data))
+                    self.endpoint.notify_listeners((origin, data), from_tunnel=True)
                 else:
                     self.logger.debug("Incoming packet meant for other community, dropping")
             else:

@@ -76,6 +76,7 @@ class Community(EZPackOverlay):
         self.logger.debug("Launching %s with prefix %s.", self.__class__.__name__, hexlify(self._prefix))
 
         self.max_peers = max_peers
+        self.anonymize = anonymize
 
         if anonymize:
             if isinstance(self.endpoint, TunnelEndpoint):

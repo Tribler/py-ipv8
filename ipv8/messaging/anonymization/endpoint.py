@@ -4,6 +4,8 @@ from __future__ import division
 import time
 from collections import deque
 
+from twisted.internet import reactor
+
 from .tunnel import CIRCUIT_STATE_CLOSING, CIRCUIT_STATE_READY
 
 
@@ -53,6 +55,17 @@ class TunnelEndpoint(object):
             while self.send_queue:
                 address, packet = self.send_queue.popleft()
                 self.tunnel_community.send_data((circuit_address,), circuit_id, address, ('0.0.0.0', 0), packet)
+
+    def notify_listeners(self, packet, from_tunnel=False):
+        for listener in self._listeners:
+            # Anonymized communities should ignore traffic received from the socket
+            # Non-anonymized communities should ignore traffic received from the TunnelCommunity
+            if getattr(listener, 'anonymize', False) != from_tunnel:
+                continue
+            if listener.use_main_thread:
+                reactor.callFromThread(self._deliver_later, listener, packet)
+            elif reactor.running:
+                reactor.callInThread(self._deliver_later, listener, packet)
 
     def __getattribute__(self, item):
         try:
