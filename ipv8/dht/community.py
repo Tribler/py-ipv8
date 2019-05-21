@@ -467,8 +467,9 @@ class DHTCommunity(Community):
         """
         Republish any TrustChain block chunks which are about to expire in the DHT
         """
-        key_suffix = b'_BLOCK'
-        hashed_dht_key = hashlib.sha1(self.my_peer.public_key.key_to_bin() + key_suffix).digest()
+        from ..REST.dht_endpoint import DHTBlockEndpoint
+
+        hashed_dht_key = hashlib.sha1(self.my_peer.public_key.key_to_bin() + DHTBlockEndpoint.KEY_SUFFIX).digest()
 
         # for value in self.storage.get(hashed_dht_key):
         for value in self.storage.items[hashed_dht_key]:
