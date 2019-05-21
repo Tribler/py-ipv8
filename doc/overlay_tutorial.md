@@ -42,7 +42,7 @@ reactor.run()
 
 You can now run this file using Python as follows:
 ```bash
-python2 main.py
+python main.py
 ```
 You should see some debug information being printed to your terminal.
 If this step failed, you are probably missing dependencies.
@@ -190,7 +190,7 @@ reactor.run()
 
 Running this should yield something like the following output:
 ```bash
-$ python2 main.py 
+$ python main.py 
 I am: Peer<0.0.0.0:0, /zWXEA/4wFeGEKTZ8fckwUwLk3Y=> 
 I know: []
 I am: Peer<0.0.0.0:0, VVsH+LxamOUVUkV/5rjemqYMO8w=> 
