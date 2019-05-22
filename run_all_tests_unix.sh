@@ -8,7 +8,13 @@ test_files="$(grep ^[^#] test_classes_list.txt)"
 #    Change the test command and parameters accordingly.
 tty -s && tput bold
 
-interpreter="python"
+# 2.1 Check for python interpreter version
+if [ -x "$(command -v python2)" ]; then
+    interpreter="python2"
+else
+    echo "No python2 command found! Will use the default python command."
+    interpreter="python"
+fi
 
 echo -n "Starting IPv8 testsuite: "
 if nosetests --version >>/dev/null 2>&1; then
