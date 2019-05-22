@@ -12,14 +12,14 @@ class IsolationEndpoint(BaseEndpoint):
     This endpoint is responsible for on-demand adding of addresses for different services.
 
     We support:
-     - POST: /isolation?address=<IP>:<PORT>&bootstrapnode=1
-     - POST: /isolation?address=<IP>:<PORT>&exitnode=1
+     - POST: /isolation?ip=<IP>&port=<PORT>&bootstrapnode=1
+     - POST: /isolation?ip=<IP>&port=<PORT>&exitnode=1
 
     These commands add a bootstrap node and an exit node respectively.
     The IP is a period-seperated string.
     An example call would be:
 
-    curl -X POST "http://localhost:8085/isolation?address=127.0.0.1:9999&bootstrapnode=1"
+    curl -X POST "http://localhost:8085/isolation?ip=127.0.0.1&port=9999&bootstrapnode=1"
     """
 
     def __init__(self, session):
@@ -36,20 +36,22 @@ class IsolationEndpoint(BaseEndpoint):
 
     def render_POST(self, request):
         # Check if we have arguments, containing an address and the type of address to add.
-        if not request.args or b'address' not in request.args:
+        if not request.args or b'ip' not in request.args or b'port' not in request.args:
             request.setResponseCode(http.BAD_REQUEST)
-            return self.twisted_dumps({"success": False, "error": "Parameter 'address' is required"})
+            return self.twisted_dumps({"success": False, "error": "Parameters 'ip' and 'port' are required"})
         if b'exitnode' not in request.args and b'bootstrapnode' not in request.args:
             request.setResponseCode(http.BAD_REQUEST)
             return self.twisted_dumps({"success": False,
                                        "error": "Parameter 'exitnode' or 'bootstrapnode' is required"})
         # Attempt to decode the address
         try:
-            address_str, port_str = request.args[b'address'][0].split(':')
+            address_str = request.args[b'ip'][0]
+            port_str = request.args[b'port'][0]
             fmt_address = (address_str, int(port_str))
         except:
+            import traceback
             request.setResponseCode(http.BAD_REQUEST)
-            return self.twisted_dumps({"success": False, "error": "Malformed address, expecting d.d.d.d:d"})
+            return self.twisted_dumps({"success": False, "error": traceback.format_exc()})
         # Actually add the address to the requested service
         if b'exitnode' in request.args:
             self.add_exit_node(fmt_address)
