@@ -1,12 +1,11 @@
 from __future__ import absolute_import
 
 from binascii import unhexlify
-import json
 
 from twisted.web import http
 
-from ..attestation.trustchain.community import TrustChainCommunity
 from .base_endpoint import BaseEndpoint
+from ..attestation.trustchain.community import TrustChainCommunity
 
 
 class TrustchainEndpoint(BaseEndpoint):
@@ -39,8 +38,10 @@ class TrustchainRecentEndpoint(BaseEndpoint):
         if request.args and 'offset' in request.args:
             offset = int(request.args['offset'][0])
 
-        return json.dumps({"blocks": [dict(block) for block in
-                                      self.trustchain.persistence.get_recent_blocks(limit=limit, offset=offset)]})
+        return self.twisted_dumps({
+            "blocks": [dict(block) for block in
+                       self.trustchain.persistence.get_recent_blocks(limit=limit, offset=offset)]
+        })
 
 
 class TrustchainBlocksEndpoint(BaseEndpoint):
@@ -66,12 +67,12 @@ class TrustchainSpecificBlockEndpoint(BaseEndpoint):
     def render_GET(self, request):
         if not self.block_hash:
             request.setResponseCode(http.NOT_FOUND)
-            return json.dumps({"error": "the block with the provided hash could not be found"})
+            return self.twisted_dumps({"error": "the block with the provided hash could not be found"})
 
         block = self.trustchain.persistence.get_block_with_hash(self.block_hash)
         if not block:
             request.setResponseCode(http.NOT_FOUND)
-            return json.dumps({"error": "the block with the provided hash could not be found"})
+            return self.twisted_dumps({"error": "the block with the provided hash could not be found"})
 
         block_dict = dict(block)
 
@@ -80,7 +81,7 @@ class TrustchainSpecificBlockEndpoint(BaseEndpoint):
         if linked_block:
             block_dict["linked"] = dict(linked_block)
 
-        return json.dumps({"block": block_dict})
+        return self.twisted_dumps({"block": block_dict})
 
 
 class TrustchainUsersEndpoint(BaseEndpoint):
@@ -98,7 +99,7 @@ class TrustchainUsersEndpoint(BaseEndpoint):
             limit = int(request.args['limit'][0])
 
         users_info = self.trustchain.persistence.get_users(limit=limit)
-        return json.dumps({"users": users_info})
+        return self.twisted_dumps({"users": users_info})
 
 
 class TrustchainSpecificUserEndpoint(BaseEndpoint):
@@ -124,7 +125,7 @@ class TrustchainSpecificUserBlocksEndpoint(BaseEndpoint):
     def render_GET(self, request):
         if not self.pub_key:
             request.setResponseCode(http.NOT_FOUND)
-            return json.dumps({"error": "the user with the provided public key could not be found"})
+            return self.twisted_dumps({"error": "the user with the provided public key could not be found"})
 
         limit = 100
         if 'limit' in request.args:
@@ -139,4 +140,4 @@ class TrustchainSpecificUserBlocksEndpoint(BaseEndpoint):
                 block_dict['linked'] = dict(linked_block)
             blocks_list.append(block_dict)
 
-        return json.dumps({"blocks": blocks_list})
+        return self.twisted_dumps({"blocks": blocks_list})

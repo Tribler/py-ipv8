@@ -1,7 +1,6 @@
 from __future__ import absolute_import
 
 from binascii import hexlify
-import json
 
 from twisted.web import http
 
@@ -36,7 +35,7 @@ class OverlaysEndpoint(BaseEndpoint):
         return overlay_stats
 
     def render_GET(self, request):
-        return json.dumps({"overlays": self.get_overlays()})
+        return self.twisted_dumps({"overlays": self.get_overlays()})
 
 
 class OverlayStatisticsEndpoint(BaseEndpoint):
@@ -70,7 +69,7 @@ class OverlayStatisticsEndpoint(BaseEndpoint):
         return named_statistics
 
     def render_GET(self, _):
-        return json.dumps({"statistics": self.get_statistics()})
+        return self.twisted_dumps({"statistics": self.get_statistics()})
 
     def render_POST(self, request):
         """
@@ -97,14 +96,14 @@ class OverlayStatisticsEndpoint(BaseEndpoint):
 
         if not self.statistics_supported:
             request.setResponseCode(http.PRECONDITION_FAILED)
-            return json.dumps({"success": False, "error": "StatisticsEndpoint is not enabled."})
+            return self.twisted_dumps({"success": False, "error": "StatisticsEndpoint is not enabled."})
 
         all_overlays = False
         overlay_name = None
 
         if 'enable' not in request.args or not request.args['enable']:
             request.setResponseCode(http.BAD_REQUEST)
-            return json.dumps({"success": False, "error": "Parameter 'enable' is required"})
+            return self.twisted_dumps({"success": False, "error": "Parameter 'enable' is required"})
         else:
             enable = request.args['enable'][0] == 'True'
 
@@ -114,10 +113,10 @@ class OverlayStatisticsEndpoint(BaseEndpoint):
             overlay_name = request.args['overlay_name'][0]
         else:
             request.setResponseCode(http.PRECONDITION_FAILED)
-            return json.dumps({"success": False, "error": "Parameter 'all' or 'overlay_name' is required"})
+            return self.twisted_dumps({"success": False, "error": "Parameter 'all' or 'overlay_name' is required"})
 
         self.enable_overlay_statistics(enable=enable, class_name=overlay_name, all_overlays=all_overlays)
-        return json.dumps({"success": True})
+        return self.twisted_dumps({"success": True})
 
     def enable_overlay_statistics(self, enable=False, class_name=None, all_overlays=False):
         if all_overlays:

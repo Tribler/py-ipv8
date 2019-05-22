@@ -1,7 +1,6 @@
 from __future__ import absolute_import
 
 from base64 import b64encode
-import json
 
 from .base_endpoint import BaseEndpoint
 
@@ -29,4 +28,4 @@ class NetworkEndpoint(BaseEndpoint):
         }
 
     def render_GET(self, request):
-        return json.dumps({"peers": self.retrieve_peers()})
+        return self.twisted_dumps({"peers": self.retrieve_peers()})
