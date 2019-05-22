@@ -26,7 +26,7 @@ At the end of this setup step you should have the following files in your workin
 ```
 
 ## Running the IPv8 service
-Fill your `main.py` file with the following code (runnable with `python2 main.py`):
+Fill your `main.py` file with the following code (runnable with `python main.py`):
 
 ```python
 from base64 import b64encode
@@ -77,7 +77,7 @@ reactor.run()
 Running the service should yield something like the following output in your terminal:
 
 ```bash
-$ python2 main.py 
+$ python main.py 
 Starting peer aQVwz9aRMRypGwBkaxGRSdQs80c=
 Starting peer bPyWPyswqXMhbW8+0RS6xUtNJrs=
 ```
@@ -107,7 +107,7 @@ If you did not remove the key files (`*.pem`) after the first run, you will star
 In our case the output of starting the service is as follows:
 
 ```bash
-$ python2 main.py 
+$ python main.py 
 Starting peer aQVwz9aRMRypGwBkaxGRSdQs80c=
 Starting peer bPyWPyswqXMhbW8+0RS6xUtNJrs=
 ```
