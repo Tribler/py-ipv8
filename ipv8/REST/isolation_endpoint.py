@@ -5,6 +5,7 @@ from twisted.web import http
 from .base_endpoint import BaseEndpoint
 from ..community import _DEFAULT_ADDRESSES
 from ..messaging.anonymization.community import TunnelCommunity
+from ..util import cast_to_chr
 
 
 class IsolationEndpoint(BaseEndpoint):
@@ -45,8 +46,8 @@ class IsolationEndpoint(BaseEndpoint):
                                        "error": "Parameter 'exitnode' or 'bootstrapnode' is required"})
         # Attempt to decode the address
         try:
-            address_str = request.args[b'ip'][0]
-            port_str = request.args[b'port'][0]
+            address_str = cast_to_chr(request.args[b'ip'][0])
+            port_str = cast_to_chr(request.args[b'port'][0])
             fmt_address = (address_str, int(port_str))
         except:
             import traceback
