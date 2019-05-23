@@ -23,8 +23,8 @@ from ipv8.REST.rest_manager import RESTManager
 from ipv8.messaging.anonymization.tunnel import PEER_FLAG_EXIT_IPV8
 
 
-class Options(usage.Options):
-    optParameters = []
+class ExitnodeOptions(usage.Options):
+    optParameters = [["listen_port", None, 8090, "Use an alternative port", int]]
     optFlags = [
         ["no-rest-api", "a", "Autonomous: disable the REST api"],
         ["statistics", "s", "Enable IPv8 overlay statistics"],
@@ -32,10 +32,10 @@ class Options(usage.Options):
 
 
 @implementer(IPlugin, IServiceMaker)
-class IPV8ServiceMaker(object):
+class ExitnodeIPv8ServiceMaker(object):
     tapname = "exitnode_ipv8only"
     description = "IPv8-only exit node plugin"
-    options = Options
+    options = ExitnodeOptions
 
     def __init__(self):
         """
@@ -50,6 +50,8 @@ class IPV8ServiceMaker(object):
         Main method to startup IPv8.
         """
         configuration = get_default_configuration()
+
+        configuration['port'] = options["listen_port"]
 
         allowed_overlays = ['DHTDiscoveryCommunity', 'DiscoveryCommunity', 'HiddenTunnelCommunity',
                             'TrustChainCommunity']
@@ -94,4 +96,4 @@ class IPV8ServiceMaker(object):
         return ipv8_service
 
 
-service_maker = IPV8ServiceMaker()
+service_maker = ExitnodeIPv8ServiceMaker()
