@@ -21,7 +21,7 @@ from twisted.python.log import msg
 
 from zope.interface import implementer
 
-from ipv8_service import IPv8
+from ipv8.ipv8 import IPv8
 from ipv8.attestation.trustchain.settings import TrustChainSettings
 from ipv8.REST.rest_manager import RESTManager
 

@@ -16,7 +16,7 @@ except ImportError:
     import sys
     sys.path.append(path.abspath(path.join(path.dirname(__file__), "..")))
 
-from ipv8_service import _COMMUNITIES, IPv8
+from ipv8.ipv8 import _COMMUNITIES, IPv8
 from ipv8.configuration import get_default_configuration
 from ipv8.community import Community
 from ipv8.keyvault.crypto import ECCrypto

@@ -16,7 +16,7 @@ except ImportError:
     import sys
     sys.path.append(path.abspath(path.join(path.dirname(__file__), "..")))
 
-from ipv8_service import _COMMUNITIES, IPv8, _WALKERS  # pylint: disable=ungrouped-imports
+from ipv8.ipv8 import _COMMUNITIES, IPv8, _WALKERS  # pylint: disable=ungrouped-imports
 from ipv8.configuration import get_default_configuration  # pylint: disable=ungrouped-imports
 from ipv8.keyvault.crypto import ECCrypto  # pylint: disable=ungrouped-imports
 from ipv8.peer import Peer  # pylint: disable=ungrouped-imports

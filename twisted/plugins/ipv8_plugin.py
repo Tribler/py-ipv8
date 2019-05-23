@@ -18,7 +18,7 @@ from twisted.python.log import msg
 from zope.interface import implementer
 
 from ipv8.configuration import get_default_configuration
-from ipv8_service import IPv8
+from ipv8.ipv8 import IPv8
 from ipv8.REST.rest_manager import RESTManager
 
 
@@ -77,5 +77,6 @@ class IPV8ServiceMaker(object):
         reactor.callWhenRunning(self.start_ipv8, options)
 
         return ipv8_service
+
 
 service_maker = IPV8ServiceMaker()

@@ -22,7 +22,7 @@ except ImportError:
     import sys
     sys.path.append(path.abspath(path.join(path.dirname(__file__), "..")))
 
-from ipv8_service import IPv8
+from ipv8.ipv8 import IPv8
 from ipv8.configuration import get_default_configuration
 from ipv8.keyvault.crypto import default_eccrypto
 from ipv8.overlay import Overlay
