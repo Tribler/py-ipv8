@@ -494,7 +494,11 @@ class TunnelCommunity(Community):
         else:
             message = self.serializer.pack_multiple(payload.to_pack_list()[1:])[0]
         cell = CellPayload(circuit_id, pack('!B', message_id) + message, message_id in NO_CRYPTO_PACKETS)
-        cell.encrypt(self.crypto, self.circuits.get(circuit_id), self.relay_session_keys.get(circuit_id))
+        try:
+            cell.encrypt(self.crypto, self.circuits.get(circuit_id), self.relay_session_keys.get(circuit_id))
+        except CryptoException as e:
+            self.logger.warning(str(e))
+            return
         packet = cell.to_bin(self._prefix)
         return self.send_packet(candidates, packet)
 
