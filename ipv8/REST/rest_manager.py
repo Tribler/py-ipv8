@@ -8,6 +8,7 @@ from twisted.internet.defer import maybeDeferred
 from twisted.python.compat import intToBytes
 from twisted.web import http, server
 
+from .json_util import dumps
 from .root_endpoint import RootEndpoint
 from ..taskmanager import TaskManager
 
@@ -65,7 +66,7 @@ class RESTRequest(server.Request):
         if self.site.displayTracebacks:
             response[u"error"][u"trace"] = format_tb(failure.getTracebackObject())
 
-        body = self.twisted_dumps(response)
+        body = dumps(response, True).encode('utf-8')
         self.setResponseCode(http.INTERNAL_SERVER_ERROR)
         self.setHeader(b'Content-Type', self.defaultContentType)
         self.setHeader(b'Content-Length', intToBytes(len(body)))
