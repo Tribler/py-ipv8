@@ -155,7 +155,7 @@ class CellPayload(object):
                 # possible. :)
                 # (from https://github.com/Tribler/tribler/issues/1932#issuecomment-182035383)
                 raise CryptoException("Got exception %r when trying to decrypt relay message: "
-                                      "cell received for circuit_id: %s" % (e, self.message, self.circuit_id))
+                                      "cell received for circuit_id: %s" % (e, self.circuit_id))
 
         else:
             raise CryptoException("Error decrypting message for unknown circuit %d" % self.circuit_id)
