@@ -34,6 +34,8 @@ class IsolationEndpoint(BaseEndpoint):
 
     def add_bootstrap_server(self, address):
         _DEFAULT_ADDRESSES.append(address)
+        for overlay in self.session.overlays:
+            overlay.walk_to(address)
 
     def render_POST(self, request):
         # Check if we have arguments, containing an address and the type of address to add.
