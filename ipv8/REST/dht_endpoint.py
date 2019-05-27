@@ -191,6 +191,7 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
                     "message": failure.value.message
                 }
             }))
+            request.finish()
 
         raw_public_key = b64decode(request.args[b'public_key'][0])
         hash_key = sha1(raw_public_key + self.KEY_SUFFIX).digest()
@@ -278,6 +279,7 @@ class SpecificDHTPeerEndpoint(BaseEndpoint):
                     "message": failure.value.message
                 }
             }))
+            request.finish()
 
         self.dht.connect_peer(self.mid).addCallbacks(on_success, on_failure)
 
@@ -351,6 +353,7 @@ class SpecificDHTValueEndpoint(BaseEndpoint):
                     "message": failure.value.message
                 }
             }))
+            request.finish()
 
         self.dht.find_values(self.key).addCallbacks(on_success, on_failure)
 
@@ -374,6 +377,7 @@ class SpecificDHTValueEndpoint(BaseEndpoint):
                     "message": failure.value.message
                 }
             }))
+            request.finish()
 
         parameters = http.parse_qs(request.content.read(), 1)
         if 'value' not in parameters:
