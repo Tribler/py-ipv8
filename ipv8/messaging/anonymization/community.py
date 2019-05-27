@@ -282,11 +282,13 @@ class TunnelCommunity(Community):
 
         self.logger.info("Creating a new circuit of length %d (type: %s)", goal_hops, ctype)
         exit_candidates = self.get_candidates(PEER_FLAG_EXIT_ANY)
+        if ctype == CIRCUIT_TYPE_IPV8:
+            exit_candidates = self.get_candidates(PEER_FLAG_EXIT_IPV8) or exit_candidates
         relay_candidates = self.get_candidates(PEER_FLAG_RELAY)
 
         # Determine the last hop
         if not required_exit:
-            if ctype in [CIRCUIT_TYPE_DATA, CIRCUIT_TYPE_IP_SEEDER]:
+            if ctype in [CIRCUIT_TYPE_DATA, CIRCUIT_TYPE_IPV8, CIRCUIT_TYPE_IP_SEEDER]:
                 required_exit = random.choice(exit_candidates) if exit_candidates else None
                 # For introduction points we prefer exit nodes, but perhaps a relay peer would also suffice..
                 if not required_exit and relay_candidates and ctype == CIRCUIT_TYPE_IP_SEEDER:

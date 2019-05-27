@@ -1,12 +1,11 @@
 from __future__ import absolute_import
 from __future__ import division
 
-import time
 from collections import deque
 
 from twisted.internet import reactor
 
-from .tunnel import CIRCUIT_STATE_CLOSING, CIRCUIT_STATE_READY
+from .tunnel import CIRCUIT_STATE_READY, CIRCUIT_TYPE_IPV8
 
 
 class TunnelEndpoint(object):
@@ -14,15 +13,12 @@ class TunnelEndpoint(object):
     def __init__(self, endpoint):
         self.endpoint = endpoint
         self.hops = 0
-        self.destinations = {}
-        self.destinations_cleanup = time.time()
         self.tunnel_community = None
         self.settings = {}
         self.send_queue = deque(maxlen=100)
 
-    def set_tunnel_community(self, tunnel_community, hops=1, circuits=1):
+    def set_tunnel_community(self, tunnel_community, hops=1):
         self.tunnel_community = tunnel_community
-        self.tunnel_community.circuits_needed[hops] = circuits
         self.hops = hops
 
     def set_anonymity(self, prefix, enable):
@@ -34,18 +30,15 @@ class TunnelEndpoint(object):
             self.endpoint.send(address, packet)
             return
 
-        # Cleanup destinations
-        if self.destinations_cleanup + 300 < time.time():
-            self.destinations = {addr: c for addr, c in self.destinations.items() if c.ctype != CIRCUIT_STATE_CLOSING}
-
         if self.tunnel_community:
-            circuit = self.destinations.get(address)
+            circuits = self.tunnel_community.find_circuits(ctype=CIRCUIT_TYPE_IPV8, hops=self.hops, state=None)
+            circuit = circuits[0] if circuits else None
             if not circuit or circuit.state != CIRCUIT_STATE_READY:
-                circuit = self.tunnel_community.select_circuit(address, self.hops)
+                # Recreate tunnel when needed
                 if not circuit:
-                    self.send_queue.append((address, packet))
-                    return
-                self.destinations[address] = circuit
+                    self.tunnel_community.create_circuit(self.hops, ctype=CIRCUIT_TYPE_IPV8)
+                self.send_queue.append((address, packet))
+                return
 
             circuit_address = circuit.peer.address
             circuit_id = circuit.circuit_id
