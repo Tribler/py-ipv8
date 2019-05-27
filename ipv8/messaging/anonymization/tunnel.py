@@ -36,6 +36,7 @@ PEER_FLAG_EXIT_IPV8 = 4
 
 # Data circuits are supposed to end in an exit peer that allows exiting data to the outside world
 CIRCUIT_TYPE_DATA = 'DATA'
+CIRCUIT_TYPE_IPV8 = 'IPV8'
 
 # The other circuits are supposed to end in a connectable node, not allowed to exit
 # anything else than IPv8 messages, used for setting up end-to-end circuits

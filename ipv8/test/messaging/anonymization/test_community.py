@@ -10,7 +10,8 @@ from ...mocking.exit_socket import MockTunnelExitSocket
 from ...mocking.ipv8 import MockIPv8
 from ....messaging.anonymization.community import TunnelCommunity, TunnelSettings
 from ....messaging.anonymization.endpoint import TunnelEndpoint
-from ....messaging.anonymization.tunnel import CIRCUIT_STATE_EXTENDING, PEER_FLAG_EXIT_ANY
+from ....messaging.anonymization.tunnel import CIRCUIT_STATE_EXTENDING, CIRCUIT_TYPE_IPV8, \
+    PEER_FLAG_EXIT_ANY, PEER_FLAG_EXIT_IPV8
 from ....messaging.interfaces.udp.endpoint import UDPEndpoint
 from ....util import cast_to_bin
 
@@ -403,9 +404,9 @@ class TestTunnelCommunity(TestBase):
         Check if the tunnel endpoint is routing traffic correctly with anonymity enabled.
         """
         self.add_node_to_experiment(self.create_node())
-        self.nodes[2].overlay.settings.peer_flags |= PEER_FLAG_EXIT_ANY
+        self.nodes[2].overlay.settings.peer_flags |= PEER_FLAG_EXIT_IPV8
         yield self.introduce_nodes()
-        self.nodes[0].overlay.build_tunnels(1)
+        self.nodes[0].overlay.create_circuit(1, CIRCUIT_TYPE_IPV8)
         yield self.deliver_messages()
 
         exit_socket = list(self.nodes[2].overlay.exit_sockets.values())[0]
@@ -420,7 +421,7 @@ class TestTunnelCommunity(TestBase):
         sender.called = False
         sender.send_data = send_data
 
-        prefix = b'\x00' * 22
+        prefix = b'\x00\x01' + b'\x00' * 20
         self.nodes[0].overlay.endpoint = endpoint = TunnelEndpoint(self.nodes[0].overlay.endpoint)
         endpoint.set_tunnel_community(self.nodes[0].overlay)
         endpoint.set_anonymity(prefix, True)
@@ -434,7 +435,7 @@ class TestTunnelCommunity(TestBase):
 
         # When a circuit closes, sending data should fail
         sender.called = False
-        circuit = self.nodes[0].overlay.find_circuits()[0]
+        circuit = self.nodes[0].overlay.find_circuits(ctype=CIRCUIT_TYPE_IPV8)[0]
         self.nodes[0].overlay.remove_circuit(circuit.circuit_id)
         endpoint.send(self.nodes[1].overlay.my_estimated_wan, prefix + b'DATA')
         yield self.deliver_messages()
