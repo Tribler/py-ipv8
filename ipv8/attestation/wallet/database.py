@@ -1,9 +1,9 @@
 from __future__ import absolute_import
 
-from hashlib import sha1
 import os
+from hashlib import sha1
 
-from ...database import database_blob, Database
+from ...database import Database, database_blob
 
 DATABASE_DIRECTORY = os.path.join(u"sqlite")
 
@@ -34,7 +34,7 @@ class AttestationsDB(Database):
         return self._get(u"SELECT blob FROM %s WHERE hash = ?" % self.db_name, (database_blob(attestation_hash),))
 
     def get_all(self):
-        return list(self.execute("SELECT * FROM %s" % self.db_name, (), fetch_all=True))
+        return list(self.execute(u"SELECT * FROM %s" % self.db_name, (), fetch_all=True))
 
     def insert_attestation(self, attestation, secret_key):
         blob = database_blob(attestation.serialize())

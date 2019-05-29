@@ -3,6 +3,8 @@ from __future__ import absolute_import
 from base64 import b64decode, b64encode
 from hashlib import sha1
 
+from six.moves import xrange
+
 from twisted.internet.defer import Deferred, succeed
 from twisted.web import http
 
@@ -12,6 +14,7 @@ from ..attestation.identity.community import IdentityCommunity
 from ..attestation.wallet.community import AttestationCommunity
 from ..attestation.wallet.primitives.attestation import binary_relativity_sha256_4
 from ..attestation.wallet.primitives.cryptosystem.boneh import generate_keypair
+from ..database import database_blob
 from ..keyvault.crypto import default_eccrypto
 from ..peer import Peer
 from ..util import cast_to_bin, cast_to_unicode
@@ -27,12 +30,14 @@ class AttestationEndpoint(BaseEndpoint):
         self.session = session
         attestation_overlays = [overlay for overlay in session.overlays if isinstance(overlay, AttestationCommunity)]
         identity_overlays = [overlay for overlay in session.overlays if isinstance(overlay, IdentityCommunity)]
+        self.persistent_key = None
         if attestation_overlays and identity_overlays:
             self.attestation_overlay = attestation_overlays[0]
             self.attestation_overlay.set_attestation_request_callback(self.on_request_attestation)
             self.attestation_overlay.set_attestation_request_complete_callback(self.on_attestation_complete)
             self.attestation_overlay.set_verify_request_callback(self.on_verify_request)
             self.identity_overlay = identity_overlays[0]
+            self.persistent_key = self.identity_overlay.my_peer
         self.attestation_requests = {}
         self.verify_requests = {}
         self.verification_output = {}
@@ -92,6 +97,53 @@ class AttestationEndpoint(BaseEndpoint):
         matches = [p for p in peers if p.mid == mid]
         return matches[0] if matches else None
 
+    def _drop_identity_table_data(self, keys_to_keep):
+        """
+        Remove all metadata (TrustChain blocks) from the identity community.
+
+        :param keys_to_keep: list of keys to not remove for
+        :type keys_to_keep: [str]
+        :return: the list of attestation hashes which have been removed
+        :rtype: [database_blob]
+        """
+        if not keys_to_keep:
+            block_selection_stmt = u""
+            params = ()
+        else:
+            value_insert = u"AND".join(u"public_key != ? AND link_public_key != ?" for _ in xrange(len(keys_to_keep)))
+            block_selection_stmt = (u" WHERE " + value_insert + u" ORDER BY block_timestamp")
+            params = ()
+            for key in keys_to_keep:
+                params += (database_blob(key), database_blob(key))
+
+        blocks_to_remove = self.identity_overlay.persistence._getall(block_selection_stmt, params)
+        attestation_hashes = [database_blob(b.transaction[b"hash"]) for b in blocks_to_remove]
+
+        self.identity_overlay.persistence.execute(u"DELETE FROM blocks"
+                                                  + u" WHERE block_hash IN (SELECT block_hash FROM blocks "
+                                                  + block_selection_stmt + u")", params)
+        self.identity_overlay.persistence.commit()
+
+        return attestation_hashes
+
+    def _drop_attestation_table_data(self, attestation_hashes):
+        """
+        Remove all attestation data (claim based keys and ZKP blobs) by list of attestation hashes.
+
+        :param attestation_hashes: hashes to remove
+        :type attestation_hashes: [database_blob]
+        :returns: None
+        """
+        if not attestation_hashes:
+            return
+
+        self.attestation_overlay.database.execute((u"DELETE FROM %s" % self.attestation_overlay.database.db_name)
+                                                  + u" WHERE hash IN ("
+                                                  + u", ".join(c for c in u"?" * len(attestation_hashes))
+                                                  + u")",
+                                                  attestation_hashes)
+        self.attestation_overlay.database.commit()
+
     def render_GET(self, request):
         """
         type=drop_identity
@@ -146,14 +198,21 @@ class AttestationEndpoint(BaseEndpoint):
                     {cast_to_unicode(k): cast_to_unicode(v) for k, v in b.transaction[b"metadata"].items()},
                     b64encode(sha1(b.link_public_key).digest()).decode('utf-8')) for b in trimmed.values()])
         if request.args[b'type'][0] == b'drop_identity':
-            self.identity_overlay.persistence.execute('DELETE FROM blocks')
-            self.identity_overlay.persistence.commit()
-            self.attestation_overlay.database.execute('DELETE FROM %s' % self.attestation_overlay.database.db_name)
-            self.attestation_overlay.database.commit()
+            to_keep = [self.persistent_key.public_key.key_to_bin()]
+            if b'keep' in request.args:
+                to_keep += [self.identity_overlay.my_peer.public_key.key_to_bin()]
+
+            # Remove identity metadata and attestation proofing data, except for the keys to keep
+            attestation_hashes = self._drop_identity_table_data(to_keep)
+            self._drop_attestation_table_data(attestation_hashes)
+
+            # Remove pending attestations
             self.attestation_requests.clear()
+
+            # Generate new key
             my_new_peer = Peer(default_eccrypto.generate_key(u"curve25519"))
-            self.identity_overlay.my_peer = my_new_peer
-            self.attestation_overlay.my_peer = my_new_peer
+            for overlay in self.session.overlays:
+                overlay.my_peer = my_new_peer
 
         return self.twisted_dumps({"success": True})
 
