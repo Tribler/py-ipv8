@@ -108,7 +108,7 @@ class TestDHTEndpoint(RESTTestBase):
         response = b64decode(response['block'])
 
         # Reconstruct the block from what was received in the response
-        payload = self.deserialize_payload((HalfBlockPayload, ), response)
+        payload = self.deserialize_payload((HalfBlockPayload,), response)
         reconstructed_block = self.nodes[0].get_overlay_by_class(TrustChainCommunity).get_block_class(payload.type) \
             .from_payload(payload, self.serializer)
 
@@ -141,8 +141,8 @@ class TestDHTEndpoint(RESTTestBase):
         response = b64decode(response['block'])
 
         # Reconstruct the block from what was received in the response
-        payload = self.deserialize_payload((HalfBlockPayload, ), response)
-        reconstructed_block = self.nodes[0].get_overlay_by_class(TrustChainCommunity).get_block_class(payload.type)\
+        payload = self.deserialize_payload((HalfBlockPayload,), response)
+        reconstructed_block = self.nodes[0].get_overlay_by_class(TrustChainCommunity).get_block_class(payload.type) \
             .from_payload(payload, self.serializer)
 
         self.assertEqual(reconstructed_block, original_block, "The received block was not the one which was expected")
@@ -258,3 +258,106 @@ class TestDHTEndpoint(RESTTestBase):
         # Query the DHT again
         result = yield self.nodes[1].get_overlay_by_class(DHTCommunity).find_values(hash_key)
         self.assertEqual(len(result), chunk_number, "The contents of the DHT have been changed. This should not happen")
+
+    @inlineCallbacks
+    def test_explicit_block_maintenance(self):
+        """
+        Test the DHT block chunk republishing correctness, when the block is added manually to the database
+        """
+        param_dict = {
+            'port': self.nodes[1].port,
+            'interface': self.nodes[1].interface,
+            'endpoint': 'dht/block',
+            'public_key': string_to_url(b64encode(self.nodes[0].get_keys()['my_peer'].public_key.key_to_bin()))
+        }
+
+        def get_storage_entries(node, key):
+            return node.get_overlay_by_class(DHTCommunity).storage.get(key)
+
+        # Introduce the nodes
+        yield self.introduce_nodes(DHTCommunity)
+
+        # Compute the key under which the block will be published
+        hash_key = sha1(self.nodes[0].get_keys()['my_peer'].public_key.key_to_bin()
+                        + DHTBlockEndpoint.KEY_SUFFIX).digest()
+
+        # Create an initial block, and store it in the TrustChain DB the first node
+        original_block = TestBlock(transaction={1: 'asd'}, key=self.nodes[0].get_keys()['my_peer'].key)
+        self.nodes[0].get_overlay_by_class(TrustChainCommunity).persistence.add_block(original_block)
+
+        self.assertEqual([], get_storage_entries(self.nodes[0], hash_key), "There should be no entries under this key")
+        self.assertEqual([], get_storage_entries(self.nodes[1], hash_key), "There should be no entries under this key")
+
+        self.nodes[0]._rest_manager._root_endpoint.getStaticEntity(b'dht').getStaticEntity(b'block') \
+            .publish_latest_block()
+        yield self.deliver_messages()
+        yield self.sleep()
+
+        node_0_responses = get_storage_entries(self.nodes[0], hash_key)
+        node_1_responses = get_storage_entries(self.nodes[1], hash_key)
+
+        # Check that under this key, both nodes store the same content
+        self.assertEqual(sorted(node_0_responses), sorted(node_1_responses), "The contents of the two storages "
+                                                                             "should be equal")
+
+        # Fetch the latest block from one of the nodes
+        response = yield self._get_style_requests.make_dht_block(param_dict)
+        self.assertTrue('block' in response and response['block'], "Response is not as expected: %s" % response)
+        response = b64decode(response['block'])
+
+        payload = self.deserialize_payload((HalfBlockPayload,), response)
+        reconstructed_block = self.nodes[0].get_overlay_by_class(TrustChainCommunity).get_block_class(
+            payload.type).from_payload(payload, self.serializer)
+
+        self.assertEqual(reconstructed_block, original_block, "The received block was not equal to the original block")
+
+    @inlineCallbacks
+    def test_block_implicit_maintenance(self):
+        """
+        Test the DHT block chunk republishing correctness when the block is added implicitly to the database
+        """
+        param_dict = {
+            'port': self.nodes[1].port,
+            'interface': self.nodes[1].interface,
+            'endpoint': 'dht/block',
+            'public_key': string_to_url(b64encode(self.nodes[0].get_keys()['my_peer'].public_key.key_to_bin()))
+        }
+
+        def get_storage_entries(node, key):
+            return node.get_overlay_by_class(DHTCommunity).storage.get(key)
+
+        # Introduce the nodes
+        yield self.introduce_nodes(DHTCommunity)
+
+        # Compute the key under which the block will be published
+        publisher_pk = self.nodes[0].get_keys()['my_peer'].public_key.key_to_bin()
+        hash_key = sha1(publisher_pk + DHTBlockEndpoint.KEY_SUFFIX).digest()
+
+        # Create an initial block, and store it in the TrustChain DB the first node
+        yield self.nodes[0].get_overlay_by_class(TrustChainCommunity).create_source_block(b'test', {})
+        original_block = self.nodes[0].get_overlay_by_class(TrustChainCommunity).persistence.get(publisher_pk, 1)
+        yield self.deliver_messages()
+        yield self.sleep()
+
+        self.assertEqual(3, len(get_storage_entries(self.nodes[0], hash_key)), "There should be 3 entries for node 0")
+        self.assertEqual(3, len(get_storage_entries(self.nodes[1], hash_key)), "There should be 3 entries for node 1")
+
+        self.nodes[0]._rest_manager._root_endpoint.getStaticEntity(b'dht').getStaticEntity(b'block') \
+            .publish_latest_block()
+        yield self.deliver_messages()
+        yield self.sleep()
+
+        # Check that no chunks have been duplicated in the local storage after the refresh is done
+        self.assertEqual(3, len(get_storage_entries(self.nodes[0], hash_key)), "There should be 3 entries for node 0")
+        self.assertEqual(3, len(get_storage_entries(self.nodes[1], hash_key)), "There should be 3 entries for node 1")
+
+        # Fetch the block, and check that it matches the original block
+        response = yield self._get_style_requests.make_dht_block(param_dict)
+        self.assertTrue('block' in response and response['block'], "Response is not as expected: %s" % response)
+        response = b64decode(response['block'])
+
+        payload = self.deserialize_payload((HalfBlockPayload,), response)
+        reconstructed_block = self.nodes[0].get_overlay_by_class(TrustChainCommunity).get_block_class(
+            payload.type).from_payload(payload, self.serializer)
+
+        self.assertEqual(reconstructed_block, original_block, "The received block was not equal to the original block")
