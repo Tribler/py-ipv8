@@ -56,6 +56,10 @@ class ReceiveAttestationVerifyCache(HashCache):
     def on_timeout(self):
         logging.warning("ReceiveAttestationVerify timed out!")
 
+    @property
+    def timeout_delay(self):
+        return 120.0
+
 
 class ReceiveAttestationRequestCache(PeerCache):
     """
@@ -90,6 +94,10 @@ class ProvingAttestationCache(HashCache):
 
     def on_timeout(self):
         logging.warning("ProvingAttestation timed out!")
+
+    @property
+    def timeout_delay(self):
+        return 120.0
 
 
 class PendingChallengeCache(HashCache):
