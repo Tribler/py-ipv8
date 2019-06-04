@@ -445,8 +445,8 @@ class TrustChainBlock(object):
         for key, value in self.__dict__.items():
             if key == 'key' or key == 'serializer' or key == 'crypto' or key == '_transaction':
                 continue
-            if isinstance(value, string_types) and key != "insert_time" and key != "type":
-                yield key, hexlify(value)
+            if isinstance(value, binary_type) and key != "insert_time" and key != "type":
+                yield key, hexlify(value).decode('utf-8')
             else:
                 yield key, value
 
