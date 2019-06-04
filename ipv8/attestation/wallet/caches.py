@@ -11,9 +11,10 @@ class HashCache(NumberCache):
     Cache tied to a hash.
     """
 
-    def __init__(self, request_cache, prefix, hash):
-        prefix, number = self.id_from_hash(prefix, hash)
+    def __init__(self, request_cache, prefix, cache_hash, id_format):
+        prefix, number = self.id_from_hash(prefix, cache_hash)
         super(HashCache, self).__init__(request_cache, prefix, number)
+        self.id_format = id_format
 
     @classmethod
     def id_from_hash(cls, prefix, cache_hash):
@@ -30,9 +31,10 @@ class PeerCache(NumberCache):
     Cache tied to a peer (mid).
     """
 
-    def __init__(self, request_cache, prefix, mid):
+    def __init__(self, request_cache, prefix, mid, id_format):
         prefix, number = self.id_from_address(prefix, mid)
         super(PeerCache, self).__init__(request_cache, prefix, number)
+        self.id_format = id_format
 
     @classmethod
     def id_from_address(cls, prefix, mid):
@@ -48,9 +50,9 @@ class ReceiveAttestationVerifyCache(HashCache):
     Pending attestation transfer, after request for attestation verification.
     """
 
-    def __init__(self, community, hash):
+    def __init__(self, community, cache_hash, id_format):
         super(ReceiveAttestationVerifyCache, self).__init__(community.request_cache, u"receive-verify-attestation",
-                                                            hash)
+                                                            cache_hash, id_format)
         self.attestation_map = set()
 
     def on_timeout(self):
@@ -67,9 +69,9 @@ class ReceiveAttestationRequestCache(PeerCache):
     Stores one-time key for this attribute attestation.
     """
 
-    def __init__(self, community, mid, key, name):
+    def __init__(self, community, mid, key, name, id_format):
         super(ReceiveAttestationRequestCache, self).__init__(community.request_cache, u"receive-request-attestation",
-                                                             mid)
+                                                             mid, id_format)
         self.attestation_map = set()
         self.key = key
         self.name = name
@@ -83,9 +85,10 @@ class ProvingAttestationCache(HashCache):
     Pending attestation verification, stores expected relmap, hashed challenges and completion callback.
     """
 
-    def __init__(self, community, hash, public_key=None, on_complete=lambda x, y: None):
-        super(ProvingAttestationCache, self).__init__(community.request_cache, u"proving-attestation", hash)
-        self.hash = hash
+    def __init__(self, community, cache_hash, id_format, public_key=None, on_complete=lambda x, y: None):
+        super(ProvingAttestationCache, self).__init__(community.request_cache, u"proving-attestation", cache_hash,
+                                                      id_format)
+        self.hash = cache_hash
         self.public_key = public_key
         self.relativity_map = {}
         self.hashed_challenges = []
@@ -104,8 +107,8 @@ class PendingChallengeCache(HashCache):
     """
     Single pending challenge for a ProvingAttestationCache.
     """
-    def __init__(self, community, hash, proving_cache, honesty_check=-1):
-        super(PendingChallengeCache, self).__init__(community.request_cache, u"proving-hash", hash)
+    def __init__(self, community, cache_hash, proving_cache, id_format, honesty_check=-1):
+        super(PendingChallengeCache, self).__init__(community.request_cache, u"proving-hash", cache_hash, id_format)
         self.proving_cache = proving_cache
         self.honesty_check = honesty_check
 

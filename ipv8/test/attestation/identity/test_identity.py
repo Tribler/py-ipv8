@@ -1,10 +1,10 @@
 from __future__ import absolute_import
 
 from twisted.internet.defer import inlineCallbacks
-from ....attestation.identity.community import IdentityCommunity
-from ....peer import Peer
 
 from ...base import MockIPv8, TestBase
+from ....attestation.identity.community import IdentityCommunity
+from ....peer import Peer
 
 
 class TestIdentityCommunity(TestBase):
@@ -47,7 +47,8 @@ class TestIdentityCommunity(TestBase):
 
         self.nodes[1].overlay.add_known_hash(b"a" * 20, b"attribute", self.nodes[0].my_peer.public_key.key_to_bin(),
                                              {b"a": b"b"})
-        self.nodes[0].overlay.request_attestation_advertisement(public_peer_1, b"a" * 20, b"attribute", {b"a": b"b"})
+        self.nodes[0].overlay.request_attestation_advertisement(public_peer_1, b"a" * 20, b"attribute", "id_metadata",
+                                                                {b"a": b"b"})
 
         yield self.deliver_messages()
 
@@ -69,7 +70,8 @@ class TestIdentityCommunity(TestBase):
 
         self.nodes[1].overlay.add_known_hash(b"a" * 20, b"attribute", self.nodes[0].my_peer.public_key.key_to_bin(),
                                              {b"c": b"d"})
-        self.nodes[0].overlay.request_attestation_advertisement(public_peer_1, b"a" * 20, b"attribute", {b"a": b"b"})
+        self.nodes[0].overlay.request_attestation_advertisement(public_peer_1, b"a" * 20, b"attribute", "id_metadata",
+                                                                {b"a": b"b"})
 
         yield self.deliver_messages()
 

@@ -12,8 +12,6 @@ from . import json_util as json
 from .base_endpoint import BaseEndpoint
 from ..attestation.identity.community import IdentityCommunity
 from ..attestation.wallet.community import AttestationCommunity
-from ..attestation.wallet.primitives.attestation import binary_relativity_sha256_4
-from ..attestation.wallet.primitives.cryptosystem.boneh import generate_keypair
 from ..database import database_blob
 from ..keyvault.crypto import default_eccrypto
 from ..peer import Peer
@@ -53,7 +51,7 @@ class AttestationEndpoint(BaseEndpoint):
         self.attestation_metadata[(peer, attribute_name)] = metadata
         return deferred
 
-    def on_attestation_complete(self, for_peer, attribute_name, attribute_hash, from_peer=None):
+    def on_attestation_complete(self, for_peer, attribute_name, attribute_hash, id_format, from_peer=None):
         """
         Callback for when an attestation has been completed for another peer.
         We can now sign for it.
@@ -61,7 +59,7 @@ class AttestationEndpoint(BaseEndpoint):
         metadata = self.attestation_metadata.get((for_peer, attribute_name), None)
         if for_peer.mid == self.identity_overlay.my_peer.mid:
             self.identity_overlay.request_attestation_advertisement(from_peer, attribute_hash, attribute_name,
-                                                                    metadata)
+                                                                    id_format, metadata)
         else:
             self.identity_overlay.add_known_hash(attribute_hash, attribute_name, for_peer.public_key.key_to_bin(),
                                                  metadata)
@@ -218,10 +216,11 @@ class AttestationEndpoint(BaseEndpoint):
 
     def render_POST(self, request):
         """
-        type=request&mid=mid_b64&attibute_name=attribute_name
+        type=request&mid=mid_b64&attibute_name=attribute_name&id_format=id_format
         type=allow_verify&mid=mid_b64&attibute_name=attribute_name
         type=attest&mid=mid_b64&attribute_name=attribute_name&attribute_value=attribute_value_b64
-        type=verify&mid=mid_b64&attribute_hash=attribute_hash_b64&attribute_values=attribute_value_b64,...
+        type=verify&mid=mid_b64&attribute_hash=attribute_hash_b64&id_format=id_format
+                   &attribute_values=attribute_value_b64,...
         """
         if not request.args or b'type' not in request.args:
             request.setResponseCode(http.BAD_REQUEST)
@@ -230,15 +229,16 @@ class AttestationEndpoint(BaseEndpoint):
         if request.args[b'type'][0] == b'request':
             mid_b64 = request.args[b'mid'][0]
             attribute_name = request.args[b'attribute_name'][0]
+            id_format = request.args.get(b'id_format', [b'id_metadata'])[0].decode('utf-8')
             peer = self.get_peer_from_mid(mid_b64)
             if peer:
-                _, key = generate_keypair()
-                metadata = {}
+                key = self.attestation_overlay.get_id_algorithm(id_format).generate_secret_key()
+                metadata = {"id_format": id_format}
                 if b'metadata' in request.args:
                     metadata_unicode = json.loads(b64decode(request.args[b'metadata'][0]))
                     for k, v in metadata_unicode.items():
                         metadata[cast_to_bin(k)] = cast_to_bin(v)
-                    self.attestation_metadata[(self.identity_overlay.my_peer, attribute_name)] = metadata
+                self.attestation_metadata[(self.identity_overlay.my_peer, attribute_name)] = metadata
                 self.attestation_overlay.request_attestation(peer, attribute_name, key, metadata)
         elif request.args[b'type'][0] == b'attest':
             mid_b64 = request.args[b'mid'][0]
@@ -254,13 +254,13 @@ class AttestationEndpoint(BaseEndpoint):
         elif request.args[b'type'][0] == b'verify':
             mid_b64 = request.args[b'mid'][0]
             attribute_hash = b64decode(request.args[b'attribute_hash'][0])
-            reference_values = [binary_relativity_sha256_4(b64decode(v))
-                                for v in request.args[b'attribute_values'][0].split(b',')]
+            reference_values = [b64decode(v) for v in request.args[b'attribute_values'][0].split(b',')]
+            id_format = request.args.get(b'id_format', [b'id_metadata'])[0].decode('utf-8')
             peer = self.get_peer_from_mid(mid_b64)
             if peer:
                 self.verification_output[b64decode(request.args[b'attribute_hash'][0])] =\
                     [(b64decode(v), 0.0) for v in request.args[b'attribute_values'][0].split(b',')]
                 self.attestation_overlay.verify_attestation_values(peer.address, attribute_hash, reference_values,
-                                                                   self.on_verification_results)
+                                                                   self.on_verification_results, id_format)
 
         return self.twisted_dumps({"success": True})

@@ -234,7 +234,7 @@ class HTTPPostRequesterAE(IPostStyleRequestsAE, HTTPRequester):
         interface, port, endpoint = HTTPRequester.get_access_parameters(param_dict)
 
         # Add the type of the request (request), and the rest of the parameters
-        request_parameters = {'type': 'request'}
+        request_parameters = {'type': 'request', 'id_format': 'id_metadata'}
 
         # Add the request parameters one-by-one; if required parameter is missing, then raise error
         if 'attribute_name' in param_dict:
@@ -326,7 +326,7 @@ class HTTPPostRequesterAE(IPostStyleRequestsAE, HTTPRequester):
         interface, port, endpoint = HTTPRequester.get_access_parameters(param_dict)
 
         # Add the type of the request (attest), and the rest of the parameters
-        request_parameters = {'type': 'verify'}
+        request_parameters = {'type': 'verify', 'id_format': 'id_metadata'}
 
         # Add the request parameters one-by-one; if required parameter is missing, then raise error
         if 'attribute_hash' in param_dict:

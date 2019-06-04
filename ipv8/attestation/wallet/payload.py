@@ -89,7 +89,7 @@ class ChallengeResponsePayload(Payload):
     """
     A challenge response from an Attestee to a Verifier
     """
-    format_list = ['20s', 'B']
+    format_list = ['20s', 'raw']
 
     def __init__(self, challenge_hash, response):
         self.challenge_hash = challenge_hash
@@ -97,7 +97,7 @@ class ChallengeResponsePayload(Payload):
 
     def to_pack_list(self):
         data = [('20s', self.challenge_hash),
-                ('B', self.response)]
+                ('raw', self.response)]
         return data
 
     @classmethod

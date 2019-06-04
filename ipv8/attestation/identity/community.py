@@ -3,6 +3,7 @@ from __future__ import absolute_import
 from binascii import unhexlify
 from time import time
 
+from ..identity_formats import FORMATS
 from ...attestation.trustchain.community import TrustChainCommunity
 from ...attestation.trustchain.listener import BlockListener
 from ...peer import Peer
@@ -21,7 +22,7 @@ class IdentityCommunity(TrustChainCommunity, BlockListener):
         TrustChainCommunity.__init__(self, *args, **kwargs)
         BlockListener.__init__(self)
 
-        self.add_listener(self, [b'id_metadata'])
+        self.add_listener(self, [identity_format.encode('utf-8') for identity_format in FORMATS])
 
         # Dict of hash -> (attribute_name, date, public_key)
         self.known_attestation_hashes = {}
@@ -64,16 +65,18 @@ class IdentityCommunity(TrustChainCommunity, BlockListener):
             return False
         return True
 
-    def request_attestation_advertisement(self, peer, attribute_hash, name, metadata=None):
+    def request_attestation_advertisement(self, peer, attribute_hash, name, block_type="id_metadata", metadata=None):
         """
         Request a peer to sign for our attestation advertisement.
         :param peer: the attestor of our block
         :param attribute_hash: the hash of the attestation
         :param name: the name of the attribute (metadata)
+        :param block_type: the type of block (from identity_foromats.py)
+        :param metadata: custom additional metadata
         """
         self.sign_block(peer,
                         public_key=peer.public_key.key_to_bin(),
-                        block_type=b"id_metadata",
+                        block_type=block_type.encode('utf-8'),
                         transaction={
                             b"hash": attribute_hash,
                             b"name": name,
