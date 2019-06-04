@@ -1,16 +1,16 @@
 from __future__ import absolute_import
 
+import time
 from binascii import hexlify
 from hashlib import sha256
-import time
 
-from six import string_types
+from six import binary_type
 
+from .payload import HalfBlockPayload
 from ...database import database_blob
 from ...keyvault.crypto import default_eccrypto
 from ...messaging.deprecated.encoding import decode, encode
 from ...messaging.serialization import default_serializer
-from .payload import HalfBlockPayload
 from ...util import old_round
 
 
@@ -54,13 +54,13 @@ class TrustChainBlock(object):
              self.previous_hash, self.signature, self.timestamp, self.insert_time) = (data[0], data[2], data[3],
                                                                                       data[4], data[5], data[6],
                                                                                       data[7], data[8], data[9])
-            self.type = self.type if isinstance(self.type, bytes) else str(self.type)
-            self.public_key = self.public_key if isinstance(self.public_key, bytes) else str(self.public_key)
+            self.type = self.type if isinstance(self.type, bytes) else self.type.encode()
+            self.public_key = self.public_key if isinstance(self.public_key, bytes) else bytes(self.public_key)
             self.link_public_key = (self.link_public_key if isinstance(self.link_public_key, bytes)
-                                    else str(self.link_public_key))
+                                    else bytes(self.link_public_key))
             self.previous_hash = (self.previous_hash if isinstance(self.previous_hash, bytes)
-                                  else str(self.previous_hash))
-            self.signature = self.signature if isinstance(self.signature, bytes) else str(self.signature)
+                                  else bytes(self.previous_hash))
+            self.signature = self.signature if isinstance(self.signature, bytes) else bytes(self.signature)
         self.hash = self.calculate_hash()
         self.crypto = default_eccrypto
 
@@ -445,8 +445,12 @@ class TrustChainBlock(object):
         for key, value in self.__dict__.items():
             if key == 'key' or key == 'serializer' or key == 'crypto' or key == '_transaction':
                 continue
-            if isinstance(value, string_types) and key != "insert_time" and key != "type":
-                yield key, hexlify(value)
+            if isinstance(value, binary_type) and key != "insert_time" and key != "type":
+                yield key, hexlify(value).decode()
+            elif key == 'type':
+                yield key, value.decode()
+            elif key == 'transaction':
+                yield key, {k.decode(): (v.decode() if isinstance(v, binary_type) else v) for k, v in value.items()}
             else:
                 yield key, value
 

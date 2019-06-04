@@ -18,9 +18,9 @@ class TrustchainEndpoint(BaseEndpoint):
 
         trustchain_overlays = [overlay for overlay in session.overlays if isinstance(overlay, TrustChainCommunity)]
         if trustchain_overlays:
-            self.putChild("recent", TrustchainRecentEndpoint(trustchain_overlays[0]))
-            self.putChild("blocks", TrustchainBlocksEndpoint(trustchain_overlays[0]))
-            self.putChild("users", TrustchainUsersEndpoint(trustchain_overlays[0]))
+            self.putChild(b"recent", TrustchainRecentEndpoint(trustchain_overlays[0]))
+            self.putChild(b"blocks", TrustchainBlocksEndpoint(trustchain_overlays[0]))
+            self.putChild(b"users", TrustchainUsersEndpoint(trustchain_overlays[0]))
 
 
 class TrustchainRecentEndpoint(BaseEndpoint):
@@ -32,11 +32,11 @@ class TrustchainRecentEndpoint(BaseEndpoint):
     def render_GET(self, request):
         limit = 10
         offset = 0
-        if request.args and 'limit' in request.args:
-            limit = int(request.args['limit'][0])
+        if request.args and b'limit' in request.args:
+            limit = int(request.args[b'limit'][0])
 
-        if request.args and 'offset' in request.args:
-            offset = int(request.args['offset'][0])
+        if request.args and b'offset' in request.args:
+            offset = int(request.args[b'offset'][0])
 
         return self.twisted_dumps({
             "blocks": [dict(block) for block in
@@ -95,8 +95,8 @@ class TrustchainUsersEndpoint(BaseEndpoint):
 
     def render_GET(self, request):
         limit = 100
-        if 'limit' in request.args:
-            limit = int(request.args['limit'][0])
+        if b'limit' in request.args:
+            limit = int(request.args[b'limit'][0])
 
         users_info = self.trustchain.persistence.get_users(limit=limit)
         return self.twisted_dumps({"users": users_info})
@@ -109,7 +109,7 @@ class TrustchainSpecificUserEndpoint(BaseEndpoint):
         self.trustchain = trustchain
         self.pub_key = pub_key
 
-        self.putChild("blocks", TrustchainSpecificUserBlocksEndpoint(self.trustchain, self.pub_key))
+        self.putChild(b"blocks", TrustchainSpecificUserBlocksEndpoint(self.trustchain, self.pub_key))
 
 
 class TrustchainSpecificUserBlocksEndpoint(BaseEndpoint):
@@ -128,8 +128,8 @@ class TrustchainSpecificUserBlocksEndpoint(BaseEndpoint):
             return self.twisted_dumps({"error": "the user with the provided public key could not be found"})
 
         limit = 100
-        if 'limit' in request.args:
-            limit = int(request.args['limit'][0])
+        if b'limit' in request.args:
+            limit = int(request.args[b'limit'][0])
 
         latest_blocks = self.trustchain.persistence.get_latest_blocks(self.pub_key, limit=limit)
         blocks_list = []

@@ -18,10 +18,10 @@ class TunnelEndpoint(BaseEndpoint):
 
         tunnel_overlays = [overlay for overlay in session.overlays if isinstance(overlay, TunnelCommunity)]
         if tunnel_overlays:
-            self.putChild("circuits", TunnelCircuitsEndpoint(tunnel_overlays[0]))
-            self.putChild("relays", TunnelRelaysEndpoint(tunnel_overlays[0]))
-            self.putChild("exits", TunnelExitsEndpoint(tunnel_overlays[0]))
-            self.putChild("swarms", TunnelSwarmsEndpoint(tunnel_overlays[0]))
+            self.putChild(b"circuits", TunnelCircuitsEndpoint(tunnel_overlays[0]))
+            self.putChild(b"relays", TunnelRelaysEndpoint(tunnel_overlays[0]))
+            self.putChild(b"exits", TunnelExitsEndpoint(tunnel_overlays[0]))
+            self.putChild(b"swarms", TunnelSwarmsEndpoint(tunnel_overlays[0]))
 
 
 class TunnelCircuitsEndpoint(BaseEndpoint):
@@ -43,8 +43,8 @@ class TunnelCircuitsEndpoint(BaseEndpoint):
                 "circuit_id": circuit.circuit_id,
                 "goal_hops": circuit.goal_hops,
                 "actual_hops": len(circuit.hops),
-                "verified_hops": [hexlify(hop.mid) for hop in circuit.hops],
-                "unverified_hop": hexlify(circuit.unverified_hop.mid) if circuit.unverified_hop else '',
+                "verified_hops": [hexlify(hop.mid).decode() for hop in circuit.hops],
+                "unverified_hop": hexlify(circuit.unverified_hop.mid).decode() if circuit.unverified_hop else '',
                 "type": circuit.ctype,
                 "state": circuit.state,
                 "bytes_up": circuit.bytes_up,
@@ -117,7 +117,7 @@ class TunnelSwarmsEndpoint(BaseEndpoint):
             return self.twisted_dumps({"error": "tunnel community not found"})
 
         return self.twisted_dumps({"swarms": [{
-            "info_hash": hexlify(swarm.info_hash),
+            "info_hash": hexlify(swarm.info_hash).decode(),
             "num_seeders": swarm.get_num_seeders(),
             "num_connections": swarm.get_num_connections(),
             "num_connections_incomplete": swarm.get_num_connections_incomplete(),
