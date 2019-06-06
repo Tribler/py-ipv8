@@ -2,8 +2,8 @@ from __future__ import absolute_import
 
 from twisted.trial import unittest
 
-from ......attestation.wallet.primitives.cryptosystem.ec import esum, weilpairing
-from ......attestation.wallet.primitives.cryptosystem.value import FP2Value
+from ......attestation.wallet.bonehexact.cryptosystem.ec import esum, weilpairing
+from ......attestation.wallet.bonehexact.cryptosystem.value import FP2Value
 
 
 class TestPairing(unittest.TestCase):

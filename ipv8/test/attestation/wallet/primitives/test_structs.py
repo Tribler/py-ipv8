@@ -2,8 +2,9 @@ from __future__ import absolute_import
 
 from twisted.trial import unittest
 
-from .....attestation.wallet.primitives.cryptosystem.value import FP2Value
-from .....attestation.wallet.primitives.structs import *
+from .....attestation.wallet.bonehexact.cryptosystem.value import FP2Value
+from .....attestation.wallet.bonehexact.structs import (Attestation, BitPairAttestation, BonehPrivateKey,
+                                                        BonehPublicKey, pack_pair, unpack_pair)
 
 
 class TestStructs(unittest.TestCase):
