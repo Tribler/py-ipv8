@@ -5,25 +5,25 @@ Every node has a chain and these chains intertwine by blocks shared by chains.
 """
 from __future__ import absolute_import
 
-from binascii import hexlify, unhexlify
 import logging
 import random
 import struct
+from binascii import hexlify, unhexlify
 from functools import wraps
 from threading import RLock
 
 from twisted.internet import reactor
-from twisted.internet.defer import Deferred, succeed, fail
+from twisted.internet.defer import Deferred, fail, succeed
 from twisted.internet.task import LoopingCall
 
-from ...attestation.trustchain.settings import TrustChainSettings
-from .block import TrustChainBlock, ValidationResult, EMPTY_PK, GENESIS_SEQ, UNKNOWN_SEQ, ANY_COUNTERPARTY_PK
-from .caches import CrawlRequestCache, HalfBlockSignCache, IntroCrawlTimeout, ChainCrawlCache
+from .block import ANY_COUNTERPARTY_PK, EMPTY_PK, GENESIS_SEQ, TrustChainBlock, UNKNOWN_SEQ, ValidationResult
+from .caches import ChainCrawlCache, CrawlRequestCache, HalfBlockSignCache, IntroCrawlTimeout
 from .database import TrustChainDB
+from .payload import *
+from ...attestation.trustchain.settings import TrustChainSettings
 from ...community import Community
 from ...lazy_community import lazy_wrapper, lazy_wrapper_unsigned, lazy_wrapper_unsigned_wd
 from ...messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
-from .payload import *
 from ...peer import Peer
 from ...requestcache import RandomNumberCache, RequestCache
 from ...util import addCallback
@@ -415,9 +415,11 @@ class TrustChainCommunity(Community):
         Crawl the whole chain of a specific peer.
         :param latest_block_num: The latest block number of the peer in question, if available.
         """
-        cache = ChainCrawlCache(self, peer, known_chain_length=latest_block_num)
+        crawl_deferred = Deferred()
+        cache = ChainCrawlCache(self, peer, crawl_deferred, known_chain_length=latest_block_num)
         self.request_cache.add(cache)
         reactor.callFromThread(self.send_next_partial_chain_crawl_request, cache)
+        return crawl_deferred
 
     def crawl_lowest_unknown(self, peer, latest_block_num=None):
         """
@@ -464,6 +466,7 @@ class TrustChainCommunity(Community):
         elif cache.current_request_attempts == 3:
             # We already tried the same request three times, bail out
             self.request_cache.pop(u"chaincrawl", cache.number)
+            cache.crawl_deferred.callback(None)
             return
 
         cache.current_request_attempts += 1
@@ -479,6 +482,7 @@ class TrustChainCommunity(Community):
         lowest_unknown = self.persistence.get_lowest_sequence_number_unknown(cache.peer.public_key.key_to_bin())
         if cache.known_chain_length >= 0 and cache.known_chain_length == lowest_unknown - 1:
             self.request_cache.pop(u"chaincrawl", cache.number)
+            cache.crawl_deferred.callback(None)
             return
 
         latest_block = self.persistence.get_latest(cache.peer.public_key.key_to_bin())
@@ -493,6 +497,7 @@ class TrustChainCommunity(Community):
                 return
             else:
                 self.request_cache.pop(u"chaincrawl", cache.number)
+                cache.crawl_deferred.callback(None)
                 return
 
         start, stop = self.persistence.get_lowest_range_unknown(cache.peer.public_key.key_to_bin())

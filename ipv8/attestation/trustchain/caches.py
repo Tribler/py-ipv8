@@ -1,8 +1,8 @@
 from __future__ import absolute_import
 
+import logging
 from binascii import hexlify
 from functools import reduce
-import logging
 
 from twisted.internet import reactor
 from twisted.internet.defer import Deferred
@@ -52,10 +52,11 @@ class ChainCrawlCache(IntroCrawlTimeout):
     """
     This cache keeps track of the crawl of a whole chain.
     """
-    def __init__(self, community, peer, known_chain_length=-1):
+    def __init__(self, community, peer, crawl_deferred, known_chain_length=-1):
         super(ChainCrawlCache, self).__init__(community, peer, identifier=u"chaincrawl")
         self.community = community
         self.current_crawl_deferred = None
+        self.crawl_deferred = crawl_deferred
         self.peer = peer
         self.known_chain_length = known_chain_length
 
