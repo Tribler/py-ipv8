@@ -5,25 +5,25 @@ Every node has a chain and these chains intertwine by blocks shared by chains.
 """
 from __future__ import absolute_import
 
-from binascii import hexlify, unhexlify
 import logging
 import random
 import struct
+from binascii import hexlify, unhexlify
 from functools import wraps
 from threading import RLock
 
 from twisted.internet import reactor
-from twisted.internet.defer import Deferred, succeed, fail
+from twisted.internet.defer import Deferred, fail, succeed
 from twisted.internet.task import LoopingCall
 
-from ...attestation.trustchain.settings import TrustChainSettings
-from .block import TrustChainBlock, ValidationResult, EMPTY_PK, GENESIS_SEQ, UNKNOWN_SEQ, ANY_COUNTERPARTY_PK
-from .caches import CrawlRequestCache, HalfBlockSignCache, IntroCrawlTimeout, ChainCrawlCache
+from .block import ANY_COUNTERPARTY_PK, EMPTY_PK, GENESIS_SEQ, TrustChainBlock, UNKNOWN_SEQ, ValidationResult
+from .caches import ChainCrawlCache, CrawlRequestCache, HalfBlockSignCache, IntroCrawlTimeout
 from .database import TrustChainDB
+from .payload import *
+from ...attestation.trustchain.settings import TrustChainSettings
 from ...community import Community
 from ...lazy_community import lazy_wrapper, lazy_wrapper_unsigned, lazy_wrapper_unsigned_wd
 from ...messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
-from .payload import *
 from ...peer import Peer
 from ...requestcache import RandomNumberCache, RequestCache
 from ...util import addCallback

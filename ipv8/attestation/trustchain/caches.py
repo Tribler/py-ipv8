@@ -1,8 +1,8 @@
 from __future__ import absolute_import
 
+import logging
 from binascii import hexlify
 from functools import reduce
-import logging
 
 from twisted.internet import reactor
 from twisted.internet.defer import Deferred
