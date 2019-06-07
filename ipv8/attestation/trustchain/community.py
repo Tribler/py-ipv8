@@ -415,9 +415,11 @@ class TrustChainCommunity(Community):
         Crawl the whole chain of a specific peer.
         :param latest_block_num: The latest block number of the peer in question, if available.
         """
-        cache = ChainCrawlCache(self, peer, known_chain_length=latest_block_num)
+        crawl_deferred = Deferred()
+        cache = ChainCrawlCache(self, peer, crawl_deferred, known_chain_length=latest_block_num)
         self.request_cache.add(cache)
         reactor.callFromThread(self.send_next_partial_chain_crawl_request, cache)
+        return crawl_deferred
 
     def crawl_lowest_unknown(self, peer, latest_block_num=None):
         """
@@ -464,6 +466,7 @@ class TrustChainCommunity(Community):
         elif cache.current_request_attempts == 3:
             # We already tried the same request three times, bail out
             self.request_cache.pop(u"chaincrawl", cache.number)
+            cache.crawl_deferred.callback(None)
             return
 
         cache.current_request_attempts += 1
@@ -479,6 +482,7 @@ class TrustChainCommunity(Community):
         lowest_unknown = self.persistence.get_lowest_sequence_number_unknown(cache.peer.public_key.key_to_bin())
         if cache.known_chain_length >= 0 and cache.known_chain_length == lowest_unknown - 1:
             self.request_cache.pop(u"chaincrawl", cache.number)
+            cache.crawl_deferred.callback(None)
             return
 
         latest_block = self.persistence.get_latest(cache.peer.public_key.key_to_bin())
@@ -493,6 +497,7 @@ class TrustChainCommunity(Community):
                 return
             else:
                 self.request_cache.pop(u"chaincrawl", cache.number)
+                cache.crawl_deferred.callback(None)
                 return
 
         start, stop = self.persistence.get_lowest_range_unknown(cache.peer.public_key.key_to_bin())
