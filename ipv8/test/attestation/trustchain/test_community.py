@@ -1,17 +1,18 @@
 from __future__ import absolute_import
 
 from six.moves import xrange
+
 from twisted.internet.defer import inlineCallbacks
 
+from ...attestation.trustchain.test_block import TestBlock
+from ...base import TestBase
+from ...mocking.ipv8 import MockIPv8
 from ....attestation.trustchain.block import TrustChainBlock
 from ....attestation.trustchain.caches import CrawlRequestCache
 from ....attestation.trustchain.community import TrustChainCommunity, UNKNOWN_SEQ
 from ....attestation.trustchain.listener import BlockListener
-from ...attestation.trustchain.test_block import TestBlock
 from ....database import database_blob
 from ....keyvault.crypto import default_eccrypto
-from ...base import TestBase
-from ...mocking.ipv8 import MockIPv8
 
 
 class DummyBlock(TrustChainBlock):
@@ -571,6 +572,32 @@ class TestTrustChainCommunity(TestBase):
         yield self.sleep(0.2)  # Let blocks propagate
 
         self.assertEqual(self.nodes[1].overlay.persistence.get_number_of_known_blocks(), 4)
+
+    @inlineCallbacks
+    def test_chain_crawl_unknown_length(self):
+        """
+        Test crawling a chain with unknown length
+        """
+        def create_blocks(num):
+            self.nodes[0].endpoint.close()
+            key = default_eccrypto.generate_key(u'curve25519').pub().key_to_bin()
+            for _ in range(num):
+                self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=key,
+                                                 block_type=b'test', transaction={})
+            self.nodes[0].endpoint.open()
+
+        create_blocks(4)
+
+        yield self.nodes[1].overlay.crawl_chain(self.nodes[0].overlay.my_peer)
+
+        self.assertEqual(self.nodes[1].overlay.persistence.get_number_of_known_blocks(), 4)
+
+        # Now peer 0 create another block, we should be able to get that one too
+        create_blocks(3)
+
+        yield self.nodes[1].overlay.crawl_chain(self.nodes[0].overlay.my_peer)
+
+        self.assertEqual(self.nodes[1].overlay.persistence.get_number_of_known_blocks(), 7)
 
     @inlineCallbacks
     def test_process_block_unrelated_block(self):
