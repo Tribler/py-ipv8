@@ -576,6 +576,32 @@ class TestTrustChainCommunity(TestBase):
         self.assertEqual(len(test_blocks), 4)
 
     @inlineCallbacks
+    def test_chain_crawl_unknown_length(self):
+        """
+        Test crawling a chain with unknown length
+        """
+        def create_blocks(num):
+            self.nodes[0].endpoint.close()
+            key = default_eccrypto.generate_key(u'curve25519').pub().key_to_bin()
+            for _ in range(num):
+                self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=key,
+                                                 block_type=b'test', transaction={})
+            self.nodes[0].endpoint.open()
+
+        create_blocks(4)
+
+        yield self.nodes[1].overlay.crawl_chain(self.nodes[0].overlay.my_peer)
+
+        self.assertEqual(self.nodes[1].overlay.persistence.get_number_of_known_blocks(), 4)
+
+        # Now peer 0 create another block, we should be able to get that one too
+        create_blocks(3)
+
+        yield self.nodes[1].overlay.crawl_chain(self.nodes[0].overlay.my_peer)
+
+        self.assertEqual(self.nodes[1].overlay.persistence.get_number_of_known_blocks(), 7)
+
+    @inlineCallbacks
     def test_process_block_unrelated_block(self):
         """
         Test whether we can invoke process_block directly with a block not made by node 0 or node 1

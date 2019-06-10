@@ -415,7 +415,7 @@ class TrustChainCommunity(Community):
         # determine if we want to sign this block
         return addCallback(self.should_sign(blk), on_should_sign_outcome)
 
-    def crawl_chain(self, peer, latest_block_num=None):
+    def crawl_chain(self, peer, latest_block_num=0):
         """
         Crawl the whole chain of a specific peer.
         :param latest_block_num: The latest block number of the peer in question, if available.
@@ -485,14 +485,30 @@ class TrustChainCommunity(Community):
         :param cache: The cache that stores progress regarding the chain crawl.
         """
         lowest_unknown = self.persistence.get_lowest_sequence_number_unknown(cache.peer.public_key.key_to_bin())
-        if cache.known_chain_length >= 0 and cache.known_chain_length == lowest_unknown - 1:
+        if cache.known_chain_length and cache.known_chain_length == lowest_unknown - 1:
+            # At this point, we have all the blocks we need
             self.request_cache.pop(u"chaincrawl", cache.number)
             cache.crawl_deferred.callback(None)
             return
 
+        # Do we know the chain length of the crawled peer? If not, make sure we get to know this first.
+        def on_latest_block(blocks):
+            if not blocks:
+                self.request_cache.pop(u"chaincrawl", cache.number)
+                cache.crawl_deferred.callback(None)
+                return
+
+            cache.known_chain_length = blocks[0].sequence_number
+            self.send_next_partial_chain_crawl_request(cache)
+
+        if not cache.known_chain_length:
+            self.send_crawl_request(cache.peer, cache.peer.public_key.key_to_bin(), -1, -1).addCallback(on_latest_block)
+            return
+
         latest_block = self.persistence.get_latest(cache.peer.public_key.key_to_bin())
-        if not latest_block and cache.known_chain_length > 0:
-            # We have no knowledge of this peer, simply send a request from the genesis block to known chain length
+        if not latest_block:
+            # We have no knowledge of this peer but we have the length of the chain.
+            # Simply send a request from the genesis block to the known chain length.
             self.perform_partial_chain_crawl(cache, 1, cache.known_chain_length)
             return
         elif latest_block and lowest_unknown == latest_block.sequence_number + 1:
