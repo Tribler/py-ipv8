@@ -10,7 +10,7 @@ from threading import Lock
 
 from twisted.internet.defer import inlineCallbacks
 
-from .bonehexact import BonehExactAlgorithm
+from .bonehexact.algorithm import BonehExactAlgorithm
 from .caches import (HashCache, PeerCache, PendingChallengeCache, ProvingAttestationCache,
                      ReceiveAttestationRequestCache, ReceiveAttestationVerifyCache)
 from .database import AttestationsDB
@@ -240,7 +240,7 @@ class AttestationCommunity(Community):
         sequence_number = 0
         for i in range(0, len(blob), 800):
             blob_chunk = blob[i:i + 800]
-
+            self.logger.debug("Sending attestation chunk %d to %s", sequence_number, str(socket_address))
             global_time = self.claim_global_time()
             auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
             payload = AttestationChunkPayload(sha1(blob).digest(), sequence_number, blob_chunk).to_pack_list()
@@ -271,8 +271,9 @@ class AttestationCommunity(Community):
                 if sha1(serialized).digest() == payload.hash:
                     self.request_cache.pop(*hash_id)
                     self.on_received_attestation(peer, unserialized, payload.hash)
-            except:
-                pass
+            except IndexError:
+                self.logger.debug("Received attestation chunk %d for proving by %s", payload.sequence_number,
+                                  str(peer))
         elif self.request_cache.has(*peer_id):
             cache = self.request_cache.get(*peer_id)
             cache.attestation_map |= {(payload.sequence_number, payload.data), }
@@ -288,8 +289,9 @@ class AttestationCommunity(Community):
                     cache = self.request_cache.pop(*peer_id)
                     self.on_attestation_complete(unserialized, cache.key, peer, cache.name, payload.hash,
                                                  cache.id_format)
-            except:
-                pass
+            except IndexError:
+                self.logger.debug("Received attestation chunk %d for my attribute %s", payload.sequence_number,
+                                  cache.name)
         else:
             self.logger.warning("Received Attestation chunk which we did not request!")
 
@@ -303,7 +305,6 @@ class AttestationCommunity(Community):
         algorithm = self.get_id_algorithm(attestation.id_format)
 
         relativity_map = algorithm.create_certainty_aggregate()
-        challenges = []
         hashed_challenges = []
         cache = self.request_cache.get(*HashCache.id_from_hash(u"proving-attestation", attestation_hash))
         cache.public_key = attestation.PK
@@ -314,8 +315,14 @@ class AttestationCommunity(Community):
         cache.relativity_map = relativity_map
         cache.hashed_challenges = hashed_challenges
         cache.challenges = challenges
-
-        for challenge in challenges[:10]:
+        self.logger.debug("Sending %d challenges to %s", len(challenges), str(peer))
+        remaining = 10
+        for challenge in challenges:
+            if remaining == 0:
+                break
+            elif self.request_cache.has(*PendingChallengeCache.id_from_hash(u"proving-hash", sha1(challenge).digest())):
+                continue
+            remaining -= 1
             self.request_cache.add(PendingChallengeCache(self, sha1(challenge).digest(), cache, cache.id_format))
 
             global_time = self.claim_global_time()

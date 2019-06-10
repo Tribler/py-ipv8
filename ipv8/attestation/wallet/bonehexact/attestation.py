@@ -5,9 +5,9 @@ from hashlib import sha256, sha512
 from random import randint, shuffle
 from threading import Lock
 
-from .cryptosystem.boneh import decode, encode
-from .cryptosystem.value import FP2Value
-from .structs import Attestation, BitPairAttestation
+from .structs import BonehAttestation, BitPairAttestation
+from ..primitives.boneh import decode, encode
+from ..primitives.value import FP2Value
 
 multithread_update_lock = Lock()
 
@@ -51,7 +51,7 @@ def attest(PK, value, bitspace):
     bitpairs = []
     for (i, e) in out_private:
         bitpairs.append(BitPairAttestation(out_public[i], out_public[i + 1], e))
-    return Attestation(PK, bitpairs)
+    return BonehAttestation(PK, bitpairs)
 
 
 def sha512_as_int(value):

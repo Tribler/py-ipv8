@@ -3,7 +3,7 @@ from __future__ import division
 
 from twisted.trial import unittest
 
-from ......attestation.wallet.bonehexact.cryptosystem.value import FP2Value
+from .....attestation.wallet.primitives.value import FP2Value
 
 
 class TestFP2Value(unittest.TestCase):

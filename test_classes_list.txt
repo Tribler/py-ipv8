@@ -20,11 +20,11 @@ ipv8/test/attestation/trustchain/test_community.py:TestTrustChainCommunity
 ipv8/test/attestation/trustchain/test_block.py:TestTrustChainBlock
 ipv8/test/attestation/trustchain/test_database.py:TestTrustChainDB
 ipv8/test/attestation/identity/test_identity.py:TestIdentityCommunity
-ipv8/test/attestation/wallet/primitives/cryptosystem/test_boneh.py:TestBoneh
-ipv8/test/attestation/wallet/primitives/cryptosystem/test_ec.py:TestPairing
-ipv8/test/attestation/wallet/primitives/cryptosystem/test_value.py:TestFP2Value
-ipv8/test/attestation/wallet/primitives/test_attestation.py:TestAttestation
-ipv8/test/attestation/wallet/primitives/test_structs.py:TestStructs
+ipv8/test/attestation/wallet/primitives/test_boneh.py:TestBoneh
+ipv8/test/attestation/wallet/primitives/test_ec.py:TestPairing
+ipv8/test/attestation/wallet/primitives/test_value.py:TestFP2Value
+ipv8/test/attestation/wallet/bonehexact/test_attestation.py:TestAttestation
+ipv8/test/attestation/wallet/bonehexact/test_structs.py:TestStructs
 ipv8/test/attestation/wallet/test_attestation_community.py:TestCommunity
 
 ipv8/test/messaging/test_serialization.py:TestSerializer

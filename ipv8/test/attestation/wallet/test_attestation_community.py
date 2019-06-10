@@ -6,9 +6,10 @@ from binascii import unhexlify
 from twisted.internet.defer import inlineCallbacks
 
 from ...base import MockIPv8, TestBase
-from ....attestation.wallet.bonehexact.structs import Attestation, BonehPrivateKey
+from ....attestation.wallet.bonehexact.structs import BonehAttestation
 from ....attestation.wallet.community import AttestationCommunity
 from ....attestation.wallet.database import AttestationsDB
+from ....attestation.wallet.primitives.structs import BonehPrivateKey
 
 
 class TestCommunity(TestBase):
@@ -131,7 +132,7 @@ class TestCommunity(TestBase):
                                                   TestCommunity.private_key,
                                                   metadata={"id_format": "id_metadata_big"})
 
-        yield self.deliver_messages(1.0)
+        yield self.deliver_messages(1.5)
 
         db_entries = self.nodes[1].overlay.database.get_all()
         self.assertEqual(1, len(db_entries))
@@ -146,7 +147,7 @@ class TestCommunity(TestBase):
         filename = os.path.join(os.path.dirname(__file__), 'attestation.txt')
         with open(filename, 'r') as f:
             serialized = unhexlify(f.read().strip())
-        attestation = Attestation.unserialize(serialized)
+        attestation = BonehAttestation.unserialize(serialized, "id_metadata")
         attestation_hash = unhexlify('9019195eb75c07ec3e86a62c314dcf5ef2bbcc0d')
         self.nodes[0].overlay.database.insert_attestation(attestation, TestCommunity.private_key, "id_metadata")
         self.nodes[0].overlay.attestation_keys[attestation_hash] = (TestCommunity.private_key, "id_metadata")
@@ -173,11 +174,10 @@ class TestCommunity(TestBase):
         """
         Check if an attestation can be verified for id_metadata_big.
         """
-        serialized = ""
         filename = os.path.join(os.path.dirname(__file__), 'attestation_big.txt')
         with open(filename, 'r') as f:
             serialized = unhexlify(f.read().strip())
-        attestation = Attestation.unserialize(serialized)
+        attestation = BonehAttestation.unserialize(serialized, "id_metadata_big")
         attestation_hash = unhexlify('113d31c31b626268a16c198cbd58dd5aa8d1d81c')
         self.nodes[0].overlay.database.insert_attestation(attestation, TestCommunity.private_key, "id_metadata_big")
         self.nodes[0].overlay.attestation_keys[attestation_hash] = (TestCommunity.private_key, "id_metadata_big")
@@ -211,7 +211,7 @@ class TestCommunity(TestBase):
 
         # Create an attestation and write it to file.
         # Then close the database.
-        attestation = Attestation(TestCommunity.private_key.public_key(), [])
+        attestation = BonehAttestation(TestCommunity.private_key.public_key(), [], "id_metadata")
         overlay.on_attestation_complete(attestation, TestCommunity.private_key, None, "test", b"a" * 20, "id_metadata")
         overlay.database.close(True)
 

@@ -9,7 +9,7 @@ from .....attestation.wallet.bonehexact.attestation import (attest, binary_relat
                                                             create_challenge_response, create_empty_relativity_map,
                                                             decode, generate_modular_additive_inverse,
                                                             process_challenge_response)
-from .....attestation.wallet.bonehexact.structs import BonehPrivateKey
+from .....attestation.wallet.primitives.structs import BonehPrivateKey
 
 
 class TestAttestation(unittest.TestCase):

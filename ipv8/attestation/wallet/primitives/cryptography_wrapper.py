@@ -2,7 +2,7 @@ from __future__ import absolute_import
 
 from cryptography.hazmat.backends import default_backend
 
-from .....util import cast_to_bin
+from ....util import cast_to_bin
 
 
 def generate_safe_prime(bit_length, backend=default_backend()):
