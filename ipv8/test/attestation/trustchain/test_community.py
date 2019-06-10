@@ -1,17 +1,18 @@
 from __future__ import absolute_import
 
 from six.moves import xrange
+
 from twisted.internet.defer import inlineCallbacks
 
+from ...attestation.trustchain.test_block import TestBlock
+from ...base import TestBase
+from ...mocking.ipv8 import MockIPv8
 from ....attestation.trustchain.block import TrustChainBlock
 from ....attestation.trustchain.caches import CrawlRequestCache
 from ....attestation.trustchain.community import TrustChainCommunity, UNKNOWN_SEQ
 from ....attestation.trustchain.listener import BlockListener
-from ...attestation.trustchain.test_block import TestBlock
 from ....database import database_blob
 from ....keyvault.crypto import default_eccrypto
-from ...base import TestBase
-from ...mocking.ipv8 import MockIPv8
 
 
 class DummyBlock(TrustChainBlock):
@@ -570,7 +571,9 @@ class TestTrustChainCommunity(TestBase):
         yield self.introduce_nodes()
         yield self.sleep(0.2)  # Let blocks propagate
 
-        self.assertEqual(self.nodes[1].overlay.persistence.get_number_of_known_blocks(), 4)
+        node0_pubkey = self.nodes[0].overlay.my_peer.public_key.key_to_bin()
+        test_blocks = self.nodes[1].overlay.persistence.get_latest_blocks(node0_pubkey, block_types=[b'test'])
+        self.assertEqual(len(test_blocks), 4)
 
     @inlineCallbacks
     def test_process_block_unrelated_block(self):
