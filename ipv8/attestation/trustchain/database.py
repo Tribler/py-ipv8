@@ -169,7 +169,7 @@ class TrustChainDB(Database):
         """
         if block_types:
             return self._getall(u"WHERE public_key = ? AND type IN (?) ORDER BY sequence_number DESC LIMIT ?",
-                                (database_blob(public_key), u','.join(block_types), limit))
+                                (database_blob(public_key), b','.join(block_types), limit))
         else:
             return self._getall(u"WHERE public_key = ? ORDER BY sequence_number DESC LIMIT ?",
                                 (database_blob(public_key), limit))
