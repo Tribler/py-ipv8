@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 
 import abc
+import hashlib
 
 import six
 
@@ -19,6 +20,12 @@ FORMATS = {
         "algorithm": "bonehexact",
         "key_size": 96,  # Pairings over 9216 bit space
         "hash": "sha512"  # 64 byte hash
+    },
+    "id_metadata_range_18plus": {
+        "algorithm": "pengbaorange",
+        "key_size": 32,  # Pairings over 1024 bit space
+        "min": 18,
+        "max": 200
     }
 }
 
@@ -27,6 +34,7 @@ class IdentityAlgorithm(six.with_metaclass(abc.ABCMeta, object)):
 
     def __init__(self, id_format):
         self.id_format = id_format
+        self.honesty_check = False
 
         if id_format not in FORMATS:
             raise RuntimeError("Tried to initialize with illegal identity format")
@@ -110,11 +118,13 @@ class IdentityAlgorithm(six.with_metaclass(abc.ABCMeta, object)):
         """
 
     @abc.abstractmethod
-    def create_challenge_response(self, SK, challenge):
+    def create_challenge_response(self, SK, attestation, challenge):
         """
         Create an honest response to a challenge of our value.
 
         :param SK: our secret key
+        :param attestation: the attestation information
+        :type attestation: Attestation
         :param challenge: the challenge to respond to
         :return: the response to a challenge
         :rtype: str
@@ -122,10 +132,12 @@ class IdentityAlgorithm(six.with_metaclass(abc.ABCMeta, object)):
         pass
 
     @abc.abstractmethod
-    def create_certainty_aggregate(self):
+    def create_certainty_aggregate(self, attestation):
         """
         Create an empty aggregate object, for matching to values.
 
+        :param attestation: the attestation information
+        :type attestation: Attestation
         :return: the aggregate object
         """
         pass
@@ -156,11 +168,13 @@ class IdentityAlgorithm(six.with_metaclass(abc.ABCMeta, object)):
         """
 
     @abc.abstractmethod
-    def process_challenge_response(self, aggregate, response):
+    def process_challenge_response(self, aggregate, challenge, response):
         """
         Given a response, update the current aggregate.
 
         :param aggregate: the aggregate object
+        :param challenge: the sent challenge
+        :type challenge: str
         :param response: the response to introduce
         :type response: str
         :return: the new aggregate
@@ -172,7 +186,7 @@ class Attestation(six.with_metaclass(abc.ABCMeta, object)):
     """
     An attestation for a public key of a value.
 
-    !!! Requires implementation of a `.algorithm` field.
+    !!! Requires implementation of a `.id_format` field.
     """
 
     @abc.abstractmethod
@@ -180,6 +194,17 @@ class Attestation(six.with_metaclass(abc.ABCMeta, object)):
         """
         Serialize this Attestation to a string.
 
+        :return: the serialized form of this attestation
+        :rtype: str
+        """
+        pass
+
+    @abc.abstractmethod
+    def serialize_private(self, PK):
+        """
+        Serialize this Attestation to a string, include shared secrets (not to be published!).
+
+        :param PK: the public key to encode for
         :return: the serialized form of this attestation
         :rtype: str
         """
@@ -198,6 +223,28 @@ class Attestation(six.with_metaclass(abc.ABCMeta, object)):
         :rtype: Attestation
         """
         raise NotImplementedError()
+
+    @classmethod
+    def unserialize_private(cls, SK, s, id_format):
+        """
+        Given a string, create an Attestation object.
+        The input contains shared secrets not to be published.
+
+        :param SK: the secret key to decode with
+        :param s: the string to unserialize
+        :type s: str
+        :param id_format: the identity format
+        :type id_format: str
+        :return: the attestation object
+        :rtype: Attestation
+        """
+        raise NotImplementedError()
+
+    def get_hash(self):
+        """
+        The hash over the public part of this Attestation.
+        """
+        return hashlib.sha1(self.serialize()).digest()
 
 
 __all__ = ["FORMATS", "IdentityAlgorithm", "Attestation"]

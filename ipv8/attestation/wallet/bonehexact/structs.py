@@ -44,6 +44,7 @@ class BonehAttestation(Attestation):
     """
 
     def __init__(self, PK, bitpairs, id_format=None):
+        super(BonehAttestation, self).__init__()
         self.bitpairs = bitpairs
         self.PK = PK
         self.id_format = id_format
@@ -55,6 +56,9 @@ class BonehAttestation(Attestation):
             out += bitpair.serialize()
         return out
 
+    def serialize_private(self, PK):
+        return self.serialize()
+
     @classmethod
     def unserialize(cls, s, id_format=None):
         PK = BonehPublicKey.unserialize(s)
@@ -65,3 +69,7 @@ class BonehAttestation(Attestation):
             bitpairs.append(attest)
             rem = rem[len(attest.serialize()):]
         return cls(PK, bitpairs, id_format)
+
+    @classmethod
+    def unserialize_private(cls, SK, s, id_format=None):
+        return cls.unserialize(s, id_format)

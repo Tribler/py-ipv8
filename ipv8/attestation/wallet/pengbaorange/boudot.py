@@ -18,7 +18,7 @@ from ..primitives.value import FP2Value
 
 def secure_randint(nmin, nmax):
     normalized_range = nmax - nmin
-    n = int(ceil(log(normalized_range, 2)/8.0))
+    n = int(ceil(log(normalized_range, 2) / 8.0))
     rbytes_int = int(hexlify(urandom(n)), 16)
     return nmin + (rbytes_int % normalized_range)
 
@@ -44,7 +44,7 @@ def _siunpack(buf, amount):
         negative = sign_byte & 0x01
         sign_byte = sign_byte >> 1
         nums.append(-unpacked if negative else unpacked)
-    return reversed(nums)
+    return reversed(nums), rem
 
 
 class EL(object):
@@ -56,9 +56,9 @@ class EL(object):
         self.D2 = D2
 
     @classmethod
-    def create(cls, x, r1, r2, g1, h1, g2, h2, b, bitspace, t=80, l=40):
-        maxrange_w = 2^(l+t) * b - 1
-        maxrange_n = 2^(l+t+bitspace) * g1.mod - 1
+    def create(cls, x, r1, r2, g1, h1, g2, h2, b, bitspace, t=80, l=40):  # pylint: disable=R0913,R0914
+        maxrange_w = 2 ^ (l + t) * b - 1
+        maxrange_n = 2 ^ (l + t + bitspace) * g1.mod - 1
         w = secure_randint(1, maxrange_w)
         n1 = secure_randint(1, maxrange_n)
         n2 = secure_randint(1, maxrange_n)
@@ -67,7 +67,8 @@ class EL(object):
         cW1 = (W1.wp_nominator() * W1.wp_denom_inverse()).normalize()
         cW2 = (W2.wp_nominator() * W2.wp_denom_inverse()).normalize()
 
-        c = sha256_as_int(str(cW1.a) + str(cW1.b) + str(cW2.a) + str(cW2.b))
+        c = sha256_as_int(str(cW1.a).encode('utf-8') + str(cW1.b).encode('utf-8')
+                          + str(cW2.a).encode('utf-8') + str(cW2.b).encode('utf-8'))
         D = w + c * x
         D1 = n1 + c * r1
         D2 = n2 + c * r2
@@ -85,14 +86,16 @@ class EL(object):
         cW1 = (cW1.wp_nominator() * cW1.wp_denom_inverse()).normalize()
         cW2 = (cW2.wp_nominator() * cW2.wp_denom_inverse()).normalize()
 
-        return self.c == sha256_as_int(str(cW1.a) + str(cW1.b) + str(cW2.a) + str(cW2.b))
+        return self.c == sha256_as_int(str(cW1.a).encode('utf-8') + str(cW1.b).encode('utf-8')
+                                       + str(cW2.a).encode('utf-8') + str(cW2.b).encode('utf-8'))
 
     def serialize(self):
         return _sipack(self.c, self.D, self.D1, self.D2)
 
     @classmethod
     def unserialize(cls, s):
-        return cls(*_siunpack(s, 4))
+        unpacked, rem = _siunpack(s, 4)
+        return cls(*unpacked), rem
 
     def __eq__(self, other):
         if not isinstance(other, EL):
@@ -114,7 +117,7 @@ class SQR(object):
 
     @classmethod
     def create(cls, x, r1, g, h, b, bitspace):
-        r2 = secure_randint(-2^bitspace * g.mod + 1, 2^bitspace * g.mod -1)
+        r2 = secure_randint(-2 ^ bitspace * g.mod + 1, 2 ^ bitspace * g.mod - 1)
         if r2 >= 0:
             F = g.intpow(x) * h.intpow(r2)
         else:
@@ -126,8 +129,7 @@ class SQR(object):
         return self.el.check(g, h, self.F, h, self.F, y)
 
     def serialize(self):
-        norm_f = self.F.normalize()
-        min_f = norm_f.wp_nominator() * norm_f.wp_denom_inverse()
+        min_f = self.F.wp_compress()
         return ipack(min_f.mod) + ipack(min_f.a) + ipack(min_f.b) + self.el.serialize()
 
     @classmethod
@@ -136,8 +138,8 @@ class SQR(object):
         mod, rem = iunpack(rem)
         Fa, rem = iunpack(rem)
         Fb, rem = iunpack(rem)
-        el = EL.unserialize(rem)
-        return cls(FP2Value(mod, Fa, Fb), el)
+        el, rem = EL.unserialize(rem)
+        return cls(FP2Value(mod, Fa, Fb), el), rem
 
     def __eq__(self, other):
         if not isinstance(other, SQR):

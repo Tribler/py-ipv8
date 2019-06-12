@@ -1,25 +1,43 @@
-from __future__ import absolute_import
+from __future__ import absolute_import, division
 
 import struct
+from binascii import hexlify
+from os import urandom
 
-from .attestation import (attest_sha256, attest_sha256_4, attest_sha512, binary_relativity_certainty,
-                          binary_relativity_sha256, binary_relativity_sha256_4, binary_relativity_sha512,
-                          create_challenge, create_challenge_response_from_pair, create_empty_relativity_map,
-                          create_honesty_check, process_challenge_response)
-from .structs import BonehAttestation
+from six.moves import xrange
+
+from ..pengbaorange.attestation import create_attest_pair
+from ..pengbaorange.structs import PengBaoAttestation
 from ..primitives.boneh import generate_keypair
 from ..primitives.structs import BonehPrivateKey, BonehPublicKey, pack_pair, unpack_pair
 from ...identity_formats import FORMATS, IdentityAlgorithm
 
 
-class BonehExactAlgorithm(IdentityAlgorithm):
+LARGE_INTEGER = 32765
+
+
+def _safe_rndint(key_size, mod):
+    """
+    Generate a urandom number which is larger than LARGE_INTEGER.
+
+    :param key_size: the bitspace of the number
+    :param mod: the modulo
+    :return: the random value
+    """
+    rndint = lambda: int(hexlify(urandom(key_size // 8)), 16) % mod
+    out = rndint()
+    while out < LARGE_INTEGER:
+        out = rndint()
+    return out
+
+
+class PengBaoRangeAlgorithm(IdentityAlgorithm):
 
     def __init__(self, id_format):
-        super(BonehExactAlgorithm, self).__init__(id_format)
-        self.honesty_check = True
+        super(PengBaoRangeAlgorithm, self).__init__(id_format)
 
         # Check algorithm match
-        if FORMATS[id_format]["algorithm"] != "bonehexact":
+        if FORMATS[id_format]["algorithm"] != "pengbaorange":
             raise RuntimeError("Identity format linked to wrong algorithm")
 
         # Check key size match
@@ -27,19 +45,8 @@ class BonehExactAlgorithm(IdentityAlgorithm):
         if self.key_size < 32 or self.key_size > 512:
             raise RuntimeError("Illegal key size specified")
 
-        # Check hash mode match
-        hash_mode = FORMATS[self.id_format]["hash"]
-        if hash_mode == "sha256":
-            self.attest_function = attest_sha256
-            self.aggregate_reference = binary_relativity_sha256
-        elif hash_mode == "sha256_4":
-            self.attest_function = attest_sha256_4
-            self.aggregate_reference = binary_relativity_sha256_4
-        elif hash_mode == "sha512":
-            self.attest_function = attest_sha512
-            self.aggregate_reference = binary_relativity_sha512
-        else:
-            raise RuntimeError("Unknown hashing mode")
+        self.a = FORMATS[self.id_format]["min"]
+        self.b = FORMATS[self.id_format]["max"]
 
     def generate_secret_key(self):
         """
@@ -72,9 +79,9 @@ class BonehExactAlgorithm(IdentityAlgorithm):
         Return the Attestation (sub)class for serialization
 
         :return: the Attestation object
-        :rtype: BonehAttestation
+        :rtype: PengBaoAttestation
         """
-        return BonehAttestation
+        return PengBaoAttestation
 
     def attest(self, PK, value):
         """
@@ -87,11 +94,14 @@ class BonehExactAlgorithm(IdentityAlgorithm):
         :return: the attestation string
         :rtype: str
         """
-        return self.attest_function(PK, value).serialize()
+        ivalue = int(hexlify(value), 16)
+        return create_attest_pair(PK, ivalue, self.a, self.b, self.key_size).serialize_private(PK)
 
     def certainty(self, value, aggregate):
         """
         The current certainty of the aggregate object representing a certain value.
+
+        1 is in range, 0 is out of range.
 
         :param value: the value to match to
         :type value: str
@@ -100,7 +110,12 @@ class BonehExactAlgorithm(IdentityAlgorithm):
         :return: the matching factor [0.0-1.0]
         :rtype: float
         """
-        return binary_relativity_certainty(self.aggregate_reference(value), aggregate)
+        in_range = len(aggregate) > 1
+        for k, v in aggregate.items():
+            if k != 'attestation':
+                in_range &= v
+        match = 1.0 if in_range else 0.0
+        return match if struct.unpack('>?', value)[0] else 1.0 - match
 
     def create_challenges(self, PK, attestation):
         """
@@ -113,11 +128,8 @@ class BonehExactAlgorithm(IdentityAlgorithm):
         :return: the challenges to send
         :rtype: [str]
         """
-        challenges = []
-        for bitpair in attestation.bitpairs:
-            challenge = create_challenge(attestation.PK, bitpair)
-            serialized = pack_pair(challenge.a, challenge.b)
-            challenges.append(serialized)
+        mod = PK.g.mod - 1
+        challenges = [pack_pair(_safe_rndint(self.key_size, mod), _safe_rndint(self.key_size, mod)) for _ in xrange(1)]
         return challenges
 
     def create_challenge_response(self, SK, attestation, challenge):
@@ -132,18 +144,22 @@ class BonehExactAlgorithm(IdentityAlgorithm):
         :return: the response to a challenge
         :rtype: str
         """
-        return struct.pack(">B", create_challenge_response_from_pair(SK, unpack_pair(challenge)))
+        s, t = unpack_pair(challenge)[0:2]
+        # If someone is trying to cheat us by selecting an s or t which is too small, we return random garbage.
+        if s < LARGE_INTEGER or t < LARGE_INTEGER:
+            return (pack_pair(_safe_rndint(self.key_size, SK.g.mod), _safe_rndint(self.key_size, SK.g.mod))
+                    + pack_pair(_safe_rndint(self.key_size, SK.g.mod), _safe_rndint(self.key_size, SK.g.mod)))
+        x, y, u, v = attestation.privatedata.generate_response(s, t)
+        return pack_pair(x, y) + pack_pair(u, v)
 
     def create_certainty_aggregate(self, attestation):
         """
         Create an empty aggregate object, for matching to values.
 
-        :param attestation: the attestation information
-        :type attestation: Attestation
         :return: the aggregate object
         :rtype: dict
         """
-        return create_empty_relativity_map()
+        return {'attestation': attestation}
 
     def create_honesty_challenge(self, PK, value):
         """
@@ -156,8 +172,7 @@ class BonehExactAlgorithm(IdentityAlgorithm):
         :return: the challenge to send
         :rtype: str
         """
-        raw_challenge = create_honesty_check(PK, value)
-        return pack_pair(raw_challenge.a, raw_challenge.b)
+        raise NotImplementedError()
 
     def process_honesty_challenge(self, value, response):
         """
@@ -170,8 +185,7 @@ class BonehExactAlgorithm(IdentityAlgorithm):
         :return: if the value matches the response
         :rtype: bool
         """
-        unpacked, = struct.unpack(">B", response)
-        return value == unpacked
+        raise NotImplementedError()
 
     def process_challenge_response(self, aggregate, challenge, response):
         """
@@ -186,8 +200,12 @@ class BonehExactAlgorithm(IdentityAlgorithm):
         :return: the new aggregate
         :rtype: dict
         """
-        unpacked, = struct.unpack(">B", response)
-        return process_challenge_response(aggregate, unpacked)
+        x, y, rem = unpack_pair(response)
+        u, v, _ = unpack_pair(rem)
+        s, t, _ = unpack_pair(challenge)
+        attestation = aggregate['attestation']
+        aggregate[challenge] = attestation.publicdata.check(self.a, self.b, s, t, x, y, u, v)
+        return aggregate
 
 
-__all__ = ["BonehAttestation", "BonehExactAlgorithm"]
+__all__ = ["PengBaoAttestation", "PengBaoRangeAlgorithm"]

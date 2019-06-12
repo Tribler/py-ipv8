@@ -22,14 +22,14 @@ class TestBoudot(unittest.TestCase):
     el = EL.unserialize(unhexlify("000121029751139763ba5fc618be51e192166880e839a130c0d4aab00486576e2f80bc4a012956e492"
                                   "9cce245462a5ea5fecd5754a962ca1285cc0fbc2abc35ecaa46323001ef7093fadc48821678d01210a"
                                   "5d444e5d8ee97f1862f947864859a203a0e684c30352687449605457910d01870120dd1b0687cbe8ca"
-                                  "975d94c5f5db5ccd804d688b104046de09b0c807074c166a9b"))
+                                  "975d94c5f5db5ccd804d688b104046de09b0c807074c166a9b"))[0]
 
     # Commitment generated with above parameters for message `16`
     sqr = SQR.unserialize(unhexlify("0109649b2a7d7992b008d101092ef4b2b3890136f39d0109300f2cb5896dcadc4901012a0a16027d"
                                     "ee86ae81c4cfc7f529f46261608252ab4daa517d68e21720790e4199f78a1929dbd013a105b6012a"
                                     "0285809f7ba1aba0714188435457007cbe08eaaf87506267fdb8c0ad262dfb6c15ca968e206a9777"
                                     "949e012102af10fec9115c85e85cd7d7aef94a65d3cc6c7357642706e8a37bb0ecd804845b0120ab"
-                                    "c43fb24457217a1735f5ebbe529974f31b1cd5d909c1ba28deec3b36011fa3"))
+                                    "c43fb24457217a1735f5ebbe529974f31b1cd5d909c1ba28deec3b36011fa3"))[0]
 
     def test_el_serialize(self):
         """
@@ -45,12 +45,12 @@ class TestBoudot(unittest.TestCase):
         """
         Check if the Boudot commitment equality holds.
         """
-        m = 7 # Message
+        m = 7  # Message
 
         # Commitment
         c = self.pk.g.intpow(m) * self.pk.h.intpow(self.r)
         c1 = c // (self.pk.g.intpow(self.a - 1))
-        c2 = self.pk.g.intpow(self.b + 1)//c
+        c2 = self.pk.g.intpow(self.b + 1) // c
 
         # Shadow commitment
         ca = c1.intpow(self.b - m + 1) * self.pk.h.intpow(self.ra)

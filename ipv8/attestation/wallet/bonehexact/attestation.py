@@ -5,8 +5,8 @@ from __future__ import division
 from random import randint, shuffle
 from threading import Lock
 
-from .structs import BonehAttestation, BitPairAttestation
-from ..primitives.attestation import sha256_as_int, sha256_4_as_int, sha512_as_int
+from .structs import BitPairAttestation, BonehAttestation
+from ..primitives.attestation import sha256_4_as_int, sha256_as_int, sha512_as_int
 from ..primitives.boneh import decode, encode
 from ..primitives.value import FP2Value
 

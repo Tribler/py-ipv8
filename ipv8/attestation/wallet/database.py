@@ -1,7 +1,6 @@
 from __future__ import absolute_import
 
 import os
-from hashlib import sha1
 
 from ...database import Database, database_blob
 
@@ -36,12 +35,12 @@ class AttestationsDB(Database):
     def get_all(self):
         return list(self.execute(u"SELECT * FROM %s" % self.db_name, (), fetch_all=True))
 
-    def insert_attestation(self, attestation, secret_key, id_format):
-        blob = database_blob(attestation.serialize())
-        attestation_hash = database_blob(sha1(blob).digest())
+    def insert_attestation(self, attestation, attestation_hash, secret_key, id_format):
+        blob = database_blob(attestation.serialize_private(secret_key.public_key()))
         self.execute(
             u"INSERT INTO %s (hash, blob, key, id_format) VALUES(?,?,?,?)" % self.db_name,
-            (attestation_hash, blob, database_blob(secret_key.serialize()), database_blob(id_format.encode('utf-8'))))
+            (database_blob(attestation_hash), blob, database_blob(secret_key.serialize()),
+             database_blob(id_format.encode('utf-8'))))
         self.commit()
 
     def get_schema(self, version):
