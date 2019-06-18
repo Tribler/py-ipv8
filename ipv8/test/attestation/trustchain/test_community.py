@@ -602,6 +602,23 @@ class TestTrustChainCommunity(TestBase):
         self.assertEqual(self.nodes[1].overlay.persistence.get_number_of_known_blocks(), 7)
 
     @inlineCallbacks
+    def test_crawl_linked_block(self):
+        """
+        Test whether we get correct linked blocks when crawling the chain of a specific peer
+        """
+        his_pubkey = self.nodes[1].network.verified_peers[0].public_key.key_to_bin()
+        yield self.nodes[1].overlay.sign_block(self.nodes[1].network.verified_peers[0], public_key=his_pubkey,
+                                               block_type=b'test', transaction={})
+
+        # Now, a third peer crawl the chain of peer 0. We should both get the linked block and the originating block.
+        self.add_node_to_experiment(self.create_node())
+        yield self.nodes[2].overlay.send_crawl_request(self.nodes[0].my_peer,
+                                                       self.nodes[0].my_peer.public_key.key_to_bin(), 1, 1)
+
+        # Peer 2 should have 2 blocks now
+        self.assertEqual(self.nodes[2].overlay.persistence.get_number_of_known_blocks(), 2)
+
+    @inlineCallbacks
     def test_process_block_unrelated_block(self):
         """
         Test whether we can invoke process_block directly with a block not made by node 0 or node 1
