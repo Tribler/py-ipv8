@@ -607,7 +607,8 @@ class TestTrustChainCommunity(TestBase):
         Test whether we can invoke process_block directly with a block not made by node 0 or node 1
         """
         block1 = TestBlock()
-        result = yield self.nodes[1].overlay.process_half_block(block1, self.nodes[0].my_peer)
+        result = yield self.nodes[1].overlay.process_half_block(block1, self.nodes[0].my_peer)\
+            .addErrback(lambda _: None)  # The block is not valid - ignore the error
         self.assertIsNone(result)
 
     @inlineCallbacks

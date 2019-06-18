@@ -1,14 +1,10 @@
 from __future__ import absolute_import
 
-import random
 from twisted.trial import unittest
 
-from hashlib import sha256
-
-from ....attestation.trustchain.block import TrustChainBlock, GENESIS_HASH, GENESIS_SEQ, EMPTY_SIG, ValidationResult
+from ....attestation.trustchain.block import EMPTY_SIG, GENESIS_HASH, GENESIS_SEQ, TrustChainBlock, ValidationResult
 from ....keyvault.crypto import default_eccrypto
 from ....messaging.deprecated.encoding import encode
-from ....util import cast_to_bin
 
 
 class TestBlock(TrustChainBlock):
@@ -17,17 +13,22 @@ class TestBlock(TrustChainBlock):
     Also used in other test files for TrustChain.
     """
 
-    def __init__(self, transaction=None, previous=None, key=None, block_type=b'test'):
+    def __init__(self, transaction=None, previous=None, key=None, linked=None, block_type=b'test'):
         crypto = default_eccrypto
-        other = crypto.generate_key(u"curve25519").pub().key_to_bin()
+        if linked:
+            link_pk = linked.public_key
+            link_seq = linked.sequence_number
+        else:
+            link_pk = crypto.generate_key(u"curve25519").pub().key_to_bin()
+            link_seq = 0
 
         transaction = transaction or {b'id': 42}
 
         if previous:
             self.key = previous.key
-            TrustChainBlock.__init__(self, block_type, (encode(transaction), previous.public_key,
-                                                        previous.sequence_number + 1, other, 0, previous.hash,
-                                                        EMPTY_SIG, 0, 0))
+            TrustChainBlock.__init__(self, (block_type, encode(transaction), previous.public_key,
+                                            previous.sequence_number + 1, link_pk, link_seq, previous.hash,
+                                            EMPTY_SIG, 0, 0))
         else:
             if key:
                 self.key = key
@@ -35,8 +36,9 @@ class TestBlock(TrustChainBlock):
                 self.key = crypto.generate_key(u"curve25519")
 
             TrustChainBlock.__init__(self, (block_type,
-                                            encode(transaction), self.key.pub().key_to_bin(), random.randint(50, 100),
-                                            other, 0, sha256(cast_to_bin(str(random.randint(0, 100000)))).digest(),
+                                            encode(transaction), self.key.pub().key_to_bin(), 1,
+                                            link_pk, link_seq,
+                                            GENESIS_HASH,
                                             EMPTY_SIG, 0, 0))
         self.sign(self.key)
 
