@@ -120,7 +120,7 @@ class TrustChainBlock(object):
 
     @property
     def is_genesis(self):
-        return self.sequence_number == GENESIS_SEQ or self.previous_hash == GENESIS_HASH
+        return self.sequence_number == GENESIS_SEQ and self.previous_hash == GENESIS_HASH
 
     @property
     def hash_number(self):
