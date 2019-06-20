@@ -4,10 +4,9 @@ from binascii import unhexlify
 
 from twisted.trial import unittest
 
-from ......attestation.wallet.bonehexact.cryptosystem.boneh import (FP2Value, bilinear_group, decode, encode,
-                                                                    generate_keypair, generate_prime, get_good_wp,
-                                                                    is_good_wp)
-from ......attestation.wallet.bonehexact.structs import BonehPrivateKey
+from .....attestation.wallet.primitives.boneh import (FP2Value, bilinear_group, decode, encode, generate_keypair,
+                                                      generate_prime, get_good_wp, is_good_wp)
+from .....attestation.wallet.primitives.structs import BonehPrivateKey
 
 
 class TestBoneh(unittest.TestCase):

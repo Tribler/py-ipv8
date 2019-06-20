@@ -2,9 +2,9 @@ from __future__ import absolute_import
 
 from twisted.trial import unittest
 
-from .....attestation.wallet.bonehexact.cryptosystem.value import FP2Value
-from .....attestation.wallet.bonehexact.structs import (Attestation, BitPairAttestation, BonehPrivateKey,
-                                                        BonehPublicKey, pack_pair, unpack_pair)
+from .....attestation.wallet.bonehexact.structs import BonehAttestation, BitPairAttestation
+from .....attestation.wallet.primitives.structs import BonehPrivateKey, BonehPublicKey, pack_pair, unpack_pair
+from .....attestation.wallet.primitives.value import FP2Value
 
 
 class TestStructs(unittest.TestCase):
@@ -181,10 +181,10 @@ class TestStructs(unittest.TestCase):
         h = FP2Value(p, 651465444864846456151, 31213216564)
         key = BonehPublicKey(p, g, h)
         bitpairs = []
-        attest = Attestation(key, bitpairs)
+        attest = BonehAttestation(key, bitpairs)
 
         serialized = attest.serialize()
-        unserialized = Attestation.unserialize(serialized)
+        unserialized = BonehAttestation.unserialize(serialized)
 
         self.assertEqual(p, unserialized.PK.p)
         self.assertEqual(g, unserialized.PK.g)
@@ -204,10 +204,10 @@ class TestStructs(unittest.TestCase):
         bitpair = BitPairAttestation(a, b, c)
         key = BonehPublicKey(p, g, h)
         bitpairs = [bitpair]
-        attest = Attestation(key, bitpairs)
+        attest = BonehAttestation(key, bitpairs)
 
         serialized = attest.serialize()
-        unserialized = Attestation.unserialize(serialized)
+        unserialized = BonehAttestation.unserialize(serialized)
 
         self.assertEqual(p, unserialized.PK.p)
         self.assertEqual(g, unserialized.PK.g)
@@ -230,10 +230,10 @@ class TestStructs(unittest.TestCase):
         bitpair = BitPairAttestation(a, b, c)
         key = BonehPublicKey(p, g, h)
         bitpairs = [bitpair] * 20
-        attest = Attestation(key, bitpairs)
+        attest = BonehAttestation(key, bitpairs)
 
         serialized = attest.serialize()
-        unserialized = Attestation.unserialize(serialized)
+        unserialized = BonehAttestation.unserialize(serialized)
 
         self.assertEqual(p, unserialized.PK.p)
         self.assertEqual(g, unserialized.PK.g)

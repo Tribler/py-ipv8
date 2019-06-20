@@ -190,3 +190,14 @@ class FP2Value(object):
         a = FP2Value(self.mod, self.aC - self.bC) // iq
         b = FP2Value(self.mod, -self.bC) // iq
         return FP2Value(self.mod, a.normalize().a, b.normalize().a)
+
+    def wp_compress(self):
+        """
+        Compress this FP2 value into an FP2Value only containing `a` and `b` values.
+
+        This is an expensive operation.
+        """
+        assert self.c == 0
+        assert self.cC == 0
+        normalized = self.normalize()
+        return normalized.wp_nominator() * normalized.wp_denom_inverse()

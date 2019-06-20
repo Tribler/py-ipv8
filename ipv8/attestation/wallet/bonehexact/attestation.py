@@ -1,13 +1,14 @@
 from __future__ import absolute_import
 from __future__ import division
 
-from hashlib import sha256, sha512
+
 from random import randint, shuffle
 from threading import Lock
 
-from .cryptosystem.boneh import decode, encode
-from .cryptosystem.value import FP2Value
-from .structs import Attestation, BitPairAttestation
+from .structs import BitPairAttestation, BonehAttestation
+from ..primitives.attestation import sha256_4_as_int, sha256_as_int, sha512_as_int
+from ..primitives.boneh import decode, encode
+from ..primitives.value import FP2Value
 
 multithread_update_lock = Lock()
 
@@ -51,19 +52,7 @@ def attest(PK, value, bitspace):
     bitpairs = []
     for (i, e) in out_private:
         bitpairs.append(BitPairAttestation(out_public[i], out_public[i + 1], e))
-    return Attestation(PK, bitpairs)
-
-
-def sha512_as_int(value):
-    """
-    Convert a SHA512 hash to an integer.
-    """
-    out = 0
-    hashed = sha512(value).digest()
-    for i in range(len(hashed)):
-        out <<= 8
-        out |= ord(hashed[i:i + 1])
-    return out
+    return BonehAttestation(PK, bitpairs)
 
 
 def attest_sha512(PK, value):
@@ -80,18 +69,6 @@ def binary_relativity_sha512(value):
     return binary_relativity(sha512_as_int(value), 512)
 
 
-def sha256_as_int(value):
-    """
-    Convert a SHA256 hash to an integer.
-    """
-    out = 0
-    hashed = sha256(value).digest()
-    for i in range(len(hashed)):
-        out <<= 8
-        out |= ord(hashed[i:i + 1])
-    return out
-
-
 def attest_sha256(PK, value):
     """
     Create an attestation for a value using a SHA256 hash.
@@ -104,18 +81,6 @@ def binary_relativity_sha256(value):
     Create the inter-bitpair relativity map of a value using the SHA256 hash.
     """
     return binary_relativity(sha256_as_int(value), 256)
-
-
-def sha256_4_as_int(value):
-    """
-    Convert a SHA256 4 byte hash to an integer.
-    """
-    out = 0
-    hashed = sha256(value).digest()[:4]
-    for i in range(len(hashed)):
-        out <<= 8
-        out |= ord(hashed[i:i + 1])
-    return out
 
 
 def attest_sha256_4(PK, value):
