@@ -91,12 +91,12 @@ for t in known_tags:
         last_release_commit = t.commit
 
 comparison = ipv8_repo.compare(last_release_commit.sha, "Tribler:master")
-commits_since_last = comparison.total_commits + 1
+commits_since_last = comparison.total_commits + 2
 
 repo_creation = ipv8_repo.created_at
 first_commit = ipv8_repo.get_commits(until=repo_creation)[0]
 comparison_forever = ipv8_repo.compare(first_commit.sha, last_release_commit.sha)
-total_commits = commits_since_last + comparison_forever.total_commits + 2
+total_commits = commits_since_last + comparison_forever.total_commits + 1
 
 # REMOVE EXISTING FEATURE BRANCH
 print("[6/8] Removing previous branch on fork, if it exists")
