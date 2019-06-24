@@ -5,6 +5,8 @@ from struct import pack, unpack_from
 
 from cryptography.exceptions import InvalidTag
 
+from six import ensure_str
+
 from ...messaging.anonymization.tunnel import (CIRCUIT_TYPE_RP_DOWNLOADER, CIRCUIT_TYPE_RP_SEEDER, EXIT_NODE,
                                                EXIT_NODE_SALT, ORIGINATOR, ORIGINATOR_SALT)
 from ...messaging.anonymization.tunnelcrypto import CryptoException
@@ -42,7 +44,7 @@ def decode_address(packet):
 
     elif addr_type == ADDRESS_TYPE_DOMAIN_NAME:
         length, = unpack_from('!H', packet, 1)
-        host = packet[3:3 + length]
+        host = ensure_str(packet[3:3 + length])
         port, = unpack_from('!H', packet, 3 + length)
         return host, port
 
