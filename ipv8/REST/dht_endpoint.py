@@ -244,8 +244,8 @@ class DHTStatisticsEndpoint(BaseEndpoint):
             return self.twisted_dumps({"error": "DHT community not found"})
 
         buckets = self.dht.routing_table.trie.values()
-        stats = {"node_id": hexlify(self.dht.my_node_id),
-                 "peer_id": hexlify(self.dht.my_peer.mid),
+        stats = {"node_id": hexlify(self.dht.my_node_id).decode('utf-8'),
+                 "peer_id": hexlify(self.dht.my_peer.mid).decode('utf-8'),
                  "routing_table_size": sum([len(bucket.nodes) for bucket in buckets]),
                  "routing_table_buckets": len(buckets),
                  "num_keys_in_store": len(self.dht.storage.items),
@@ -253,8 +253,10 @@ class DHTStatisticsEndpoint(BaseEndpoint):
 
         if isinstance(self.dht, DHTDiscoveryCommunity):
             stats.update({
-                "num_peers_in_store": {hexlify(key): len(peers) for key, peers in self.dht.store.items()},
-                "num_store_for_me": {hexlify(key): len(peers) for key, peers in self.dht.store_for_me.items()}
+                "num_peers_in_store": {hexlify(key).decode('utf-8'): len(peers)
+                                       for key, peers in self.dht.store.items()},
+                "num_store_for_me": {hexlify(key).decode('utf-8'): len(peers)
+                                     for key, peers in self.dht.store_for_me.items()}
             })
 
         return self.twisted_dumps({"statistics": stats})
@@ -336,7 +338,7 @@ class DHTValuesEndpoint(BaseEndpoint):
                 data, public_key = value
                 dicts.append({
                     'public_key': b64encode(public_key).decode('utf-8') if public_key else None,
-                    'value': hexlify(data)
+                    'value': hexlify(data).decode('utf-8')
                 })
             results[hexlify(key)] = dicts
 
@@ -367,7 +369,7 @@ class SpecificDHTValueEndpoint(BaseEndpoint):
                 data, public_key = value
                 dicts.append({
                     'public_key': b64encode(public_key).decode('utf-8') if public_key else None,
-                    'value': hexlify(data)
+                    'value': hexlify(data).decode('utf-8')
                 })
             request.write(self.twisted_dumps({"values": dicts}))
             request.finish()
