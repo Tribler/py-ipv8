@@ -16,7 +16,7 @@ from twisted.internet.protocol import DatagramProtocol
 
 from ...keyvault.public.libnaclkey import LibNaCLPK
 from ...taskmanager import TaskManager
-from ...util import blocking_call_on_reactor_thread, cast_to_chr
+from ...util import blocking_call_on_reactor_thread
 
 
 ORIGINATOR = 0
@@ -150,7 +150,7 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
                             exception, destination, exception)
 
                 try:
-                    socket.inet_aton(cast_to_chr(destination[0]))
+                    socket.inet_aton(destination[0].decode('utf-8'))
                     on_ip_address(destination[0])
                 except socket.error:
                     resolve_ip_address_deferred = reactor.resolve(destination[0])

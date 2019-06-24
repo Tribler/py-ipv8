@@ -4,7 +4,7 @@ import time
 from binascii import hexlify
 from hashlib import sha256
 
-from six import binary_type, string_types
+from six import binary_type
 
 from .payload import HalfBlockPayload
 from ...database import database_blob
