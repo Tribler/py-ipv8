@@ -150,7 +150,7 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
                             exception, destination, exception)
 
                 try:
-                    socket.inet_aton(destination[0].decode('utf-8'))
+                    socket.inet_aton(destination[0])
                     on_ip_address(destination[0])
                 except socket.error:
                     resolve_ip_address_deferred = reactor.resolve(destination[0])
