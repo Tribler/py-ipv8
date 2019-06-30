@@ -1,30 +1,36 @@
 from __future__ import absolute_import
 
-from binascii import unhexlify
-from base64 import decodestring, encodestring
-from hashlib import sha1
 import json
 import os
+from base64 import decodestring, encodestring
+from binascii import unhexlify
+from hashlib import sha1
 from random import choice
+from threading import Lock
 
 from twisted.internet.defer import inlineCallbacks
 
-from .caches import *
+from .bonehexact.algorithm import BonehExactAlgorithm
+from .caches import (HashCache, PeerCache, PendingChallengeCache, ProvingAttestationCache,
+                     ReceiveAttestationRequestCache, ReceiveAttestationVerifyCache)
 from .database import AttestationsDB
+from .payload import (AttestationChunkPayload, ChallengePayload, ChallengeResponsePayload, RequestAttestationPayload,
+                      VerifyAttestationRequestPayload)
+from .pengbaorange.algorithm import PengBaoRangeAlgorithm
+from ..identity_formats import FORMATS
 from ...community import Community
 from ...lazy_community import lazy_wrapper
 from ...messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
-from .payload import *
-from .primitives.attestation import (attest_sha256_4, binary_relativity_certainty, create_challenge,
-                                     create_challenge_response_from_pair, create_empty_relativity_map,
-                                     create_honesty_check, process_challenge_response)
-from .primitives.structs import Attestation, BonehPrivateKey, BonehPublicKey, pack_pair, unpack_pair
 from ...peer import Peer
 from ...requestcache import RequestCache
 from ...util import cast_to_bin, cast_to_chr, cast_to_unicode
 
 
-from threading import Lock
+ID_ALGORITHMS = {
+    "bonehexact": BonehExactAlgorithm,
+    "pengbaorange": PengBaoRangeAlgorithm
+}
+
 receive_block_lock = Lock()
 
 
@@ -57,17 +63,19 @@ class AttestationCommunity(Community):
         super(AttestationCommunity, self).__init__(*args, **kwargs)
 
         self.attestation_request_callback = lambda peer, attribute_name, metadata: None
-        self.attestation_request_complete_callback = (lambda for_peer, attribute_name, attribute_hash, from_peer=None:
-                                                      None)
-        self.verify_request_callback = lambda attribute_name, attribute_hash: True
+        self.attestation_request_complete_callback = \
+            lambda for_peer, attribute_name, attr_hash, id_format, from_peer=None: None
+        self.verify_request_callback = lambda attribute_name, attr_hash: True
 
-        # Map of attestation hash -> BonehPrivateKey
+        # Map of attestation hash -> (PrivateKey, id_format)
         self.attestation_keys = {}
         self.database = AttestationsDB(working_directory, db_name)
-        for attribute_hash, _, key in self.database.get_all():
+        for attribute_hash, _, key, id_format in self.database.get_all():
             attribute_hash = attribute_hash if isinstance(attribute_hash, bytes) else str(attribute_hash)
             key = key if isinstance(key, bytes) else str(key)
-            self.attestation_keys[attribute_hash] = BonehPrivateKey.unserialize(key)
+            id_format = (id_format if isinstance(id_format, bytes) else str(id_format)).decode('utf-8')
+            self.attestation_keys[attribute_hash] = (self.get_id_algorithm(id_format).load_secret_key(key), id_format)
+        self.cached_attestation_blobs = {}
 
         self.request_cache = RequestCache()
 
@@ -80,9 +88,14 @@ class AttestationCommunity(Community):
         })
 
     def unload(self):
+        self.request_cache.shutdown()
+
         super(AttestationCommunity, self).unload()
         # Close the database after we stop accepting requests.
         self.database.close()
+
+    def get_id_algorithm(self, id_format):
+        return ID_ALGORITHMS[FORMATS[id_format]["algorithm"]](id_format)
 
     def set_attestation_request_callback(self, f):
         """
@@ -97,7 +110,7 @@ class AttestationCommunity(Community):
 
     def set_attestation_request_complete_callback(self, f):
         """
-        f should accept a (Peer, attribute_name, hash, Peer=None), it is called when an Attestation
+        f should accept a (Peer, attribute_name, hash, id_format, Peer=None), it is called when an Attestation
         has been made for another peer
 
         :param f: the function to call when an Attestation has been completed
@@ -124,11 +137,13 @@ class AttestationCommunity(Community):
         :param secret_key: the secret key we use for this attribute
         """
         public_key = secret_key.public_key()
-        self.request_cache.add(ReceiveAttestationRequestCache(self, peer.mid, secret_key, attribute_name))
+        id_format = metadata.pop("id_format", "id_metadata")
+        self.request_cache.add(ReceiveAttestationRequestCache(self, peer.mid, secret_key, attribute_name, id_format))
 
         meta_dict = {
             "attribute": attribute_name,
-            "public_key": cast_to_chr(encodestring(public_key.serialize()))
+            "public_key": cast_to_chr(encodestring(public_key.serialize())),
+            "id_format": id_format
         }
         meta_dict.update(metadata)
         metadata = cast_to_bin(json.dumps({cast_to_unicode(k): cast_to_unicode(v) for k, v in meta_dict.items()}))
@@ -150,52 +165,59 @@ class AttestationCommunity(Community):
         metadata = json.loads(payload.metadata)
         attribute = metadata.pop('attribute')
         pubkey_b64 = cast_to_bin(metadata.pop('public_key'))
+        id_format = metadata.pop('id_format')
+        id_algorithm = self.get_id_algorithm(id_format)
 
         value = yield self.attestation_request_callback(peer, attribute, metadata)
         if value is None:
             return
 
-        PK = BonehPublicKey.unserialize(decodestring(pubkey_b64))
-        attestation_blob = attest_sha256_4(PK, value).serialize()
+        PK = id_algorithm.load_public_key(decodestring(pubkey_b64))
+        attestation_blob = id_algorithm.attest(PK, value)
+        attestation = id_algorithm.get_attestation_class().unserialize(attestation_blob, id_format)
 
-        self.attestation_request_complete_callback(peer, attribute, sha1(attestation_blob).digest())
+        self.attestation_request_complete_callback(peer, attribute, attestation.get_hash(), id_format)
 
         self.send_attestation(peer.address, attestation_blob)
 
-    def on_attestation_complete(self, unserialized, secret_key, peer, name, hash):
+    def on_attestation_complete(self, unserialized, secret_key, peer, name, attestation_hash, id_format):
         """
         We got an Attestation delivered to us.
         """
-        self.attestation_keys[cast_to_bin(hash)] = secret_key
-        self.database.insert_attestation(unserialized, secret_key)
-        self.attestation_request_complete_callback(self.my_peer, name, hash, peer)
+        self.attestation_keys[cast_to_bin(attestation_hash)] = (secret_key, id_format)
+        self.database.insert_attestation(unserialized, attestation_hash, secret_key, id_format)
+        self.attestation_request_complete_callback(self.my_peer, name, attestation_hash, id_format, peer)
 
-    def verify_attestation_values(self, socket_address, hash, values, callback):
+    def verify_attestation_values(self, socket_address, attestation_hash, values, callback, id_format):
         """
         Ask the peer behind a socket address to deliver the Attestation with a certain hash.
 
         :param socket_address: the socket address to send to
-        :param hash: the hash of the Attestation to request
+        :param attestation_hash: the hash of the Attestation to request
         :param values: the values for which we want to measure certainty
         :param callback: the callback to call with the map of (hash, {value: certainty})
+        :param id_format: the identity format specifier
         """
-        def on_complete(hash, relativity_map):
-            callback(hash, [binary_relativity_certainty(value, relativity_map) for value in values])
-        self.request_cache.add(ProvingAttestationCache(self, hash, on_complete=on_complete))
-        self.create_verify_attestation_request(socket_address, hash)
+        algorithm = self.get_id_algorithm(id_format)
 
-    def create_verify_attestation_request(self, socket_address, hash):
+        def on_complete(attestation_hash, relativity_map):
+            callback(attestation_hash, [algorithm.certainty(value, relativity_map) for value in values])
+        self.request_cache.add(ProvingAttestationCache(self, attestation_hash, id_format, on_complete=on_complete))
+        self.create_verify_attestation_request(socket_address, attestation_hash, id_format)
+
+    def create_verify_attestation_request(self, socket_address, attestation_hash, id_format):
         """
         Ask the peer behind a socket address to deliver the Attestation with a certain hash.
 
         :param socket_address: the socket address to send to
-        :param hash: the hash of the Attestation to request
+        :param attestation_hash: the hash of the Attestation to request
+        :param id_format: the identity format specifier
         """
-        self.request_cache.add(ReceiveAttestationVerifyCache(self, hash))
+        self.request_cache.add(ReceiveAttestationVerifyCache(self, attestation_hash, id_format))
 
         global_time = self.claim_global_time()
         auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
-        payload = VerifyAttestationRequestPayload(hash).to_pack_list()
+        payload = VerifyAttestationRequestPayload(attestation_hash).to_pack_list()
         dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
 
         packet = self._ez_pack(self._prefix, 1, [auth, dist, payload])
@@ -215,14 +237,20 @@ class AttestationCommunity(Community):
         if not value:
             return
 
-        self.send_attestation(peer.address, attestation_blob)
+        SK, id_format = self.attestation_keys[payload.hash]
+        attestation_cls = self.get_id_algorithm(id_format).get_attestation_class()
+        private_attestation = attestation_cls.unserialize_private(SK, attestation_blob, id_format)
+        public_attestation_blob = private_attestation.serialize()
+        self.cached_attestation_blobs[payload.hash] = private_attestation
+
+        self.send_attestation(peer.address, public_attestation_blob)
 
     def send_attestation(self, socket_address, blob):
         # If we want to serve this request send the attestation in chunks of 800 bytes
         sequence_number = 0
         for i in range(0, len(blob), 800):
             blob_chunk = blob[i:i + 800]
-
+            self.logger.debug("Sending attestation chunk %d to %s", sequence_number, str(socket_address))
             global_time = self.claim_global_time()
             auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
             payload = AttestationChunkPayload(sha1(blob).digest(), sequence_number, blob_chunk).to_pack_list()
@@ -247,13 +275,13 @@ class AttestationCommunity(Community):
             for (_, chunk) in sorted(cache.attestation_map, key=lambda item: item[0]):
                 serialized += chunk
 
-            try:
-                unserialized = Attestation.unserialize(serialized)
-                if sha1(serialized).digest() == payload.hash:
-                    self.request_cache.pop(*hash_id)
-                    self.on_received_attestation(peer, unserialized, payload.hash)
-            except:
-                pass
+            attestation_class = self.get_id_algorithm(cache.id_format).get_attestation_class()
+            if sha1(serialized).digest() == payload.hash:
+                unserialized = attestation_class.unserialize(serialized, cache.id_format)
+                self.request_cache.pop(*hash_id)
+                self.on_received_attestation(peer, unserialized, payload.hash)
+
+            self.logger.debug("Received attestation chunk %d for proving by %s", payload.sequence_number, str(peer))
         elif self.request_cache.has(*peer_id):
             cache = self.request_cache.get(*peer_id)
             cache.attestation_map |= {(payload.sequence_number, payload.data), }
@@ -262,13 +290,14 @@ class AttestationCommunity(Community):
             for (_, chunk) in sorted(cache.attestation_map, key=lambda item: item[0]):
                 serialized += chunk
 
-            try:
-                unserialized = Attestation.unserialize(serialized)
-                if sha1(serialized).digest() == payload.hash:
-                    cache = self.request_cache.pop(*peer_id)
-                    self.on_attestation_complete(unserialized, cache.key, peer, cache.name, payload.hash)
-            except:
-                pass
+            attestation_class = self.get_id_algorithm(cache.id_format).get_attestation_class()
+            if sha1(serialized).digest() == payload.hash:
+                unserialized = attestation_class.unserialize_private(cache.key, serialized, cache.id_format)
+                cache = self.request_cache.pop(*peer_id)
+                self.on_attestation_complete(unserialized, cache.key, peer, cache.name, unserialized.get_hash(),
+                                             cache.id_format)
+
+            self.logger.debug("Received attestation chunk %d for my attribute %s", payload.sequence_number, cache.name)
         else:
             self.logger.warning("Received Attestation chunk which we did not request!")
 
@@ -279,23 +308,28 @@ class AttestationCommunity(Community):
         :param peer: the Peer we got this attestation from
         :param attestation: the Attestation object we can check
         """
-        relativity_map = create_empty_relativity_map()
-        challenges = []
+        algorithm = self.get_id_algorithm(attestation.id_format)
+
+        relativity_map = algorithm.create_certainty_aggregate(attestation)
         hashed_challenges = []
         cache = self.request_cache.get(*HashCache.id_from_hash(u"proving-attestation", attestation_hash))
         cache.public_key = attestation.PK
-        for bitpair in attestation.bitpairs:
-            challenge = create_challenge(attestation.PK, bitpair)
-            serialized = pack_pair(challenge.a, challenge.b)
-            challenges.append(serialized)
-            challenge_hash = sha1(serialized).digest()
+        challenges = algorithm.create_challenges(attestation.PK, attestation)
+        for challenge in challenges:
+            challenge_hash = sha1(challenge).digest()
             hashed_challenges.append(challenge_hash)
         cache.relativity_map = relativity_map
         cache.hashed_challenges = hashed_challenges
         cache.challenges = challenges
-
-        for challenge in challenges[:10]:
-            self.request_cache.add(PendingChallengeCache(self, sha1(challenge).digest(), cache))
+        self.logger.debug("Sending %d challenges to %s", len(challenges), str(peer))
+        remaining = 10
+        for challenge in challenges:
+            if remaining == 0:
+                break
+            elif self.request_cache.has(*PendingChallengeCache.id_from_hash(u"proving-hash", sha1(challenge).digest())):
+                continue
+            remaining -= 1
+            self.request_cache.add(PendingChallengeCache(self, sha1(challenge).digest(), cache, cache.id_format))
 
             global_time = self.claim_global_time()
             auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
@@ -310,13 +344,15 @@ class AttestationCommunity(Community):
         """
         We received a challenge for an Attestation.
         """
-        SK = self.attestation_keys[payload.attestation_hash]
+        SK, id_format = self.attestation_keys[payload.attestation_hash]
         challenge_hash = sha1(payload.challenge).digest()
+        algorithm = self.get_id_algorithm(id_format)
+        attestation = self.cached_attestation_blobs[payload.attestation_hash]
 
         global_time = self.claim_global_time()
         auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
         payload = ChallengeResponsePayload(challenge_hash,
-                                           create_challenge_response_from_pair(SK, unpack_pair(payload.challenge))
+                                           algorithm.create_challenge_response(SK, attestation, payload.challenge)
                                            ).to_pack_list()
         dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
 
@@ -334,20 +370,22 @@ class AttestationCommunity(Community):
             self.request_cache.pop(*HashCache.id_from_hash(u"proving-hash", payload.challenge_hash))
             proving_cache = cache.proving_cache
             pcache_prefix, pcache_id = HashCache.id_from_hash(u"proving-attestation", proving_cache.hash)
+            challenge = None
             if payload.challenge_hash in proving_cache.hashed_challenges:
                 proving_cache.hashed_challenges.remove(payload.challenge_hash)
                 for challenge in proving_cache.challenges[:]:
                     if sha1(challenge).digest() == payload.challenge_hash:
                         proving_cache.challenges.remove(challenge)
                         break
+            algorithm = self.get_id_algorithm(proving_cache.id_format)
             if cache.honesty_check < 0:
-                process_challenge_response(proving_cache.relativity_map, payload.response)
-            elif cache.honesty_check != payload.response:
+                algorithm.process_challenge_response(proving_cache.relativity_map, challenge, payload.response)
+            elif not algorithm.process_honesty_challenge(cache.honesty_check, payload.response):
                 self.logger.error("%s tried to cheat in the ZKP!", peer.address[0])
                 # Liar, Completed
                 if self.request_cache.has(pcache_prefix, pcache_id):
                     self.request_cache.pop(pcache_prefix, pcache_id)
-                proving_cache.attestation_callbacks(proving_cache.hash, create_empty_relativity_map())
+                proving_cache.attestation_callbacks(proving_cache.hash, algorithm.create_certainty_aggregate(None))
             if len(proving_cache.hashed_challenges) == 0:
                 self.logger.info("Completed attestation verification")
                 # Completed
@@ -356,14 +394,13 @@ class AttestationCommunity(Community):
                 proving_cache.attestation_callbacks(proving_cache.hash, proving_cache.relativity_map)
             else:
                 # Send another proving hash
-                honesty_check = (ord(os.urandom(1)[0:1]) < 38)
+                honesty_check = algorithm.honesty_check and (ord(os.urandom(1)[0:1]) < 38)
                 honesty_check_byte = choice([0, 1, 2]) if honesty_check else -1
                 challenge = None
                 if honesty_check:
                     while not challenge or self.request_cache.has(*HashCache.id_from_hash(u"proving-hash",
                                                                                           sha1(challenge).digest())):
-                        raw_challenge = create_honesty_check(proving_cache.public_key, honesty_check_byte)
-                        challenge = pack_pair(raw_challenge.a, raw_challenge.b)
+                        challenge = algorithm.create_honesty_challenge(proving_cache.public_key, honesty_check_byte)
                 if (not honesty_check) or (challenge and self.request_cache.has(*HashCache.id_from_hash(u"proving-hash",
                                                                                 sha1(challenge).digest()))):
                     honesty_check_byte = -1
@@ -375,9 +412,10 @@ class AttestationCommunity(Community):
                     if not challenge:
                         self.logger.debug("No more bitpairs to challenge!")
                         return
-                self.logger.debug("Sending challenge: %d (%d)", honesty_check_byte, len(proving_cache.hashed_challenges))
+                self.logger.debug("Sending challenge: %d (%d)", honesty_check_byte,
+                                  len(proving_cache.hashed_challenges))
                 self.request_cache.add(PendingChallengeCache(self, sha1(challenge).digest(), proving_cache,
-                                                             honesty_check_byte))
+                                                             cache.id_format, honesty_check_byte))
 
                 global_time = self.claim_global_time()
                 auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()

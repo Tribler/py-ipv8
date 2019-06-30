@@ -2,7 +2,6 @@ from __future__ import absolute_import
 
 from base64 import b64encode
 from hashlib import sha1
-from json import dumps
 
 from twisted.internet.defer import inlineCallbacks, returnValue
 
@@ -12,6 +11,8 @@ from ...mocking.rest.comunities import TestAttestationCommunity, TestIdentityCom
 from ...mocking.rest.peer_interactive_behavior import RequesterRestTestPeer
 from ...mocking.rest.rest_api_peer import RestTestPeer
 from ...mocking.rest.rest_peer_communication import string_to_url
+from ....REST.base_endpoint import BaseEndpoint
+from ....REST.json_util import dumps
 from ....attestation.identity.community import IdentityCommunity
 
 
@@ -229,8 +230,9 @@ class TestAttestationEndpoint(RESTTestBase):
 
         # Forward the actual verification
         verification_responses = yield self.verify_all_attestations(self.nodes[1].get_mids(), param_dict.copy())
-        self.assertTrue(all(x == b'' for x in verification_responses), "At least one of the verification "
-                                                                       "responses was non-empty.")
+        verification_responses = [BaseEndpoint.twisted_loads(response) for response in verification_responses]
+        self.assertTrue(all("success" in x and x["success"] for x in verification_responses),
+                        "At least one of the verification responses was non-empty.")
 
         # Unlock the verification
         param_dict['port'] = self.nodes[1].port
@@ -283,8 +285,9 @@ class TestAttestationEndpoint(RESTTestBase):
 
         # Forward the actual verification
         verification_responses = yield self.verify_all_attestations(self.nodes[1].get_mids(), param_dict.copy())
-        self.assertTrue(all(x == b"" for x in verification_responses), "At least one of the verification "
-                                                                       "responses was non-empty.")
+        verification_responses = [BaseEndpoint.twisted_loads(response) for response in verification_responses]
+        self.assertTrue(all("success" in x and x["success"] for x in verification_responses),
+                        "At least one of the verification responses was non-empty.")
 
         param_dict['port'] = self.nodes[1].port
         result = yield self._get_style_requests.make_outstanding_verify(param_dict)
@@ -373,7 +376,9 @@ class TestAttestationEndpoint(RESTTestBase):
 
         # Drop the identity
         result = yield self._get_style_requests.make_drop_identity(param_dict)
-        self.assertEqual(result, b"", "The identity could not be dropped. Received non-empty response.")
+        json_response = BaseEndpoint.twisted_loads(result)
+        self.assertIn("success", json_response, "The identity could not be dropped. Success parameter not in response.")
+        self.assertTrue(json_response["success"], "The identity could not be dropped, not successful.")
 
         # Make sure the identity was successfully dropped
         result = yield self._get_style_requests.make_attributes(param_dict)
@@ -440,7 +445,9 @@ class TestAttestationEndpoint(RESTTestBase):
 
         param_dict['port'] = self.nodes[0].port
         responses = yield self.attest_all_outstanding_requests(param_dict.copy())
-        self.assertTrue(all(x == b"" for x in responses[1]), "Something went wrong, not all responses were empty.")
+        request_responses = [BaseEndpoint.twisted_loads(response) for response in responses[1]]
+        self.assertTrue(all("success" in x and x["success"] for x in request_responses),
+                        "Something went wrong, not all responses were successful.")
 
         param_dict.update({'port': self.nodes[1].port, 'interface': self.nodes[1].interface})
         attributes = yield self._get_style_requests.make_attributes(param_dict)
@@ -489,9 +496,9 @@ class TestAttestationEndpoint(RESTTestBase):
 
         # Forward the actual verification
         verification_responses = yield self.verify_all_attestations(other_peer_mids, param_dict.copy())
-
-        self.assertTrue(all(x == b"" for x in verification_responses), "At least one of the verification "
-                                                                       "responses was non-empty.")
+        verification_responses = [BaseEndpoint.twisted_loads(response) for response in verification_responses]
+        self.assertTrue(all("success" in x and x["success"] for x in verification_responses),
+                        "At least one of the verification responses was non-empty.")
 
     @inlineCallbacks
     def test_post_allow_verify(self):
@@ -525,8 +532,9 @@ class TestAttestationEndpoint(RESTTestBase):
 
         # Forward the actual verification
         verification_responses = yield self.verify_all_attestations(self.nodes[1].get_mids(), param_dict.copy())
-        self.assertTrue(all(x == b"" for x in verification_responses), "At least one of the verification "
-                                                                       "responses was non-empty.")
+        verification_responses = [BaseEndpoint.twisted_loads(response) for response in verification_responses]
+        self.assertTrue(all("success" in x and x["success"] for x in verification_responses),
+                        "At least one of the verification responses was non-empty.")
 
         # Unlock the verification
         param_dict['port'] = self.nodes[1].port
@@ -536,5 +544,7 @@ class TestAttestationEndpoint(RESTTestBase):
         param_dict['mid'] = string_to_url(outstanding_verifications[0][0])
 
         response = yield self._post_style_requests.make_allow_verify(param_dict)
+        json_response = BaseEndpoint.twisted_loads(response)
 
-        self.assertEqual(b"", response, "The attestation could not be unlocked.")
+        self.assertIn("success", json_response, "The attestion could not be unlocked: success not in JSON response")
+        self.assertTrue(json_response["success"], "The attestation could not be unlocked: not successful.")

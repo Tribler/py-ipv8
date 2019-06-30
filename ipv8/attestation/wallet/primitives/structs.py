@@ -2,10 +2,10 @@ from __future__ import absolute_import
 
 import struct
 
-from .cryptosystem.value import FP2Value
+from .value import FP2Value
 
 
-__all__ = ['pack_pair', 'unpack_pair', 'BonehPublicKey', 'BonehPrivateKey', 'BitPairAttestation', 'Attestation']
+__all__ = ['ipack', 'iunpack', 'pack_pair', 'unpack_pair', 'BonehPublicKey', 'BonehPrivateKey']
 
 
 def _num_to_str(num):
@@ -34,7 +34,7 @@ def _str_to_num(s):
     return out
 
 
-def _pack(num):
+def ipack(num):
     """
     Serialize an integer.
     """
@@ -43,7 +43,7 @@ def _pack(num):
     return struct.pack(">B", len(l)) + l + pnum
 
 
-def _unpack(s):
+def iunpack(s):
     """
     Unserialize an integer from a str.
     """
@@ -56,15 +56,15 @@ def pack_pair(a, b):
     """
     Serialize a pair of two integers.
     """
-    return _pack(a) + _pack(b)
+    return ipack(a) + ipack(b)
 
 
 def unpack_pair(s):
     """
     Unserialize a pair of two integers.
     """
-    a, r = _unpack(s)
-    b, r = _unpack(r)
+    a, r = iunpack(s)
+    b, r = iunpack(r)
     return a, b, r
 
 
@@ -80,14 +80,14 @@ class BonehPublicKey(object):
         self.h = h
 
     def serialize(self):
-        return _pack(self.p) + _pack(self.g.a) + _pack(self.g.b) + _pack(self.h.a) + _pack(self.h.b)
+        return ipack(self.p) + ipack(self.g.a) + ipack(self.g.b) + ipack(self.h.a) + ipack(self.h.b)
 
     @classmethod
     def unserialize(cls, s):
         rem = s
         nums = []
         while rem and len(nums) < cls.FIELDS:
-            unpacked, rem = _unpack(rem)
+            unpacked, rem = iunpack(rem)
             nums.append(unpacked)
         if len(nums) != cls.FIELDS:
             return None
@@ -112,65 +112,7 @@ class BonehPrivateKey(BonehPublicKey):
         self.t1 = t1
 
     def serialize(self):
-        return super(BonehPrivateKey, self).serialize() + _pack(self.n) + _pack(self.t1)
+        return super(BonehPrivateKey, self).serialize() + ipack(self.n) + ipack(self.t1)
 
     def public_key(self):
         return BonehPublicKey(self.p, self.g, self.h)
-
-
-class BitPairAttestation(object):
-    """
-    An attestation of a single bitpair of a larger Attestation.
-    """
-
-    def __init__(self, a, b, complement):
-        self.a = a
-        self.b = b
-        self.complement = complement
-
-    def compress(self):
-        return self.a * self.b * self.complement
-
-    def serialize(self):
-        return (_pack(self.a.a) + _pack(self.a.b) + _pack(self.b.a) + _pack(self.b.b)
-                + _pack(self.complement.a) + _pack(self.complement.b))
-
-    @classmethod
-    def unserialize(cls, s, p):
-        rem = s
-        nums = []
-        while rem and len(nums) < 6:
-            unpacked, rem = _unpack(rem)
-            nums.append(unpacked)
-        inits = [FP2Value(p, nums[0], nums[1]),
-                 FP2Value(p, nums[2], nums[3]),
-                 FP2Value(p, nums[4], nums[5])]
-        return cls(*inits)
-
-
-class Attestation(object):
-    """
-    An attestation for a public key of a value consisting of multiple bitpairs.
-    """
-
-    def __init__(self, PK, bitpairs):
-        self.bitpairs = bitpairs
-        self.PK = PK
-
-    def serialize(self):
-        out = b''
-        out += self.PK.serialize()
-        for bitpair in self.bitpairs:
-            out += bitpair.serialize()
-        return out
-
-    @classmethod
-    def unserialize(cls, s):
-        PK = BonehPublicKey.unserialize(s)
-        bitpairs = []
-        rem = s[len(PK.serialize()):]
-        while rem:
-            attest = BitPairAttestation.unserialize(rem, PK.p)
-            bitpairs.append(attest)
-            rem = rem[len(attest.serialize()):]
-        return cls(PK, bitpairs)

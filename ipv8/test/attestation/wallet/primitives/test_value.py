@@ -3,7 +3,7 @@ from __future__ import division
 
 from twisted.trial import unittest
 
-from ......attestation.wallet.primitives.cryptosystem.value import FP2Value
+from .....attestation.wallet.primitives.value import FP2Value
 
 
 class TestFP2Value(unittest.TestCase):
@@ -263,6 +263,22 @@ class TestFP2Value(unittest.TestCase):
         a = FP2Value(11, 4, aC=3)
 
         self.assertEqual(a.inverse().normalize(), FP2Value(11, 9))
+
+    def test_wp_compress_simple(self):
+        """
+        Check if (2 + 4x)/(1 + 2x) = 2 mod 11 mod x^2 + x + 1.
+        """
+        a = FP2Value(11, 2, 4, aC=1, bC=2)
+
+        self.assertEqual(a.wp_compress(), FP2Value(11, 2))
+
+    def test_wp_compress_complex(self):
+        """
+        Check if (2 + 6x)/(1 + 2x) = 7 + 8x mod 11 mod x^2 + x + 1.
+        """
+        a = FP2Value(11, 2, 6, aC=1, bC=2)
+
+        self.assertEqual(a.wp_compress(), FP2Value(11, 7, 8))
 
     def test_str_zero(self):
         """

@@ -3,6 +3,9 @@ from __future__ import absolute_import
 from binascii import unhexlify
 from time import time
 
+from twisted.internet.defer import succeed
+
+from ..identity_formats import FORMATS
 from ...attestation.trustchain.community import TrustChainCommunity
 from ...attestation.trustchain.listener import BlockListener
 from ...peer import Peer
@@ -21,7 +24,7 @@ class IdentityCommunity(TrustChainCommunity, BlockListener):
         TrustChainCommunity.__init__(self, *args, **kwargs)
         BlockListener.__init__(self)
 
-        self.add_listener(self, [b'id_metadata'])
+        self.add_listener(self, [identity_format.encode('utf-8') for identity_format in FORMATS])
 
         # Dict of hash -> (attribute_name, date, public_key)
         self.known_attestation_hashes = {}
@@ -46,34 +49,36 @@ class IdentityCommunity(TrustChainCommunity, BlockListener):
         transaction = block.transaction
         requested_keys = set(transaction.keys())
         if requested_keys - {b"hash", b"name", b"date", b"metadata"} != set():
-            return False
+            return succeed(False)
         if requested_keys - {b"metadata"} != {b"hash", b"name", b"date"}:
-            return False
+            return succeed(False)
         attribute_hash = transaction[b'hash']
         if attribute_hash not in self.known_attestation_hashes:
-            return False
+            return succeed(False)
         if block.public_key != self.known_attestation_hashes[attribute_hash][2]:
-            return False
+            return succeed(False)
         # Refuse to sign blocks older than 5 minutes
         if time() > self.known_attestation_hashes[attribute_hash][1] + 300:
-            return False
+            return succeed(False)
         if transaction[b'name'] != self.known_attestation_hashes[attribute_hash][0]:
-            return False
+            return succeed(False)
         if (self.known_attestation_hashes[attribute_hash][3]
                 and transaction.get(b'metadata', None) != self.known_attestation_hashes[attribute_hash][3]):
-            return False
-        return True
+            return succeed(False)
+        return succeed(True)
 
-    def request_attestation_advertisement(self, peer, attribute_hash, name, metadata=None):
+    def request_attestation_advertisement(self, peer, attribute_hash, name, block_type="id_metadata", metadata=None):
         """
         Request a peer to sign for our attestation advertisement.
         :param peer: the attestor of our block
         :param attribute_hash: the hash of the attestation
         :param name: the name of the attribute (metadata)
+        :param block_type: the type of block (from identity_foromats.py)
+        :param metadata: custom additional metadata
         """
         self.sign_block(peer,
                         public_key=peer.public_key.key_to_bin(),
-                        block_type=b"id_metadata",
+                        block_type=block_type.encode('utf-8'),
                         transaction={
                             b"hash": attribute_hash,
                             b"name": name,

@@ -16,7 +16,7 @@ from twisted.internet.protocol import DatagramProtocol
 
 from ...keyvault.public.libnaclkey import LibNaCLPK
 from ...taskmanager import TaskManager
-from ...util import blocking_call_on_reactor_thread, cast_to_chr
+from ...util import blocking_call_on_reactor_thread
 
 
 ORIGINATOR = 0
@@ -36,6 +36,7 @@ PEER_FLAG_EXIT_IPV8 = 4
 
 # Data circuits are supposed to end in an exit peer that allows exiting data to the outside world
 CIRCUIT_TYPE_DATA = 'DATA'
+CIRCUIT_TYPE_IPV8 = 'IPV8'
 
 # The other circuits are supposed to end in a connectable node, not allowed to exit
 # anything else than IPv8 messages, used for setting up end-to-end circuits
@@ -149,7 +150,7 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
                             exception, destination, exception)
 
                 try:
-                    socket.inet_aton(cast_to_chr(destination[0]))
+                    socket.inet_aton(destination[0])
                     on_ip_address(destination[0])
                 except socket.error:
                     resolve_ip_address_deferred = reactor.resolve(destination[0])

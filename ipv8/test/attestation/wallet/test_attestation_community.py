@@ -1,14 +1,16 @@
 from __future__ import absolute_import
 
-from binascii import unhexlify
 import os
+from binascii import unhexlify
+
 from twisted.internet.defer import inlineCallbacks
 
-from ....attestation.wallet.database import AttestationsDB
-from ....attestation.wallet.primitives.attestation import binary_relativity_sha256_4
-from ....attestation.wallet.community import Attestation, AttestationCommunity, BonehPrivateKey
-
 from ...base import MockIPv8, TestBase
+from ....attestation.wallet.bonehexact.structs import BonehAttestation
+from ....attestation.wallet.community import AttestationCommunity
+from ....attestation.wallet.database import AttestationsDB
+from ....attestation.wallet.pengbaorange.structs import PengBaoAttestation
+from ....attestation.wallet.primitives.structs import BonehPrivateKey
 
 
 class TestCommunity(TestBase):
@@ -108,6 +110,66 @@ class TestCommunity(TestBase):
         self.assertTrue(f.called)
 
     @inlineCallbacks
+    def test_request_attestation_big(self):
+        """
+        Check if the request_attestation callback is correctly called for id_metadata_big.
+        """
+
+        def f(peer, attribute_name, _, __=None):
+            self.assertEqual(peer.address, self.nodes[1].endpoint.wan_address)
+            self.assertEqual(attribute_name, "MyAttribute")
+
+            f.called = True
+
+        f.called = False
+
+        yield self.introduce_nodes()
+
+        self.nodes[0].overlay.set_attestation_request_callback(lambda x, y, z: b"AttributeValue")
+        self.nodes[0].overlay.set_attestation_request_complete_callback(f)
+
+        self.nodes[1].overlay.request_attestation(self.nodes[0].overlay.my_peer,
+                                                  "MyAttribute",
+                                                  TestCommunity.private_key,
+                                                  metadata={"id_format": "id_metadata_big"})
+
+        yield self.deliver_messages(1.5)
+
+        db_entries = self.nodes[1].overlay.database.get_all()
+        self.assertEqual(1, len(db_entries))
+        self.assertTrue(f.called)
+
+    @inlineCallbacks
+    def test_request_attestation_range(self):
+        """
+        Check if the request_attestation callback is correctly called for id_metadata_range_18plus.
+        """
+
+        def f(peer, attribute_name, _, __=None):
+            self.assertEqual(peer.address, self.nodes[1].endpoint.wan_address)
+            self.assertEqual(attribute_name, "MyAttribute")
+
+            f.called = True
+
+        f.called = False
+
+        yield self.introduce_nodes()
+
+        self.nodes[0].overlay.set_attestation_request_callback(lambda x, y, z: b"\x13")
+        self.nodes[0].overlay.set_attestation_request_complete_callback(f)
+
+        self.nodes[1].overlay.request_attestation(self.nodes[0].overlay.my_peer,
+                                                  "MyAttribute",
+                                                  TestCommunity.private_key,
+                                                  metadata={"id_format": "id_metadata_range_18plus"})
+
+        yield self.deliver_messages(2.0)
+
+        db_entries = self.nodes[1].overlay.database.get_all()
+        self.assertEqual(1, len(db_entries))
+        self.assertTrue(f.called)
+
+    @inlineCallbacks
     def test_verify_attestation(self):
         """
         Check if an attestation can be verified.
@@ -116,10 +178,11 @@ class TestCommunity(TestBase):
         filename = os.path.join(os.path.dirname(__file__), 'attestation.txt')
         with open(filename, 'r') as f:
             serialized = unhexlify(f.read().strip())
-        attestation = Attestation.unserialize(serialized)
+        attestation = BonehAttestation.unserialize(serialized, "id_metadata")
         attestation_hash = unhexlify('9019195eb75c07ec3e86a62c314dcf5ef2bbcc0d')
-        self.nodes[0].overlay.database.insert_attestation(attestation, TestCommunity.private_key)
-        self.nodes[0].overlay.attestation_keys[attestation_hash] = TestCommunity.private_key
+        self.nodes[0].overlay.database.insert_attestation(attestation, attestation_hash, TestCommunity.private_key,
+                                                          "id_metadata")
+        self.nodes[0].overlay.attestation_keys[attestation_hash] = (TestCommunity.private_key, "id_metadata")
 
         def callback(rhash, values):
             self.assertEqual(attestation_hash, rhash)
@@ -129,10 +192,76 @@ class TestCommunity(TestBase):
         callback.called = False
         self.nodes[1].overlay.verify_attestation_values(self.nodes[0].endpoint.wan_address,
                                                         attestation_hash,
-                                                        [binary_relativity_sha256_4(b"MyAttribute")],
-                                                        callback)
+                                                        [b"MyAttribute"],
+                                                        callback,
+                                                        "id_metadata")
 
         yield self.deliver_messages(0.5)
+
+        self.assertTrue(callback.called)
+        self.nodes[1].overlay.request_cache.clear()
+
+    @inlineCallbacks
+    def test_verify_attestation_big(self):
+        """
+        Check if an attestation can be verified for id_metadata_big.
+        """
+        filename = os.path.join(os.path.dirname(__file__), 'attestation_big.txt')
+        with open(filename, 'r') as f:
+            serialized = unhexlify(f.read().strip())
+        attestation = BonehAttestation.unserialize(serialized, "id_metadata_big")
+        attestation_hash = unhexlify('113d31c31b626268a16c198cbd58dd5aa8d1d81c')
+        self.nodes[0].overlay.database.insert_attestation(attestation, attestation_hash, TestCommunity.private_key,
+                                                          "id_metadata_big")
+        self.nodes[0].overlay.attestation_keys[attestation_hash] = (TestCommunity.private_key, "id_metadata_big")
+
+        def callback(rhash, values):
+            self.assertEqual(attestation_hash, rhash)
+            self.assertEqual(1, len(values))
+            self.assertLess(0.99, values[0])
+            callback.called = True
+
+        callback.called = False
+        self.nodes[1].overlay.verify_attestation_values(self.nodes[0].endpoint.wan_address,
+                                                        attestation_hash,
+                                                        [b"AttributeValue"],
+                                                        callback,
+                                                        "id_metadata_big")
+
+        yield self.deliver_messages(1.5)
+
+        self.assertTrue(callback.called)
+        self.nodes[1].overlay.request_cache.clear()
+
+    @inlineCallbacks
+    def test_verify_attestation_range(self):
+        """
+        Check if an attestation can be verified for id_metadata_range_18plus.
+        """
+        filename = os.path.join(os.path.dirname(__file__), 'attestation_range.txt')
+        with open(filename, 'r') as f:
+            serialized = unhexlify(f.read().strip())
+        attestation = PengBaoAttestation.unserialize_private(self.private_key, serialized, "id_metadata_range_18plus")
+        attestation_hash = unhexlify('b40c8734ba6c91a49670c1f0152c7f4dac2a8272')
+        self.nodes[0].overlay.database.insert_attestation(attestation, attestation_hash, TestCommunity.private_key,
+                                                          "id_metadata_range_18plus")
+        self.nodes[0].overlay.attestation_keys[attestation_hash] = (TestCommunity.private_key,
+                                                                    "id_metadata_range_18plus")
+
+        def callback(rhash, values):
+            self.assertEqual(attestation_hash, rhash)
+            self.assertEqual(1, len(values))
+            self.assertLess(0.99, values[0])
+            callback.called = True
+
+        callback.called = False
+        self.nodes[1].overlay.verify_attestation_values(self.nodes[0].endpoint.wan_address,
+                                                        attestation_hash,
+                                                        [b"\x01"],
+                                                        callback,
+                                                        "id_metadata_range_18plus")
+
+        yield self.deliver_messages(2.5)
 
         self.assertTrue(callback.called)
         self.nodes[1].overlay.request_cache.clear()
@@ -148,8 +277,8 @@ class TestCommunity(TestBase):
 
         # Create an attestation and write it to file.
         # Then close the database.
-        attestation = Attestation(TestCommunity.private_key.public_key(), [])
-        overlay.on_attestation_complete(attestation, TestCommunity.private_key, None, "test", b"a" * 20)
+        attestation = BonehAttestation(TestCommunity.private_key.public_key(), [], "id_metadata")
+        overlay.on_attestation_complete(attestation, TestCommunity.private_key, None, "test", b"a" * 20, "id_metadata")
         overlay.database.close(True)
 
         # Reload the community with the same database.

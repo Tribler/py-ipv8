@@ -1,16 +1,15 @@
 from __future__ import absolute_import
 
-from hashlib import sha1
 import os
 
-from ...database import database_blob, Database
+from ...database import Database, database_blob
 
 DATABASE_DIRECTORY = os.path.join(u"sqlite")
 
 
 class AttestationsDB(Database):
 
-    LATEST_DB_VERSION = 1
+    LATEST_DB_VERSION = 2
 
     def __init__(self, working_directory, db_name):
         """
@@ -34,39 +33,63 @@ class AttestationsDB(Database):
         return self._get(u"SELECT blob FROM %s WHERE hash = ?" % self.db_name, (database_blob(attestation_hash),))
 
     def get_all(self):
-        return list(self.execute("SELECT * FROM %s" % self.db_name, (), fetch_all=True))
+        return list(self.execute(u"SELECT * FROM %s" % self.db_name, (), fetch_all=True))
 
-    def insert_attestation(self, attestation, secret_key):
-        blob = database_blob(attestation.serialize())
-        attestation_hash = database_blob(sha1(blob).digest())
+    def insert_attestation(self, attestation, attestation_hash, secret_key, id_format):
+        blob = database_blob(attestation.serialize_private(secret_key.public_key()))
         self.execute(
-            u"INSERT INTO %s (hash, blob, key) VALUES(?,?,?)" % self.db_name,
-            (attestation_hash, blob, database_blob(secret_key.serialize())))
+            u"INSERT INTO %s (hash, blob, key, id_format) VALUES(?,?,?,?)" % self.db_name,
+            (database_blob(attestation_hash), blob, database_blob(secret_key.serialize()),
+             database_blob(id_format.encode('utf-8'))))
         self.commit()
 
-    def get_schema(self):
+    def get_schema(self, version):
         """
         Return the schema for the database.
         """
-        return u"""
-        CREATE TABLE IF NOT EXISTS %s(
-         hash                 BLOB,
-         blob                 LONGBLOB,
-         key                  MEDIUMBLOB,
+        schema = u""
+        if version == 1:
+            schema = u"""
+                     CREATE TABLE IF NOT EXISTS %s(
+                     hash                 BLOB,
+                     blob                 LONGBLOB,
+                     key                  MEDIUMBLOB
 
-         PRIMARY KEY (hash)
-         );
+                     PRIMARY KEY (hash)
+                     );
+                     """ % self.db_name
+        elif version == 2:
+            schema = u"""
+                     CREATE TABLE IF NOT EXISTS %s(
+                     hash                 BLOB,
+                     blob                 LONGBLOB,
+                     key                  MEDIUMBLOB,
+                     id_format            TINYTEXT,
 
-        CREATE TABLE option(key TEXT PRIMARY KEY, value BLOB);
-        INSERT INTO option(key, value) VALUES('database_version', '%s');
-        """ % (self.db_name, str(self.LATEST_DB_VERSION))
+                     PRIMARY KEY (hash)
+                     );
+                     """ % self.db_name
+        schema += u"""
+                  CREATE TABLE IF NOT EXISTS option(key TEXT PRIMARY KEY, value BLOB);
+                  DELETE FROM option WHERE key = 'database_version';
+                  INSERT INTO option(key, value) VALUES('database_version', '%s');
+                  """ % str(self.LATEST_DB_VERSION)
+        return schema
 
     def get_upgrade_script(self, current_version):
         """
         Return the upgrade script for a specific version.
         :param current_version: the version of the script to return.
         """
-        return None
+        if current_version == 1:
+            return u"""
+                    ALTER TABLE %s
+                    ADD id_format TINYTEXT;
+
+                    UPDATE %s SET id_format='id_metadata';
+                    """ % (self.db_name, self.db_name)
+        else:
+            return None
 
     def check_database(self, database_version):
         """
@@ -76,7 +99,7 @@ class AttestationsDB(Database):
         """
         assert database_version.isdigit()
         assert int(database_version) >= 0
-        database_version = int(database_version)
+        database_version = int(database_version) or self.LATEST_DB_VERSION
 
         if database_version < self.LATEST_DB_VERSION:
             while database_version < self.LATEST_DB_VERSION:
@@ -84,7 +107,8 @@ class AttestationsDB(Database):
                 if upgrade_script:
                     self.executescript(upgrade_script)
                 database_version += 1
-            self.executescript(self.get_schema())
-            self.commit()
+
+        self.executescript(self.get_schema(database_version))
+        self.commit()
 
         return self.LATEST_DB_VERSION

@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
@@ -11,7 +11,7 @@ setup(
     description='The Python implementation of the IPV8 library',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    version='1.7.0',
+    version='1.8.0',
     url='https://github.com/Tribler/py-ipv8',
     package_data={'': ['*.*']},
     packages=find_packages(),

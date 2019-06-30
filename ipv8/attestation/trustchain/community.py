@@ -5,25 +5,25 @@ Every node has a chain and these chains intertwine by blocks shared by chains.
 """
 from __future__ import absolute_import
 
-from binascii import hexlify, unhexlify
 import logging
 import random
 import struct
+from binascii import hexlify, unhexlify
 from functools import wraps
 from threading import RLock
 
 from twisted.internet import reactor
-from twisted.internet.defer import Deferred, succeed, fail
+from twisted.internet.defer import Deferred, fail, inlineCallbacks, maybeDeferred, returnValue, succeed
 from twisted.internet.task import LoopingCall
 
-from ...attestation.trustchain.settings import TrustChainSettings
-from .block import TrustChainBlock, ValidationResult, EMPTY_PK, GENESIS_SEQ, UNKNOWN_SEQ, ANY_COUNTERPARTY_PK
-from .caches import CrawlRequestCache, HalfBlockSignCache, IntroCrawlTimeout, ChainCrawlCache
+from .block import ANY_COUNTERPARTY_PK, EMPTY_PK, GENESIS_SEQ, TrustChainBlock, UNKNOWN_SEQ, ValidationResult
+from .caches import ChainCrawlCache, CrawlRequestCache, HalfBlockSignCache, IntroCrawlTimeout
 from .database import TrustChainDB
+from .payload import *
+from ...attestation.trustchain.settings import TrustChainSettings
 from ...community import Community
 from ...lazy_community import lazy_wrapper, lazy_wrapper_unsigned, lazy_wrapper_unsigned_wd
 from ...messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
-from .payload import *
 from ...peer import Peer
 from ...requestcache import RandomNumberCache, RequestCache
 from ...util import addCallback
@@ -60,7 +60,7 @@ class TrustChainCommunity(Community):
         super(TrustChainCommunity, self).__init__(*args, **kwargs)
         self.request_cache = RequestCache()
         self.logger = logging.getLogger(self.__class__.__name__)
-        self.persistence = self.DB_CLASS(working_directory, db_name)
+        self.persistence = self.DB_CLASS(working_directory, db_name, self.my_peer.public_key.key_to_bin())
         self.relayed_broadcasts = []
         self.logger.debug("The trustchain community started with Public Key: %s",
                           hexlify(self.my_peer.public_key.key_to_bin()))
@@ -114,19 +114,21 @@ class TrustChainCommunity(Community):
 
         return self.listeners_map[block_type][0].BLOCK_CLASS
 
+    @inlineCallbacks
     def should_sign(self, block):
         """
         Return whether we should sign the block in the passed message.
         @param block: the block we want to sign or not.
         """
         if block.type not in self.listeners_map:
-            return False  # There are no listeners for this block
+            returnValue(False)  # There are no listeners for this block
 
         for listener in self.listeners_map[block.type]:
-            if listener.should_sign(block):
-                return True
+            should_sign = yield maybeDeferred(listener.should_sign, block)
+            if should_sign:
+                returnValue(True)
 
-        return False
+        returnValue(False)
 
     def send_block(self, block, address=None, ttl=1):
         """
@@ -386,38 +388,43 @@ class TrustChainCommunity(Community):
 
         self.logger.info("Received request block addressed to us (%s)", blk)
 
+        def on_should_sign_outcome(should_sign):
+            if not should_sign:
+                self.logger.info("Not signing block %s", blk)
+                return succeed(None)
+
+            # It is important that the request matches up with its previous block, gaps cannot be tolerated at
+            # this point. We already dropped invalids, so here we delay this message if the result is partial,
+            # partial_previous or no-info. We send a crawl request to the requester to (hopefully) close the gap
+            if (validation[0] == ValidationResult.partial_previous or validation[0] == ValidationResult.partial
+                    or validation[0] == ValidationResult.no_info) and self.settings.validation_range > 0:
+                self.logger.info("Request block could not be validated sufficiently, crawling requester. %s",
+                                 validation)
+                # Note that this code does not cover the scenario where we obtain this block indirectly.
+                if not self.request_cache.has(u"crawl", blk.hash_number):
+                    crawl_deferred = self.send_crawl_request(peer,
+                                                             blk.public_key,
+                                                             max(GENESIS_SEQ, (blk.sequence_number
+                                                                               - self.settings.validation_range)),
+                                                             max(GENESIS_SEQ, blk.sequence_number - 1),
+                                                             for_half_block=blk)
+                    return addCallback(crawl_deferred, lambda _: self.process_half_block(blk, peer))
+            else:
+                return self.sign_block(peer, linked=blk)
+
         # determine if we want to sign this block
-        if not self.should_sign(blk):
-            self.logger.info("Not signing block %s", blk)
-            return succeed(None)
+        return addCallback(self.should_sign(blk), on_should_sign_outcome)
 
-        # It is important that the request matches up with its previous block, gaps cannot be tolerated at
-        # this point. We already dropped invalids, so here we delay this message if the result is partial,
-        # partial_previous or no-info. We send a crawl request to the requester to (hopefully) close the gap
-        if (validation[0] == ValidationResult.partial_previous or validation[0] == ValidationResult.partial
-                or validation[0] == ValidationResult.no_info) and self.settings.validation_range > 0:
-            self.logger.info("Request block could not be validated sufficiently, crawling requester. %s",
-                             validation)
-            # Note that this code does not cover the scenario where we obtain this block indirectly.
-            if not self.request_cache.has(u"crawl", blk.hash_number):
-                crawl_deferred = self.send_crawl_request(peer,
-                                                         blk.public_key,
-                                                         max(GENESIS_SEQ, (blk.sequence_number
-                                                                           - self.settings.validation_range)),
-                                                         max(GENESIS_SEQ, blk.sequence_number - 1),
-                                                         for_half_block=blk)
-                return addCallback(crawl_deferred, lambda _: self.process_half_block(blk, peer))
-        else:
-            return self.sign_block(peer, linked=blk)
-
-    def crawl_chain(self, peer, latest_block_num=None):
+    def crawl_chain(self, peer, latest_block_num=0):
         """
         Crawl the whole chain of a specific peer.
         :param latest_block_num: The latest block number of the peer in question, if available.
         """
-        cache = ChainCrawlCache(self, peer, known_chain_length=latest_block_num)
+        crawl_deferred = Deferred()
+        cache = ChainCrawlCache(self, peer, crawl_deferred, known_chain_length=latest_block_num)
         self.request_cache.add(cache)
         reactor.callFromThread(self.send_next_partial_chain_crawl_request, cache)
+        return crawl_deferred
 
     def crawl_lowest_unknown(self, peer, latest_block_num=None):
         """
@@ -464,6 +471,7 @@ class TrustChainCommunity(Community):
         elif cache.current_request_attempts == 3:
             # We already tried the same request three times, bail out
             self.request_cache.pop(u"chaincrawl", cache.number)
+            cache.crawl_deferred.callback(None)
             return
 
         cache.current_request_attempts += 1
@@ -477,13 +485,30 @@ class TrustChainCommunity(Community):
         :param cache: The cache that stores progress regarding the chain crawl.
         """
         lowest_unknown = self.persistence.get_lowest_sequence_number_unknown(cache.peer.public_key.key_to_bin())
-        if cache.known_chain_length >= 0 and cache.known_chain_length == lowest_unknown - 1:
+        if cache.known_chain_length and cache.known_chain_length == lowest_unknown - 1:
+            # At this point, we have all the blocks we need
             self.request_cache.pop(u"chaincrawl", cache.number)
+            cache.crawl_deferred.callback(None)
+            return
+
+        # Do we know the chain length of the crawled peer? If not, make sure we get to know this first.
+        def on_latest_block(blocks):
+            if not blocks:
+                self.request_cache.pop(u"chaincrawl", cache.number)
+                cache.crawl_deferred.callback(None)
+                return
+
+            cache.known_chain_length = blocks[0].sequence_number
+            self.send_next_partial_chain_crawl_request(cache)
+
+        if not cache.known_chain_length:
+            self.send_crawl_request(cache.peer, cache.peer.public_key.key_to_bin(), -1, -1).addCallback(on_latest_block)
             return
 
         latest_block = self.persistence.get_latest(cache.peer.public_key.key_to_bin())
-        if not latest_block and cache.known_chain_length > 0:
-            # We have no knowledge of this peer, simply send a request from the genesis block to known chain length
+        if not latest_block:
+            # We have no knowledge of this peer but we have the length of the chain.
+            # Simply send a request from the genesis block to the known chain length.
             self.perform_partial_chain_crawl(cache, 1, cache.known_chain_length)
             return
         elif latest_block and lowest_unknown == latest_block.sequence_number + 1:
@@ -493,6 +518,7 @@ class TrustChainCommunity(Community):
                 return
             else:
                 self.request_cache.pop(u"chaincrawl", cache.number)
+                cache.crawl_deferred.callback(None)
                 return
 
         start, stop = self.persistence.get_lowest_range_unknown(cache.peer.public_key.key_to_bin())

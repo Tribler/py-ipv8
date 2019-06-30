@@ -115,8 +115,6 @@ class TunnelSettings(object):
         self.num_ip_circuits = 3
         self.peer_flags = PEER_FLAG_RELAY
 
-        self.allow_incoming_ipv8 = True
-
 
 class TunnelCommunity(Community):
 
@@ -284,11 +282,13 @@ class TunnelCommunity(Community):
 
         self.logger.info("Creating a new circuit of length %d (type: %s)", goal_hops, ctype)
         exit_candidates = self.get_candidates(PEER_FLAG_EXIT_ANY)
+        if ctype == CIRCUIT_TYPE_IPV8:
+            exit_candidates = self.get_candidates(PEER_FLAG_EXIT_IPV8) or exit_candidates
         relay_candidates = self.get_candidates(PEER_FLAG_RELAY)
 
         # Determine the last hop
         if not required_exit:
-            if ctype in [CIRCUIT_TYPE_DATA, CIRCUIT_TYPE_IP_SEEDER]:
+            if ctype in [CIRCUIT_TYPE_DATA, CIRCUIT_TYPE_IPV8, CIRCUIT_TYPE_IP_SEEDER]:
                 required_exit = random.choice(exit_candidates) if exit_candidates else None
                 # For introduction points we prefer exit nodes, but perhaps a relay peer would also suffice..
                 if not required_exit and relay_candidates and ctype == CIRCUIT_TYPE_IP_SEEDER:
@@ -496,7 +496,11 @@ class TunnelCommunity(Community):
         else:
             message = self.serializer.pack_multiple(payload.to_pack_list()[1:])[0]
         cell = CellPayload(circuit_id, pack('!B', message_id) + message, message_id in NO_CRYPTO_PACKETS)
-        cell.encrypt(self.crypto, self.circuits.get(circuit_id), self.relay_session_keys.get(circuit_id))
+        try:
+            cell.encrypt(self.crypto, self.circuits.get(circuit_id), self.relay_session_keys.get(circuit_id))
+        except CryptoException as e:
+            self.logger.warning(str(e))
+            return
         packet = cell.to_bin(self._prefix)
         return self.send_packet(candidates, packet)
 
@@ -860,9 +864,9 @@ class TunnelCommunity(Community):
                     self.on_packet_from_circuit(origin, data, circuit_id)
                     return
 
-                if self.settings.allow_incoming_ipv8:
+                if isinstance(self.endpoint, TunnelEndpoint):
                     self.logger.debug("Incoming packet meant for other community")
-                    self.endpoint.notify_listeners((origin, data))
+                    self.endpoint.notify_listeners((origin, data), from_tunnel=True)
                 else:
                     self.logger.debug("Incoming packet meant for other community, dropping")
             else:

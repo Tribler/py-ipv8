@@ -19,7 +19,12 @@ fi
 echo -n "Starting IPv8 testsuite: "
 if nosetests --version >>/dev/null 2>&1; then
     echo "using test runner 'nosetests'!"
-    test_command="$interpreter run_nose.py"
+    # Use nosetests2 if available and if not, try version possibly incompatible with python2
+    if [ -x "$(command -v nosetests2)" ]; then
+        test_command="nosetests2"
+    else
+        test_command="nosetests"
+    fi
     test_command+=" -s -x -v"
 else
     echo "using test runner '$interpreter -m unittest'!"

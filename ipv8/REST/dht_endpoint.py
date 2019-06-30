@@ -1,13 +1,12 @@
 from __future__ import absolute_import
 
-import json
 import logging
 from base64 import b64decode, b64encode
 from binascii import hexlify, unhexlify
 from hashlib import sha1
 
 from twisted.internet import reactor
-from twisted.internet.task import deferLater
+from twisted.internet.task import LoopingCall, deferLater
 from twisted.web import http
 from twisted.web.server import NOT_DONE_YET
 
@@ -18,7 +17,10 @@ from ..attestation.trustchain.payload import DHTBlockPayload
 from ..dht.community import DHTCommunity, MAX_ENTRY_SIZE
 from ..dht.discovery import DHTDiscoveryCommunity
 from ..keyvault.public.libnaclkey import LibNaCLPK
-from ..messaging.serialization import Serializer
+from ..messaging.serialization import PackError, Serializer
+
+# The period of the block maintenance looping call
+BLOCK_REFRESH_PERIOD = 60 * 60  # 1 hour
 
 
 class DHTEndpoint(BaseEndpoint):
@@ -44,6 +46,10 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
     this peer's latest TC block is available
     """
 
+    KEY_SUFFIX = b'_BLOCK'
+    CHUNK_SIZE = MAX_ENTRY_SIZE - DHTBlockPayload.PREAMBLE_OVERHEAD - 1
+    ATTEMPT_LIMIT = 3
+
     def received_block(self, block):
         """
         Wrapper callback method, inherited from the BlockListener abstract class, which will publish the latest
@@ -53,14 +59,10 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
         """
         # Check if the block is not null, and if it belongs to this peer
         if block and block.public_key == self.trustchain.my_peer.public_key.key_to_bin():
-            deferLater(reactor, 0, self.publish_latest_block, block)
+            deferLater(reactor, 0, self.publish_block, block)
 
     def should_sign(self, block):
         pass
-
-    KEY_SUFFIX = b'_BLOCK'
-    CHUNK_SIZE = MAX_ENTRY_SIZE - DHTBlockPayload.PREAMBLE_OVERHEAD - 1
-    ATTEMPT_LIMIT = 3
 
     def __init__(self, dht, trustchain):
         super(DHTBlockEndpoint, self).__init__()
@@ -71,7 +73,20 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
 
         self._hashed_dht_key = sha1(self.trustchain.my_peer.public_key.key_to_bin() + self.KEY_SUFFIX).digest()
 
+        # Register a LoopingCall, get it's deferred, and start it.
+        self.block_maintenance_task = self.trustchain.register_task('block_maintenance', LoopingCall(
+            self.publish_latest_block))
+        self.block_maintenance_task.start(BLOCK_REFRESH_PERIOD, now=False)
+
         trustchain.add_listener(self, [trustchain.UNIVERSAL_BLOCK_LISTENER])
+
+    def publish_latest_block(self):
+        """
+        Republish the latest TrustChain block under this peer's key
+        """
+        block = self.trustchain.persistence.get_latest(self.trustchain.my_peer.public_key.key_to_bin())
+        if block:
+            self.publish_block(block, republish=True)
 
     def reconstruct_all_blocks(self, block_chunks, public_key):
         """
@@ -79,27 +94,31 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
 
         :param block_chunks: the list of block chunks
         :param public_key: the public key of the publishing node, which will be used for verifying the chunks
-        :return: a dictionary of reconstructed blocks (in packed format), indexed by the version of the blocks,
-                 and the maximal version
+        :return: a dictionary of block_maintenance_taskreconstructed blocks (in packed format), indexed by the version
+                 of the blocks and the maximal version
         """
         new_blocks = {}
         max_version = 0
 
         for entry in block_chunks:
-            package = self.serializer.unpack_to_serializables([DHTBlockPayload, ], entry)[0]
+            try:
+                package = self.serializer.unpack_to_serializables([DHTBlockPayload, ], entry)[0]
 
-            pre_signed_content = self.serializer.pack_multiple([('H', package.version),
-                                                                ('H', package.block_position),
-                                                                ('H', package.block_count),
-                                                                ('raw', package.payload)])[0]
+                pre_signed_content = self.serializer.pack_multiple([('H', package.version),
+                                                                    ('H', package.block_position),
+                                                                    ('H', package.block_count),
+                                                                    ('raw', package.payload)])[0]
 
-            if public_key.verify(package.signature, pre_signed_content):
-                max_version = max_version if max_version > package.version else package.version
+                if public_key.verify(package.signature, pre_signed_content):
+                    max_version = max_version if max_version > package.version else package.version
 
-                if package.version not in new_blocks:
-                    new_blocks[package.version] = [b''] * package.block_count
+                    if package.version not in new_blocks:
+                        new_blocks[package.version] = [b''] * package.block_count
 
-                new_blocks[package.version][package.block_position] = package.payload
+                    new_blocks[package.version][package.block_position] = package.payload
+            except PackError:
+                logging.error("PackError: Found a clandestine entry in the DHT when reconstructing TC blocks: %s",
+                              entry)
 
         # Concatenate the blocks
         for version in new_blocks:
@@ -107,9 +126,12 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
 
         return new_blocks, max_version
 
-    def publish_latest_block(self, block):
+    def publish_block(self, block, republish=False):
         """
-        Publish the latest block of this node's TrustChain to the DHT
+        Publishes a block to the DHT, by splitting it in chunks.
+
+        :param block: the block to be published to the DHT
+        :param republish: boolean which indicates whether the published block has already been published again
         """
         if block:
             latest_block = block.pack()
@@ -118,10 +140,15 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
             total_chunks = len(latest_block) // self.CHUNK_SIZE
             total_chunks += 1 if len(latest_block) % self.CHUNK_SIZE != 0 else 0
 
+            # The actual version of the block may vary based on whether the block is being published or republished
+            actual_version = max(self.block_version if not republish else (self.block_version - 1), 0)
+
             def publish_chunk(_, slice_pointer, chunk_idx, chunk_attempt=1):
                 # If we've reached the end of the block, we stop the chain, and increment the block version
                 if chunk_idx >= total_chunks:
-                    self.block_version += 1
+                    if not republish:
+                        self.block_maintenance_task.reset()
+                        self.block_version += 1
                     return
 
                 # If we've attempted to publish this block more times than allowed, give up on the chunk and the block
@@ -134,12 +161,12 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
                 my_private_key = self.trustchain.my_peer.key
                 chunk = latest_block[slice_pointer: slice_pointer + self.CHUNK_SIZE]
 
-                pre_signed_content = self.serializer.pack_multiple([('H', self.block_version), ('H', chunk_idx),
+                pre_signed_content = self.serializer.pack_multiple([('H', actual_version), ('H', chunk_idx),
                                                                     ('H', total_chunks), ('raw', chunk)])[0]
 
                 signature = my_private_key.signature(pre_signed_content)
                 blob_chunk = self.serializer.pack_multiple(
-                    DHTBlockPayload(signature, self.block_version, chunk_idx, total_chunks, chunk).to_pack_list())
+                    DHTBlockPayload(signature, actual_version, chunk_idx, total_chunks, chunk).to_pack_list())
 
                 # Try to add the current chunk to the DHT; if it works, move to the next, otherwise retry
                 d = self.dht.store_value(self._hashed_dht_key, blob_chunk[0])
@@ -160,38 +187,39 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
         """
         if not self.dht:
             request.setResponseCode(http.NOT_FOUND)
-            return json.dumps({"error": "DHT community not found"}).encode('utf-8')
+            return self.twisted_dumps({"error": "DHT community not found"})
 
         if not request.args or b'public_key' not in request.args:
             request.setResponseCode(http.BAD_REQUEST)
-            return json.dumps({"error": "Must specify the peer's public key"}).encode('utf-8')
+            return self.twisted_dumps({"error": "Must specify the peer's public key"})
 
         def on_success(block_chunks):
             if not block_chunks:
                 request.setResponseCode(http.NOT_FOUND)
-                request.write(json.dumps({
-                    u"error": {
-                        u"handled": True,
-                        u"message": "Could not find any blocks for the specified key."
+                request.write(self.twisted_dumps({
+                    "error": {
+                        "handled": True,
+                        "message": "Could not find any blocks for the specified key."
                     }
                 }))
             else:
                 target_public_key = LibNaCLPK(binarykey=raw_public_key[10:])
                 # Discard the 2nd half of the tuples retrieved as a result of the DHT query
                 new_blocks, max_version = self.reconstruct_all_blocks([x[0] for x in block_chunks], target_public_key)
-                request.write(json.dumps({"block": b64encode(new_blocks[max_version]).decode('utf-8')}).encode('utf-8'))
+                request.write(self.twisted_dumps({"block": b64encode(new_blocks[max_version]).decode('utf-8')}))
 
             request.finish()
 
         def on_failure(failure):
             request.setResponseCode(http.INTERNAL_SERVER_ERROR)
-            request.write(json.dumps({
-                u"error": {
-                    u"handled": True,
-                    u"code": failure.value.__class__.__name__,
-                    u"message": failure.value.message
+            request.write(self.twisted_dumps({
+                "error": {
+                    "handled": True,
+                    "code": failure.value.__class__.__name__,
+                    "message": failure.value.message
                 }
             }))
+            request.finish()
 
         raw_public_key = b64decode(request.args[b'public_key'][0])
         hash_key = sha1(raw_public_key + self.KEY_SUFFIX).digest()
@@ -213,11 +241,11 @@ class DHTStatisticsEndpoint(BaseEndpoint):
     def render_GET(self, request):
         if not self.dht:
             request.setResponseCode(http.NOT_FOUND)
-            return json.dumps({"error": "DHT community not found"})
+            return self.twisted_dumps({"error": "DHT community not found"})
 
         buckets = self.dht.routing_table.trie.values()
-        stats = {"node_id": hexlify(self.dht.my_node_id),
-                 "peer_id": hexlify(self.dht.my_peer.mid),
+        stats = {"node_id": hexlify(self.dht.my_node_id).decode('utf-8'),
+                 "peer_id": hexlify(self.dht.my_peer.mid).decode('utf-8'),
                  "routing_table_size": sum([len(bucket.nodes) for bucket in buckets]),
                  "routing_table_buckets": len(buckets),
                  "num_keys_in_store": len(self.dht.storage.items),
@@ -225,11 +253,13 @@ class DHTStatisticsEndpoint(BaseEndpoint):
 
         if isinstance(self.dht, DHTDiscoveryCommunity):
             stats.update({
-                "num_peers_in_store": {hexlify(key): len(peers) for key, peers in self.dht.store.items()},
-                "num_store_for_me": {hexlify(key): len(peers) for key, peers in self.dht.store_for_me.items()}
+                "num_peers_in_store": {hexlify(key).decode('utf-8'): len(peers)
+                                       for key, peers in self.dht.store.items()},
+                "num_store_for_me": {hexlify(key).decode('utf-8'): len(peers)
+                                     for key, peers in self.dht.store_for_me.items()}
             })
 
-        return json.dumps({"statistics": stats})
+        return self.twisted_dumps({"statistics": stats})
 
 
 class DHTPeersEndpoint(BaseEndpoint):
@@ -258,25 +288,28 @@ class SpecificDHTPeerEndpoint(BaseEndpoint):
     def render_GET(self, request):
         if not self.dht:
             request.setResponseCode(http.NOT_FOUND)
-            return json.dumps({"error": "DHT community not found"})
+            return self.twisted_dumps({"error": "DHT community not found"})
 
         def on_success(nodes):
             node_dicts = []
             for node in nodes:
-                node_dicts.append({'public_key': b64encode(node.public_key.key_to_bin()),
-                                   'address': node.address})
-            request.write(json.dumps({"peers": node_dicts}))
+                node_dicts.append({
+                    'public_key': b64encode(node.public_key.key_to_bin()).decode('utf-8'),
+                    'address': node.address
+                })
+            request.write(self.twisted_dumps({"peers": node_dicts}))
             request.finish()
 
         def on_failure(failure):
             request.setResponseCode(http.INTERNAL_SERVER_ERROR)
-            request.write(json.dumps({
-                u"error": {
-                    u"handled": True,
-                    u"code": failure.value.__class__.__name__,
-                    u"message": failure.value.message
+            request.write(self.twisted_dumps({
+                "error": {
+                    "handled": True,
+                    "code": failure.value.__class__.__name__,
+                    "message": failure.value.message
                 }
             }))
+            request.finish()
 
         self.dht.connect_peer(self.mid).addCallbacks(on_success, on_failure)
 
@@ -295,7 +328,7 @@ class DHTValuesEndpoint(BaseEndpoint):
     def render_GET(self, request):
         if not self.dht:
             request.setResponseCode(http.NOT_FOUND)
-            return json.dumps({"error": "DHT community not found"})
+            return self.twisted_dumps({"error": "DHT community not found"})
 
         results = {}
         for key, raw_values in self.dht.storage.items.items():
@@ -303,11 +336,13 @@ class DHTValuesEndpoint(BaseEndpoint):
             dicts = []
             for value in values:
                 data, public_key = value
-                dicts.append({'public_key': b64encode(public_key) if public_key else None,
-                              'value': hexlify(data)})
+                dicts.append({
+                    'public_key': b64encode(public_key).decode('utf-8') if public_key else None,
+                    'value': hexlify(data).decode('utf-8')
+                })
             results[hexlify(key)] = dicts
 
-        return json.dumps(results)
+        return self.twisted_dumps(results)
 
     def getChild(self, path, request):
         return SpecificDHTValueEndpoint(self.dht, path)
@@ -326,26 +361,29 @@ class SpecificDHTValueEndpoint(BaseEndpoint):
     def render_GET(self, request):
         if not self.dht:
             request.setResponseCode(http.NOT_FOUND)
-            return json.dumps({"error": "DHT community not found"})
+            return self.twisted_dumps({"error": "DHT community not found"})
 
         def on_success(values):
             dicts = []
             for value in values:
                 data, public_key = value
-                dicts.append({'public_key': b64encode(public_key) if public_key else None,
-                              'value': hexlify(data)})
-            request.write(json.dumps({"values": dicts}))
+                dicts.append({
+                    'public_key': b64encode(public_key).decode('utf-8') if public_key else None,
+                    'value': hexlify(data).decode('utf-8')
+                })
+            request.write(self.twisted_dumps({"values": dicts}))
             request.finish()
 
         def on_failure(failure):
             request.setResponseCode(http.INTERNAL_SERVER_ERROR)
-            request.write(json.dumps({
-                u"error": {
-                    u"handled": True,
-                    u"code": failure.value.__class__.__name__,
-                    u"message": failure.value.message
+            request.write(self.twisted_dumps({
+                "error": {
+                    "handled": True,
+                    "code": failure.value.__class__.__name__,
+                    "message": failure.value.message
                 }
             }))
+            request.finish()
 
         self.dht.find_values(self.key).addCallbacks(on_success, on_failure)
 
@@ -354,26 +392,27 @@ class SpecificDHTValueEndpoint(BaseEndpoint):
     def render_PUT(self, request):
         if not self.dht:
             request.setResponseCode(http.NOT_FOUND)
-            return json.dumps({"error": "DHT community not found"})
+            return self.twisted_dumps({"error": "DHT community not found"})
 
-        def on_success(values):
-            request.write(json.dumps({"stored": True}))
+        def on_success(_):
+            request.write(self.twisted_dumps({"stored": True}))
             request.finish()
 
         def on_failure(failure):
             request.setResponseCode(http.INTERNAL_SERVER_ERROR)
-            request.write(json.dumps({
-                u"error": {
-                    u"handled": True,
-                    u"code": failure.value.__class__.__name__,
-                    u"message": failure.value.message
+            request.write(self.twisted_dumps({
+                "error": {
+                    "handled": True,
+                    "code": failure.value.__class__.__name__,
+                    "message": failure.value.message
                 }
             }))
+            request.finish()
 
         parameters = http.parse_qs(request.content.read(), 1)
         if 'value' not in parameters:
             request.setResponseCode(http.BAD_REQUEST)
-            return json.dumps({"error": "incorrect parameters"})
+            return self.twisted_dumps({"error": "incorrect parameters"})
 
         self.dht.store_value(self.key, unhexlify(parameters['value'][0]), sign=True).addCallbacks(on_success,
                                                                                                   on_failure)

@@ -1,7 +1,6 @@
 from __future__ import absolute_import
 
 from binascii import hexlify
-import json
 
 from twisted.web import http
 
@@ -17,7 +16,7 @@ class OverlaysEndpoint(BaseEndpoint):
     def __init__(self, session):
         super(OverlaysEndpoint, self).__init__()
         self.session = session
-        self.putChild("statistics", OverlayStatisticsEndpoint(session))
+        self.putChild(b"statistics", OverlayStatisticsEndpoint(session))
 
     def get_overlays(self):
         overlay_stats = []
@@ -26,8 +25,8 @@ class OverlaysEndpoint(BaseEndpoint):
             statistics = self.session.endpoint.get_aggregate_statistics(overlay.get_prefix()) \
                 if isinstance(self.session.endpoint, StatisticsEndpoint) else {}
             overlay_stats.append({
-                "master_peer": hexlify(overlay.master_peer.public_key.key_to_bin()),
-                "my_peer": hexlify(overlay.my_peer.public_key.key_to_bin()),
+                "master_peer": hexlify(overlay.master_peer.public_key.key_to_bin()).decode('utf-8'),
+                "my_peer": hexlify(overlay.my_peer.public_key.key_to_bin()).decode('utf-8'),
                 "global_time": overlay.global_time,
                 "peers": [str(peer) for peer in peers],
                 "overlay_name": overlay.__class__.__name__,
@@ -36,7 +35,7 @@ class OverlaysEndpoint(BaseEndpoint):
         return overlay_stats
 
     def render_GET(self, request):
-        return json.dumps({"overlays": self.get_overlays()})
+        return self.twisted_dumps({"overlays": self.get_overlays()})
 
 
 class OverlayStatisticsEndpoint(BaseEndpoint):
@@ -70,7 +69,7 @@ class OverlayStatisticsEndpoint(BaseEndpoint):
         return named_statistics
 
     def render_GET(self, _):
-        return json.dumps({"statistics": self.get_statistics()})
+        return self.twisted_dumps({"statistics": self.get_statistics()})
 
     def render_POST(self, request):
         """
@@ -97,27 +96,27 @@ class OverlayStatisticsEndpoint(BaseEndpoint):
 
         if not self.statistics_supported:
             request.setResponseCode(http.PRECONDITION_FAILED)
-            return json.dumps({"success": False, "error": "StatisticsEndpoint is not enabled."})
+            return self.twisted_dumps({"success": False, "error": "StatisticsEndpoint is not enabled."})
 
         all_overlays = False
         overlay_name = None
 
-        if 'enable' not in request.args or not request.args['enable']:
+        if b'enable' not in request.args or not request.args[b'enable']:
             request.setResponseCode(http.BAD_REQUEST)
-            return json.dumps({"success": False, "error": "Parameter 'enable' is required"})
+            return self.twisted_dumps({"success": False, "error": "Parameter 'enable' is required"})
         else:
-            enable = request.args['enable'][0] == 'True'
+            enable = request.args[b'enable'][0] == b'True'
 
-        if 'all' in request.args and request.args['all']:
-            all_overlays = request.args['all'][0] == 'True'
-        elif 'overlay_name' in request.args and request.args['overlay_name']:
-            overlay_name = request.args['overlay_name'][0]
+        if b'all' in request.args and request.args[b'all']:
+            all_overlays = request.args[b'all'][0] == b'True'
+        elif b'overlay_name' in request.args and request.args[b'overlay_name']:
+            overlay_name = request.args[b'overlay_name'][0]
         else:
             request.setResponseCode(http.PRECONDITION_FAILED)
-            return json.dumps({"success": False, "error": "Parameter 'all' or 'overlay_name' is required"})
+            return self.twisted_dumps({"success": False, "error": "Parameter 'all' or 'overlay_name' is required"})
 
         self.enable_overlay_statistics(enable=enable, class_name=overlay_name, all_overlays=all_overlays)
-        return json.dumps({"success": True})
+        return self.twisted_dumps({"success": True})
 
     def enable_overlay_statistics(self, enable=False, class_name=None, all_overlays=False):
         if all_overlays:

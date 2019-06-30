@@ -5,6 +5,8 @@ from struct import pack, unpack_from
 
 from cryptography.exceptions import InvalidTag
 
+from six import ensure_str
+
 from ...messaging.anonymization.tunnel import (CIRCUIT_TYPE_RP_DOWNLOADER, CIRCUIT_TYPE_RP_SEEDER, EXIT_NODE,
                                                EXIT_NODE_SALT, ORIGINATOR, ORIGINATOR_SALT)
 from ...messaging.anonymization.tunnelcrypto import CryptoException
@@ -42,7 +44,7 @@ def decode_address(packet):
 
     elif addr_type == ADDRESS_TYPE_DOMAIN_NAME:
         length, = unpack_from('!H', packet, 1)
-        host = packet[3:3 + length]
+        host = ensure_str(packet[3:3 + length])
         port, = unpack_from('!H', packet, 3 + length)
         return host, port
 
@@ -155,7 +157,7 @@ class CellPayload(object):
                 # possible. :)
                 # (from https://github.com/Tribler/tribler/issues/1932#issuecomment-182035383)
                 raise CryptoException("Got exception %r when trying to decrypt relay message: "
-                                      "cell received for circuit_id: %s" % (e, self.message, self.circuit_id))
+                                      "cell received for circuit_id: %s" % (e, self.circuit_id))
 
         else:
             raise CryptoException("Error decrypting message for unknown circuit %d" % self.circuit_id)

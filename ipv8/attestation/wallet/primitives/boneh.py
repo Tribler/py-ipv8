@@ -7,7 +7,7 @@ from __future__ import division
 from random import randint
 
 from .cryptography_wrapper import generate_safe_prime, is_prime
-from ..structs import BonehPrivateKey, BonehPublicKey
+from .structs import BonehPrivateKey, BonehPublicKey
 from .value import FP2Value
 from .ec import weilpairing
 

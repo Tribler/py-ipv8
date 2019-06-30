@@ -7,11 +7,6 @@ default = {
     'port': 8090,
     'keys': [
         {
-            'alias': "my peer",
-            'generation': u"medium",
-            'file': u"ec.pem"
-        },
-        {
             'alias': "anonymous id",
             'generation': u"curve25519",
             'file': u"ec_multichain.pem"
@@ -24,7 +19,7 @@ default = {
     'overlays': [
         {
             'class': 'DiscoveryCommunity',
-            'key': "my peer",
+            'key': "anonymous id",
             'walkers': [
                 {
                     'strategy': "RandomWalk",

@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 
+import logging
 import os
 import random
 import socket
@@ -8,8 +9,10 @@ from string import ascii_uppercase, digits
 from threading import Thread
 
 from six.moves import xrange
+
 from twisted.internet import reactor
 from twisted.internet.defer import inlineCallbacks
+from twisted.internet.error import CannotListenError
 from twisted.internet.task import deferLater
 from twisted.trial import unittest
 
@@ -122,7 +125,13 @@ class RESTTestBase(unittest.TestCase):
             self.working_dirs.add(working_dir_path)
 
         # Create the new peer, and add it to the list of peers for this test
-        new_peer = peer_cls(*temp_args, **kwargs)
+        new_peer = None
+        while not new_peer:
+            try:
+                new_peer = peer_cls(*temp_args, **kwargs)
+            except CannotListenError:
+                logging.error("Failed to claim supposedly free port %d. Retrying.", temp_args[0])
+                temp_args[0] = RESTTestBase.generate_local_port()
         self.nodes.append(new_peer)
 
         # Move back to the test level, if a new directory was created
