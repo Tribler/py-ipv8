@@ -253,7 +253,7 @@ class AttestationEndpoint(BaseEndpoint):
                 return self.twisted_dumps({"success": True})
             else:
                 request.setResponseCode(http.BAD_REQUEST)
-                return self.twisted_dumps({"error": "Peer unknown"})
+                return self.twisted_dumps({"error": "peer unknown"})
 
         elif request.args[b'type'][0] == b'attest':
             mid_b64 = request.args[b'mid'][0]
@@ -284,7 +284,7 @@ class AttestationEndpoint(BaseEndpoint):
                 return self.twisted_dumps({"success": True})
             else:
                 request.setResponseCode(http.BAD_REQUEST)
-                return self.twisted_dumps({"error": "Peer unknown"})
+                return self.twisted_dumps({"error": "peer unknown"})
 
         else:
             request.setResponseCode(http.BAD_REQUEST)
