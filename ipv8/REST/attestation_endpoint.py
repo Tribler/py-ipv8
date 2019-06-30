@@ -195,7 +195,7 @@ class AttestationEndpoint(BaseEndpoint):
                     b64encode(b.transaction[b"hash"]).decode('utf-8'),
                     {cast_to_unicode(k): cast_to_unicode(v) for k, v in b.transaction[b"metadata"].items()},
                     b64encode(sha1(b.link_public_key).digest()).decode('utf-8')) for b in trimmed.values()])
-        if request.args[b'type'][0] == b'drop_identity':
+        elif request.args[b'type'][0] == b'drop_identity':
             to_keep = [self.persistent_key.public_key.key_to_bin()]
             if b'keep' in request.args:
                 to_keep += [self.identity_overlay.my_peer.public_key.key_to_bin()]
@@ -211,7 +211,9 @@ class AttestationEndpoint(BaseEndpoint):
             my_new_peer = Peer(default_eccrypto.generate_key(u"curve25519"))
             for overlay in self.session.overlays:
                 overlay.my_peer = my_new_peer
-
+        else:
+            return self.twisted_dumps({"error": "type argument incorrect"})
+            
         return self.twisted_dumps({"success": True})
 
     def render_POST(self, request):
@@ -262,5 +264,7 @@ class AttestationEndpoint(BaseEndpoint):
                     [(b64decode(v), 0.0) for v in request.args[b'attribute_values'][0].split(b',')]
                 self.attestation_overlay.verify_attestation_values(peer.address, attribute_hash, reference_values,
                                                                    self.on_verification_results, id_format)
+        else:
+            return self.twisted_dumps({"error": "type argument incorrect"})
 
         return self.twisted_dumps({"success": True})
