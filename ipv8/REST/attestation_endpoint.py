@@ -161,17 +161,21 @@ class AttestationEndpoint(BaseEndpoint):
                 formatted.append(k + (v[1], ))
             return self.twisted_dumps(
                 [(x.decode('utf-8'), y.decode('utf-8'), z.decode('utf-8')) for x, y, z in formatted])
+
         elif request.args[b'type'][0] == b'outstanding_verify':
             formatted = self.verify_requests.keys()
             return self.twisted_dumps([(x.decode('utf-8'), y.decode('utf-8')) for x, y in formatted])
+
         elif request.args[b'type'][0] == b'verification_output':
             formatted = {}
             for k, v in self.verification_output.items():
                 formatted[b64encode(k).decode('utf-8')] = [(b64encode(a).decode('utf-8'), m) for a, m in v]
             return self.twisted_dumps(formatted)
+
         elif request.args[b'type'][0] == b'peers':
             peers = self.session.network.get_peers_for_service(self.identity_overlay.master_peer.mid)
             return self.twisted_dumps([b64encode(p.mid).decode('utf-8') for p in peers])
+
         elif request.args[b'type'][0] == b'attributes':
             if b'mid' in request.args:
                 mid_b64 = request.args[b'mid'][0]
@@ -195,6 +199,9 @@ class AttestationEndpoint(BaseEndpoint):
                     b64encode(b.transaction[b"hash"]).decode('utf-8'),
                     {cast_to_unicode(k): cast_to_unicode(v) for k, v in b.transaction[b"metadata"].items()},
                     b64encode(sha1(b.link_public_key).digest()).decode('utf-8')) for b in trimmed.values()])
+            else:
+                return self.twisted_dumps([])
+
         elif request.args[b'type'][0] == b'drop_identity':
             to_keep = [self.persistent_key.public_key.key_to_bin()]
             if b'keep' in request.args:
@@ -211,10 +218,11 @@ class AttestationEndpoint(BaseEndpoint):
             my_new_peer = Peer(default_eccrypto.generate_key(u"curve25519"))
             for overlay in self.session.overlays:
                 overlay.my_peer = my_new_peer
+            return self.twisted_dumps({"success": True})
+
         else:
+            request.setResponseCode(http.BAD_REQUEST)
             return self.twisted_dumps({"error": "type argument incorrect"})
-            
-        return self.twisted_dumps({"success": True})
 
     def render_POST(self, request):
         """
@@ -242,17 +250,26 @@ class AttestationEndpoint(BaseEndpoint):
                         metadata[cast_to_bin(k)] = cast_to_bin(v)
                 self.attestation_metadata[(self.identity_overlay.my_peer, attribute_name)] = metadata
                 self.attestation_overlay.request_attestation(peer, attribute_name, key, metadata)
+                return self.twisted_dumps({"success": True})
+            else:
+                request.setResponseCode(http.BAD_REQUEST)
+                return self.twisted_dumps({"error": "Peer unknown"})
+
         elif request.args[b'type'][0] == b'attest':
             mid_b64 = request.args[b'mid'][0]
             attribute_name = request.args[b'attribute_name'][0]
             attribute_value_b64 = request.args[b'attribute_value'][0]
             outstanding = self.attestation_requests.pop((mid_b64, attribute_name))
             outstanding[0].callback(b64decode(attribute_value_b64))
+            return self.twisted_dumps({"success": True})
+
         elif request.args[b'type'][0] == b'allow_verify':
             mid_b64 = request.args[b'mid'][0]
             attribute_name = request.args[b'attribute_name'][0]
             outstanding = self.verify_requests.pop((mid_b64, attribute_name))
             outstanding.callback(True)
+            return self.twisted_dumps({"success": True})
+
         elif request.args[b'type'][0] == b'verify':
             mid_b64 = request.args[b'mid'][0]
             attribute_hash = b64decode(request.args[b'attribute_hash'][0])
@@ -264,7 +281,11 @@ class AttestationEndpoint(BaseEndpoint):
                     [(b64decode(v), 0.0) for v in request.args[b'attribute_values'][0].split(b',')]
                 self.attestation_overlay.verify_attestation_values(peer.address, attribute_hash, reference_values,
                                                                    self.on_verification_results, id_format)
-        else:
-            return self.twisted_dumps({"error": "type argument incorrect"})
+                return self.twisted_dumps({"success": True})
+            else:
+                request.setResponseCode(http.BAD_REQUEST)
+                return self.twisted_dumps({"error": "Peer unknown"})
 
-        return self.twisted_dumps({"success": True})
+        else:
+            request.setResponseCode(http.BAD_REQUEST)
+            return self.twisted_dumps({"error": "type argument incorrect"})
