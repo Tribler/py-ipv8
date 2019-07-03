@@ -55,7 +55,7 @@ def create_attest_pair(PK, value, a, b, bitspace):  # pylint: disable=R0914
     ca2 = PK.g.intpow(m2) * PK.h.intpow(r2)
     ca3 = caa // (ca1 * ca2)
 
-    el = EL.create(b - value + 1, PK.g.mod - r + 1, ra, PK.g, PK.h, c1, PK.h, b, bitspace)
+    el = EL.create(b - value + 1, -r, ra, PK.g, PK.h, c1, PK.h, b, bitspace)
     sqr1 = SQR.create(w, raa, ca, PK.h, b, bitspace)
     sqr2 = SQR.create(m4, r3, PK.g, PK.h, b, bitspace)
 
