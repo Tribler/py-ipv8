@@ -134,7 +134,7 @@ def GenerateKeyPair(param, numAttributes, counter, expiryDate):
 
     primeSize = param.Ln // 2
     while True:
-        x = randint(0, primeSize - 1)
+        x = randint(0, (1 << primeSize) - 1)
         if x > 2 and x < N:
             break
 
@@ -145,14 +145,17 @@ def GenerateKeyPair(param, numAttributes, counter, expiryDate):
     for i in range(numAttributes):
         r = 0
         while True:
-            x = randint(0, primeSize - 1)
+            x = randint(0, (1 << primeSize) - 1)
             if x > 2 and x < N:
                 break
         R.append(FP2Value(N, S).intpow(x).a)
 
     pubk = PublicKey(N, Z, S, R, counter, expiryDate, param=param)
 
-    return priv, pubk
+    if not SignMessageBlock(priv, pubk, [1]).Verify(pubk, [1]):
+        return GenerateKeyPair(param, numAttributes, counter, expiryDate)
+    else:
+        return priv, pubk
 
 
 class CLSignature(object):
@@ -241,7 +244,7 @@ def randomPrimeInRange(start, length):
 
 def signMessageBlockAndCommitment(sk, pk, U, ms):
     R = RepresentToPublicKey(pk, ms)
-    vTilde = randint(0, pk.Params.Lv - 1)
+    vTilde = randint(0, (1 << pk.Params.Lv) - 1)
     twoLv = 1 << (pk.Params.Lv - 1)
     v = twoLv + vTilde
 

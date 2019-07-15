@@ -127,7 +127,7 @@ def BuildDistributedProofList(builders, challenge, proofPs):
 
 def BuildProofList(builders, context, nonce, issig):
     challenge = Challenge(builders, context, nonce, issig)
-    return BuildDistributedProofList(builders, challenge, None)
+    return BuildDistributedProofList(builders, challenge, [])
 
 
 class IssueCommitmentMessage(object):
@@ -195,8 +195,8 @@ class CredentialBuilder(object):
         return Credential(self.pk, exponents, signature)
 
     def proveCommitment(self, U, nonce1):
-        sCommit = randint(0, self.pk.Params.LsCommit - 1)
-        vPrimeCommit = randint(0, self.pk.Params.LvPrimeCommit - 1)
+        sCommit = randint(0, (1 << self.pk.Params.LsCommit) - 1)
+        vPrimeCommit = randint(0, (1 << self.pk.Params.LvPrimeCommit) - 1)
 
         Sv = FP2Value(self.pk.N, self.pk.S).intpow(vPrimeCommit).a
         R0s = FP2Value(self.pk.N, self.pk.R[0]).intpow(sCommit).a
@@ -217,7 +217,7 @@ class CredentialBuilder(object):
 
     def Commit(self, skRandomizer):
         self.skRandomizer = skRandomizer
-        self.vPrimeCommit = randint(0, self.pk.Params.LvPrimeCommit - 1)
+        self.vPrimeCommit = randint(0, (1 << self.pk.Params.LvPrimeCommit) - 1)
 
         sv = FP2Value(self.pk.N, self.pk.S).intpow(self.vPrimeCommit).a
         r0s = FP2Value(self.pk.N, self.pk.R[0]).intpow(self.skRandomizer).a

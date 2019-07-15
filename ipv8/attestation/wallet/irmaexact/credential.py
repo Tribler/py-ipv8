@@ -25,13 +25,13 @@ class Credential(object):
 
         randSig = self.Signature.Randomize(self.Pk)
 
-        eCommit = randint(0, self.Pk.Params.LeCommit - 1)
-        vCommit = randint(0, self.Pk.Params.LvCommit - 1)
+        eCommit = randint(0, (1 << self.Pk.Params.LeCommit) - 1)
+        vCommit = randint(0, (1 << self.Pk.Params.LvCommit) - 1)
 
         aCommits = {}
 
         for v in undisclosedAttributes:
-            aCommits[v] = randint(0, self.Pk.Params.LmCommit - 1)
+            aCommits[v] = randint(0, (1 << self.Pk.Params.LmCommit) - 1)
 
         Ae = FP2Value(self.Pk.N, randSig.A).intpow(eCommit).a
         Sv = FP2Value(self.Pk.N, self.Pk.S).intpow(vCommit).a
@@ -62,9 +62,9 @@ class Credential(object):
 
     def CreateDisclosureProofBuilder(self, disclosedAttributes):
         return DisclosureProofBuilder(self.Signature.Randomize(self.Pk),
-                                      randint(0, self.Pk.Params.LeCommit - 1),
-                                      randint(0, self.Pk.Params.LvCommit - 1),
-                                      {v: randint(0, self.Pk.Params.LmCommit - 1) for v
+                                      randint(0, (1 << self.Pk.Params.LeCommit) - 1),
+                                      randint(0, (1 << self.Pk.Params.LvCommit) - 1),
+                                      {v: randint(0, (1 << self.Pk.Params.LmCommit) - 1) for v
                                        in getUndisclosedAttributes(disclosedAttributes, len(self.Attributes))},
                                       1,
                                       disclosedAttributes,
