@@ -58,8 +58,11 @@ class AttestationEndpoint(BaseEndpoint):
         """
         metadata = self.attestation_metadata.get((for_peer, attribute_name), None)
         if for_peer.mid == self.identity_overlay.my_peer.mid:
-            self.identity_overlay.request_attestation_advertisement(from_peer, attribute_hash, attribute_name,
-                                                                    id_format, metadata)
+            if from_peer.mid == self.identity_overlay.my_peer.mid:
+                self.identity_overlay.self_advertise(attribute_hash, attribute_name, id_format, metadata)
+            else:
+                self.identity_overlay.request_attestation_advertisement(from_peer, attribute_hash, attribute_name,
+                                                                        id_format, metadata)
         else:
             self.identity_overlay.add_known_hash(attribute_hash, attribute_name, for_peer.public_key.key_to_bin(),
                                                  metadata)
@@ -261,6 +264,21 @@ class AttestationEndpoint(BaseEndpoint):
             attribute_value_b64 = request.args[b'attribute_value'][0]
             outstanding = self.attestation_requests.pop((mid_b64, attribute_name))
             outstanding[0].callback(b64decode(attribute_value_b64))
+            return self.twisted_dumps({"success": True})
+
+        elif request.args[b'type'][0] == b'import_blob':
+            # Import self-attested binary data
+            attribute_name = request.args[b'attribute_name'][0]
+            id_format = request.args[b'id_format'][0]
+            metadata = {"id_format": id_format}
+            if b'metadata' in request.args:
+                metadata_unicode = json.loads(b64decode(request.args[b'metadata'][0]))
+                for k, v in metadata_unicode.items():
+                    metadata[cast_to_bin(k)] = cast_to_bin(v)
+            blob = request.content.read()
+
+            self.attestation_overlay.dump_blob(attribute_name, id_format, blob, metadata)
+
             return self.twisted_dumps({"success": True})
 
         elif request.args[b'type'][0] == b'allow_verify':

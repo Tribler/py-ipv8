@@ -85,3 +85,20 @@ class IdentityCommunity(TrustChainCommunity, BlockListener):
                             b"date": time(),
                             b"metadata": metadata or {}
                         })
+
+    def self_advertise(self, attribute_hash, name, block_type="id_metadata", metadata=None):
+        """
+        Self-sign an attribute.
+
+        :param attribute_hash: he hash of the attestation
+        :param name: the name of the attribute (metadata)
+        :param block_type: the type of block (from identity_foromats.py)
+        :param metadata: custom additional metadata
+        """
+        self.create_source_block(block_type=block_type.encode('utf-8'),
+                                 transaction={
+                                     b"hash": attribute_hash,
+                                     b"name": name,
+                                     b"date": time(),
+                                     b"metadata": metadata or {}
+                                 })
