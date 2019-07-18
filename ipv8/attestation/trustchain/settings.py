@@ -4,8 +4,8 @@ class TrustChainSettings(object):
     """
 
     def __init__(self):
-        # Whether we should broadcast newly created blocks to others
-        self.broadcast_blocks = True
+        # The set with block types that should not be broadcast
+        self.block_types_bc_disabled = set()
 
         # The fan-out of the broadcast when a new block is created
         self.broadcast_fanout = 25

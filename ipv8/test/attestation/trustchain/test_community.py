@@ -511,7 +511,7 @@ class TestTrustChainCommunity(TestBase):
         Test that a double spend is correctly detected and stored
         """
         for node in self.nodes:
-            node.overlay.settings.broadcast_blocks = False
+            node.overlay.settings.block_types_bc_disabled.add(b'test')
         my_pubkey = self.nodes[0].overlay.my_peer.public_key.key_to_bin()
         his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
         block1, block2 = yield self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0],

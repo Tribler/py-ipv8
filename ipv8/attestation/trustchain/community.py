@@ -256,7 +256,7 @@ class TrustChainCommunity(Community):
 
         # This is a source block with no counterparty
         if not peer and public_key == ANY_COUNTERPARTY_PK:
-            if self.settings.broadcast_blocks:
+            if block.type not in self.settings.block_types_bc_disabled:
                 self.send_block(block)
             return succeed((block, None))
 
@@ -264,12 +264,12 @@ class TrustChainCommunity(Community):
         self.send_block(block, address=peer.address)
 
         # We broadcast the block in the network if we initiated a transaction
-        if self.settings.broadcast_blocks and not linked:
+        if block.type not in self.settings.block_types_bc_disabled and not linked:
             self.send_block(block)
 
         if peer == self.my_peer:
             # We created a self-signed block
-            if self.settings.broadcast_blocks:
+            if block.type not in self.settings.block_types_bc_disabled:
                 self.send_block(block)
 
             return succeed((block, None)) if public_key == ANY_COUNTERPARTY_PK else succeed((block, linked))
@@ -280,7 +280,7 @@ class TrustChainCommunity(Community):
             return sign_deferred
         else:
             # We return a deferred that fires immediately with both half blocks.
-            if self.settings.broadcast_blocks:
+            if block.type not in self.settings.block_types_bc_disabled:
                 self.send_block_pair(linked, block)
 
             return succeed((linked, block))
