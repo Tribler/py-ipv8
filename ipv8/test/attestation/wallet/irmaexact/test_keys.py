@@ -10,11 +10,12 @@ from __future__ import absolute_import
 
 from twisted.trial import unittest
 
-from .....attestation.wallet.irmaexact.keys import DefaultSystemParameters, GenerateKeyPair, SignMessageBlock
+from .....attestation.wallet.irmaexact.gabi.keys import DefaultSystemParameters, GenerateKeyPair, SignMessageBlock
 
 
 class TestKeys(unittest.TestCase):
 
+    @unittest.SkipTest  # Too slow and unused.
     def test_generate_and_sign(self):
         """
         Generate a new key and sign a message, see if the signature verifies.

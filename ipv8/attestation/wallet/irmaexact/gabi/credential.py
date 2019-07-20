@@ -5,12 +5,13 @@ All rights reserved.
 This source code has been ported from https://github.com/privacybydesign/gabi
 The authors of this file are not -in any way- affiliated with the original authors or organizations.
 """
+from __future__ import absolute_import
 
 from random import randint
 
-from .proofs import hashCommit, ProofD
-from ..primitives.attestation import sha256_as_int
-from ..primitives.value import FP2Value
+from .proofs import ProofD, hashCommit
+from ...primitives.attestation import sha256_as_int
+from ...primitives.value import FP2Value
 
 
 class Credential(object):

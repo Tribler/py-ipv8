@@ -13,9 +13,12 @@ import time
 
 from twisted.trial import unittest
 
-from .....attestation.wallet.irmaexact.builder import BuildProofList, CredentialBuilder, Issuer, Verify
-from .....attestation.wallet.irmaexact.credential import Credential
-from .....attestation.wallet.irmaexact.keys import DefaultSystemParameters, PrivateKey, PublicKey, SignMessageBlock
+from .....attestation.wallet.irmaexact.gabi.attributes import make_attribute_list
+from .....attestation.wallet.irmaexact.gabi.builder import BuildDistributedProofList, BuildProofList, Challenge, CredentialBuilder, IssueCommitmentMessage, Issuer, Verify
+from .....attestation.wallet.irmaexact.gabi.credential import Credential
+from .....attestation.wallet.irmaexact.gabi.keys import DefaultSystemParameters, PrivateKey, PublicKey, SignMessageBlock
+from .....attestation.wallet.irmaexact.gabi.proofs import ProofP, ProofPCommitment, createChallenge
+from .....attestation.wallet.primitives.value import FP2Value
 
 
 class TestCredential(unittest.TestCase):
@@ -37,8 +40,8 @@ class TestCredential(unittest.TestCase):
             68324072803453545276056785581824677993048307928855083683600441649711633245772441948750253858697288489650767258385115035336890900077233825843691912005645623751469455288422721175655533702255940160761555155932357171848703103682096382578327888079229101354304202688749783292577993444026613580092677609916964914513,
             65082646756773276491139955747051924146096222587013375084161255582716233287172212541454173762000144048198663356249316446342046266181487801411025319914616581971563024493732489885161913779988624732795125008562587549337253757085766106881836850538709151996387829026336509064994632876911986826959512297657067426387
         ]
-        self.testPubK = PublicKey(n, Z, S, R, 0, time.time() + 365*24*3600)
-        self.testPrivK = PrivateKey(p, q, 0, time.time() + 365*24*3600)
+        self.testPubK = PublicKey(n, Z, S, R, 0, time.time() + 365 * 24 * 3600)
+        self.testPrivK = PrivateKey(p, q, 0, time.time() + 365 * 24 * 3600)
 
         p = 12511561644521105216249960315425509848310543851123625148071038103672749250653050780946327920540373585150518830678888836864183842100121288018131086700947919
         q = 13175754961224278923898419496296790582860213842149399404614891067426616055648139811854869087421318470521236911637912285993998784296429335994419545592486183
@@ -72,7 +75,6 @@ class TestCredential(unittest.TestCase):
         self.testPubK2 = PublicKey(n, Z, S, R, 0, time.time() + 365 * 24 * 3600)
         self.testPrivK2 = PrivateKey(p, q, 0, time.time() + 365 * 24 * 3600)
 
-
     def _createCredential(self, context, secret, issuer):
         keylength = 1024
         nonce1 = random.randint(0, DefaultSystemParameters[keylength].Lstatzk)
@@ -97,6 +99,115 @@ class TestCredential(unittest.TestCase):
         proof = cred.CreateDisclosureProof(disclosed, context, nonce1)
 
         self.assertTrue(proof.Verify(self.testPubK, context, nonce1, False))
+
+    def test_construct_credential(self):
+        """
+        Test constructing a credential.
+        """
+        context = random.randint(0, 1 << (self.testPubK.Params.Lh - 1))
+        nonce1 = random.randint(0, 1 << (self.testPubK.Params.Lstatzk - 1))
+        nonce2 = random.randint(0, 1 << (self.testPubK.Params.Lstatzk - 1))
+        secret = random.randint(0, 1 << (self.testPubK.Params.Lm - 1))
+
+        cb = CredentialBuilder(self.testPubK1, context, secret, nonce2)
+        commit_msg = cb.CommitToSecretAndProve(nonce1)
+
+        issuer = Issuer(self.testPrivK1, self.testPubK1, context)
+        msg = issuer.IssueSignature(commit_msg.U, self.testAttributes1, nonce2)
+
+        self.assertIsNotNone(cb.ConstructCredential(msg, self.testAttributes1))
+
+    def test_construct_credential_challenge(self):
+        """
+        Test constructing a credential with Challenge.
+        """
+        context = random.randint(0, 1 << (self.testPubK.Params.Lh - 1))
+        nonce1 = random.randint(0, 1 << (self.testPubK.Params.Lstatzk - 1))
+        nonce2 = random.randint(0, 1 << (self.testPubK.Params.Lstatzk - 1))
+        secret = random.randint(0, 1 << (self.testPubK.Params.Lm - 1))
+
+        cb = CredentialBuilder(self.testPubK1, context, secret, nonce2)
+        challenge = Challenge([cb], context, nonce1, False)
+        proofs = BuildDistributedProofList([cb], challenge, [])
+        commit_msg = IssueCommitmentMessage(None, proofs, nonce1)
+
+        self.assertTrue(Verify(commit_msg.Proofs, [self.testPubK1], context, nonce1, False))
+
+        issuer = Issuer(self.testPrivK1, self.testPubK1, context)
+        msg = issuer.IssueSignature(commit_msg.Proofs[0].U, self.testAttributes1, nonce2)
+
+        self.assertIsNotNone(cb.ConstructCredential(msg, self.testAttributes1))
+
+    def test_construct_credential_challenge_pcommit(self):
+        """
+        Test constructing a credential with Challenge and PCommit.
+        """
+        context = random.randint(0, 1 << (self.testPubK.Params.Lh - 1))
+        nonce1 = random.randint(0, 1 << (self.testPubK.Params.Lstatzk - 1))
+        nonce2 = random.randint(0, 1 << (self.testPubK.Params.Lstatzk - 1))
+        secret = random.randint(0, 1 << (self.testPubK.Params.Lm - 1))
+        issuer = Issuer(self.testPrivK1, self.testPubK1, context)
+        cr = {
+            u'keyCounter': 0,
+            u'credential': u'test.credential',
+            u'validity': int(time.time()) + 60000,
+            u'attributes': {
+                u"test1": u"value1",
+                u"test2": u"value2"
+            }
+        }
+
+        s = 1234
+        s_randomizer = 5678
+        pcommit = ProofPCommitment(FP2Value(issuer.Pk.N, issuer.Pk.R[0]).intpow(s).a,
+                                   FP2Value(issuer.Pk.N, issuer.Pk.R[0]).intpow(s_randomizer).a)
+
+        cb = CredentialBuilder(self.testPubK1, context, secret, nonce2)
+        cb.MergeProofPCommitment(pcommit)
+        challenge = Challenge([cb], context, nonce1, False)
+        proof_p = ProofP(pcommit.P, challenge, s_randomizer + challenge * s)
+
+        proofs = BuildDistributedProofList([cb], challenge, [])
+        for p in proofs:
+            p.MergeProofP(proof_p, self.testPubK1)
+        commit_msg = IssueCommitmentMessage(None, proofs, nonce1)
+
+        self.assertTrue(Verify(commit_msg.Proofs, [self.testPubK1], context, nonce1, False))
+        self.assertEqual(1, len(commit_msg.Proofs))
+
+        attr_list, signing_date = make_attribute_list(cr)
+        msg = issuer.IssueSignature(commit_msg.Proofs[0].U, attr_list, nonce2)
+        credential = cb.ConstructCredential(msg, attr_list)
+        self.assertIsNotNone(credential)
+
+        # Verifier side
+        challenge_verif = random.randint(0, issuer.Pk.N)
+
+        # Prover side
+        builder = credential.CreateDisclosureProofBuilder(list(range(1, len(attr_list) + 1)))
+        builder.MergeProofPCommitment(pcommit)
+        commit_randomizer = random.randint(0, 1 << (self.testPubK.Params.LmCommit - 1))
+        A, Z = builder.Commit(commit_randomizer)
+        p = builder.CreateProof(challenge)
+        p.MergeProofP(proof_p, issuer.Pk)
+
+        # Respond to challenge
+        secondaryChallenge = createChallenge(challenge_verif, challenge_verif, [A, Z], False)
+
+        # Commit to p.C, p.A, p.EResponse, p.VResponse, p.AResponses
+        # Blank out attributes before sharing
+        p.ADisclosed = {}  # p now resembles ProofD on Verifier side
+
+        # Verifier side
+        reconstructed_attr_list, _ = make_attribute_list(cr)
+        reconstructed_attr_map = {}
+        for i in range(len(attr_list)):
+            reconstructed_attr_map[i + 1] = attr_list[i]
+        p.ADisclosed = reconstructed_attr_map
+        Ap, Zp = p.ChallengeContribution(issuer.Pk)
+        p.C = secondaryChallenge
+        reconstructed_challenge = createChallenge(challenge_verif, challenge_verif, [Ap, Zp], False)
+        self.assertTrue(p.VerifyWithChallenge(issuer.Pk, reconstructed_challenge))
 
     def test_show_proof_list(self):
         """

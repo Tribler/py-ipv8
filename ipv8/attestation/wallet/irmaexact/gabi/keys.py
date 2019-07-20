@@ -6,7 +6,7 @@ This source code has been ported from https://github.com/privacybydesign/gabi
 The authors of this file are not -in any way- affiliated with the original authors or organizations.
 """
 
-from __future__ import division
+from __future__ import absolute_import, division
 
 from binascii import hexlify
 from os import urandom
@@ -14,9 +14,11 @@ from random import randint
 
 from cryptography.hazmat.primitives.asymmetric.rsa import _modinv
 
-from ..primitives.cryptography_wrapper import generate_safe_prime, is_prime
-from ..primitives.attestation import sha256_as_int
-from ..primitives.value import FP2Value
+import six
+
+from ...primitives.attestation import sha256_as_int
+from ...primitives.cryptography_wrapper import generate_safe_prime, is_prime
+from ...primitives.value import FP2Value
 
 
 DefaultEpochLength = 432000
@@ -143,7 +145,6 @@ def GenerateKeyPair(param, numAttributes, counter, expiryDate):
     R = []
 
     for i in range(numAttributes):
-        r = 0
         while True:
             x = randint(0, (1 << primeSize) - 1)
             if x > 2 and x < N:
@@ -187,7 +188,7 @@ class CLSignature(object):
         return pk.Z == Q
 
     def Randomize(self, pk):
-        r = randint(0, pk.Params.LRA - 1)
+        r = randint(0, 1 << (pk.Params.LRA - 1))
         APrime = (FP2Value(pk.N, self.A) * FP2Value(pk.N, pk.S).intpow(r)).a
         t = self.E * r
         VPrime = self.V - t
@@ -212,6 +213,7 @@ def RepresentToPublicKey(pk, exps):
 smallPrimes = [3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53]
 smallPrimesProduct = 16294579238595022365
 
+
 def randomPrimeInRange(start, length):
     b = length % 8
     if b == 0:
@@ -220,10 +222,10 @@ def randomPrimeInRange(start, length):
     endVal = (1 << length) + startVal
 
     while True:
-        bytes = urandom((length + 7) // 8)
-        bytes = chr(ord(bytes[0]) & (1 << b) - 1) + bytes[1:]
-        bytes = bytes[:-1] + chr(ord(bytes[len(bytes) - 1]) | 1)
-        offset = int(hexlify(bytes), 16)
+        bytez = urandom((length + 7) // 8)
+        bytez = six.int2byte(six.byte2int(bytez[0:1]) & (1 << b) - 1) + bytez[1:]
+        bytez = bytez[:-1] + six.int2byte(six.byte2int(bytez[-1:]) | 1)
+        offset = int(hexlify(bytez), 16)
         p = startVal + offset
         bigMod = p % smallPrimesProduct
         mod = bigMod

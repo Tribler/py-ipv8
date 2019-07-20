@@ -13,9 +13,9 @@ import time
 
 from twisted.trial import unittest
 
-from .....attestation.wallet.irmaexact.builder import CredentialBuilder, Issuer, Verify
-from .....attestation.wallet.irmaexact.keys import DefaultSystemParameters, PrivateKey, PublicKey
-from .....attestation.wallet.irmaexact.proofs import createChallenge
+from .....attestation.wallet.irmaexact.gabi.builder import CredentialBuilder, Issuer, Verify
+from .....attestation.wallet.irmaexact.gabi.keys import DefaultSystemParameters, PrivateKey, PublicKey
+from .....attestation.wallet.irmaexact.gabi.proofs import createChallenge
 from .....attestation.wallet.primitives.value import FP2Value
 
 
@@ -35,8 +35,8 @@ class TestBuilder(unittest.TestCase):
             68324072803453545276056785581824677993048307928855083683600441649711633245772441948750253858697288489650767258385115035336890900077233825843691912005645623751469455288422721175655533702255940160761555155932357171848703103682096382578327888079229101354304202688749783292577993444026613580092677609916964914513,
             65082646756773276491139955747051924146096222587013375084161255582716233287172212541454173762000144048198663356249316446342046266181487801411025319914616581971563024493732489885161913779988624732795125008562587549337253757085766106881836850538709151996387829026336509064994632876911986826959512297657067426387
         ]
-        self.testPubK = PublicKey(n, Z, S, R, 0, time.time() + 365*24*3600)
-        self.testPrivK = PrivateKey(p, q, 0, time.time() + 365*24*3600)
+        self.testPubK = PublicKey(n, Z, S, R, 0, time.time() + 365 * 24 * 3600)
+        self.testPrivK = PrivateKey(p, q, 0, time.time() + 365 * 24 * 3600)
         self.testAttributes1 = [1, 2, 3, 4]
 
     def test_build_proofu(self):

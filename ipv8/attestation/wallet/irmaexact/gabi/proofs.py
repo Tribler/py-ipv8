@@ -5,18 +5,19 @@ All rights reserved.
 This source code has been ported from https://github.com/privacybydesign/gabi
 The authors of this file are not -in any way- affiliated with the original authors or organizations.
 """
+from __future__ import absolute_import
+
+from cryptography.hazmat.primitives.asymmetric.rsa import _modinv
 
 from pyasn1.codec.ber.encoder import encode
 from pyasn1.type import univ
 
-from cryptography.hazmat.primitives.asymmetric.rsa import _modinv
-
-from ..primitives.attestation import sha256_as_int
-from ..primitives.value import FP2Value
+from ...primitives.attestation import sha256_as_int
+from ...primitives.value import FP2Value
 
 
 class Record(univ.SequenceOf):
-    componentType=univ.Integer()
+    componentType = univ.Integer()
 
 
 def custom_asn1_marshal(values):
@@ -127,6 +128,7 @@ class ProofD(object):
             if exp.bit_length() > pk.Params.Lm:
                 exp = sha256_as_int(str(exp))
             numerator *= FP2Value(pk.N, pk.R[i]).intpow(exp).a
+        numerator = numerator % pk.N
 
         known = pk.Z * _modinv(numerator, pk.N)
         knownC = FP2Value(pk.N, known).intpow(-self.C).a
@@ -152,6 +154,12 @@ class ProofD(object):
 
     def Challenge(self):
         return self.C
+
+    def Copy(self):
+        ADisclosed = {}
+        for k, v in self.ADisclosed.items():
+            ADisclosed[k] = v
+        return ProofD(self.C, self.A, self.EResponse, self.VResponse, self.AResponses, ADisclosed)
 
 
 class ProofP(object):

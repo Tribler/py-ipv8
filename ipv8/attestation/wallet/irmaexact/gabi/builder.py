@@ -5,16 +5,18 @@ All rights reserved.
 This source code has been ported from https://github.com/privacybydesign/gabi
 The authors of this file are not -in any way- affiliated with the original authors or organizations.
 """
-from __future__ import division
+from __future__ import absolute_import, division
 
 from random import randint
 
 from cryptography.hazmat.primitives.asymmetric.rsa import _modinv
 
-from credential import Credential
+from six.moves import xrange
+
+from .credential import Credential
 from .keys import CLSignature, DefaultSystemParameters, signMessageBlockAndCommitment
-from .proofs import createChallenge, hashCommit, ProofS, ProofU
-from ..primitives.value import FP2Value
+from .proofs import ProofS, ProofU, createChallenge, hashCommit
+from ...primitives.value import FP2Value
 
 
 class Issuer(object):
@@ -74,7 +76,7 @@ def challengeContributions(pl, publicKeys, context, nonce):
     return contributions
 
 
-def Verify(pl, publicKeys, context, nonce, issig, keyshareServers = []):
+def Verify(pl, publicKeys, context, nonce, issig, keyshareServers=[]):
     if not pl or len(pl) != len(publicKeys) or (len(keyshareServers) > 0 and len(pl) != len(keyshareServers)):
         return False
 

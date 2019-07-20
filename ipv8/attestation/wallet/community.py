@@ -142,7 +142,7 @@ class AttestationCommunity(Community):
         """
         id_algorithm = self.get_id_algorithm(id_format)
         attestation_blob, key = id_algorithm.import_blob(blob)
-        attestation = id_algorithm.get_attestation_class().unserialize(attestation_blob, id_format)
+        attestation = id_algorithm.get_attestation_class().unserialize_private(key, attestation_blob, id_format)
 
         self.on_attestation_complete(attestation, key, self.my_peer, attribute_name, attestation.get_hash(), id_format)
 
