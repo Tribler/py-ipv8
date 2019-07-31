@@ -1,15 +1,36 @@
 from __future__ import absolute_import
 
+import asyncio
+
+from twisted.internet import asyncioreactor
+
+# Must install the reactor here, such that no other reactor gets installed in the meantime.
+asyncioreactor.install(asyncio.get_event_loop())
+
 import socket
 import sys
-from unittest import skipIf
+from unittest import skipIf, TestCase
 
 from six.moves import xrange
-from twisted.internet.defer import inlineCallbacks
+from twisted.internet import reactor
+from twisted.internet.defer import inlineCallbacks, ensureDeferred
+from twisted.internet.task import deferLater, react
 
 from .....messaging.interfaces.endpoint import EndpointListener
 from .....messaging.interfaces.udp.endpoint import UDPEndpoint, UDP_MAX_SIZE
-from ....base import TestBase
+
+
+def async_test(func, *args, **kwargs):
+    """
+    Twisted's react function will use sys.exit which raises a SystemExit exception. This will automatically fail the
+    test if not caught, so a try ... catch block is used. Based on its return code, a decision is made of whether to
+    pass or fail the test. This is what this method does.
+    """
+    try:
+        react(lambda my_reactor: ensureDeferred(func(my_reactor, *args, **kwargs)))
+    except SystemExit as exc:
+        if int(str(exc)) != 0:
+            raise AssertionError("The test did not succeed")
 
 
 class DummyEndpointListener(EndpointListener):
@@ -24,63 +45,85 @@ class DummyEndpointListener(EndpointListener):
         self.incoming.append(packet)
 
 
-class TestUDPEndpoint(TestBase):
+class TestUDPEndpoint(TestCase):
     """
     This class contains various tests for the UDP endpoint.
     """
-
-    @inlineCallbacks
     def setUp(self):
-        yield super(TestUDPEndpoint, self).setUp()
+        loop = asyncio.get_event_loop()
+
         self.endpoint1 = UDPEndpoint(8080)
-        self.endpoint1.open()
+        loop.run_until_complete(self.endpoint1.open())
         self.endpoint2 = UDPEndpoint(8081)
-        self.endpoint2.open()
+        loop.run_until_complete(self.endpoint2.open())
 
         self.ep2_address = ("127.0.0.1", self.endpoint2.get_address()[1])
 
         self.endpoint2_listener = DummyEndpointListener(self.endpoint2)
         self.endpoint2.add_listener(self.endpoint2_listener)
 
-    @inlineCallbacks
     def tearDown(self):
         # If an endpoint was used, close it
-        if self.endpoint1:
-            yield self.endpoint1.close()
-        if self.endpoint2:
-            yield self.endpoint2.close()
-        yield super(TestUDPEndpoint, self).tearDown()
+        if self.endpoint1.is_open():
+            self.endpoint1.close()
+        if self.endpoint2.is_open():
+            self.endpoint2.close()
+        super(TestUDPEndpoint, self).tearDown()
 
     @inlineCallbacks
+    def sleep(self, time=.05):
+        yield deferLater(reactor, time, lambda: None)
+
     def test_send_message(self):
         """
         Test sending a basic message through the UDP endpoint.
         """
-        self.endpoint1.send(self.ep2_address, b'a' * 10)
-        yield self.sleep(0.05)
-        self.assertTrue(self.endpoint2_listener.incoming)
+        async def true_test(my_reactor):
+            # Send the package
+            datum = b'a' * 10
+            await self.endpoint1.send(self.ep2_address, b'a' * 10)
 
-    @inlineCallbacks
+            # Must use the Twisted sleep, otherwise there will be an error. The reactor is Asyncio's.
+            await self.sleep()
+
+            self.assertTrue(self.endpoint2_listener.incoming)
+            self.assertEqual(self.endpoint2_listener.incoming[0][1], datum, "The received data was not the same as the"
+                                                                            "sent data.")
+
+        async_test(true_test)
+
     def test_send_many_messages(self):
         """
         Test sending multiple messages through the UDP endpoint.
         """
-        for ind in xrange(0, 50):
-            self.endpoint1.send(self.ep2_address, b'a' * ind)
-        yield self.sleep(0.05)
-        self.assertEqual(len(self.endpoint2_listener.incoming), 50)
+
+        async def true_test(my_reactor):
+            # range must be in [1, 51), since Asyncio transports discard empty datagrams
+            asyncio.gather(*[self.endpoint1.send(self.ep2_address, b'a' * ind) for ind in range(1, 51)])
+            await self.sleep()
+            self.assertEqual(len(self.endpoint2_listener.incoming), 50)
+
+        async_test(true_test)
 
     def test_send_too_big_message(self):
         """
         Test sending a too big message through the UDP endpoint.
         """
-        self.endpoint1.send(self.ep2_address, b'a' * (UDP_MAX_SIZE + 1000))
+        async def true_test(my_reactor):
+            await self.endpoint1.send(self.ep2_address, b'a' * (UDP_MAX_SIZE + 1000))
+            await self.sleep()
+            self.assertFalse(self.endpoint2_listener.incoming)
+
+        async_test(true_test)
 
     def test_send_invalid_destination(self):
         """
         Test sending a message with an invalid destination through the UDP endpoint.
         """
-        self.endpoint1.send(("0.0.0.0", 0), b'a' * 10)
+        async def true_test(my_reactor):
+            await self.endpoint1.send(("0.0.0.0", 0), b'a' * 10)
+
+        async_test(true_test)
 
     @skipIf(sys.version_info.major > 2, "sendto is write-only in Python3")
     @inlineCallbacks
