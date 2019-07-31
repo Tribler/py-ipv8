@@ -123,14 +123,14 @@ def binary_relativity_match(expected, value):
     Get the matching percentage between relativity maps.
     Mismatches result in 0.0.
     """
-    match = 0.0
+    match = 1.0
     for k in expected:
         if expected[k] < value[k]:
             return 0.0
-        if not expected[k]:
+        if not expected[k] or not value[k]:
             continue
-        match += float(value[k]) / float(expected[k])
-    return match / (len(expected) - 1)
+        match *= float(value[k]) / float(expected[k])
+    return match
 
 
 def binary_relativity_certainty(expected, value):

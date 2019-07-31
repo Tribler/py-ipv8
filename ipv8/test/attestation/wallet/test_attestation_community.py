@@ -202,6 +202,51 @@ class TestCommunity(TestBase):
         self.nodes[1].overlay.request_cache.clear()
 
     @inlineCallbacks
+    def test_reqandverif_attestation(self):
+        attribute_value = b"2168897456"
+
+        def f(peer, attribute_name, attestation_hash, __=None):
+            self.assertEqual(peer.address, self.nodes[1].endpoint.wan_address)
+            self.assertEqual(attribute_name, "MyAttribute")
+
+            f.attestation_hash = attestation_hash
+            f.called = True
+
+        f.called = False
+
+        yield self.introduce_nodes()
+
+        self.nodes[0].overlay.set_attestation_request_callback(lambda x, y, z: attribute_value)
+        self.nodes[0].overlay.set_attestation_request_complete_callback(f)
+
+        self.nodes[1].overlay.request_attestation(self.nodes[0].overlay.my_peer,
+                                                  "MyAttribute",
+                                                  TestCommunity.private_key)
+
+        yield self.deliver_messages(0.5)
+
+        db_entries = self.nodes[1].overlay.database.get_all()
+        self.assertEqual(1, len(db_entries))
+        self.assertTrue(f.called)
+
+        def callback(rhash, values):
+            self.assertEqual(f.attestation_hash, rhash)
+            self.assertEqual(1, len(values))
+            self.assertLess(0.99, values[0])
+            callback.called = True
+        callback.called = False
+        self.nodes[0].overlay.verify_attestation_values(self.nodes[1].endpoint.wan_address,
+                                                        f.attestation_hash,
+                                                        [attribute_value],
+                                                        callback,
+                                                        "id_metadata")
+
+        yield self.deliver_messages(0.5)
+
+        self.assertTrue(callback.called)
+        self.nodes[0].overlay.request_cache.clear()
+
+    @inlineCallbacks
     def test_verify_attestation_big(self):
         """
         Check if an attestation can be verified for id_metadata_big.
