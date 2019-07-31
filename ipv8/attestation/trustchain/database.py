@@ -86,11 +86,15 @@ class TrustChainDB(Database):
 
     def _get(self, query, params):
         db_result = list(self.execute(self.get_sql_header() + query, params, fetch_all=False))
-        return self.get_block_class(db_result[0])(db_result) if db_result else None
+        db_block_class = None
+        if db_result:
+            db_block_class = db_result[0] if isinstance(db_result[0], bytes) else str(db_result[0]).encode('utf-8')
+        return self.get_block_class(db_block_class)(db_result) if db_result else None
 
     def _getall(self, query, params):
         db_result = list(self.execute(self.get_sql_header() + query, params, fetch_all=True))
-        return [self.get_block_class(db_item[0])(db_item) for db_item in db_result]
+        return [self.get_block_class(db_item if isinstance(db_item, bytes)
+                                     else str(db_item).encode('utf-8'))(db_item) for db_item in db_result]
 
     def get(self, public_key, sequence_number):
         """

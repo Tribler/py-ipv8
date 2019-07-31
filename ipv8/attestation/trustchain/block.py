@@ -54,7 +54,7 @@ class TrustChainBlock(object):
              self.previous_hash, self.signature, self.timestamp, self.insert_time) = (data[0], data[2], data[3],
                                                                                       data[4], data[5], data[6],
                                                                                       data[7], data[8], data[9])
-            self.type = self.type if isinstance(self.type, bytes) else self.type.encode('utf-8')
+            self.type = self.type if isinstance(self.type, bytes) else str(self.type).encode('utf-8')
             self.public_key = self.public_key if isinstance(self.public_key, bytes) else binary_type(self.public_key)
             self.link_public_key = (self.link_public_key if isinstance(self.link_public_key, bytes)
                                     else binary_type(self.link_public_key))
