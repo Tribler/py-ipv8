@@ -47,7 +47,7 @@ class TrustChainCommunity(Community):
     master_peer = Peer(unhexlify("4c69624e61434c504b3a5730f52156615ecbcedb36c442992ea8d3c26b418edd8bd00e01dce26028cd"
                                  "1ebe5f7dce59f4ed59f8fcee268fd7f1c6dc2fa2af8c22e3170e00cdecca487745"))
 
-    UNIVERSAL_BLOCK_LISTENER = 'UNIVERSAL_BLOCK_LISTENER'
+    UNIVERSAL_BLOCK_LISTENER = b'UNIVERSAL_BLOCK_LISTENER'
     DB_CLASS = TrustChainDB
     DB_NAME = 'trustchain'
     version = b'\x02'
