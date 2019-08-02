@@ -18,14 +18,15 @@ from .caches import *
 from .community import TunnelCommunity, message_to_payload, tc_lazy_wrapper_unsigned
 from .payload import *
 from .tunnel import (CIRCUIT_ID_PORT, CIRCUIT_TYPE_IP_SEEDER, CIRCUIT_TYPE_RP_DOWNLOADER, CIRCUIT_TYPE_RP_SEEDER,
-                     EXIT_NODE, EXIT_NODE_SALT, Hop, IntroductionPoint, PEER_SOURCE_PEX, RelayRoute, RendezvousPoint,
-                     Swarm, TunnelExitSocket)
+                     EXIT_NODE, EXIT_NODE_SALT, Hop, IntroductionPoint, PEER_SOURCE_DHT, PEER_SOURCE_PEX, RelayRoute,
+                     RendezvousPoint, Swarm, TunnelExitSocket)
 from ...keyvault.public.libnaclkey import LibNaCLPK
 from ...messaging.anonymization.pex import PexCommunity, PexEndpointAdapter
 from ...messaging.deprecated.encoding import decode, encode
 from ...peer import Peer
 from ...peerdiscovery.discovery import RandomWalk
 from ...peerdiscovery.network import Network
+from ...util import defaultErrback
 
 
 class HiddenTunnelCommunity(TunnelCommunity):
@@ -84,7 +85,8 @@ class HiddenTunnelCommunity(TunnelCommunity):
             self.logger.warning('Already part of hidden swarm %s, leaving existing', binascii.hexlify(info_hash))
             self.leave_swarm(info_hash)
 
-        self.swarms[info_hash] = Swarm(info_hash, hops, self.crypto.generate_key(u"curve25519") if seeding else None)
+        self.swarms[info_hash] = Swarm(info_hash, hops, self.send_peers_request,
+                                       self.crypto.generate_key(u"curve25519") if seeding else None)
 
         self.e2e_callbacks.pop(info_hash, None)
         if callback:
@@ -126,7 +128,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         :return: number of unique seeders
         :rtype: Deferred
         """
-        swarm = Swarm(info_hash, hops, None)
+        swarm = Swarm(info_hash, hops, self.send_peers_request)
 
         # None represents a DHT request
         all_ = [None]
@@ -139,7 +141,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
 
             # Issue as many requests as possible in parallel
             ips = random.sample(not_tried, min(len(not_tried), max_requests - len(tried)))
-            responses = yield DeferredList([self.send_peers_request(info_hash, swarm, ip)
+            responses = yield DeferredList([swarm.lookup(ip)
                                             for ip in ips], consumeErrors=True).addErrback(lambda _: [])
 
             # Collect responses
@@ -180,15 +182,21 @@ class HiddenTunnelCommunity(TunnelCommunity):
     @inlineCallbacks
     def do_peer_discovery(self):
         now = time.time()
-        for info_hash, swarm in self.swarms.items():
+        for info_hash, swarm in list(self.swarms.items()):
             if not swarm.seeding and swarm.last_lookup + self.settings.swarm_lookup_interval <= now \
                and swarm.get_num_connections() < self.settings.swarm_connection_limit:
-                swarm.last_lookup = now
-                ips = yield self.send_peers_request(info_hash, swarm).addErrback(lambda _: None)
+                lookup_deferred = swarm.lookup()
+                if not lookup_deferred:
+                    continue
+
+                ips = yield lookup_deferred.addErrback(defaultErrback)
                 if ips is None:
                     self.logger.info('Failed to do peer discovery for swarm %s', binascii.hexlify(info_hash))
                     continue
-                self.logger.info('Found %d peer(s) for swarm %s', len(ips), binascii.hexlify(info_hash))
+                self.logger.info('Found %d/%d peer(s) for swarm %s',
+                                 len([ip for ip in ips if ip.source == PEER_SOURCE_DHT]),
+                                 len([ip for ip in ips if ip.source == PEER_SOURCE_PEX]),
+                                 binascii.hexlify(info_hash))
                 for ip in set(ips):
                     ip = swarm.add_intro_point(ip)
                     if not swarm.has_connection(ip.seeder_pk):
@@ -270,24 +278,24 @@ class HiddenTunnelCommunity(TunnelCommunity):
                 return circuit
         return super(HiddenTunnelCommunity, self).select_circuit(destination, hops)
 
-    def send_peers_request(self, info_hash, swarm, intro_point=None):
-        circuit = self.select_circuit(None, swarm.hops)
+    def send_peers_request(self, info_hash, target, hops):
+        circuit = self.select_circuit(None, hops)
         if not circuit:
             self.logger.info("No circuit for peers-request")
             return fail(Failure(RuntimeError("No circuit for peers-request")))
 
         # Send a peers-request message over this circuit
-        self.logger.info("Sending peers request")
         cache = self.request_cache.add(PeersRequestCache(self, circuit, info_hash))
         payload = PeersRequestPayload(circuit.circuit_id, cache.number, info_hash)
 
         # Ask an introduction point if available (in which case we'll use PEX), otherwise let
         # the exit node do a DHT request.
-        ip = intro_point or swarm.get_random_intro_point()
-        if ip and ip.peer.public_key != circuit.hops[-1].public_key:
-            self.tunnel_data(circuit, ip.peer.address, u"peers-request", payload)
+        if target and target.peer.public_key != circuit.hops[-1].public_key:
+            self.tunnel_data(circuit, target.peer.address, u"peers-request", payload)
+            self.logger.info("Sending peers request (intro point %s)", target.peer)
         else:
             self.send_cell([circuit.peer], u"peers-request", payload)
+            self.logger.info("Sending peers request as cell")
         return cache.deferred
 
     @tc_lazy_wrapper_unsigned(PeersRequestPayload)

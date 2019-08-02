@@ -5,6 +5,7 @@ import random
 import socket
 import sys
 import time
+from binascii import hexlify
 from collections import defaultdict
 from struct import unpack_from
 from traceback import format_exception
@@ -371,16 +372,23 @@ class IntroductionPoint(object):
 
 class Swarm(object):
 
-    def __init__(self, info_hash, hops, seeder_sk=None, max_ip_age=300):
+    def __init__(self, info_hash, hops, lookup_func, seeder_sk=None, max_ip_age=180,
+                 min_dht_lookup_interval=300, max_dht_lookup_interval=120):
         self.info_hash = info_hash
         self.hops = hops
+        self.lookup_func = lookup_func
         self.seeder_sk = seeder_sk
         self.max_ip_age = max_ip_age
+        self.min_dht_lookup_interval = min_dht_lookup_interval
+        self.max_dht_lookup_interval = max_dht_lookup_interval
 
         self.intro_points = []
         self.connections = {}
         self.last_lookup = 0
+        self.last_lookup_dht = 0
         self.transfer_history = [0, 0]
+
+        self.logger = logging.getLogger(self.__class__.__name__)
 
     @property
     def seeding(self):
@@ -413,16 +421,20 @@ class Swarm(object):
 
     def add_intro_point(self, ip):
         old_ip = next((i for i in self.intro_points if i == ip), None)
+
         if old_ip:
             old_ip.last_seen = time.time()
         else:
             self.intro_points.append(ip)
 
+        return old_ip or ip
+
+    def remove_old_intro_points(self):
         # Cleanup old introduction points
         now = time.time()
-        self.intro_points = [i for i in self.intro_points if i.last_seen + self.max_ip_age >= now]
-
-        return old_ip or ip
+        used_intro_points = [i for c, i in self.connections.values() if c.state == CIRCUIT_STATE_READY and c.e2e]
+        self.intro_points = [i for i in self.intro_points
+                             if i.last_seen + self.max_ip_age >= now or i in used_intro_points]
 
     def remove_intro_point(self, ip):
         try:
@@ -430,8 +442,27 @@ class Swarm(object):
         except ValueError:
             pass
 
-    def get_random_intro_point(self):
-        return random.choice(self.intro_points) if self.intro_points else None
+    def lookup(self, target=None):
+        # Are we doing a manual lookup?
+        if target:
+            self.logger.info("Performing manual PEX lookup for swarm %s (target %s)",
+                             hexlify(self.info_hash), target.peer)
+            return self.lookup_func(self.info_hash, target, self.hops)
+
+        now = time.time()
+        self.remove_old_intro_points()
+        self.last_lookup = now
+        if (now - self.last_lookup_dht) > self.min_dht_lookup_interval or \
+           (not self.intro_points and (now - self.last_lookup_dht) > self.max_dht_lookup_interval):
+            self.last_lookup_dht = now
+            self.logger.info("Performing DHT lookup for swarm %s", hexlify(self.info_hash))
+            return self.lookup_func(self.info_hash, None, self.hops)
+        elif self.intro_points:
+            target = random.choice(self.intro_points)
+            self.logger.info("Performing PEX lookup for swarm %s (target %s)",
+                             hexlify(self.info_hash), target.peer)
+            return self.lookup_func(self.info_hash, target, self.hops)
+        self.logger.info("Skipping lookup for swarm %s", hexlify(self.info_hash))
 
     def get_num_seeders(self):
         seeder_pks = {ip.seeder_pk for ip in self.intro_points}
