@@ -5,14 +5,12 @@ from struct import pack, unpack_from
 
 from cryptography.exceptions import InvalidTag
 
-from six import ensure_str
-
 from ...messaging.anonymization.tunnel import (CIRCUIT_TYPE_RP_DOWNLOADER, CIRCUIT_TYPE_RP_SEEDER, EXIT_NODE,
                                                EXIT_NODE_SALT, ORIGINATOR, ORIGINATOR_SALT)
 from ...messaging.anonymization.tunnelcrypto import CryptoException
 from ...messaging.lazy_payload import VariablePayload
 from ...messaging.payload import Payload
-from ...util import cast_to_bin, cast_to_chr
+from ...util import cast_to_bin, cast_to_chr, ensure_str
 
 ADDRESS_TYPE_IPV4 = 0x01
 ADDRESS_TYPE_DOMAIN_NAME = 0x02
