@@ -1,5 +1,7 @@
 from __future__ import absolute_import
 
+import time
+
 import six
 
 from twisted.internet import reactor
@@ -226,6 +228,7 @@ class TestHiddenServices(TestBase):
                                         self.nodes[0].overlay.swarms[self.service].seeder_sk.pub().key_to_bin())
         self.nodes[3].overlay.join_swarm(self.service, 1, seeding=False)
         self.nodes[3].overlay.swarms[self.service].add_intro_point(intro_point)
+        self.nodes[3].overlay.swarms[self.service].last_lookup_dht = time.time()
         self.nodes[3].overlay.do_peer_discovery()
         yield self.deliver_messages()
 

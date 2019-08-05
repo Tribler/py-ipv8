@@ -225,7 +225,7 @@ class TunnelCommunity(Community):
 
     def do_remove(self):
         # Remove circuits that are inactive / are too old / have transferred too many bytes.
-        for circuit_id, circuit in self.circuits.items():
+        for circuit_id, circuit in list(self.circuits.items()):
             if circuit.state == CIRCUIT_STATE_READY and \
                circuit.last_activity < time.time() - self.settings.max_time_inactive:
                 self.remove_circuit(circuit_id, 'no activity')
@@ -235,14 +235,14 @@ class TunnelCommunity(Community):
                 self.remove_circuit(circuit_id, 'traffic limit exceeded')
 
         # Remove relays that are inactive / have transferred too many bytes.
-        for circuit_id, relay in self.relay_from_to.items():
+        for circuit_id, relay in list(self.relay_from_to.items()):
             if relay.last_activity < time.time() - self.settings.max_time_inactive:
                 self.remove_relay(circuit_id, 'no activity', both_sides=False)
             elif relay.bytes_up + relay.bytes_down > self.settings.max_traffic:
                 self.remove_relay(circuit_id, 'traffic limit exceeded', both_sides=False)
 
         # Remove exit sockets that are too old / have transferred too many bytes.
-        for circuit_id, exit_socket in self.exit_sockets.items():
+        for circuit_id, exit_socket in list(self.exit_sockets.items()):
             if exit_socket.last_activity < time.time() - self.settings.max_time_inactive:
                 self.remove_exit_socket(circuit_id, 'no activity')
             elif exit_socket.creation_time < time.time() - self.get_max_time(circuit_id):

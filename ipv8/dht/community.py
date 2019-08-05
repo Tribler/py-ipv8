@@ -477,7 +477,7 @@ class DHTCommunity(Community):
 
         # Cleanup old tokens
         now = time.time()
-        for node, (ts, _) in self.tokens.items():
+        for node, (ts, _) in list(self.tokens.items()):
             if now > ts + TOKEN_EXPIRATION_TIME:
                 self.tokens.pop(node, None)
 
