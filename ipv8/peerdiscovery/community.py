@@ -14,6 +14,7 @@ from ..messaging.payload import IntroductionRequestPayload
 from ..messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from ..messaging.serialization import PackError
 from ..peer import Peer
+from ..requestcache import NumberCache, RequestCache
 from ..util import cast_to_bin
 
 
@@ -32,6 +33,24 @@ class PeriodicSimilarity(DiscoveryStrategy):
             self.overlay.send_similarity_request(choice(self.overlay.network.verified_peers).address)
 
 
+class PingRequestCache(NumberCache):
+
+    def __init__(self, request_cache, identifier, peer, start_time):
+        super(PingRequestCache, self).__init__(request_cache, u"discoverypingcache", identifier)
+        self.peer = peer
+        self.start_time = start_time
+
+    def finish(self):
+        self.peer.pings.append(time() - self.start_time)
+
+    @property
+    def timeout_delay(self):
+        return 5.0
+
+    def on_timeout(self):
+        pass
+
+
 class DiscoveryCommunity(Community):
 
     version = b'\x02'
@@ -45,6 +64,8 @@ class DiscoveryCommunity(Community):
     def __init__(self, my_peer, endpoint, network, max_peers=DEFAULT_MAX_PEERS, anonymize=False):
         super(DiscoveryCommunity, self).__init__(my_peer, endpoint, network, max_peers=max_peers, anonymize=anonymize)
 
+        self.request_cache = RequestCache()
+
         self.decode_map.update({
             chr(1): self.on_similarity_request,
             chr(2): self.on_similarity_response,
@@ -54,6 +75,10 @@ class DiscoveryCommunity(Community):
 
     def get_available_strategies(self):
         return {'PeriodicSimilarity': PeriodicSimilarity, 'RandomChurn': RandomChurn}
+
+    def unload(self):
+        self.request_cache.shutdown()
+        super(DiscoveryCommunity, self).unload()
 
     def on_introduction_request(self, source_address, data):
         if self.max_peers >= 0 and len(self.get_peers()) > self.max_peers:
@@ -115,7 +140,11 @@ class DiscoveryCommunity(Community):
 
     @lazy_wrapper_unsigned(GlobalTimeDistributionPayload, PongPayload)
     def on_pong(self, source_address, dist, payload):
-        pass
+        try:
+            cache = self.request_cache.pop(u"discoverypingcache", payload.identifier)
+            cache.finish()
+        except KeyError:
+            self.logger.debug("PingCache was answered late.")
 
     def get_my_overlays(self, peer):
         return [service_id for service_id, overlay in self.network.service_overlays.items()
@@ -148,12 +177,14 @@ class DiscoveryCommunity(Community):
 
         return self.custom_pack(peer, 2, [auth, dist, payload])
 
-    def create_ping(self):
+    def send_ping(self, peer):
         global_time = self.claim_global_time()
         payload = PingPayload(global_time).to_pack_list()
         dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
 
-        return self._ez_pack(self._prefix, 3, [dist, payload], False)
+        packet = self._ez_pack(self._prefix, 3, [dist, payload], False)
+        self.request_cache.add(PingRequestCache(self.request_cache, global_time, peer, time()))
+        self.endpoint.send(peer.address, packet)
 
     def create_pong(self, identifier):
         global_time = self.claim_global_time()

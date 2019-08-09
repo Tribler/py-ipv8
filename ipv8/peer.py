@@ -1,6 +1,7 @@
-from __future__ import absolute_import
+from __future__ import absolute_import, division
 
 from base64 import b64encode
+from collections import deque
 from struct import unpack
 from time import time
 
@@ -28,6 +29,29 @@ class Peer(object):
         self.address = address
         self.last_response = 0 if intro else time()
         self._lamport_timestamp = 0
+        self.pings = deque(maxlen=5)
+
+    def get_median_ping(self):
+        """
+        Get the median ping time of this peer.
+
+        :return: the median ping or None if no measurements were performed yet
+        :rtype: float or None
+        """
+        if not self.pings:
+            return None
+        return sorted(self.pings)[len(self.pings) // 2]
+
+    def get_average_ping(self):
+        """
+        Get the average ping time of this peer.
+
+        :return: the average ping or None if no measurements were performed yet
+        :rtype: float or None
+        """
+        if not self.pings:
+            return None
+        return sum(self.pings) / len(self.pings)
 
     def update_clock(self, timestamp):
         """
