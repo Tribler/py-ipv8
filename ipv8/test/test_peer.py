@@ -62,6 +62,35 @@ class TestPeer(unittest.TestCase):
 
         self.assertNotEqual(self.peer, other)
 
+    def test_median_ping_none(self):
+        """
+        No ping measurements should lead to a None median ping.
+        """
+        self.assertIsNone(self.peer.get_median_ping())
+
+    def test_avg_ping_none(self):
+        """
+        No ping measurements should lead to a None average ping.
+        """
+        self.assertIsNone(self.peer.get_average_ping())
+
+    def test_median_ping(self):
+        """
+        Median ping should return the median ping.
+        """
+        self.peer.pings.append(2.0)
+        self.peer.pings.append(3.0)
+        self.peer.pings.append(4.0)
+        self.assertEqual(3.0, self.peer.get_median_ping())
+
+    def test_avg_ping(self):
+        """
+        Average ping should return the average ping.
+        """
+        self.peer.pings.append(3.0)
+        self.peer.pings.append(4.0)
+        self.assertEqual(3.5, self.peer.get_average_ping())
+
     def test_peer_inequality_address(self):
         """
         Check if peers with the same key and a different address are equal.

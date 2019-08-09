@@ -58,14 +58,13 @@ class RandomChurn(DiscoveryStrategy):
                     if self.should_drop(peer) and peer.address in self._pinged:
                         self.overlay.network.remove_peer(peer)
                         del self._pinged[peer.address]
-                    elif self.is_inactive(peer):
+                    elif self.is_inactive(peer) or len(peer.pings) < peer.pings.maxlen:
                         if ((peer.address in self._pinged)
                                 and (time() > (self._pinged[peer.address] + self.ping_interval))):
                             del self._pinged[peer.address]
                         if peer.address not in self._pinged:
                             self._pinged[peer.address] = time()
-                            packet = self.overlay.create_ping()
-                            self.overlay.endpoint.send(peer.address, packet)
+                            self.overlay.send_ping(peer)
 
 
 class PingChurn(DiscoveryStrategy):
