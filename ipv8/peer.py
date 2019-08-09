@@ -40,7 +40,11 @@ class Peer(object):
         """
         if not self.pings:
             return None
-        return sorted(self.pings)[len(self.pings) // 2]
+        sorted_pings = sorted(self.pings)
+        if len(sorted_pings) % 2 == 0:
+            return (sorted_pings[len(sorted_pings) // 2 - 1] + sorted_pings[len(sorted_pings) // 2]) / 2
+        else:
+            return sorted_pings[len(sorted_pings) // 2]
 
     def get_average_ping(self):
         """

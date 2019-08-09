@@ -74,14 +74,24 @@ class TestPeer(unittest.TestCase):
         """
         self.assertIsNone(self.peer.get_average_ping())
 
-    def test_median_ping(self):
+    def test_median_ping_odd(self):
         """
-        Median ping should return the median ping.
+        Median ping should return the median ping for odd length measurements.
         """
         self.peer.pings.append(2.0)
         self.peer.pings.append(3.0)
         self.peer.pings.append(4.0)
         self.assertEqual(3.0, self.peer.get_median_ping())
+
+    def test_median_ping_even(self):
+        """
+        Median ping should return the median ping for even length measurements.
+        """
+        self.peer.pings.append(2.0)
+        self.peer.pings.append(3.0)
+        self.peer.pings.append(4.0)
+        self.peer.pings.append(5.0)
+        self.assertEqual(3.5, self.peer.get_median_ping())
 
     def test_avg_ping(self):
         """
