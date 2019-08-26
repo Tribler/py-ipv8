@@ -1,6 +1,8 @@
 from __future__ import absolute_import
 
 import logging
+from asyncio import coroutine, gather, CancelledError
+from contextlib import suppress
 from random import random
 from threading import Lock
 
@@ -104,7 +106,7 @@ class RequestCache(TaskManager):
             else:
                 self._logger.debug("add %s", cache)
                 self._identifiers[identifier] = cache
-                self.register_task(cache, self._reactor.callLater(cache.timeout_delay, self._on_timeout, cache))
+                self.register_task(cache, coroutine(lambda: self._on_timeout(cache)), delay=cache.timeout_delay)
                 return cache
 
     def has(self, prefix, number):
@@ -165,13 +167,15 @@ class RequestCache(TaskManager):
 
         """
         self._logger.debug("Clearing %s [%s]", self, len(self._identifiers))
-        self.cancel_all_pending_tasks()
+        tasks = self.cancel_all_pending_tasks()
         self._identifiers.clear()
+        return tasks
 
-    def shutdown(self):
+    async def shutdown(self):
         """
         Clear the cache, cancel all pending tasks and disallow new caches being added.
         """
         with self.lock:
             self._shutdown = True
-            self.clear()
+            with suppress(CancelledError):
+                await gather(*self.clear())

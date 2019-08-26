@@ -2,16 +2,14 @@ from __future__ import absolute_import
 from __future__ import division
 
 import time
+from asyncio import gather
 from binascii import hexlify
 from collections import defaultdict
 
 from six.moves import xrange
 
-from twisted.internet.defer import fail, succeed
-from twisted.internet.task import LoopingCall
-from twisted.python.failure import Failure
-
-from .community import DHTCommunity, MAX_NODES_IN_FIND, PING_INTERVAL, Request, TARGET_NODES, gatherResponses
+from . import DHTError
+from .community import DHTCommunity, MAX_NODES_IN_FIND, PING_INTERVAL, Request, TARGET_NODES, gather_without_errors
 from .payload import (ConnectPeerRequestPayload, ConnectPeerResponsePayload, PingRequestPayload, PingResponsePayload,
                       StorePeerRequestPayload, StorePeerResponsePayload)
 from .routing import NODE_STATUS_BAD, Node
@@ -42,7 +40,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
             chr(MSG_CONNECT_PEER_RESPONSE): self.on_connect_peer_response,
         })
 
-        self.register_task('store_peer', LoopingCall(self.store_peer)).start(30, now=False)
+        self.register_task('store_peer', self.store_peer, interval=30)
 
     @lazy_wrapper_wd(GlobalTimeDistributionPayload, PingRequestPayload)
     def on_ping_request(self, peer, dist, payload, data):
@@ -64,57 +62,64 @@ class DHTDiscoveryCommunity(DHTCommunity):
                 if node.public_key.key_to_bin() == public_key_bin:
                     return node
 
-    def store_peer(self):
+    async def store_peer(self):
         # Do we already have enough peers storing our address?
         if len(self.store_for_me) >= TARGET_NODES // 2:
-            return
+            return []
 
         key = self.my_peer.mid
-        return self.find_nodes(key).addCallback(lambda nodes: self.send_store_peer_request(key, nodes[:TARGET_NODES])) \
-                                   .addErrback(lambda _: None)
+        try:
+            nodes = await self.find_nodes(key)
+            return await self.send_store_peer_request(key, nodes[:TARGET_NODES])
+        except DHTError:
+            return []
 
-    def send_store_peer_request(self, key, nodes):
+    async def send_store_peer_request(self, key, nodes):
         # Create new objects to avoid problem with the nodes also being in the routing table
         nodes = [Node(node.key, node.address) for node in nodes if node not in self.store_for_me[key]]
 
         if not nodes:
-            return fail(Failure(RuntimeError('No nodes found for storing peer')))
+            return DHTError('No nodes found for storing peer')
 
-        deferreds = []
+        futures = []
         for node in nodes:
             if node in self.tokens:
                 cache = self.request_cache.add(Request(self, u'store-peer', node, [key]))
-                deferreds.append(cache.deferred)
+                futures.append(cache.future)
                 self.send_message(node.address, MSG_STORE_PEER_REQUEST, StorePeerRequestPayload,
                                   (cache.number, self.tokens[node][1], key))
             else:
                 self.logger.debug('Not sending store-peer-request to %s (no token available)', node)
 
-        return (gatherResponses(deferreds, consumeErrors=True) if deferreds
-                else fail(RuntimeError('Peer was not stored')))
+        if not futures:
+            raise DHTError('Peer was not stored')
+        return await gather_without_errors(*futures)
 
-    def connect_peer(self, mid):
+    async def connect_peer(self, mid):
         if mid in self.store:
-            return succeed(self.store[mid])
-        return self.find_nodes(mid).addCallback(lambda nodes, mid=mid:
-                                                self.send_connect_peer_request(mid, nodes[:TARGET_NODES]))
+            return self.store[mid]
+        nodes = await self.find_nodes(mid)
+        nodes = await self.send_connect_peer_request(mid, nodes[:TARGET_NODES])
+        if not nodes:
+            raise DHTError('Failed to connect peer')
+        return nodes
 
-    def send_connect_peer_request(self, key, nodes):
+    async def send_connect_peer_request(self, key, nodes):
         # Create new objects to avoid problem with the nodes also being in the routing table
         nodes = [Node(node.key, node.address) for node in nodes]
 
         if not nodes:
-            return fail(Failure(RuntimeError('No nodes found for connecting to peer')))
+            raise DHTError('No nodes found for connecting to peer')
 
-        deferreds = []
+        futures = []
         for node in nodes:
             cache = self.request_cache.add(Request(self, u'connect-peer', node))
-            deferreds.append(cache.deferred)
+            futures.append(cache.future)
             self.send_message(node.address, MSG_CONNECT_PEER_REQUEST,
                               ConnectPeerRequestPayload, (cache.number, self.my_estimated_lan, key))
 
-        return gatherResponses(deferreds, consumeErrors=True).addCallback(lambda node_lists:
-                                                                          list(set(sum(node_lists, []))))
+        node_lists = await gather_without_errors(*futures)
+        return list(set(sum(node_lists, [])))
 
     @lazy_wrapper(GlobalTimeDistributionPayload, StorePeerRequestPayload)
     def on_store_peer_request(self, peer, dist, payload):
@@ -152,7 +157,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
             self.logger.debug('Peer %s storing us (key %s)', cache.node, hexlify(key))
             self.store_for_me[key].append(cache.node)
 
-        cache.deferred.callback(cache.node)
+        cache.future.set_result(cache.node)
 
     @lazy_wrapper(GlobalTimeDistributionPayload, ConnectPeerRequestPayload)
     def on_connect_peer_request(self, peer, dist, payload):
@@ -175,7 +180,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
 
         self.logger.debug('Got connect-peer-response from %s', peer.address)
         cache = self.request_cache.pop(u'connect-peer', payload.identifier)
-        cache.deferred.callback(payload.nodes)
+        cache.future.set_result(payload.nodes)
 
     def ping_all(self):
         pinged = self.get_available_strategies()['PingChurn'](self).take_step()
@@ -188,7 +193,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
                     del self.store_for_me[key][index]
                     self.logger.debug('Deleting peer %s that stored us (key %s)', node, hexlify(key))
                 elif node not in pinged and now > node.last_response + PING_INTERVAL:
-                    self.ping(node).addErrback(lambda _: None)
+                    self.ping(node)
 
         for key, nodes in self.store.items():
             for index in xrange(len(nodes) - 1, -1, -1):

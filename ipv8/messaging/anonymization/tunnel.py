@@ -5,19 +5,15 @@ import random
 import socket
 import sys
 import time
+from asyncio import get_event_loop, DatagramProtocol, ensure_future
 from binascii import hexlify
-from collections import defaultdict
+from collections import defaultdict, deque
 from struct import unpack_from
 from traceback import format_exception
 
-from twisted.internet import reactor
-from twisted.internet.defer import inlineCallbacks, maybeDeferred, returnValue, succeed
-from twisted.internet.error import MessageLengthError
-from twisted.internet.protocol import DatagramProtocol
-
 from ...keyvault.public.libnaclkey import LibNaCLPK
 from ...taskmanager import TaskManager
-from ...util import blocking_call_on_reactor_thread
+from ...util import succeed
 
 
 ORIGINATOR = 0
@@ -121,46 +117,59 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
         Tunnel.__init__(self, circuit_id, peer)
         TaskManager.__init__(self)
         self.overlay = overlay
-        self.port = None
+        self.transport = None
+        self.queue = deque(maxlen=10)
+        self.enabled = False
         self.ips = defaultdict(int)
 
-    @blocking_call_on_reactor_thread
     def enable(self):
         if not self.enabled:
-            self.port = reactor.listenUDP(0, self)
+            self.enabled = True
 
-    @property
-    def enabled(self):
-        return self.port is not None
+            async def _enable():
+                self.transport, _ = await get_event_loop().create_datagram_endpoint(lambda: self,
+                                                                                    local_addr=('0.0.0.0', 0))
+                # Send any packets that have been waiting while the transport was being created
+                while self.queue:
+                    self.sendto(*self.queue.popleft())
+            ensure_future(_enable())
 
     def sendto(self, data, destination):
+        if not self.transport:
+            self.queue.append((data, destination))
+            return
+
         self.beat_heart()
         if self.check_num_packets(destination, False):
             if DataChecker.is_allowed(data):
-                def on_error(failure):
-                    self.logger.error("Can't resolve ip address for hostname %s. Failure: %s", destination[0], failure)
+                def on_ip_address(future):
+                    try:
+                        ip_address = future.result()
+                    except Exception as e:
+                        self.logger.error("Can't resolve ip address for %s. Failure: %s", destination[0], e)
+                        return
 
-                def on_ip_address(ip_address):
                     self.logger.debug("Resolved hostname %s to ip_address %s", destination[0], ip_address)
                     try:
-                        self.transport.write(data, (ip_address, destination[1]))
+                        self.transport.sendto(data, (ip_address, destination[1]))
                         self.overlay.increase_bytes_sent(self, len(data))
-                    except (AttributeError, MessageLengthError, socket.error) as exception:
-                        self.logger.error(
-                            "Failed to write data to transport: %s. Destination: %r error was: %r",
-                            exception, destination, exception)
+                    except socket.error as e:
+                        self.logger.error("Failed to write to transport. Destination: %r error: %r", destination, e)
 
                 try:
                     socket.inet_aton(destination[0])
-                    on_ip_address(destination[0])
+                    on_ip_address(succeed(destination[0]))
                 except socket.error:
-                    resolve_ip_address_deferred = reactor.resolve(destination[0])
-                    resolve_ip_address_deferred.addCallbacks(on_ip_address, on_error)
-                    self.register_task("resolving_%r" % destination[0], resolve_ip_address_deferred)
-            else:
-                self.logger.error("dropping forbidden packets from exit socket with circuit_id %d", self.circuit_id)
+                    task = ensure_future(self.resolve(destination[0]))
+                    self.register_task("resolving_%r" % destination[0], task).add_done_callback(on_ip_address)
 
-    def datagramReceived(self, data, source):
+    async def resolve(self, host):
+        # Using asyncio's getaddrinfo since the aiodns resolver seems to have issues.
+        # Returns [(family, type, proto, canonname, sockaddr)].
+        infos = await get_event_loop().getaddrinfo(host, 0, family=socket.AF_INET)
+        return infos[0][-1][0]
+
+    def datagram_received(self, data, source):
         self.beat_heart()
         self.overlay.increase_bytes_received(self, len(data))
         if self.check_num_packets(source, True):
@@ -171,29 +180,22 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
                     self.logger.error("Exception occurred while handling incoming exit node data!\n"
                                       + ''.join(format_exception(*sys.exc_info())))
             else:
-                self.logger.warning("dropping forbidden packets to exit socket with circuit_id %d",
-                                    self.circuit_id)
+                self.logger.warning("Dropping forbidden packets to exit socket with circuit_id %d", self.circuit_id)
 
     def tunnel_data(self, source, data):
         self.logger.debug("Tunnel data to origin %s for circuit %s", ('0.0.0.0', 0), self.circuit_id)
         self.overlay.send_data([self.peer], self.circuit_id, ('0.0.0.0', 0), source, data)
 
-    @inlineCallbacks
-    def close(self):
+    async def close(self):
         """
         Closes the UDP socket if enabled and cancels all pending deferreds.
         :return: A deferred that fires once the UDP socket has closed.
         """
-        # The resolution deferreds can't be cancelled, so we need to wait for
+        # The resolution tasks can't be cancelled, so we need to wait for
         # them to finish.
-        yield self.wait_for_deferred_tasks()
-        self.shutdown_task_manager()
-        done_closing_deferred = succeed(None)
-        if self.enabled:
-            done_closing_deferred = maybeDeferred(self.port.stopListening)
-            self.port = None
-        res = yield done_closing_deferred
-        returnValue(res)
+        await self.shutdown_task_manager()
+        self.transport.close()
+        self.transport = None
 
     def check_num_packets(self, ip, incoming):
         if self.ips[ip] < 0:
@@ -442,7 +444,7 @@ class Swarm(object):
         except ValueError:
             pass
 
-    def lookup(self, target=None):
+    async def lookup(self, target=None):
         def on_success(ips):
             if any([ip for ip in ips if ip.source == PEER_SOURCE_DHT]):
                 self.last_dht_response = time.time()
@@ -452,7 +454,7 @@ class Swarm(object):
         if target:
             self.logger.info("Performing manual PEX lookup for swarm %s (target %s)",
                              hexlify(self.info_hash), target.peer)
-            return self.lookup_func(self.info_hash, target, self.hops).addCallback(on_success)
+            return on_success(await self.lookup_func(self.info_hash, target, self.hops))
 
         now = time.time()
         self.remove_old_intro_points()
@@ -460,12 +462,12 @@ class Swarm(object):
         if (now - self.last_dht_response) > self.min_dht_lookup_interval or \
            (not self.intro_points and (now - self.last_dht_response) > self.max_dht_lookup_interval):
             self.logger.info("Performing DHT lookup for swarm %s", hexlify(self.info_hash))
-            return self.lookup_func(self.info_hash, None, self.hops).addCallback(on_success)
+            return on_success(await self.lookup_func(self.info_hash, None, self.hops))
         elif self.intro_points:
             target = random.choice(self.intro_points)
             self.logger.info("Performing PEX lookup for swarm %s (target %s)",
                              hexlify(self.info_hash), target.peer)
-            return self.lookup_func(self.info_hash, target, self.hops).addCallback(on_success)
+            return on_success(await self.lookup_func(self.info_hash, target, self.hops))
         self.logger.info("Skipping lookup for swarm %s", hexlify(self.info_hash))
 
     def get_num_seeders(self):

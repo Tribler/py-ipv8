@@ -10,6 +10,7 @@ Community instance.
 from __future__ import absolute_import
 
 import sys
+from asyncio import ensure_future, iscoroutine
 from binascii import hexlify
 from random import choice, random
 from socket import error, gethostbyname
@@ -321,8 +322,11 @@ class Community(EZPackOverlay):
             return
         msg_id = chr(ord(data[22:23]))
         if msg_id in self.decode_map:
+            handler = self.decode_map[msg_id]
             try:
-                self.decode_map[msg_id](source_address, data)
+                result = handler(source_address, data)
+                if iscoroutine(result):
+                    ensure_future(result)
             except:
                 self.logger.error("Exception occurred while handling packet!\n"
                                   + ''.join(format_exception(*sys.exc_info())))

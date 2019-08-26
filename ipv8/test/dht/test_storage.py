@@ -2,12 +2,12 @@ from __future__ import absolute_import
 
 import time
 
-from twisted.trial import unittest
+import asynctest
 
 from ...dht.storage import Storage
 
 
-class TestStorage(unittest.TestCase):
+class TestStorage(asynctest.TestCase):
 
     def test_get_and_put(self):
         storage = Storage()

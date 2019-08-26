@@ -1,5 +1,7 @@
 from __future__ import absolute_import
 
+from . import DHTError
+
 # Sentinel object
 Null = object()
 
@@ -41,7 +43,7 @@ class Trie(object):
         node = self.root
         for char in key:
             if char not in self.alphabet:
-                raise RuntimeError
+                raise DHTError('Error while adding item to trie')
 
             next_node = node.children.get(char)
             if next_node is None:

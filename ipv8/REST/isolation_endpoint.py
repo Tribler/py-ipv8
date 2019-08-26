@@ -1,8 +1,8 @@
 from __future__ import absolute_import
 
-from twisted.web import http
+from aiohttp import web
 
-from .base_endpoint import BaseEndpoint
+from .base_endpoint import BaseEndpoint, Response, HTTP_BAD_REQUEST
 from ..community import _DEFAULT_ADDRESSES
 from ..messaging.anonymization.community import TunnelCommunity
 from ..util import cast_to_chr
@@ -23,9 +23,8 @@ class IsolationEndpoint(BaseEndpoint):
     curl -X POST "http://localhost:8085/isolation?ip=127.0.0.1&port=9999&bootstrapnode=1"
     """
 
-    def __init__(self, session):
-        super(IsolationEndpoint, self).__init__()
-        self.session = session
+    def setup_routes(self):
+        self.app.add_routes([web.post('', self.handle_post)])
 
     def add_exit_node(self, address):
         for overlay in self.session.overlays:
@@ -37,27 +36,26 @@ class IsolationEndpoint(BaseEndpoint):
         for overlay in self.session.overlays:
             overlay.walk_to(address)
 
-    def render_POST(self, request):
+    async def handle_post(self, request):
         # Check if we have arguments, containing an address and the type of address to add.
-        if not request.args or b'ip' not in request.args or b'port' not in request.args:
-            request.setResponseCode(http.BAD_REQUEST)
-            return self.twisted_dumps({"success": False, "error": "Parameters 'ip' and 'port' are required"})
-        if b'exitnode' not in request.args and b'bootstrapnode' not in request.args:
-            request.setResponseCode(http.BAD_REQUEST)
-            return self.twisted_dumps({"success": False,
-                                       "error": "Parameter 'exitnode' or 'bootstrapnode' is required"})
+        args = await request.post()
+        if not args or 'ip' not in args or 'port' not in args:
+            return Response({"success": False, "error": "Parameters 'ip' and 'port' are required"},
+                            status=HTTP_BAD_REQUEST)
+        if 'exitnode' not in args and 'bootstrapnode' not in args:
+            return Response({"success": False, "error": "Parameter 'exitnode' or 'bootstrapnode' is required"},
+                            status=HTTP_BAD_REQUEST)
         # Attempt to decode the address
         try:
-            address_str = cast_to_chr(request.args[b'ip'][0])
-            port_str = cast_to_chr(request.args[b'port'][0])
+            address_str = cast_to_chr(args['ip'])
+            port_str = cast_to_chr(args['port'])
             fmt_address = (address_str, int(port_str))
         except:
             import traceback
-            request.setResponseCode(http.BAD_REQUEST)
-            return self.twisted_dumps({"success": False, "error": traceback.format_exc()})
+            return Response({"success": False, "error": traceback.format_exc()}, status=HTTP_BAD_REQUEST)
         # Actually add the address to the requested service
-        if b'exitnode' in request.args:
+        if 'exitnode' in args:
             self.add_exit_node(fmt_address)
         else:
             self.add_bootstrap_server(fmt_address)
-        return self.twisted_dumps({"success": True})
+        return Response({"success": True})

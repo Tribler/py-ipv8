@@ -1,14 +1,11 @@
 import logging
 import threading
+from asyncio import sleep
 from base64 import b64encode
 
-from twisted.internet import reactor
-from twisted.internet.defer import inlineCallbacks, maybeDeferred
-from twisted.internet.task import deferLater
-from twisted.web import server
+from aiohttp import web
 
 from .ipv8 import TestRestIPv8
-from ....REST.rest_manager import RESTRequest
 from ....REST.root_endpoint import RootEndpoint
 from ....taskmanager import TaskManager
 
@@ -30,26 +27,29 @@ class RestAPITestWrapper(TaskManager):
         self._logger = logging.getLogger(self.__class__.__name__)
         self._session = session
         self._site = None
-        self._site_port = None
         self._root_endpoint = None
         self._port = port
         self._interface = interface
 
-    def start(self):
+    async def start(self):
         """
         Starts the HTTP API with the listen port as specified in the session configuration.
         """
-        self._root_endpoint = RootEndpoint(self._session)
-        self._site = server.Site(resource=self._root_endpoint)
-        self._site.requestFactory = RESTRequest
-        self._site_port = reactor.listenTCP(self._port, self._site, interface=self._interface)
+        self._root_endpoint = RootEndpoint()
+        self._root_endpoint.initialize(self._session)
 
-    def stop(self):
+        # app = web.Application()
+        # app.add_subapp('', self._root_endpoint.app)
+        runner = web.AppRunner(self._root_endpoint.app, access_log=None)
+        await runner.setup()
+        self._site = web.TCPSite(runner, 'localhost', self._port)
+        await self._site.start()
+
+    async def stop(self):
         """
         Stop the HTTP API and return a deferred that fires when the server has shut down.
         """
-        self._site.stopFactory()
-        return maybeDeferred(self._site_port.stopListening)
+        await self._site.stop()
 
     def get_access_parameters(self):
         """
@@ -90,8 +90,10 @@ class RestTestPeer(object):
         self._ipv8 = TestRestIPv8(u'curve25519', overlay_classes, memory_dbs)
 
         self._rest_manager = RestAPITestWrapper(self._ipv8, self._port, self._interface)
-        self._rest_manager.start()
         self._logger.info("Peer started up.")
+
+    async def initialize(self):
+        await self._rest_manager.start()
 
     def get_address(self):
         """
@@ -160,8 +162,7 @@ class RestTestPeer(object):
         """
         self._ipv8.network.discover_address(peer, (interface, port))
 
-    @inlineCallbacks
-    def unload(self):
+    async def unload(self):
         """
         Stop the peer
 
@@ -169,10 +170,10 @@ class RestTestPeer(object):
         """
         self._logger.info("Shutting down the peer")
 
-        self._rest_manager.stop()
-        self._rest_manager.shutdown_task_manager()
+        await self._rest_manager.stop()
+        await self._rest_manager.shutdown_task_manager()
 
-        yield self._ipv8.unload()
+        await self._ipv8.unload()
 
     def get_keys(self):
         """
@@ -220,9 +221,8 @@ class RestTestPeer(object):
 
         return None
 
-    @inlineCallbacks
-    def sleep(self, time=.05):
-        yield deferLater(reactor, time, lambda: None)
+    async def sleep(self, time=.05):
+        await sleep(time)
 
     @property
     def port(self):

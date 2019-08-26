@@ -1,9 +1,7 @@
 from __future__ import absolute_import
 
 import logging
-
-from twisted.internet.defer import Deferred
-from twisted.python.failure import Failure
+from asyncio import Future
 
 from .tunnel import CIRCUIT_STATE_CLOSING, CIRCUIT_STATE_READY
 from ...requestcache import NumberCache, RandomNumberCache
@@ -71,12 +69,12 @@ class RetryRequestCache(NumberCache):
             self.community.remove_circuit(self.circuit.circuit_id, reason)
             return
 
-        def retry_later(_):
-            self.retry_func(self.circuit, self.candidates, self.max_tries)
-
-        later = Deferred()
-        self.community.request_cache.register_anonymous_task("retry-later", later, delay=0.0)
-        later.addCallbacks(retry_later, lambda _: None)
+        async def retry_later():
+            try:
+                self.retry_func(self.circuit, self.candidates, self.max_tries)
+            except:
+                pass
+        self.community.request_cache.register_anonymous_task("retry-later", retry_later, delay=0)
 
 
 class PingRequestCache(RandomNumberCache):
@@ -121,10 +119,10 @@ class PeersRequestCache(RandomNumberCache):
         super(PeersRequestCache, self).__init__(community.request_cache, u"peers-request")
         self.circuit = circuit
         self.info_hash = info_hash
-        self.deferred = Deferred()
+        self.future = Future()
 
     def on_timeout(self):
-        self.deferred.errback(Failure(RuntimeError("Peers request timeout")))
+        self.future.set_exception(RuntimeError("Peers request timeout"))
 
 
 class E2ERequestCache(RandomNumberCache):

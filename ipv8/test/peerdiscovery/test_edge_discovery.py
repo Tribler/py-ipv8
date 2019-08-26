@@ -1,7 +1,5 @@
 from __future__ import absolute_import
 
-from twisted.internet.defer import inlineCallbacks
-
 from ...peerdiscovery.discovery import EdgeWalk
 from ...community import _DEFAULT_ADDRESSES
 from ..base import TestBase
@@ -19,13 +17,12 @@ class TestEdgeWalk(TestBase):
         self.overlays = [MockCommunity() for _ in range(node_count)]
         self.strategies = [EdgeWalk(self.overlays[i], neighborhood_size=1) for i in range(node_count)]
 
-    def tearDown(self):
+    async def tearDown(self):
         for overlay in self.overlays:
-            overlay.unload()
-        return super(TestEdgeWalk, self).tearDown()
+            await overlay.unload()
+        return await super(TestEdgeWalk, self).tearDown()
 
-    @inlineCallbacks
-    def test_take_step(self):
+    async def test_take_step(self):
         """
         Check if we will walk to a random other node.
 
@@ -40,15 +37,14 @@ class TestEdgeWalk(TestBase):
         self.strategies[0].take_step()  # First it's added in the neighborhood
         self.strategies[0].take_step()  # Second it introduces its neighbor
 
-        yield self.deliver_messages()
+        await self.deliver_messages()
 
         self.strategies[0].take_step()  # Find out the neighbor has been introduced and walk to it
-        yield self.deliver_messages()
+        await self.deliver_messages()
 
         self.assertEqual(len(self.overlays[0].network.verified_peers), 2)
 
-    @inlineCallbacks
-    def test_take_step_into(self):
+    async def test_take_step_into(self):
         """
         Check if we will walk to an introduced node.
         """
@@ -60,7 +56,7 @@ class TestEdgeWalk(TestBase):
         # Don't allow that right now.
         self.strategies[0].take_step()
 
-        yield self.deliver_messages()
+        await self.deliver_messages()
 
         # Now we give NODE2 to NODE1, which it can forward to NODE0 to make an edge
         self.overlays[1].network.add_verified_peer(self.overlays[2].my_peer)
@@ -72,15 +68,14 @@ class TestEdgeWalk(TestBase):
         # 3. Detect no more intros from NODE2 and finish edge
         for _ in range(3):
             self.strategies[0].take_step()  # Attempt intro
-            yield self.deliver_messages()
+            await self.deliver_messages()
             self.strategies[0].take_step()  # Complete intro
-            yield self.deliver_messages()
+            await self.deliver_messages()
 
         self.assertEqual(len(self.overlays[0].network.verified_peers), 2)
         self.assertEqual(len(self.strategies[0].complete_edges), 1)
 
-    @inlineCallbacks
-    def test_fail_step_into(self):
+    async def test_fail_step_into(self):
         """
         Check if we drop an unreachable introduced node.
         """
@@ -92,7 +87,7 @@ class TestEdgeWalk(TestBase):
         # Don't allow that right now.
         self.strategies[0].take_step()
 
-        yield self.deliver_messages()
+        await self.deliver_messages()
 
         # Now we give NODE2 to NODE1, which it can forward to NODE0 to make an edge
         self.overlays[1].network.add_verified_peer(self.overlays[2].my_peer)
@@ -104,13 +99,12 @@ class TestEdgeWalk(TestBase):
         # 3. Fail to walk to NODE2 -> edge is only root, so no complete edge
         for _ in range(3):
             self.strategies[0].take_step()
-            yield self.deliver_messages()
+            await self.deliver_messages()
 
         self.assertEqual(len(self.overlays[0].network.verified_peers), 1)
         self.assertEqual(len(self.strategies[0].complete_edges), 0)
 
-    @inlineCallbacks
-    def test_complete_edge(self):
+    async def test_complete_edge(self):
         """
         Check if we can complete an edge.
         """
@@ -123,7 +117,7 @@ class TestEdgeWalk(TestBase):
         # Don't allow that right now.
         self.strategies[0].take_step()
 
-        yield self.deliver_messages()
+        await self.deliver_messages()
 
         # Now we give NODE2 to NODE1, which it can forward to NODE0 to make an edge
         self.overlays[1].network.add_verified_peer(self.overlays[2].my_peer)
@@ -135,7 +129,7 @@ class TestEdgeWalk(TestBase):
         # 3. Detect no more intros from NODE2 and finish edge
         for _ in range(3):
             self.strategies[0].take_step()
-            yield self.deliver_messages()
+            await self.deliver_messages()
 
         self.assertEqual(len(self.overlays[0].network.verified_peers), 2)
         self.assertEqual(len(self.strategies[0].complete_edges), 1)

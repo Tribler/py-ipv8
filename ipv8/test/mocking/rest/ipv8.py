@@ -2,7 +2,7 @@ from __future__ import absolute_import
 
 import threading
 
-from twisted.internet.defer import DeferredList, inlineCallbacks, maybeDeferred
+from asyncio import sleep, ensure_future, gather
 
 from .comunities import overlay_initializer
 from ..endpoint import AutoMockEndpoint
@@ -10,6 +10,7 @@ from ....keyvault.crypto import ECCrypto
 from ....peer import Peer
 from ....peerdiscovery.discovery import RandomWalk
 from ....peerdiscovery.network import Network
+from ....util import maybe_coroutine
 
 
 class TestRestIPv8(object):
@@ -17,7 +18,6 @@ class TestRestIPv8(object):
     def __init__(self, crypto_curve, overlay_classes, memory_dbs=True):
         self.memory_dbs = memory_dbs
         self.endpoint = AutoMockEndpoint()
-        self.endpoint.open()
 
         self.network = Network()
 
@@ -36,6 +36,13 @@ class TestRestIPv8(object):
         ]
 
         self.overlay_lock = threading.RLock()
+        self.state_machine_task = ensure_future(self.ticker())
+
+    async def ticker(self):
+        await self.endpoint.open()
+        while True:
+            self.on_tick()
+            await sleep(0.5)
 
     def on_tick(self):
         if self.endpoint.is_open():
@@ -50,11 +57,10 @@ class TestRestIPv8(object):
             self.overlays = [overlay for overlay in self.overlays if overlay != instance]
             self.strategies = [(strategy, target_peers) for (strategy, target_peers) in self.strategies
                                if strategy.overlay != instance]
-            return maybeDeferred(instance.unload)
+            return maybe_coroutine(instance.unload)
 
-    @inlineCallbacks
-    def unload(self):
+    async def unload(self):
         with self.overlay_lock:
             unload_list = [self.unload_overlay(overlay) for overlay in self.overlays[:]]
-            yield DeferredList(unload_list)
-            yield self.endpoint.close()
+            await gather(*unload_list)
+            self.endpoint.close()

@@ -1,11 +1,12 @@
 from __future__ import absolute_import
 
 import logging
+from asyncio import ensure_future
 from binascii import hexlify, unhexlify
 
-from twisted.web import http
+from aiohttp import web
 
-from .base_endpoint import BaseEndpoint
+from .base_endpoint import BaseEndpoint, Response, HTTP_NOT_FOUND
 from ..dht.community import DHTCommunity
 
 
@@ -14,47 +15,29 @@ class NoBlockDHTEndpoint(BaseEndpoint):
     This endpoint is responsible for handling requests for DHT data, non-blocking.
     """
 
-    def __init__(self, session):
+    def __init__(self):
         super(NoBlockDHTEndpoint, self).__init__()
-        dht_overlays = [overlay for overlay in session.overlays if isinstance(overlay, DHTCommunity)]
-        if dht_overlays:
-            self.putChild(b"peers", NoBlockDHTPeersEndpoint(dht_overlays[0]))
+        self.dht = None
 
+    def setup_routes(self):
+        self.app.add_routes([web.get('/{mid}', self.handle_get)])
 
-class NoBlockDHTPeersEndpoint(BaseEndpoint):
-    """
-    This endpoint is responsible for handling requests for DHT peers, non-blocking.
-    """
+    def initialize(self, session):
+        super(NoBlockDHTEndpoint, self).initialize(session)
+        self.dht = next((overlay for overlay in session.overlays if isinstance(overlay, DHTCommunity)), None)
 
-    def __init__(self, dht):
-        super(NoBlockDHTPeersEndpoint, self).__init__()
-        self.dht = dht
-
-    def getChild(self, path, request):
-        return NoBlockSpecificDHTPeerEndpoint(self.dht, path)
-
-
-class NoBlockSpecificDHTPeerEndpoint(BaseEndpoint):
-    """
-    This class handles requests for a specific DHT peer, non-blocking.
-    """
-
-    def __init__(self, dht, key):
-        super(NoBlockSpecificDHTPeerEndpoint, self).__init__()
-        self.mid = bytes(unhexlify(key))
-        self.dht = dht
-
-    def render_GET(self, request):
+    def handle_get(self, request):
         if not self.dht:
-            request.setResponseCode(http.NOT_FOUND)
-            return self.twisted_dumps({"error": "DHT community not found"})
+            return Response({"error": "DHT community not found"}, status=HTTP_NOT_FOUND)
 
-        def on_success(nodes):
-            logging.error("DHT connected to %s", hexlify(self.mid))
+        mid = unhexlify(request.match_info['mid'])
+        async def connect_peer():
+            try:
+                self.dht.connect_peer(mid)
+            except:
+                logging.error("DHT Failed to connect to %s", hexlify(mid))
+            else:
+                logging.error("DHT connected to %s", hexlify(mid))
 
-        def on_failure(failure):
-            logging.error("DHT Failed to connect to %s", hexlify(self.mid))
-
-        self.dht.connect_peer(self.mid).addCallbacks(on_success, on_failure)
-
-        return self.twisted_dumps({"success": True})
+        ensure_future(connect_peer())
+        return Response({"success": True})

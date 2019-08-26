@@ -1,8 +1,7 @@
 from __future__ import absolute_import
 
 import random
-
-from twisted.internet import reactor
+from asyncio import get_event_loop
 
 from ...messaging.interfaces.endpoint import Endpoint, EndpointListener
 
@@ -35,10 +34,10 @@ class MockEndpoint(Endpoint):
         if not self.is_open():
             return
         if socket_address in internet:
-            if reactor.running:
-                reactor.callInThread(internet[socket_address].notify_listeners, (self.wan_address, packet))
-            else:
-                reactor.callWhenRunning(internet[socket_address].notify_listeners, (self.wan_address, packet))
+            # For the unit tests we handle messages in separate asyncio tasks to prevent infinite recursion.
+            ep = internet[socket_address]
+            for listener in ep._listeners:
+                get_event_loop().call_soon(ep._deliver_later, listener, (self.wan_address, packet))
         else:
             raise AssertionError("Received data from unregistered address %s" % repr(socket_address))
 

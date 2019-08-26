@@ -1,7 +1,5 @@
 from __future__ import absolute_import
 
-from twisted.internet.defer import inlineCallbacks, returnValue
-
 from ...mocking.rest.rest_peer_communication import HTTPRequester, RequestException, process_json_response
 
 
@@ -14,8 +12,7 @@ class HTTPGetRequesterDHT(HTTPRequester):
         HTTPRequester.__init__(self)
 
     @process_json_response
-    @inlineCallbacks
-    def make_dht_block(self, param_dict):
+    async def make_dht_block(self, param_dict):
         """
         Forward a request for the latest TC block of a peer
 
@@ -38,8 +35,8 @@ class HTTPGetRequesterDHT(HTTPRequester):
         else:
             raise RequestException("Malformed request: did not specify the public_key")
 
-        response = yield self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
+        response = await self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
                                            'GET',
                                            request_parameters,
                                            param_dict.get('callback', None))
-        returnValue(response)
+        return response

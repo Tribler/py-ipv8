@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 
-from twisted.trial import unittest
+import asynctest
 
 from ....attestation.trustchain.block import EMPTY_SIG, GENESIS_HASH, GENESIS_SEQ, TrustChainBlock, ValidationResult
 from ....keyvault.crypto import default_eccrypto
@@ -96,7 +96,7 @@ class MockDatabase(object):
         self.double_spends.append((block1, block2))
 
 
-class TestTrustChainBlock(unittest.TestCase):
+class TestTrustChainBlock(asynctest.TestCase):
     """
     This class contains tests for a TrustChain block.
     """

@@ -4,6 +4,7 @@ import abc
 import logging
 import socket
 import struct
+from asyncio import get_event_loop
 
 try:
     # Especially on Android netifaces may fail.
@@ -13,8 +14,6 @@ except ImportError:
     netifaces = None
 
 import six
-
-from twisted.internet import reactor
 
 
 class Endpoint(six.with_metaclass(abc.ABCMeta, object)):
@@ -46,7 +45,7 @@ class Endpoint(six.with_metaclass(abc.ABCMeta, object)):
         """
         Ensure that the listener is still loaded when delivering the packet later.
         """
-        if reactor.running and self.is_open() and listener in self._listeners:
+        if self.is_open() and listener in self._listeners:
             listener.on_packet(packet)
 
     def notify_listeners(self, packet):
@@ -56,10 +55,7 @@ class Endpoint(six.with_metaclass(abc.ABCMeta, object)):
         :param data: the data to send to all listeners.
         """
         for listener in self._listeners:
-            if listener.use_main_thread:
-                reactor.callFromThread(self._deliver_later, listener, packet)
-            elif reactor.running:
-                reactor.callInThread(self._deliver_later, listener, packet)
+            self._deliver_later(listener, packet)
 
     @abc.abstractmethod
     def assert_open(self):

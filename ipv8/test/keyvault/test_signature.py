@@ -1,12 +1,12 @@
 from __future__ import absolute_import
 
-from twisted.trial import unittest
+import asynctest
 
 from ...keyvault.crypto import default_eccrypto
 from ...util import cast_to_bin
 
 
-class TestSignatures(unittest.TestCase):
+class TestSignatures(asynctest.TestCase):
     """
     Test whether signatures can be created and then decoded correctly.
     """

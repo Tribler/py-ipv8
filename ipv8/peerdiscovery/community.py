@@ -76,9 +76,9 @@ class DiscoveryCommunity(Community):
     def get_available_strategies(self):
         return {'PeriodicSimilarity': PeriodicSimilarity, 'RandomChurn': RandomChurn}
 
-    def unload(self):
-        self.request_cache.shutdown()
-        super(DiscoveryCommunity, self).unload()
+    async def unload(self):
+        await self.request_cache.shutdown()
+        await super(DiscoveryCommunity, self).unload()
 
     def on_introduction_request(self, source_address, data):
         if self.max_peers >= 0 and len(self.get_peers()) > self.max_peers:

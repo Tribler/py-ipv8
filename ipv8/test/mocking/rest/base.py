@@ -10,8 +10,6 @@ from threading import Thread
 
 from six.moves import xrange
 
-from twisted.internet.defer import inlineCallbacks
-from twisted.internet.error import CannotListenError
 
 from .rest_api_peer import RestTestPeer
 from ...base import TestBase
@@ -30,7 +28,7 @@ class RESTTestBase(TestBase):
         self._get_style_requests = None
         self._post_style_requests = None
 
-    def initialize_configurations(self, peer_configurations, get_style_requests, post_style_requests):
+    async def initialize_configurations(self, peer_configurations, get_style_requests, post_style_requests):
         """
         Initialize this test by instantiating some peers
 
@@ -46,7 +44,7 @@ class RESTTestBase(TestBase):
 
         for count, peer_type in peer_configurations:
             for _ in xrange(count):
-                self.create_new_peer(peer_type, None)
+                await self.create_new_peer(peer_type, None)
 
         self._get_style_requests = get_style_requests
         self._post_style_requests = post_style_requests
@@ -60,14 +58,12 @@ class RESTTestBase(TestBase):
             _DNS_ADDRESSES.pop()
         return super(RESTTestBase, self).setUp()
 
-    @inlineCallbacks
-    def tearDown(self):
+    async def tearDown(self):
+        self.gracefully_terminate_peers()
         while self.working_dirs:
             rmtree(self.working_dirs.pop())
 
-        yield super(RESTTestBase, self).tearDown()
-
-        self.gracefully_terminate_peers()
+        return await super(RESTTestBase, self).tearDown()
 
     @staticmethod
     def generate_local_port(attempts=50):
@@ -86,7 +82,7 @@ class RESTTestBase(TestBase):
 
         raise socket.error("Could not find a valid port")
 
-    def create_new_peer(self, peer_cls, port, *args, **kwargs):
+    async def create_new_peer(self, peer_cls, port, *args, **kwargs):
         """
         This method should be overwritten in the subclasses of RESTTestBase. It should call self._create_new_peer_inner
         and pass a list of overlay classes to the call (in addition to the other parameters), and then return the
@@ -102,7 +98,7 @@ class RESTTestBase(TestBase):
         """
         raise NotImplementedError("The create_new_peer method should be implemented in the subclasses of RESTTestBase")
 
-    def _create_new_peer_inner(self, peer_cls, port, overlay_classes, *args, **kwargs):
+    async def _create_new_peer_inner(self, peer_cls, port, overlay_classes, *args, **kwargs):
         """
         Create and return a new peer for testing. This is an internal method, which should ideally be wrapped by the
         create_new_peer method which calls this method, and automatically passes a list of the overlay classes which
@@ -138,7 +134,8 @@ class RESTTestBase(TestBase):
         while not new_peer:
             try:
                 new_peer = peer_cls(*temp_args, **kwargs)
-            except CannotListenError:
+                await new_peer.initialize()
+            except OSError:
                 logging.error("Failed to claim supposedly free port %d. Retrying.", temp_args[0])
                 temp_args[0] = RESTTestBase.generate_local_port()
         self.nodes.append(new_peer)
@@ -149,12 +146,11 @@ class RESTTestBase(TestBase):
 
         return new_peer, len(self.nodes) - 1
 
-    @inlineCallbacks
-    def introduce_nodes(self, overlay_class):
+    async def introduce_nodes(self, overlay_class):
         for node in self.nodes:
             for other in self.nodes:
                 other.get_overlay_by_class(overlay_class).walk_to(node.get_address())
-        yield self.deliver_messages()
+        await self.deliver_messages()
 
     def create_dir(self):
         """

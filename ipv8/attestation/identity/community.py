@@ -3,8 +3,6 @@ from __future__ import absolute_import
 from binascii import unhexlify
 from time import time
 
-from twisted.internet.defer import succeed
-
 from ..identity_formats import FORMATS
 from ...attestation.trustchain.community import TrustChainCommunity
 from ...attestation.trustchain.listener import BlockListener
@@ -49,23 +47,23 @@ class IdentityCommunity(TrustChainCommunity, BlockListener):
         transaction = block.transaction
         requested_keys = set(transaction.keys())
         if requested_keys - {b"hash", b"name", b"date", b"metadata"} != set():
-            return succeed(False)
+            return False
         if requested_keys - {b"metadata"} != {b"hash", b"name", b"date"}:
-            return succeed(False)
+            return False
         attribute_hash = transaction[b'hash']
         if attribute_hash not in self.known_attestation_hashes:
-            return succeed(False)
+            return False
         if block.public_key != self.known_attestation_hashes[attribute_hash][2]:
-            return succeed(False)
+            return False
         # Refuse to sign blocks older than 5 minutes
         if time() > self.known_attestation_hashes[attribute_hash][1] + 300:
-            return succeed(False)
+            return False
         if transaction[b'name'] != self.known_attestation_hashes[attribute_hash][0]:
-            return succeed(False)
+            return False
         if (self.known_attestation_hashes[attribute_hash][3]
                 and transaction.get(b'metadata', None) != self.known_attestation_hashes[attribute_hash][3]):
-            return succeed(False)
-        return succeed(True)
+            return False
+        return True
 
     def request_attestation_advertisement(self, peer, attribute_hash, name, block_type="id_metadata", metadata=None):
         """

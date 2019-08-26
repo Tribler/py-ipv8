@@ -51,7 +51,7 @@ class StatisticsEndpoint(EndpointListener):
             self.statistics.pop(community_prefix)
 
     # EndpointListener methods
-    def on_packet(self, packet):
+    async def on_packet(self, packet):
         _, data = packet
 
         prefix = data[:22]

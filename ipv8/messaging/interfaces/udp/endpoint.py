@@ -3,7 +3,6 @@ from __future__ import absolute_import
 import asyncio
 import logging
 
-
 from ..endpoint import Endpoint, EndpointClosedException
 
 UDP_MAX_SIZE = 2 ** 16 - 60
@@ -54,7 +53,7 @@ class UDPEndpoint(Endpoint):
             self.bytes_down += len(datagram)
             self.notify_listeners((addr, datagram))
 
-    async def send(self, socket_address, packet):
+    def send(self, socket_address, packet):
         """
         Send a packet to a given address.
         :param socket_address: Tuple of (IP, port) which indicates the destination of the packet.

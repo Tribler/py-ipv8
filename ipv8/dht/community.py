@@ -4,15 +4,13 @@ from __future__ import division
 import hashlib
 import os
 import time
+from asyncio import Future, coroutine, gather, ensure_future
 from binascii import hexlify, unhexlify
 from collections import defaultdict, deque
 
 import six
 
-from twisted.internet.defer import Deferred, DeferredList, fail, inlineCallbacks, returnValue
-from twisted.internet.task import LoopingCall
-from twisted.python.failure import Failure
-
+from . import DHTError
 from .payload import (FindRequestPayload, FindResponsePayload, PingRequestPayload, PingResponsePayload,
                       SignedStrPayload, StoreRequestPayload, StoreResponsePayload, StrPayload)
 from .routing import Node, RoutingTable, calc_node_id, distance
@@ -23,7 +21,7 @@ from ..messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTi
 from ..peer import Peer
 from ..peerdiscovery.churn import PingChurn
 from ..requestcache import RandomNumberCache, RequestCache
-from ..util import addCallback, cast_to_bin
+from ..util import cast_to_bin
 
 PING_INTERVAL = 25
 
@@ -54,10 +52,9 @@ MSG_FIND_REQUEST = 11
 MSG_FIND_RESPONSE = 12
 
 
-def gatherResponses(deferreds, **kwargs):
-    def on_finished(results):
-        return [x[1] for x in results if x[0]]
-    return addCallback(DeferredList(deferreds, **kwargs), on_finished)
+async def gather_without_errors(*futures):
+    results = await gather(*futures, return_exceptions=True)
+    return [r for r in results if not isinstance(r, Exception)]
 
 
 class Request(RandomNumberCache):
@@ -69,7 +66,7 @@ class Request(RandomNumberCache):
         self.msg_type = msg_type
         self.node = node
         self.params = params
-        self.deferred = Deferred()
+        self.future = Future()
         self.start_time = time.time()
         self.consume_errors = consume_errors
 
@@ -78,11 +75,13 @@ class Request(RandomNumberCache):
         return 5.0
 
     def on_timeout(self):
-        if not self.deferred.called:
+        if not self.future.done():
             self._logger.debug('Timeout for %s to %s', self.msg_type, self.node)
             self.node.failed += 1
             if not self.consume_errors:
-                self.deferred.errback(Failure(RuntimeError('Timeout for {} to {}'.format(self.msg_type, self.node))))
+                self.future.set_exception(DHTError('Timeout for {} to {}'.format(self.msg_type, self.node)))
+            else:
+                self.future.set_result(None)
 
     def on_complete(self):
         self.node.last_response = time.time()
@@ -104,8 +103,8 @@ class DHTCommunity(Community):
         self.request_cache = RequestCache()
         self.tokens = {}
         self.token_secrets = deque(maxlen=2)
-        self.register_task('value_maintenance', LoopingCall(self.value_maintenance)).start(3600, now=False)
-        self.register_task('token_maintenance', LoopingCall(self.token_maintenance)).start(300, now=True)
+        self.register_task('value_maintenance', self.value_maintenance, interval=3600)
+        self.register_task('token_maintenance', coroutine(self.token_maintenance), interval=300, delay=0)
 
         # Register messages
         self.decode_map.update({
@@ -122,9 +121,9 @@ class DHTCommunity(Community):
     def get_available_strategies(self):
         return {'PingChurn': PingChurn}
 
-    def unload(self):
-        self.request_cache.shutdown()
-        super(DHTCommunity, self).unload()
+    async def unload(self):
+        await self.request_cache.shutdown()
+        await super(DHTCommunity, self).unload()
 
     @property
     def my_node_id(self):
@@ -165,14 +164,14 @@ class DHTCommunity(Community):
             if not existed and rt_node:
                 self.logger.debug('Added node %s to the routing table', node)
                 # Ping the node in order to determine RTT
-                self.ping(rt_node).addErrback(lambda _: None)
+                self.ping(rt_node)
 
     def ping(self, node):
         self.logger.debug('Pinging node %s', node)
 
-        cache = self.request_cache.add(Request(self, u'ping', node))
+        cache = self.request_cache.add(Request(self, u'ping', node, consume_errors=True))
         self.send_message(node.address, MSG_PING, PingRequestPayload, (cache.number,))
-        return cache.deferred
+        return cache.future
 
     @lazy_wrapper_wd(GlobalTimeDistributionPayload, PingRequestPayload)
     def on_ping_request(self, peer, dist, payload, data):
@@ -193,7 +192,7 @@ class DHTCommunity(Community):
         self.logger.debug('Got ping-response from %s', peer.address)
         cache = self.request_cache.pop(u'ping', payload.identifier)
         cache.on_complete()
-        cache.deferred.callback(cache.node)
+        cache.future.set_result(cache.node)
 
     def serialize_value(self, data, sign=True):
         if sign:
@@ -223,20 +222,23 @@ class DHTCommunity(Community):
         else:
             self.logger.warning('Failed to store value %s', hexlify(value))
 
-    def store_value(self, key, data, sign=False):
+    async def store_value(self, key, data, sign=False):
         value = self.serialize_value(data, sign=sign)
-        return self._store(key, value)
+        return await self._store(key, value)
 
-    def _store(self, key, value):
+    async def _store(self, key, value):
         if len(value) > MAX_ENTRY_SIZE:
-            return fail(Failure(RuntimeError('Maximum length exceeded')))
+            raise DHTError('Maximum length exceeded')
 
-        return self.find_nodes(key).addCallback(lambda nodes, k=key, v=value:
-                                                self.store_on_nodes(k, [v], nodes[:TARGET_NODES]))
+        nodes = await self.find_nodes(key)
+        nodes = await self.store_on_nodes(key, [value], nodes[:TARGET_NODES])
+        if len(nodes) < 1:
+            raise DHTError('Failed to store value on DHT')
+        return nodes
 
-    def store_on_nodes(self, key, values, nodes):
+    async def store_on_nodes(self, key, values, nodes):
         if not nodes:
-            return fail(Failure(RuntimeError('No nodes found for storing the key-value pairs')))
+            raise DHTError('No nodes found for storing the key-value pairs')
 
         values = values[:MAX_VALUES_IN_STORE]
 
@@ -247,18 +249,19 @@ class DHTCommunity(Community):
                 self.add_value(key, value)
 
         now = time.time()
-        deferreds = []
+        futures = []
         for node in nodes:
             if node in self.tokens and self.tokens[node][0] + TOKEN_EXPIRATION_TIME > now:
                 cache = self.request_cache.add(Request(self, u'store', node))
-                deferreds.append(cache.deferred)
+                futures.append(cache.future)
                 self.send_message(node.address, MSG_STORE_REQUEST, StoreRequestPayload,
                                   (cache.number, self.tokens[node][1], key, values))
             else:
                 self.logger.debug('Not sending store-request to %s (no token available)', node)
 
-        return (gatherResponses(deferreds, consumeErrors=True) if deferreds
-                else fail(RuntimeError('Value was not stored')))
+        if not futures:
+            raise DHTError('Value was not stored')
+        return await gather_without_errors(*futures)
 
     @lazy_wrapper(GlobalTimeDistributionPayload, StoreRequestPayload)
     def on_store_request(self, peer, dist, payload):
@@ -302,13 +305,13 @@ class DHTCommunity(Community):
         self.logger.debug('Got store-response from %s', peer.address)
         cache = self.request_cache.pop(u'store', payload.identifier)
         cache.on_complete()
-        cache.deferred.callback(cache.node)
+        cache.future.set_result(cache.node)
 
     def _send_find_request(self, node, target, force_nodes, start_idx=0):
         cache = self.request_cache.add(Request(self, u'find', node, [force_nodes]))
         self.send_message(node.address, MSG_FIND_REQUEST, FindRequestPayload,
                           (cache.number, self.my_estimated_lan, target, start_idx, force_nodes))
-        return cache.deferred
+        return cache.future
 
     def _process_find_responses(self, responses, nodes_tried):
         values = []
@@ -332,13 +335,12 @@ class DHTCommunity(Community):
 
         return values, nodes, to_puncture
 
-    @inlineCallbacks
-    def _find(self, target, force_nodes=False, start_idx=0):
+    async def _find(self, target, force_nodes=False, start_idx=0):
         assert start_idx >= 0, "The query cannot start from a negative index"
 
         nodes_closest = set(self.routing_table.closest_nodes(target, max_nodes=MAX_FIND_WALKS))
         if not nodes_closest:
-            returnValue(Failure(RuntimeError('No nodes found in the routing table')))
+            raise DHTError('No nodes found in the routing table')
 
         nodes_tried = set()
         values = []
@@ -349,9 +351,9 @@ class DHTCommunity(Community):
                 break
 
             # Send closest nodes a find-node-request
-            deferreds = [self._send_find_request(node, target, force_nodes, start_idx=start_idx)
-                         for node in nodes_closest]
-            responses = yield gatherResponses(deferreds, consumeErrors=True)
+            futures = [self._send_find_request(node, target, force_nodes, start_idx=start_idx)
+                       for node in nodes_closest]
+            responses = await gather_without_errors(*futures)
             recent = next((sender for sender, response in responses if 'nodes' in response), recent)
 
             nodes_tried |= nodes_closest
@@ -362,11 +364,11 @@ class DHTCommunity(Community):
             values += new_values
             nodes_closest |= new_nodes
 
-            deferreds = [self._send_find_request(sender, node.id, force_nodes)
-                         for sender, node in to_puncture.items()]
+            futures = [self._send_find_request(sender, node.id, force_nodes)
+                       for sender, node in to_puncture.items()]
 
             # Wait for punctures (if any)...
-            yield DeferredList(deferreds, consumeErrors=True)
+            await gather(*futures, return_exceptions=True)
 
             # Ensure we haven't tried these nodes yet
             nodes_closest -= nodes_tried
@@ -375,7 +377,7 @@ class DHTCommunity(Community):
                 nodes_closest = set(sorted(nodes_closest, key=lambda n: distance(n.id, target))[:MAX_FIND_WALKS])
 
         if force_nodes:
-            returnValue(sorted(nodes_tried, key=lambda n: distance(n.id, target)))
+            return sorted(nodes_tried, key=lambda n: distance(n.id, target))
 
         # Merge all values received into one tuple. First pick the first value from each tuple, then the second, etc.
         values = sum(six.moves.zip_longest(*values), ())
@@ -387,9 +389,9 @@ class DHTCommunity(Community):
         if recent and values:
             # Store the key-value pair on the most recently visited node that
             # did not have it (for caching purposes).
-            self.store_on_nodes(target, values, [recent])
+            ensure_future(self.store_on_nodes(target, values, [recent]))
 
-        returnValue(self.post_process_values(values))
+        return self.post_process_values(values)
 
     def post_process_values(self, values):
         # Unpack values and filter out duplicates
@@ -453,21 +455,24 @@ class DHTCommunity(Community):
 
         self.tokens[cache.node] = (time.time(), payload.token)
 
-        if cache.deferred.called:
+        if cache.future.done():
             # The errback must already have been called (due to a timeout)
             return
         elif cache.params[0]:
-            cache.deferred.callback((cache.node, {'nodes': payload.nodes}))
+            cache.future.set_result((cache.node, {'nodes': payload.nodes}))
         else:
-            cache.deferred.callback((cache.node, {'values': payload.values} if payload.values
-                                     else {'nodes': payload.nodes}))
+            cache.future.set_result((cache.node,
+                                     {'values': payload.values} if payload.values else {'nodes': payload.nodes}))
 
-    def value_maintenance(self):
+    async def value_maintenance(self):
         # Refresh buckets
         now = time.time()
         for bucket in self.routing_table.trie.values():
             if now - bucket.last_changed > 15 * 60:
-                self.find_values(bucket.generate_id()).addErrback(lambda _: None)
+                try:
+                    await self.find_values(bucket.generate_id())
+                except DHTError:
+                    pass
                 bucket.last_changed = now
 
         # FIXME: Disable replication for now, as it creates too much traffic

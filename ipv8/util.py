@@ -1,14 +1,9 @@
 from __future__ import absolute_import
 
 import logging
-import traceback
+from asyncio import iscoroutine, Future, coroutine, ensure_future
 
 from six import PY2, PY3, binary_type, text_type
-from six.moves.queue import Queue
-
-from twisted.internet import defer, reactor
-from twisted.python.failure import Failure
-from twisted.python.threadable import isInIOThread
 
 logger = logging.getLogger(__name__)
 maximum_integer = 2147483647
@@ -29,39 +24,6 @@ else:
     cast_to_bin = str
     cast_to_chr = lambda x: x
     old_round = round
-
-
-def blocking_call_on_reactor_thread(func):
-    def helper(*args, **kargs):
-        return blockingCallFromThread(reactor, func, *args, **kargs)
-    helper.__name__ = func.__name__
-    return helper
-
-
-def blockingCallFromThread(reactor, f, *args, **kwargs):
-    """
-    Improved version of twisted's blockingCallFromThread that shows the complete
-    stacktrace when an exception is raised on the reactor's thread.
-    If being called from the reactor thread already, just return the result of execution of the callable.
-    """
-    if isInIOThread():
-        return f(*args, **kwargs)
-    else:
-        queue = Queue()
-
-        def _callFromThread():
-            result = defer.maybeDeferred(f, *args, **kwargs)
-            result.addBoth(queue.put)
-        reactor.callFromThread(_callFromThread)
-        result = queue.get()
-        if isinstance(result, Failure):
-            other_thread_tb = traceback.extract_tb(result.getTracebackObject())
-            this_thread_tb = traceback.extract_stack()
-            logger.error("Exception raised on the reactor's thread %s: \"%s\".\n Traceback from this thread:\n%s\n"
-                         " Traceback from the reactor's thread:\n %s", result.type.__name__, result.getErrorMessage(),
-                         ''.join(traceback.format_list(this_thread_tb)), ''.join(traceback.format_list(other_thread_tb)))
-            result.raiseException()
-        return result
 
 
 def defaultErrback(failure):
@@ -135,3 +97,33 @@ def ensure_text(s, encoding='utf-8', errors='strict'):
         return s
     else:
         raise TypeError("not expecting type '%s'" % type(s))
+
+
+def succeed(result):
+    future = Future()
+    future.set_result(result)
+    return future
+
+
+def fail(exception):
+    future = Future()
+    future.set_exception(exception)
+    return future
+
+
+def maybe_coroutine(func, *args, **kwargs):
+    value = func(*args, **kwargs)
+    if iscoroutine(value) or isinstance(value, Future):
+        return value
+
+    async def coro():
+        return value
+    return coro()
+
+
+def call_later(delay, func, *args, **kwargs):
+    if not iscoroutine(func):
+        func = coroutine(func)
+
+    from ipv8.taskmanager import delay_runner
+    return ensure_future(delay_runner(delay, func, *args, **kwargs))
