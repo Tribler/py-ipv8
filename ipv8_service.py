@@ -11,7 +11,7 @@ from traceback import format_exception
 
 from twisted.internet import reactor
 from twisted.internet.defer import DeferredList, inlineCallbacks, maybeDeferred
-from twisted.internet.task import LoopingCall
+from twisted.internet.task import LoopingCall, deferLater
 
 if hasattr(sys.modules['__main__'], "IPv8"):
     sys.modules[__name__] = sys.modules['__main__']
@@ -130,10 +130,11 @@ else:
             self.state_machine_lc = LoopingCall(self.on_tick)
             self.state_machine_lc.start(configuration['walker_interval'], False)
 
+        @inlineCallbacks
         def on_tick(self):
             if self.endpoint.is_open():
                 with self.overlay_lock:
-                    smooth = self.state_machine_lc.interval // len(self.strategies) if self.strategies else 0
+                    smooth = self.state_machine_lc.interval / len(self.strategies) if self.strategies else 0
                     ticker = len(self.strategies)
                     for strategy, target_peers in self.strategies:
                         peer_count = len(strategy.overlay.get_peers())
@@ -148,7 +149,7 @@ else:
                         ticker -= 1 if ticker else 0
                         sleep_time = smooth - (time.time() - start_time)
                         if ticker and sleep_time > 0.01:
-                            time.sleep(sleep_time)
+                            yield deferLater(reactor, sleep_time, lambda: None)
 
         def unload_overlay(self, instance):
             with self.overlay_lock:
