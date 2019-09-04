@@ -216,7 +216,7 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
                 "error": {
                     "handled": True,
                     "code": failure.value.__class__.__name__,
-                    "message": failure.value.message
+                    "message": str(failure.value)
                 }
             }))
             request.finish()
@@ -306,7 +306,7 @@ class SpecificDHTPeerEndpoint(BaseEndpoint):
                 "error": {
                     "handled": True,
                     "code": failure.value.__class__.__name__,
-                    "message": failure.value.message
+                    "message": str(failure.value)
                 }
             }))
             request.finish()
@@ -380,7 +380,7 @@ class SpecificDHTValueEndpoint(BaseEndpoint):
                 "error": {
                     "handled": True,
                     "code": failure.value.__class__.__name__,
-                    "message": failure.value.message
+                    "message": str(failure.value)
                 }
             }))
             request.finish()
@@ -404,7 +404,7 @@ class SpecificDHTValueEndpoint(BaseEndpoint):
                 "error": {
                     "handled": True,
                     "code": failure.value.__class__.__name__,
-                    "message": failure.value.message
+                    "message": str(failure.value)
                 }
             }))
             request.finish()
