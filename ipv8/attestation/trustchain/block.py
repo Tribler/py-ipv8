@@ -2,6 +2,7 @@ from __future__ import absolute_import
 
 import time
 from binascii import hexlify
+from collections import namedtuple
 from hashlib import sha256
 
 from six import binary_type
@@ -14,7 +15,7 @@ from ...messaging.serialization import default_serializer
 from ...util import old_round
 
 
-GENESIS_HASH = b'0' * 32    # ID of the first block of the chain.
+GENESIS_HASH = b'0' * 32  # ID of the first block of the chain.
 GENESIS_SEQ = 1
 UNKNOWN_SEQ = 0
 EMPTY_SIG = b'0' * 64
@@ -26,8 +27,73 @@ class TrustChainBlock(object):
     """
     Container for TrustChain block information
     """
+    Data = namedtuple('Data', ['type',
+                               'transaction',
+                               'public_key',
+                               'sequence_number',
+                               'link_public_key',
+                               'link_sequence_number',
+                               'previous_hash',
+                               'signature',
+                               'timestamp',
+                               'insert_time'])
+    """
+    Data struct to initialize a TrustChainBlock.
+
+
+        **[0] type:** The block type name, as utf-8 string or utf-8 encoded bytes.
+
+        *> type:* str or bytes
+
+        **[1] transaction:** Metadata dictionary, consisting of binary type strings.
+
+        *> type:* dict
+
+        **[2] public_key:** The serialized public key of the initiator of this block (binary data).
+
+        *> type:* bytes (Py3) or str (Py2)
+
+        **[3] sequence_number:** The the sequence number of this block in the chain of the intiator of this block.
+
+        *> type:* int
+
+        **[4] link_public_key:** The serialized public key of the counterparty of this block (binary data).
+
+        *> type:* bytes (Py3) or str (Py2)
+
+        **[5] link_sequence_number:** The height of this block in the chain of the counterparty of this block,
+        or 0 if unknown.
+
+        *> type:* int
+
+        **[6] previous_hash:** The hash of the previous block in the chain of the initiator of this block (binary data).
+
+        *> type:* bytes (Py3) or str (Py2)
+
+        **[7] signature:** The signature of the initiator of this block for this block (binary data).
+
+        *> type:* bytes (Py3) or str (Py2)
+
+        **[8] timestamp:** The time in milliseconds since the UNIX epoch when this block was created
+        (according to the initiator).
+
+        *> type:* int
+
+        **[9] insert_time:** The time in milliseconds since the UNIX epoch when this block was inserted into the local
+        database (according to the local database), if this block was inserted into the local database.
+
+        *> type:* int or None
+    """
 
     def __init__(self, data=None, serializer=default_serializer):
+        """
+        Create a new TrustChainBlock or load a TrustChainBlock from an existing database entry.
+
+        :param data: Optional data to initialize this block with.
+        :type data: TrustChainBlock.Data or list
+        :param serializer: An optional custom serializer to use for this block.
+        :type serializer: Serializer
+        """
         super(TrustChainBlock, self).__init__()
         self.serializer = serializer
         if data is None:
