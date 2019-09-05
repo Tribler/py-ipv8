@@ -1,7 +1,7 @@
 # IPv8 Documentation
 
 Welcome to the IPv8 documentation!
-This file will help you navigate the existing documentation
+This file will help you navigate the existing documentation.
 
 ## Preliminaries
 
