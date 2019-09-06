@@ -150,6 +150,10 @@ else:
                         sleep_time = smooth - (time.time() - start_time)
                         if ticker and sleep_time > 0.01:
                             yield deferLater(reactor, sleep_time, lambda: None)
+                        if not self.state_machine_lc.running:
+                            # By yielding, we might have been stopped.
+                            # In that case, exit out of the loop.
+                            break
 
         def unload_overlay(self, instance):
             with self.overlay_lock:
