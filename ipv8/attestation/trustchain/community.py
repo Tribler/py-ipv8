@@ -413,7 +413,7 @@ class TrustChainCommunity(Community):
                 return self.sign_block(peer, linked=blk)
 
         # determine if we want to sign this block
-        return addCallback(self.should_sign(blk), on_should_sign_outcome)
+        return addCallback(maybeDeferred(self.should_sign, blk), on_should_sign_outcome)
 
     def crawl_chain(self, peer, latest_block_num=0):
         """
