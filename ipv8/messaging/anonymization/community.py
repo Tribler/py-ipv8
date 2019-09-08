@@ -907,7 +907,7 @@ class TunnelCommunity(Community):
     def do_ping(self, exclude=None):
         # Ping circuits. Pings are only sent to the first hop, subsequent hops will relay the ping.
         exclude = [] if exclude is None else exclude
-        for circuit in self.circuits.values():
+        for circuit in list(self.circuits.values()):
             if circuit.state in [CIRCUIT_STATE_READY, CIRCUIT_STATE_EXTENDING] \
                     and circuit.circuit_id not in exclude \
                     and circuit.hops:
