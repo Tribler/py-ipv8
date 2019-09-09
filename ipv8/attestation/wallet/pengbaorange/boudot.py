@@ -75,14 +75,8 @@ class EL(object):
         return cls(c, D, D1, D2)
 
     def check(self, g1, h1, g2, h2, y1, y2):
-        if self.D1 >= 0:
-            cW1 = g1.intpow(self.D) * h1.intpow(self.D1) * y1.intpow(self.c).inverse()
-        else:
-            cW1 = g1.intpow(self.D) * h1.intpow(-self.D1).inverse() * y1.intpow(self.c).inverse()
-        if self.D2 >= 0:
-            cW2 = g2.intpow(self.D) * h2.intpow(self.D2) * y2.intpow(self.c).inverse()
-        else:
-            cW2 = g2.intpow(self.D) * h2.intpow(-self.D2).inverse() * y2.intpow(self.c).inverse()
+        cW1 = g1.intpow(self.D) * h1.intpow(self.D1) * y1.intpow(-self.c)
+        cW2 = g2.intpow(self.D) * h2.intpow(self.D2) * y2.intpow(-self.c)
         cW1 = (cW1.wp_nominator() * cW1.wp_denom_inverse()).normalize()
         cW2 = (cW2.wp_nominator() * cW2.wp_denom_inverse()).normalize()
 
@@ -118,10 +112,7 @@ class SQR(object):
     @classmethod
     def create(cls, x, r1, g, h, b, bitspace):
         r2 = secure_randint(-2 ^ bitspace * g.mod + 1, 2 ^ bitspace * g.mod - 1)
-        if r2 >= 0:
-            F = g.intpow(x) * h.intpow(r2)
-        else:
-            F = g.intpow(x) * h.intpow(-r2).inverse()
+        F = g.intpow(x) * h.intpow(r2)
         r3 = r1 - r2 * x
         return cls(F, EL.create(x, r2, r3, g, h, F, h, b, bitspace))
 

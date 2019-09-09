@@ -142,7 +142,7 @@ class FP2Value(object):
         :param power: the power to raise this value by
         :type power: int
         """
-        n = power
+        n = -power if power < 0 else power
         R = FP2Value(self.mod, 1)
         U = self
         while n > 0:
@@ -150,7 +150,7 @@ class FP2Value(object):
                 R *= U
             U *= U
             n = n // 2
-        return R
+        return R.inverse().normalize() if power < 0 else R
 
     def normalize(self):
         """

@@ -128,6 +128,24 @@ class AttestationCommunity(Community):
         """
         self.verify_request_callback = f
 
+    def dump_blob(self, attribute_name, id_format, blob, metadata={}):
+        """
+        Add an attribute directly (without the help of an IPv8 peer).
+
+        This is only for advanced use, where the blob already has (1) some form of attestation embedded and (2)
+        follows some form of non-interactive Zero-Knowledge Proof.
+
+        :param attribute_name: the attribute we are creating
+        :param id_format: the identity format
+        :param blob: the raw data to be processed by the given id_format
+        :param metadata: optional additional metadata
+        """
+        id_algorithm = self.get_id_algorithm(id_format)
+        attestation_blob, key = id_algorithm.import_blob(blob)
+        attestation = id_algorithm.get_attestation_class().unserialize_private(key, attestation_blob, id_format)
+
+        self.on_attestation_complete(attestation, key, self.my_peer, attribute_name, attestation.get_hash(), id_format)
+
     def request_attestation(self, peer, attribute_name, secret_key, metadata={}):
         """
         Request attestation of one of our attributes.

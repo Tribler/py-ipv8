@@ -248,6 +248,14 @@ class TestFP2Value(unittest.TestCase):
 
         self.assertEqual(a.intpow(2), FP2Value(11, 1, 2, 1))
 
+    def test_intpow_negative(self):
+        """
+        Check if (16)^-2 = 8 mod 23 mod x^2 + x + 1.
+        """
+        a = FP2Value(23, 16)
+
+        self.assertEqual(a.intpow(-2), FP2Value(23, 8))
+
     def test_inverse(self):
         """
         Check if (4/3)^-1 = 3/4 mod 11 mod x^2 + x + 1.
