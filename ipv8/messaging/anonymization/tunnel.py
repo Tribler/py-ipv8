@@ -385,7 +385,7 @@ class Swarm(object):
         self.intro_points = []
         self.connections = {}
         self.last_lookup = 0
-        self.last_lookup_dht = 0
+        self.last_dht_response = 0
         self.transfer_history = [0, 0]
 
         self.logger = logging.getLogger(self.__class__.__name__)
@@ -443,25 +443,29 @@ class Swarm(object):
             pass
 
     def lookup(self, target=None):
+        def on_success(ips):
+            if any([ip for ip in ips if ip.source == PEER_SOURCE_DHT]):
+                self.last_dht_response = time.time()
+            return ips
+
         # Are we doing a manual lookup?
         if target:
             self.logger.info("Performing manual PEX lookup for swarm %s (target %s)",
                              hexlify(self.info_hash), target.peer)
-            return self.lookup_func(self.info_hash, target, self.hops)
+            return self.lookup_func(self.info_hash, target, self.hops).addCallback(on_success)
 
         now = time.time()
         self.remove_old_intro_points()
         self.last_lookup = now
-        if (now - self.last_lookup_dht) > self.min_dht_lookup_interval or \
-           (not self.intro_points and (now - self.last_lookup_dht) > self.max_dht_lookup_interval):
-            self.last_lookup_dht = now
+        if (now - self.last_dht_response) > self.min_dht_lookup_interval or \
+           (not self.intro_points and (now - self.last_dht_response) > self.max_dht_lookup_interval):
             self.logger.info("Performing DHT lookup for swarm %s", hexlify(self.info_hash))
-            return self.lookup_func(self.info_hash, None, self.hops)
+            return self.lookup_func(self.info_hash, None, self.hops).addCallback(on_success)
         elif self.intro_points:
             target = random.choice(self.intro_points)
             self.logger.info("Performing PEX lookup for swarm %s (target %s)",
                              hexlify(self.info_hash), target.peer)
-            return self.lookup_func(self.info_hash, target, self.hops)
+            return self.lookup_func(self.info_hash, target, self.hops).addCallback(on_success)
         self.logger.info("Skipping lookup for swarm %s", hexlify(self.info_hash))
 
     def get_num_seeders(self):
