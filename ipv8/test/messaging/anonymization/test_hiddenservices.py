@@ -5,7 +5,8 @@ import time
 import six
 
 from twisted.internet import reactor
-from twisted.internet.defer import Deferred, inlineCallbacks
+from twisted.internet.defer import Deferred, fail, inlineCallbacks, succeed
+from twisted.python.failure import Failure
 
 from .test_community import MockDHTProvider
 from ...base import TestBase
@@ -13,7 +14,7 @@ from ...mocking.exit_socket import MockTunnelExitSocket
 from ...mocking.ipv8 import MockIPv8
 from ....messaging.anonymization.community import CIRCUIT_TYPE_RP_DOWNLOADER, TunnelSettings
 from ....messaging.anonymization.hidden_services import HiddenTunnelCommunity
-from ....messaging.anonymization.tunnel import IntroductionPoint, PEER_FLAG_EXIT_ANY
+from ....messaging.anonymization.tunnel import IntroductionPoint, PEER_FLAG_EXIT_ANY, PEER_SOURCE_DHT
 from ....peer import Peer
 
 
@@ -206,6 +207,27 @@ class TestHiddenServices(TestBase):
 
         self.assertFalse(callback.called)
 
+    def test_dht_lookup_failure(self):
+        """
+        Check that if a DHT lookup fails, it will retry during the next do_peer_discovery call
+        """
+
+        self.nodes[0].overlay.join_swarm(self.service, 1, seeding=False)
+        self.nodes[0].overlay.settings.swarm_lookup_interval = 0
+        swarm = self.nodes[0].overlay.swarms[self.service]
+
+        swarm.lookup_func = lambda *_: fail(Failure(RuntimeError('unit testing')))
+        self.nodes[0].overlay.do_peer_discovery()
+        self.assertEqual(swarm.last_dht_response, 0)
+
+        class FakeIP(object):
+            def __init__(self):
+                self.source = PEER_SOURCE_DHT
+                self.seeder_pk = 'seeder_pk'
+        swarm.lookup_func = lambda *_: succeed([FakeIP()])
+        self.nodes[0].overlay.do_peer_discovery()
+        self.assertNotEqual(swarm.last_dht_response, 0)
+
     @inlineCallbacks
     def test_pex_lookup(self):
         # Nodes 1 and 2 are introduction points for node 0
@@ -228,7 +250,7 @@ class TestHiddenServices(TestBase):
                                         self.nodes[0].overlay.swarms[self.service].seeder_sk.pub().key_to_bin())
         self.nodes[3].overlay.join_swarm(self.service, 1, seeding=False)
         self.nodes[3].overlay.swarms[self.service].add_intro_point(intro_point)
-        self.nodes[3].overlay.swarms[self.service].last_lookup_dht = time.time()
+        self.nodes[3].overlay.swarms[self.service].last_dht_response = time.time()
         self.nodes[3].overlay.do_peer_discovery()
         yield self.deliver_messages()
 
