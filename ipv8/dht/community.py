@@ -94,8 +94,8 @@ class DHTCommunity(Community):
     """
     Community for storing/finding key-value pairs.
     """
-    master_peer = Peer(unhexlify('4c69624e61434c504b3abd7e6ca06b2c2e5e4412eee20b5d07fab63b47ace82dc5a960407f5f0cff5c4'
-                                 '48781decbc77dcb8fb1792ba4ad91f254351b3d043cfd9db446cfcfe3539d4602'))
+    master_peer = Peer(unhexlify('4c69624e61434c504b3a4c99f04cef9ba4ca645401cd51b8ef634e63e2ad0d3209eca958ce0293d7cf668'
+                                 '2059469c1a253e66191bd3b96a082a8e11cc35962b9b6f8434e21518a0344af'))
 
     def __init__(self, *args, **kwargs):
         super(DHTCommunity, self).__init__(*args, **kwargs)

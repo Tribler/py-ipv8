@@ -35,7 +35,7 @@ class TestDHTEndpoint(RESTTestBase):
     @inlineCallbacks
     def publish_to_DHT(self, peer, key, data, numeric_version, omit_last_chunk=False):
         """
-        Publish data to the DHT via a peer
+        Publish data to the DHT via a peer.
 
         :param peer: the peer via which the data is published to the DHT
         :param key: the key of the added data
@@ -67,7 +67,7 @@ class TestDHTEndpoint(RESTTestBase):
 
     def deserialize_payload(self, serializables, data):
         """
-        Deserialize data
+        Deserialize data.
 
         :param serializables: the list of serializable formats
         :param data: the serialized data
@@ -86,7 +86,7 @@ class TestDHTEndpoint(RESTTestBase):
     @inlineCallbacks
     def test_added_block_explicit(self):
         """
-        Test the publication of a block which has been added by hand to the DHT
+        Test the publication of a block which has been added by hand to the DHT.
         """
         param_dict = {
             'port': self.nodes[0].port,
@@ -305,7 +305,7 @@ class TestDHTEndpoint(RESTTestBase):
     @inlineCallbacks
     def test_many_blocks_with_single_omission(self):
         """
-        Test the retrieval of large blocks when the latest block is incomplete
+        Test the retrieval of large blocks when the latest block is incomplete.
         """
         param_dict = {
             'port': self.nodes[1].port,
@@ -346,7 +346,7 @@ class TestDHTEndpoint(RESTTestBase):
     @inlineCallbacks
     def test_non_existent_block(self):
         """
-        Test the block retrieval operation when the block in question does not exist
+        Test the block retrieval operation when the block in question does not exist.
         """
         param_dict = {
             'port': self.nodes[1].port,
@@ -366,7 +366,7 @@ class TestDHTEndpoint(RESTTestBase):
     @inlineCallbacks
     def test_many_blocks_with_omissions(self):
         """
-        Test the retrieval of large blocks when all the blocks are incomplete
+        Test the retrieval of large blocks when all the blocks are incomplete.
         """
         param_dict = {
             'port': self.nodes[1].port,

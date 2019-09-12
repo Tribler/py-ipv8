@@ -234,7 +234,7 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
                         u"error": {
                             u"handled": True,
                             u"message": "Could not reconstruct any block successfully." if start_idx != 0 else
-                            u"Could not find any blocks for the specified key."
+                                        u"Could not find any blocks for the specified key."
                         }
                     }))
 
