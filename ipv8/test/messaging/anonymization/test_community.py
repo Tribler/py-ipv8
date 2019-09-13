@@ -2,7 +2,7 @@ from __future__ import absolute_import
 
 from collections import defaultdict
 
-from twisted.internet.defer import inlineCallbacks, succeed
+from twisted.internet.defer import Deferred, inlineCallbacks, succeed
 
 from ...base import TestBase
 from ...mocking.endpoint import MockEndpointListener
@@ -263,8 +263,10 @@ class TestTunnelCommunity(TestBase):
         circuit = list(self.nodes[0].overlay.circuits.values())[0]
         self.nodes[0].overlay.send_data([circuit.peer.address], circuit.circuit_id,
                                         ('localhost', self.public_endpoint.get_address()[1]), ('0.0.0.0', 0), data)
-        # This is not test communication, but actual socket communication, we can't do a smart sleep
-        yield self.sleep()
+
+        deferred = Deferred()
+        ep_listener.on_packet = lambda packet: ep_listener.received_packets.append(packet) or deferred.callback(None)
+        yield deferred
 
         self.assertEqual(len(ep_listener.received_packets), 1)
         self.assertEqual(ep_listener.received_packets[0][1], data)
