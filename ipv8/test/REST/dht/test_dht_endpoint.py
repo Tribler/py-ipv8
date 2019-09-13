@@ -33,39 +33,41 @@ class TestDHTEndpoint(RESTTestBase):
         self._create_new_peer_inner(peer_cls, port, [TestDHTCommunity, TestTrustchainCommunity], *args, **kwargs)
 
     @inlineCallbacks
-    def publish_to_DHT(self, peer, key, data, numeric_version):
+    def publish_to_DHT(self, peer, key, data, numeric_version, omit_last_chunk=False):
         """
-        Publish data to the DHT via a peer
+        Publish data to the DHT via a peer.
 
         :param peer: the peer via which the data is published to the DHT
         :param key: the key of the added data
         :param data: the data itself; should be a string
         :param numeric_version: the version of the data
+        :param omit_last_chunk: boolean which indicates whether the last chunk of the block should not be published
         :return: None
         """
         my_private_key = peer.get_keys()['my_peer'].key
 
         # Get the total number of chunks in this blocks
-        total_blocks = len(data) // DHTBlockEndpoint.CHUNK_SIZE
-        total_blocks += 1 if len(data) % DHTBlockEndpoint.CHUNK_SIZE != 0 else 0
+        total_chunks = len(data) // DHTBlockEndpoint.CHUNK_SIZE
+        total_chunks += 1 if len(data) % DHTBlockEndpoint.CHUNK_SIZE != 0 else 0
+        published_chunks = total_chunks if not omit_last_chunk else (total_chunks - 1)
 
         # To make this faster we'll use addition instead of multiplication, and use a pointer
         slice_pointer = 0
 
-        for i in range(total_blocks):
+        for i in range(published_chunks):
             chunk = data[slice_pointer: slice_pointer + DHTBlockEndpoint.CHUNK_SIZE]
             slice_pointer += DHTBlockEndpoint.CHUNK_SIZE
-            pre_signed_content = self.serializer.pack_multiple([('H', numeric_version), ('H', i), ('H', total_blocks),
+            pre_signed_content = self.serializer.pack_multiple([('H', numeric_version), ('H', i), ('H', total_chunks),
                                                                 ('raw', chunk)])[0]
             signature = my_private_key.signature(pre_signed_content)
 
-            blob_chunk = self.serializer.pack_multiple(DHTBlockPayload(signature, numeric_version, i, total_blocks,
+            blob_chunk = self.serializer.pack_multiple(DHTBlockPayload(signature, numeric_version, i, total_chunks,
                                                                        chunk).to_pack_list())
             yield peer.get_overlay_by_class(DHTCommunity).store_value(key, blob_chunk[0])
 
     def deserialize_payload(self, serializables, data):
         """
-        Deserialize data
+        Deserialize data.
 
         :param serializables: the list of serializable formats
         :param data: the serialized data
@@ -84,7 +86,7 @@ class TestDHTEndpoint(RESTTestBase):
     @inlineCallbacks
     def test_added_block_explicit(self):
         """
-        Test the publication of a block which has been added by hand to the DHT
+        Test the publication of a block which has been added by hand to the DHT.
         """
         param_dict = {
             'port': self.nodes[0].port,
@@ -260,9 +262,12 @@ class TestDHTEndpoint(RESTTestBase):
         self.assertEqual(len(result), chunk_number, "The contents of the DHT have been changed. This should not happen")
 
     @inlineCallbacks
-    def test_explicit_block_maintenance(self):
+    def test_many_blocks(self):
         """
-        Test the DHT block chunk republishing correctness, when the block is added manually to the database
+        Test the retrieval of large blocks, which do not fit into one DHT query frame. It should be noted that the
+        test does not actually retrieve the latest absolute block. It only tries to fetch the greatest block it has
+        heard of via its queries. Hence, it will not work past 9 blocks, as this is the limit after which it does
+        not hear about any new nodes.
         """
         param_dict = {
             'port': self.nodes[1].port,
@@ -271,50 +276,36 @@ class TestDHTEndpoint(RESTTestBase):
             'public_key': string_to_url(b64encode(self.nodes[0].get_keys()['my_peer'].public_key.key_to_bin()))
         }
 
-        def get_storage_entries(node, key):
-            return node.get_overlay_by_class(DHTCommunity).storage.get(key)
-
-        # Introduce the nodes
+        # Introduce the nodes and increase the size of the request queues
         yield self.introduce_nodes(DHTCommunity)
+        self._increase_request_limit(100)
 
-        # Compute the key under which the block will be published
         hash_key = sha1(self.nodes[0].get_keys()['my_peer'].public_key.key_to_bin()
                         + DHTBlockEndpoint.KEY_SUFFIX).digest()
 
-        # Create an initial block, and store it in the TrustChain DB the first node
-        original_block = TestBlock(transaction={1: 'asd'}, key=self.nodes[0].get_keys()['my_peer'].key)
-        self.nodes[0].get_overlay_by_class(TrustChainCommunity).persistence.add_block(original_block)
+        # Create some blocks
+        block_array = [(i, TestBlock(transaction={1: 'asd{}'.format(i)})) for i in range(5, 0, -1)]
 
-        self.assertEqual([], get_storage_entries(self.nodes[0], hash_key), "There should be no entries under this key")
-        self.assertEqual([], get_storage_entries(self.nodes[1], hash_key), "There should be no entries under this key")
+        # Publish the blocks, such that the latest block is last
+        for version, block in block_array:
+            yield self.publish_to_DHT(self.nodes[0], hash_key, block.pack(), version)
 
-        self.nodes[0]._rest_manager._root_endpoint.getStaticEntity(b'dht').getStaticEntity(b'block') \
-            .publish_latest_block()
-        yield self.deliver_messages()
-        yield self.sleep()
-
-        node_0_responses = get_storage_entries(self.nodes[0], hash_key)
-        node_1_responses = get_storage_entries(self.nodes[1], hash_key)
-
-        # Check that under this key, both nodes store the same content
-        self.assertEqual(sorted(node_0_responses), sorted(node_1_responses), "The contents of the two storages "
-                                                                             "should be equal")
-
-        # Fetch the latest block from one of the nodes
+        # Get the block through the REST API from the second peer
         response = yield self._get_style_requests.make_dht_block(param_dict)
         self.assertTrue('block' in response and response['block'], "Response is not as expected: %s" % response)
         response = b64decode(response['block'])
 
+        # Reconstruct the block from what was received in the response
         payload = self.deserialize_payload((HalfBlockPayload,), response)
         reconstructed_block = self.nodes[0].get_overlay_by_class(TrustChainCommunity).get_block_class(
             payload.type).from_payload(payload, self.serializer)
 
-        self.assertEqual(reconstructed_block, original_block, "The received block was not equal to the original block")
+        self.assertEqual(reconstructed_block, block_array[0][1], "The received block was not equal to the latest block")
 
     @inlineCallbacks
-    def test_block_implicit_maintenance(self):
+    def test_many_blocks_with_single_omission(self):
         """
-        Test the DHT block chunk republishing correctness when the block is added implicitly to the database
+        Test the retrieval of large blocks when the latest block is incomplete.
         """
         param_dict = {
             'port': self.nodes[1].port,
@@ -322,42 +313,84 @@ class TestDHTEndpoint(RESTTestBase):
             'endpoint': 'dht/block',
             'public_key': string_to_url(b64encode(self.nodes[0].get_keys()['my_peer'].public_key.key_to_bin()))
         }
-
-        def get_storage_entries(node, key):
-            return node.get_overlay_by_class(DHTCommunity).storage.get(key)
-
-        # Introduce the nodes
+        # Introduce the nodes and increase the size of the request queues
         yield self.introduce_nodes(DHTCommunity)
 
-        # Compute the key under which the block will be published
-        publisher_pk = self.nodes[0].get_keys()['my_peer'].public_key.key_to_bin()
-        hash_key = sha1(publisher_pk + DHTBlockEndpoint.KEY_SUFFIX).digest()
+        self._increase_request_limit(100)
 
-        # Create an initial block, and store it in the TrustChain DB the first node
-        yield self.nodes[0].get_overlay_by_class(TrustChainCommunity).create_source_block(b'test', {})
-        original_block = self.nodes[0].get_overlay_by_class(TrustChainCommunity).persistence.get(publisher_pk, 1)
-        yield self.deliver_messages()
-        yield self.sleep()
+        hash_key = sha1(self.nodes[0].get_keys()['my_peer'].public_key.key_to_bin()
+                        + DHTBlockEndpoint.KEY_SUFFIX).digest()
 
-        self.assertEqual(3, len(get_storage_entries(self.nodes[0], hash_key)), "There should be 3 entries for node 0")
-        self.assertEqual(3, len(get_storage_entries(self.nodes[1], hash_key)), "There should be 3 entries for node 1")
+        # Create some blocks
+        block_array = [(i, TestBlock(transaction={1: 'asd{}'.format(i)})) for i in range(5, 0, -1)]
 
-        self.nodes[0]._rest_manager._root_endpoint.getStaticEntity(b'dht').getStaticEntity(b'block') \
-            .publish_latest_block()
-        yield self.deliver_messages()
-        yield self.sleep()
+        # Publish the blocks, such that the latest block is last
+        yield self.publish_to_DHT(self.nodes[0], hash_key, block_array[0][1].pack(), block_array[0][0],
+                                  omit_last_chunk=True)
+        block_array.pop(0)
+        for version, block in block_array:
+            yield self.publish_to_DHT(self.nodes[0], hash_key, block.pack(), version)
 
-        # Check that no chunks have been duplicated in the local storage after the refresh is done
-        self.assertEqual(3, len(get_storage_entries(self.nodes[0], hash_key)), "There should be 3 entries for node 0")
-        self.assertEqual(3, len(get_storage_entries(self.nodes[1], hash_key)), "There should be 3 entries for node 1")
-
-        # Fetch the block, and check that it matches the original block
+        # Get the block through the REST API from the second peer
         response = yield self._get_style_requests.make_dht_block(param_dict)
         self.assertTrue('block' in response and response['block'], "Response is not as expected: %s" % response)
         response = b64decode(response['block'])
 
+        # Reconstruct the block from what was received in the response
         payload = self.deserialize_payload((HalfBlockPayload,), response)
         reconstructed_block = self.nodes[0].get_overlay_by_class(TrustChainCommunity).get_block_class(
             payload.type).from_payload(payload, self.serializer)
 
-        self.assertEqual(reconstructed_block, original_block, "The received block was not equal to the original block")
+        self.assertEqual(reconstructed_block, block_array[0][1], "The received block was not equal to the latest block")
+
+    @inlineCallbacks
+    def test_non_existent_block(self):
+        """
+        Test the block retrieval operation when the block in question does not exist.
+        """
+        param_dict = {
+            'port': self.nodes[1].port,
+            'interface': self.nodes[1].interface,
+            'endpoint': 'dht/block',
+            'public_key': string_to_url(b64encode(self.nodes[0].get_keys()['my_peer'].public_key.key_to_bin()))
+        }
+        # Introduce the nodes and increase the size of the request queues
+        yield self.introduce_nodes(DHTCommunity)
+
+        # Get the block through the REST API from the second peer
+        response = yield self._get_style_requests.make_dht_block(param_dict)
+        self.assertEqual(response.get('error', {'message': ''}).get('message', ''),
+                         'Could not find any blocks for the specified key.',
+                         "The returned error is not as expected.")
+
+    @inlineCallbacks
+    def test_many_blocks_with_omissions(self):
+        """
+        Test the retrieval of large blocks when all the blocks are incomplete.
+        """
+        param_dict = {
+            'port': self.nodes[1].port,
+            'interface': self.nodes[1].interface,
+            'endpoint': 'dht/block',
+            'public_key': string_to_url(b64encode(self.nodes[0].get_keys()['my_peer'].public_key.key_to_bin()))
+        }
+        # Introduce the nodes and increase the size of the request queues
+        yield self.introduce_nodes(DHTCommunity)
+
+        self._increase_request_limit(100)
+
+        hash_key = sha1(self.nodes[0].get_keys()['my_peer'].public_key.key_to_bin()
+                        + DHTBlockEndpoint.KEY_SUFFIX).digest()
+
+        # Create some blocks and publish them
+        block_array = [(i, TestBlock(transaction={1: 'asd{}'.format(i)})) for i in range(5, 0, -1)]
+
+        block_array.pop(0)
+        for version, block in block_array:
+            yield self.publish_to_DHT(self.nodes[0], hash_key, block.pack(), version, omit_last_chunk=True)
+
+        # Get the block through the REST API from the second peer
+        response = yield self._get_style_requests.make_dht_block(param_dict)
+        self.assertEqual(response.get('error', {'message': ''}).get('message', ''),
+                         'Could not reconstruct any block successfully.',
+                         "The returned error is not as expected.")

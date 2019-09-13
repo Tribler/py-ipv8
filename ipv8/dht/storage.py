@@ -1,8 +1,7 @@
 from __future__ import absolute_import
 
-import time
 import hashlib
-
+import time
 from collections import defaultdict
 
 
@@ -56,8 +55,9 @@ class Storage(object):
             self.items[key].insert(0, new_value)
             self.items[key].sort(key=lambda v: 1 if v.id == key else 0)
 
-    def get(self, key, limit=None):
-        return [value.data for value in self.items[key][:limit]] if key in self.items else []
+    def get(self, key, starting_point=0, limit=None):
+        upper_bound = (starting_point + limit) if limit else limit
+        return [value.data for value in self.items[key][starting_point:upper_bound]] if key in self.items else []
 
     def items_older_than(self, min_age):
         items = []

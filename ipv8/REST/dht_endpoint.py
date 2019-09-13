@@ -14,7 +14,7 @@ from .base_endpoint import BaseEndpoint
 from ..attestation.trustchain.community import TrustChainCommunity
 from ..attestation.trustchain.listener import BlockListener
 from ..attestation.trustchain.payload import DHTBlockPayload
-from ..dht.community import DHTCommunity, MAX_ENTRY_SIZE
+from ..dht.community import DHTCommunity, MAX_ENTRY_SIZE, MAX_VALUES_IN_FIND
 from ..dht.discovery import DHTDiscoveryCommunity
 from ..keyvault.public.libnaclkey import LibNaCLPK
 from ..messaging.serialization import PackError, Serializer
@@ -88,19 +88,29 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
         if block:
             self.publish_block(block, republish=True)
 
-    def reconstruct_all_blocks(self, block_chunks, public_key):
+    def reconstruct_all_blocks(self, new_chunks, public_key, chunk_dict=None, counts=None):
         """
         Given a list of block chunks, reconstruct all the blocks in a dictionary indexed by their version
 
-        :param block_chunks: the list of block chunks
+        :param new_chunks: the list of block chunks
         :param public_key: the public key of the publishing node, which will be used for verifying the chunks
-        :return: a dictionary of block_maintenance_taskreconstructed blocks (in packed format), indexed by the version
-                 of the blocks and the maximal version
+        :param chunk_dict: a dictionary containing previously (partially) built blocks, or None
+        :param counts: a dictionary from block version to the number of missing chunks
+        :return: a dictionary from block version to a list of block chunks, the maximum block version,
+                 a dictionary from version to count (where the count represents the number of missing chunks)
         """
-        new_blocks = {}
+        assert (chunk_dict and counts) or (not chunk_dict and not counts), "Must either provide both new_blocks " \
+                                                                           "and counter dicts or None for both"
+
+        if not chunk_dict:
+            chunk_dict = {}
+
+        if not counts:
+            counts = {}
+
         max_version = 0
 
-        for entry in block_chunks:
+        for entry in new_chunks:
             try:
                 package = self.serializer.unpack_to_serializables([DHTBlockPayload, ], entry)[0]
 
@@ -110,21 +120,19 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
                                                                     ('raw', package.payload)])[0]
 
                 if public_key.verify(package.signature, pre_signed_content):
-                    max_version = max_version if max_version > package.version else package.version
+                    max_version = max(max_version, package.version)
 
-                    if package.version not in new_blocks:
-                        new_blocks[package.version] = [b''] * package.block_count
+                    if package.version not in chunk_dict:
+                        chunk_dict[package.version] = [b''] * package.block_count
+                        counts[package.version] = package.block_count
 
-                    new_blocks[package.version][package.block_position] = package.payload
+                    chunk_dict[package.version][package.block_position] = package.payload
+                    counts[package.version] -= 1
             except PackError:
                 logging.error("PackError: Found a clandestine entry in the DHT when reconstructing TC blocks: %s",
                               entry)
 
-        # Concatenate the blocks
-        for version in new_blocks:
-            new_blocks[version] = b''.join(new_blocks[version])
-
-        return new_blocks, max_version
+        return chunk_dict, max_version, counts
 
     def publish_block(self, block, republish=False):
         """
@@ -182,7 +190,7 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
         Return the latest TC block of a peer, as identified in the request
 
         :param request: the request for retrieving the latest TC block of a peer. It must contain the peer's
-        public key of the peer
+                        public key of the peer
         :return: the latest block of the peer, if found
         """
         if not self.dht:
@@ -192,23 +200,6 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
         if not request.args or b'public_key' not in request.args:
             request.setResponseCode(http.BAD_REQUEST)
             return self.twisted_dumps({"error": "Must specify the peer's public key"})
-
-        def on_success(block_chunks):
-            if not block_chunks:
-                request.setResponseCode(http.NOT_FOUND)
-                request.write(self.twisted_dumps({
-                    "error": {
-                        "handled": True,
-                        "message": "Could not find any blocks for the specified key."
-                    }
-                }))
-            else:
-                target_public_key = LibNaCLPK(binarykey=raw_public_key[10:])
-                # Discard the 2nd half of the tuples retrieved as a result of the DHT query
-                new_blocks, max_version = self.reconstruct_all_blocks([x[0] for x in block_chunks], target_public_key)
-                request.write(self.twisted_dumps({"block": b64encode(new_blocks[max_version]).decode('utf-8')}))
-
-            request.finish()
 
         def on_failure(failure):
             request.setResponseCode(http.INTERNAL_SERVER_ERROR)
@@ -221,10 +212,56 @@ class DHTBlockEndpoint(BaseEndpoint, BlockListener):
             }))
             request.finish()
 
+        def on_success(new_chunks, chunk_dict, counts, start_idx, target_public_key):
+
+            if not new_chunks:
+                # If we're here it means that there are no more chunks to be retrieved
+                max_version_block = None
+
+                if chunk_dict and counts:
+                    # Try to find a complete block which has the greatest version
+                    for version in sorted(list(chunk_dict.keys()), reverse=True):
+                        if version in counts and counts[version] == 0:
+                            max_version_block = b''.join(chunk_dict[version])
+                            break
+
+                if max_version_block:
+                    request.write(self.twisted_dumps({"block": b64encode(max_version_block).decode('utf-8')}))
+                else:
+                    # If start_idx is different from 0, then this means all the chunks have been consumed
+                    request.setResponseCode(http.NOT_FOUND)
+                    request.write(self.twisted_dumps({
+                        u"error": {
+                            u"handled": True,
+                            u"message": "Could not reconstruct any block successfully." if start_idx != 0 else
+                                        u"Could not find any blocks for the specified key."
+                        }
+                    }))
+
+                request.finish()
+            else:
+                # Given the new chunks, we will continue to build the blocks we have so far
+                chunk_dict, max_version, counts = self.reconstruct_all_blocks([x[0] for x in new_chunks],
+                                                                              target_public_key, chunk_dict, counts)
+
+                # If a block has been successfully constructed, we build and return it, otherwise we'll keep searching
+                if counts.get(max_version, -1) == 0:
+                    request.write(self.twisted_dumps(
+                        {"block": b64encode(b''.join(chunk_dict[max_version])).decode('utf-8')}))
+                    request.finish()
+                else:
+                    # Continue the search from the next blocks
+                    start_idx += MAX_VALUES_IN_FIND
+                    self.dht.find_values(hash_key, start_idx=start_idx).addCallback(
+                        on_success, chunk_dict, counts, start_idx, target_public_key).addErrback(on_failure)
+
         raw_public_key = b64decode(request.args[b'public_key'][0])
         hash_key = sha1(raw_public_key + self.KEY_SUFFIX).digest()
 
-        self.dht.find_values(hash_key).addCallbacks(on_success, on_failure)
+        target_public_key_master = LibNaCLPK(binarykey=raw_public_key[10:])
+
+        self.dht.find_values(hash_key).addCallback(on_success, None, None, 0, target_public_key_master) \
+            .addErrback(on_failure)
 
         return NOT_DONE_YET
 
