@@ -214,6 +214,35 @@ class TestNetwork(unittest.TestCase):
         self.network.add_verified_peer(self.peers[0])
 
         self.assertEqual(self.peers[0], self.network.get_verified_by_address(self.peers[0].address))
+        self.assertIn(self.peers[0].address, self.network.reverse_ip_lookup)
+
+    def test_get_verified_by_address_cache_pop(self):
+        """
+        When the cache if full, pop the least-used entry.
+        """
+        self.network.add_verified_peer(self.peers[0])
+        self.network.add_verified_peer(self.peers[1])
+        self.network.reverse_ip_cache_size = 1
+
+        self.network.get_verified_by_address(self.peers[1].address)  # Cache stack: [1] (full)
+        self.assertListEqual([self.peers[1].address], list(self.network.reverse_ip_lookup))
+
+        self.network.get_verified_by_address(self.peers[0].address)  # Cache stack: [0] (full)
+        self.assertListEqual([self.peers[0].address], list(self.network.reverse_ip_lookup))
+
+    def test_get_verified_by_address_cache_refresh(self):
+        """
+        Asking for the same peer twice should land it back on top of the cleanup stack.
+        """
+        self.network.add_verified_peer(self.peers[0])
+        self.network.add_verified_peer(self.peers[1])
+        self.network.reverse_ip_cache_size = 2
+
+        self.network.get_verified_by_address(self.peers[1].address)  # Cache stack: [1]
+        self.network.get_verified_by_address(self.peers[0].address)  # Cache stack: [1, 0] (full)
+        self.network.get_verified_by_address(self.peers[1].address)  # Cache stack: [0, 1] (full)
+
+        self.assertListEqual([self.peers[0].address, self.peers[1].address], list(self.network.reverse_ip_lookup))
 
     def test_get_verified_by_public_key(self):
         """
