@@ -111,6 +111,30 @@ class TestNetwork(unittest.TestCase):
             self.assertNotIn(self.peers[other], self.network.verified_peers)
             self.assertIn(self.peers[other].address, self.network.get_introductions_from(self.peers[0]))
 
+    def test_get_introductions_from_cache_no_refresh(self):
+        """
+        Cache entries in the introduction cache should not refresh.
+
+        This is to avoid dead peers sticking around the cache for too long.
+        """
+        intro1 = ('1.2.3.4', 5)
+        intro2 = ('6.7.8.9', 10)
+        intro3 = ('11.12.13.14', 15)
+        self.network.discover_address(self.peers[0], intro1)
+        self.network.discover_address(self.peers[1], intro2)
+
+        ilist0 = self.network.get_introductions_from(self.peers[0])
+        ilist1 = self.network.get_introductions_from(self.peers[1])
+        self.assertListEqual([self.peers[0], self.peers[1]], list(self.network.reverse_intro_lookup))
+        self.assertListEqual([intro1], ilist0)
+        self.assertListEqual([intro2], ilist1)
+
+        # We should make a good faith attempt to update the cache with a new introduction.
+        self.network.discover_address(self.peers[0], intro3)
+        ilist2 = self.network.get_introductions_from(self.peers[0])
+        self.assertListEqual([self.peers[0], self.peers[1]], list(self.network.reverse_intro_lookup))
+        self.assertListEqual([intro1, intro3], ilist2)
+
     def test_discover_services(self):
         """
         Check if services are properly registered for a peer.

@@ -33,6 +33,10 @@ class Network(object):
         self.reverse_ip_lookup = OrderedDict()
         self.reverse_ip_cache_size = 500
 
+        # Cache of Peer -> [IP:port]
+        self.reverse_intro_lookup = OrderedDict()
+        self.reverse_intro_cache_size = 500
+
     def discover_address(self, peer, address, service=None):
         """
         A peer has introduced us to another IP address.
@@ -50,6 +54,9 @@ class Network(object):
                     or (self._all_addresses[address][0] not in [p.mid for p in self.verified_peers])):
                 # This is a new address, or our previous parent has been removed
                 self._all_addresses[address] = (peer.mid, service)
+                intro_cache = self.reverse_intro_lookup.get(peer, None)
+                if intro_cache:
+                    intro_cache.append(address)
 
             self.add_verified_peer(peer)
 
@@ -189,8 +196,14 @@ class Network(object):
         :param peer: the peer to get the introductions for
         :return: a list of the introduced addresses (ip, port)
         """
-        with self.graph_lock:
-            return [k for k, v in self._all_addresses.items() if v[0] == peer.mid]
+        introductions = self.reverse_intro_lookup.get(peer, None)
+        if introductions is None:
+            with self.graph_lock:
+                introductions = [k for k, v in self._all_addresses.items() if v[0] == peer.mid]
+                self.reverse_intro_lookup[peer] = introductions
+                if len(self.reverse_intro_lookup) > self.reverse_intro_cache_size:
+                    self.reverse_intro_lookup.popitem(False)  # Pop the oldest cache entry
+        return introductions
 
     def remove_by_address(self, address):
         """
