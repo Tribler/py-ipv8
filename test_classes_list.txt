@@ -12,6 +12,10 @@ ipv8/test/peerdiscovery/test_random_discovery.py:TestRandomWalk
 ipv8/test/peerdiscovery/test_churn.py:TestChurn
 ipv8/test/peerdiscovery/test_churn.py:TestPingChurn
 
+ipv8/test/peerdiscovery/latency/test_peer_selection.py:TestPeerSelector
+ipv8/test/peerdiscovery/latency/test_discovery.py:TestLatencyEdgeWalk
+ipv8/test/peerdiscovery/latency/test_community.py:TestLatencyCommunity
+
 ipv8/test/keyvault/test_crypto.py:TestECCrypto
 ipv8/test/keyvault/test_serialization.py:TestSerialization
 ipv8/test/keyvault/test_signature.py:TestSignatures
