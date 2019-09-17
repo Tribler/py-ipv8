@@ -1,7 +1,8 @@
 from __future__ import absolute_import
 
-from binascii import unhexlify
 import random
+from binascii import unhexlify
+
 from twisted.trial import unittest
 
 from ...keyvault.crypto import default_eccrypto
@@ -111,6 +112,30 @@ class TestNetwork(unittest.TestCase):
             self.assertNotIn(self.peers[other], self.network.verified_peers)
             self.assertIn(self.peers[other].address, self.network.get_introductions_from(self.peers[0]))
 
+    def test_get_introductions_from_cache_no_refresh(self):
+        """
+        Cache entries in the introduction cache should not refresh.
+
+        This is to avoid dead peers sticking around the cache for too long.
+        """
+        intro1 = ('1.2.3.4', 5)
+        intro2 = ('6.7.8.9', 10)
+        intro3 = ('11.12.13.14', 15)
+        self.network.discover_address(self.peers[0], intro1)
+        self.network.discover_address(self.peers[1], intro2)
+
+        ilist0 = self.network.get_introductions_from(self.peers[0])
+        ilist1 = self.network.get_introductions_from(self.peers[1])
+        self.assertListEqual([self.peers[0], self.peers[1]], list(self.network.reverse_intro_lookup))
+        self.assertListEqual([intro1], ilist0)
+        self.assertListEqual([intro2], ilist1)
+
+        # We should make a good faith attempt to update the cache with a new introduction.
+        self.network.discover_address(self.peers[0], intro3)
+        ilist2 = self.network.get_introductions_from(self.peers[0])
+        self.assertListEqual([self.peers[0], self.peers[1]], list(self.network.reverse_intro_lookup))
+        self.assertListEqual([intro1, intro3], ilist2)
+
     def test_discover_services(self):
         """
         Check if services are properly registered for a peer.
@@ -125,14 +150,12 @@ class TestNetwork(unittest.TestCase):
     def test_discover_services_unverified(self):
         """
         Check if services are properly registered for an unverified peer.
-
-        You can query the services of an unverified peer, but it won't show up as a reachable peer for a service.
         """
         service = "".join([chr(i) for i in range(20)])
         self.network.discover_services(self.peers[0], [service])
 
         self.assertIn(service, self.network.get_services_for_peer(self.peers[0]))
-        self.assertNotIn(self.peers[0], self.network.get_peers_for_service(service))
+        self.assertIn(self.peers[0], self.network.get_peers_for_service(service))
 
     def test_discover_services_update(self):
         """
@@ -163,6 +186,23 @@ class TestNetwork(unittest.TestCase):
         self.assertIn(service2, self.network.get_services_for_peer(self.peers[0]))
         self.assertIn(self.peers[0], self.network.get_peers_for_service(service1))
         self.assertIn(self.peers[0], self.network.get_peers_for_service(service2))
+
+    def test_discover_services_cache(self):
+        """
+        Check if services cache updates properly.
+        """
+        service1 = "".join([chr(i) for i in range(20)])
+        service2 = "".join([chr(i) for i in range(20, 40)])
+        self.network.reverse_service_cache_size = 1
+        self.network.discover_services(self.peers[0], [service1])
+        self.network.add_verified_peer(self.peers[0])
+        self.network.discover_services(self.peers[1], [service2])
+        self.network.add_verified_peer(self.peers[1])
+
+        self.network.get_peers_for_service(service1)
+        self.network.get_peers_for_service(service2)
+
+        self.assertListEqual([service2], list(self.network.reverse_service_lookup))
 
     def test_add_verified_peer_new(self):
         """
@@ -214,6 +254,35 @@ class TestNetwork(unittest.TestCase):
         self.network.add_verified_peer(self.peers[0])
 
         self.assertEqual(self.peers[0], self.network.get_verified_by_address(self.peers[0].address))
+        self.assertIn(self.peers[0].address, self.network.reverse_ip_lookup)
+
+    def test_get_verified_by_address_cache_pop(self):
+        """
+        When the cache if full, pop the least-used entry.
+        """
+        self.network.add_verified_peer(self.peers[0])
+        self.network.add_verified_peer(self.peers[1])
+        self.network.reverse_ip_cache_size = 1
+
+        self.network.get_verified_by_address(self.peers[1].address)  # Cache stack: [1] (full)
+        self.assertListEqual([self.peers[1].address], list(self.network.reverse_ip_lookup))
+
+        self.network.get_verified_by_address(self.peers[0].address)  # Cache stack: [0] (full)
+        self.assertListEqual([self.peers[0].address], list(self.network.reverse_ip_lookup))
+
+    def test_get_verified_by_address_cache_refresh(self):
+        """
+        Asking for the same peer twice should land it back on top of the cleanup stack.
+        """
+        self.network.add_verified_peer(self.peers[0])
+        self.network.add_verified_peer(self.peers[1])
+        self.network.reverse_ip_cache_size = 2
+
+        self.network.get_verified_by_address(self.peers[1].address)  # Cache stack: [1]
+        self.network.get_verified_by_address(self.peers[0].address)  # Cache stack: [1, 0] (full)
+        self.network.get_verified_by_address(self.peers[1].address)  # Cache stack: [0, 1] (full)
+
+        self.assertListEqual([self.peers[0].address, self.peers[1].address], list(self.network.reverse_ip_lookup))
 
     def test_get_verified_by_public_key(self):
         """

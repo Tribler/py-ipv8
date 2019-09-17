@@ -1,8 +1,9 @@
 from __future__ import absolute_import
 
-from threading import RLock
+from collections import OrderedDict
 from socket import inet_aton, inet_ntoa
 from struct import pack, unpack
+from threading import RLock
 
 from six.moves import xrange
 
@@ -28,6 +29,18 @@ class Network(object):
         # Map of service identifiers to local overlays
         self.service_overlays = {}
 
+        # Cache of IP:port -> Peer
+        self.reverse_ip_lookup = OrderedDict()
+        self.reverse_ip_cache_size = 500
+
+        # Cache of Peer -> [IP:port]
+        self.reverse_intro_lookup = OrderedDict()
+        self.reverse_intro_cache_size = 500
+
+        # Cache of service_id -> [Peer]
+        self.reverse_service_lookup = OrderedDict()
+        self.reverse_service_cache_size = 500
+
     def discover_address(self, peer, address, service=None):
         """
         A peer has introduced us to another IP address.
@@ -45,6 +58,9 @@ class Network(object):
                     or (self._all_addresses[address][0] not in [p.mid for p in self.verified_peers])):
                 # This is a new address, or our previous parent has been removed
                 self._all_addresses[address] = (peer.mid, service)
+                intro_cache = self.reverse_intro_lookup.get(peer, None)
+                if intro_cache:
+                    intro_cache.append(address)
 
             self.add_verified_peer(peer)
 
@@ -60,6 +76,9 @@ class Network(object):
                 self.services_per_peer[peer.mid] = set(services)
             else:
                 self.services_per_peer[peer.mid] |= set(services)
+            for service in services:
+                service_cache = self.reverse_service_lookup.get(service, [])
+                self.reverse_service_lookup[service] = list(set(service_cache + [peer]))
 
     def add_verified_peer(self, peer):
         """
@@ -103,11 +122,18 @@ class Network(object):
         :param service_id: the service name/id to fetch peers for
         """
         out = []
-        with self.graph_lock:
-            for peer in self.verified_peers:
-                if peer.mid in self.services_per_peer:
-                    if service_id in self.services_per_peer[peer.mid]:
-                        out.append(peer)
+        service_cache = self.reverse_service_lookup.pop(service_id, None)
+        if service_cache is None:
+            with self.graph_lock:
+                for peer in self.verified_peers:
+                    if peer.mid in self.services_per_peer:
+                        if service_id in self.services_per_peer[peer.mid]:
+                            out.append(peer)
+        else:
+            out = [peer for peer in service_cache if service_id in self.services_per_peer.get(peer.mid, [])]
+        self.reverse_service_lookup[service_id] = out
+        if len(self.reverse_service_lookup) > self.reverse_service_cache_size:
+            self.reverse_service_lookup.popitem(False)  # Pop the oldest cache entry
         return out
 
     def get_services_for_peer(self, peer):
@@ -145,13 +171,25 @@ class Network(object):
         """
         Get a verified Peer by its IP address.
 
+        If multiple Peers use the same IP address, this method returns only one of these peers.
+
         :param address: the (IP, port) tuple to search for
         :return: the Peer object for this address or None
         """
         with self.graph_lock:
-            for i in range(len(self.verified_peers)):
-                if self.verified_peers[i].address == address:
-                    return self.verified_peers[i]
+            peer = self.reverse_ip_lookup.pop(address, None)
+            if not peer:
+                for i in range(len(self.verified_peers)):
+                    if self.verified_peers[i].address == address:
+                        peer = self.verified_peers[i]
+                        self.reverse_ip_lookup[peer.address] = peer
+                        if len(self.reverse_ip_lookup) > self.reverse_ip_cache_size:
+                            self.reverse_ip_lookup.popitem(False)  # Pop the oldest cache entry
+                        break
+            else:
+                # Refresh the peer in the cache (by popping first, it is now on top of the stack again)
+                self.reverse_ip_lookup[peer.address] = peer
+        return peer
 
     def get_verified_by_public_key_bin(self, public_key_bin):
         """
@@ -172,8 +210,14 @@ class Network(object):
         :param peer: the peer to get the introductions for
         :return: a list of the introduced addresses (ip, port)
         """
-        with self.graph_lock:
-            return [k for k, v in self._all_addresses.items() if v[0] == peer.mid]
+        introductions = self.reverse_intro_lookup.get(peer, None)
+        if introductions is None:
+            with self.graph_lock:
+                introductions = [k for k, v in self._all_addresses.items() if v[0] == peer.mid]
+                self.reverse_intro_lookup[peer] = introductions
+                if len(self.reverse_intro_lookup) > self.reverse_intro_cache_size:
+                    self.reverse_intro_lookup.popitem(False)  # Pop the oldest cache entry
+        return introductions
 
     def remove_by_address(self, address):
         """
@@ -183,13 +227,10 @@ class Network(object):
         """
         with self.graph_lock:
             self._all_addresses.pop(address, None)
-            to_remove = []
-            for i in range(len(self.verified_peers)):
-                if self.verified_peers[i].address == address:
-                    to_remove.insert(0, i)
-                    self.services_per_peer.pop(self.verified_peers[i].mid, None)
-            for index in to_remove:
-                self.verified_peers.pop(index)
+            # Note that the services_per_peer will never be 0, we abuse the lazy `or` to pop the peers from
+            # the services_per_peer mapping if they are no longer included. This is fast.
+            self.verified_peers = [peer for peer in self.verified_peers
+                                   if peer.address != address or self.services_per_peer.pop(peer.mid, None) == 0]
 
     def remove_peer(self, peer):
         """
