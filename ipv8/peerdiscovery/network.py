@@ -1,9 +1,9 @@
 from __future__ import absolute_import
 
 from collections import OrderedDict
-from threading import RLock
 from socket import inet_aton, inet_ntoa
 from struct import pack, unpack
+from threading import RLock
 
 from six.moves import xrange
 

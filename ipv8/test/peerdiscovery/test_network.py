@@ -1,7 +1,8 @@
 from __future__ import absolute_import
 
-from binascii import unhexlify
 import random
+from binascii import unhexlify
+
 from twisted.trial import unittest
 
 from ...keyvault.crypto import default_eccrypto
