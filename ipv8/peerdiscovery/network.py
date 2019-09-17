@@ -37,6 +37,10 @@ class Network(object):
         self.reverse_intro_lookup = OrderedDict()
         self.reverse_intro_cache_size = 500
 
+        # Cache of service_id -> [Peer]
+        self.reverse_service_lookup = OrderedDict()
+        self.reverse_service_cache_size = 500
+
     def discover_address(self, peer, address, service=None):
         """
         A peer has introduced us to another IP address.
@@ -72,6 +76,9 @@ class Network(object):
                 self.services_per_peer[peer.mid] = set(services)
             else:
                 self.services_per_peer[peer.mid] |= set(services)
+            for service in services:
+                service_cache = self.reverse_service_lookup.get(service, [])
+                self.reverse_service_lookup[service] = list(set(service_cache + [peer]))
 
     def add_verified_peer(self, peer):
         """
@@ -115,11 +122,18 @@ class Network(object):
         :param service_id: the service name/id to fetch peers for
         """
         out = []
-        with self.graph_lock:
-            for peer in self.verified_peers:
-                if peer.mid in self.services_per_peer:
-                    if service_id in self.services_per_peer[peer.mid]:
-                        out.append(peer)
+        service_cache = self.reverse_service_lookup.pop(service_id, None)
+        if service_cache is None:
+            with self.graph_lock:
+                for peer in self.verified_peers:
+                    if peer.mid in self.services_per_peer:
+                        if service_id in self.services_per_peer[peer.mid]:
+                            out.append(peer)
+        else:
+            out = [peer for peer in service_cache if service_id in self.services_per_peer.get(peer.mid, [])]
+        self.reverse_service_lookup[service_id] = out
+        if len(self.reverse_service_lookup) > self.reverse_service_cache_size:
+            self.reverse_service_lookup.popitem(False)  # Pop the oldest cache entry
         return out
 
     def get_services_for_peer(self, peer):

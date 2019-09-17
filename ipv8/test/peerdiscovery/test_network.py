@@ -149,14 +149,12 @@ class TestNetwork(unittest.TestCase):
     def test_discover_services_unverified(self):
         """
         Check if services are properly registered for an unverified peer.
-
-        You can query the services of an unverified peer, but it won't show up as a reachable peer for a service.
         """
         service = "".join([chr(i) for i in range(20)])
         self.network.discover_services(self.peers[0], [service])
 
         self.assertIn(service, self.network.get_services_for_peer(self.peers[0]))
-        self.assertNotIn(self.peers[0], self.network.get_peers_for_service(service))
+        self.assertIn(self.peers[0], self.network.get_peers_for_service(service))
 
     def test_discover_services_update(self):
         """
@@ -187,6 +185,23 @@ class TestNetwork(unittest.TestCase):
         self.assertIn(service2, self.network.get_services_for_peer(self.peers[0]))
         self.assertIn(self.peers[0], self.network.get_peers_for_service(service1))
         self.assertIn(self.peers[0], self.network.get_peers_for_service(service2))
+
+    def test_discover_services_cache(self):
+        """
+        Check if services cache updates properly.
+        """
+        service1 = "".join([chr(i) for i in range(20)])
+        service2 = "".join([chr(i) for i in range(20, 40)])
+        self.network.reverse_service_cache_size = 1
+        self.network.discover_services(self.peers[0], [service1])
+        self.network.add_verified_peer(self.peers[0])
+        self.network.discover_services(self.peers[1], [service2])
+        self.network.add_verified_peer(self.peers[1])
+
+        self.network.get_peers_for_service(service1)
+        self.network.get_peers_for_service(service2)
+
+        self.assertListEqual([service2], list(self.network.reverse_service_lookup))
 
     def test_add_verified_peer_new(self):
         """
