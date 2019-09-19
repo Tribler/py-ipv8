@@ -5,6 +5,7 @@ from binascii import unhexlify
 from twisted.web import http
 
 from .base_endpoint import BaseEndpoint
+from ..REST.json_util import ensure_serializable
 from ..attestation.trustchain.community import TrustChainCommunity
 
 
@@ -140,4 +141,4 @@ class TrustchainSpecificUserBlocksEndpoint(BaseEndpoint):
                 block_dict['linked'] = dict(linked_block)
             blocks_list.append(block_dict)
 
-        return self.twisted_dumps({"blocks": blocks_list})
+        return self.twisted_dumps(ensure_serializable({"blocks": blocks_list}))

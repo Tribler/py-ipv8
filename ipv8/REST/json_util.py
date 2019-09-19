@@ -5,7 +5,7 @@ from collections import Iterable
 
 from six import string_types
 
-__all__ = ['dumps', 'loads']
+__all__ = ['dumps', 'loads', 'ensure_serializable']
 
 
 def _is_undumpable(obj):
@@ -122,3 +122,25 @@ def load(fp, *args, **kwargs):
     :return: the Python object(s) extracted from the JSON input.
     """
     return json.load(fp, *args, **kwargs)
+
+
+def ensure_serializable(value):
+    """
+    Returns a serializable value.
+    """
+    if isinstance(value, bytes):
+        return value.decode('utf-8')
+    elif isinstance(value, (tuple, list, set)):
+        return [ensure_serializable(x) for x in value]
+    elif isinstance(value, dict):
+        output_dict = {}
+        for k, v in value.items():
+            if isinstance(k, bytes):
+                k = k.decode('utf-8')
+            if isinstance(v, bytes):
+                v = v.decode('utf-8')
+            if isinstance(v, (dict, tuple, list, set)):
+                v = ensure_serializable(v)
+            output_dict[k] = v
+        return output_dict
+    return value
