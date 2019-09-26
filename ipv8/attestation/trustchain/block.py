@@ -511,10 +511,18 @@ class TrustChainBlock(object):
         for key, value in self.__dict__.items():
             if key == 'key' or key == 'serializer' or key == 'crypto' or key == '_transaction':
                 continue
-            if isinstance(value, binary_type) and key != "insert_time" and key != "type":
-                yield key, hexlify(value).decode('utf-8')
-            else:
-                yield key, value
+            key = key.decode('utf-8') if isinstance(key, binary_type) else key
+
+            if key == 'transaction' and isinstance(value, dict):
+                value = {k.decode('utf-8') if isinstance(k, binary_type) else k
+                         : v.decode('utf-8') if isinstance(v, binary_type) else v
+                         for k, v in value.items()}
+            elif isinstance(value, binary_type):
+                if key == 'insert_time' or key == 'type':
+                    value = value.decode('utf-8')
+                else:
+                    value = hexlify(value).decode('utf-8')
+            yield key, value
 
 
 class ValidationResult(object):
