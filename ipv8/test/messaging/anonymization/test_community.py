@@ -150,6 +150,63 @@ class TestTunnelCommunity(TestBase):
         self.assertEqual(len(self.nodes[1].overlay.exit_sockets), 0)
 
     @inlineCallbacks
+    def test_create_circuit_too_many_hops(self):
+        """
+        Check if creating a circuit that is too long fails.
+        """
+        for _ in range(3):
+            self.add_node_to_experiment(self.create_node())
+        for node in self.nodes:
+            node.overlay.settings.max_relay_early = 3
+
+        self.nodes[1].overlay.settings.peer_flags |= PEER_FLAG_EXIT_ANY
+        yield self.introduce_nodes()
+        self.nodes[0].overlay.build_tunnels(5)
+
+        yield self.deliver_messages()
+
+        self.assertEqual(self.nodes[0].overlay.tunnels_ready(5), 0.0)
+
+    @inlineCallbacks
+    def test_create_circuit_relay_early_fail_hop1(self):
+        """
+        Check if extending a circuit using a cell with a bad relay_early flag fails at the first hop.
+        """
+        self.add_node_to_experiment(self.create_node())
+        for node in self.nodes:
+            node.overlay.settings.max_relay_early = 0
+
+        self.nodes[1].overlay.settings.peer_flags |= PEER_FLAG_EXIT_ANY
+        yield self.introduce_nodes()
+
+        self.nodes[0].overlay.settings.max_relay_early = 2
+        self.nodes[0].overlay.build_tunnels(2)
+
+        yield self.deliver_messages()
+
+        self.assertEqual(self.nodes[0].overlay.tunnels_ready(2), 0.0)
+
+    @inlineCallbacks
+    def test_create_circuit_relay_early_fail_hop2(self):
+        """
+        Check if extending a circuit using a cell with a bad relay_early flag fails at the second hop.
+        """
+        for _ in range(2):
+            self.add_node_to_experiment(self.create_node())
+        for node in self.nodes:
+            node.overlay.settings.max_relay_early = 1
+
+        self.nodes[1].overlay.settings.peer_flags |= PEER_FLAG_EXIT_ANY
+        yield self.introduce_nodes()
+
+        self.nodes[0].overlay.settings.max_relay_early = 2
+        self.nodes[0].overlay.build_tunnels(3)
+
+        yield self.deliver_messages()
+
+        self.assertEqual(self.nodes[0].overlay.tunnels_ready(3), 0.0)
+
+    @inlineCallbacks
     def test_create_circuit_multiple_calls(self):
         """
         Check if circuit creation is aborted when it's already building the requested circuit.

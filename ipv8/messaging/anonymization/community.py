@@ -115,6 +115,9 @@ class TunnelSettings(object):
         self.num_ip_circuits = 3
         self.peer_flags = PEER_FLAG_RELAY
 
+        # Maximum number of relay_early cells that are allowed to pass a relay.
+        self.max_relay_early = 8
+
 
 class TunnelCommunity(Community):
 
@@ -498,7 +501,15 @@ class TunnelCommunity(Community):
             message = payload.to_bin()
         else:
             message = self.serializer.pack_multiple(payload.to_pack_list()[1:])[0]
-        cell = CellPayload(circuit_id, pack('!B', message_id) + message, message_id in NO_CRYPTO_PACKETS)
+
+        cell = CellPayload(circuit_id, pack('!B', message_id) + message)
+        cell.plaintext = message_id in NO_CRYPTO_PACKETS
+        if circuit_id in self.circuits:
+            circuit = self.circuits[circuit_id]
+            cell.relay_early = message_id == 4 or circuit.relay_early_count < self.settings.max_relay_early
+            if cell.relay_early:
+                circuit.relay_early_count += 1
+
         try:
             cell.encrypt(self.crypto, self.circuits.get(circuit_id), self.relay_session_keys.get(circuit_id))
         except CryptoException as e:
@@ -525,10 +536,18 @@ class TunnelCommunity(Community):
 
     def relay_cell(self, cell):
         next_relay = self.relay_from_to[cell.circuit_id]
+        if cell.plaintext:
+            self.logger.warning('Dropping cell (cell not encrypted)')
+            return
+        if cell.relay_early and next_relay.relay_early_count >= self.settings.max_relay_early:
+            self.logger.warning('Dropping cell (too many relay_early cells)')
+            return
+
         try:
             if next_relay.rendezvous_relay:
                 cell.decrypt(self.crypto, relay_session_keys=self.relay_session_keys[cell.circuit_id])
                 cell.encrypt(self.crypto, relay_session_keys=self.relay_session_keys[next_relay.circuit_id])
+                cell.relay_early = False
             else:
                 direction = self.directions[cell.circuit_id]
                 if direction == ORIGINATOR:
@@ -542,6 +561,7 @@ class TunnelCommunity(Community):
         cell.circuit_id = next_relay.circuit_id
         packet = cell.to_bin(self._prefix)
         self.increase_bytes_sent(next_relay, self.send_packet([next_relay.peer], packet))
+        next_relay.relay_early_count += 1
 
     def _ours_on_created_extended(self, circuit, payload):
         hop = circuit.unverified_hop
@@ -677,6 +697,14 @@ class TunnelCommunity(Community):
             return
         self.logger.debug("Got cell(%s) from circuit %d (sender %s, receiver %s)",
                           cell.message[0], circuit_id, source_address, self.my_peer)
+
+        if (not cell.relay_early and ord(cell.message[0:1]) == 4) or self.settings.max_relay_early <= 0:
+            self.logger.info('Dropping cell (missing or unexpected relay_early flag)')
+            return
+        if cell.plaintext and ord(cell.message[0:1]) not in NO_CRYPTO_PACKETS:
+            self.logger.warning('Dropping cell (only create/created can have plaintext flag set)')
+            return
+
         self.on_packet_from_circuit(source_address, cell.unwrap(self._prefix), circuit_id)
 
         if circuit:

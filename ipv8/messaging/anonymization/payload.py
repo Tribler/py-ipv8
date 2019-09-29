@@ -49,6 +49,14 @@ def decode_address(packet):
     return None
 
 
+def get_bit(bits, position):
+    return bool(bits & (1 << position))
+
+
+def set_bit(bits, position, value):
+    return bits | (1 << position) if value else bits & ~(1 << position)
+
+
 class ExtraIntroductionPayload(VariablePayload):
 
     format_list = ['H']
@@ -85,10 +93,26 @@ class DataPayload(object):
 
 class CellPayload(object):
 
-    def __init__(self, circuit_id, message="", plaintext=False):
+    def __init__(self, circuit_id, message="", flags=0):
         self.circuit_id = circuit_id
         self.message = message
-        self.plaintext = plaintext
+        self.flags = flags
+
+    @property
+    def plaintext(self):
+        return get_bit(self.flags, 0)
+
+    @plaintext.setter
+    def plaintext(self, value):
+        self.flags = set_bit(self.flags, 0, value)
+
+    @property
+    def relay_early(self):
+        return get_bit(self.flags, 1)
+
+    @relay_early.setter
+    def relay_early(self, value):
+        self.flags = set_bit(self.flags, 1, value)
 
     def encrypt(self, crypto, circuit=None, relay_session_keys=None):
         if self.plaintext:
@@ -168,13 +192,13 @@ class CellPayload(object):
 
     def to_bin(self, prefix):
         return b''.join([prefix,
-                         cast_to_bin(chr(1)),
-                         pack('!I?', self.circuit_id, self.plaintext) + self.message])
+                         b'\x01',
+                         pack('!IB', self.circuit_id, self.flags) + self.message])
 
     @classmethod
     def from_bin(cls, packet):
-        circuit_id, plaintext = unpack_from('!I?', packet, 23)
-        return cls(circuit_id, packet[28:], plaintext)
+        circuit_id, flags = unpack_from('!IB', packet, 23)
+        return cls(circuit_id, packet[28:], flags)
 
 
 class CreatePayload(VariablePayload):
