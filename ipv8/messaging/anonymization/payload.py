@@ -92,10 +92,11 @@ class DataPayload(object):
 class CellPayload(object):
     msg_id = 1
 
-    def __init__(self, circuit_id, message="", plaintext=False):
+    def __init__(self, circuit_id, message, plaintext=False, relay_early=False):
         self.circuit_id = circuit_id
         self.message = message
         self.plaintext = plaintext
+        self.relay_early = relay_early
 
     def encrypt(self, crypto, circuit=None, relay_session_keys=None):
         if self.plaintext:
@@ -176,12 +177,12 @@ class CellPayload(object):
     def to_bin(self, prefix):
         return b''.join([prefix,
                          bytes([1]),
-                         pack('!I?', self.circuit_id, self.plaintext) + self.message])
+                         pack('!I??', self.circuit_id, self.plaintext, self.relay_early) + self.message])
 
     @classmethod
     def from_bin(cls, packet):
-        circuit_id, plaintext = unpack_from('!I?', packet, 23)
-        return cls(circuit_id, packet[28:], plaintext)
+        circuit_id, plaintext, relay_early = unpack_from('!I??', packet, 23)
+        return cls(circuit_id, packet[29:], plaintext, relay_early)
 
 
 @vp_compile
