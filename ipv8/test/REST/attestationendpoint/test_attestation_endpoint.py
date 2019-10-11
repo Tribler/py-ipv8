@@ -23,7 +23,7 @@ class TestAttestationEndpoint(RESTTestBase):
 
     def setUp(self):
         super(TestAttestationEndpoint, self).setUp()
-        self.initialize([(1, RestTestPeer)], HTTPGetRequesterAE(), HTTPPostRequesterAE())
+        self.initialize_configurations([(1, RestTestPeer)], HTTPGetRequesterAE(), HTTPPostRequesterAE())
 
     def create_new_peer(self, peer_cls, port, *args, **kwargs):
         self._create_new_peer_inner(peer_cls, port, [TestAttestationCommunity, TestIdentityCommunity], *args, **kwargs)

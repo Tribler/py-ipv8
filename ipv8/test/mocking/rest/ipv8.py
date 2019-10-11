@@ -2,11 +2,11 @@ from __future__ import absolute_import
 
 import threading
 
-from twisted.internet.task import LoopingCall
+from twisted.internet.defer import DeferredList, inlineCallbacks, maybeDeferred
 
-from .comunities import TestIdentityCommunity, TestAttestationCommunity, overlay_initializer
+from .comunities import overlay_initializer
+from ..endpoint import AutoMockEndpoint
 from ....keyvault.crypto import ECCrypto
-from ....messaging.interfaces.udp.endpoint import UDPEndpoint
 from ....peer import Peer
 from ....peerdiscovery.discovery import RandomWalk
 from ....peerdiscovery.network import Network
@@ -14,9 +14,9 @@ from ....peerdiscovery.network import Network
 
 class TestRestIPv8(object):
 
-    def __init__(self, crypto_curve, port, interface, overlay_classes, memory_dbs=True):
+    def __init__(self, crypto_curve, overlay_classes, memory_dbs=True):
         self.memory_dbs = memory_dbs
-        self.endpoint = UDPEndpoint(port=port, ip=interface)
+        self.endpoint = AutoMockEndpoint()
         self.endpoint.open()
 
         self.network = Network()
@@ -36,8 +36,6 @@ class TestRestIPv8(object):
         ]
 
         self.overlay_lock = threading.RLock()
-        self.state_machine_lc = LoopingCall(self.on_tick)
-        self.state_machine_lc.start(0.5, False)
 
     def on_tick(self):
         if self.endpoint.is_open():
@@ -47,20 +45,16 @@ class TestRestIPv8(object):
                     if (target_peers == -1) or (peer_count < target_peers):
                         strategy.take_step()
 
+    def unload_overlay(self, instance):
+        with self.overlay_lock:
+            self.overlays = [overlay for overlay in self.overlays if overlay != instance]
+            self.strategies = [(strategy, target_peers) for (strategy, target_peers) in self.strategies
+                               if strategy.overlay != instance]
+            return maybeDeferred(instance.unload)
+
+    @inlineCallbacks
     def unload(self):
-        # Make sure the state machine is running before closing it
-        if self.state_machine_lc.running:
-            self.state_machine_lc.stop()
-
-        if self.endpoint.is_open():
-            self.endpoint.close()
-
-        for overlay in self.overlays:
-            # Close the DBs since simply unloading will usually not do
-            if isinstance(overlay, TestAttestationCommunity):
-                overlay.database.close()
-            elif isinstance(overlay, TestIdentityCommunity):
-                overlay.persistence.close()
-            # Clear the cache manually
-            overlay.request_cache.clear()
-            overlay.unload()
+        with self.overlay_lock:
+            unload_list = [self.unload_overlay(overlay) for overlay in self.overlays[:]]
+            yield DeferredList(unload_list)
+            yield self.endpoint.close()

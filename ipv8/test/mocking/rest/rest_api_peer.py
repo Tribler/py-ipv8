@@ -87,7 +87,7 @@ class RestTestPeer(object):
         self._port = port
         self._interface = interface
 
-        self._ipv8 = TestRestIPv8(u'curve25519', port, interface, overlay_classes, memory_dbs)
+        self._ipv8 = TestRestIPv8(u'curve25519', overlay_classes, memory_dbs)
 
         self._rest_manager = RestAPITestWrapper(self._ipv8, self._port, self._interface)
         self._rest_manager.start()
@@ -99,7 +99,7 @@ class RestTestPeer(object):
 
         :return: A tuple[str, int] representing the address of this peer (i.e. the interface and port)
         """
-        return self._ipv8.endpoint.get_address()
+        return self._ipv8.endpoint.wan_address
 
     def add_and_verify_peers(self, peers, replace_default_interface=True):
         """
@@ -160,7 +160,8 @@ class RestTestPeer(object):
         """
         self._ipv8.network.discover_address(peer, (interface, port))
 
-    def close(self):
+    @inlineCallbacks
+    def unload(self):
         """
         Stop the peer
 
@@ -171,7 +172,7 @@ class RestTestPeer(object):
         self._rest_manager.stop()
         self._rest_manager.shutdown_task_manager()
 
-        self._ipv8.unload()
+        yield self._ipv8.unload()
 
     def get_keys(self):
         """

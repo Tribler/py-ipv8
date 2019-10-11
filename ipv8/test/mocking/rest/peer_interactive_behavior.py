@@ -1,7 +1,11 @@
+from __future__ import absolute_import
+
 import json
 from base64 import b64encode
 
+from twisted.internet import reactor
 from twisted.internet.defer import inlineCallbacks, returnValue
+from twisted.internet.threads import blockingCallFromThread
 
 from .rest_api_peer import InteractiveRestTestPeer
 from .rest_peer_communication import string_to_url
@@ -96,17 +100,19 @@ class RequesterRestTestPeer(AECommonBehaviorTestPeer):
         self._param_dict['attribute_value'] = string_to_url(b64encode(b'binarydata'), True)
         self._param_dict['metadata'] = b64encode(json.dumps({'psn': '1234567890'}).encode('utf-8')).decode('utf-8')
 
-    @inlineCallbacks
     def run(self):
-        # Wait for a short period of time
-        yield self.sleep()
+        @inlineCallbacks
+        def inner_run():
+            # Wait for a short period of time
+            yield self.sleep()
 
-        peer_list = yield self.wait_for_peers(self._param_dict)
-        for peer in peer_list:
-            self._param_dict['mid'] = string_to_url(peer)
+            peer_list = yield self.wait_for_peers(self._param_dict)
+            for peer in peer_list:
+                self._param_dict['mid'] = string_to_url(peer)
 
-            self._logger.info("Sending an attestation request to %s", self._param_dict['mid'])
-            yield self._post_style_requests.make_attestation_request(self._param_dict)
+                self._logger.info("Sending an attestation request to %s", self._param_dict['mid'])
+                yield self._post_style_requests.make_attestation_request(self._param_dict)
+        blockingCallFromThread(reactor, inner_run)
 
 
 class MinimalActivityRestTestPeer(AECommonBehaviorTestPeer):
@@ -130,10 +136,12 @@ class MinimalActivityRestTestPeer(AECommonBehaviorTestPeer):
         self._param_dict = param_dict
         self._param_dict['port'] = port
 
-    @inlineCallbacks
     def run(self):
-        # Wait for a short period of time
-        yield self.sleep()
+        @inlineCallbacks
+        def inner_run():
+            # Wait for a short period of time
+            yield self.sleep()
 
-        # Await for some fellow peers, then become inactive
-        yield self.wait_for_peers(self._param_dict)
+            # Await for some fellow peers, then become inactive
+            yield self.wait_for_peers(self._param_dict)
+        blockingCallFromThread(reactor, inner_run)
