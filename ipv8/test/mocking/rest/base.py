@@ -10,18 +10,16 @@ from threading import Thread
 
 from six.moves import xrange
 
-from twisted.internet import reactor
 from twisted.internet.defer import inlineCallbacks
 from twisted.internet.error import CannotListenError
-from twisted.internet.task import deferLater
-from twisted.trial import unittest
 
 from .rest_api_peer import RestTestPeer
+from ...base import TestBase
 
 TEST_FOLDER_PREFIX = "test_temp"
 
 
-class RESTTestBase(unittest.TestCase):
+class RESTTestBase(TestBase):
 
     def __init__(self, methodName='runTest'):
         super(RESTTestBase, self).__init__(methodName)
@@ -32,7 +30,7 @@ class RESTTestBase(unittest.TestCase):
         self._get_style_requests = None
         self._post_style_requests = None
 
-    def initialize(self, peer_configurations, get_style_requests, post_style_requests):
+    def initialize_configurations(self, peer_configurations, get_style_requests, post_style_requests):
         """
         Initialize this test by instantiating some peers
 
@@ -53,12 +51,23 @@ class RESTTestBase(unittest.TestCase):
         self._get_style_requests = get_style_requests
         self._post_style_requests = post_style_requests
 
+    def setUp(self):
+        from ....community import _DEFAULT_ADDRESSES
+        from ....community import _DNS_ADDRESSES
+        while _DEFAULT_ADDRESSES:
+            _DEFAULT_ADDRESSES.pop()
+        while _DNS_ADDRESSES:
+            _DNS_ADDRESSES.pop()
+        return super(RESTTestBase, self).setUp()
+
+    @inlineCallbacks
     def tearDown(self):
-        self.gracefully_terminate_peers()
         while self.working_dirs:
             rmtree(self.working_dirs.pop())
 
-        super(RESTTestBase, self).tearDown()
+        yield super(RESTTestBase, self).tearDown()
+
+        self.gracefully_terminate_peers()
 
     @staticmethod
     def generate_local_port(attempts=50):
@@ -141,35 +150,6 @@ class RESTTestBase(unittest.TestCase):
         return new_peer, len(self.nodes) - 1
 
     @inlineCallbacks
-    def deliver_messages(self, timeout=.1):
-        """
-        Allow peers to communicate.
-
-        The strategy is as follows:
-         1. Measure the amount of working threads in the threadpool
-         2. After 10 milliseconds, check if we are down to 0 twice in a row
-         3. If not, go back to handling calls (step 2) or return, if the timeout has been reached
-
-        :param timeout: the maximum time to wait for messages to be delivered
-        """
-        rtime = 0
-        probable_exit = False
-
-        while rtime < timeout:
-            yield self.sleep(.01)
-            rtime += .01
-            if not reactor.getThreadPool().working:
-                if probable_exit:
-                    break
-                probable_exit = True
-            else:
-                probable_exit = False
-
-    @inlineCallbacks
-    def sleep(self, time=.05):
-        yield deferLater(reactor, time, lambda: None)
-
-    @inlineCallbacks
     def introduce_nodes(self, overlay_class):
         for node in self.nodes:
             for other in self.nodes:
@@ -196,4 +176,3 @@ class RESTTestBase(unittest.TestCase):
         for peer in self.nodes:
             if isinstance(peer, Thread):
                 peer.join()
-            peer.close()

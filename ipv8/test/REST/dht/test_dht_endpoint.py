@@ -26,7 +26,7 @@ class TestDHTEndpoint(RESTTestBase):
 
     def setUp(self):
         super(TestDHTEndpoint, self).setUp()
-        self.initialize([(2, RestTestPeer)], HTTPGetRequesterDHT(), None)
+        self.initialize_configurations([(2, RestTestPeer)], HTTPGetRequesterDHT(), None)
         self.serializer = Serializer()
 
     def create_new_peer(self, peer_cls, port, *args, **kwargs):
