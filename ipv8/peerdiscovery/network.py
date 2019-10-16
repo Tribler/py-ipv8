@@ -130,7 +130,8 @@ class Network(object):
                         if service_id in self.services_per_peer[peer.mid]:
                             out.append(peer)
         else:
-            out = [peer for peer in service_cache if service_id in self.services_per_peer.get(peer.mid, [])]
+            out = [peer for peer in service_cache if
+                   peer in self.verified_peers and service_id in self.services_per_peer.get(peer.mid, [])]
         self.reverse_service_lookup[service_id] = out
         if len(self.reverse_service_lookup) > self.reverse_service_cache_size:
             self.reverse_service_lookup.popitem(False)  # Pop the oldest cache entry

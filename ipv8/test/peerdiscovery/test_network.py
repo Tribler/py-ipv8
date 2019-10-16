@@ -155,7 +155,7 @@ class TestNetwork(unittest.TestCase):
         self.network.discover_services(self.peers[0], [service])
 
         self.assertIn(service, self.network.get_services_for_peer(self.peers[0]))
-        self.assertIn(self.peers[0], self.network.get_peers_for_service(service))
+        self.assertNotIn(self.peers[0], self.network.get_peers_for_service(service))
 
     def test_discover_services_update(self):
         """
