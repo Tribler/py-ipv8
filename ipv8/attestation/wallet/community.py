@@ -14,6 +14,7 @@ from .bonehexact.algorithm import BonehExactAlgorithm
 from .caches import (HashCache, PeerCache, PendingChallengeCache, ProvingAttestationCache,
                      ReceiveAttestationRequestCache, ReceiveAttestationVerifyCache)
 from .database import AttestationsDB
+from .irmaexact.algorithm import IRMAExactAlgorithm
 from .payload import (AttestationChunkPayload, ChallengePayload, ChallengeResponsePayload, RequestAttestationPayload,
                       VerifyAttestationRequestPayload)
 from .pengbaorange.algorithm import PengBaoRangeAlgorithm
@@ -28,6 +29,7 @@ from ...util import cast_to_bin, cast_to_chr, cast_to_unicode
 
 ID_ALGORITHMS = {
     "bonehexact": BonehExactAlgorithm,
+    "irmaexact": IRMAExactAlgorithm,
     "pengbaorange": PengBaoRangeAlgorithm
 }
 
