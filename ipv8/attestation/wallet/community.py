@@ -76,6 +76,7 @@ class AttestationCommunity(Community):
             id_format = (id_format if isinstance(id_format, bytes) else str(id_format)).decode('utf-8')
             self.attestation_keys[attribute_hash] = (self.get_id_algorithm(id_format).load_secret_key(key), id_format)
         self.cached_attestation_blobs = {}
+        self.allowed_attestations = {}  # mid -> global_time
 
         self.request_cache = RequestCache()
 
@@ -156,7 +157,6 @@ class AttestationCommunity(Community):
         """
         public_key = secret_key.public_key()
         id_format = metadata.pop("id_format", "id_metadata")
-        self.request_cache.add(ReceiveAttestationRequestCache(self, peer.mid, secret_key, attribute_name, id_format))
 
         meta_dict = {
             "attribute": attribute_name,
@@ -170,6 +170,12 @@ class AttestationCommunity(Community):
         auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
         payload = RequestAttestationPayload(metadata).to_pack_list()
         dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
+
+        gtime_str = str(global_time).encode('utf-8')
+        self.request_cache.add(ReceiveAttestationRequestCache(self, peer.mid + gtime_str, secret_key, attribute_name,
+                                                              id_format))
+        self.allowed_attestations[peer.mid] = (self.allowed_attestations.get(peer.mid, [])
+                                               + [gtime_str])
 
         packet = self._ez_pack(self._prefix, 5, [auth, dist, payload])
         self.endpoint.send(peer.address, packet)
@@ -196,7 +202,7 @@ class AttestationCommunity(Community):
 
         self.attestation_request_complete_callback(peer, attribute, attestation.get_hash(), id_format)
 
-        self.send_attestation(peer.address, attestation_blob)
+        self.send_attestation(peer.address, attestation_blob, dist.global_time)
 
     def on_attestation_complete(self, unserialized, secret_key, peer, name, attestation_hash, id_format):
         """
@@ -263,13 +269,14 @@ class AttestationCommunity(Community):
 
         self.send_attestation(peer.address, public_attestation_blob)
 
-    def send_attestation(self, socket_address, blob):
+    def send_attestation(self, socket_address, blob, global_time=None):
         # If we want to serve this request send the attestation in chunks of 800 bytes
         sequence_number = 0
         for i in range(0, len(blob), 800):
             blob_chunk = blob[i:i + 800]
             self.logger.debug("Sending attestation chunk %d to %s", sequence_number, str(socket_address))
-            global_time = self.claim_global_time()
+            if global_time is None:
+                global_time = self.claim_global_time()
             auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
             payload = AttestationChunkPayload(sha1(blob).digest(), sequence_number, blob_chunk).to_pack_list()
             dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
@@ -284,7 +291,9 @@ class AttestationCommunity(Community):
         We received a chunk of an Attestation.
         """
         hash_id = HashCache.id_from_hash(u"receive-verify-attestation", payload.hash)
-        peer_id = PeerCache.id_from_address(u"receive-request-attestation", peer.mid)
+        peer_ids = [PeerCache.id_from_address(u"receive-request-attestation", peer.mid + allowed_glob)
+                    for allowed_glob in self.allowed_attestations.get(peer.mid, [])
+                    if allowed_glob == str(dist.global_time).encode('utf-8')]
         if self.request_cache.has(*hash_id):
             cache = self.request_cache.get(*hash_id)
             cache.attestation_map |= {(payload.sequence_number, payload.data), }
@@ -300,24 +309,36 @@ class AttestationCommunity(Community):
                 self.on_received_attestation(peer, unserialized, payload.hash)
 
             self.logger.debug("Received attestation chunk %d for proving by %s", payload.sequence_number, str(peer))
-        elif self.request_cache.has(*peer_id):
-            cache = self.request_cache.get(*peer_id)
-            cache.attestation_map |= {(payload.sequence_number, payload.data), }
-
-            serialized = b""
-            for (_, chunk) in sorted(cache.attestation_map, key=lambda item: item[0]):
-                serialized += chunk
-
-            attestation_class = self.get_id_algorithm(cache.id_format).get_attestation_class()
-            if sha1(serialized).digest() == payload.hash:
-                unserialized = attestation_class.unserialize_private(cache.key, serialized, cache.id_format)
-                cache = self.request_cache.pop(*peer_id)
-                self.on_attestation_complete(unserialized, cache.key, peer, cache.name, unserialized.get_hash(),
-                                             cache.id_format)
-
-            self.logger.debug("Received attestation chunk %d for my attribute %s", payload.sequence_number, cache.name)
         else:
-            self.logger.warning("Received Attestation chunk which we did not request!")
+            handled = False
+            for peer_id in peer_ids:
+                if self.request_cache.has(*peer_id):
+                    cache = self.request_cache.get(*peer_id)
+                    cache.attestation_map |= {(payload.sequence_number, payload.data), }
+
+                    serialized = b""
+                    for (_, chunk) in sorted(cache.attestation_map, key=lambda item: item[0]):
+                        serialized += chunk
+
+                    attestation_class = self.get_id_algorithm(cache.id_format).get_attestation_class()
+                    if sha1(serialized).digest() == payload.hash:
+                        unserialized = attestation_class.unserialize_private(cache.key, serialized, cache.id_format)
+                        cache = self.request_cache.pop(*peer_id)
+                        self.allowed_attestations[peer.mid] = [glob_time for glob_time
+                                                               in self.allowed_attestations[peer.mid]
+                                                               if glob_time != str(dist.global_time).encode('utf-8')]
+                        if not self.allowed_attestations[peer.mid]:
+                            self.allowed_attestations.pop(peer.mid)
+                        self.on_attestation_complete(unserialized, cache.key, peer, cache.name, unserialized.get_hash(),
+                                                     cache.id_format)
+
+                    self.logger.debug("Received attestation chunk %d for my attribute %s",
+                                      payload.sequence_number,
+                                      cache.name)
+                    handled = True
+                    break
+            if not handled:
+                self.logger.warning("Received Attestation chunk which we did not request!")
 
     def on_received_attestation(self, peer, attestation, attestation_hash):
         """
