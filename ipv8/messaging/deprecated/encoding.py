@@ -4,7 +4,7 @@ import logging
 from json import dumps
 
 from six import integer_types, text_type
-from six.moves.urllib_parse import ParseResult, unquote, urlencode, urlparse, parse_qsl
+from six.moves.urllib_parse import ParseResult, parse_qsl, unquote, urlencode, urlparse
 
 from ...util import cast_to_bin, cast_to_long
 
@@ -338,8 +338,11 @@ _a_decode_mapping = {b"i": _a_decode_int,
                      b"T": _a_decode_true,
                      b"F": _a_decode_false}
 
+_a_decode_mapping_utf8 = _a_decode_mapping.copy()
+_a_decode_mapping_utf8[b"b"] = _a_decode_mapping_utf8[b"s"]
 
-def decode(stream, offset=0):
+
+def decode(stream, offset=0, cast_utf8=False):
     """
     Decode STREAM from index OFFSET and further into a python data
     structure.
@@ -348,15 +351,20 @@ def decode(stream, offset=0):
 
     Only version 'a' decoding is supported.  This version is
     indicated by the first byte in the binary STREAM.
+
+    :param cast_utf8: Convert all bytes strings to unicode.
     """
     assert isinstance(stream, bytes), "STREAM has invalid type: %s" % type(stream)
     assert isinstance(offset, int), "OFFSET has invalid type: %s" % type(offset)
+
+    decode_mapping = _a_decode_mapping_utf8 if cast_utf8 else _a_decode_mapping
+
     if stream[offset:offset + 1] == b"a":
         index = offset + 1
         while 48 <= ord(stream[index:index + 1]) <= 57:
             index += 1
-        return _a_decode_mapping[stream[index:index + 1]](stream, index + 1, int(stream[offset + 1:index]),
-                                                          _a_decode_mapping)
+        return decode_mapping[stream[index:index + 1]](stream, index + 1, int(stream[offset + 1:index]),
+                                                       decode_mapping)
 
     raise ValueError("Unknown version found")
 
