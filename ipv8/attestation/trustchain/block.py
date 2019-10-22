@@ -512,7 +512,7 @@ class TrustChainBlock(object):
             if key == 'key' or key == 'serializer' or key == 'crypto' or key == '_transaction':
                 continue
             if key == 'transaction':
-                yield key, decode(self._transaction, cast_utf8=True)
+                yield key, decode(self._transaction, cast_utf8=True)[1]
             elif isinstance(value, binary_type) and key != "insert_time" and key != "type":
                 yield key, hexlify(value).decode('utf-8')
             else:
