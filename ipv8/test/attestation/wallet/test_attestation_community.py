@@ -53,6 +53,38 @@ class TestCommunity(TestBase):
         self.nodes[1].overlay.request_cache.clear()
 
     @inlineCallbacks
+    def test_request_attestation_twice_callback(self):
+        """
+        Check if the request_attestation callback is correctly called twice in a row.
+        """
+
+        def f(peer, attribute_name, metadata):
+            self.assertEqual(peer.address, self.nodes[1].endpoint.wan_address)
+            self.assertEqual(attribute_name, "MyAttribute")
+            self.assertDictEqual(metadata, {})
+
+            f.called.append(True)
+
+        f.called = []
+
+        yield self.introduce_nodes()
+
+        self.nodes[0].overlay.set_attestation_request_callback(f)
+
+        self.nodes[1].overlay.request_attestation(self.nodes[0].overlay.my_peer,
+                                                  "MyAttribute",
+                                                  TestCommunity.private_key)
+        self.nodes[1].overlay.request_attestation(self.nodes[0].overlay.my_peer,
+                                                  "MyAttribute",
+                                                  TestCommunity.private_key)
+
+        yield self.deliver_messages()
+
+        self.assertListEqual([True, True], f.called)
+        # Request for attribute attestation goes unanswered
+        self.nodes[1].overlay.request_cache.clear()
+
+    @inlineCallbacks
     def test_request_attestation_callback_metadata(self):
         """
         Check if the request_attestation callback is correctly called with metadata.
