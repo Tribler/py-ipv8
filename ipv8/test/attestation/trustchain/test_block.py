@@ -797,6 +797,7 @@ class TestTrustChainBlock(unittest.TestCase):
         self.assertSetEqual(set(block_keys), expected_keys)
         # Check for duplicates
         self.assertEqual(len(block_keys), len(expected_keys))
+        self.assertEqual(dict(block)['transaction']['id'], 42)
 
     def test_hash_function(self):
         """
