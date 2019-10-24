@@ -87,12 +87,8 @@ class EndpointServer(Community):
             intro_peer = None
 
         packet = self.create_introduction_response(payload.destination_address, peer.address, payload.identifier,
-                                                   introduction=intro_peer)
-
-        packet = prefix + packet[22:-self.signature_length]
-        signature = default_eccrypto.create_signature(self.my_peer.key, packet)
-
-        self.endpoint.send(peer.address, packet + signature)
+                                                   introduction=intro_peer, prefix=prefix)
+        self.endpoint.send(peer.address, packet)
 
     def get_peer_for_introduction(self, exclude=None):
         """

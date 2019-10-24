@@ -190,7 +190,7 @@ class Community(EZPackOverlay):
         return self._ez_pack(self._prefix, 246, [auth, dist, payload])
 
     def create_introduction_response(self, lan_socket_address, socket_address, identifier,
-                                     introduction=None, extra_bytes=b''):
+                                     introduction=None, extra_bytes=b'', prefix=None):
         global_time = self.claim_global_time()
         introduction_lan = ("0.0.0.0", 0)
         introduction_wan = ("0.0.0.0", 0)
@@ -218,10 +218,10 @@ class Community(EZPackOverlay):
         dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
 
         if introduced:
-            packet = self.create_puncture_request(lan_socket_address, socket_address, identifier)
+            packet = self.create_puncture_request(lan_socket_address, socket_address, identifier, prefix=prefix)
             self.endpoint.send(introduction_wan if introduction_lan == ("0.0.0.0", 0) else introduction_lan, packet)
 
-        return self._ez_pack(self._prefix, 245, [auth, dist, payload])
+        return self._ez_pack(prefix or self._prefix, 245, [auth, dist, payload])
 
     def create_puncture(self, lan_walker, wan_walker, identifier):
         global_time = self.claim_global_time()
@@ -231,12 +231,12 @@ class Community(EZPackOverlay):
 
         return self._ez_pack(self._prefix, 249, [auth, dist, payload])
 
-    def create_puncture_request(self, lan_walker, wan_walker, identifier):
+    def create_puncture_request(self, lan_walker, wan_walker, identifier, prefix=None):
         global_time = self.claim_global_time()
         payload = PunctureRequestPayload(lan_walker, wan_walker, identifier).to_pack_list()
         dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
 
-        return self._ez_pack(self._prefix, 250, [dist, payload], False)
+        return self._ez_pack(prefix or self._prefix, 250, [dist, payload], False)
 
     def introduction_request_callback(self, peer, dist, payload):
         """
