@@ -126,7 +126,7 @@ else:
             self.walk_interval = configuration['walker_interval']
             self.state_machine_task = None
 
-        async def initialize(self):
+        async def start(self):
             await self.endpoint.open()
 
             async def ticker():
@@ -167,9 +167,10 @@ else:
                 return maybe_coroutine(instance.unload)
 
         async def stop(self, stop_loop=True):
-            self.state_machine_task.cancel()
-            with suppress(CancelledError):
-                await self.state_machine_task
+            if self.state_machine_task:
+                self.state_machine_task.cancel()
+                with suppress(CancelledError):
+                    await self.state_machine_task
             with self.overlay_lock:
                 unload_list = [self.unload_overlay(overlay) for overlay in self.overlays[:]]
                 await gather(*unload_list)
@@ -180,9 +181,5 @@ else:
 
 
 if __name__ == '__main__':
-    from twisted.plugins.ipv8_plugin import Options, service_maker
-
-    options = Options()
-    Options.parseOptions(options, sys.argv[1:])
-    service_maker.makeService(options)
-    reactor.run()
+    from scripts.ipv8_plugin import main
+    main(sys.argv[1:])

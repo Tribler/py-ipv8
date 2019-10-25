@@ -1,13 +1,10 @@
+from asyncio import Future, gather, get_event_loop
 from collections import deque, namedtuple
-from os import makedirs, path, rename
-from random import randint
+from os import makedirs, path, rename, urandom
 from shutil import rmtree
 from subprocess import call
 from sys import exit as _exit
 from time import sleep, time
-
-from twisted.internet import reactor
-from twisted.internet.defer import Deferred, DeferredList
 
 # Check if we are running from the root directory
 # If not, modify our path so that we can import IPv8
@@ -18,11 +15,12 @@ except ImportError:
     import sys
     sys.path.append(path.abspath(path.join(path.dirname(__file__), "..")))
 
-from ipv8_service import IPv8
 from ipv8.configuration import get_default_configuration
 from ipv8.keyvault.crypto import default_eccrypto
 from ipv8.overlay import Overlay
 from ipv8.peer import Peer
+
+from ipv8_service import IPv8
 
 
 test_results = {}
@@ -50,10 +48,10 @@ class LoadOverlay(Overlay):
 
         self.window = window
         self.packets = packets
-        self.packet_content = "".join(chr(randint(0,255)) for _ in range(packet_size))
+        self.packet_content = urandom(packet_size)
         self.packet_size = packet_size
 
-        self.done = Deferred()
+        self.done = Future()
 
     def send(self, address):
         self.endpoint.send(address, self.packet_content)
@@ -70,11 +68,12 @@ class LoadOverlay(Overlay):
             while self.window > 0 and len(self.packets_sent) < self.packets:
                 self.send(source_address)
                 self.window -= 1
-        elif not self.done.called:
+
+        elif not self.done.done():
             while self.window > 0 and len(self.packets_sent) < self.packets:
                 self.send(source_address)
                 self.window -= 1
-            self.done.callback(self)
+            self.done.set_result(self)
 
     def walk_to(self, address):
         pass
@@ -85,8 +84,11 @@ class LoadOverlay(Overlay):
     def get_peers(self):
         return []
 
+    def get_walkable_addresses(self):
+        return []
 
-def setup_test(window=1, packet_size=1000, packets=10000):
+
+async def setup_test(window=1, packet_size=1000, packets=10000):
     """
     Create two nodes who will be sending packets to each other.
 
@@ -102,22 +104,27 @@ def setup_test(window=1, packet_size=1000, packets=10000):
     master_peer = Peer(default_eccrypto.generate_key(u"low"))
 
     peer_ipv8 = IPv8(configuration)
+    await peer_ipv8.start()
     peer_ipv8.keys = {'my_peer': Peer(default_eccrypto.generate_key(u"low"))}
     peer_ipv8.overlays = [LoadOverlay(master_peer, peer_ipv8.keys['my_peer'], peer_ipv8.endpoint, peer_ipv8.network,
                                       window, packet_size, packets)]
 
     counterparty_ipv8 = IPv8(configuration)
+    await counterparty_ipv8.start()
     counterparty_ipv8.keys = {'my_peer': Peer(default_eccrypto.generate_key(u"low"))}
     counterparty_ipv8.overlays = [LoadOverlay(master_peer, counterparty_ipv8.keys['my_peer'],
                                               counterparty_ipv8.endpoint, counterparty_ipv8.network, 0,
                                               packet_size, packets)]
 
-    peer_ipv8.overlays[0].send(counterparty_ipv8.endpoint.get_address())
+    peer_ipv8.overlays[0].send(('127.0.0.1', counterparty_ipv8.endpoint.get_address()[-1]))
 
-    return DeferredList([peer_ipv8.overlays[0].done, counterparty_ipv8.overlays[0].done])
+    result = await gather(peer_ipv8.overlays[0].done, counterparty_ipv8.overlays[0].done)
+    await peer_ipv8.stop(False)
+    await counterparty_ipv8.stop(False)
+    return result
 
 
-def on_synchronous_results(results):
+async def on_synchronous_results(results):
     """
     We got the results of the first, synchronous, experiment.
     Start the next experiment.
@@ -125,12 +132,12 @@ def on_synchronous_results(results):
     :param results: the two overlays
     """
     global test_results
-    (_, overlay1), (__, overlay2) = results
+    overlay1, overlay2 = results
     test_results["synchronous"] = TestResultPair(
         TestResult(overlay1.bytes_received, overlay1.bytes_sent, overlay1.packets_received, overlay1.packets_sent),
         TestResult(overlay2.bytes_received, overlay2.bytes_sent, overlay2.packets_received, overlay2.packets_sent)
     )
-    test_asynchronous()
+    await test_asynchronous()
 
 
 def on_asynchronous_results(results):
@@ -141,38 +148,40 @@ def on_asynchronous_results(results):
     :param results: the two overlays
     """
     global test_results
-    (_, overlay1), (__, overlay2) = results
+    overlay1, overlay2 = results
     test_results["asynchronous"] = TestResultPair(
         TestResult(overlay1.bytes_received, overlay1.bytes_sent, overlay1.packets_received, overlay1.packets_sent),
         TestResult(overlay2.bytes_received, overlay2.bytes_sent, overlay2.packets_received, overlay2.packets_sent)
     )
-    reactor.callFromThread(reactor.stop)
+    get_event_loop().stop()
 
 
-def test_synchronous():
+async def test_synchronous():
     """
     Start a synchronous test: 1kb packets, 100000 packets total.
     """
-    setup_test(1, 1000, 20000).addCallback(on_synchronous_results)
+    results = await setup_test(1, 1000, 20000)
+    await on_synchronous_results(results)
 
 
-def test_asynchronous():
+async def test_asynchronous():
     """
     Start an asynchronous test: 1kb packets, 100000 packets total.
     """
-    setup_test(20, 1000, 20000).addCallback(on_asynchronous_results)
+    results = await setup_test(20, 1000, 20000)
+    on_asynchronous_results(results)
 
 
-def run_tests():
+async def run_tests():
     """
     Run the synchronous and asynchronous tests (one triggers the other).
     """
-    test_synchronous()
+    await test_synchronous()
 
 
 # Start the tests and wait for them to finish.
-reactor.callWhenRunning(run_tests)
-reactor.run()
+get_event_loop().run_until_complete(run_tests())
+get_event_loop().close()
 
 # Gather all the results.
 prefix = "./endpoint_stresstest_results/"
@@ -191,8 +200,8 @@ for experiment, pair in test_results.items():
             with open(filename, 'w') as f:
                 f.write("time,count\n")
                 value = getattr(getattr(pair, peer), metric)
-                for time, count in value:
-                    f.write("%f,%d\n" % (time, count))
+                for t, count in value:
+                    f.write("%f,%d\n" % (t, count))
 
 # Allow the operating system to properly close the files and use R to plot.
 sleep(2.0)

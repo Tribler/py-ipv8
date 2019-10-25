@@ -1,35 +1,13 @@
 import asyncio
 import logging
+import socket
 
 from ..endpoint import Endpoint, EndpointClosedException
 
 UDP_MAX_SIZE = 2 ** 16 - 60
 
 
-class DatagramProtocolWrapper(asyncio.DatagramProtocol):
-    """
-    Implements the callbacks for when a datagram is received and when an error is received
-    """
-
-    def __init__(self, endpoint):
-        self._endpoint = endpoint
-
-    def connection_made(self, transport):
-        self._endpoint._transport = transport
-
-    def connection_lost(self, exc):
-        if exc:
-            self._endpoint.log_error("Connection lost due to: {}".format(exc))
-        self._endpoint.close()
-
-    def datagram_received(self, data, addr):
-        self._endpoint.datagram_received(data, addr)
-
-    def error_received(self, exc):
-        self._endpoint.log_error("Error received: {}".format(exc))
-
-
-class UDPEndpoint(Endpoint):
+class UDPEndpoint(Endpoint, asyncio.DatagramProtocol):
 
     def __init__(self, port=0, ip="0.0.0.0"):
         Endpoint.__init__(self)
@@ -73,25 +51,34 @@ class UDPEndpoint(Endpoint):
         :return: True is the Endpoint was successfully opened, False otherwise.
         """
         # If the endpoint is already running, then there is no need to try and open it again
+
         if self._running:
             return True
 
         loop = asyncio.get_event_loop()
 
-        try:
-            # It is recommended that this endpoint is opened at port = 0, such that the OS handles the port assignment
-            await loop.create_datagram_endpoint(local_addr=(self._ip, self._port),
-                                                protocol_factory=lambda: DatagramProtocolWrapper(self),
-                                                reuse_port=False)
-        except (OSError, ValueError) as exc:
-            self._logger.error("Could not start Datagram Endpoint due to: {!r}".format(exc))
-            return False
-        else:
-            self._running = True
-            return True
+        for _ in range(10000):
+            try:
+                # It is recommended that this endpoint is opened at port = 0,
+                # such that the OS handles the port assignment
+                self._transport, _ = await loop.create_datagram_endpoint(lambda: self,
+                                                                         local_addr=(self._ip, self._port),
+                                                                         reuse_port=False)
+                sock = self._transport.get_extra_info("socket")
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, UDP_MAX_SIZE)
+
+                self._logger.debug("Listening at %d", self._port)
+                break
+            except (OSError, ValueError) as exc:
+                self._logger.debug("Listening failed at %d", self._port)
+                self._port += 1
+                continue
+
+        self._running = True
+        return True
 
     def assert_open(self):
-        if not self._running and not self._transport.is_closing():
+        if not self._running and (not self._transport or not self._transport.is_closing()):
             raise EndpointClosedException(self)
 
     def close(self):

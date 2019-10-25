@@ -1,41 +1,21 @@
 """
-This twistd plugin starts a TrustChain crawler.
+This script starts a TrustChain crawler.
 """
-from __future__ import absolute_import
-
+import argparse
+import logging
 import os
 import signal
 import sys
+from asyncio import all_tasks, coroutine, ensure_future, gather, get_event_loop, sleep
 
-import logging
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from ipv8.REST.rest_manager import RESTManager
+from ipv8.attestation.trustchain.settings import TrustChainSettings
 
 import yappi
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
-
-from twisted.application.service import IServiceMaker, MultiService
-from twisted.internet import reactor
-from twisted.plugin import IPlugin
-from twisted.python import usage
-from twisted.python.log import msg
-
-from zope.interface import implementer
-
 from ipv8_service import IPv8
-from ipv8.attestation.trustchain.settings import TrustChainSettings
-from ipv8.REST.rest_manager import RESTManager
-
-
-class Options(usage.Options):
-    optParameters = [
-        ["statedir", "s", None, "Use an alternate statedir", str],
-        ["apiport", "p", 8085, "Use an alternative port for the REST api", int],
-    ]
-    optFlags = [
-        ["no-rest-api", "a", "Autonomous: disable the REST api"],
-        ["testnet", "t", "Join the testnet"],
-        ["yappi", "y", "Run the Yappi profiler"]
-    ]
 
 
 tc_settings = TrustChainSettings()
@@ -113,11 +93,7 @@ crawler_config = {
 }
 
 
-@implementer(IPlugin, IServiceMaker)
-class TrustchainCrawlerServiceMaker(object):
-    tapname = "trustchain_crawler"
-    description = "TrustChain crawler"
-    options = Options
+class TrustchainCrawlerService(object):
 
     def __init__(self):
         """
@@ -127,7 +103,7 @@ class TrustchainCrawlerServiceMaker(object):
         self.restapi = None
         self._stopping = False
 
-    def start_crawler(self, options):
+    async def start_crawler(self, statedir, apiport, no_rest_api, testnet, yappi):
         """
         Main method to startup the TrustChain crawler.
         """
@@ -139,62 +115,83 @@ class TrustchainCrawlerServiceMaker(object):
         stderr_handler.setFormatter(logging.Formatter("%(asctime)s:%(levelname)s:%(message)s"))
         root.addHandler(stderr_handler)
 
-        if options["statedir"]:
+        if statedir:
             # If we use a custom state directory, update various variables
             for key in crawler_config["keys"]:
-                key["file"] = os.path.join(options["statedir"], key["file"])
+                key["file"] = os.path.join(statedir, key["file"])
 
             for community in crawler_config["overlays"]:
                 if community["class"] == "TrustChainCommunity":
-                    community["initialize"]["working_directory"] = options["statedir"]
+                    community["initialize"]["working_directory"] = statedir
 
-        if 'testnet' in options and options['testnet']:
+        if testnet:
             for community in crawler_config["overlays"]:
                 if community["class"] == "TrustChainCommunity":
                     community["class"] = "TrustChainTestnetCommunity"
 
         self.ipv8 = IPv8(crawler_config)
+        await self.ipv8.start()
 
-        def signal_handler(sig, _):
-            msg("Received shut down signal %s" % sig)
+        async def signal_handler(sig):
+            print("Received shut down signal %s" % sig)
             if not self._stopping:
                 self._stopping = True
                 if self.restapi:
-                    self.restapi.stop()
-                self.ipv8.stop()
+                    await self.restapi.stop()
+                await self.ipv8.stop()
 
-                if options['yappi']:
+                if yappi:
                     yappi.stop()
-                    msg("Yappi has shutdown")
+                    print("Yappi has shutdown")
                     yappi_stats = yappi.get_func_stats()
                     yappi_stats.sort("tsub")
                     out_file = 'yappi'
-                    if options["statedir"]:
-                        out_file = os.path.join(options["statedir"], out_file)
+                    if statedir:
+                        out_file = os.path.join(statedir, out_file)
                     yappi_stats.save(out_file, type='callgrind')
 
-        signal.signal(signal.SIGINT, signal_handler)
-        signal.signal(signal.SIGTERM, signal_handler)
+                await gather(*all_tasks())
+                get_event_loop().stop()
 
-        msg("Starting TrustChain crawler")
+        signal.signal(signal.SIGINT, lambda sig, _: ensure_future(signal_handler(sig)))
+        signal.signal(signal.SIGTERM, lambda sign, _: ensure_future(signal_handler(sig)))
 
-        if not options['no-rest-api']:
+        print("Starting TrustChain crawler")
+
+        if not no_rest_api:
             self.restapi = RESTManager(self.ipv8)
-            reactor.callLater(0.0, self.restapi.start, options["apiport"])
+            await self.restapi.start(apiport)
 
-        if options['yappi']:
+        if yappi:
             yappi.start(builtins=True)
 
-    def makeService(self, options):
-        """
-        Construct a IPv8 service.
-        """
-        crawler_service = MultiService()
-        crawler_service.setName("TrustChainCrawler")
 
-        reactor.callWhenRunning(self.start_crawler, options)
+def main(argv):
+    parser = argparse.ArgumentParser(add_help=False, description=('TrustChain crawler'))
+    parser.add_argument('--help', '-h', action='help', default=argparse.SUPPRESS, help='Show this help message and exit')
+    parser.add_argument('--statedir', '-s', default=None, type=str, help='Use an alternate statedir')
+    parser.add_argument('--apiport', '-p', default=8085, type=int, help='Use an alternative port for the REST api')
+    parser.add_argument('--no-rest-api', '-a', action='store_const', default=False, const=True, help='Autonomous: disable the REST api')
+    parser.add_argument('--testnet', '-t', action='store_const', default=False, const=True, help='Join the testnet')
+    parser.add_argument('--yappi', '-y', action='store_const', default=False, const=True, help='Run the Yappi profiler')
 
-        return crawler_service
+    args = parser.parse_args(sys.argv[1:])
+    service = TrustchainCrawlerService()
+
+    loop = get_event_loop()
+    coro = service.start_crawler(args.statedir, args.apiport, args.no_rest_api, args.testnet, args.yappi)
+    ensure_future(coro)
+
+    if sys.platform == 'win32':
+        # Unfortunately, this is needed on Windows for Ctrl+C to work consistently.
+        # Should no longer be needed in Python 3.8.
+        async def wakeup():
+            while True:
+                await sleep(1)
+        ensure_future(wakeup())
+
+    loop.run_forever()
 
 
-service_maker = TrustchainCrawlerServiceMaker()
+if __name__ == "__main__":
+    main(sys.argv[1:])

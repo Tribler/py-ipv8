@@ -6,7 +6,6 @@ Author(s): Egbert Bouman
 from asyncio import coroutine, iscoroutine, ensure_future
 from binascii import unhexlify
 
-from Tribler.pyipv8.ipv8.util import succeed
 from .caches import *
 from .endpoint import TunnelEndpoint
 from .payload import *
@@ -18,6 +17,7 @@ from ...messaging.deprecated.encoding import decode, encode
 from ...messaging.payload_headers import BinMemberAuthenticationPayload
 from ...peer import Peer
 from ...requestcache import RequestCache
+from ...util import succeed
 
 message_to_payload = {
     u"data": (0, DataPayload),
