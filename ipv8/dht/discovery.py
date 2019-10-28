@@ -1,12 +1,7 @@
-from __future__ import absolute_import
-from __future__ import division
-
 import time
 from asyncio import gather
 from binascii import hexlify
 from collections import defaultdict
-
-from six.moves import xrange
 
 from . import DHTError
 from .community import DHTCommunity, MAX_NODES_IN_FIND, PING_INTERVAL, Request, TARGET_NODES, gather_without_errors
@@ -187,7 +182,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
 
         now = time.time()
         for key, nodes in self.store_for_me.items():
-            for index in xrange(len(nodes) - 1, -1, -1):
+            for index in range(len(nodes) - 1, -1, -1):
                 node = nodes[index]
                 if node.status == NODE_STATUS_BAD:
                     del self.store_for_me[key][index]
@@ -196,7 +191,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
                     self.ping(node)
 
         for key, nodes in self.store.items():
-            for index in xrange(len(nodes) - 1, -1, -1):
+            for index in range(len(nodes) - 1, -1, -1):
                 node = nodes[index]
                 if now > node.last_query + 60:
                     self.logger.debug('Deleting peer %s (key %s)', node, hexlify(key))

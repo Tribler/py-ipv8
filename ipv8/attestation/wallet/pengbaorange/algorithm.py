@@ -1,10 +1,6 @@
-from __future__ import absolute_import, division
-
 import struct
 from binascii import hexlify
 from os import urandom
-
-from six.moves import xrange
 
 from ..pengbaorange.attestation import create_attest_pair
 from ..pengbaorange.structs import PengBaoAttestation
@@ -129,7 +125,7 @@ class PengBaoRangeAlgorithm(IdentityAlgorithm):
         :rtype: [str]
         """
         mod = PK.g.mod - 1
-        challenges = [pack_pair(_safe_rndint(self.key_size, mod), _safe_rndint(self.key_size, mod)) for _ in xrange(1)]
+        challenges = [pack_pair(_safe_rndint(self.key_size, mod), _safe_rndint(self.key_size, mod)) for _ in range(1)]
         return challenges
 
     def create_challenge_response(self, SK, attestation, challenge):

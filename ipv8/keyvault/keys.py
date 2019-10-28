@@ -1,11 +1,8 @@
-from __future__ import absolute_import
-
 import abc
 from hashlib import sha1
-import six
 
 
-class Key(six.with_metaclass(abc.ABCMeta, object)):
+class Key(metaclass=abc.ABCMeta):
     """
     Interface for a public or private key.
     """
@@ -28,7 +25,7 @@ class Key(six.with_metaclass(abc.ABCMeta, object)):
         return sha1(self.key_to_bin()).digest()
 
 
-class PrivateKey(six.with_metaclass(abc.ABCMeta, Key)):
+class PrivateKey(Key, metaclass=abc.ABCMeta):
     """
     Interface for a private key.
     """
@@ -41,7 +38,7 @@ class PrivateKey(six.with_metaclass(abc.ABCMeta, Key)):
         pass
 
 
-class PublicKey(six.with_metaclass(abc.ABCMeta, Key)):
+class PublicKey(Key, metaclass=abc.ABCMeta):
     """
     Interface for a public key.
     """

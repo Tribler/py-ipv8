@@ -4,8 +4,6 @@ Committed NumberLies in an Interval" by F. Boudot).
 
 Modified for use with range proofs ("An efficient range proof scheme." by K. Peng and F. Bao).
 """
-from __future__ import absolute_import, division
-
 from binascii import hexlify
 from math import ceil, log
 from os import urandom

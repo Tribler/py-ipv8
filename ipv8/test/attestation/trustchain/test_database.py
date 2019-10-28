@@ -1,8 +1,4 @@
-from __future__ import absolute_import
-
 import unittest
-
-from six.moves import xrange
 
 from ....attestation.trustchain.block import TrustChainBlock
 from ....attestation.trustchain.database import TrustChainDB
@@ -35,7 +31,7 @@ class TestTrustChainDB(unittest.TestCase):
         self.assertEqual(len(self.db.get_connected_users(self.public_key)), 0)
 
         # Create 5 link block implying 5 connected peers to the current user
-        for i in xrange(0, 5):
+        for i in range(0, 5):
             block = TrustChainBlock.create(b'test', {b'id': i}, self.db, self.public_key, link=random_blocks[i])
             self.db.add_block(block)
 

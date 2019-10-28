@@ -1,13 +1,8 @@
-from __future__ import absolute_import
-
 import logging
 from asyncio import coroutine, gather, CancelledError
 from contextlib import suppress
 from random import random
 from threading import Lock
-
-from six import integer_types, text_type
-from six.moves import xrange
 
 from .taskmanager import TaskManager
 
@@ -15,8 +10,8 @@ from .taskmanager import TaskManager
 class NumberCache(object):
 
     def __init__(self, request_cache, prefix, number):
-        assert isinstance(number, integer_types), type(number)
-        assert isinstance(prefix, text_type), type(prefix)
+        assert isinstance(number, int), type(number)
+        assert isinstance(prefix, str), type(prefix)
 
         super(NumberCache, self).__init__()
         self._logger = logging.getLogger(self.__class__.__name__)
@@ -49,7 +44,7 @@ class NumberCache(object):
 class RandomNumberCache(NumberCache):
 
     def __init__(self, request_cache, prefix):
-        assert isinstance(prefix, text_type), type(prefix)
+        assert isinstance(prefix, str), type(prefix)
 
         # find an unclaimed identifier
         number = RandomNumberCache.find_unclaimed_identifier(request_cache, prefix)
@@ -57,7 +52,7 @@ class RandomNumberCache(NumberCache):
 
     @classmethod
     def find_unclaimed_identifier(cls, request_cache, prefix):
-        for _ in xrange(1000):
+        for _ in range(1000):
             number = int(random() * 2 ** 16)
             if not request_cache.has(prefix, number):
                 break
@@ -88,8 +83,8 @@ class RequestCache(TaskManager):
         Returns CACHE when CACHE.identifier was not yet added, otherwise returns None.
         """
         assert isinstance(cache, NumberCache), type(cache)
-        assert isinstance(cache.number, integer_types), type(cache.number)
-        assert isinstance(cache.prefix, text_type), type(cache.prefix)
+        assert isinstance(cache.number, int), type(cache.number)
+        assert isinstance(cache.prefix, str), type(cache.prefix)
         assert isinstance(cache.timeout_delay, float), type(cache.timeout_delay)
         assert cache.timeout_delay > 0.0, cache.timeout_delay
 
@@ -113,16 +108,16 @@ class RequestCache(TaskManager):
         """
         Returns True when IDENTIFIER is part of this RequestCache.
         """
-        assert isinstance(number, integer_types), type(number)
-        assert isinstance(prefix, text_type), type(prefix)
+        assert isinstance(number, int), type(number)
+        assert isinstance(prefix, str), type(prefix)
         return self._create_identifier(number, prefix) in self._identifiers
 
     def get(self, prefix, number):
         """
         Returns the Cache associated with IDENTIFIER when it exists, otherwise returns None.
         """
-        assert isinstance(number, integer_types), type(number)
-        assert isinstance(prefix, text_type), type(prefix)
+        assert isinstance(number, int), type(number)
+        assert isinstance(prefix, str), type(prefix)
         return self._identifiers.get(self._create_identifier(number, prefix))
 
     def pop(self, prefix, number):
@@ -130,8 +125,8 @@ class RequestCache(TaskManager):
         Returns the Cache associated with IDENTIFIER, and removes it from this RequestCache, when it exists, otherwise
         raises a KeyError exception.
         """
-        assert isinstance(number, integer_types), type(number)
-        assert isinstance(prefix, text_type), type(prefix)
+        assert isinstance(number, int), type(number)
+        assert isinstance(prefix, str), type(prefix)
 
         identifier = self._create_identifier(number, prefix)
         cache = self._identifiers.pop(identifier)

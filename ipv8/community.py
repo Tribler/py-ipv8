@@ -7,8 +7,6 @@ Community instance.
 @organization: Technical University Delft
 @contact: dispersy@frayja.com
 """
-from __future__ import absolute_import
-
 import sys
 from asyncio import ensure_future, iscoroutine
 from binascii import hexlify

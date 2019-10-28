@@ -1,6 +1,3 @@
-from __future__ import absolute_import
-from __future__ import division
-
 from base64 import encodebytes
 from binascii import unhexlify
 

@@ -1,8 +1,4 @@
-from __future__ import absolute_import
-
 from asyncio import sleep
-
-from six.moves import xrange
 
 from ...attestation.trustchain.test_block import TestBlock
 from ...base import TestBase
@@ -466,7 +462,7 @@ class TestTrustChainCommunity(TestBase):
         """
         self.nodes[0].overlay.settings.max_db_blocks = 5
 
-        for _ in xrange(10):
+        for _ in range(10):
             test_block = TestBlock()
             self.nodes[0].overlay.persistence.add_block(test_block)
 

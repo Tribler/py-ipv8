@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import logging
 from binascii import hexlify
 from socket import inet_aton, inet_ntoa

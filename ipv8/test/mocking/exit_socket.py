@@ -1,8 +1,6 @@
-from __future__ import absolute_import
-
-from Tribler.pyipv8.ipv8.util import succeed
 from ...messaging.interfaces.endpoint import EndpointListener
 from ...messaging.anonymization.tunnel import DataChecker, TunnelExitSocket
+from ...util import succeed
 from ..mocking.endpoint import AutoMockEndpoint
 
 

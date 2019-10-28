@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 from ...peerdiscovery.discovery import EdgeWalk
 from ...community import _DEFAULT_ADDRESSES
 from ..base import TestBase

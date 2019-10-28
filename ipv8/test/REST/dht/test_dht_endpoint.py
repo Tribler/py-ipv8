@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 from asyncio import sleep
 from base64 import b64decode, b64encode
 from collections import deque

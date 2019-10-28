@@ -1,5 +1,3 @@
-from __future__ import absolute_import, print_function
-
 import base64
 import binascii
 import json
@@ -15,14 +13,13 @@ from PyQt5.QtCore import *
 from PyQt5.QtWebEngineWidgets import *
 from PyQt5.QtWidgets import QApplication
 
-import six
-
 from .gabi.attributes import make_attribute_list
 from .gabi.builder import BuildDistributedProofList, Challenge, CredentialBuilder, IssueCommitmentMessage, IssueSignatureMessage
 from .gabi.keys import CLSignature, DefaultSystemParameters
 from .gabi.proofs import ProofP, ProofPCommitment, ProofS
 from .keydump import nijmegen_pk_1568208470 as nijmegen_pk
 from .wrappers import serialize_proof_d
+from ...util import int2byte
 
 
 my_app = QApplication(sys.argv)
@@ -155,8 +152,8 @@ def b64_to_int(s):
 
 
 def str_to_int(s):
-    if isinstance(s, six.text_type):
-        s = b''.join(six.int2byte(ord(c)) for c in s)
+    if isinstance(s, srt):
+        s = b''.join(int2byte(ord(c)) for c in s)
     if s is None:
         return 0
     if s == b"":

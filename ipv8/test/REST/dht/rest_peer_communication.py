@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 from ...mocking.rest.rest_peer_communication import HTTPRequester, RequestException, process_json_response
 
 

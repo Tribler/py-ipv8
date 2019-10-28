@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 from .attestation_endpoint import AttestationEndpoint
 from .dht_endpoint import DHTEndpoint
 from .isolation_endpoint import IsolationEndpoint

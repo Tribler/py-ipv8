@@ -1,14 +1,10 @@
-from __future__ import absolute_import
-from __future__ import division
-
 import hashlib
 import os
 import time
 from asyncio import Future, coroutine, gather, ensure_future
 from binascii import hexlify, unhexlify
 from collections import defaultdict, deque
-
-import six
+from itertools import zip_longest
 
 from . import DHTError
 from .payload import (FindRequestPayload, FindResponsePayload, PingRequestPayload, PingResponsePayload,
@@ -380,7 +376,7 @@ class DHTCommunity(Community):
             return sorted(nodes_tried, key=lambda n: distance(n.id, target))
 
         # Merge all values received into one tuple. First pick the first value from each tuple, then the second, etc.
-        values = sum(six.moves.zip_longest(*values), ())
+        values = sum(zip_longest(*values), ())
 
         # Filter out duplicates while preserving order
         seen = set()

@@ -1,9 +1,5 @@
-from __future__ import absolute_import
-
 import abc
 import hashlib
-
-import six
 
 from .wallet.irmaexact.keydump import nijmegen_pk_1568208470
 
@@ -66,7 +62,7 @@ FORMATS = {
 }
 
 
-class IdentityAlgorithm(six.with_metaclass(abc.ABCMeta, object)):
+class IdentityAlgorithm(metaclass=abc.ABCMeta):
 
     def __init__(self, id_format):
         self.id_format = id_format
@@ -218,7 +214,7 @@ class IdentityAlgorithm(six.with_metaclass(abc.ABCMeta, object)):
         pass
 
 
-class Attestation(six.with_metaclass(abc.ABCMeta, object)):
+class Attestation(metaclass=abc.ABCMeta):
     """
     An attestation for a public key of a value.
 

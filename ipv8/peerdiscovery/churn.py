@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 from random import sample
 from time import time
 

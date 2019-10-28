@@ -1,12 +1,8 @@
-from __future__ import absolute_import
-
 from asyncio import coroutine, sleep, Future
 
-from six.moves import xrange
-
-from Tribler.Core.Utilities.utilities import succeed
 from .base import TestBase
 from ..taskmanager import CLEANUP_FREQUENCY, TaskManager
+from ..util import succeed
 
 
 class TestTaskManager(TestBase):
@@ -122,7 +118,7 @@ class TestTaskManager(TestBase):
         Test if the tasks are cleaned up after the cleanup frequency has been met.
         """
         future = succeed(None)
-        for _ in xrange(CLEANUP_FREQUENCY):
+        for _ in range(CLEANUP_FREQUENCY):
             self.tm.register_anonymous_task("test", future)
         self.assertEqual(0, len(self.tm.get_tasks()))
 
@@ -132,7 +128,7 @@ class TestTaskManager(TestBase):
         """
         future = succeed(None)
         self.tm.register_anonymous_task("test", Future())
-        for _ in xrange(CLEANUP_FREQUENCY - 1):
+        for _ in range(CLEANUP_FREQUENCY - 1):
             self.tm.register_anonymous_task("test", future)
         self.assertEqual(1, len(self.tm.get_tasks()))
 

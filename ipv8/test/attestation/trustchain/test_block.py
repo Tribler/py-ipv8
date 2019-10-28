@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import asynctest
 
 from ....attestation.trustchain.block import EMPTY_SIG, GENESIS_HASH, GENESIS_SEQ, TrustChainBlock, ValidationResult

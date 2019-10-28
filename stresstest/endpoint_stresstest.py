@@ -1,6 +1,3 @@
-from __future__ import absolute_import
-from __future__ import print_function
-
 from collections import deque, namedtuple
 from os import makedirs, path, rename
 from random import randint
@@ -9,7 +6,6 @@ from subprocess import call
 from sys import exit as _exit
 from time import sleep, time
 
-from six.moves import xrange
 from twisted.internet import reactor
 from twisted.internet.defer import Deferred, DeferredList
 
@@ -219,7 +215,7 @@ if retcode > 0:
         6: 'data_asnd_initiator',
         7: 'data_asnd_counterparty'
     }
-    for i in xrange(len(binretcode)):
+    for i in range(len(binretcode)):
         if binretcode[i] == '1':
             print("Significant slowdown in %s" % errmap[i])
 else:

@@ -1,5 +1,3 @@
-from __future__ import absolute_import, division
-
 from twisted.trial import unittest
 
 from .....attestation.wallet.irmaexact.algorithm import IRMAExactAlgorithm

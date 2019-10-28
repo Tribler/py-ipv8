@@ -1,12 +1,9 @@
-from __future__ import absolute_import
-
 import abc
-import six
 
 from .block import TrustChainBlock
 
 
-class BlockListener(six.with_metaclass(abc.ABCMeta, object)):
+class BlockListener(metaclass=abc.ABCMeta):
     """
     This class defines a listener for TrustChain blocks with a specific type.
     """

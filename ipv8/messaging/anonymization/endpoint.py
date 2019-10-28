@@ -1,6 +1,3 @@
-from __future__ import absolute_import
-from __future__ import division
-
 from collections import deque
 
 from .tunnel import CIRCUIT_STATE_READY, CIRCUIT_TYPE_IPV8

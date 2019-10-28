@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import struct
 
 from cryptography.hazmat.backends import default_backend
@@ -8,8 +6,6 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDFExpand
 
 import libnacl
-
-from six import integer_types
 
 from ...keyvault.crypto import ECCrypto, LibNaCLPK
 from ...util import cast_to_bin
@@ -64,7 +60,7 @@ class TunnelCrypto(ECCrypto):
 
     def _build_iv(self, salt, salt_explicit):
         assert isinstance(salt, (bytes, str)), type(salt)
-        assert isinstance(salt_explicit, integer_types), type(salt_explicit)
+        assert isinstance(salt_explicit, int), type(salt_explicit)
 
         if salt_explicit == 0:
             raise CryptoException("salt_explicit wrapped")

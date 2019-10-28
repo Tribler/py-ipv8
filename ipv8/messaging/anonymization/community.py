@@ -3,9 +3,6 @@ The tunnel community.
 
 Author(s): Egbert Bouman
 """
-from __future__ import absolute_import
-from __future__ import division
-
 from asyncio import coroutine, iscoroutine, ensure_future
 from binascii import unhexlify
 

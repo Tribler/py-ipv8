@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 from binascii import unhexlify
 from random import choice
 from time import time

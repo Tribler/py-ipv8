@@ -1,10 +1,6 @@
-from __future__ import absolute_import
-
 from asyncio import Future
 from base64 import b64decode, b64encode
 from hashlib import sha1
-
-from six.moves import xrange
 
 from aiohttp import web
 
@@ -117,7 +113,7 @@ class AttestationEndpoint(BaseEndpoint):
             block_selection_stmt = u""
             params = ()
         else:
-            value_insert = u"AND".join(u"public_key != ? AND link_public_key != ?" for _ in xrange(len(keys_to_keep)))
+            value_insert = u"AND".join(u"public_key != ? AND link_public_key != ?" for _ in range(len(keys_to_keep)))
             block_selection_stmt = (u" WHERE " + value_insert + u" ORDER BY block_timestamp")
             params = ()
             for key in keys_to_keep:

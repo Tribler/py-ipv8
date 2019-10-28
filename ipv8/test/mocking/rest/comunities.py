@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 from ....attestation.identity.community import IdentityCommunity
 from ....attestation.wallet.community import AttestationCommunity
 from ....attestation.trustchain.community import TrustChainCommunity

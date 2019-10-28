@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 from setuptools import find_packages, setup
 
 with open("README.md", "r") as fh:
@@ -21,8 +19,7 @@ setup(
         "libnacl",
         "netifaces",
         "Twisted",
-        "pyOpenSSL",
-        "six"
+        "pyOpenSSL"
     ],
     classifiers=[
         "Development Status :: 5 - Production/Stable",

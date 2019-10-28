@@ -1,9 +1,6 @@
-from __future__ import absolute_import
-
 import asynctest
 
 from ....messaging.deprecated.encoding import decode, encode
-from ....util import cast_to_long
 
 
 class TestEncoding(asynctest.TestCase):
@@ -13,17 +10,6 @@ class TestEncoding(asynctest.TestCase):
         Check if an int can be encoded and decoded.
         """
         value = 42
-
-        encoded = encode(value)
-        _, decoded = decode(encoded)
-
-        self.assertEqual(value, decoded)
-
-    def test_encode_long(self):
-        """
-        Check if an long can be encoded and decoded.
-        """
-        value = cast_to_long(42)
 
         encoded = encode(value)
         _, decoded = decode(encoded)
@@ -67,7 +53,7 @@ class TestEncoding(asynctest.TestCase):
         """
         Check if a list can be encoded and decoded.
         """
-        value = [42, cast_to_long(42), 42.0, u"42", '\x42']
+        value = [42, 42.0, u"42", '\x42']
 
         encoded = encode(value)
         _, decoded = decode(encoded)
@@ -78,7 +64,7 @@ class TestEncoding(asynctest.TestCase):
         """
         Check if a set can be encoded and decoded.
         """
-        value = {42, cast_to_long(42), 42.0, u"42", '\x42'}
+        value = {42, 42.0, u"42", '\x42'}
 
         encoded = encode(value)
         _, decoded = decode(encoded)
@@ -89,7 +75,7 @@ class TestEncoding(asynctest.TestCase):
         """
         Check if a tuple can be encoded and decoded.
         """
-        value = (42, cast_to_long(42), 42.0, u"42", '\x42')
+        value = (42, 42.0, u"42", '\x42')
 
         encoded = encode(value)
         _, decoded = decode(encoded)
@@ -100,7 +86,7 @@ class TestEncoding(asynctest.TestCase):
         """
         Check if a dictionary can be encoded and decoded.
         """
-        value = {42: None, cast_to_long(42): 42.0, u"42": b'\x42'}
+        value = {42: None, 42: 42.0, u"42": b'\x42'}
 
         encoded = encode(value)
         _, decoded = decode(encoded)

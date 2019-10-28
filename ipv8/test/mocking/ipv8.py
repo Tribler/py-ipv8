@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 from ...attestation.trustchain.community import TrustChainCommunity
 from ...dht.discovery import DHTDiscoveryCommunity
 from ...keyvault.crypto import default_eccrypto

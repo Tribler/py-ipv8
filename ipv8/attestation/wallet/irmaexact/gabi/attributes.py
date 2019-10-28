@@ -5,15 +5,13 @@ All rights reserved.
 This source code has been ported from https://github.com/privacybydesign/irmago
 The authors of this file are not -in any way- affiliated with the original authors or organizations.
 """
-from __future__ import absolute_import, division
-
 import binascii
 import calendar
 import datetime
 import hashlib
 import time
 
-import six
+from .....util import int2byte
 
 ExpiryFactor = 60 * 60 * 24 * 7
 metadataLength = 1 + 3 + 2 + 2 + 16
@@ -63,7 +61,7 @@ class MetadataAttribute(object):
         return bytez
 
     def setField(self, field, value):
-        bytez_array = [six.int2byte(c) if isinstance(c, int) else c for c in self.Bytes()]
+        bytez_array = [int2byte(c) if isinstance(c, int) else c for c in self.Bytes()]
         startindex = field.length - len(value)
         for i in range(field.length):
             if i < startindex:
@@ -86,7 +84,7 @@ class MetadataAttribute(object):
         self.setField(keyCounterField, shortToByte(i))
 
     def SigningDate(self):
-        bytez_array = [six.int2byte(c) if isinstance(c, int) else c for c in self.field(signingDateField)]
+        bytez_array = [int2byte(c) if isinstance(c, int) else c for c in self.field(signingDateField)]
         bytez_array = bytez_array[1:]
         timestamp = int(binascii.hexlify(b''.join(bytez_array)), 16) * ExpiryFactor
         return timestamp
@@ -148,7 +146,7 @@ def make_attribute_list(cr, attribute_order=None, validity_signing=None):
             attrs.append(1)
         else:
             encoded = attr_map[k].encode('utf-8')
-            v = int(binascii.hexlify(b''.join(six.int2byte(c) if isinstance(c, int) else c for c in encoded)), 16)
+            v = int(binascii.hexlify(b''.join(int2byte(c) if isinstance(c, int) else c for c in encoded)), 16)
             v <<= 1
             v += 1
             attrs.append(v)

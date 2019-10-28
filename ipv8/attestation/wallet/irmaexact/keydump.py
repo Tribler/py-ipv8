@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 from .gabi.keys import PublicKey
 
 nijmegen_pk_1568208470 = PublicKey(

@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import logging
 from asyncio import get_event_loop
 from binascii import hexlify

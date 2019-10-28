@@ -1,12 +1,8 @@
-from __future__ import absolute_import
-
 import socket
 import sys
 from asyncio import sleep
 
 from asynctest import skipIf, TestCase
-
-from six.moves import xrange
 
 from .....messaging.interfaces.endpoint import EndpointListener
 from .....messaging.interfaces.udp.endpoint import UDPEndpoint, UDP_MAX_SIZE
@@ -121,7 +117,7 @@ class TestUDPEndpoint(TestCase):
         self.endpoint1.transport.socket.sendto = cb_err_sendto
 
         # The following send raises a WSAEWOULDBLOCK and should queue the packet
-        for i in xrange(102):
+        for i in range(102):
             self.endpoint1.send(self.ep2_address, str(i))
         self.endpoint1.transport.socket.sendto = real_sendto
         await sleep(0.05)
@@ -134,4 +130,4 @@ class TestUDPEndpoint(TestCase):
         await sleep(0.05)
         self.assertEqual(len(self.endpoint2_listener.incoming), 101)
         self.assertSetEqual({data for _, data in self.endpoint2_listener.incoming},
-                            {str(i) for i in xrange(2, 103)})
+                            {str(i) for i in range(2, 103)})

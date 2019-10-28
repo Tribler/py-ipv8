@@ -1,12 +1,8 @@
 """
 This file contains everything related to persistence for TrustChain.
 """
-from __future__ import absolute_import
-
 import os
 from binascii import hexlify
-
-from six import text_type
 
 from .block import TrustChainBlock
 from ...attestation.trustchain.blockcache import BlockCache
@@ -424,7 +420,7 @@ class TrustChainDB(Database):
         :param database_version: Current version of the database.
         :return:
         """
-        assert isinstance(database_version, text_type)
+        assert isinstance(database_version, str)
         assert database_version.isdigit()
         assert int(database_version) >= 0
         database_version = int(database_version)

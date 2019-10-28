@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 from .endpoint import AutoMockEndpoint
 from ...keyvault.crypto import default_eccrypto
 from ...peer import Peer

@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import json
 from asyncio import new_event_loop, sleep
 from base64 import b64encode

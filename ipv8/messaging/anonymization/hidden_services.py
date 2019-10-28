@@ -3,8 +3,6 @@ The hidden tunnel community.
 
 Author(s): Egbert Bouman
 """
-from __future__ import absolute_import
-
 import binascii
 import os
 import random

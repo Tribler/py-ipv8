@@ -6,8 +6,6 @@ This source code has been ported from https://github.com/privacybydesign/gabi
 The authors of this file are not -in any way- affiliated with the original authors or organizations.
 """
 
-from __future__ import absolute_import
-
 from twisted.trial import unittest
 
 from .....attestation.wallet.irmaexact.gabi.keys import DefaultSystemParameters, GenerateKeyPair, SignMessageBlock

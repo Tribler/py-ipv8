@@ -1,9 +1,5 @@
-from __future__ import absolute_import
-
 import time
 from asyncio import Future
-
-import six
 
 from .test_community import MockDHTProvider
 from ...base import TestBase
@@ -247,7 +243,7 @@ class TestHiddenServices(TestBase):
 
         # Node 2 should be known as an introduction point
         peers = [ip.peer for ip in self.nodes[3].overlay.swarms[self.service].intro_points]
-        six.assertCountEqual(self, peers, [self.nodes[1].my_peer, self.nodes[2].my_peer])
+        self.assertCountEqual(peers, [self.nodes[1].my_peer, self.nodes[2].my_peer])
 
     async def test_pex_lookup_exit_is_ip(self):
         # Nodes 1 and 2 are introduction points for node 0
@@ -278,4 +274,4 @@ class TestHiddenServices(TestBase):
 
         # Node 2 should be known as an introduction point
         peers = [ip.peer for ip in self.nodes[3].overlay.swarms[self.service].intro_points]
-        six.assertCountEqual(self, peers, [self.nodes[1].my_peer, self.nodes[2].my_peer])
+        self.assertCountEqual(peers, [self.nodes[1].my_peer, self.nodes[2].my_peer])

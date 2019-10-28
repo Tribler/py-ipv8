@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 from ...base import MockIPv8, TestBase
 from ....attestation.identity.community import IdentityCommunity
 from ....peer import Peer

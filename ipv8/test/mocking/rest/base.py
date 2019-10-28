@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import logging
 import os
 import random
@@ -7,9 +5,6 @@ import socket
 from shutil import rmtree
 from string import ascii_uppercase, digits
 from threading import Thread
-
-from six.moves import xrange
-
 
 from .rest_api_peer import RestTestPeer
 from ...base import TestBase
@@ -43,7 +38,7 @@ class RESTTestBase(TestBase):
             "peer_configurations not properly structured"
 
         for count, peer_type in peer_configurations:
-            for _ in xrange(count):
+            for _ in range(count):
                 await self.create_new_peer(peer_type, None)
 
         self._get_style_requests = get_style_requests

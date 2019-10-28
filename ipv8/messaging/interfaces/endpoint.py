@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import abc
 import logging
 import socket
@@ -13,10 +11,8 @@ try:
 except ImportError:
     netifaces = None
 
-import six
 
-
-class Endpoint(six.with_metaclass(abc.ABCMeta, object)):
+class Endpoint(metaclass=abc.ABCMeta):
     """
     Interface for sending messages over the Internet.
     """
@@ -82,7 +78,7 @@ class Endpoint(six.with_metaclass(abc.ABCMeta, object)):
         pass
 
 
-class EndpointListener(six.with_metaclass(abc.ABCMeta, object)):
+class EndpointListener(metaclass=abc.ABCMeta):
     """
     Handler for messages coming in through an Endpoint.
     """

@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import logging
 
 from cryptography.hazmat.primitives.asymmetric import ec

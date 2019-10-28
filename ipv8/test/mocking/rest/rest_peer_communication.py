@@ -1,8 +1,8 @@
 import logging
 from json import loads
+from urllib.parse import quote
 
 from aiohttp import ClientSession
-from six.moves.urllib_parse import quote
 
 
 def process_json_response(func):

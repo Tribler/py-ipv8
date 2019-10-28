@@ -1,8 +1,4 @@
-from __future__ import absolute_import
-
 from collections import OrderedDict
-
-from six import integer_types, string_types
 
 
 class OrderedSet(set):
@@ -106,9 +102,9 @@ class Sortable(object):
             self.type = SortableTypeEnum.NONE
         elif isinstance(self.value, bool):
             self.type = SortableTypeEnum.BOOLEAN
-        elif isinstance(self.value, (float, integer_types)):
+        elif isinstance(self.value, (float, int)):
             self.type = SortableTypeEnum.NUMBER
-        elif isinstance(self.value, (bytes, string_types)):
+        elif isinstance(self.value, (bytes, str)):
             self.type = SortableTypeEnum.STRING
         elif isinstance(self.value, (set, dict, tuple, list)):
             self.type = SortableTypeEnum.LIST

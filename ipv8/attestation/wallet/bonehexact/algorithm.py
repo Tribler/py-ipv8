@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import struct
 
 from .attestation import (attest_sha256, attest_sha256_4, attest_sha512, binary_relativity_certainty,

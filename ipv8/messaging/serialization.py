@@ -1,11 +1,7 @@
-from __future__ import absolute_import
-from __future__ import division
-
 import abc
 from binascii import hexlify
 import itertools
 from struct import pack, unpack, unpack_from, Struct
-import six
 import sys
 
 
@@ -265,9 +261,8 @@ class Serializer(object):
                 out += packed
                 size += packed_size
             except Exception as e:
-                six.reraise(PackError, PackError("Could not pack item %d: %s\n%s: %s" % (index, repr(packable),
-                                                                                         type(e).__name__, str(e))),
-                            sys.exc_info()[2])
+                raise PackError("Could not pack item %d: %s\n%s: %s" % (index, repr(packable),
+                                                                        type(e).__name__, str(e))) from e
             index += 1
         return out, size
 
@@ -323,9 +318,8 @@ class Serializer(object):
                 else:
                     out.append(unpacked)
             except Exception as e:
-                six.reraise(PackError, PackError("Could not pack item %d: %s\n%s: %s" % (index, format,
-                                                                                         type(e).__name__, str(e))),
-                            sys.exc_info()[2])
+                raise PackError("Could not pack item %d: %s\n%s: %s" % (index, format,
+                                                                        type(e).__name__, str(e))) from e
             current_offset += unpacked_size
             index += 1
         return out, current_offset
@@ -347,9 +341,8 @@ class Serializer(object):
                 unpack_list, offset = self.unpack_multiple(serializable.format_list, data,
                                                            serializable.optional_format_list, offset)
             except Exception as e:
-                six.reraise(PackError, PackError("Failed to unserialize %s\n%s: %s" % (serializable.__name__,
-                                                                                       type(e).__name__, str(e))),
-                            sys.exc_info()[2])
+                raise PackError("Failed to unserialize %s\n%s: %s" % (serializable.__name__,
+                                                                      type(e).__name__, str(e))) from e
             out.append(serializable.from_unpack_list(*unpack_list))
         out.append(data[offset:])
         return out
@@ -375,7 +368,7 @@ class Serializer(object):
         return unpacked
 
 
-class Serializable(six.with_metaclass(abc.ABCMeta, object)):
+class Serializable(metaclass=abc.ABCMeta):
     """
     Interface for serializable objects.
     """

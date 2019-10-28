@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 from asyncio import all_tasks, Future
 
 import asynctest

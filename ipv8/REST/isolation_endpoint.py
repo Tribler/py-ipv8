@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 from aiohttp import web
 
 from .base_endpoint import BaseEndpoint, Response, HTTP_BAD_REQUEST

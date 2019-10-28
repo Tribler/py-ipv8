@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import time
 
 from ..base import TestBase
@@ -232,7 +230,7 @@ class TestDHTCommunityXL(TestBase):
             self.assertTrue(node.overlay.storage.get(kv_pair[0]), kv_pair[1])
 
         # Store another value under the same key
-            await self.nodes[1].overlay.store_value(b'\x00' * 20, b'test2', sign=True)
+        await self.nodes[1].overlay.store_value(b'\x00' * 20, b'test2', sign=True)
 
         # Check if we get both values
         values = await self.nodes[-1].overlay.find_values(b'\x00' * 20)

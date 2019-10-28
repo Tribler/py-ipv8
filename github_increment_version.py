@@ -4,16 +4,12 @@ The suggested release message is used as the PR body.
 
 This script requires the additional dependency PyGithub.
 """
-from __future__ import absolute_import, print_function
-
 import ast
 import getpass
 import sys
 from distutils.version import LooseVersion
 
 from github import Github
-
-from six.moves import input
 
 
 # MAKE SETUP.PY CHANGES

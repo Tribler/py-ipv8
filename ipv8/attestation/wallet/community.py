@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import json
 import os
 from base64 import decodebytes, encodebytes

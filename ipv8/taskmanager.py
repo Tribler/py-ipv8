@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import logging
 from asyncio import gather, ensure_future, sleep, Task, iscoroutinefunction, CancelledError, Future
 from contextlib import suppress

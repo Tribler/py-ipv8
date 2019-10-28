@@ -3,8 +3,6 @@ The TrustChain Community is the first step in an incremental approach in buildin
 This reputation system builds a tamper proof interaction history contained in a chain data-structure.
 Every node has a chain and these chains intertwine by blocks shared by chains.
 """
-from __future__ import absolute_import
-
 import logging
 import random
 import struct
