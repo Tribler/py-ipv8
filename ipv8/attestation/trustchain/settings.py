@@ -18,3 +18,6 @@ class TrustChainSettings(object):
 
         # Whether we are a crawler (and fetching whole chains)
         self.crawler = False
+
+        # How many blocks at most we allow others to crawl in one batch
+        self.max_crawl_batch = 10
