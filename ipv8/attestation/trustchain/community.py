@@ -543,7 +543,8 @@ class TrustChainCommunity(Community):
             end_seq_num = max(GENESIS_SEQ, last_block.sequence_number + end_seq_num + 1) \
                 if last_block else GENESIS_SEQ
 
-        blocks = self.persistence.crawl(payload.public_key, start_seq_num, end_seq_num, limit=10)
+        blocks = self.persistence.crawl(payload.public_key, start_seq_num, end_seq_num,
+                                        limit=self.settings.max_crawl_batch)
         total_count = len(blocks)
 
         if total_count == 0:
