@@ -2,7 +2,7 @@
 Using the IPv8 attestation service
 ==================================
 
-This document assumes you have a basic understanding of network overlays in IPv8, as documented in `the overlay tutorial <https://github.com/Tribler/py-ipv8/blob/master/doc/overlay_tutorial.md>`_.
+This document assumes you have a basic understanding of network overlays in IPv8, as documented in `the overlay tutorial <https://github.com/Tribler/py-ipv8/blob/master/doc/overlay_tutorial.rst>`_.
 You will learn how to use the IPv8 attestation *HTTP REST API*.
 This tutorial will use ``curl`` to perform HTTP ``GET`` and ``POST`` requests.
 
@@ -12,7 +12,7 @@ Note that this tutorial will make use of the Python IPv8 service.
 Files
 -----
 
-This tutorial will follow the same file structure as `the overlay tutorial <https://github.com/Tribler/py-ipv8/blob/master/doc/overlay_tutorial.md>`_.
+This tutorial will follow the same file structure as `the overlay tutorial <https://github.com/Tribler/py-ipv8/blob/master/doc/overlay_tutorial.rst>`_.
 In this tutorial all of the files are placed in the ``~/Documents/ipv8_tutorial`` directory.
 
 
