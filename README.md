@@ -22,7 +22,7 @@ The dependencies for IPv8 are collected in the `requirements.txt` file and can b
 pip install --upgrade -r requirements.txt
 ```
 
-On Windows or MacOS you will need to install `Libsodium` separately, as explained [here](https://github.com/Tribler/py-ipv8/blob/master/doc/preliminaries/install_libsodium.md). 
+On Windows or MacOS you will need to install `Libsodium` separately, as explained [here](https://github.com/Tribler/py-ipv8/blob/master/doc/preliminaries/install_libsodium.rst). 
 
 ### Tests
 The test suite can run without any external packages, but the `nosetests` package is recommended (`pip install nose`).
@@ -44,6 +44,6 @@ python create_test_coverage_report.py
 ### Getting started
 IPv8 can be used as a library or as a service. It is easiest to start off with the service, which has been provided [here](https://github.com/Tribler/py-ipv8/blob/master/ipv8_service.py) (see the [configuration file](https://github.com/Tribler/py-ipv8/blob/master/ipv8/configuration.py) for invocation options).
 This file will load the IPv8 stack for *signed messaging*, *anonymous messaging*, *attribute attestation*, *public service discovery*, *peer discovery* and *peer keep-alive*.
-You can start creating your first network overlay by following [the overlay creation tutorial](https://github.com/Tribler/py-ipv8/blob/master/doc/basics/overlay_tutorial.md).
+You can start creating your first network overlay by following [the overlay creation tutorial](https://github.com/Tribler/py-ipv8/blob/master/doc/basics/overlay_tutorial.rst).
 
-Additional documentation is also available for the [TrustChain](https://github.com/Tribler/py-ipv8/blob/master/doc/further-reading/trustchain.md) and [anonymous overlay](https://github.com/Tribler/py-ipv8/blob/master/doc/further-reading/anonymization.md) provided in IPv8.
+Additional documentation is also available for the [TrustChain](https://github.com/Tribler/py-ipv8/blob/master/doc/further-reading/trustchain.rst) and [anonymous overlay](https://github.com/Tribler/py-ipv8/blob/master/doc/further-reading/anonymization.rst) provided in IPv8.
