@@ -9,7 +9,8 @@ Windows
 
 
 #. Libsodium can be downloaded from https://download.libsodium.org/libsodium/releases/  
-   .. code-block::
+
+   .. code-block:: none
 
         For eg. https://download.libsodium.org/libsodium/releases/libsodium-1.0.17-msvc.zip
 
@@ -22,7 +23,7 @@ MacOS
 
 Homebrew can be used to install libsodium:
 
-.. code-block::
+.. code-block:: bash
 
    brew install libsodium
 

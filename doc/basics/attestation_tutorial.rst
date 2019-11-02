@@ -2,7 +2,7 @@
 Using the IPv8 attestation service
 ==================================
 
-This document assumes you have a basic understanding of network overlays in IPv8, as documented in `the overlay tutorial <https://github.com/Tribler/py-ipv8/blob/master/doc/overlay_tutorial.rst>`_.
+This document assumes you have a basic understanding of network overlays in IPv8, as documented in `the overlay tutorial <../basics/overlay_tutorial.html>`_.
 You will learn how to use the IPv8 attestation *HTTP REST API*.
 This tutorial will use ``curl`` to perform HTTP ``GET`` and ``POST`` requests.
 
@@ -12,14 +12,14 @@ Note that this tutorial will make use of the Python IPv8 service.
 Files
 -----
 
-This tutorial will follow the same file structure as `the overlay tutorial <https://github.com/Tribler/py-ipv8/blob/master/doc/overlay_tutorial.rst>`_.
+This tutorial will follow the same file structure as `the overlay tutorial <../basics/overlay_tutorial.html>`_.
 In this tutorial all of the files are placed in the ``~/Documents/ipv8_tutorial`` directory.
 
 
 #. 
    In the working directory, we clone IPv8 through ``git``\ :
 
-   .. code-block::
+   .. code-block:: bash
 
       git clone https://github.com/Tribler/py-ipv8.git pyipv8
 
@@ -30,7 +30,7 @@ In this tutorial all of the files are placed in the ``~/Documents/ipv8_tutorial`
 
 At the end of this setup step you should have the following files in your working directory:
 
-.. code-block::
+.. code-block:: none
 
    (folder) pyipv8
    (file) __init__.py
@@ -134,7 +134,7 @@ For convenience we will refer to our first peer as *Peer 1* and our second peer 
 As a last note, beware of URL encoding: when passing these identifiers they need to be properly formatted (\ ``+`` and ``=`` are illegal characters).
 In our case we need to use the following formatting of the peer identifiers in URLs (for Peer 1 and Peer 2 respectively):
 
-.. code-block::
+.. code-block:: none
 
    aQVwz9aRMRypGwBkaxGRSdQs80c%3D
    bPyWPyswqXMhbW8%2B0RS6xUtNJrs%3D
