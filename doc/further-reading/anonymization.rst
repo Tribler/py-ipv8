@@ -1,3 +1,5 @@
+TunnelCommunity
+===============
 
 This document contains a description of how to use the ``TunnelCommunity`` class for anonymous communication and the ``HiddenTunnelCommunity`` extension of this functionality, which provides service-based end-to-end anonymous communication.
 The ``TunnelCommunity`` class should be used when passively contributing to the network health and the ``HiddenTunnelCommunity`` should be used when you want to actively send over the network.

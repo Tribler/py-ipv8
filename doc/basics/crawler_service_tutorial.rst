@@ -1,16 +1,16 @@
 
 How to run the Trustchain Crawler service
-==================================
+=========================================
 
 This document is a short walkthrough to set up IPv8 and run Trustchain Crawler from scratch.
 
 **Pre-requisites**
 
 
-#. Git is installed. If not, please check `here <https://git-scm.com/book/en/v2/Getting-Started-Installing-Git>`_.
-#. Python2.7.9+ is installed. If not, please check `here <https://www.python.org/downloads/release/python-2715/>`_.
+#. Git is installed. If not, please check `here <https://git-scm.com/book/en/v2/Getting-Started-Installing-Git>`__.
+#. Python2.7.9+ is installed. If not, please check `here <https://www.python.org/downloads/release/python-2715/>`__.
 #. Python PIP is available in PATH and ``pip`` command is working.
-#. PyCharm IDE (optional) if you want to make changes to the code. Download link `here <https://www.jetbrains.com/pycharm/download/>`_.
+#. PyCharm IDE (optional) if you want to make changes to the code. Download link `here <https://www.jetbrains.com/pycharm/download/>`__.
 
 **Instructions**
 
@@ -18,24 +18,24 @@ This document is a short walkthrough to set up IPv8 and run Trustchain Crawler f
 #. 
    First you need to download  the ``py-ipv8`` source code from Github.
 
-   .. code-block::
+   .. code-block:: bash
 
        git clone https://github.com/tribler/py-ipv8.git
 
 #. 
    Install the requirements for ``py-ipv8``.
 
-   .. code-block::
+   .. code-block:: bash
 
        cd py-ipv8
        pip install -r requirements.txt
 
 #. 
    As we are running as a service, we require a few additional dependencies:
-    a. `Install Libsodium <./install_libsodium.rst>`_ 
+    a. `Install Libsodium <../preliminaries/install_libsodium.html>`_ 
     b. Yappi - a profiling tool
 
-   .. code-block::
+   .. code-block:: bash
 
        pip install yappi
 
@@ -44,7 +44,7 @@ This document is a short walkthrough to set up IPv8 and run Trustchain Crawler f
    execute the following in the command line from within py-ipv8 directory. In Windows, use Git Bash instead 
    of default command line.
 
-   .. code-block::
+   .. code-block:: bash
 
        export PYTHONPATH=.
        twistd -n trustchain_crawler
@@ -52,7 +52,7 @@ This document is a short walkthrough to set up IPv8 and run Trustchain Crawler f
 #. 
    The Trustchain crawler should now be running. To confirm, open the following URL in the browser:
 
-   .. code-block::
+   .. code-block:: none
 
        http://localhost:8085/trustchain/recent
 

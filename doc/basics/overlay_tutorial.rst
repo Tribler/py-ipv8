@@ -16,7 +16,7 @@ You are free to choose whatever directory you want, to place your files in.
 #. 
    In the working directory, we will now clone IPv8 through ``git``\ :
 
-   .. code-block::
+   .. code-block:: bash
 
       git clone https://github.com/Tribler/py-ipv8.git pyipv8
 
@@ -27,7 +27,7 @@ You are free to choose whatever directory you want, to place your files in.
 
 At the end of this setup step you should have the following files in your working directory:
 
-.. code-block::
+.. code-block:: none
 
    (folder) pyipv8
    (file) __init__.py

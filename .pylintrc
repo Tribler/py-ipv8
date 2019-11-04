@@ -10,6 +10,7 @@
 # Add files or directories to the blacklist. They should be base names, not
 # paths.
 ignore=.git,dispersy,pymdht,libnacl,data
+ignore-patterns=**/doc/**/*.py
 
 # Pickle collected data for later comparisons.
 persistent=yes

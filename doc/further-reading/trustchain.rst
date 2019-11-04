@@ -1,3 +1,5 @@
+TrustChain
+==========
 
 This document entails a high-level overview of the implementation of TrustChain in IPv8.
 TrustChain is a scalable, tamper-proof and distributed ledger, built for secure accounting.

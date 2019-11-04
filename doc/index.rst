@@ -1,28 +1,37 @@
-
 IPv8 Documentation
 ==================
 
 Welcome to the IPv8 documentation!
 This file will help you navigate the existing documentation.
 
-Preliminaries
--------------
+Table of contents
+=================
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Preliminaries:
+
+   preliminaries/install_libsodium.rst
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Basics:
+
+   basics/overlay_tutorial.rst
+   basics/crawler_service_tutorial.rst
+   basics/attestation_tutorial.rst
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Further reading:
+
+   further-reading/trustchain.rst
+   further-reading/anonymization.rst
 
 
-* `Introduction <https://github.com/Tribler/py-ipv8/blob/master/README.md>`_
-* `Additional installation instructions for Windows and Mac <preliminaries/install_libsodium.rst>`_
+Search
+======
 
-Basics
-------
+* :ref:`genindex`
+* :ref:`search`
 
-
-* `Creating your first overlay <basics/overlay_tutorial.rst>`_
-* `Running a Trustchain crawler <basics/crawler_service_tutorial.rst>`_
-* `Using the attestation service <basics/attestation_tutorial.rst>`_
-
-Further reading
----------------
-
-
-* `Trustchain technical details <further-reading/trustchain.rst>`_
-* `Anonymization technical details <further-reading/anonymization.rst>`_
