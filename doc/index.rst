@@ -27,6 +27,7 @@ Table of contents
 
    further-reading/trustchain.rst
    further-reading/anonymization.rst
+   further-reading/attestation_prototype.rst
 
 
 Search

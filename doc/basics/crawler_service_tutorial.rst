@@ -4,7 +4,7 @@ How to run the Trustchain Crawler service
 
 This document is a short walkthrough to set up IPv8 and run Trustchain Crawler from scratch.
 
-**Pre-requisites**
+**Prerequisites**
 
 
 #. Git is installed. If not, please check `here <https://git-scm.com/book/en/v2/Getting-Started-Installing-Git>`__.
@@ -56,8 +56,8 @@ This document is a short walkthrough to set up IPv8 and run Trustchain Crawler f
 
        http://localhost:8085/trustchain/recent
 
-    If the crawler service is working fine, you should be able to see the recent Trustchain blocks represented in JSON. 
-    An example is shown below.
+   If the crawler service is working fine, you should be able to see the recent Trustchain blocks represented in JSON. 
+   An example is shown below.
 
    .. code-block:: json
 
