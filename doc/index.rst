@@ -26,6 +26,7 @@ Table of contents
    :caption: References:
 
    reference/configuration.rst
+   reference/keys.rst
 
 .. toctree::
    :maxdepth: 2
