@@ -23,6 +23,12 @@ Table of contents
 
 .. toctree::
    :maxdepth: 2
+   :caption: References:
+
+   reference/configuration.rst
+
+.. toctree::
+   :maxdepth: 2
    :caption: Further reading:
 
    further-reading/trustchain.rst
