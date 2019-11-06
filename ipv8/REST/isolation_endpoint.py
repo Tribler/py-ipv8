@@ -1,6 +1,11 @@
 from aiohttp import web
 
+from aiohttp_apispec import docs, form_schema
+
+from marshmallow.fields import Boolean, Integer, String
+
 from .base_endpoint import BaseEndpoint, HTTP_BAD_REQUEST, Response
+from .schema import DefaultResponseSchema, schema
 from ..community import _DEFAULT_ADDRESSES
 from ..messaging.anonymization.community import TunnelCommunity
 from ..util import cast_to_chr
@@ -9,16 +14,6 @@ from ..util import cast_to_chr
 class IsolationEndpoint(BaseEndpoint):
     """
     This endpoint is responsible for on-demand adding of addresses for different services.
-
-    We support:
-     - POST: /isolation?ip=<IP>&port=<PORT>&bootstrapnode=1
-     - POST: /isolation?ip=<IP>&port=<PORT>&exitnode=1
-
-    These commands add a bootstrap node and an exit node respectively.
-    The IP is a period-seperated string.
-    An example call would be:
-
-    curl -X POST "http://localhost:8085/isolation?ip=127.0.0.1&port=9999&bootstrapnode=1"
     """
 
     def setup_routes(self):
@@ -34,6 +29,26 @@ class IsolationEndpoint(BaseEndpoint):
         for overlay in self.session.overlays:
             overlay.walk_to(address)
 
+    @docs(
+        tags=["Isolation"],
+        summary="Add an address to a specific IPv8 service.",
+        responses={
+            200: {
+                "schema": DefaultResponseSchema,
+                "examples": {'Success': {"success": True}}
+            },
+            HTTP_BAD_REQUEST: {
+                "schema": DefaultResponseSchema,
+                "examples": {'Bad IPv4 address': {"success": False, "error": "Traceback (most recent call last): ..."}}
+            }
+        }
+    )
+    @form_schema(schema(IsolationRequest={
+        'ip*': String,
+        'port*': Integer,
+        'bootstrapnode': Boolean,
+        'exitnode': Boolean
+    }))
     async def handle_post(self, request):
         # Check if we have arguments, containing an address and the type of address to add.
         args = await request.post()

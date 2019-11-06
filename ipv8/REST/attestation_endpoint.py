@@ -4,6 +4,8 @@ from hashlib import sha1
 
 from aiohttp import web
 
+from aiohttp_apispec import docs
+
 from . import json_util as json
 from .base_endpoint import BaseEndpoint, HTTP_BAD_REQUEST, HTTP_NOT_FOUND, Response
 from ..attestation.identity.community import IdentityCommunity
@@ -147,8 +149,23 @@ class AttestationEndpoint(BaseEndpoint):
                                                   attestation_hashes)
         self.attestation_overlay.database.commit()
 
-    def handle_get(self, request):
-        """
+    @docs(
+        tags=["Attestation"],
+        summary="Get information from the AttestationCommunity.",
+        parameters=[{
+            'in': 'query',
+            'name': 'type',
+            'description': 'Type of query',
+            'type': 'string',
+            'enum': ['drop_identity', 'outstanding', 'outstanding_verify', 'verification_output', 'peers', 'attributes'],
+            'required': True
+        }, {
+            'in': 'query',
+            'name': 'mid',
+            'description': 'Filter by mid (only works for type=attributes)',
+            'type': 'string'
+        }],
+        description="""
         type=drop_identity
         type=outstanding -> [(mid_b64, attribute_name)]
         type=outstanding_verify -> [(mid_b64, attribute_name)]
@@ -156,6 +173,8 @@ class AttestationEndpoint(BaseEndpoint):
         type=peers -> [mid_b64]
         type=attributes&mid=mid_b64 -> [(attribute_name, attribute_hash)]
         """
+    )
+    def handle_get(self, request):
         if not self.attestation_overlay or not self.identity_overlay:
             return Response({"error": "attestation or identity community not found"}, status=HTTP_NOT_FOUND)
 
@@ -229,14 +248,26 @@ class AttestationEndpoint(BaseEndpoint):
         else:
             return Response({"error": "type argument incorrect"}, status=HTTP_BAD_REQUEST)
 
-    async def handle_post(self, request):
-        """
+    @docs(
+        tags=["Attestation"],
+        summary="Send a command to the AttestationCommunity.",
+        parameters=[{
+            'in': 'query',
+            'name': 'type',
+            'description': 'Type of query',
+            'type': 'string',
+            'enum': ['request', 'allow_verify', 'attest', 'verify'],
+            'required': True
+        }],
+        description="""
         type=request&mid=mid_b64&attibute_name=attribute_name&id_format=id_format
         type=allow_verify&mid=mid_b64&attibute_name=attribute_name
         type=attest&mid=mid_b64&attribute_name=attribute_name&attribute_value=attribute_value_b64
         type=verify&mid=mid_b64&attribute_hash=attribute_hash_b64&id_format=id_format
                    &attribute_values=attribute_value_b64,...
         """
+    )
+    async def handle_post(self, request):
         if not self.attestation_overlay or not self.identity_overlay:
             return Response({"error": "attestation or identity community not found"}, status=HTTP_NOT_FOUND)
 

@@ -19,6 +19,7 @@ setup(
         "libnacl",
         "netifaces",
         "aiohttp",
+        "aiohttp_apispec",
         "pyOpenSSL"
     ],
     classifiers=[

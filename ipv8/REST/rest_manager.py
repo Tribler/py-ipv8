@@ -2,6 +2,8 @@ import logging
 
 from aiohttp import web
 
+from aiohttp_apispec import setup_aiohttp_apispec
+
 from .root_endpoint import RootEndpoint
 
 
@@ -36,6 +38,17 @@ class RESTManager:
         """
         root_endpoint = RootEndpoint(middlewares=[cors_middleware])
         root_endpoint.initialize(self.session)
+        setup_aiohttp_apispec(
+            app=root_endpoint.app,
+            title="IPv8 REST API documentation",
+            version="v1.9",
+            url="/docs/swagger.json",
+            swagger_path="/docs",
+        )
+
+        from apispec.core import VALID_METHODS_OPENAPI_V2
+        VALID_METHODS_OPENAPI_V2.remove('head')
+
         runner = web.AppRunner(root_endpoint.app, access_log=None)
         await runner.setup()
         self.site = web.TCPSite(runner, 'localhost', port)

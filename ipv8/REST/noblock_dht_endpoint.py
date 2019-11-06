@@ -4,7 +4,10 @@ from binascii import hexlify, unhexlify
 
 from aiohttp import web
 
+from aiohttp_apispec import docs
+
 from .base_endpoint import BaseEndpoint, HTTP_NOT_FOUND, Response
+from .schema import DefaultResponseSchema
 from ..dht.community import DHTCommunity
 
 
@@ -24,6 +27,27 @@ class NoBlockDHTEndpoint(BaseEndpoint):
         super(NoBlockDHTEndpoint, self).initialize(session)
         self.dht = next((overlay for overlay in session.overlays if isinstance(overlay, DHTCommunity)), None)
 
+    @docs(
+        tags=["DHT"],
+        summary="Connect to a peer through the DHT.",
+        parameters=[{
+            'in': 'path',
+            'name': 'mid',
+            'description': 'The mid (i.e., sha1(public_key)) of the peer to connect to.',
+            'type': 'string',
+            'required': True
+        }],
+        responses={
+            200: {
+                "schema": DefaultResponseSchema,
+                "examples": {'Success': {"success": True}}
+            },
+            HTTP_NOT_FOUND: {
+                "schema": DefaultResponseSchema,
+                "examples": {'DHT not loaded': {"success": False, "error": "DHT community not found"}}
+            }
+        }
+    )
     def handle_get(self, request):
         if not self.dht:
             return Response({"error": "DHT community not found"}, status=HTTP_NOT_FOUND)

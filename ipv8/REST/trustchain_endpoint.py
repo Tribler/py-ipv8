@@ -2,7 +2,12 @@ from binascii import unhexlify
 
 from aiohttp import web
 
+from aiohttp_apispec import docs
+
+from marshmallow.fields import Integer, String
+
 from .base_endpoint import BaseEndpoint, HTTP_NOT_FOUND, Response
+from .schema import BlockSchema, schema
 from ..attestation.trustchain.community import TrustChainCommunity
 
 
@@ -25,6 +30,28 @@ class TrustchainEndpoint(BaseEndpoint):
         super(TrustchainEndpoint, self).initialize(session)
         self.trustchain = next((o for o in session.overlays if isinstance(o, TrustChainCommunity)), None)
 
+    @docs(
+        tags=["TrustChain"],
+        summary="Return a list of recently created blocks.",
+        parameters=[{
+            'in': 'query',
+            'name': 'limit',
+            'description': 'Maximum number of blocks to return',
+            'type': 'integer',
+        }, {
+            'in': 'query',
+            'name': 'offset',
+            'description': 'Number of most recent blocks to skip',
+            'type': 'integer'
+        }],
+        responses={
+            200: {
+                "schema": schema(RecentBlocksResponse={
+                    "blocks": [BlockSchema]
+                })
+            }
+        }
+    )
     def get_recent_blocks(self, request):
         if not self.trustchain:
             return Response({"error": "Trustchain community not found"}, status=HTTP_NOT_FOUND)
@@ -42,6 +69,23 @@ class TrustchainEndpoint(BaseEndpoint):
                        self.trustchain.persistence.get_recent_blocks(limit=limit, offset=offset)]
         })
 
+    @docs(
+        tags=["TrustChain"],
+        summary="Return a specific block.",
+        parameters=[{
+            'in': 'path',
+            'name': 'block_hash',
+            'description': 'Hash of the block to return',
+            'type': 'string',
+        }],
+        responses={
+            200: {
+                "schema": schema(BlockResponse={
+                    "block": BlockSchema
+                })
+            }
+        }
+    )
     def get_block(self, request):
         if not self.trustchain:
             return Response({"error": "Trustchain community not found"}, status=HTTP_NOT_FOUND)
@@ -65,6 +109,26 @@ class TrustchainEndpoint(BaseEndpoint):
 
         return Response({"block": block_dict})
 
+    @docs(
+        tags=["TrustChain"],
+        summary="Return a list of known users from the blockchain.",
+        parameters=[{
+            'in': 'query',
+            'name': 'limit',
+            'description': 'Maximum nubmer of users to return',
+            'type': 'integer',
+        }],
+        responses={
+            200: {
+                "schema": schema(UsersResponse={
+                    "users": [schema(User={
+                        "public_key": String,
+                        "blocks": Integer
+                    })]
+                })
+            }
+        }
+    )
     def get_users(self, request):
         if not self.trustchain:
             return Response({"error": "Trustchain community not found"}, status=HTTP_NOT_FOUND)
@@ -74,8 +138,27 @@ class TrustchainEndpoint(BaseEndpoint):
             limit = int(request.query['limit'])
 
         users_info = self.trustchain.persistence.get_users(limit=limit)
+        for user in users_info:
+            user['public_key'] = user['public_key'].decode('utf-8')
         return Response({"users": users_info})
 
+    @docs(
+        tags=["TrustChain"],
+        summary="Return a list of blocks for a specific user.",
+        parameters=[{
+            'in': 'path',
+            'name': 'pub_key',
+            'description': 'Public key of the user for which to return blocks from',
+            'type': 'string',
+        }],
+        responses={
+            200: {
+                "schema": schema(BlocksForUserResponse={
+                    "blocks": [BlockSchema]
+                })
+            }
+        }
+    )
     def get_blocks_for_user(self, request):
         if not self.trustchain:
             return Response({"error": "Trustchain community not found"}, status=HTTP_NOT_FOUND)

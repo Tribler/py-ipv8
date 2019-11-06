@@ -2,7 +2,12 @@ from binascii import hexlify
 
 from aiohttp import web
 
+from aiohttp_apispec import docs, form_schema
+
+from marshmallow.fields import Boolean, Dict, List, Nested, String
+
 from .base_endpoint import BaseEndpoint, HTTP_BAD_REQUEST, HTTP_PRECONDITION_FAILED, Response
+from .schema import DefaultResponseSchema, OverlaySchema, OverlayStatisticsSchema, schema
 from ..messaging.interfaces.statistics_endpoint import StatisticsEndpoint
 
 
@@ -22,9 +27,21 @@ class OverlaysEndpoint(BaseEndpoint):
 
     def initialize(self, session):
         super(OverlaysEndpoint, self).initialize(session)
-        self.statistics_supported = isinstance(session.endpoint, StatisticsEndpoint)
+        self.statistics_supported = isinstance(session.endpoint, StatisticsEndpoint) \
+            or isinstance(getattr(session.endpoint, 'endpoint', None), StatisticsEndpoint)
 
-    def get_overlays(self, request):
+    @docs(
+        tags=["Overlays"],
+        summary="Return information about all currently loaded overlays.",
+        responses={
+            200: {
+                "schema": schema(OverlayResponse={
+                    "overlays": [OverlaySchema]
+                })
+            }
+        }
+    )
+    def get_overlays(self, _):
         overlay_stats = []
         for overlay in self.session.overlays:
             peers = overlay.get_peers()
@@ -40,7 +57,21 @@ class OverlaysEndpoint(BaseEndpoint):
             })
         return Response({"overlays": overlay_stats})
 
-    def get_statistics(self, request):
+    @docs(
+        tags=["Overlays"],
+        summary="Return statistics for all currently loaded overlays.",
+        responses={
+            200: {
+                "schema": schema(StatisticsResponse={
+                    "statistics": List(Dict(keys=String, values=Nested(OverlayStatisticsSchema))),
+                }),
+                "examples": {'Success': {"statistics": [{"DiscoveryCommunity": {'num_up': 0, 'num_down': 0,
+                                                                                'bytes_up': 0, 'bytes_down': 0,
+                                                                                'diff_time': 0}}]}}
+            }
+        }
+    )
+    def get_statistics(self, _):
         overlay_stats = []
         for overlay in self.session.overlays:
             statistics = self.session.endpoint.get_statistics(overlay.get_prefix()) if self.statistics_supported else {}
@@ -60,29 +91,30 @@ class OverlaysEndpoint(BaseEndpoint):
             named_statistics[mapped_name] = mapped_value
         return named_statistics
 
-    def enable_statistics(self, request):
-        """
-        .. http:post:: /overlays/statistics
-
-        A POST request to this endpoint will enable statistics on the given overlay.
-        - enable: whether to enable or disable the statistics (True/False)
-        - overlay_name: class name of the overlay
-        - all: if set to True, update applies to all overlays
-
-            **Example request**:
-
-                .. sourcecode:: none
-
-                    curl -X PUT http://localhost:8085/ipv8/overlays/statistics
-                    --data "enable=True&overlay_name=overlay_name&all=True
-
-            **Example response**:
-
-                .. sourcecode:: javascript
-
-                    {"success": True}
-        """
-
+    @docs(
+        tags=["Overlays"],
+        summary="Enable/disable statistics for a given overlay.",
+        responses={
+            200: {
+                "schema": DefaultResponseSchema,
+                "examples": {'Success': {"success": True}}
+            },
+            HTTP_PRECONDITION_FAILED: {
+                "schema": DefaultResponseSchema,
+                "examples": {'Statistics disabled': {"success": False, "error": "StatisticsEndpoint is not enabled."}}
+            },
+            HTTP_BAD_REQUEST: {
+                "schema": DefaultResponseSchema,
+                "examples": {'Missing parameter': {"success": False, "error": "Parameter 'enable' is required."}}
+            }
+        }
+    )
+    @form_schema(schema(EnableStatisticsRequest={
+        'enable*': (Boolean, 'Whether to enable or disable the statistics'),
+        'all': (Boolean, 'Whether update applies to all overlays'),
+        'overlay_name': (String, 'Class name of the overlay'),
+    }))
+    async def enable_statistics(self, request):
         if not self.statistics_supported:
             return Response({"success": False, "error": "StatisticsEndpoint is not enabled."},
                             status=HTTP_PRECONDITION_FAILED)
@@ -90,14 +122,15 @@ class OverlaysEndpoint(BaseEndpoint):
         all_overlays = False
         overlay_name = None
 
-        if 'enable' not in request.query or not request.query['enable']:
+        args = await request.post()
+        if 'enable' not in args or not args['enable']:
             return Response({"success": False, "error": "Parameter 'enable' is required"}, status=HTTP_BAD_REQUEST)
-        enable = request.query['enable'] == 'True'
+        enable = args['enable'].lower() == 'true'
 
-        if 'all' in request.query and request.query['all']:
-            all_overlays = request.query['all'] == 'True'
-        elif 'overlay_name' in request.query and request.query['overlay_name']:
-            overlay_name = request.query['overlay_name']
+        if 'all' in args and args['all']:
+            all_overlays = args['all'].lower() == 'true'
+        elif 'overlay_name' in args and args['overlay_name']:
+            overlay_name = args['overlay_name']
         else:
             return Response({"success": False, "error": "Parameter 'all' or 'overlay_name' is required"},
                             status=HTTP_PRECONDITION_FAILED)

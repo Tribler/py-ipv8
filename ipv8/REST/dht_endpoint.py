@@ -6,7 +6,12 @@ from hashlib import sha1
 
 from aiohttp import web
 
+from aiohttp_apispec import docs, form_schema
+
+from marshmallow.fields import Integer, String
+
 from .base_endpoint import BaseEndpoint, HTTP_BAD_REQUEST, HTTP_INTERNAL_SERVER_ERROR, HTTP_NOT_FOUND, Response
+from .schema import DHTValueSchema, DefaultResponseSchema, schema
 from ..attestation.trustchain.community import TrustChainCommunity
 from ..attestation.trustchain.listener import BlockListener
 from ..attestation.trustchain.payload import DHTBlockPayload
@@ -27,9 +32,9 @@ class DHTEndpoint(BaseEndpoint):
 
     def setup_routes(self):
         self.app.add_routes([web.get('/statistics', self.get_statistics),
-                             web.get('/values', self.get_values),
-                             web.get('/values/{key}', self.get_value),
-                             web.put('/values', self.put_value),
+                             web.get('/values', self.get_stored_values),
+                             web.get('/values/{key}', self.get_values),
+                             web.put('/values/{key}', self.put_value),
                              web.get('/peers/{mid}', self.get_peer),
                              web.get('/block', self.get_block)])
 
@@ -39,7 +44,31 @@ class DHTEndpoint(BaseEndpoint):
         tc = next((o for o in session.overlays if isinstance(o, TrustChainCommunity)), None)
         self.publisher = DHTBlockPublisher(self.dht, tc) if self.dht and tc else None
 
-    def get_statistics(self, request):
+    @docs(
+        tags=["DHT"],
+        summary="Return DHT statistics.",
+        responses={
+            200: {
+                "schema": schema(DHTStatsResponse={
+                    "statistics": schema(DHTStats={
+                        "node_id": String,
+                        "peer_id": String,
+                        "routing_table_size": Integer,
+                        "routing_table_buckets": Integer,
+                        "num_keys_in_store": Integer,
+                        "num_tokens": Integer,
+                        "num_peers_in_store": Integer,
+                        "num_store_for_me": Integer
+                    })
+                })
+            },
+            400: {
+                "schema": DefaultResponseSchema,
+                "examples": {'DHT disabled': {"success": False, "error": "DHT community not found."}}
+            }
+        }
+    )
+    def get_statistics(self, _):
         if not self.dht:
             return Response({"error": "DHT community not found"}, status=HTTP_NOT_FOUND)
 
@@ -61,6 +90,24 @@ class DHTEndpoint(BaseEndpoint):
 
         return Response({"statistics": stats})
 
+    @docs(
+        tags=["DHT"],
+        summary="Connect to a peer using the DHT.",
+        responses={
+            200: {
+                "schema": schema(DHTPeerResponse={
+                    "peers": [schema(DHTPeer={
+                        "public_key": String,
+                        "address": String
+                    })]
+                })
+            },
+            400: {
+                "schema": DefaultResponseSchema,
+                "examples": {'DHT disabled': {"success": False, "error": "DHT community not found."}}
+            }
+        }
+    )
     async def get_peer(self, request):
         if not self.dht:
             return Response({"error": "DHT community not found"}, status=HTTP_NOT_FOUND)
@@ -80,7 +127,22 @@ class DHTEndpoint(BaseEndpoint):
         return Response({"peers": [{'public_key': b64encode(node.public_key.key_to_bin()).decode('utf-8'),
                                     'address': node.address} for node in nodes]})
 
-    def get_values(self, request):
+    @docs(
+        tags=["DHT"],
+        summary="Get a list of locally stored key-value pairs from the DHT.",
+        responses={
+            200: {
+                "schema": schema(DHTStoredValuesResponse={
+                    "values": [DHTValueSchema]
+                })
+            },
+            400: {
+                "schema": DefaultResponseSchema,
+                "examples": {'DHT disabled': {"success": False, "error": "DHT community not found."}}
+            }
+        }
+    )
+    def get_stored_values(self, _):
         if not self.dht:
             return Response({"error": "DHT community not found"}, status=HTTP_NOT_FOUND)
 
@@ -92,12 +154,28 @@ class DHTEndpoint(BaseEndpoint):
                 data, public_key = value
                 dicts.append({
                     'public_key': b64encode(public_key).decode('utf-8') if public_key else None,
+                    'key': hexlify(key).decode('utf-8'),
                     'value': hexlify(data).decode('utf-8')
                 })
             results[hexlify(key)] = dicts
         return Response(results)
 
-    async def get_value(self, request):
+    @docs(
+        tags=["DHT"],
+        summary="Lookup the values for a specific key on the DHT.",
+        responses={
+            200: {
+                "schema": schema(DHTValuesResponse={
+                    "values": [DHTValueSchema]
+                })
+            },
+            400: {
+                "schema": DefaultResponseSchema,
+                "examples": {'DHT disabled': {"success": False, "error": "DHT community not found."}}
+            }
+        }
+    )
+    async def get_values(self, request):
         if not self.dht:
             return Response({"error": "DHT community not found"}, status=HTTP_NOT_FOUND)
 
@@ -113,9 +191,31 @@ class DHTEndpoint(BaseEndpoint):
                 }
             }, status=HTTP_INTERNAL_SERVER_ERROR)
 
-        return Response({"peers": [{'public_key': b64encode(public_key).decode('utf-8') if public_key else None,
-                                    'value': hexlify(data).decode('utf-8')} for data, public_key in values]})
+        return Response({"values": [{'public_key': b64encode(public_key).decode('utf-8') if public_key else None,
+                                     'key': hexlify(key).decode('utf-8'),
+                                     'value': hexlify(data).decode('utf-8')} for data, public_key in values]})
 
+    @docs(
+        tags=["DHT"],
+        summary="Store a key-value pair on the DHT.",
+        parameters=[{
+            'in': 'path',
+            'name': 'key',
+            'description': 'The key under which to store the value',
+            'type': 'string',
+            'required': True
+        }],
+        responses={
+            200: {"schema": DefaultResponseSchema},
+            400: {
+                "schema": DefaultResponseSchema,
+                "examples": {'DHT disabled': {"success": False, "error": "DHT community not found."}}
+            }
+        }
+    )
+    @form_schema(schema(DHTStoreRequest={
+        'value*': String
+    }))
     async def put_value(self, request):
         if not self.dht:
             return Response({"error": "DHT community not found"}, status=HTTP_NOT_FOUND)
@@ -124,8 +224,9 @@ class DHTEndpoint(BaseEndpoint):
         if 'value' not in parameters:
             return Response({"error": "incorrect parameters"}, status=HTTP_BAD_REQUEST)
 
+        key = unhexlify(request.match_info['key'])
         try:
-            await self.dht.store_value(self.key, unhexlify(parameters['value']), sign=True)
+            await self.dht.store_value(key, unhexlify(parameters['value']), sign=True)
         except Exception as e:
             return Response({
                 "error": {
@@ -135,8 +236,26 @@ class DHTEndpoint(BaseEndpoint):
                 }
             }, status=HTTP_INTERNAL_SERVER_ERROR)
 
-        return Response({"stored": True})
+        return Response({"success": True})
 
+    @docs(
+        tags=["DHT"],
+        summary="Find the most recent TrustChain block for a specific user on the DHT.",
+        parameters=[{
+            'in': 'query',
+            'name': 'public_key',
+            'description': 'Public key of the users for which to find the most recent block',
+            'type': 'string',
+            'required': True
+        }],
+        responses={
+            200: {"schema": schema(DHTBlockResponse={"block": (String, 'Bencoded block')})},
+            400: {
+                "schema": DefaultResponseSchema,
+                "examples": {'DHT disabled': {"success": False, "error": "DHT community not found."}}
+            }
+        }
+    )
     async def get_block(self, request):
         """
         Return the latest TC block of a peer, as identified in the request
