@@ -35,19 +35,19 @@ Each block in TrustChain contains the following properties:
    * - *transaction*
      - dictionary
      - The transaction that this block describes.
-   * - _public\ *key*
+   * - *public\_key*
      - string
      - The public key in binary format of the block creator.
-   * - _link_public\ *key*
+   * - *link\_public\_key*
      - string
      - The public key of the transaction counterparty.
-   * - _sequence\ *number*
+   * - *sequence\_number*
      - integer
      - The sequence number of the block. The sequence number of the genesis block is 1.
-   * - _link_sequence\ *number*
+   * - *link\_sequence\_number*
      - integer
      - The sequence number of the linked block.
-   * - _previous\ *hash*
+   * - *previous\_hash*
      - string
      - The SHA256 hash of the previous block in the chain.
    * - *signature*
@@ -114,6 +114,7 @@ For example, when peer **A** performs a crawl request from a peer **B** with 8 b
    * - CrawlRequest(-5)
      - 4, 5, 6, 7, 8
    * - CrawlRequest(9)
+     - 
 
 
 The ``HalfBlockPayload`` class is used to share a block.
@@ -121,8 +122,8 @@ It is sent when a transaction is being made.
 Upon receipt, the TrustChain logic will determine if the block is valid and/or other blocks need to be crawled to validate the received block.
 
 * NOTE: The *link_sequence_number* of the party requesting the transaction be signed is always 0.
-The blocks are only linked by sequence number through the second "half" of the block.
-Therefore, you should always use ``get_linked()`` defined in ``database.py`` to retrieve a block's other half.
+  The blocks are only linked by sequence number through the second "half" of the block.
+  Therefore, you should always use ``get_linked()`` defined in ``database.py`` to retrieve a block's other half.
 
 database.py
 -----------

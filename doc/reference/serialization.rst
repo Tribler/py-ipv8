@@ -201,9 +201,9 @@ Some of these data types represent common usage of serializable classes:
 
    "4SH", "(IP, port) tuples"
    "20s", "SHA-1 hashes"
-   "32s", "LibNaCL signatures"
-   "64s", "LibNaCL public keys"
-   "74s", "LibNaCL public keys with prefix"
+   "32s", "libnacl signatures"
+   "64s", "libnacl public keys"
+   "74s", "libnacl public keys with prefix"
 
 
 Special instances are the ``raw`` and ``payload`` data types.
@@ -227,7 +227,7 @@ Simply supply the payload classes you wish to unserialize to, to the decorator.
 
 As some internal messages and deprecated messages use some of the message range, you have the messages identifiers from 0 through 234 available for your custom message definitions.
 Once you register the message handler and have the appropriate decorator on the specified handler method your overlay can communicate with the Internet.
-In practice this will look something like this example:
+In practice, given a ``MASTER_KEY`` and the payload definitions ``MyMessagePayload1`` and ``MyMessagePayload2``, this will look something like this example (see `the overlay tutorial <../basics/overlay_tutorial.html>`_ for a complete runnable example):
 
 
 .. code-block:: python

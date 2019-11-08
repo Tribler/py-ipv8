@@ -17,11 +17,11 @@ By invoking ``get_default_configuration()``, you can get a dictionary copy of th
 
 .. |snip2| raw:: html
 
-  <small>{<br />
+  <small>[{<br />
   &emsp;<nobr>'alias':<nobr>"anonymous<nobr>id",<br />
   &emsp;<nobr>'generation':<nobr>u"curve25519",<br />
   &emsp;<nobr>'file':<nobr>u"ec_multichain.pem"<br />
-  }</small>
+  }]</small>
 
 
 .. |snip3| raw:: html

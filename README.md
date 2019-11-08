@@ -1,3 +1,8 @@
+**FAQ:**
+
+ - **Q:** Is this the new official Layer 3 solution for the Internet?
+ - **A:** No, the naming is a [10-years-old](https://www.tribler.org/IPv8/) mockery of the deployment failure of IPv6 (which we sincerely hope will be deployed properly at some point in time).
+
 [![Documentation Status](https://readthedocs.org/projects/py-ipv8/badge/?version=latest)](https://py-ipv8.readthedocs.io/)
 
 **Linux**: [![](http://jenkins-ci.tribler.org/job/ipv8/job/test_ipv8_linux/badge/icon)](http://jenkins-ci.tribler.org/job/ipv8/job/test_ipv8_linux/) **Windows**: [![](http://jenkins-ci.tribler.org/job/ipv8/job/test_ipv8_windows/badge/icon)](http://jenkins-ci.tribler.org/job/ipv8/job/test_ipv8_windows/) **Mac**: [![](http://jenkins-ci.tribler.org/job/ipv8/job/test_ipv8_mac/badge/icon)](http://jenkins-ci.tribler.org/job/ipv8/job/test_ipv8_mac/)
@@ -14,7 +19,7 @@ The IPv8 library allows you to easily create network overlays on which to build 
 - **Authentication**. We offer mutual authentication using strong cryptography. During an IPv8 communication session, both parties can be sure of the other party’s identity. IPv8 users are identified by their public key. The initial key exchange is designed so that secrets are never transmitted across the Internet, not even in encrypted form. We use a standard challenge/response protocol with protection against spoofing, man-in-the-middle, and replay attacks.
 - **Privacy**. IPv8 is specifically designed for strong privacy protection and end-to-end encryption with perfect forward secrecy. We enhanced the industry standard onion routing protocol, Tor, for usage in a trustless environment (e.g. no trusted central directory servers).
 - **No infrastructure dependency**. Everybody is equal in the world of IPv8. No central web server, discovery server, or support foundation is needed.
-- **NAT traversal**. IPv8 can establish direct communication in difficult network situations. This includes connecting people behind a NAT or firewall.   IPv8 includes a single simple and effective NAT traversal technique: UDP hole-punching. This is essential when offering privacy without infrastructure and consumer-grade donated resources.
+- **Universal connectivity**. IPv8 can establish direct communication in difficult network situations. This includes connecting people behind a NAT or firewall.   IPv8 includes a single simple and effective NAT traversal technique: UDP hole-punching. This is essential when offering privacy without infrastructure and consumer-grade donated resources.
 - **Trust**. You can enhance your security if you tell IPv8 which people you know and trust. It tries to build a web-of-trust automatically.
 
 ### Dependencies
