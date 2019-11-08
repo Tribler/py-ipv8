@@ -27,6 +27,7 @@ Table of contents
 
    reference/configuration.rst
    reference/keys.rst
+   reference/serialization.rst
 
 .. toctree::
    :maxdepth: 2
