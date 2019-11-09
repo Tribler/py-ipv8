@@ -9,17 +9,18 @@ The authors of this file are not -in any way- affiliated with the original autho
 import random
 import time
 
-from twisted.trial import unittest
+import asynctest
 
 from .....attestation.wallet.irmaexact.gabi.attributes import make_attribute_list
-from .....attestation.wallet.irmaexact.gabi.builder import BuildDistributedProofList, BuildProofList, Challenge, CredentialBuilder, IssueCommitmentMessage, Issuer, Verify
+from .....attestation.wallet.irmaexact.gabi.builder import (BuildDistributedProofList, BuildProofList, Challenge,
+                                                            CredentialBuilder, IssueCommitmentMessage, Issuer, Verify)
 from .....attestation.wallet.irmaexact.gabi.credential import Credential
 from .....attestation.wallet.irmaexact.gabi.keys import DefaultSystemParameters, PrivateKey, PublicKey, SignMessageBlock
 from .....attestation.wallet.irmaexact.gabi.proofs import ProofP, ProofPCommitment, createChallenge
 from .....attestation.wallet.primitives.value import FP2Value
 
 
-class TestCredential(unittest.TestCase):
+class TestCredential(asynctest.TestCase):
 
     def setUp(self):
         self.testAttributes1 = [1, 2, 3, 4]

@@ -4,7 +4,7 @@ from binascii import hexlify, unhexlify
 
 from aiohttp import web
 
-from .base_endpoint import BaseEndpoint, Response, HTTP_NOT_FOUND
+from .base_endpoint import BaseEndpoint, HTTP_NOT_FOUND, Response
 from ..dht.community import DHTCommunity
 
 
@@ -29,6 +29,7 @@ class NoBlockDHTEndpoint(BaseEndpoint):
             return Response({"error": "DHT community not found"}, status=HTTP_NOT_FOUND)
 
         mid = unhexlify(request.match_info['mid'])
+
         async def connect_peer():
             try:
                 self.dht.connect_peer(mid)

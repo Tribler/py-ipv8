@@ -1,4 +1,4 @@
-from asyncio import all_tasks, Future
+from asyncio import Future, all_tasks
 
 import asynctest
 

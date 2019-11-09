@@ -1,4 +1,4 @@
-from asyncio import coroutine, sleep, Future
+from asyncio import Future, coroutine, sleep
 
 from .base import TestBase
 from ..taskmanager import CLEANUP_FREQUENCY, TaskManager
@@ -29,7 +29,7 @@ class TestTaskManager(TestBase):
 
     async def test_replace_with_duplicate(self):
         task1 = self.tm.register_task("test", coroutine(lambda: None), delay=10)
-        task2 = await self.tm.replace_task("test", coroutine(lambda: None), delay=10)
+        await self.tm.replace_task("test", coroutine(lambda: None), delay=10)
         await sleep(.1)
         self.assertTrue(self.tm.is_pending_task_active("test"))
         self.assertTrue(task1.cancelled())

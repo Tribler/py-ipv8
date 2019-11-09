@@ -21,7 +21,6 @@ from .messaging.payload import (IntroductionRequestPayload, IntroductionResponse
                                 PunctureRequestPayload)
 from .messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 
-
 _DEFAULT_ADDRESSES = [
     # Dispersy
     ("130.161.119.206", 6421),

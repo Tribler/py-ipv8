@@ -2,7 +2,7 @@ from binascii import hexlify
 
 from aiohttp import web
 
-from .base_endpoint import BaseEndpoint, Response,  HTTP_PRECONDITION_FAILED, HTTP_BAD_REQUEST
+from .base_endpoint import BaseEndpoint, HTTP_BAD_REQUEST, HTTP_PRECONDITION_FAILED, Response
 from ..messaging.interfaces.statistics_endpoint import StatisticsEndpoint
 
 
@@ -19,7 +19,6 @@ class OverlaysEndpoint(BaseEndpoint):
         self.app.add_routes([web.get('', self.get_overlays),
                              web.get('/statistics', self.get_statistics),
                              web.post('/statistics', self.enable_statistics)])
-
 
     def initialize(self, session):
         super(OverlaysEndpoint, self).initialize(session)

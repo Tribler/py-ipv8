@@ -1,5 +1,5 @@
-from binascii import hexlify
 import sys
+from binascii import hexlify
 
 from ipv8.keyvault.crypto import ECCrypto
 

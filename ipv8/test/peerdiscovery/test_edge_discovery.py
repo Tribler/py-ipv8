@@ -1,7 +1,7 @@
-from ...peerdiscovery.discovery import EdgeWalk
-from ...community import _DEFAULT_ADDRESSES
 from ..base import TestBase
 from ..mocking.community import MockCommunity
+from ...community import _DEFAULT_ADDRESSES
+from ...peerdiscovery.discovery import EdgeWalk
 
 
 class TestEdgeWalk(TestBase):

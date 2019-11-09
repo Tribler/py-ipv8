@@ -1,7 +1,7 @@
 import struct
 from unittest import TestCase
 
-from ...messaging.serialization import Serializable, Serializer, PackError
+from ...messaging.serialization import PackError, Serializable, Serializer
 
 
 class TestSerializable(Serializable):

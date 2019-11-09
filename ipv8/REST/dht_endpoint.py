@@ -6,7 +6,7 @@ from hashlib import sha1
 
 from aiohttp import web
 
-from .base_endpoint import BaseEndpoint, Response, HTTP_NOT_FOUND, HTTP_INTERNAL_SERVER_ERROR, HTTP_BAD_REQUEST
+from .base_endpoint import BaseEndpoint, HTTP_BAD_REQUEST, HTTP_INTERNAL_SERVER_ERROR, HTTP_NOT_FOUND, Response
 from ..attestation.trustchain.community import TrustChainCommunity
 from ..attestation.trustchain.listener import BlockListener
 from ..attestation.trustchain.payload import DHTBlockPayload
@@ -78,7 +78,7 @@ class DHTEndpoint(BaseEndpoint):
             }, status=HTTP_INTERNAL_SERVER_ERROR)
 
         return Response({"peers": [{'public_key': b64encode(node.public_key.key_to_bin()).decode('utf-8'),
-                                        'address': node.address} for node in nodes]})
+                                    'address': node.address} for node in nodes]})
 
     def get_values(self, request):
         if not self.dht:
@@ -114,7 +114,7 @@ class DHTEndpoint(BaseEndpoint):
             }, status=HTTP_INTERNAL_SERVER_ERROR)
 
         return Response({"peers": [{'public_key': b64encode(public_key).decode('utf-8') if public_key else None,
-                                        'value': hexlify(data).decode('utf-8')} for data, public_key in values]})
+                                    'value': hexlify(data).decode('utf-8')} for data, public_key in values]})
 
     async def put_value(self, request):
         if not self.dht:

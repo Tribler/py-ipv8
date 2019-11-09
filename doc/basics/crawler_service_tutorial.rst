@@ -40,14 +40,13 @@ This document is a short walkthrough to set up IPv8 and run Trustchain Crawler f
        pip install yappi
 
 #. 
-   Now we are ready to run the Trustchain crawler. It is set up as a plugin based on Twisted library. To run it,
-   execute the following in the command line from within py-ipv8 directory. In Windows, use Git Bash instead 
-   of default command line.
+   Now we are ready to run the Trustchain crawler. To run it, execute the following in the command line from
+   within py-ipv8 directory. In Windows, use Git Bash instead of default command line.
 
    .. code-block:: bash
 
        export PYTHONPATH=.
-       twistd -n trustchain_crawler
+       python scripts/trustchain_crawler_plugin.py
 
 #. 
    The Trustchain crawler should now be running. To confirm, open the following URL in the browser:

@@ -254,7 +254,7 @@ Below is a brief description of some of the important classes in the IPv8 applic
 
 
 * 
-  The ``RootEndpoint`` class will be the one which receives the requests from the peers. This class will delegate work to its children. Currently, the children are: ``AttestationEndpoint`` and ``NetworkEndpoint``. All these classes must subclass the Resource class in the Twisted library. The request chain is modeled like a tree, where the ``RootEndpoint`` is the root of the tree and the ``AttestationEndpoint`` and ``NetworkEndpoint`` classes are its children (and implicitly leaves) . When they are added, they are associated a ``path``\ , which is the ``endpoint`` field of the request (e.g. *attestation* or *network*\ ). This is how the root knows to delegate requests to the right children (e.g. ``<node_ip>:<port>/<path>``\ ).
+  The ``RootEndpoint`` class will be the one which receives the requests from the peers. This class will delegate work to its children. Currently, the children are: ``AttestationEndpoint`` and ``NetworkEndpoint``. All these classes must subclass the BaseEndpoint class. The request chain is modeled like a tree, where the ``RootEndpoint`` is the root of the tree and the ``AttestationEndpoint`` and ``NetworkEndpoint`` classes are its children (and implicitly leaves) . When they are added, they are associated a ``path``\ , which is the ``endpoint`` field of the request (e.g. *attestation* or *network*\ ). This is how the root knows to delegate requests to the right children (e.g. ``<node_ip>:<port>/<path>``\ ).
 
 * 
   The ``NetworkEndpoint`` handles the *peer discovery* requests. It is (currently) a simple class which has the simple task of returning a list of verified nodes in the system and some relevant information on them, such as: *IP*\ , *port*\ , *public key*\ , and *offered services*. However, the Android Phone Application does not forward requests (GET or POST) to this endpoint. 
@@ -263,7 +263,7 @@ Below is a brief description of some of the important classes in the IPv8 applic
   The ``AttestationEndpoint`` class handles a set of both **POST** and **GET** requests. It features a more complex set of methods than ``NetworkEndpoint``.
 
 * 
-  The ``RESTRequest`` class is used to model the HTTP response to a failed request. However, since it subclasses the ``Request`` class from Twisted, it also models the HTTP request. It will essentially just define a response (error_code, error_message, error_handled) which will then be sent back as a response.
+  The ``Response`` class is used to model HTTP responses. It will essentially just define a response (status_code, content) which will then be sent back as a response.
 
 * 
   The ``RESTManager`` class handles the start and stop of the server's HTTP API service. On startup, the class will create a ``RootEndpoint`` object, which will implicitly create the two objects: a ``NetworkEndpoint`` object and an ``AttestationEndpoint`` object. It will then attach itself to incoming request from ``localhost`` (\ ``127.0.0.1``\ ) at port ``8085``. To create a ``RestManager`` object, one must submit a *session* object, which is in fact of the ``IPv8`` class type (this latter instantiation requires a *configuration* object).

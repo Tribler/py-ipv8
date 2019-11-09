@@ -1,11 +1,11 @@
+from .discovery import MockWalk
+from .endpoint import AutoMockEndpoint
 from ...attestation.trustchain.community import TrustChainCommunity
 from ...dht.discovery import DHTDiscoveryCommunity
 from ...keyvault.crypto import default_eccrypto
 from ...messaging.interfaces.statistics_endpoint import StatisticsEndpoint
 from ...peer import Peer
 from ...peerdiscovery.network import Network
-from .endpoint import AutoMockEndpoint
-from .discovery import MockWalk
 
 
 class MockIPv8(object):

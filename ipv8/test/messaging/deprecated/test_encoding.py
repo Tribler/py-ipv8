@@ -86,7 +86,7 @@ class TestEncoding(asynctest.TestCase):
         """
         Check if a dictionary can be encoded and decoded.
         """
-        value = {42: None, 42: 42.0, u"42": b'\x42'}
+        value = {42: None, 43: 43.0, u"42": b'\x42'}
 
         encoded = encode(value)
         _, decoded = decode(encoded)

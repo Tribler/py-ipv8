@@ -7,8 +7,8 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
 
 from .. import NEW_CRYPTOGRAPHY_SIGN_VERSION
-from ...keyvault.public.m2crypto import M2CryptoPK
 from ...keyvault.keys import PrivateKey
+from ...keyvault.public.m2crypto import M2CryptoPK
 
 
 class M2CryptoSK(PrivateKey, M2CryptoPK):

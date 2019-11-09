@@ -1,7 +1,7 @@
 import logging
 import sys
 import time
-from asyncio import get_event_loop, gather, sleep, ensure_future,  CancelledError
+from asyncio import CancelledError, ensure_future, gather, get_event_loop, sleep
 from base64 import b64decode
 from contextlib import suppress
 from os.path import isfile
@@ -108,6 +108,7 @@ else:
             self.overlay_lock = RLock()
             self.strategies = []
             self.overlays = []
+            self.on_start = []
 
             for overlay in configuration['overlays']:
                 overlay_class = _COMMUNITIES.get(overlay['class'], (extra_communities or {}).get(overlay['class']))
@@ -121,13 +122,15 @@ else:
                     target_peers = walker['peers']
                     self.strategies.append((strategy_class(overlay_instance, **args), target_peers))
                 for config in overlay['on_start']:
-                    ensure_future(maybe_coroutine(getattr(overlay_instance, config[0]), *config[1:]))
+                    self.on_start.append((getattr(overlay_instance, config[0]), config[1:]))
 
             self.walk_interval = configuration['walker_interval']
             self.state_machine_task = None
 
         async def start(self):
             await self.endpoint.open()
+
+            await gather(*(ensure_future(maybe_coroutine(func, *args)) for func, args in self.on_start))
 
             async def ticker():
                 while True:

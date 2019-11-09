@@ -1,7 +1,7 @@
 import hashlib
 import os
 import time
-from asyncio import Future, coroutine, gather, ensure_future
+from asyncio import Future, coroutine, ensure_future, gather
 from binascii import hexlify, unhexlify
 from collections import defaultdict, deque
 from itertools import zip_longest

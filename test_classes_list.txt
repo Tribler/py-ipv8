@@ -1,5 +1,4 @@
 
-ipv8/test/test_util.py:TestUtil
 ipv8/test/test_database.py:TestDatabase
 ipv8/test/test_peer.py:TestPeer
 ipv8/test/test_requestcache.py:TestRequestCache

@@ -1,5 +1,5 @@
 import logging
-from asyncio import coroutine, gather, CancelledError
+from asyncio import CancelledError, coroutine, gather
 from contextlib import suppress
 from random import random
 from threading import Lock

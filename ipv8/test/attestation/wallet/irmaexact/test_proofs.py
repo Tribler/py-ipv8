@@ -1,3 +1,4 @@
+# flake8: noqa
 """
 Copyright (c) 2016, Maarten Everts
 All rights reserved.
@@ -8,13 +9,13 @@ The authors of this file are not -in any way- affiliated with the original autho
 
 import time
 
-from twisted.trial import unittest
+import asynctest
 
 from .....attestation.wallet.irmaexact.gabi.keys import CLSignature, PublicKey
 from .....attestation.wallet.irmaexact.gabi.proofs import ProofD, ProofS, ProofU
 
 
-class TestProofs(unittest.TestCase):
+class TestProofs(asynctest.TestCase):
 
     def setUp(self):
         n = 96063359353814070257464989369098573470645843347358957127875426328487326540633303185702306359400766259130239226832166456957259123554826741975265634464478609571816663003684533868318795865194004795637221226902067194633407757767792795252414073029114153019362701793292862118990912516058858923030408920700061749321

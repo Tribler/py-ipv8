@@ -1,5 +1,4 @@
 import os
-from asyncio import sleep
 from binascii import unhexlify
 
 from ...base import MockIPv8, TestBase
@@ -8,6 +7,7 @@ from ....attestation.wallet.community import AttestationCommunity
 from ....attestation.wallet.database import AttestationsDB
 from ....attestation.wallet.pengbaorange.structs import PengBaoAttestation
 from ....attestation.wallet.primitives.structs import BonehPrivateKey
+
 
 class TestCommunity(TestBase):
 

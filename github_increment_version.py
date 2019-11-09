@@ -11,7 +11,6 @@ from distutils.version import LooseVersion
 
 from github import Github
 
-
 # MAKE SETUP.PY CHANGES
 print("[1/8] Parsing setup.py file")
 

@@ -4,14 +4,12 @@ import json
 import random
 import sys
 import time
-import urllib3
 
-# Run with `QT_QUICK_BACKEND=software` for software rendering
-# Ex:
-#  QT_QUICK_BACKEND=software python -m ipv8.attestation.wallet.irmaexact.enroll_script
 from PyQt5.QtCore import *
 from PyQt5.QtWebEngineWidgets import *
 from PyQt5.QtWidgets import QApplication
+
+import urllib3
 
 from .gabi.attributes import make_attribute_list
 from .gabi.builder import BuildDistributedProofList, Challenge, CredentialBuilder, IssueCommitmentMessage, IssueSignatureMessage
@@ -20,7 +18,6 @@ from .gabi.proofs import ProofP, ProofPCommitment, ProofS
 from .keydump import nijmegen_pk_1568208470 as nijmegen_pk
 from .wrappers import serialize_proof_d
 from ...util import int2byte
-
 
 my_app = QApplication(sys.argv)
 my_web = QWebEngineView()
@@ -152,7 +149,7 @@ def b64_to_int(s):
 
 
 def str_to_int(s):
-    if isinstance(s, srt):
+    if isinstance(s, str):
         s = b''.join(int2byte(ord(c)) for c in s)
     if s is None:
         return 0

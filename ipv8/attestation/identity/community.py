@@ -97,4 +97,4 @@ class IdentityCommunity(TrustChainCommunity, BlockListener):
                                      b"name": name,
                                      b"date": time(),
                                      b"metadata": metadata or {}
-                                 })
+                                 })  # noqa: E126

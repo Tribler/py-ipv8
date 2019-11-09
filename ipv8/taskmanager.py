@@ -1,5 +1,5 @@
 import logging
-from asyncio import gather, ensure_future, sleep, Task, iscoroutinefunction, CancelledError, Future
+from asyncio import CancelledError, Future, Task, ensure_future, gather, iscoroutinefunction, sleep
 from contextlib import suppress
 from inspect import isgeneratorfunction
 from threading import RLock

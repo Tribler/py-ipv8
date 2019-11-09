@@ -3,8 +3,8 @@ from base64 import decodebytes
 import asynctest
 
 from ...keyvault.crypto import default_eccrypto
-from ...keyvault.public.m2crypto import M2CryptoPK
 from ...keyvault.private.m2crypto import M2CryptoSK
+from ...keyvault.public.m2crypto import M2CryptoPK
 
 
 class TestSerialization(asynctest.TestCase):

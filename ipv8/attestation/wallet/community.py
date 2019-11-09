@@ -6,8 +6,6 @@ from hashlib import sha1
 from random import choice
 from threading import Lock
 
-from ipv8.util import maybe_coroutine
-
 from .bonehexact.algorithm import BonehExactAlgorithm
 from .caches import (HashCache, PeerCache, PendingChallengeCache, ProvingAttestationCache,
                      ReceiveAttestationRequestCache, ReceiveAttestationVerifyCache)
@@ -22,8 +20,7 @@ from ...lazy_community import lazy_wrapper
 from ...messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from ...peer import Peer
 from ...requestcache import RequestCache
-from ...util import cast_to_bin, cast_to_chr, cast_to_unicode
-
+from ...util import cast_to_bin, cast_to_chr, cast_to_unicode, maybe_coroutine
 
 ID_ALGORITHMS = {
     "bonehexact": BonehExactAlgorithm,

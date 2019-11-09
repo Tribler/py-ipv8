@@ -2,7 +2,7 @@ import socket
 import sys
 from asyncio import sleep
 
-from asynctest import skipIf, TestCase
+from asynctest import TestCase, skipIf
 
 from .....messaging.interfaces.endpoint import EndpointListener
 from .....messaging.interfaces.udp.endpoint import UDPEndpoint, UDP_MAX_SIZE
@@ -25,9 +25,9 @@ class TestUDPEndpoint(TestCase):
     This class contains various tests for the UDP endpoint.
     """
     async def setUp(self):
-        self.endpoint1 = UDPEndpoint(8080)
+        self.endpoint1 = UDPEndpoint()
         await self.endpoint1.open()
-        self.endpoint2 = UDPEndpoint(8081)
+        self.endpoint2 = UDPEndpoint()
         await self.endpoint2.open()
 
         self.ep2_address = ("127.0.0.1", self.endpoint2.get_address()[1])

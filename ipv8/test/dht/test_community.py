@@ -2,11 +2,11 @@ import time
 
 from ..base import TestBase
 from ..mocking.ipv8 import MockIPv8
+from ...dht import DHTError
 from ...dht.community import DHTCommunity
 from ...dht.provider import DHTCommunityProvider
 from ...dht.routing import NODE_LIMIT_QUERIES, Node, distance
 from ...messaging.anonymization.tunnel import IntroductionPoint
-from ...dht import DHTError
 from ...util import succeed
 
 

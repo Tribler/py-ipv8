@@ -1,7 +1,7 @@
-from ...messaging.interfaces.endpoint import EndpointListener
-from ...messaging.anonymization.tunnel import DataChecker, TunnelExitSocket
-from ...util import succeed
 from ..mocking.endpoint import AutoMockEndpoint
+from ...messaging.anonymization.tunnel import DataChecker, TunnelExitSocket
+from ...messaging.interfaces.endpoint import EndpointListener
+from ...util import succeed
 
 
 class MockTunnelExitSocket(TunnelExitSocket, EndpointListener):

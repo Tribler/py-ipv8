@@ -1,12 +1,12 @@
 import time
 
-from ...peerdiscovery.churn import RandomChurn, PingChurn
-from ...community import _DEFAULT_ADDRESSES
-from ...dht.community import DHTCommunity
 from ..base import TestBase
 from ..mocking.community import MockCommunity
 from ..mocking.endpoint import MockEndpointListener
 from ..mocking.ipv8 import MockIPv8
+from ...community import _DEFAULT_ADDRESSES
+from ...dht.community import DHTCommunity
+from ...peerdiscovery.churn import PingChurn, RandomChurn
 
 
 class TestChurn(TestBase):

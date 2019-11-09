@@ -6,12 +6,10 @@ Every node has a chain and these chains intertwine by blocks shared by chains.
 import logging
 import random
 import struct
-from asyncio import coroutine, get_event_loop, Future, ensure_future
+from asyncio import Future, coroutine, ensure_future, get_event_loop
 from binascii import hexlify, unhexlify
 from functools import wraps
 from threading import RLock
-
-from ipv8.util import maybe_coroutine, succeed, fail
 
 from .block import ANY_COUNTERPARTY_PK, EMPTY_PK, GENESIS_SEQ, TrustChainBlock, UNKNOWN_SEQ, ValidationResult
 from .caches import ChainCrawlCache, CrawlRequestCache, HalfBlockSignCache, IntroCrawlTimeout
@@ -23,6 +21,7 @@ from ...lazy_community import lazy_wrapper, lazy_wrapper_unsigned, lazy_wrapper_
 from ...messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from ...peer import Peer
 from ...requestcache import RandomNumberCache, RequestCache
+from ...util import fail, maybe_coroutine, succeed
 
 
 def synchronized(f):
@@ -374,7 +373,7 @@ class TrustChainCommunity(Community):
         if self.request_cache.has(u'sign', link_block_id_int):
             cache = self.request_cache.pop(u'sign', link_block_id_int)
 
-            # We cannot guarantee that we're on a reactor thread so make sure we do this Twisted stuff on the reactor.
+            # We cannot guarantee that we're on the event loop thread.
             get_event_loop().call_soon_threadsafe(cache.sign_future.set_result,
                                                   (blk, self.persistence.get_linked(blk)))
 

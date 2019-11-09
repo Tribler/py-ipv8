@@ -8,9 +8,7 @@ import os
 import random
 import struct
 import time
-from asyncio import gather, ensure_future, iscoroutine
-
-from ipv8.util import fail
+from asyncio import ensure_future, gather, iscoroutine
 
 from .caches import *
 from .community import TunnelCommunity, message_to_payload, tc_lazy_wrapper_unsigned
@@ -24,6 +22,7 @@ from ...messaging.deprecated.encoding import decode, encode
 from ...peer import Peer
 from ...peerdiscovery.discovery import RandomWalk
 from ...peerdiscovery.network import Network
+from ...util import fail
 
 
 class HiddenTunnelCommunity(TunnelCommunity):

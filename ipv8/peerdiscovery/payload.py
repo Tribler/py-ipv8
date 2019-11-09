@@ -1,7 +1,7 @@
-from socket import inet_ntoa, inet_aton
+from socket import inet_aton, inet_ntoa
 from struct import pack, unpack
 
-from ..messaging.payload import decode_connection_type, encode_connection_type, IntroductionRequestPayload, Payload
+from ..messaging.payload import IntroductionRequestPayload, Payload, decode_connection_type, encode_connection_type
 
 
 class SimilarityRequestPayload(Payload):

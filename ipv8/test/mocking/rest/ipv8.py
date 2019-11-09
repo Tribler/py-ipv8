@@ -1,6 +1,6 @@
 import threading
-
-from asyncio import sleep, ensure_future, gather
+from asyncio import CancelledError, ensure_future, gather, sleep
+from contextlib import suppress
 
 from .comunities import overlay_initializer
 from ..endpoint import AutoMockEndpoint
@@ -37,7 +37,7 @@ class TestRestIPv8(object):
         self.state_machine_task = ensure_future(self.ticker())
 
     async def ticker(self):
-        await self.endpoint.open()
+        self.endpoint.open()
         while True:
             self.on_tick()
             await sleep(0.5)
@@ -62,3 +62,8 @@ class TestRestIPv8(object):
             unload_list = [self.unload_overlay(overlay) for overlay in self.overlays[:]]
             await gather(*unload_list)
             self.endpoint.close()
+
+        if self.state_machine_task:
+            self.state_machine_task.cancel()
+            with suppress(CancelledError):
+                await self.state_machine_task

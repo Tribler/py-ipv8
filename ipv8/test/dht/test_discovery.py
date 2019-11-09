@@ -2,9 +2,9 @@ import time
 
 from ..base import TestBase
 from ..mocking.ipv8 import MockIPv8
+from ...dht import DHTError
 from ...dht.discovery import DHTDiscoveryCommunity
 from ...dht.routing import Node
-from ...dht import DHTError
 from ...util import succeed
 
 

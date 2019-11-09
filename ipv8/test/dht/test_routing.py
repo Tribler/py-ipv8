@@ -1,9 +1,9 @@
-from binascii import unhexlify
 import time
+from binascii import unhexlify
 
 from ..base import TestBase
+from ...dht.routing import Bucket, NODE_STATUS_BAD, NODE_STATUS_GOOD, NODE_STATUS_UNKNOWN, Node, RoutingTable
 from ...keyvault.private.libnaclkey import LibNaCLSK
-from ...dht.routing import Node, Bucket, RoutingTable, NODE_STATUS_GOOD, NODE_STATUS_UNKNOWN, NODE_STATUS_BAD
 
 
 class FakeNode(object):

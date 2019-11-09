@@ -1,6 +1,6 @@
 from aiohttp import web
 
-from .base_endpoint import BaseEndpoint, Response, HTTP_BAD_REQUEST
+from .base_endpoint import BaseEndpoint, HTTP_BAD_REQUEST, Response
 from ..community import _DEFAULT_ADDRESSES
 from ..messaging.anonymization.community import TunnelCommunity
 from ..util import cast_to_chr

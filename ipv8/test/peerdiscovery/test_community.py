@@ -1,10 +1,10 @@
 from functools import reduce
 
-from ...community import _DEFAULT_ADDRESSES
-from ...messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from ..base import TestBase
 from ..mocking.community import MockCommunity
+from ...community import _DEFAULT_ADDRESSES
 from ...keyvault.crypto import default_eccrypto
+from ...messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from ...peer import Peer
 from ...peerdiscovery.payload import DiscoveryIntroductionRequestPayload
 

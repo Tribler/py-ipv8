@@ -7,8 +7,8 @@ from ...mocking.exit_socket import MockTunnelExitSocket
 from ...mocking.ipv8 import MockIPv8
 from ....messaging.anonymization.community import TunnelCommunity, TunnelSettings
 from ....messaging.anonymization.endpoint import TunnelEndpoint
-from ....messaging.anonymization.tunnel import CIRCUIT_STATE_EXTENDING, CIRCUIT_TYPE_IPV8, \
-    PEER_FLAG_EXIT_ANY, PEER_FLAG_EXIT_IPV8
+from ....messaging.anonymization.tunnel import (CIRCUIT_STATE_EXTENDING, CIRCUIT_TYPE_IPV8,
+                                                PEER_FLAG_EXIT_ANY, PEER_FLAG_EXIT_IPV8)
 from ....messaging.interfaces.udp.endpoint import UDPEndpoint
 from ....util import cast_to_bin, succeed
 
@@ -228,7 +228,7 @@ class TestTunnelCommunity(TestBase):
         Check if data is correctly exited.
         """
         # Listen in on communication of the target
-        self.public_endpoint = UDPEndpoint(8080)
+        self.public_endpoint = UDPEndpoint()
         await self.public_endpoint.open()
         ep_listener = MockEndpointListener(self.public_endpoint)
 

@@ -2,7 +2,6 @@ import abc
 import logging
 import socket
 import struct
-from asyncio import get_event_loop
 
 try:
     # Especially on Android netifaces may fail.

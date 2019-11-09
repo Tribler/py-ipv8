@@ -1,8 +1,8 @@
 import logging
+import math
 import operator
 import struct
-import math
-from asyncio import iscoroutine, Future, coroutine, ensure_future
+from asyncio import Future, coroutine, ensure_future, iscoroutine
 
 logger = logging.getLogger(__name__)
 maximum_integer = 2147483647

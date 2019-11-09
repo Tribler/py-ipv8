@@ -3,7 +3,7 @@ import random
 import socket
 import sys
 import time
-from asyncio import get_event_loop, DatagramProtocol, ensure_future
+from asyncio import DatagramProtocol, ensure_future, get_event_loop
 from binascii import hexlify
 from collections import defaultdict, deque
 from struct import unpack_from
@@ -12,7 +12,6 @@ from traceback import format_exception
 from ...keyvault.public.libnaclkey import LibNaCLPK
 from ...taskmanager import TaskManager
 from ...util import succeed
-
 
 ORIGINATOR = 0
 EXIT_NODE = 1
@@ -124,13 +123,13 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
         if not self.enabled:
             self.enabled = True
 
-            async def _enable():
+            async def create_transport():
                 self.transport, _ = await get_event_loop().create_datagram_endpoint(lambda: self,
                                                                                     local_addr=('0.0.0.0', 0))
                 # Send any packets that have been waiting while the transport was being created
                 while self.queue:
                     self.sendto(*self.queue.popleft())
-            ensure_future(_enable())
+            self.register_task("create_transport", create_transport)
 
     def sendto(self, data, destination):
         if not self.transport:

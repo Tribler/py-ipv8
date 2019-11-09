@@ -1,5 +1,5 @@
 import json
-from asyncio import get_event_loop, new_event_loop
+from asyncio import new_event_loop, set_event_loop
 from base64 import b64encode
 
 from .rest_api_peer import InteractiveRestTestPeer

@@ -18,12 +18,11 @@ setup(
         "cryptography",
         "libnacl",
         "netifaces",
-        "Twisted",
+        "aiohttp",
         "pyOpenSSL"
     ],
     classifiers=[
         "Development Status :: 5 - Production/Stable",
-        "Framework :: Twisted",
         "Intended Audience :: Developers",
         "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
         "Natural Language :: English",

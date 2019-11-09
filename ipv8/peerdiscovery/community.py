@@ -3,8 +3,8 @@ from random import choice
 from time import time
 
 from .churn import DiscoveryStrategy, RandomChurn
-from .payload import DiscoveryIntroductionRequestPayload, PingPayload, PongPayload, SimilarityRequestPayload, \
-    SimilarityResponsePayload
+from .payload import (DiscoveryIntroductionRequestPayload, PingPayload, PongPayload, SimilarityRequestPayload,
+                      SimilarityResponsePayload)
 from ..community import Community, DEFAULT_MAX_PEERS
 from ..keyvault.crypto import default_eccrypto
 from ..lazy_community import PacketDecodingError, lazy_wrapper, lazy_wrapper_unsigned

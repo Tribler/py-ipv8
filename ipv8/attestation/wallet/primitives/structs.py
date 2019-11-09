@@ -2,7 +2,6 @@ import struct
 
 from .value import FP2Value
 
-
 __all__ = ['ipack', 'iunpack', 'pack_pair', 'unpack_pair', 'BonehPublicKey', 'BonehPrivateKey']
 
 

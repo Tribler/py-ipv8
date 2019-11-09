@@ -3,7 +3,7 @@ The tunnel community.
 
 Author(s): Egbert Bouman
 """
-from asyncio import coroutine, iscoroutine, ensure_future
+from asyncio import coroutine, ensure_future, iscoroutine
 from binascii import unhexlify
 
 from .caches import *

@@ -5,7 +5,7 @@ import string
 import sys
 import threading
 import time
-from asyncio import sleep, get_event_loop, all_tasks, SelectorEventLoop
+from asyncio import all_tasks, get_event_loop, sleep
 
 import asynctest
 
@@ -70,7 +70,7 @@ class TestBase(asynctest.TestCase):
                 if not cls.__testing__:
                     return
             # If we made it here, there is a serious issue which we cannot recover from.
-            # Most likely the Twisted threadpool got into a deadlock while shutting down.
+            # Most likely the threadpool got into a deadlock while shutting down.
             import traceback
             print("The test-suite locked up! Force quitting! Thread dump:", file=sys.stderr)
             for tid, stack in sys._current_frames().items():
@@ -119,7 +119,7 @@ class TestBase(asynctest.TestCase):
         Allow peers to communicate.
 
         The strategy is as follows:
-         1. Measure the amount of exists asyncio tasks
+         1. Measure the amount of existing asyncio tasks
          2. After 10 milliseconds, check if we are below 2 tasks twice in a row
          3. If not, go back to handling calls (step 2) or return, if the timeout has been reached
 

@@ -1,10 +1,10 @@
 from .attestation_endpoint import AttestationEndpoint
+from .base_endpoint import BaseEndpoint
 from .dht_endpoint import DHTEndpoint
 from .isolation_endpoint import IsolationEndpoint
 from .network_endpoint import NetworkEndpoint
 from .noblock_dht_endpoint import NoBlockDHTEndpoint
 from .overlays_endpoint import OverlaysEndpoint
-from .base_endpoint import BaseEndpoint
 from .trustchain_endpoint import TrustchainEndpoint
 from .tunnel_endpoint import TunnelEndpoint
 

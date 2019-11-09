@@ -4,9 +4,9 @@ Implementation of the Boneh 2-DNF scheme ("Evaluating 2-DNF Formulas on Cipherte
 from random import randint
 
 from .cryptography_wrapper import generate_safe_prime, is_prime
+from .ec import weilpairing
 from .structs import BonehPrivateKey, BonehPublicKey
 from .value import FP2Value
-from .ec import weilpairing
 
 
 def generate_prime(n):

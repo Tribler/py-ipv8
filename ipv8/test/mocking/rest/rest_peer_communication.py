@@ -41,7 +41,7 @@ class HTTPRequester(object):
 
         request_url = url + '?' + '&'.join("%s=%s" % (k, v) for k, v in arguments.items())
         self._logger.info("[HTTP-%s] %s", request_type, request_url)
-        headers = {'User-Agent': 'Twisted Web Client',
+        headers = {'User-Agent': 'Asyncio Web Client',
                    'Content-Type': 'text/x-greeting'}
 
         async with ClientSession(loop=self._loop) as session:

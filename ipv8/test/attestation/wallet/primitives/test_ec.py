@@ -1,10 +1,10 @@
-from twisted.trial import unittest
+import asynctest
 
 from .....attestation.wallet.primitives.ec import esum, weilpairing
 from .....attestation.wallet.primitives.value import FP2Value
 
 
-class TestPairing(unittest.TestCase):
+class TestPairing(asynctest.TestCase):
 
     def test_small_weilpairing(self):
         """

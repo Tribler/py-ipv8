@@ -1,5 +1,4 @@
 import time
-from asyncio import gather
 from binascii import hexlify
 from collections import defaultdict
 

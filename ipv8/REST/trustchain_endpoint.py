@@ -2,7 +2,7 @@ from binascii import unhexlify
 
 from aiohttp import web
 
-from .base_endpoint import BaseEndpoint, Response, HTTP_NOT_FOUND
+from .base_endpoint import BaseEndpoint, HTTP_NOT_FOUND, Response
 from ..attestation.trustchain.community import TrustChainCommunity
 
 

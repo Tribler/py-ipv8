@@ -8,7 +8,6 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDFExpand
 import libnacl
 
 from ...keyvault.crypto import ECCrypto, LibNaCLPK
-from ...util import cast_to_bin
 
 
 class CryptoException(Exception):

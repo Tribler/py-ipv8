@@ -10,7 +10,6 @@ from ...messaging.deprecated.encoding import decode, encode
 from ...messaging.serialization import default_serializer
 from ...util import old_round
 
-
 GENESIS_HASH = b'0' * 32  # ID of the first block of the chain.
 GENESIS_SEQ = 1
 UNKNOWN_SEQ = 0

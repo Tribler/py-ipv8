@@ -1,7 +1,7 @@
-from ...peerdiscovery.discovery import RandomWalk
-from ...community import _DEFAULT_ADDRESSES
 from ..base import TestBase
 from ..mocking.community import MockCommunity
+from ...community import _DEFAULT_ADDRESSES
+from ...peerdiscovery.discovery import RandomWalk
 
 
 class TestRandomWalk(TestBase):

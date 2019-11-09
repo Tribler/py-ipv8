@@ -1,9 +1,9 @@
-from twisted.trial import unittest
+import asynctest
 
 from .....attestation.wallet.irmaexact.algorithm import IRMAExactAlgorithm
 
 
-class TestAlgorithm(unittest.TestCase):
+class TestAlgorithm(asynctest.TestCase):
 
     def setUp(self):
         self.blob = """

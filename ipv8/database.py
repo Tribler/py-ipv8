@@ -5,11 +5,11 @@ This module provides basic database functionalty and simple version control.
 @organization: Technical University Delft
 @contact: dispersy@frayja.com
 """
-from abc import ABCMeta, abstractmethod
-from collections import defaultdict
 import logging
 import os
 import sys
+from abc import ABCMeta, abstractmethod
+from collections import defaultdict
 from threading import RLock
 
 from .util import cast_to_unicode

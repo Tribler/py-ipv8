@@ -8,7 +8,6 @@ from ..primitives.boneh import generate_keypair
 from ..primitives.structs import BonehPrivateKey, BonehPublicKey, pack_pair, unpack_pair
 from ...identity_formats import FORMATS, IdentityAlgorithm
 
-
 LARGE_INTEGER = 32765
 
 

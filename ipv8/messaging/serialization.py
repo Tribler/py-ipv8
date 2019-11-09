@@ -1,8 +1,7 @@
 import abc
-from binascii import hexlify
 import itertools
-from struct import pack, unpack, unpack_from, Struct
-import sys
+from binascii import hexlify
+from struct import Struct, pack, unpack, unpack_from
 
 
 class PackError(RuntimeError):

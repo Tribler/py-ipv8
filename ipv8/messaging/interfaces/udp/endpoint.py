@@ -69,7 +69,7 @@ class UDPEndpoint(Endpoint, asyncio.DatagramProtocol):
 
                 self._logger.debug("Listening at %d", self._port)
                 break
-            except (OSError, ValueError) as exc:
+            except (OSError, ValueError):
                 self._logger.debug("Listening failed at %d", self._port)
                 self._port += 1
                 continue
