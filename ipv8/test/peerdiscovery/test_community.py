@@ -1,14 +1,10 @@
-from __future__ import absolute_import
-
 from functools import reduce
 
-from twisted.internet.defer import inlineCallbacks
-
-from ...community import _DEFAULT_ADDRESSES
-from ...messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from ..base import TestBase
 from ..mocking.community import MockCommunity
+from ...community import _DEFAULT_ADDRESSES
 from ...keyvault.crypto import default_eccrypto
+from ...messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from ...peer import Peer
 from ...peerdiscovery.payload import DiscoveryIntroductionRequestPayload
 
@@ -27,14 +23,13 @@ class TestDiscoveryCommunity(TestBase):
         for overlay in self.overlays:
             overlay.network.blacklist.append(self.tracker.endpoint.wan_address)
 
-    def tearDown(self):
-        self.tracker.unload()
+    async def tearDown(self):
+        await self.tracker.unload()
         for overlay in self.overlays:
-            overlay.unload()
-        return super(TestDiscoveryCommunity, self).tearDown()
+            await overlay.unload()
+        return await super(TestDiscoveryCommunity, self).tearDown()
 
-    @inlineCallbacks
-    def test_deprecated_introduction(self):
+    async def test_deprecated_introduction(self):
         """
         Check if we can handle the deprecated Discovery introduction request as a normal one.
         """
@@ -53,26 +48,25 @@ class TestDiscoveryCommunity(TestBase):
         packet = self.overlays[0]._ez_pack(self.overlays[0]._prefix, 246, [auth, dist, payload])
         self.overlays[1].on_introduction_request(self.overlays[0].endpoint.wan_address, packet)
 
-        yield self.deliver_messages()
+        await self.deliver_messages()
 
         self.assertEqual(1, len(self.overlays[1].network.verified_peers))
 
-    @inlineCallbacks
-    def test_bootstrap(self):
+    async def test_bootstrap(self):
         """
         Check if we can bootstrap our peerdiscovery.
         """
         # Both other overlays contact the tracker
         self.overlays[0].bootstrap()
         self.overlays[1].bootstrap()
-        yield self.deliver_messages()
+        await self.deliver_messages()
 
         self.assertEqual(len(self.tracker.network.verified_peers), 2)
 
         # Now that the tracker knows both others, they should be introduced to each other
         self.overlays[0].bootstrap()
         self.overlays[1].bootstrap()
-        yield self.deliver_messages()
+        await self.deliver_messages()
 
         for overlay in self.overlays:
             intros = overlay.network.get_introductions_from(self.tracker.my_peer)
@@ -80,8 +74,7 @@ class TestDiscoveryCommunity(TestBase):
             self.assertNotIn(overlay.my_peer.mid, intros)
             self.assertNotIn(self.tracker.my_peer.mid, intros)
 
-    @inlineCallbacks
-    def test_cross_peer(self):
+    async def test_cross_peer(self):
         """
         If we have different peers under our control, don't claim to be the other identity.
         """
@@ -95,7 +88,7 @@ class TestDiscoveryCommunity(TestBase):
         self.overlays[0].network.register_service_provider(custom_master_peer.mid, custom_overlay)
 
         self.overlays[0].walk_to(self.overlays[1].my_peer.address)
-        yield self.deliver_messages()
+        await self.deliver_messages()
 
         discovered = reduce(lambda a, b: a | b, self.overlays[1].network.services_per_peer.values(), set())
 

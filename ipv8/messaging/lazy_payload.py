@@ -1,9 +1,4 @@
-from __future__ import absolute_import
-
 import inspect
-
-from six import string_types
-from six.moves import xrange
 
 from .payload import Payload
 
@@ -81,7 +76,7 @@ class VariablePayload(Payload):
         If this class has special rules for certain fields, apply them.
         """
         unpack_args = list(args)
-        for i in xrange(len(args)):
+        for i in range(len(args)):
             custom_rule = "fix_unpack_" + cls.names[i]
             if hasattr(cls, custom_rule):
                 unpack_args[i] = getattr(cls, custom_rule)(args[i])
@@ -89,7 +84,7 @@ class VariablePayload(Payload):
 
     @staticmethod
     def _to_packlist_fmt(fmt):
-        return fmt if isinstance(fmt, string_types) else 'payload'
+        return fmt if isinstance(fmt, str) else 'payload'
 
     def _fix_pack(self, name):
         """

@@ -1,14 +1,12 @@
-from __future__ import absolute_import
-
-from twisted.trial import unittest
+import asynctest
 
 from ...keyvault.crypto import ECCrypto
 from ...keyvault.keys import Key, PrivateKey, PublicKey
-from ...keyvault.private.m2crypto import M2CryptoPK, M2CryptoSK
 from ...keyvault.private.libnaclkey import LibNaCLPK, LibNaCLSK
+from ...keyvault.private.m2crypto import M2CryptoPK, M2CryptoSK
 
 
-class TestECCrypto(unittest.TestCase):
+class TestECCrypto(asynctest.TestCase):
 
     m2crypto_key = ECCrypto().generate_key(u"very-low")
     libnacl_key = ECCrypto().generate_key(u"curve25519")

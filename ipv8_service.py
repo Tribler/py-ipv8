@@ -1,17 +1,12 @@
-from __future__ import absolute_import
-from __future__ import division
-
 import logging
 import sys
 import time
+from asyncio import CancelledError, ensure_future, gather, get_event_loop, sleep
 from base64 import b64decode
+from contextlib import suppress
 from os.path import isfile
 from threading import RLock
 from traceback import format_exception
-
-from twisted.internet import reactor
-from twisted.internet.defer import DeferredList, inlineCallbacks, maybeDeferred
-from twisted.internet.task import LoopingCall, deferLater
 
 if hasattr(sys.modules['__main__'], "IPv8"):
     sys.modules[__name__] = sys.modules['__main__']
@@ -32,6 +27,7 @@ else:
         from ipv8.peerdiscovery.discovery import EdgeWalk, RandomWalk
         from ipv8.peerdiscovery.network import Network
         from ipv8.dht.discovery import DHTDiscoveryCommunity
+        from ipv8.util import maybe_coroutine
     else:
         from .ipv8.messaging.interfaces.statistics_endpoint import StatisticsEndpoint
         from .ipv8.attestation.identity.community import IdentityCommunity
@@ -48,6 +44,7 @@ else:
         from .ipv8.peerdiscovery.discovery import EdgeWalk, RandomWalk
         from .ipv8.peerdiscovery.network import Network
         from .ipv8.dht.discovery import DHTDiscoveryCommunity
+        from .ipv8.util import maybe_coroutine
 
     _COMMUNITIES = {
         'AttestationCommunity': AttestationCommunity,
@@ -72,7 +69,6 @@ else:
                 self.endpoint = endpoint_override
             else:
                 self.endpoint = UDPEndpoint(port=configuration['port'], ip=configuration['address'])
-                self.endpoint.open()
                 if enable_statistics:
                     self.endpoint = StatisticsEndpoint(self, self.endpoint)
                 if any([overlay.get('initialize', {}).get('anonymize') for overlay in configuration['overlays']]):
@@ -112,6 +108,7 @@ else:
             self.overlay_lock = RLock()
             self.strategies = []
             self.overlays = []
+            self.on_start = []
 
             for overlay in configuration['overlays']:
                 overlay_class = _COMMUNITIES.get(overlay['class'], (extra_communities or {}).get(overlay['class']))
@@ -125,16 +122,26 @@ else:
                     target_peers = walker['peers']
                     self.strategies.append((strategy_class(overlay_instance, **args), target_peers))
                 for config in overlay['on_start']:
-                    reactor.callWhenRunning(getattr(overlay_instance, config[0]), *config[1:])
+                    self.on_start.append((getattr(overlay_instance, config[0]), config[1:]))
 
-            self.state_machine_lc = LoopingCall(self.on_tick)
-            self.state_machine_lc.start(configuration['walker_interval'], False)
+            self.walk_interval = configuration['walker_interval']
+            self.state_machine_task = None
 
-        @inlineCallbacks
-        def on_tick(self):
+        async def start(self):
+            await self.endpoint.open()
+
+            await gather(*(ensure_future(maybe_coroutine(func, *args)) for func, args in self.on_start))
+
+            async def ticker():
+                while True:
+                    await sleep(self.walk_interval)
+                    await self.on_tick()
+            self.state_machine_task = ensure_future(ticker())
+
+        async def on_tick(self):
             if self.endpoint.is_open():
                 with self.overlay_lock:
-                    smooth = self.state_machine_lc.interval / len(self.strategies) if self.strategies else 0
+                    smooth = self.walk_interval // len(self.strategies) if self.strategies else 0
                     ticker = len(self.strategies)
                     for strategy, target_peers in self.strategies:
                         peer_count = len(strategy.overlay.get_peers())
@@ -149,9 +156,9 @@ else:
                         ticker -= 1 if ticker else 0
                         sleep_time = smooth - (time.time() - start_time)
                         if ticker and sleep_time > 0.01:
-                            yield deferLater(reactor, sleep_time, lambda: None)
-                        if not self.state_machine_lc.running:
-                            # By yielding, we might have been stopped.
+                            await sleep(sleep_time)
+                        if self.state_machine_task.done():
+                            # By awaiting, we might have been stopped.
                             # In that case, exit out of the loop.
                             break
 
@@ -160,23 +167,22 @@ else:
                 self.overlays = [overlay for overlay in self.overlays if overlay != instance]
                 self.strategies = [(strategy, target_peers) for (strategy, target_peers) in self.strategies
                                    if strategy.overlay != instance]
-                return maybeDeferred(instance.unload)
+                return maybe_coroutine(instance.unload)
 
-        @inlineCallbacks
-        def stop(self, stop_reactor=True):
-            self.state_machine_lc.stop()
+        async def stop(self, stop_loop=True):
+            if self.state_machine_task:
+                self.state_machine_task.cancel()
+                with suppress(CancelledError):
+                    await self.state_machine_task
             with self.overlay_lock:
                 unload_list = [self.unload_overlay(overlay) for overlay in self.overlays[:]]
-                yield DeferredList(unload_list)
-                yield self.endpoint.close()
-            if stop_reactor:
-                reactor.callFromThread(reactor.stop)
+                await gather(*unload_list)
+                self.endpoint.close()
+            if stop_loop:
+                loop = get_event_loop()
+                loop.call_later(0, loop.stop)
 
 
 if __name__ == '__main__':
-    from twisted.plugins.ipv8_plugin import Options, service_maker
-
-    options = Options()
-    Options.parseOptions(options, sys.argv[1:])
-    service_maker.makeService(options)
-    reactor.run()
+    from scripts.ipv8_plugin import main
+    main(sys.argv[1:])

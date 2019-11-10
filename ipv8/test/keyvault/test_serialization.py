@@ -1,15 +1,13 @@
-from __future__ import absolute_import
+from base64 import decodebytes
 
-from base64 import decodestring
-
-from twisted.trial import unittest
+import asynctest
 
 from ...keyvault.crypto import default_eccrypto
-from ...keyvault.public.m2crypto import M2CryptoPK
 from ...keyvault.private.m2crypto import M2CryptoSK
+from ...keyvault.public.m2crypto import M2CryptoPK
 
 
-class TestSerialization(unittest.TestCase):
+class TestSerialization(asynctest.TestCase):
     """
     Test whether keys can be serialized and unserialized correctly.
     """
@@ -45,7 +43,7 @@ class TestSerialization(unittest.TestCase):
         # Convert the PEM to a DER keystring
         prefix = "-----BEGIN EC PRIVATE KEY-----\n"
         postfix = "-----END EC PRIVATE KEY-----\n"
-        keystring = decodestring(private_pem[len(prefix):-len(postfix)])
+        keystring = decodebytes(private_pem[len(prefix):-len(postfix)])
 
         # Reconstruct a key with this keystring
         key = M2CryptoSK(keystring=keystring)
@@ -77,7 +75,7 @@ class TestSerialization(unittest.TestCase):
         # Convert the PEM to a DER keystring
         prefix = "-----BEGIN PUBLIC KEY-----\n"
         postfix = "-----END PUBLIC KEY-----\n"
-        keystring = decodestring(public_pem[len(prefix):-len(postfix)])
+        keystring = decodebytes(public_pem[len(prefix):-len(postfix)])
 
         # Reconstruct a key with this keystring
         key = M2CryptoPK(keystring=keystring)

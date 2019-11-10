@@ -1,14 +1,12 @@
-from __future__ import absolute_import
-
 from base64 import b64encode
 
-from twisted.trial import unittest
+import asynctest
 
 from ..keyvault.crypto import default_eccrypto
 from ..peer import Peer
 
 
-class TestPeer(unittest.TestCase):
+class TestPeer(asynctest.TestCase):
 
     test_key = default_eccrypto.generate_key(u"very-low")
 

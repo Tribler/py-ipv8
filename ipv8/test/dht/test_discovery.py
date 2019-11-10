@@ -1,13 +1,11 @@
-from __future__ import absolute_import
-
 import time
-
-from twisted.internet.defer import inlineCallbacks, succeed
 
 from ..base import TestBase
 from ..mocking.ipv8 import MockIPv8
+from ...dht import DHTError
 from ...dht.discovery import DHTDiscoveryCommunity
 from ...dht.routing import Node
+from ...util import succeed
 
 
 class TestDHTDiscoveryCommunity(TestBase):
@@ -19,8 +17,10 @@ class TestDHTDiscoveryCommunity(TestBase):
         self.puncture_to = None
 
         now = time.time()
+        for node in self.nodes:
+            node.overlay.cancel_pending_task('store_peer')
+            node.overlay.token_maintenance()
         for node1 in self.nodes:
-            node1.overlay.cancel_pending_task('store_peer')
             for node2 in self.nodes:
                 if node1 == node2:
                     continue
@@ -31,27 +31,22 @@ class TestDHTDiscoveryCommunity(TestBase):
     def create_node(self, *args, **kwargs):
         return MockIPv8(u"curve25519", DHTDiscoveryCommunity)
 
-    @inlineCallbacks
-    def test_store_peer(self):
-        yield self.introduce_nodes()
-        yield self.nodes[0].overlay.store_peer()
+    async def test_store_peer(self):
+        await self.introduce_nodes()
+        await self.nodes[0].overlay.store_peer()
         self.assertIn(self.nodes[0].my_peer.mid, self.nodes[1].overlay.store)
         self.assertIn(self.nodes[0].my_peer.mid, self.nodes[0].overlay.store_for_me)
 
-    @inlineCallbacks
-    def test_store_peer_fail(self):
-        yield self.introduce_nodes()
-        self.nodes[1].unload()
-        d = self.nodes[0].overlay.store_peer()
-        yield self.deliver_messages()
-        self.assertFailure(d, RuntimeError)
+    async def test_store_peer_fail(self):
+        await self.introduce_nodes()
+        await self.nodes[1].unload()
+        self.assertFalse(await self.nodes[0].overlay.store_peer())
 
-    @inlineCallbacks
-    def test_connect_peer(self):
+    async def test_connect_peer(self):
         # Add a third node
         node = MockIPv8(u"curve25519", DHTDiscoveryCommunity)
         self.add_node_to_experiment(node)
-        yield self.introduce_nodes()
+        await self.introduce_nodes()
 
         # Node1 is storing the peer of node0
         self.nodes[1].overlay.store[self.nodes[0].my_peer.mid].append(self.nodes[0].my_peer)
@@ -64,22 +59,19 @@ class TestDHTDiscoveryCommunity(TestBase):
             return org_func(*args)
         self.nodes[1].overlay.create_puncture_request = create_puncture_request
 
-        yield self.deliver_messages()
-        nodes = yield self.nodes[2].overlay.connect_peer(self.nodes[0].my_peer.mid)
+        await self.deliver_messages()
+        nodes = await self.nodes[2].overlay.connect_peer(self.nodes[0].my_peer.mid)
         self.assertEqual(self.puncture_to, self.nodes[2].my_peer.address)
         self.assertIn(self.nodes[0].overlay.my_peer.public_key.key_to_bin(),
                       [n.public_key.key_to_bin() for n in nodes])
 
-    @inlineCallbacks
-    def test_connect_peer_fail(self):
-        yield self.introduce_nodes()
-        self.nodes[1].unload()
-        d = self.nodes[0].overlay.connect_peer(self.nodes[1].my_peer.mid)
-        yield self.deliver_messages()
-        self.assertFailure(d, RuntimeError)
+    async def test_connect_peer_fail(self):
+        await self.introduce_nodes()
+        await self.nodes[1].unload()
+        with self.assertRaises(DHTError):
+            await self.nodes[0].overlay.connect_peer(self.nodes[1].my_peer.mid)
 
-    @inlineCallbacks
-    def test_ping_pong(self):
+    async def test_ping_pong(self):
         now = time.time() - 1
 
         node0 = Node(self.nodes[0].my_peer.key, self.nodes[0].my_peer.address)
@@ -94,7 +86,7 @@ class TestDHTDiscoveryCommunity(TestBase):
         self.nodes[0].overlay.store[key].append(node1)
         self.nodes[1].overlay.store_for_me[key].append(node0)
 
-        yield self.nodes[1].overlay.ping(node0)
+        await self.nodes[1].overlay.ping(node0)
         self.assertNotEqual(node0.last_response, now)
         self.assertNotEqual(node1.last_query, now)
 

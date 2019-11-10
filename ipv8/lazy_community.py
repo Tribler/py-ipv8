@@ -1,9 +1,7 @@
-from __future__ import absolute_import
-
 from functools import wraps
 
-from .messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from .keyvault.crypto import default_eccrypto
+from .messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from .overlay import Overlay
 from .peer import Peer
 from .util import cast_to_bin

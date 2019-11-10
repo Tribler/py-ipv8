@@ -1,10 +1,8 @@
-from __future__ import absolute_import
-
 from binascii import hexlify
 
-from twisted.web import http
+from aiohttp import web
 
-from .base_endpoint import BaseEndpoint
+from .base_endpoint import BaseEndpoint, HTTP_BAD_REQUEST, HTTP_PRECONDITION_FAILED, Response
 from ..messaging.interfaces.statistics_endpoint import StatisticsEndpoint
 
 
@@ -13,12 +11,20 @@ class OverlaysEndpoint(BaseEndpoint):
     This endpoint is responsible for handing all requests regarding the status of overlays.
     """
 
-    def __init__(self, session):
+    def __init__(self):
         super(OverlaysEndpoint, self).__init__()
-        self.session = session
-        self.putChild(b"statistics", OverlayStatisticsEndpoint(session))
+        self.statistics_supported = None
 
-    def get_overlays(self):
+    def setup_routes(self):
+        self.app.add_routes([web.get('', self.get_overlays),
+                             web.get('/statistics', self.get_statistics),
+                             web.post('/statistics', self.enable_statistics)])
+
+    def initialize(self, session):
+        super(OverlaysEndpoint, self).initialize(session)
+        self.statistics_supported = isinstance(session.endpoint, StatisticsEndpoint)
+
+    def get_overlays(self, request):
         overlay_stats = []
         for overlay in self.session.overlays:
             peers = overlay.get_peers()
@@ -32,30 +38,16 @@ class OverlaysEndpoint(BaseEndpoint):
                 "overlay_name": overlay.__class__.__name__,
                 "statistics": statistics
             })
-        return overlay_stats
+        return Response({"overlays": overlay_stats})
 
-    def render_GET(self, request):
-        return self.twisted_dumps({"overlays": self.get_overlays()})
-
-
-class OverlayStatisticsEndpoint(BaseEndpoint):
-    """
-    This endpoint is responsible for handing all requests regarding the statistics of overlays.
-    """
-
-    def __init__(self, session):
-        super(OverlayStatisticsEndpoint, self).__init__()
-        self.session = session
-        self.statistics_supported = isinstance(self.session.endpoint, StatisticsEndpoint)
-
-    def get_statistics(self):
+    def get_statistics(self, request):
         overlay_stats = []
         for overlay in self.session.overlays:
             statistics = self.session.endpoint.get_statistics(overlay.get_prefix()) if self.statistics_supported else {}
             overlay_stats.append({
                 overlay.__class__.__name__: self.statistics_by_name(statistics, overlay)
             })
-        return overlay_stats
+        return Response({"statistics": overlay_stats})
 
     def statistics_by_name(self, statistics, overlay):
         named_statistics = {}
@@ -68,10 +60,7 @@ class OverlayStatisticsEndpoint(BaseEndpoint):
             named_statistics[mapped_name] = mapped_value
         return named_statistics
 
-    def render_GET(self, _):
-        return self.twisted_dumps({"statistics": self.get_statistics()})
-
-    def render_POST(self, request):
+    def enable_statistics(self, request):
         """
         .. http:post:: /overlays/statistics
 
@@ -95,28 +84,26 @@ class OverlayStatisticsEndpoint(BaseEndpoint):
         """
 
         if not self.statistics_supported:
-            request.setResponseCode(http.PRECONDITION_FAILED)
-            return self.twisted_dumps({"success": False, "error": "StatisticsEndpoint is not enabled."})
+            return Response({"success": False, "error": "StatisticsEndpoint is not enabled."},
+                            status=HTTP_PRECONDITION_FAILED)
 
         all_overlays = False
         overlay_name = None
 
-        if b'enable' not in request.args or not request.args[b'enable']:
-            request.setResponseCode(http.BAD_REQUEST)
-            return self.twisted_dumps({"success": False, "error": "Parameter 'enable' is required"})
-        else:
-            enable = request.args[b'enable'][0] == b'True'
+        if 'enable' not in request.query or not request.query['enable']:
+            return Response({"success": False, "error": "Parameter 'enable' is required"}, status=HTTP_BAD_REQUEST)
+        enable = request.query['enable'] == 'True'
 
-        if b'all' in request.args and request.args[b'all']:
-            all_overlays = request.args[b'all'][0] == b'True'
-        elif b'overlay_name' in request.args and request.args[b'overlay_name']:
-            overlay_name = request.args[b'overlay_name'][0]
+        if 'all' in request.query and request.query['all']:
+            all_overlays = request.query['all'] == 'True'
+        elif 'overlay_name' in request.query and request.query['overlay_name']:
+            overlay_name = request.query['overlay_name']
         else:
-            request.setResponseCode(http.PRECONDITION_FAILED)
-            return self.twisted_dumps({"success": False, "error": "Parameter 'all' or 'overlay_name' is required"})
+            return Response({"success": False, "error": "Parameter 'all' or 'overlay_name' is required"},
+                            status=HTTP_PRECONDITION_FAILED)
 
         self.enable_overlay_statistics(enable=enable, class_name=overlay_name, all_overlays=all_overlays)
-        return self.twisted_dumps({"success": True})
+        return Response({"success": True})
 
     def enable_overlay_statistics(self, enable=False, class_name=None, all_overlays=False):
         if all_overlays:

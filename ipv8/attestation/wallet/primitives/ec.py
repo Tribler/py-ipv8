@@ -1,9 +1,6 @@
 """
 Ported from "The Weil Pairing on Elliptic Curves and Its Cryptographic Applications" - Appendix D by Alex Edward Aftuk.
 """
-from __future__ import absolute_import
-from __future__ import division
-
 from .value import FP2Value
 
 

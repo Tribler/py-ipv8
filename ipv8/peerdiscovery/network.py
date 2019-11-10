@@ -1,11 +1,7 @@
-from __future__ import absolute_import
-
 from collections import OrderedDict
 from socket import inet_aton, inet_ntoa
 from struct import pack, unpack
 from threading import RLock
-
-from six.moves import xrange
 
 from ..util import cast_to_chr
 
@@ -271,7 +267,7 @@ class Network(object):
             logging.error("Snapshot has invalid length! Aborting snapshot load.")
             return
         with self.graph_lock:
-            for i in xrange(0, snaplen, 6):
+            for i in range(0, snaplen, 6):
                 sub = snapshot[i:i + 6]
                 ip = inet_ntoa(sub[0:4])
                 port = unpack(">H", sub[4:])[0]

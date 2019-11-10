@@ -1,21 +1,17 @@
-from __future__ import absolute_import
-
+from asyncio import Future
 from base64 import b64decode, b64encode
 from hashlib import sha1
 
-from six.moves import xrange
-
-from twisted.internet.defer import Deferred, succeed
-from twisted.web import http
+from aiohttp import web
 
 from . import json_util as json
-from .base_endpoint import BaseEndpoint
+from .base_endpoint import BaseEndpoint, HTTP_BAD_REQUEST, HTTP_NOT_FOUND, Response
 from ..attestation.identity.community import IdentityCommunity
 from ..attestation.wallet.community import AttestationCommunity
 from ..database import database_blob
 from ..keyvault.crypto import default_eccrypto
 from ..peer import Peer
-from ..util import cast_to_bin, cast_to_unicode
+from ..util import cast_to_bin, cast_to_unicode, succeed
 
 
 class AttestationEndpoint(BaseEndpoint):
@@ -23,33 +19,39 @@ class AttestationEndpoint(BaseEndpoint):
     This endpoint is responsible for handing all requests regarding attestation.
     """
 
-    def __init__(self, session):
+    def __init__(self):
         super(AttestationEndpoint, self).__init__()
-        self.session = session
-        attestation_overlays = [overlay for overlay in session.overlays if isinstance(overlay, AttestationCommunity)]
-        identity_overlays = [overlay for overlay in session.overlays if isinstance(overlay, IdentityCommunity)]
-        self.persistent_key = None
-        if attestation_overlays and identity_overlays:
-            self.attestation_overlay = attestation_overlays[0]
-            self.attestation_overlay.set_attestation_request_callback(self.on_request_attestation)
-            self.attestation_overlay.set_attestation_request_complete_callback(self.on_attestation_complete)
-            self.attestation_overlay.set_verify_request_callback(self.on_verify_request)
-            self.identity_overlay = identity_overlays[0]
-            self.persistent_key = self.identity_overlay.my_peer
+        self.attestation_overlay = self.identity_overlay = self.persistent_key = None
         self.attestation_requests = {}
         self.verify_requests = {}
         self.verification_output = {}
         self.attestation_metadata = {}
 
+    def setup_routes(self):
+        self.app.add_routes([web.get('', self.handle_get),
+                             web.post('', self.handle_post)])
+
+    def initialize(self, session):
+        super(AttestationEndpoint, self).initialize(session)
+        self.attestation_overlay = next((overlay for overlay in session.overlays
+                                         if isinstance(overlay, AttestationCommunity)), None)
+        self.identity_overlay = next((overlay for overlay in session.overlays
+                                      if isinstance(overlay, IdentityCommunity)), None)
+        if self.attestation_overlay and self.identity_overlay:
+            self.attestation_overlay.set_attestation_request_callback(self.on_request_attestation)
+            self.attestation_overlay.set_attestation_request_complete_callback(self.on_attestation_complete)
+            self.attestation_overlay.set_verify_request_callback(self.on_verify_request)
+            self.persistent_key = self.identity_overlay.my_peer
+
     def on_request_attestation(self, peer, attribute_name, metadata):
         """
         Return the measurement of an attribute for a certain peer.
         """
-        deferred = Deferred()
-        self.attestation_requests[(b64encode(peer.mid), cast_to_bin(attribute_name))] = \
-            (deferred, b64encode(json.dumps(metadata).encode('utf-8')))
+        future = Future()
+        self.attestation_requests[(b64encode(peer.mid).decode(), attribute_name)] = \
+            (future, b64encode(json.dumps(metadata).encode('utf-8')).decode())
         self.attestation_metadata[(peer, attribute_name)] = metadata
-        return deferred
+        return future
 
     def on_attestation_complete(self, for_peer, attribute_name, attribute_hash, id_format, from_peer=None):
         """
@@ -75,9 +77,9 @@ class AttestationEndpoint(BaseEndpoint):
         if not block:
             return succeed(None)
         attribute_name = block.transaction[b"name"]
-        deferred = Deferred()
-        self.verify_requests[(b64encode(peer.mid), attribute_name)] = deferred
-        return deferred
+        future = Future()
+        self.verify_requests[(b64encode(peer.mid).decode(), attribute_name)] = future
+        return future
 
     def on_verification_results(self, attribute_hash, values):
         """
@@ -111,7 +113,7 @@ class AttestationEndpoint(BaseEndpoint):
             block_selection_stmt = u""
             params = ()
         else:
-            value_insert = u"AND".join(u"public_key != ? AND link_public_key != ?" for _ in xrange(len(keys_to_keep)))
+            value_insert = u"AND".join(u"public_key != ? AND link_public_key != ?" for _ in range(len(keys_to_keep)))
             block_selection_stmt = (u" WHERE " + value_insert + u" ORDER BY block_timestamp")
             params = ()
             for key in keys_to_keep:
@@ -145,7 +147,7 @@ class AttestationEndpoint(BaseEndpoint):
                                                   attestation_hashes)
         self.attestation_overlay.database.commit()
 
-    def render_GET(self, request):
+    def handle_get(self, request):
         """
         type=drop_identity
         type=outstanding -> [(mid_b64, attribute_name)]
@@ -154,34 +156,35 @@ class AttestationEndpoint(BaseEndpoint):
         type=peers -> [mid_b64]
         type=attributes&mid=mid_b64 -> [(attribute_name, attribute_hash)]
         """
-        if not request.args or b'type' not in request.args:
-            request.setResponseCode(http.BAD_REQUEST)
-            return self.twisted_dumps({"error": "parameters or type missing"})
+        if not self.attestation_overlay or not self.identity_overlay:
+            return Response({"error": "attestation or identity community not found"}, status=HTTP_NOT_FOUND)
 
-        if request.args[b'type'][0] == b'outstanding':
+        if not request.query or 'type' not in request.query:
+            return Response({"error": "parameters or type missing"}, status=HTTP_BAD_REQUEST)
+
+        if request.query['type'] == 'outstanding':
             formatted = []
             for k, v in self.attestation_requests.items():
                 formatted.append(k + (v[1], ))
-            return self.twisted_dumps(
-                [(x.decode('utf-8'), y.decode('utf-8'), z.decode('utf-8')) for x, y, z in formatted])
+            return Response([(x, y, z) for x, y, z in formatted])
 
-        elif request.args[b'type'][0] == b'outstanding_verify':
+        elif request.query['type'] == 'outstanding_verify':
             formatted = self.verify_requests.keys()
-            return self.twisted_dumps([(x.decode('utf-8'), y.decode('utf-8')) for x, y in formatted])
+            return Response([(x, y) for x, y in formatted])
 
-        elif request.args[b'type'][0] == b'verification_output':
+        elif request.query['type'] == 'verification_output':
             formatted = {}
             for k, v in self.verification_output.items():
                 formatted[b64encode(k).decode('utf-8')] = [(b64encode(a).decode('utf-8'), m) for a, m in v]
-            return self.twisted_dumps(formatted)
+            return Response(formatted)
 
-        elif request.args[b'type'][0] == b'peers':
+        elif request.query['type'] == 'peers':
             peers = self.session.network.get_peers_for_service(self.identity_overlay.master_peer.mid)
-            return self.twisted_dumps([b64encode(p.mid).decode('utf-8') for p in peers])
+            return Response([b64encode(p.mid).decode('utf-8') for p in peers])
 
-        elif request.args[b'type'][0] == b'attributes':
-            if b'mid' in request.args:
-                mid_b64 = request.args[b'mid'][0]
+        elif request.query['type'] == 'attributes':
+            if 'mid' in request.query:
+                mid_b64 = request.query['mid']
                 peer = self.get_peer_from_mid(mid_b64)
             else:
                 peer = self.identity_overlay.my_peer
@@ -197,17 +200,17 @@ class AttestationEndpoint(BaseEndpoint):
                     previous = trimmed.get((attester, b.transaction[b"name"]), None)
                     if not previous or previous.sequence_number < b.sequence_number:
                         trimmed[(attester, b.transaction[b"name"])] = b
-                return self.twisted_dumps([(
-                    b.transaction[b"name"].decode('utf-8'),
+                return Response([(
+                    b.transaction[b"name"],
                     b64encode(b.transaction[b"hash"]).decode('utf-8'),
                     {cast_to_unicode(k): cast_to_unicode(v) for k, v in b.transaction[b"metadata"].items()},
                     b64encode(sha1(b.link_public_key).digest()).decode('utf-8')) for b in trimmed.values()])
             else:
-                return self.twisted_dumps([])
+                return Response([])
 
-        elif request.args[b'type'][0] == b'drop_identity':
+        elif request.query['type'] == 'drop_identity':
             to_keep = [self.persistent_key.public_key.key_to_bin()]
-            if b'keep' in request.args:
+            if 'keep' in request.query:
                 to_keep += [self.identity_overlay.my_peer.public_key.key_to_bin()]
 
             # Remove identity metadata and attestation proofing data, except for the keys to keep
@@ -221,13 +224,12 @@ class AttestationEndpoint(BaseEndpoint):
             my_new_peer = Peer(default_eccrypto.generate_key(u"curve25519"))
             for overlay in self.session.overlays:
                 overlay.my_peer = my_new_peer
-            return self.twisted_dumps({"success": True})
+            return Response({"success": True})
 
         else:
-            request.setResponseCode(http.BAD_REQUEST)
-            return self.twisted_dumps({"error": "type argument incorrect"})
+            return Response({"error": "type argument incorrect"}, status=HTTP_BAD_REQUEST)
 
-    def render_POST(self, request):
+    async def handle_post(self, request):
         """
         type=request&mid=mid_b64&attibute_name=attribute_name&id_format=id_format
         type=allow_verify&mid=mid_b64&attibute_name=attribute_name
@@ -235,75 +237,75 @@ class AttestationEndpoint(BaseEndpoint):
         type=verify&mid=mid_b64&attribute_hash=attribute_hash_b64&id_format=id_format
                    &attribute_values=attribute_value_b64,...
         """
-        if not request.args or b'type' not in request.args:
-            request.setResponseCode(http.BAD_REQUEST)
-            return self.twisted_dumps({"error": "parameters or type missing"})
+        if not self.attestation_overlay or not self.identity_overlay:
+            return Response({"error": "attestation or identity community not found"}, status=HTTP_NOT_FOUND)
 
-        if request.args[b'type'][0] == b'request':
-            mid_b64 = request.args[b'mid'][0]
-            attribute_name = request.args[b'attribute_name'][0]
-            id_format = request.args.get(b'id_format', [b'id_metadata'])[0].decode('utf-8')
+        args = request.query
+        if not args or 'type' not in args:
+            return Response({"error": "parameters or type missing"}, status=HTTP_BAD_REQUEST)
+
+        if args['type'] == 'request':
+            mid_b64 = args['mid']
+            attribute_name = args['attribute_name']
+            id_format = args.get('id_format', ['id_metadata'])
             peer = self.get_peer_from_mid(mid_b64)
             if peer:
                 key = self.attestation_overlay.get_id_algorithm(id_format).generate_secret_key()
                 metadata = {"id_format": id_format}
-                if b'metadata' in request.args:
-                    metadata_unicode = json.loads(b64decode(request.args[b'metadata'][0]))
+                if 'metadata' in args:
+                    metadata_unicode = json.loads(b64decode(args['metadata']))
                     for k, v in metadata_unicode.items():
                         metadata[cast_to_bin(k)] = cast_to_bin(v)
                 self.attestation_metadata[(self.identity_overlay.my_peer, attribute_name)] = metadata
                 self.attestation_overlay.request_attestation(peer, attribute_name, key, metadata)
-                return self.twisted_dumps({"success": True})
+                return Response({"success": True})
             else:
-                request.setResponseCode(http.BAD_REQUEST)
-                return self.twisted_dumps({"error": "peer unknown"})
+                return Response({"error": "peer unknown"}, status=HTTP_BAD_REQUEST)
 
-        elif request.args[b'type'][0] == b'attest':
-            mid_b64 = request.args[b'mid'][0]
-            attribute_name = request.args[b'attribute_name'][0]
-            attribute_value_b64 = request.args[b'attribute_value'][0]
+        elif args['type'] == 'attest':
+            mid_b64 = args['mid']
+            attribute_name = args['attribute_name']
+            attribute_value_b64 = args['attribute_value']
             outstanding = self.attestation_requests.pop((mid_b64, attribute_name))
-            outstanding[0].callback(b64decode(attribute_value_b64))
-            return self.twisted_dumps({"success": True})
+            outstanding[0].set_result(b64decode(attribute_value_b64))
+            return Response({"success": True})
 
-        elif request.args[b'type'][0] == b'import_blob':
+        elif args['type'] == 'import_blob':
             # Import self-attested binary data
-            attribute_name = request.args[b'attribute_name'][0]
-            id_format = request.args[b'id_format'][0]
+            attribute_name = args['attribute_name']
+            id_format = args['id_format']
             metadata = {"id_format": id_format}
-            if b'metadata' in request.args:
-                metadata_unicode = json.loads(b64decode(request.args[b'metadata'][0]))
+            if 'metadata' in args:
+                metadata_unicode = json.loads(b64decode(args['metadata']))
                 for k, v in metadata_unicode.items():
                     metadata[cast_to_bin(k)] = cast_to_bin(v)
-            blob = request.content.read()
+            blob = await request.read()
 
             self.attestation_overlay.dump_blob(attribute_name, id_format, blob, metadata)
 
-            return self.twisted_dumps({"success": True})
+            return Response({"success": True})
 
-        elif request.args[b'type'][0] == b'allow_verify':
-            mid_b64 = request.args[b'mid'][0]
-            attribute_name = request.args[b'attribute_name'][0]
+        elif args['type'] == 'allow_verify':
+            mid_b64 = args['mid']
+            attribute_name = args['attribute_name']
             outstanding = self.verify_requests.pop((mid_b64, attribute_name))
-            outstanding.callback(True)
-            return self.twisted_dumps({"success": True})
+            outstanding.set_result(True)
+            return Response({"success": True})
 
-        elif request.args[b'type'][0] == b'verify':
-            mid_b64 = request.args[b'mid'][0]
-            attribute_hash = b64decode(request.args[b'attribute_hash'][0])
-            reference_values = [b64decode(v) for v in request.args[b'attribute_values'][0].split(b',')]
-            id_format = request.args.get(b'id_format', [b'id_metadata'])[0].decode('utf-8')
+        elif args['type'] == 'verify':
+            mid_b64 = args['mid']
+            attribute_hash = b64decode(args['attribute_hash'])
+            reference_values = [b64decode(v) for v in args['attribute_values'].split(',')]
+            id_format = args.get('id_format', ['id_metadata'])
             peer = self.get_peer_from_mid(mid_b64)
             if peer:
-                self.verification_output[b64decode(request.args[b'attribute_hash'][0])] =\
-                    [(b64decode(v), 0.0) for v in request.args[b'attribute_values'][0].split(b',')]
+                self.verification_output[b64decode(args['attribute_hash'])] = \
+                    [(b64decode(v), 0.0) for v in args['attribute_values'].split(',')]
                 self.attestation_overlay.verify_attestation_values(peer.address, attribute_hash, reference_values,
                                                                    self.on_verification_results, id_format)
-                return self.twisted_dumps({"success": True})
+                return Response({"success": True})
             else:
-                request.setResponseCode(http.BAD_REQUEST)
-                return self.twisted_dumps({"error": "peer unknown"})
+                return Response({"error": "peer unknown"}, status=HTTP_BAD_REQUEST)
 
         else:
-            request.setResponseCode(http.BAD_REQUEST)
-            return self.twisted_dumps({"error": "type argument incorrect"})
+            return Response({"error": "type argument incorrect"}, status=HTTP_BAD_REQUEST)

@@ -1,8 +1,6 @@
-from __future__ import absolute_import
-
 from binascii import unhexlify
 
-from twisted.trial import unittest
+import asynctest
 
 from .....attestation.wallet.bonehexact.attestation import (attest, binary_relativity, binary_relativity_certainty,
                                                             binary_relativity_match, create_challenge,
@@ -12,7 +10,7 @@ from .....attestation.wallet.bonehexact.attestation import (attest, binary_relat
 from .....attestation.wallet.primitives.structs import BonehPrivateKey
 
 
-class TestAttestation(unittest.TestCase):
+class TestAttestation(asynctest.TestCase):
 
     private_key = BonehPrivateKey.unserialize(unhexlify('01011d01011401011101011c01011c01010f010103'))
 

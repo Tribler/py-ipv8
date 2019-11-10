@@ -1,15 +1,13 @@
-from __future__ import absolute_import
-
 from binascii import unhexlify
 
-from twisted.trial import unittest
+import asynctest
 
 from .....attestation.wallet.pengbaorange.boudot import EL, SQR
 from .....attestation.wallet.primitives.structs import BonehPrivateKey
 from .....attestation.wallet.primitives.value import FP2Value
 
 
-class TestBoudot(unittest.TestCase):
+class TestBoudot(asynctest.TestCase):
 
     pk = BonehPrivateKey.unserialize(unhexlify("0109649b2a7d7992b008d1010958f4d560346bb392330109117572cef25"
                                                "23be2fe0109264c97f1868fd4b18b010908792e2bf8bcaa077f0108baa1"

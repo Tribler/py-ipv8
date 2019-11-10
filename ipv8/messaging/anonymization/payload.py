@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import socket
 from struct import pack, unpack_from
 
@@ -10,7 +8,7 @@ from ...messaging.anonymization.tunnel import (CIRCUIT_TYPE_RP_DOWNLOADER, CIRCU
 from ...messaging.anonymization.tunnelcrypto import CryptoException
 from ...messaging.lazy_payload import VariablePayload
 from ...messaging.payload import Payload
-from ...util import cast_to_bin, cast_to_chr, ensure_str
+from ...util import cast_to_bin, cast_to_chr
 
 ADDRESS_TYPE_IPV4 = 0x01
 ADDRESS_TYPE_DOMAIN_NAME = 0x02
@@ -42,7 +40,7 @@ def decode_address(packet):
 
     elif addr_type == ADDRESS_TYPE_DOMAIN_NAME:
         length, = unpack_from('!H', packet, 1)
-        host = ensure_str(packet[3:3 + length])
+        host = packet[3:3 + length].decode('utf-8')
         port, = unpack_from('!H', packet, 3 + length)
         return host, port
 

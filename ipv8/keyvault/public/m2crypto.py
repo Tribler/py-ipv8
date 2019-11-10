@@ -1,7 +1,4 @@
-from __future__ import absolute_import
-from __future__ import division
-
-from base64 import decodestring, encodestring
+from base64 import decodebytes, encodebytes
 from binascii import hexlify
 from math import ceil
 
@@ -29,14 +26,14 @@ class M2CryptoPK(PublicKey):
             self.ec = ec_pub
         elif keystring:
             self.ec = self.key_from_pem(b"-----BEGIN PUBLIC KEY-----\n%s-----END PUBLIC KEY-----\n" %
-                                        encodestring(keystring))
+                                        encodebytes(keystring))
 
     def pem_to_bin(self, pem):
         """
         Convert a key in the PEM format into a key in the binary format.
         @note: Encrypted pem's are NOT supported and will silently fail.
         """
-        return decodestring(b"".join(pem.split(b"\n")[1:-2]))
+        return decodebytes(b"".join(pem.split(b"\n")[1:-2]))
 
     def key_to_pem(self):
         "Convert a key to the PEM format."

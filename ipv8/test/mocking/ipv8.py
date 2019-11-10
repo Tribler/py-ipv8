@@ -1,13 +1,11 @@
-from __future__ import absolute_import
-
+from .discovery import MockWalk
+from .endpoint import AutoMockEndpoint
 from ...attestation.trustchain.community import TrustChainCommunity
 from ...dht.discovery import DHTDiscoveryCommunity
 from ...keyvault.crypto import default_eccrypto
 from ...messaging.interfaces.statistics_endpoint import StatisticsEndpoint
 from ...peer import Peer
 from ...peerdiscovery.network import Network
-from .endpoint import AutoMockEndpoint
-from .discovery import MockWalk
 
 
 class MockIPv8(object):
@@ -47,10 +45,10 @@ class MockIPv8(object):
         if enable_statistics:
             self.endpoint.enable_community_statistics(self.overlay.get_prefix(), True)
 
-    def unload(self):
+    async def unload(self):
         self.endpoint.close()
-        self.overlay.unload()
+        await self.overlay.unload()
         if self.trustchain:
-            self.trustchain.unload()
+            await self.trustchain.unload()
         if self.dht:
-            self.dht.unload()
+            await self.dht.unload()

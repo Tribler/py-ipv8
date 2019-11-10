@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 from ..base import TestBase
 from ...dht.trie import Trie
 

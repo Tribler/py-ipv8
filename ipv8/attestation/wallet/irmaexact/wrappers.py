@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 from .gabi.proofs import ProofD, createChallenge
 from ..primitives.structs import ipack, iunpack
 

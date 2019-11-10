@@ -1,12 +1,10 @@
-from __future__ import absolute_import
-
 from hashlib import sha256, sha512
 
-from six import int2byte, text_type
+from ....util import int2byte
 
 
 def to_ascii(value):
-    if isinstance(value, text_type):
+    if isinstance(value, str):
         return b''.join(int2byte(ord(c)) for c in value)
     return value
 

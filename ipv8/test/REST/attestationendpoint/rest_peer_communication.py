@@ -1,7 +1,3 @@
-from __future__ import absolute_import
-
-from twisted.internet.defer import inlineCallbacks, returnValue
-
 from .peer_communication import IGetStyleRequestsAE, IPostStyleRequestsAE
 from ...mocking.rest.rest_peer_communication import HTTPRequester, RequestException, process_json_response
 
@@ -11,13 +7,12 @@ class HTTPGetRequesterAE(IGetStyleRequestsAE, HTTPRequester):
     Implements the GetStyleRequests abstract methods using the HTTP protocol for the attestation endpoint.
     """
 
-    def __init__(self):
+    def __init__(self, loop=None):
         IGetStyleRequestsAE.__init__(self)
-        HTTPRequester.__init__(self)
+        HTTPRequester.__init__(self, loop)
 
     @process_json_response
-    @inlineCallbacks
-    def make_outstanding(self, param_dict):
+    async def make_outstanding(self, param_dict):
         """
         Forward a request for outstanding attestation requests.
 
@@ -34,15 +29,14 @@ class HTTPGetRequesterAE(IGetStyleRequestsAE, HTTPRequester):
         """
         interface, port, endpoint = HTTPRequester.get_access_parameters(param_dict)
 
-        response = yield self.make_request(HTTPRequester.basic_url_builder(interface, port, endpoint),
+        response = await self.make_request(HTTPRequester.basic_url_builder(interface, port, endpoint),
                                            'GET',
                                            {'type': 'outstanding'},
                                            param_dict.get('callback', None))
-        returnValue(response)
+        return response
 
     @process_json_response
-    @inlineCallbacks
-    def make_verification_output(self, param_dict):
+    async def make_verification_output(self, param_dict):
         """
         Forward a request for the verification outputs.
 
@@ -59,15 +53,14 @@ class HTTPGetRequesterAE(IGetStyleRequestsAE, HTTPRequester):
         """
         interface, port, endpoint = HTTPRequester.get_access_parameters(param_dict)
 
-        response = yield self.make_request(HTTPRequester.basic_url_builder(interface, port, endpoint),
+        response = await self.make_request(HTTPRequester.basic_url_builder(interface, port, endpoint),
                                            'GET',
                                            {'type': 'verification_output'},
                                            param_dict.get('callback', None))
-        returnValue(response)
+        return response
 
     @process_json_response
-    @inlineCallbacks
-    def make_peers(self, param_dict):
+    async def make_peers(self, param_dict):
         """
         Forward a request for the known peers in the network.
 
@@ -84,15 +77,14 @@ class HTTPGetRequesterAE(IGetStyleRequestsAE, HTTPRequester):
         """
         interface, port, endpoint = HTTPRequester.get_access_parameters(param_dict)
 
-        response = yield self.make_request(HTTPRequester.basic_url_builder(interface, port, endpoint),
+        response = await self.make_request(HTTPRequester.basic_url_builder(interface, port, endpoint),
                                            'GET',
                                            {'type': 'peers'},
                                            param_dict.get('callback', None))
-        returnValue(response)
+        return response
 
     @process_json_response
-    @inlineCallbacks
-    def make_attributes(self, param_dict):
+    async def make_attributes(self, param_dict):
         """
         Forward a request for the attributes of a peer.
 
@@ -113,15 +105,14 @@ class HTTPGetRequesterAE(IGetStyleRequestsAE, HTTPRequester):
         request_parameters = param_dict.get('request_parameters', dict())
         request_parameters.update({'type': 'attributes'})
 
-        response = yield self.make_request(HTTPRequester.basic_url_builder(interface, port, endpoint),
+        response = await self.make_request(HTTPRequester.basic_url_builder(interface, port, endpoint),
                                            'GET',
                                            request_parameters,
                                            param_dict.get('callback', None))
-        returnValue(response)
+        return response
 
     @process_json_response
-    @inlineCallbacks
-    def make_dht_block(self, param_dict):
+    async def make_dht_block(self, param_dict):
         """
         Forward a request for the latest TC block of a peer
 
@@ -144,14 +135,13 @@ class HTTPGetRequesterAE(IGetStyleRequestsAE, HTTPRequester):
         else:
             raise RequestException("Malformed request: did not specify the public_key")
 
-        response = yield self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
+        response = await self.make_request("http://{0}:{1}/{2}".format(interface, port, endpoint),
                                            'GET',
                                            request_parameters,
                                            param_dict.get('callback', None))
-        returnValue(response)
+        return response
 
-    @inlineCallbacks
-    def make_drop_identity(self, param_dict):
+    async def make_drop_identity(self, param_dict):
         """
         Forward a request for dropping a peer's identity.
 
@@ -168,15 +158,14 @@ class HTTPGetRequesterAE(IGetStyleRequestsAE, HTTPRequester):
         """
         interface, port, endpoint = HTTPRequester.get_access_parameters(param_dict)
 
-        response = yield self.make_request(HTTPRequester.basic_url_builder(interface, port, endpoint),
+        response = await self.make_request(HTTPRequester.basic_url_builder(interface, port, endpoint),
                                            'GET',
                                            {'type': 'drop_identity'},
                                            param_dict.get('callback', None))
-        returnValue(response)
+        return response
 
     @process_json_response
-    @inlineCallbacks
-    def make_outstanding_verify(self, param_dict):
+    async def make_outstanding_verify(self, param_dict):
         """
         Forward a request which requests information on the outstanding verify requests
 
@@ -196,11 +185,11 @@ class HTTPGetRequesterAE(IGetStyleRequestsAE, HTTPRequester):
         # Add the type of the request (request), and the rest of the parameters
         request_parameters = {'type': 'outstanding_verify'}
 
-        response = yield self.make_request(HTTPRequester.basic_url_builder(interface, port, endpoint),
+        response = await self.make_request(HTTPRequester.basic_url_builder(interface, port, endpoint),
                                            'GET',
                                            request_parameters,
                                            param_dict.get('callback', None))
-        returnValue(response)
+        return response
 
 
 class HTTPPostRequesterAE(IPostStyleRequestsAE, HTTPRequester):
@@ -208,12 +197,11 @@ class HTTPPostRequesterAE(IPostStyleRequestsAE, HTTPRequester):
     Implements the PostStyleRequests abstract methods using the HTTP protocol for the AttestationEndpoint
     """
 
-    def __init__(self):
+    def __init__(self, loop=None):
         IPostStyleRequestsAE.__init__(self)
-        HTTPRequester.__init__(self)
+        HTTPRequester.__init__(self, loop)
 
-    @inlineCallbacks
-    def make_attestation_request(self, param_dict):
+    async def make_attestation_request(self, param_dict):
         """
         Forward a request for the attestation of an attribute.
 
@@ -250,14 +238,12 @@ class HTTPPostRequesterAE(IPostStyleRequestsAE, HTTPRequester):
         if 'metadata' in param_dict:
             request_parameters['metadata'] = param_dict['metadata']
 
-        response = yield self.make_request(HTTPRequester.basic_url_builder(interface, port, endpoint),
-                                           'POST',
-                                           request_parameters,
-                                           param_dict.get('callback', None))
-        returnValue(response)
+        return await self.make_request(HTTPRequester.basic_url_builder(interface, port, endpoint),
+                                       'POST',
+                                       request_parameters,
+                                       param_dict.get('callback', None))
 
-    @inlineCallbacks
-    def make_attest(self, param_dict):
+    async def make_attest(self, param_dict):
         """
         Forward a request which attests an attestation request.
 
@@ -297,14 +283,13 @@ class HTTPPostRequesterAE(IPostStyleRequestsAE, HTTPRequester):
             raise RequestException("Malformed request: did not specify the attribute_value, i.e. the attestation"
                                    "blob hash")
 
-        response = yield self.make_request(HTTPRequester.basic_url_builder(interface, port, endpoint),
+        response = await self.make_request(HTTPRequester.basic_url_builder(interface, port, endpoint),
                                            'POST',
                                            request_parameters,
                                            param_dict.get('callback', None))
-        returnValue(response)
+        return response
 
-    @inlineCallbacks
-    def make_verify(self, param_dict):
+    async def make_verify(self, param_dict):
         """
         Forward a request which demands the verification of an attestation
 
@@ -344,15 +329,14 @@ class HTTPPostRequesterAE(IPostStyleRequestsAE, HTTPRequester):
         else:
             raise RequestException("Malformed request: did not specify the attribute_values")
 
-        response = yield self.make_request(HTTPRequester.basic_url_builder(interface, port, endpoint),
+        response = await self.make_request(HTTPRequester.basic_url_builder(interface, port, endpoint),
                                            'POST',
                                            request_parameters,
                                            param_dict.get('callback', None))
 
-        returnValue(response)
+        return response
 
-    @inlineCallbacks
-    def make_allow_verify(self, param_dict):
+    async def make_allow_verify(self, param_dict):
         """
         Forward a request which requests that verifications be allowed for a particular peer for a particular attribute
 
@@ -385,8 +369,8 @@ class HTTPPostRequesterAE(IPostStyleRequestsAE, HTTPRequester):
         else:
             raise RequestException("Malformed request: did not specify the attester's mid")
 
-        response = yield self.make_request(HTTPRequester.basic_url_builder(interface, port, endpoint),
+        response = await self.make_request(HTTPRequester.basic_url_builder(interface, port, endpoint),
                                            'POST',
                                            request_parameters,
                                            param_dict.get('callback', None))
-        returnValue(response)
+        return response

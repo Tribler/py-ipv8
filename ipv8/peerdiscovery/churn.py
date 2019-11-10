@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 from random import sample
 from time import time
 
@@ -82,6 +80,6 @@ class PingChurn(DiscoveryStrategy):
             for bucket in self.overlay.routing_table.trie.values():
                 for node in bucket.nodes.values():
                     if node.last_response + self.ping_interval <= now:
-                        self.overlay.ping(node).addErrback(lambda _: None)
+                        self.overlay.ping(node)
                         pinged.append(node)
             return pinged

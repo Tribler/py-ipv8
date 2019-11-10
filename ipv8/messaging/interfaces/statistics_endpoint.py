@@ -1,9 +1,7 @@
-from __future__ import absolute_import
-
 import time
 
-from ...messaging.interfaces.endpoint import EndpointListener
 from .network_stats import NetworkStat
+from ...messaging.interfaces.endpoint import EndpointListener
 
 
 class StatisticsEndpoint(EndpointListener):

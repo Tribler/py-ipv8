@@ -5,15 +5,14 @@ All rights reserved.
 This source code has been ported from https://github.com/privacybydesign/gabi
 The authors of this file are not -in any way- affiliated with the original authors or organizations.
 """
+import unittest
 
-from __future__ import absolute_import
-
-from twisted.trial import unittest
+import asynctest
 
 from .....attestation.wallet.irmaexact.gabi.keys import DefaultSystemParameters, GenerateKeyPair, SignMessageBlock
 
 
-class TestKeys(unittest.TestCase):
+class TestKeys(asynctest.TestCase):
 
     @unittest.SkipTest  # Too slow and unused.
     def test_generate_and_sign(self):

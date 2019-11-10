@@ -1,16 +1,12 @@
-from __future__ import absolute_import
-from __future__ import division
-
 import binascii
 import random
 import time
-
 from collections import deque
-from threading import RLock
 from socket import inet_aton
+from threading import RLock
 
-from ..peer import Peer
 from .trie import Trie
+from ..peer import Peer
 from ..util import cast_to_bin, cast_to_unicode
 
 # By default we allow a maximum number of 10 queries during a 5s interval.

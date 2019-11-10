@@ -1,5 +1,3 @@
-from __future__ import absolute_import, division
-
 from binascii import hexlify
 from math import sqrt
 from os import urandom

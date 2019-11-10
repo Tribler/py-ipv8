@@ -1,62 +1,45 @@
-from __future__ import absolute_import
+import logging
 
-from twisted.web import resource
-from twisted.web.resource import _computeAllowedMethods
+from aiohttp import web
 
 from . import json_util as json
 
+HTTP_BAD_REQUEST = 400
+HTTP_NOT_FOUND = 404
+HTTP_CONFLICT = 409
+HTTP_PRECONDITION_FAILED = 412
+HTTP_INTERNAL_SERVER_ERROR = 500
 
-class BaseEndpoint(resource.Resource, object):
-    """
-    The base endpoint from which all other endpoints should extend to make them compatible with Cross-Origin Resource
-    Sharing requests.
-    """
-    def __init__(self):
-        resource.Resource.__init__(self)
-        object.__init__(self)
+DEFAULT_HEADERS = {}
 
-    @staticmethod
-    def twisted_dumps(obj, ensure_ascii=True):
-        """
-        Attempt to json.dumps() an object and encode it to convert it to bytes.
-        This method is helpful when returning JSON data in twisted REST calls.
 
-        :param obj: the object to serialize.
-        :param ensure_ascii: allow binary strings to be sent
-        :return: the JSON bytes representation of the object.
-        """
-        return json.dumps(obj, ensure_ascii).encode('utf-8')
+class BaseEndpoint:
 
-    @staticmethod
-    def twisted_loads(s, *args, **kwargs):
-        """
-        Attempt to json.loads() a bytes. This function wraps json.loads, to provide dumps and loads from the same file.
+    def __init__(self, middlewares=()):
+        self._logger = logging.getLogger(self.__class__.__name__)
+        self.app = web.Application(middlewares=middlewares)
+        self.session = None
+        self.endpoints = {}
+        self.setup_routes()
 
-        :param s: the JSON formatted bytes to load objects from.
-        :return: the Python object(s) extracted from the JSON input.
-        """
-        return json.loads(s.decode('utf-8'), *args, **kwargs)
+    def setup_routes(self):
+        pass
 
-    def render_OPTIONS(self, request):
-        """
-        This methods renders the HTTP OPTIONS method used for returning available HTTP methods and Cross-Origin Resource
-        Sharing preflight request checks.
-        """
-        # Check if the allowed methods were explicitly set, otherwise compute them automatically
-        try:
-            allowed_methods = self.allowedMethods
-        except AttributeError:
-            allowed_methods = _computeAllowedMethods(self)
-        allowed_methods_string = " ".join(allowed_methods)
+    def initialize(self, session):
+        self.session = session
+        for endpoint in self.endpoints.values():
+            endpoint.initialize(session)
 
-        # Set the header for the HTTP OPTION method
-        request.setHeader(b'Allow', allowed_methods_string)
+    def add_endpoint(self, prefix, endpoint):
+        self.endpoints[prefix] = endpoint
+        self.app.add_subapp(prefix, endpoint.app)
 
-        # Set the required headers for preflight checks
-        if request.getHeader(b'Access-Control-Request-Headers'):
-            request.setHeader(b'Access-Control-Allow-Headers', request.getHeader(b'Access-Control-Request-Headers'))
-        request.setHeader(b'Access-Control-Allow-Methods', allowed_methods_string)
-        request.setHeader(b'Access-Control-Max-Age', 86400)
 
-        # Return empty body
-        return b""
+class Response(web.Response):
+
+    def __init__(self, body=None, headers=None, content_type=None, status=200, **kwargs):
+        if isinstance(body, (dict, list)):
+            body = json.dumps(body)
+            content_type = 'application/json'
+        super(Response, self).__init__(body=body, headers=headers or DEFAULT_HEADERS,
+                                       content_type=content_type, status=status, **kwargs)

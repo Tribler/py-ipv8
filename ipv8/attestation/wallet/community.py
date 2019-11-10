@@ -1,14 +1,10 @@
-from __future__ import absolute_import
-
 import json
 import os
-from base64 import decodestring, encodestring
+from base64 import decodebytes, encodebytes
 from binascii import unhexlify
 from hashlib import sha1
 from random import choice
 from threading import Lock
-
-from twisted.internet.defer import inlineCallbacks
 
 from .bonehexact.algorithm import BonehExactAlgorithm
 from .caches import (HashCache, PeerCache, PendingChallengeCache, ProvingAttestationCache,
@@ -24,8 +20,7 @@ from ...lazy_community import lazy_wrapper
 from ...messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from ...peer import Peer
 from ...requestcache import RequestCache
-from ...util import cast_to_bin, cast_to_chr, cast_to_unicode
-
+from ...util import cast_to_bin, cast_to_chr, cast_to_unicode, maybe_coroutine
 
 ID_ALGORITHMS = {
     "bonehexact": BonehExactAlgorithm,
@@ -90,10 +85,10 @@ class AttestationCommunity(Community):
             chr(5): self.on_request_attestation
         })
 
-    def unload(self):
-        self.request_cache.shutdown()
+    async def unload(self):
+        await self.request_cache.shutdown()
 
-        super(AttestationCommunity, self).unload()
+        await super(AttestationCommunity, self).unload()
         # Close the database after we stop accepting requests.
         self.database.close()
 
@@ -162,7 +157,7 @@ class AttestationCommunity(Community):
 
         meta_dict = {
             "attribute": attribute_name,
-            "public_key": cast_to_chr(encodestring(public_key.serialize())),
+            "public_key": cast_to_chr(encodebytes(public_key.serialize())),
             "id_format": id_format
         }
         meta_dict.update(metadata)
@@ -182,9 +177,8 @@ class AttestationCommunity(Community):
         packet = self._ez_pack(self._prefix, 5, [auth, dist, payload])
         self.endpoint.send(peer.address, packet)
 
-    @inlineCallbacks
     @lazy_wrapper(GlobalTimeDistributionPayload, RequestAttestationPayload)
-    def on_request_attestation(self, peer, dist, payload):
+    async def on_request_attestation(self, peer, dist, payload):
         """
         Someone wants us to attest their attribute.
         """
@@ -194,11 +188,11 @@ class AttestationCommunity(Community):
         id_format = metadata.pop('id_format')
         id_algorithm = self.get_id_algorithm(id_format)
 
-        value = yield self.attestation_request_callback(peer, attribute, metadata)
+        value = await maybe_coroutine(self.attestation_request_callback, peer, attribute, metadata)
         if value is None:
             return
 
-        PK = id_algorithm.load_public_key(decodestring(pubkey_b64))
+        PK = id_algorithm.load_public_key(decodebytes(pubkey_b64))
         attestation_blob = id_algorithm.attest(PK, value)
         attestation = id_algorithm.get_attestation_class().unserialize(attestation_blob, id_format)
 
@@ -249,9 +243,8 @@ class AttestationCommunity(Community):
         packet = self._ez_pack(self._prefix, 1, [auth, dist, payload])
         self.endpoint.send(socket_address, packet)
 
-    @inlineCallbacks
     @lazy_wrapper(GlobalTimeDistributionPayload, VerifyAttestationRequestPayload)
-    def on_verify_attestation_request(self, peer, dist, payload):
+    async def on_verify_attestation_request(self, peer, dist, payload):
         """
         We received a request to verify one of our attestations. Send the requested attestation back.
         """
@@ -259,7 +252,7 @@ class AttestationCommunity(Community):
         if not attestation_blob:
             return
 
-        value = yield self.verify_request_callback(peer, payload.hash)
+        value = await maybe_coroutine(self.verify_request_callback, peer, payload.hash)
         if not value:
             return
 
@@ -268,7 +261,6 @@ class AttestationCommunity(Community):
         private_attestation = attestation_cls.unserialize_private(SK, attestation_blob, id_format)
         public_attestation_blob = private_attestation.serialize()
         self.cached_attestation_blobs[payload.hash] = private_attestation
-
         self.send_attestation(peer.address, public_attestation_blob)
 
     def send_attestation(self, socket_address, blob, global_time=None):

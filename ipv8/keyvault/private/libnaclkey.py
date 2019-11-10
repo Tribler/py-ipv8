@@ -1,11 +1,9 @@
-from __future__ import absolute_import
-
 import libnacl
 import libnacl.dual
 import libnacl.sign
 
-from ...keyvault.public.libnaclkey import LibNaCLPK
 from ...keyvault.keys import PrivateKey
+from ...keyvault.public.libnaclkey import LibNaCLPK
 
 
 class LibNaCLSK(PrivateKey, LibNaCLPK):

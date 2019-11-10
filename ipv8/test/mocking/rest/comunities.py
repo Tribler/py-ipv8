@@ -1,8 +1,6 @@
-from __future__ import absolute_import
-
 from ....attestation.identity.community import IdentityCommunity
-from ....attestation.wallet.community import AttestationCommunity
 from ....attestation.trustchain.community import TrustChainCommunity
+from ....attestation.wallet.community import AttestationCommunity
 from ....dht.community import DHTCommunity
 from ....keyvault.crypto import ECCrypto
 from ....peer import Peer

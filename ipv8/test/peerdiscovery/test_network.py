@@ -1,9 +1,7 @@
-from __future__ import absolute_import
-
 import random
 from binascii import unhexlify
 
-from twisted.trial import unittest
+import asynctest
 
 from ...keyvault.crypto import default_eccrypto
 from ...peer import Peer
@@ -16,7 +14,7 @@ def _generate_peer():
     return Peer(key, address)
 
 
-class TestNetwork(unittest.TestCase):
+class TestNetwork(asynctest.TestCase):
 
     peers = [_generate_peer() for _ in range(4)]
 

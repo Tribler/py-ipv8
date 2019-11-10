@@ -1,9 +1,5 @@
-from __future__ import absolute_import, division
-
 from binascii import hexlify, unhexlify
 from struct import pack, unpack
-
-from six.moves import xrange
 
 from ..pengbaorange.boudot import EL, SQR
 from ..primitives.boneh import decode, encode
@@ -114,7 +110,7 @@ class PengBaoCommitmentPrivate(object):
         serialized = self.serialize()
         hex_serialized = hexlify(serialized)
         serialized_encodings = pack(">B", len(hex_serialized) // 2)
-        for i in xrange(0, len(hex_serialized), 2):
+        for i in range(0, len(hex_serialized), 2):
             intval = int(hex_serialized[i:i + 2], 16)
             serialized_encodings += _serialize_fp2value(encode(PK, intval))
         return serialized_encodings
@@ -124,7 +120,7 @@ class PengBaoCommitmentPrivate(object):
         serialized = b""
         count, = unpack(">B", s[0:1])
         rem = s[1:]
-        for _ in xrange(count):
+        for _ in range(count):
             unpacked, rem = _unserialize_fp2value(SK.g.mod, rem)
             hexed = hex(decode(SK, cls.MSGSPACE, unpacked))[2:]
             if hexed.endswith('L'):

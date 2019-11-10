@@ -1,9 +1,5 @@
-from __future__ import absolute_import
-
 import os
 from binascii import unhexlify
-
-from twisted.internet.defer import inlineCallbacks
 
 from ...base import MockIPv8, TestBase
 from ....attestation.wallet.bonehexact.structs import BonehAttestation
@@ -25,8 +21,7 @@ class TestCommunity(TestBase):
     def create_node(self):
         return MockIPv8(u"curve25519", AttestationCommunity, working_directory=u":memory:")
 
-    @inlineCallbacks
-    def test_request_attestation_callback(self):
+    async def test_request_attestation_callback(self):
         """
         Check if the request_attestation callback is correctly called.
         """
@@ -38,7 +33,7 @@ class TestCommunity(TestBase):
             f.called = True
         f.called = False
 
-        yield self.introduce_nodes()
+        await self.introduce_nodes()
 
         self.nodes[0].overlay.set_attestation_request_callback(f)
 
@@ -46,14 +41,13 @@ class TestCommunity(TestBase):
                                                   "MyAttribute",
                                                   TestCommunity.private_key)
 
-        yield self.deliver_messages()
+        await self.deliver_messages()
 
         self.assertTrue(f.called)
         # Request for attribute attestation goes unanswered
         self.nodes[1].overlay.request_cache.clear()
 
-    @inlineCallbacks
-    def test_request_attestation_twice_callback(self):
+    async def test_request_attestation_twice_callback(self):
         """
         Check if the request_attestation callback is correctly called twice in a row.
         """
@@ -67,7 +61,7 @@ class TestCommunity(TestBase):
 
         f.called = []
 
-        yield self.introduce_nodes()
+        await self.introduce_nodes()
 
         self.nodes[0].overlay.set_attestation_request_callback(f)
 
@@ -78,14 +72,13 @@ class TestCommunity(TestBase):
                                                   "MyAttribute",
                                                   TestCommunity.private_key)
 
-        yield self.deliver_messages()
+        await self.deliver_messages()
 
         self.assertListEqual([True, True], f.called)
         # Request for attribute attestation goes unanswered
         self.nodes[1].overlay.request_cache.clear()
 
-    @inlineCallbacks
-    def test_request_attestation_callback_metadata(self):
+    async def test_request_attestation_callback_metadata(self):
         """
         Check if the request_attestation callback is correctly called with metadata.
         """
@@ -99,7 +92,7 @@ class TestCommunity(TestBase):
 
         f.called = False
 
-        yield self.introduce_nodes()
+        await self.introduce_nodes()
 
         self.nodes[0].overlay.set_attestation_request_callback(f)
 
@@ -108,14 +101,13 @@ class TestCommunity(TestBase):
                                                   TestCommunity.private_key,
                                                   {'test': 123})
 
-        yield self.deliver_messages()
+        await self.deliver_messages()
 
         self.assertTrue(f.called)
         # Request for attribute attestation goes unanswered
         self.nodes[1].overlay.request_cache.clear()
 
-    @inlineCallbacks
-    def test_request_attestation(self):
+    async def test_request_attestation(self):
         """
         Check if the request_attestation callback is correctly called.
         """
@@ -126,7 +118,7 @@ class TestCommunity(TestBase):
             f.called = True
         f.called = False
 
-        yield self.introduce_nodes()
+        await self.introduce_nodes()
 
         self.nodes[0].overlay.set_attestation_request_callback(lambda x, y, z: b"AttributeValue")
         self.nodes[0].overlay.set_attestation_request_complete_callback(f)
@@ -135,14 +127,13 @@ class TestCommunity(TestBase):
                                                   "MyAttribute",
                                                   TestCommunity.private_key)
 
-        yield self.deliver_messages(0.5)
+        await self.deliver_messages(0.5)
 
         db_entries = self.nodes[1].overlay.database.get_all()
         self.assertEqual(1, len(db_entries))
         self.assertTrue(f.called)
 
-    @inlineCallbacks
-    def test_request_attestation_big(self):
+    async def test_request_attestation_big(self):
         """
         Check if the request_attestation callback is correctly called for id_metadata_big.
         """
@@ -155,7 +146,7 @@ class TestCommunity(TestBase):
 
         f.called = False
 
-        yield self.introduce_nodes()
+        await self.introduce_nodes()
 
         self.nodes[0].overlay.set_attestation_request_callback(lambda x, y, z: b"AttributeValue")
         self.nodes[0].overlay.set_attestation_request_complete_callback(f)
@@ -165,14 +156,13 @@ class TestCommunity(TestBase):
                                                   TestCommunity.private_key,
                                                   metadata={"id_format": "id_metadata_big"})
 
-        yield self.deliver_messages(1.5)
+        await self.deliver_messages(1.5)
 
         db_entries = self.nodes[1].overlay.database.get_all()
         self.assertEqual(1, len(db_entries))
         self.assertTrue(f.called)
 
-    @inlineCallbacks
-    def test_request_attestation_range(self):
+    async def test_request_attestation_range(self):
         """
         Check if the request_attestation callback is correctly called for id_metadata_range_18plus.
         """
@@ -185,7 +175,7 @@ class TestCommunity(TestBase):
 
         f.called = False
 
-        yield self.introduce_nodes()
+        await self.introduce_nodes()
 
         self.nodes[0].overlay.set_attestation_request_callback(lambda x, y, z: b"\x13")
         self.nodes[0].overlay.set_attestation_request_complete_callback(f)
@@ -195,14 +185,13 @@ class TestCommunity(TestBase):
                                                   TestCommunity.private_key,
                                                   metadata={"id_format": "id_metadata_range_18plus"})
 
-        yield self.deliver_messages(2.0)
+        await self.deliver_messages(2.0)
 
         db_entries = self.nodes[1].overlay.database.get_all()
         self.assertEqual(1, len(db_entries))
         self.assertTrue(f.called)
 
-    @inlineCallbacks
-    def test_verify_attestation(self):
+    async def test_verify_attestation(self):
         """
         Check if an attestation can be verified.
         """
@@ -228,13 +217,12 @@ class TestCommunity(TestBase):
                                                         callback,
                                                         "id_metadata")
 
-        yield self.deliver_messages(0.5)
+        await self.deliver_messages(0.5)
 
         self.assertTrue(callback.called)
         self.nodes[1].overlay.request_cache.clear()
 
-    @inlineCallbacks
-    def test_reqandverif_attestation(self):
+    async def test_reqandverif_attestation(self):
         attribute_value = b"2168897456"
 
         def f(peer, attribute_name, attestation_hash, __=None):
@@ -246,7 +234,7 @@ class TestCommunity(TestBase):
 
         f.called = False
 
-        yield self.introduce_nodes()
+        await self.introduce_nodes()
 
         self.nodes[0].overlay.set_attestation_request_callback(lambda x, y, z: attribute_value)
         self.nodes[0].overlay.set_attestation_request_complete_callback(f)
@@ -255,7 +243,7 @@ class TestCommunity(TestBase):
                                                   "MyAttribute",
                                                   TestCommunity.private_key)
 
-        yield self.deliver_messages(0.5)
+        await self.deliver_messages(0.5)
 
         db_entries = self.nodes[1].overlay.database.get_all()
         self.assertEqual(1, len(db_entries))
@@ -273,13 +261,12 @@ class TestCommunity(TestBase):
                                                         callback,
                                                         "id_metadata")
 
-        yield self.deliver_messages(0.5)
+        await self.deliver_messages(0.5)
 
         self.assertTrue(callback.called)
         self.nodes[0].overlay.request_cache.clear()
 
-    @inlineCallbacks
-    def test_verify_attestation_big(self):
+    async def test_verify_attestation_big(self):
         """
         Check if an attestation can be verified for id_metadata_big.
         """
@@ -305,13 +292,12 @@ class TestCommunity(TestBase):
                                                         callback,
                                                         "id_metadata_big")
 
-        yield self.deliver_messages(1.5)
+        await self.deliver_messages(1.5)
 
         self.assertTrue(callback.called)
         self.nodes[1].overlay.request_cache.clear()
 
-    @inlineCallbacks
-    def test_verify_attestation_range(self):
+    async def test_verify_attestation_range(self):
         """
         Check if an attestation can be verified for id_metadata_range_18plus.
         """
@@ -338,7 +324,7 @@ class TestCommunity(TestBase):
                                                         callback,
                                                         "id_metadata_range_18plus")
 
-        yield self.deliver_messages(2.5)
+        await self.deliver_messages(2.5)
 
         self.assertTrue(callback.called)
         self.nodes[1].overlay.request_cache.clear()

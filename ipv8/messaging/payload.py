@@ -1,6 +1,4 @@
-from __future__ import absolute_import
-
-from socket import inet_ntoa, inet_aton
+from socket import inet_aton, inet_ntoa
 
 from ..messaging.serialization import Serializable
 

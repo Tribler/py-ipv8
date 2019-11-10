@@ -1,8 +1,5 @@
-from __future__ import absolute_import
-from __future__ import print_function
-
-from binascii import hexlify
 import sys
+from binascii import hexlify
 
 from ipv8.keyvault.crypto import ECCrypto
 

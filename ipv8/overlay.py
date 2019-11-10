@@ -1,8 +1,5 @@
-from __future__ import absolute_import
-
 import abc
 import logging
-import six
 
 from .keyvault.crypto import default_eccrypto
 from .messaging.interfaces.endpoint import EndpointListener
@@ -10,7 +7,7 @@ from .messaging.serialization import Serializer
 from .taskmanager import TaskManager
 
 
-class Overlay(six.with_metaclass(abc.ABCMeta, EndpointListener, TaskManager)):
+class Overlay(EndpointListener, TaskManager, metaclass=abc.ABCMeta):
     """
     Interface for an Internet overlay.
     """
@@ -38,12 +35,12 @@ class Overlay(six.with_metaclass(abc.ABCMeta, EndpointListener, TaskManager)):
 
         self.network = network
 
-    def unload(self):
+    async def unload(self):
         """
         Called when this overlay needs to shut down.
         """
         self.endpoint.remove_listener(self)
-        self.shutdown_task_manager()
+        await self.shutdown_task_manager()
 
     def get_serializer(self):
         """

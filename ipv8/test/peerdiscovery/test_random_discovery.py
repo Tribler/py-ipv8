@@ -1,11 +1,7 @@
-from __future__ import absolute_import
-
-from twisted.internet.defer import inlineCallbacks
-
-from ...peerdiscovery.discovery import RandomWalk
-from ...community import _DEFAULT_ADDRESSES
 from ..base import TestBase
 from ..mocking.community import MockCommunity
+from ...community import _DEFAULT_ADDRESSES
+from ...peerdiscovery.discovery import RandomWalk
 
 
 class TestRandomWalk(TestBase):
@@ -19,13 +15,12 @@ class TestRandomWalk(TestBase):
         self.overlays = [MockCommunity() for _ in range(node_count)]
         self.strategies = [RandomWalk(self.overlays[i], reset_chance=0) for i in range(node_count)]
 
-    def tearDown(self):
+    async def tearDown(self):
         for overlay in self.overlays:
-            overlay.unload()
-        return super(TestRandomWalk, self).tearDown()
+            await overlay.unload()
+        return await super(TestRandomWalk, self).tearDown()
 
-    @inlineCallbacks
-    def test_take_step(self):
+    async def test_take_step(self):
         """
         Check if we will walk to a random other node.
 
@@ -38,14 +33,13 @@ class TestRandomWalk(TestBase):
         self.overlays[1].network.discover_services(self.overlays[2].my_peer, [self.overlays[2].master_peer.mid, ])
         # We expect NODE1 to introduce NODE0 to NODE2
         self.strategies[0].take_step()
-        yield self.deliver_messages()
+        await self.deliver_messages()
         self.strategies[0].take_step()
-        yield self.deliver_messages()
+        await self.deliver_messages()
 
         self.assertEqual(len(self.overlays[0].network.verified_peers), 2)
 
-    @inlineCallbacks
-    def test_take_step_into(self):
+    async def test_take_step_into(self):
         """
         Check if we will walk to an introduced node.
 
@@ -59,14 +53,13 @@ class TestRandomWalk(TestBase):
         self.overlays[0].network.discover_services(self.overlays[1].my_peer, [self.overlays[1].master_peer.mid, ])
         # We expect NODE0 to visit NODE2
         self.strategies[0].take_step()
-        yield self.deliver_messages()
+        await self.deliver_messages()
         self.strategies[0].take_step()
-        yield self.deliver_messages()
+        await self.deliver_messages()
 
         self.assertEqual(len(self.overlays[0].network.verified_peers), 2)
 
-    @inlineCallbacks
-    def test_fail_step_into(self):
+    async def test_fail_step_into(self):
         """
         Check if we drop an unreachable introduced node.
 
@@ -87,7 +80,7 @@ class TestRandomWalk(TestBase):
         # At this point the unreachable node should not have been removed yet
         self.assertEqual(len(self.overlays[0].network.get_walkable_addresses()), 1)
 
-        yield self.deliver_messages()
+        await self.deliver_messages()
 
         # We expect NODE0 to clean unreachable NODE2
         self.strategies[0].take_step()
@@ -95,8 +88,7 @@ class TestRandomWalk(TestBase):
         self.assertEqual(len(self.overlays[0].network.get_walkable_addresses()), 0)
         self.assertEqual(len(self.overlays[0].network.verified_peers), 1)
 
-    @inlineCallbacks
-    def test_retry_step_into(self):
+    async def test_retry_step_into(self):
         """
         Check if we don't drop an introduced node immediately.
 
@@ -114,7 +106,7 @@ class TestRandomWalk(TestBase):
         self.overlays[2].endpoint.close()
         self.strategies[0].take_step()
 
-        yield self.deliver_messages()
+        await self.deliver_messages()
 
         # NODE2 is still within its timeout and should not have been cleaned yet
         self.strategies[0].take_step()

@@ -1,32 +1,22 @@
 """
-This twistd plugin enables to start the tracker using the twistd command.
+This script enables to start the tracker.
 
 Select the port you want to use by setting the `listen_port` command line argument.
 """
-from __future__ import absolute_import
-from __future__ import division
-
+import argparse
 import os
 import random
 import signal
 import sys
 import time
+from asyncio import all_tasks, coroutine, ensure_future, gather, get_event_loop, sleep
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
-
-from twisted.application.service import IServiceMaker, MultiService
-from twisted.internet import reactor
-from twisted.internet.task import LoopingCall
-from twisted.plugin import IPlugin
-from twisted.python import usage
-from twisted.python.log import msg
-
-from zope.interface import implementer
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from ipv8.community import Community
-from ipv8.messaging.payload import IntroductionRequestPayload
 from ipv8.keyvault.crypto import default_eccrypto
 from ipv8.messaging.interfaces.udp.endpoint import UDPEndpoint
+from ipv8.messaging.payload import IntroductionRequestPayload
 from ipv8.peer import Peer
 from ipv8.peerdiscovery.churn import DiscoveryStrategy
 from ipv8.peerdiscovery.network import Network
@@ -56,7 +46,7 @@ class EndpointServer(Community):
         self.signature_length = default_eccrypto.get_signature_length(my_peer.public_key)
         super(EndpointServer, self).__init__(my_peer, endpoint, Network())
         self.churn_strategy = SimpleChurn(self)
-        self.churn_lc = self.register_task("churn", LoopingCall(self.churn_strategy.take_step)).start(30.0, now=False)
+        self.churn_task = self.register_task("churn", coroutine(self.churn_strategy.take_step), interval=30)
 
     def on_packet(self, packet, warn_unknown=False):
         source_address, data = packet
@@ -99,16 +89,7 @@ class EndpointServer(Community):
         return None
 
 
-class Options(usage.Options):
-    optParameters = [["listen_port", None, None, None, int]]
-    optFlags = []
-
-
-@implementer(IPlugin, IServiceMaker)
-class TrackerServiceMaker(object):
-    tapname = "tracker"
-    description = "IPv8 tracker twistd plugin"
-    options = Options
+class TrackerService(object):
 
     def __init__(self):
         """
@@ -118,39 +99,50 @@ class TrackerServiceMaker(object):
         self.stopping = False
         self.overlay = None
 
-    def start_tracker(self, options):
+    async def start_tracker(self, listen_port):
         """
         Main method to startup the tracker.
         """
-        self.endpoint = UDPEndpoint(options["listen_port"])
-        self.endpoint.open()
+        self.endpoint = UDPEndpoint(listen_port)
+        await self.endpoint.open()
         self.overlay = EndpointServer(self.endpoint)
 
-        def signal_handler(sig, _):
-            msg("Received shut down signal %s" % sig)
+        async def signal_handler(sig):
+            print("Received shut down signal %s" % sig)
             if not self.stopping:
                 self.stopping = True
+                await self.overlay.unload()
+                self.endpoint.close()
+                get_event_loop().stop()
 
-                def close_ep():
-                    self.endpoint.close().addCallback(lambda *args, **kwargs: reactor.callFromThread(reactor.stop))
-                self.overlay.unload()
-                close_ep()
+        signal.signal(signal.SIGINT, lambda sig, _: ensure_future(signal_handler(sig)))
+        signal.signal(signal.SIGTERM, lambda sign, _: ensure_future(signal_handler(sig)))
 
-        signal.signal(signal.SIGINT, signal_handler)
-        signal.signal(signal.SIGTERM, signal_handler)
-
-        msg("Started tracker")
-
-    def makeService(self, options):
-        """
-        Construct a tracker service.
-        """
-        tracker_service = MultiService()
-        tracker_service.setName("IPv8Tracker")
-
-        reactor.callWhenRunning(self.start_tracker, options)
-
-        return tracker_service
+        print("Started tracker")
 
 
-service_maker = TrackerServiceMaker()
+def main(argv):
+    parser = argparse.ArgumentParser(add_help=False, description=('IPv8 tracker plugin'))
+    parser.add_argument('--help', '-h', action='help', default=argparse.SUPPRESS, help='Show this help message and exit')
+    parser.add_argument('--listen_port', '-p', default=8090, type=int, help='Use an alternative port')
+
+    args = parser.parse_args(sys.argv[1:])
+    service = TrackerService()
+
+    loop = get_event_loop()
+    coro = service.start_tracker(args.listen_port)
+    ensure_future(coro)
+
+    if sys.platform == 'win32':
+        # Unfortunately, this is needed on Windows for Ctrl+C to work consistently.
+        # Should no longer be needed in Python 3.8.
+        async def wakeup():
+            while True:
+                await sleep(1)
+        ensure_future(wakeup())
+
+    loop.run_forever()
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])

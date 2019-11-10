@@ -1,0 +1,2 @@
+class DHTError(Exception):
+    pass

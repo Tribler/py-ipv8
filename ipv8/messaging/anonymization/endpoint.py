@@ -1,9 +1,4 @@
-from __future__ import absolute_import
-from __future__ import division
-
 from collections import deque
-
-from twisted.internet import reactor
 
 from .tunnel import CIRCUIT_STATE_READY, CIRCUIT_TYPE_IPV8
 
@@ -55,10 +50,7 @@ class TunnelEndpoint(object):
             # Non-anonymized communities should ignore traffic received from the TunnelCommunity
             if getattr(listener, 'anonymize', False) != from_tunnel:
                 continue
-            if listener.use_main_thread:
-                reactor.callFromThread(self._deliver_later, listener, packet)
-            elif reactor.running:
-                reactor.callInThread(self._deliver_later, listener, packet)
+            self._deliver_later(listener, packet)
 
     def __getattribute__(self, item):
         try:

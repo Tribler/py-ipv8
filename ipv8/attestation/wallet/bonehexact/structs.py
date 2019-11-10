@@ -1,9 +1,6 @@
-from __future__ import absolute_import
-
 from ..primitives.structs import BonehPublicKey, ipack, iunpack
 from ..primitives.value import FP2Value
 from ...identity_formats import Attestation
-
 
 __all__ = ['BitPairAttestation', 'BonehAttestation']
 

@@ -1,14 +1,10 @@
-from __future__ import absolute_import
-
 import abc
 from random import choice, randint
 from threading import Lock
 from time import time
 
-import six
 
-
-class DiscoveryStrategy(six.with_metaclass(abc.ABCMeta, object)):
+class DiscoveryStrategy(metaclass=abc.ABCMeta):
     """
     Strategy for discovering peers in a network.
     """

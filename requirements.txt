@@ -1,6 +1,5 @@
 cryptography>=2.3dev1
 libnacl>=1.6.1
 netifaces
-Twisted>=17.9.0
+aiohttp
 pyOpenSSL
-six

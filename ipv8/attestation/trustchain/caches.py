@@ -1,12 +1,7 @@
-from __future__ import absolute_import
-
 import logging
+from asyncio import get_event_loop
 from binascii import hexlify
 from functools import reduce
-
-from twisted.internet import reactor
-from twisted.internet.defer import Deferred
-from twisted.python.failure import Failure
 
 from ...requestcache import NumberCache
 from ...util import maximum_integer
@@ -52,11 +47,11 @@ class ChainCrawlCache(IntroCrawlTimeout):
     """
     This cache keeps track of the crawl of a whole chain.
     """
-    def __init__(self, community, peer, crawl_deferred, known_chain_length=-1):
+    def __init__(self, community, peer, crawl_future, known_chain_length=-1):
         super(ChainCrawlCache, self).__init__(community, peer, identifier=u"chaincrawl")
         self.community = community
-        self.current_crawl_deferred = None
-        self.crawl_deferred = crawl_deferred
+        self.current_crawl_future = None
+        self.crawl_future = crawl_future
         self.peer = peer
         self.known_chain_length = known_chain_length
 
@@ -73,13 +68,13 @@ class HalfBlockSignCache(NumberCache):
     This request cache keeps track of outstanding half block signature requests.
     """
 
-    def __init__(self, community, half_block, sign_deferred, socket_address, timeouts=0):
+    def __init__(self, community, half_block, sign_future, socket_address, timeouts=0):
         """
         A cache to keep track of the signing of one of our blocks by a counterparty.
 
         :param community: the TrustChainCommunity
         :param half_block: the half_block requiring a counterparty
-        :param sign_deferred: the Deferred to fire once this block has been double signed
+        :param sign_future: the Deferred to fire once this block has been double signed
         :param socket_address: the peer we sent the block to
         :param timeouts: the number of timeouts we have already had while waiting
         """
@@ -88,7 +83,7 @@ class HalfBlockSignCache(NumberCache):
         self.logger = logging.getLogger(self.__class__.__name__)
         self.community = community
         self.half_block = half_block
-        self.sign_deferred = sign_deferred
+        self.sign_future = sign_future
         self.socket_address = socket_address
         self.timeouts = timeouts
 
@@ -101,21 +96,19 @@ class HalfBlockSignCache(NumberCache):
         return 10.0
 
     def on_timeout(self):
-        if self.sign_deferred.called:
+        if self.sign_future.done():
             self._logger.debug("Race condition encountered with timeout/removal of HalfBlockSignCache, recovering.")
             return
         self._logger.info("Timeout for sign request for half block %s, note that it can still arrive!", self.half_block)
         if self.timeouts < 360:
             self.community.send_block(self.half_block, address=self.socket_address)
 
-            def add_later(_):
-                self.community.request_cache.add(HalfBlockSignCache(self.community, self.half_block, self.sign_deferred,
+            async def add_later():
+                self.community.request_cache.add(HalfBlockSignCache(self.community, self.half_block, self.sign_future,
                                                                     self.socket_address, self.timeouts + 1))
-            later = Deferred()
-            self.community.request_cache.register_anonymous_task("add-later", later, delay=0.0)
-            later.addCallbacks(add_later, lambda _: None)  # If the re-add is cancelled, just exit.
+            self.community.request_cache.register_anonymous_task("add-later", add_later, delay=0.0)
         else:
-            self.sign_deferred.errback(Failure(RuntimeError("Signature request timeout")))
+            self.sign_future.set_exception(RuntimeError("Signature request timeout"))
 
 
 class CrawlRequestCache(NumberCache):
@@ -124,11 +117,11 @@ class CrawlRequestCache(NumberCache):
     """
     CRAWL_TIMEOUT = 20.0
 
-    def __init__(self, community, crawl_id, crawl_deferred):
+    def __init__(self, community, crawl_id, crawl_future):
         super(CrawlRequestCache, self).__init__(community.request_cache, u"crawl", crawl_id)
         self.logger = logging.getLogger(self.__class__.__name__)
         self.community = community
-        self.crawl_deferred = crawl_deferred
+        self.crawl_future = crawl_future
         self.received_half_blocks = []
         self.total_half_blocks_expected = maximum_integer
 
@@ -142,15 +135,15 @@ class CrawlRequestCache(NumberCache):
 
         if self.total_half_blocks_expected == 0:
             self.community.request_cache.pop(u"crawl", self.number)
-            reactor.callFromThread(self.crawl_deferred.callback, [])
+            get_event_loop().call_soon_threadsafe(self.crawl_future.set_result, [])
         elif len(self.received_half_blocks) >= self.total_half_blocks_expected:
             self.community.request_cache.pop(u"crawl", self.number)
-            reactor.callFromThread(self.crawl_deferred.callback, self.received_half_blocks)
+            get_event_loop().call_soon_threadsafe(self.crawl_future.set_result, self.received_half_blocks)
 
     def received_empty_response(self):
         self.community.request_cache.pop(u"crawl", self.number)
-        reactor.callFromThread(self.crawl_deferred.callback, self.received_half_blocks)
+        get_event_loop().call_soon_threadsafe(self.crawl_future.set_result, self.received_half_blocks)
 
     def on_timeout(self):
         self._logger.info("Timeout for crawl with id %d", self.number)
-        self.crawl_deferred.callback(self.received_half_blocks)
+        self.crawl_future.set_result(self.received_half_blocks)

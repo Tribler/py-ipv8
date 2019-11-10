@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import struct
 
 from cryptography.hazmat.backends import default_backend
@@ -9,10 +7,7 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDFExpand
 
 import libnacl
 
-from six import integer_types
-
 from ...keyvault.crypto import ECCrypto, LibNaCLPK
-from ...util import cast_to_bin
 
 
 class CryptoException(Exception):
@@ -62,14 +57,14 @@ class TunnelCrypto(ECCrypto):
         sb = key[36:40]
         return [kf, kb, sf, sb, 1, 1]
 
-    def _bulid_iv(self, salt, salt_explicit):
+    def _build_iv(self, salt, salt_explicit):
         assert isinstance(salt, (bytes, str)), type(salt)
-        assert isinstance(salt_explicit, integer_types), type(salt_explicit)
+        assert isinstance(salt_explicit, int), type(salt_explicit)
 
         if salt_explicit == 0:
             raise CryptoException("salt_explicit wrapped")
 
-        return salt + cast_to_bin(str(salt_explicit))
+        return salt + str(salt_explicit).encode()
 
     def get_session_keys(self, keys, direction):
         # increment salt_explicit
@@ -79,7 +74,7 @@ class TunnelCrypto(ECCrypto):
     def encrypt_str(self, content, key, salt, salt_explicit):
         # return the encrypted content prepended with salt_explicit
         aesgcm = AESGCM(key)
-        ciphertext = aesgcm.encrypt(self._bulid_iv(salt, salt_explicit), content, None)
+        ciphertext = aesgcm.encrypt(self._build_iv(salt, salt_explicit), content, None)
         return struct.pack('!q', salt_explicit) + ciphertext
 
     def decrypt_str(self, content, key, salt):
@@ -89,4 +84,4 @@ class TunnelCrypto(ECCrypto):
 
         salt_explicit, = struct.unpack_from('!q', content)
         aesgcm = AESGCM(key)
-        return aesgcm.decrypt(self._bulid_iv(salt, salt_explicit), content[8:], None)
+        return aesgcm.decrypt(self._build_iv(salt, salt_explicit), content[8:], None)

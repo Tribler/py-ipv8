@@ -6,20 +6,16 @@ This source code has been ported from https://github.com/privacybydesign/gabi
 The authors of this file are not -in any way- affiliated with the original authors or organizations.
 """
 
-from __future__ import absolute_import, division
-
 from binascii import hexlify
 from os import urandom
 from random import randint
 
 from cryptography.hazmat.primitives.asymmetric.rsa import _modinv
 
-import six
-
 from ...primitives.attestation import sha256_as_int
 from ...primitives.cryptography_wrapper import generate_safe_prime, is_prime
 from ...primitives.value import FP2Value
-
+from .....util import byte2int, int2byte
 
 DefaultEpochLength = 432000
 
@@ -223,8 +219,8 @@ def randomPrimeInRange(start, length):
 
     while True:
         bytez = urandom((length + 7) // 8)
-        bytez = six.int2byte(six.byte2int(bytez[0:1]) & (1 << b) - 1) + bytez[1:]
-        bytez = bytez[:-1] + six.int2byte(six.byte2int(bytez[-1:]) | 1)
+        bytez = int2byte(byte2int(bytez[0:1]) & (1 << b) - 1) + bytez[1:]
+        bytez = bytez[:-1] + int2byte(byte2int(bytez[-1:]) | 1)
         offset = int(hexlify(bytez), 16)
         p = startVal + offset
         bigMod = p % smallPrimesProduct

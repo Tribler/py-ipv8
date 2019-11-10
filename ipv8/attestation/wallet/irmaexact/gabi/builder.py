@@ -5,13 +5,9 @@ All rights reserved.
 This source code has been ported from https://github.com/privacybydesign/gabi
 The authors of this file are not -in any way- affiliated with the original authors or organizations.
 """
-from __future__ import absolute_import, division
-
 from random import randint
 
 from cryptography.hazmat.primitives.asymmetric.rsa import _modinv
-
-from six.moves import xrange
 
 from .credential import Credential
 from .keys import CLSignature, DefaultSystemParameters, signMessageBlockAndCommitment
@@ -70,7 +66,7 @@ def GetFirstProofU(pl):
 
 def challengeContributions(pl, publicKeys, context, nonce):
     contributions = []
-    for i in xrange(len(pl)):
+    for i in range(len(pl)):
         proof = pl[i]
         contributions.extend(proof.ChallengeContribution(publicKeys[i]))
     return contributions
@@ -87,7 +83,7 @@ def Verify(pl, publicKeys, context, nonce, issig, keyshareServers=[]):
 
     kss = ""
 
-    for i in xrange(len(pl)):
+    for i in range(len(pl)):
         proof = pl[i]
         if not proof.VerifyWithChallenge(publicKeys[i], expectedChallenge):
             return False
@@ -118,7 +114,7 @@ def BuildDistributedProofList(builders, challenge, proofPs):
 
     proofs = []
 
-    for i in xrange(len(builders)):
+    for i in range(len(builders)):
         v = builders[i]
         proofs.append(v.CreateProof(challenge))
         if proofPs and proofPs[i]:

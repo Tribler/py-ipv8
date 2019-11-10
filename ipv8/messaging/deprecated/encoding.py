@@ -1,12 +1,8 @@
-from __future__ import absolute_import
-
 import logging
 from json import dumps
+from urllib.parse import ParseResult, parse_qsl, unquote, urlencode, urlparse
 
-from six import integer_types, text_type
-from six.moves.urllib_parse import ParseResult, parse_qsl, unquote, urlencode, urlparse
-
-from ...util import cast_to_bin, cast_to_long
+from ...util import cast_to_bin
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +20,7 @@ def _a_encode_long(value, mapping):
     """
     42 --> ('2', 'J', '42')
     """
-    assert isinstance(value, integer_types) and not isinstance(value, int), "VALUE has invalid type: %s" % type(value)
+    assert isinstance(value, int) and not isinstance(value, int), "VALUE has invalid type: %s" % type(value)
     value = str(value).encode("UTF-8")
     return str(len(value)).encode("UTF-8"), b"J", value
 
@@ -42,7 +38,7 @@ def _a_encode_unicode(value, mapping):
     """
     'foo-bar' --> ('7', 's', 'foo-bar')
     """
-    assert isinstance(value, text_type), "VALUE has invalid type: %s" % type(value)
+    assert isinstance(value, str), "VALUE has invalid type: %s" % type(value)
     value = value.encode("UTF-8")
     return str(len(value)).encode("UTF-8"), b"s", value
 
@@ -60,7 +56,7 @@ def _a_encode_str(value, mapping):
     This can either be a Python3 str (unicode) or Python2 str (bytes).
     The difference is that a Python3 str is unicode and a Python2 str is not.
     """
-    if isinstance(value, text_type):
+    if isinstance(value, str):
         return _a_encode_unicode(value, mapping)
     else:
         return _a_encode_bytes(value, mapping)
@@ -150,7 +146,7 @@ _a_encode_mapping = {'int': _a_encode_int,
 
 def bytes_to_uint(stream, offset=0):
     assert isinstance(stream, str)
-    assert isinstance(offset, integer_types)
+    assert isinstance(offset, int)
     assert offset >= 0
     bit8 = 16 * 8
     mask7 = 2 ** 7 - 1
@@ -196,7 +192,7 @@ def _a_decode_long(stream, offset, count, _):
     """
     'a2J42',3,2 --> 5,42
     """
-    return offset + count, cast_to_long(stream[offset:offset + count])
+    return offset + count, int(stream[offset:offset + count])
 
 
 def _a_decode_float(stream, offset, count, _):

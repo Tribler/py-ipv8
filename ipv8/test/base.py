@@ -1,6 +1,3 @@
-from __future__ import absolute_import
-from __future__ import print_function
-
 import os
 import random
 import shutil
@@ -8,21 +5,18 @@ import string
 import sys
 import threading
 import time
+from asyncio import all_tasks, get_event_loop, sleep
 
-import twisted
-from twisted.internet import reactor
-from twisted.internet.defer import inlineCallbacks
-from twisted.internet.task import deferLater
-from twisted.trial import unittest
+import asynctest
 
 from .mocking.endpoint import internet
 from .mocking.ipv8 import MockIPv8
 from ..peer import Peer
 
-twisted.internet.base.DelayedCall.debug = True
+get_event_loop().set_debug(True)
 
 
-class TestBase(unittest.TestCase):
+class TestBase(asynctest.TestCase):
 
     __testing__ = True
     __lockup_timestamp__ = 0
@@ -55,36 +49,28 @@ class TestBase(unittest.TestCase):
         super(TestBase, self).setUp()
         TestBase.__lockup_timestamp__ = time.time()
 
-    def tearDown(self):
+    async def tearDown(self):
         try:
             for node in self.nodes:
-                node.unload()
+                await node.unload()
             internet.clear()
         finally:
             while self._tempdirs:
                 shutil.rmtree(self._tempdirs.pop(), ignore_errors=True)
         super(TestBase, self).tearDown()
-        # After the super tearDown the remaining blocking calls should have been cancelled.
-        # We reschedule the reactor to inspect itself after 0.01 seconds. Note that this cannot
-        # be done after 0 seconds because we need to exit this Deferred callback chain first.
-        # Also note that the longer we make this timeout, the longer we will have to wait before
-        # we can cleanup.
-        shutdown_dc = deferLater(reactor, 0.01, lambda: None)
-        reactor.wakeUp()
-        return shutdown_dc
 
     @classmethod
     def setUpClass(cls):
         TestBase.__lockup_timestamp__ = time.time()
 
-        def check_twisted():
+        def check_loop():
             while time.time() - TestBase.__lockup_timestamp__ < cls.MAX_TEST_TIME:
                 time.sleep(2)
                 # If the test class completed normally, exit
                 if not cls.__testing__:
                     return
             # If we made it here, there is a serious issue which we cannot recover from.
-            # Most likely the Twisted threadpool got into a deadlock while shutting down.
+            # Most likely the threadpool got into a deadlock while shutting down.
             import traceback
             print("The test-suite locked up! Force quitting! Thread dump:", file=sys.stderr)
             for tid, stack in sys._current_frames().items():
@@ -93,11 +79,11 @@ class TestBase(unittest.TestCase):
                     for line in traceback.format_list(traceback.extract_stack(stack)):
                         print("|", line[:-1].replace('\n', '\n|   '), file=sys.stderr)
 
-            delayed_calls = reactor.getDelayedCalls()
-            if delayed_calls:
-                print("Delayed calls:")
-                for dc in delayed_calls:
-                    print(">     %s" % dc)
+            tasks = all_tasks(get_event_loop())
+            if tasks:
+                print("Pending tasks:")
+                for task in tasks:
+                    print(">     %s" % task)
 
             # Our test suite catches the SIGINT signal, this allows it to print debug information before force exiting.
             # If we were to hard exit here (through os._exit) we would lose this additional information.
@@ -106,7 +92,7 @@ class TestBase(unittest.TestCase):
             # But sometimes it just flat out refuses to die (sys.exit will also not work in this case).
             # So we double kill ourselves:
             os._exit(1)  # pylint: disable=W0212
-        t = threading.Thread(target=check_twisted)
+        t = threading.Thread(target=check_loop)
         t.daemon = True
         t.start()
 
@@ -128,41 +114,36 @@ class TestBase(unittest.TestCase):
             node.network.discover_services(public_peer, node.overlay.master_peer.mid)
         self.nodes.append(node)
 
-    @inlineCallbacks
-    def deliver_messages(self, timeout=.1):
+    async def deliver_messages(self, timeout=.1):
         """
         Allow peers to communicate.
 
         The strategy is as follows:
-         1. Measure the amount of working threads in the threadpool
-         2. After 10 milliseconds, check if we are down to 0 twice in a row
+         1. Measure the amount of existing asyncio tasks
+         2. After 10 milliseconds, check if we are below 2 tasks twice in a row
          3. If not, go back to handling calls (step 2) or return, if the timeout has been reached
 
         :param timeout: the maximum time to wait for messages to be delivered
         """
         rtime = 0
         probable_exit = False
+
         while (rtime < timeout):
-            yield self.sleep(.01)
+            await sleep(.01)
             rtime += .01
-            if len(reactor.getThreadPool().working) == 0:
+            if len(all_tasks()) < 2:
                 if probable_exit:
                     break
                 probable_exit = True
             else:
                 probable_exit = False
 
-    @inlineCallbacks
-    def sleep(self, time=.05):
-        yield deferLater(reactor, time, lambda: None)
-
-    @inlineCallbacks
-    def introduce_nodes(self):
+    async def introduce_nodes(self):
         for node in self.nodes:
             for other in self.nodes:
                 if other != node:
                     node.overlay.walk_to(other.endpoint.wan_address)
-        yield self.deliver_messages()
+        await self.deliver_messages()
 
     def temporary_directory(self):
         rndstr = 'temp_'.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(10))

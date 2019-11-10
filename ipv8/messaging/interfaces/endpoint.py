@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import abc
 import logging
 import socket
@@ -12,12 +10,8 @@ try:
 except ImportError:
     netifaces = None
 
-import six
 
-from twisted.internet import reactor
-
-
-class Endpoint(six.with_metaclass(abc.ABCMeta, object)):
+class Endpoint(metaclass=abc.ABCMeta):
     """
     Interface for sending messages over the Internet.
     """
@@ -46,7 +40,7 @@ class Endpoint(six.with_metaclass(abc.ABCMeta, object)):
         """
         Ensure that the listener is still loaded when delivering the packet later.
         """
-        if reactor.running and self.is_open() and listener in self._listeners:
+        if self.is_open() and listener in self._listeners:
             listener.on_packet(packet)
 
     def notify_listeners(self, packet):
@@ -56,10 +50,7 @@ class Endpoint(six.with_metaclass(abc.ABCMeta, object)):
         :param data: the data to send to all listeners.
         """
         for listener in self._listeners:
-            if listener.use_main_thread:
-                reactor.callFromThread(self._deliver_later, listener, packet)
-            elif reactor.running:
-                reactor.callInThread(self._deliver_later, listener, packet)
+            self._deliver_later(listener, packet)
 
     @abc.abstractmethod
     def assert_open(self):
@@ -86,7 +77,7 @@ class Endpoint(six.with_metaclass(abc.ABCMeta, object)):
         pass
 
 
-class EndpointListener(six.with_metaclass(abc.ABCMeta, object)):
+class EndpointListener(metaclass=abc.ABCMeta):
     """
     Handler for messages coming in through an Endpoint.
     """

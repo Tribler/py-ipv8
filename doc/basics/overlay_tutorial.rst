@@ -40,18 +40,24 @@ Fill your ``main.py`` file with the following code:
 
 .. code-block:: python
 
-   from twisted.internet import reactor
+   from asyncio import ensure_future, get_event_loop
 
    from pyipv8.ipv8_service import IPv8
    from pyipv8.ipv8.configuration import get_default_configuration
 
 
-   # Create an IPv8 object with the default settings.
-   # It will come to life once the Twisted reactor starts running.
-   IPv8(get_default_configuration())
-   # Start the Twisted reactor: this is the engine scheduling all of the
+   async def start_ipv8():
+       # Create an IPv8 object with the default settings.
+       ipv8 = IPv8(get_default_configuration())
+       await ipv8.start()
+
+   # Create a task that runs an IPv8 instance.
+   # The task will run as soon as the event loop has started.
+   ensure_future(start_ipv8())
+
+   # Start the asyncio event loop: this is the engine scheduling all of the
    # asynchronous calls.
-   reactor.run()
+   get_event_loop().run_forever()
 
 You can now run this file using Python as follows:
 
@@ -74,18 +80,21 @@ To try this, fill your ``main.py`` file with the following code:
 
 .. code-block:: python
 
-   from twisted.internet import reactor
+   from asyncio import ensure_future, get_event_loop
 
    from pyipv8.ipv8_service import IPv8
    from pyipv8.ipv8.configuration import get_default_configuration
 
 
-   # The first IPv8 will attempt to claim a port.
-   IPv8(get_default_configuration())
-   # The second IPv8 will attempt to claim a port.
-   # It cannot claim the same port and will end up claiming a different one.
-   IPv8(get_default_configuration())
-   reactor.run()
+   async def start_ipv8():
+       # The first IPv8 will attempt to claim a port.
+       await IPv8(get_default_configuration()).start()
+       # The second IPv8 will attempt to claim a port.
+       # It cannot claim the same port and will end up claiming a different one.
+       await IPv8(get_default_configuration()).start()
+
+   ensure_future(start_ipv8())
+   get_event_loop().run_forever()
 
 If you were successful, you should now see double the debug information being printed to your terminal.
 
@@ -97,7 +106,7 @@ To do this, fill your ``main.py`` file with the following code:
 
 .. code-block:: python
 
-   from twisted.internet import reactor
+   from asyncio import ensure_future, get_event_loop
 
    from pyipv8.ipv8.community import Community
    from pyipv8.ipv8_service import IPv8
@@ -114,40 +123,44 @@ To do this, fill your ``main.py`` file with the following code:
        master_peer = Peer(ECCrypto().generate_key(u"medium"))
 
 
-   for i in [1, 2]:
-       configuration = get_default_configuration()
-       # If we actually want to communicate between two different peers
-       # we need to assign them different keys.
-       # We will generate an EC key called 'my peer' which has 'medium'
-       # security and will be stored in file 'ecI.pem' where 'I' is replaced
-       # by the peer number (1 or 2).
-       configuration['keys'] = [{
-                   'alias': "my peer",
-                   'generation': u"medium",
-                   'file': u"ec%d.pem" % i
-               }]
-       # Instruct IPv8 to load our custom overlay, registered in _COMMUNITIES.
-       # We use the 'my peer' key, which we registered before.
-       # We will attempt to find other peers in this overlay using the
-       # RandomWalk strategy, until we find 10 peers.
-       # We do not provide additional startup arguments or a function to run
-       # once the overlay has been initialized.
-       configuration['overlays'] = [{
-           'class': 'MyCommunity',
-           'key': "my peer",
-           'walkers': [{
-                           'strategy': "RandomWalk",
-                           'peers': 10,
-                           'init': {
-                               'timeout': 3.0
-                           }
-                       }],
-           'initialize': {},
-           'on_start': []
-       }]
-       IPv8(configuration, extra_communities={'MyCommunity': MyCommunity})
+   async def start_communities():
+       for i in [1, 2]:
+           configuration = get_default_configuration()
+           # If we actually want to communicate between two different peers
+           # we need to assign them different keys.
+           # We will generate an EC key called 'my peer' which has 'medium'
+           # security and will be stored in file 'ecI.pem' where 'I' is replaced
+           # by the peer number (1 or 2).
+           configuration['keys'] = [{
+               'alias': "my peer",
+               'generation': u"medium",
+               'file': u"ec%d.pem" % i
+           }]
+           # Instruct IPv8 to load our custom overlay, registered in _COMMUNITIES.
+           # We use the 'my peer' key, which we registered before.
+           # We will attempt to find other peers in this overlay using the
+           # RandomWalk strategy, until we find 10 peers.
+           # We do not provide additional startup arguments or a function to run
+           # once the overlay has been initialized.
+           configuration['overlays'] = [{
+               'class': 'MyCommunity',
+               'key': "my peer",
+               'walkers': [{
+                               'strategy': "RandomWalk",
+                               'peers': 10,
+                               'init': {
+                                   'timeout': 3.0
+                               }
+                           }],
+               'initialize': {},
+               'on_start': []
+           }]
+           ipv8 = IPv8(configuration, extra_communities={'MyCommunity': MyCommunity})
+           await ipv8.start()
 
-   reactor.run()
+   ensure_future(start_communities())
+   get_event_loop().run_forever()
+
 
 As we replaced the default overlays, you should no longer see any debug information being printed to your terminal.
 Our overlay is now loaded twice, but it is still not doing anything.
@@ -160,8 +173,7 @@ We will now modify ``main.py`` again to print the current amount of peers:
 
 .. code-block:: python
 
-   from twisted.internet import reactor
-   from twisted.internet.task import LoopingCall
+   from asyncio import ensure_future, get_event_loop
 
    from pyipv8.ipv8.community import Community
    from pyipv8.ipv8_service import IPv8
@@ -174,40 +186,42 @@ We will now modify ``main.py`` again to print the current amount of peers:
        master_peer = Peer(ECCrypto().generate_key(u"medium"))
 
        def started(self):
-           def print_peers():
-               print "I am:", self.my_peer, "\nI know:", [str(p) for p in self.get_peers()]
-           # We register a Twisted task with this overlay.
+           async def print_peers():
+               print("I am:", self.my_peer, "\nI know:", [str(p) for p in self.get_peers()])
+           # We register a asyncio task with this overlay.
            # This makes sure that the task ends when this overlay is unloaded.
            # We call the 'print_peers' function every 5.0 seconds, starting now.
-           self.register_task("print_peers", LoopingCall(print_peers)).start(5.0, True)
+           self.register_task("print_peers", print_peers, interval=5.0, delay=0)
 
 
-   for i in [1, 2]:
-       configuration = get_default_configuration()
-       configuration['keys'] = [{
-                   'alias': "my peer",
-                   'generation': u"medium",
-                   'file': u"ec%d.pem" % i
-               }]
-       # We provide the 'started' function to the 'on_start'.
-       # We will call the overlay's 'started' function without any
-       # arguments once IPv8 is initialized.
-       configuration['overlays'] = [{
-           'class': 'MyCommunity',
-           'key': "my peer",
-           'walkers': [{
-                           'strategy': "RandomWalk",
-                           'peers': 10,
-                           'init': {
-                               'timeout': 3.0
-                           }
-                       }],
-           'initialize': {},
-           'on_start': [('started', )]
-       }]
-       IPv8(configuration, extra_communities={'MyCommunity': MyCommunity})
+   async def start_communities():
+       for i in [1, 2]:
+           configuration = get_default_configuration()
+           configuration['keys'] = [{
+                       'alias': "my peer",
+                       'generation': u"medium",
+                       'file': u"ec%d.pem" % i
+                   }]
+           # We provide the 'started' function to the 'on_start'.
+           # We will call the overlay's 'started' function without any
+           # arguments once IPv8 is initialized.
+           configuration['overlays'] = [{
+               'class': 'MyCommunity',
+               'key': "my peer",
+               'walkers': [{
+                               'strategy': "RandomWalk",
+                               'peers': 10,
+                               'init': {
+                                   'timeout': 3.0
+                               }
+                           }],
+               'initialize': {},
+               'on_start': [('started', )]
+           }]
+           await IPv8(configuration, extra_communities={'MyCommunity': MyCommunity}).start()
 
-   reactor.run()
+   ensure_future(start_communities())
+   get_event_loop().run_forever()
 
 Running this should yield something like the following output:
 
@@ -231,8 +245,7 @@ Update your ``main.py`` once again to contain the following code:
 
 .. code-block:: python
 
-   from twisted.internet import reactor
-   from twisted.internet.task import LoopingCall
+   from asyncio import ensure_future, get_event_loop
 
    from pyipv8.ipv8.community import Community
    from pyipv8.ipv8.configuration import get_default_configuration
@@ -260,7 +273,7 @@ Update your ``main.py`` once again to contain the following code:
            self.lamport_clock = 0
 
        def started(self):
-           def start_communication():
+           async def start_communication():
                if not self.lamport_clock:
                    # If we have not started counting, try boostrapping
                    # communication with our other known peers.
@@ -268,7 +281,7 @@ Update your ``main.py`` once again to contain the following code:
                        self.send_message(p.address)
                else:
                    self.cancel_pending_task("start_communication")
-           self.register_task("start_communication", LoopingCall(start_communication)).start(5.0, True)
+           self.register_task("start_communication", start_communication, interval=5.0, delay=0)
 
        def send_message(self, address):
            # Send a message with our digital signature on it.
@@ -279,33 +292,35 @@ Update your ``main.py`` once again to contain the following code:
        def on_message(self, peer, payload):
            # Update our Lamport clock.
            self.lamport_clock = max(self.lamport_clock, payload.clock) + 1
-           print self.my_peer, "current clock:", self.lamport_clock
+           print(self.my_peer, "current clock:", self.lamport_clock)
            # Then synchronize with the rest of the network again.
            self.send_message(peer.address)
 
 
-   for i in [1, 2, 3]:
-       configuration = get_default_configuration()
-       configuration['keys'] = [{
-                   'alias': "my peer",
-                   'generation': u"medium",
-                   'file': u"ec%d.pem" % i
-               }]
-       configuration['overlays'] = [{
-           'class': 'MyCommunity',
-           'key': "my peer",
-           'walkers': [{
-                           'strategy': "RandomWalk",
-                           'peers': 10,
-                           'init': {
-                               'timeout': 3.0
-                           }
-                       }],
-           'initialize': {},
-           'on_start': [('started', )]
-       }]
-       IPv8(configuration, extra_communities={'MyCommunity': MyCommunity})
+   async def start_communities():
+       for i in [1, 2, 3]:
+           configuration = get_default_configuration()
+           configuration['keys'] = [{
+                       'alias': "my peer",
+                       'generation': u"medium",
+                       'file': u"ec%d.pem" % i
+                   }]
+           configuration['overlays'] = [{
+               'class': 'MyCommunity',
+               'key': "my peer",
+               'walkers': [{
+                               'strategy': "RandomWalk",
+                               'peers': 10,
+                               'init': {
+                                   'timeout': 3.0
+                               }
+                           }],
+               'initialize': {},
+               'on_start': [('started', )]
+           }]
+           await IPv8(configuration, extra_communities={'MyCommunity': MyCommunity}).start()
 
-   reactor.run()
+   ensure_future(start_communities())
+   get_event_loop().run_forever()
 
 If you run this, you should see the three peers actively trying to establish an ever-increasing global clock value.

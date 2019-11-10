@@ -1,15 +1,13 @@
-from __future__ import absolute_import
-from __future__ import print_function
-
 import logging
 import os
 import shutil
 import sys
+from io import StringIO
 
 import coverage
-from six import StringIO
-from twisted.trial.runner import TestLoader
+
 from twisted.trial.reporter import VerboseTextReporter
+from twisted.trial.runner import TestLoader
 
 if __name__ != '__main__':
     print(__file__, "should be run stand-alone! Instead, it is being imported!", file=sys.stderr)

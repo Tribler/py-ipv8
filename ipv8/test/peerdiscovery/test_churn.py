@@ -1,15 +1,12 @@
-from __future__ import absolute_import
-
 import time
-from twisted.internet.defer import inlineCallbacks
 
-from ...peerdiscovery.churn import RandomChurn, PingChurn
-from ...community import _DEFAULT_ADDRESSES
-from ...dht.community import DHTCommunity
 from ..base import TestBase
 from ..mocking.community import MockCommunity
 from ..mocking.endpoint import MockEndpointListener
 from ..mocking.ipv8 import MockIPv8
+from ...community import _DEFAULT_ADDRESSES
+from ...dht.community import DHTCommunity
+from ...peerdiscovery.churn import PingChurn, RandomChurn
 
 
 class TestChurn(TestBase):
@@ -23,13 +20,12 @@ class TestChurn(TestBase):
         self.overlays = [MockCommunity() for _ in range(node_count)]
         self.strategies = [RandomChurn(self.overlays[i], ping_interval=0.0) for i in range(node_count)]
 
-    def tearDown(self):
+    async def tearDown(self):
         for overlay in self.overlays:
-            overlay.unload()
-        return super(TestChurn, self).tearDown()
+            await overlay.unload()
+        return await super(TestChurn, self).tearDown()
 
-    @inlineCallbacks
-    def test_keep_reachable(self):
+    async def test_keep_reachable(self):
         """
         Check if we don't remove reachable nodes.
         """
@@ -41,7 +37,7 @@ class TestChurn(TestBase):
         # Node inactive! We should ping it!
         self.strategies[0].take_step()
 
-        yield self.deliver_messages()
+        await self.deliver_messages()
 
         # Node should have responded by now and not be removed.
         self.assertNotEqual(peer.last_response, fake_last_response)
@@ -49,8 +45,7 @@ class TestChurn(TestBase):
 
         self.assertEqual(len(self.overlays[0].network.verified_peers), 1)
 
-    @inlineCallbacks
-    def test_remove_unreachable(self):
+    async def test_remove_unreachable(self):
         """
         Check if we remove unreachable nodes.
         """
@@ -63,7 +58,7 @@ class TestChurn(TestBase):
         # Node inactive! We should ping it!
         self.strategies[0].take_step()
 
-        yield self.deliver_messages()
+        await self.deliver_messages()
 
         # Node should not have responded.
         self.assertEqual(peer.last_response, fake_last_response)
@@ -74,8 +69,7 @@ class TestChurn(TestBase):
 
         self.assertEqual(len(self.overlays[0].network.verified_peers), 0)
 
-    @inlineCallbacks
-    def test_no_nodes(self):
+    async def test_no_nodes(self):
         """
         Nothing should happen if we have no nodes to check.
         """
@@ -86,12 +80,11 @@ class TestChurn(TestBase):
 
         self.strategies[0].take_step()
 
-        yield self.deliver_messages()
+        await self.deliver_messages()
 
         self.assertEqual(len(self.overlays[0].network.verified_peers), 1)
 
-    @inlineCallbacks
-    def test_ping_timeout(self):
+    async def test_ping_timeout(self):
         """
         Don't overload inactive nodes with pings, send it once within some timeout.
         """
@@ -107,12 +100,11 @@ class TestChurn(TestBase):
         # Only once though
         self.strategies[0].take_step()
 
-        yield self.deliver_messages()
+        await self.deliver_messages()
 
         self.assertEqual(len(sniffer.received_packets), 1)
 
-    @inlineCallbacks
-    def test_ping_timeout_resend(self):
+    async def test_ping_timeout_resend(self):
         """
         Don't overload inactive nodes with pings, send it again after some timeout.
         """
@@ -128,7 +120,7 @@ class TestChurn(TestBase):
         # Timeout has passed, send it again.
         self.strategies[0].take_step()
 
-        yield self.deliver_messages()
+        await self.deliver_messages()
 
         self.assertEqual(len(sniffer.received_packets), 2)
 
@@ -151,9 +143,8 @@ class TestPingChurn(TestBase):
 
         return peer
 
-    @inlineCallbacks
-    def test_ping_all(self):
-        yield self.introduce_nodes()
+    async def test_ping_all(self):
+        await self.introduce_nodes()
         bucket = self.overlays[0].routing_table.trie[u'']
 
         node1 = bucket.get(self.overlays[1].my_node_id)
@@ -161,18 +152,17 @@ class TestPingChurn(TestBase):
         node1.last_response = 0
 
         self.strategies[0].take_step()
-        yield self.deliver_messages()
+        await self.deliver_messages()
 
         self.assertTrue(node1.failed == 0)
         self.assertNotEqual(node1.last_response, 0)
 
-    @inlineCallbacks
-    def test_ping_all_skip(self):
-        yield self.introduce_nodes()
+    async def test_ping_all_skip(self):
+        await self.introduce_nodes()
         bucket = self.overlays[0].routing_table.trie[u'']
         node1 = bucket.get(self.overlays[1].my_node_id)
         node1.failed = 1
-        node1.last_response = time.time()
+        node1.last_response = time.time() + 5
 
         self.strategies[0].take_step()
         self.assertTrue(node1.failed == 1)

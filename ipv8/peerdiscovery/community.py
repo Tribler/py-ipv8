@@ -1,12 +1,10 @@
-from __future__ import absolute_import
-
 from binascii import unhexlify
 from random import choice
 from time import time
 
 from .churn import DiscoveryStrategy, RandomChurn
-from .payload import DiscoveryIntroductionRequestPayload, PingPayload, PongPayload, SimilarityRequestPayload, \
-    SimilarityResponsePayload
+from .payload import (DiscoveryIntroductionRequestPayload, PingPayload, PongPayload, SimilarityRequestPayload,
+                      SimilarityResponsePayload)
 from ..community import Community, DEFAULT_MAX_PEERS
 from ..keyvault.crypto import default_eccrypto
 from ..lazy_community import PacketDecodingError, lazy_wrapper, lazy_wrapper_unsigned
@@ -76,9 +74,9 @@ class DiscoveryCommunity(Community):
     def get_available_strategies(self):
         return {'PeriodicSimilarity': PeriodicSimilarity, 'RandomChurn': RandomChurn}
 
-    def unload(self):
-        self.request_cache.shutdown()
-        super(DiscoveryCommunity, self).unload()
+    async def unload(self):
+        await self.request_cache.shutdown()
+        await super(DiscoveryCommunity, self).unload()
 
     def on_introduction_request(self, source_address, data):
         if self.max_peers >= 0 and len(self.get_peers()) > self.max_peers:

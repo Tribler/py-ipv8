@@ -3,16 +3,12 @@ The hidden tunnel community.
 
 Author(s): Egbert Bouman
 """
-from __future__ import absolute_import
-
 import binascii
 import os
 import random
 import struct
 import time
-
-from twisted.internet.defer import DeferredList, fail, inlineCallbacks, returnValue
-from twisted.internet.task import LoopingCall
+from asyncio import ensure_future, gather, iscoroutine
 
 from .caches import *
 from .community import TunnelCommunity, message_to_payload, tc_lazy_wrapper_unsigned
@@ -26,7 +22,7 @@ from ...messaging.deprecated.encoding import decode, encode
 from ...peer import Peer
 from ...peerdiscovery.discovery import RandomWalk
 from ...peerdiscovery.network import Network
-from ...util import defaultErrback
+from ...util import fail
 
 
 class HiddenTunnelCommunity(TunnelCommunity):
@@ -65,7 +61,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
             chr(22): self.on_peers_response
         })
 
-        self.register_task("do_peer_discovery", LoopingCall(self.do_peer_discovery)).start(10, now=False)
+        self.register_task("do_peer_discovery", self.do_peer_discovery, interval=10)
 
     def join_swarm(self, info_hash, hops, callback=None, seeding=True):
         """
@@ -114,8 +110,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
             if ip_circuit.info_hash == info_hash and ip_circuit.ctype == CIRCUIT_TYPE_IP_SEEDER:
                 self.remove_circuit(ip_circuit.circuit_id, 'leaving hidden swarm', destroy=True)
 
-    @inlineCallbacks
-    def estimate_swarm_size(self, info_hash, hops=1, max_requests=10):
+    async def estimate_swarm_size(self, info_hash, hops=1, max_requests=10):
         """
         Estimate the number of unique seeders that are part of a hidden swarm.
 
@@ -141,14 +136,13 @@ class HiddenTunnelCommunity(TunnelCommunity):
 
             # Issue as many requests as possible in parallel
             ips = random.sample(not_tried, min(len(not_tried), max_requests - len(tried)))
-            responses = yield DeferredList([swarm.lookup(ip)
-                                            for ip in ips], consumeErrors=True).addErrback(lambda _: [])
+            responses = await gather(*[swarm.lookup(ip) for ip in ips], return_errors=True)
 
             # Collect responses
-            all_ += sum([results for success, results in responses if success], [])
+            all_ += sum([result for result in responses if not isinstance(result, Exception)], [])
             tried |= set(ips)
 
-        returnValue(len({ip.seeder_pk for ip in all_ if ip and ip.source == PEER_SOURCE_PEX}))
+        return len({ip.seeder_pk for ip in all_ if ip and ip.source == PEER_SOURCE_PEX})
 
     def select_circuit_for_infohash(self, info_hash):
         swarm = self.swarms.get(info_hash)
@@ -179,19 +173,19 @@ class HiddenTunnelCommunity(TunnelCommunity):
     def circuit_id_to_ip(self, circuit_id):
         return socket.inet_ntoa(struct.pack("!I", circuit_id))
 
-    @inlineCallbacks
-    def do_peer_discovery(self):
+    async def do_peer_discovery(self):
         now = time.time()
         for info_hash, swarm in list(self.swarms.items()):
             if not swarm.seeding and swarm.last_lookup + self.settings.swarm_lookup_interval <= now \
                and swarm.get_num_connections() < self.settings.swarm_connection_limit:
-                lookup_deferred = swarm.lookup()
-                if not lookup_deferred:
+                try:
+                    ips = await swarm.lookup()
+                except:
+                    self.logger.info('Failed to do peer discovery for swarm %s', binascii.hexlify(info_hash))
                     continue
 
-                ips = yield lookup_deferred.addErrback(defaultErrback)
                 if ips is None:
-                    self.logger.info('Failed to do peer discovery for swarm %s', binascii.hexlify(info_hash))
+                    self.logger.info('Skipping peer discovery for swarm %s', binascii.hexlify(info_hash))
                     continue
                 self.logger.info('Found %d/%d peer(s) for swarm %s',
                                  len([ip for ip in ips if ip.source == PEER_SOURCE_DHT]),
@@ -241,7 +235,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
                         self.pex.pop(info_hash, None)
                         self.ipv8.overlays.remove(pex)
                         self.ipv8.strategies = [t for t in self.ipv8.strategies if t[0].overlay != pex]
-                        pex.unload()
+                        self.register_task('unload_pex', pex.unload)
 
         for cookie, rendezvous_circuit in list(self.rendezvous_point_for.items()):
             if rendezvous_circuit.circuit_id == circuit_id:
@@ -282,7 +276,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         circuit = self.select_circuit(None, hops)
         if not circuit:
             self.logger.info("No circuit for peers-request")
-            return fail(Failure(RuntimeError("No circuit for peers-request")))
+            return fail(RuntimeError("No circuit for peers-request"))
 
         # Send a peers-request message over this circuit
         cache = self.request_cache.add(PeersRequestCache(self, circuit, info_hash))
@@ -296,10 +290,10 @@ class HiddenTunnelCommunity(TunnelCommunity):
         else:
             self.send_cell([circuit.peer], u"peers-request", payload)
             self.logger.info("Sending peers request as cell")
-        return cache.deferred
+        return cache.future
 
     @tc_lazy_wrapper_unsigned(PeersRequestPayload)
-    def on_peers_request(self, source_address, payload, circuit_id=None):
+    async def on_peers_request(self, source_address, payload, circuit_id=None):
         info_hash = payload.info_hash
         self.logger.info("Doing hidden seeders lookup for info_hash %s", binascii.hexlify(info_hash))
         if info_hash in self.pex:
@@ -308,10 +302,8 @@ class HiddenTunnelCommunity(TunnelCommunity):
             self.send_peers_response(source_address, payload, intro_points, circuit_id)
         elif circuit_id in self.exit_sockets:
             # Get peers from DHT community
-            def dht_callback(result):
-                _, intro_points = result
-                self.send_peers_response(source_address, payload, intro_points, circuit_id)
-            self.dht_lookup(info_hash, dht_callback)
+            _, intro_points = await self.dht_lookup(info_hash)
+            self.send_peers_response(source_address, payload, intro_points, circuit_id)
         elif circuit_id is not None:
             self.logger.warning("Received a peers-request over circuit %d, but unable to do a DHT lookup", circuit_id)
         else:
@@ -342,7 +334,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         self.logger.info("Received peers-response containing %d peers", len(peers))
         ips = [IntroductionPoint(Peer(ip_pk, address=address), seeder_pk, source)
                for address, ip_pk, seeder_pk, source in peers if address != ('0.0.0.0', 0)]
-        cache.deferred.callback(ips)
+        cache.future.set_result(ips)
 
     def create_e2e(self, info_hash, intro_point):
         circuit = self.select_circuit_for_infohash(info_hash)
@@ -458,7 +450,9 @@ class HiddenTunnelCommunity(TunnelCommunity):
         circuit.hs_session_keys = cache.hs_session_keys
         callback = self.e2e_callbacks.get(cache.info_hash, None)
         if callback:
-            callback((self.circuit_id_to_ip(circuit.circuit_id), CIRCUIT_ID_PORT))
+            result = callback((self.circuit_id_to_ip(circuit.circuit_id), CIRCUIT_ID_PORT))
+            if iscoroutine(result):
+                ensure_future(result)
         else:
             self.logger.error('On linked e2e: could not find download for %s!', cache.info_hash)
 
@@ -514,8 +508,10 @@ class HiddenTunnelCommunity(TunnelCommunity):
             self.pex[payload.info_hash].start_announce(payload.public_key)
 
         # DHT announce
-        self.dht_announce(payload.info_hash,
-                          IntroductionPoint(Peer(self.my_peer.key, self.my_estimated_wan), payload.public_key))
+        task = ensure_future(self.dht_announce(payload.info_hash,
+                                               IntroductionPoint(Peer(self.my_peer.key, self.my_estimated_wan),
+                                                                 payload.public_key)))
+        self.register_task('announce_%s' % binascii.hexlify(payload.info_hash).decode('utf-8'), task)
 
         self.send_cell([source_address], u"intro-established",
                        IntroEstablishedPayload(circuit.circuit_id, payload.identifier))
@@ -562,14 +558,14 @@ class HiddenTunnelCommunity(TunnelCommunity):
         rp.rp_info = (sock_addr[0], sock_addr[1], self.crypto.key_to_bin(rp.circuit.hops[-1].public_key))
         rp.finished_callback(rp)
 
-    def dht_lookup(self, info_hash, cb):
+    async def dht_lookup(self, info_hash):
         if self.dht_provider:
-            self.dht_provider.lookup(info_hash, cb)
+            return await self.dht_provider.lookup(info_hash)
         else:
             self.logger.error("Need a DHT provider to lookup on the DHT")
 
-    def dht_announce(self, info_hash, intro_point):
+    async def dht_announce(self, info_hash, intro_point):
         if self.dht_provider:
-            self.dht_provider.announce(info_hash, intro_point)
+            return await self.dht_provider.announce(info_hash, intro_point)
         else:
             self.logger.error("Need a DHT provider to announce to the DHT")

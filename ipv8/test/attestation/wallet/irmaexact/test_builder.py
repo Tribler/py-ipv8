@@ -6,12 +6,10 @@ This source code has been ported from https://github.com/privacybydesign/gabi
 The authors of this file are not -in any way- affiliated with the original authors or organizations.
 """
 
-from __future__ import absolute_import
-
 import random
 import time
 
-from twisted.trial import unittest
+import asynctest
 
 from .....attestation.wallet.irmaexact.gabi.builder import CredentialBuilder, Issuer, Verify
 from .....attestation.wallet.irmaexact.gabi.keys import DefaultSystemParameters, PrivateKey, PublicKey
@@ -19,7 +17,7 @@ from .....attestation.wallet.irmaexact.gabi.proofs import createChallenge
 from .....attestation.wallet.primitives.value import FP2Value
 
 
-class TestBuilder(unittest.TestCase):
+class TestBuilder(asynctest.TestCase):
 
     def setUp(self):
         p = 10436034022637868273483137633548989700482895839559909621411910579140541345632481969613724849214412062500244238926015929148144084368427474551770487566048119

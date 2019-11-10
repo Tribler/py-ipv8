@@ -1,13 +1,11 @@
-from __future__ import absolute_import
-
 from collections import OrderedDict
 
-from twisted.trial import unittest
+import asynctest
 
 from ....messaging.deprecated.sorting import sortable_sort
 
 
-class TestSorting(unittest.TestCase):
+class TestSorting(asynctest.TestCase):
 
     def test_illegal_object(self):
         self.assertRaises(RuntimeError, sortable_sort, self)

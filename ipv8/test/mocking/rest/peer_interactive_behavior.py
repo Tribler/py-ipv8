@@ -1,11 +1,6 @@
-from __future__ import absolute_import
-
 import json
+from asyncio import new_event_loop, set_event_loop
 from base64 import b64encode
-
-from twisted.internet import reactor
-from twisted.internet.defer import inlineCallbacks, returnValue
-from twisted.internet.threads import blockingCallFromThread
 
 from .rest_api_peer import InteractiveRestTestPeer
 from .rest_peer_communication import string_to_url
@@ -17,8 +12,7 @@ class AECommonBehaviorTestPeer(InteractiveRestTestPeer):
     facilities
     """
 
-    @inlineCallbacks
-    def wait_for_peers(self, dict_param, excluded_peer_mids=None):
+    async def wait_for_peers(self, dict_param, excluded_peer_mids=None):
         """
         Wait until this peer receives a non-empty list of fellow peers in the network
 
@@ -35,22 +29,21 @@ class AECommonBehaviorTestPeer(InteractiveRestTestPeer):
         elif isinstance(excluded_peer_mids, list):
             excluded_peer_mids = set(excluded_peer_mids)
 
-        peer_list = yield self._get_style_requests.make_peers(dict_param)
+        peer_list = await self._get_style_requests.make_peers(dict_param)
         peer_list = set(peer_list)
 
         # Keep iterating until peer_list is non-empty
         while not peer_list - excluded_peer_mids:
-            yield self.sleep()
+            await self.sleep()
 
             # Forward and wait for the response
-            peer_list = yield self._get_style_requests.make_peers(dict_param)
+            peer_list = await self._get_style_requests.make_peers(dict_param)
             peer_list = set(peer_list)
 
         # Return the peer list
-        returnValue(list(peer_list - excluded_peer_mids))
+        return list(peer_list - excluded_peer_mids)
 
-    @inlineCallbacks
-    def wait_for_attestation_request(self, dict_param):
+    async def wait_for_attestation_request(self, dict_param):
         """
         Wait until this peer receives a non-empty list of outstanding attestation requests
 
@@ -58,19 +51,19 @@ class AECommonBehaviorTestPeer(InteractiveRestTestPeer):
         :return: a list of outstanding attestation requests
         """
         self._logger.info("Attempting to acquire a list of outstanding requests...")
-        outstanding_requests = yield self._get_style_requests.make_outstanding(dict_param)
+        outstanding_requests = await self._get_style_requests.make_outstanding(dict_param)
 
         # Keep iterating until peer_list is non-empty
         while not outstanding_requests:
             self._logger.info("Could not acquire a list of outstanding requests. Will wait 0.1 seconds and retry.")
-            yield self.sleep()
+            await self.sleep()
 
             # Forward and wait for the response
-            outstanding_requests = yield self._get_style_requests.make_outstanding(dict_param)
+            outstanding_requests = await self._get_style_requests.make_outstanding(dict_param)
 
         # Return the peer list
         self._logger.info("Have found a non-empty list of outstanding requests. Returning it.")
-        returnValue(outstanding_requests)
+        return outstanding_requests
 
 
 class RequesterRestTestPeer(AECommonBehaviorTestPeer):
@@ -79,7 +72,7 @@ class RequesterRestTestPeer(AECommonBehaviorTestPeer):
     """
 
     def __init__(self, port, overlay_classes, get_style_requests, post_style_requests, param_dict,
-                 interface='127.0.0.1', memory_dbs=True):
+                 interface='127.0.0.1', memory_dbs=True, loop=None):
         """
         AndroidTestPeer initializer
 
@@ -99,20 +92,22 @@ class RequesterRestTestPeer(AECommonBehaviorTestPeer):
         self._param_dict['port'] = port
         self._param_dict['attribute_value'] = string_to_url(b64encode(b'binarydata'), True)
         self._param_dict['metadata'] = b64encode(json.dumps({'psn': '1234567890'}).encode('utf-8')).decode('utf-8')
+        self.loop = loop
 
     def run(self):
-        @inlineCallbacks
-        def inner_run():
-            # Wait for a short period of time
-            yield self.sleep()
+        if self.loop:
+            self.loop.run_until_complete(self.run_on_loop())
 
-            peer_list = yield self.wait_for_peers(self._param_dict)
-            for peer in peer_list:
-                self._param_dict['mid'] = string_to_url(peer)
+    async def run_on_loop(self):
+        # Wait for a short period of time
+        await self.sleep()
 
-                self._logger.info("Sending an attestation request to %s", self._param_dict['mid'])
-                yield self._post_style_requests.make_attestation_request(self._param_dict)
-        blockingCallFromThread(reactor, inner_run)
+        peer_list = await self.wait_for_peers(self._param_dict)
+        for peer in peer_list:
+            self._param_dict['mid'] = string_to_url(peer)
+
+            self._logger.info("Sending an attestation request to %s", self._param_dict['mid'])
+            await self._post_style_requests.make_attestation_request(self._param_dict)
 
 
 class MinimalActivityRestTestPeer(AECommonBehaviorTestPeer):
@@ -137,11 +132,13 @@ class MinimalActivityRestTestPeer(AECommonBehaviorTestPeer):
         self._param_dict['port'] = port
 
     def run(self):
-        @inlineCallbacks
-        def inner_run():
-            # Wait for a short period of time
-            yield self.sleep()
+        new_loop = new_event_loop()
+        set_event_loop(new_loop)
+        new_loop.run_until_complete(self.run_on_loop())
 
-            # Await for some fellow peers, then become inactive
-            yield self.wait_for_peers(self._param_dict)
-        blockingCallFromThread(reactor, inner_run)
+    async def run_on_loop(self):
+        # Wait for a short period of time
+        await self.sleep()
+
+        # Await for some fellow peers, then become inactive
+        await self.wait_for_peers(self._param_dict)

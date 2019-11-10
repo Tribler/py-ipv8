@@ -1,6 +1,4 @@
-from __future__ import absolute_import
-
-from twisted.trial import unittest
+import asynctest
 
 from ..database import Database
 
@@ -14,7 +12,7 @@ class MockDatabase(Database):
         return 0
 
 
-class TestDatabase(unittest.TestCase):
+class TestDatabase(asynctest.TestCase):
 
     def setUp(self):
         super(TestDatabase, self).setUp()

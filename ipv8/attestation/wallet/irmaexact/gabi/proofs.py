@@ -5,8 +5,6 @@ All rights reserved.
 This source code has been ported from https://github.com/privacybydesign/gabi
 The authors of this file are not -in any way- affiliated with the original authors or organizations.
 """
-from __future__ import absolute_import
-
 from cryptography.hazmat.primitives.asymmetric.rsa import _modinv
 
 from pyasn1.codec.ber.encoder import encode

@@ -1,9 +1,5 @@
-from __future__ import absolute_import
-
 import json
 from collections import Iterable
-
-from six import string_types
 
 __all__ = ['dumps', 'loads']
 
@@ -40,7 +36,7 @@ def _scan_iterable(obj, context=None):
     out = []
     # First check if we need to recurse into the children of obj.
     # Note that there is one type of object we don't want to step into, which is a string object.
-    if not isinstance(obj, string_types) and isinstance(obj, Iterable):
+    if not isinstance(obj, str) and isinstance(obj, Iterable):
         for sub in obj:
             # If we are iterating over a dict, we are iterating over its keys.
             # 1. We can then give a named trace instead of an anonymous trace

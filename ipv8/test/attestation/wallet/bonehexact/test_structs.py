@@ -1,13 +1,11 @@
-from __future__ import absolute_import
+import asynctest
 
-from twisted.trial import unittest
-
-from .....attestation.wallet.bonehexact.structs import BonehAttestation, BitPairAttestation
+from .....attestation.wallet.bonehexact.structs import BitPairAttestation, BonehAttestation
 from .....attestation.wallet.primitives.structs import BonehPrivateKey, BonehPublicKey, pack_pair, unpack_pair
 from .....attestation.wallet.primitives.value import FP2Value
 
 
-class TestStructs(unittest.TestCase):
+class TestStructs(asynctest.TestCase):
 
     def test_pack_pair(self):
         """

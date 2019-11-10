@@ -1,21 +1,17 @@
 import logging
 from json import loads
+from urllib.parse import quote
 
-from six.moves.urllib_parse import quote
-from twisted.internet import reactor
-from twisted.internet.defer import inlineCallbacks, returnValue
-from twisted.web.client import Agent, readBody
-from twisted.web.http_headers import Headers
+from aiohttp import ClientSession
 
 
 def process_json_response(func):
     """
     Processes a json'ed request response, and returns a de-json'ed Python data structure
     """
-    @inlineCallbacks
-    def wrapper(self, param_dict):
-        res = yield func(self, param_dict)
-        returnValue(loads(res))
+    async def wrapper(self, param_dict):
+        res = await func(self, param_dict)
+        return loads(res)
     return wrapper
 
 
@@ -24,16 +20,12 @@ class HTTPRequester(object):
     HTTP request superclass, which defines the common behavior between the different types of HTTP REST requests
     """
 
-    def __init__(self):
+    def __init__(self, loop=None):
+        self._loop = loop
         self._logger = logging.getLogger(self.__class__.__name__)
-        self._logger.info("Initializing the HTTP Requester.")
-
-        self._agent = Agent(reactor)
-
         self._logger.info("HTTP Requester initialized.")
 
-    @inlineCallbacks
-    def make_request(self, url, request_type, arguments=None, on_complete_callback=None):
+    async def make_request(self, url, request_type, arguments=None, on_complete_callback=None):
         """
         Forward an HTTP request of the specified type to a url, with the specified set of arguments.
 
@@ -49,16 +41,15 @@ class HTTPRequester(object):
 
         request_url = url + '?' + '&'.join("%s=%s" % (k, v) for k, v in arguments.items())
         self._logger.info("[HTTP-%s] %s", request_type, request_url)
+        headers = {'User-Agent': 'Asyncio Web Client',
+                   'Content-Type': 'text/x-greeting'}
 
-        d = self._agent.request(
-            request_type.encode('utf_8'),
-            request_url.encode('utf_8'),
-            Headers({'User-Agent': ['Twisted Web Client'],
-                     'Content-Type': ['text/x-greeting']}),
-            None)
-
-        response = yield d.addCallback(on_complete_callback if on_complete_callback else readBody)
-        returnValue(response)
+        async with ClientSession(loop=self._loop) as session:
+            async with session.request(request_type, url, params=arguments, headers=headers) as response:
+                body = await response.read()
+        if on_complete_callback:
+            on_complete_callback(body)
+        return body
 
     @staticmethod
     def get_access_parameters(param_dict):

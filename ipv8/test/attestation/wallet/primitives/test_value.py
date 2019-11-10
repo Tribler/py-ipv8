@@ -1,12 +1,9 @@
-from __future__ import absolute_import
-from __future__ import division
-
-from twisted.trial import unittest
+import asynctest
 
 from .....attestation.wallet.primitives.value import FP2Value
 
 
-class TestFP2Value(unittest.TestCase):
+class TestFP2Value(asynctest.TestCase):
 
     def test_add_unary(self):
         """
