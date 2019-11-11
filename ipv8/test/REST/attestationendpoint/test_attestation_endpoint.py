@@ -27,6 +27,7 @@ class TestAttestationEndpoint(RESTTestBase):
                                           *args, **kwargs)
 
     async def create_new_interactive_peer(self, peer_cls, port, *args, loop=None, **kwargs):
+        loop = loop or new_event_loop()
         await self._create_new_peer_inner(peer_cls, port, [TestAttestationCommunity, TestIdentityCommunity],
                                           HTTPGetRequesterAE(loop), HTTPPostRequesterAE(loop),
                                           *args, loop=loop, **kwargs)
@@ -180,7 +181,7 @@ class TestAttestationEndpoint(RESTTestBase):
             'attribute_name': 'QR'
         }
 
-        await self.create_new_interactive_peer(RequesterRestTestPeer, None, param_dict.copy(), memory_dbs=True, loop=new_event_loop())
+        await self.create_new_interactive_peer(RequesterRestTestPeer, None, param_dict.copy(), memory_dbs=True)
         await self.introduce_nodes(IdentityCommunity)
 
         self.nodes[1].start()
@@ -206,7 +207,7 @@ class TestAttestationEndpoint(RESTTestBase):
         }
 
         # Forward the attestations to the well-known peer
-        await self.create_new_interactive_peer(RequesterRestTestPeer, None, param_dict.copy(), memory_dbs=True, loop=new_event_loop())
+        await self.create_new_interactive_peer(RequesterRestTestPeer, None, param_dict.copy(), memory_dbs=True)
         await self.introduce_nodes(IdentityCommunity)
 
         self.nodes[1].start()
@@ -260,7 +261,7 @@ class TestAttestationEndpoint(RESTTestBase):
         }
 
         # Forward the attestations to the well-known peer
-        await self.create_new_interactive_peer(RequesterRestTestPeer, None, param_dict.copy(), memory_dbs=True, loop=new_event_loop())
+        await self.create_new_interactive_peer(RequesterRestTestPeer, None, param_dict.copy(), memory_dbs=True)
         await self.introduce_nodes(IdentityCommunity)
 
         self.nodes[1].start()
@@ -306,8 +307,7 @@ class TestAttestationEndpoint(RESTTestBase):
         }
 
         # Forward the attestations to the well-known peer
-        await self.create_new_interactive_peer(RequesterRestTestPeer, None, param_dict.copy(), memory_dbs=True,
-                                               loop=new_event_loop())
+        await self.create_new_interactive_peer(RequesterRestTestPeer, None, param_dict.copy(), memory_dbs=True)
         await self.introduce_nodes(IdentityCommunity)
 
         self.nodes[1].start()
@@ -338,7 +338,7 @@ class TestAttestationEndpoint(RESTTestBase):
         }
 
         # Send a random attestation request to the well-known peer
-        await self.create_new_interactive_peer(RequesterRestTestPeer, None, param_dict.copy(), memory_dbs=True, loop=new_event_loop())
+        await self.create_new_interactive_peer(RequesterRestTestPeer, None, param_dict.copy(), memory_dbs=True)
         await self.introduce_nodes(IdentityCommunity)
 
         self.nodes[1].start()
@@ -396,7 +396,7 @@ class TestAttestationEndpoint(RESTTestBase):
 
         self.assertEqual(outstanding_requests, [], "Something went wrong, there should be no outstanding requests.")
 
-        await self.create_new_interactive_peer(RequesterRestTestPeer, None, param_dict.copy(), memory_dbs=True, loop=new_event_loop())
+        await self.create_new_interactive_peer(RequesterRestTestPeer, None, param_dict.copy(), memory_dbs=True)
         await self.introduce_nodes(IdentityCommunity)
 
         self.nodes[1].start()
@@ -418,7 +418,7 @@ class TestAttestationEndpoint(RESTTestBase):
             'metadata': b64encode(dumps({'psn': '1234567890'}).encode('utf-8'))
         }
 
-        await self.create_new_interactive_peer(RequesterRestTestPeer, None, param_dict.copy(), memory_dbs=True, loop=new_event_loop())
+        await self.create_new_interactive_peer(RequesterRestTestPeer, None, param_dict.copy(), memory_dbs=True)
         await self.introduce_nodes(IdentityCommunity)
 
         self.nodes[1].start()
@@ -464,7 +464,7 @@ class TestAttestationEndpoint(RESTTestBase):
         }
 
         # Forward the attestations to the well-known peer
-        await self.create_new_interactive_peer(RequesterRestTestPeer, None, param_dict.copy(), memory_dbs=True, loop=new_event_loop())
+        await self.create_new_interactive_peer(RequesterRestTestPeer, None, param_dict.copy(), memory_dbs=True)
         await self.introduce_nodes(IdentityCommunity)
 
         self.nodes[1].start()
@@ -502,7 +502,7 @@ class TestAttestationEndpoint(RESTTestBase):
         }
 
         # Forward the attestations to the well-known peer
-        await self.create_new_interactive_peer(RequesterRestTestPeer, None, param_dict.copy(), memory_dbs=True, loop=new_event_loop())
+        await self.create_new_interactive_peer(RequesterRestTestPeer, None, param_dict.copy(), memory_dbs=True)
         await self.introduce_nodes(IdentityCommunity)
 
         self.nodes[1].start()
