@@ -16,6 +16,7 @@ from six.moves import xrange
 from .credential import Credential
 from .keys import CLSignature, DefaultSystemParameters, signMessageBlockAndCommitment
 from .proofs import ProofS, ProofU, createChallenge, hashCommit
+from .. import secure_randint
 from ...primitives.value import FP2Value
 
 
@@ -103,7 +104,7 @@ def Verify(pl, publicKeys, context, nonce, issig, keyshareServers=[]):
 
 
 def Challenge(builders, context, nonce, issig):
-    skCommitment = randint(0, DefaultSystemParameters[1024].LmCommit - 1)
+    skCommitment = secure_randint(DefaultSystemParameters[1024].LmCommit)
 
     commitmentValues = []
     for pb in builders:
@@ -150,7 +151,7 @@ class IssueSignatureMessage(object):
 
 
 def commitmentToSecret(pk, secret):
-    vPrime = randint(0, pk.Params.LvPrime - 1)
+    vPrime = secure_randint(pk.Params.LvPrime)
 
     Sv = FP2Value(pk.N, pk.S).intpow(vPrime).a
     R0s = FP2Value(pk.N, pk.R[0]).intpow(secret).a
@@ -197,8 +198,8 @@ class CredentialBuilder(object):
         return Credential(self.pk, exponents, signature)
 
     def proveCommitment(self, U, nonce1):
-        sCommit = randint(0, (1 << self.pk.Params.LsCommit) - 1)
-        vPrimeCommit = randint(0, (1 << self.pk.Params.LvPrimeCommit) - 1)
+        sCommit = secure_randint(self.pk.Params.LsCommit)
+        vPrimeCommit = secure_randint(self.pk.Params.LvPrimeCommit)
 
         Sv = FP2Value(self.pk.N, self.pk.S).intpow(vPrimeCommit).a
         R0s = FP2Value(self.pk.N, self.pk.R[0]).intpow(sCommit).a
@@ -219,7 +220,7 @@ class CredentialBuilder(object):
 
     def Commit(self, skRandomizer):
         self.skRandomizer = skRandomizer
-        self.vPrimeCommit = randint(0, (1 << self.pk.Params.LvPrimeCommit) - 1)
+        self.vPrimeCommit = secure_randint(self.pk.Params.LvPrimeCommit)
 
         sv = FP2Value(self.pk.N, self.pk.S).intpow(self.vPrimeCommit).a
         r0s = FP2Value(self.pk.N, self.pk.R[0]).intpow(self.skRandomizer).a
