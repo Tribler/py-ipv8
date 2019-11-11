@@ -7,9 +7,8 @@ The authors of this file are not -in any way- affiliated with the original autho
 """
 from __future__ import absolute_import
 
-from random import randint
-
 from .proofs import ProofD, hashCommit
+from .. import secure_randint
 from ...primitives.attestation import sha256_as_int
 from ...primitives.value import FP2Value
 
@@ -26,13 +25,13 @@ class Credential(object):
 
         randSig = self.Signature.Randomize(self.Pk)
 
-        eCommit = randint(0, (1 << self.Pk.Params.LeCommit) - 1)
-        vCommit = randint(0, (1 << self.Pk.Params.LvCommit) - 1)
+        eCommit = secure_randint(self.Pk.Params.LeCommit)
+        vCommit = secure_randint(self.Pk.Params.LvCommit)
 
         aCommits = {}
 
         for v in undisclosedAttributes:
-            aCommits[v] = randint(0, (1 << self.Pk.Params.LmCommit) - 1)
+            aCommits[v] = secure_randint(self.Pk.Params.LmCommit)
 
         Ae = FP2Value(self.Pk.N, randSig.A).intpow(eCommit).a
         Sv = FP2Value(self.Pk.N, self.Pk.S).intpow(vCommit).a
@@ -63,9 +62,9 @@ class Credential(object):
 
     def CreateDisclosureProofBuilder(self, disclosedAttributes):
         return DisclosureProofBuilder(self.Signature.Randomize(self.Pk),
-                                      randint(0, (1 << self.Pk.Params.LeCommit) - 1),
-                                      randint(0, (1 << self.Pk.Params.LvCommit) - 1),
-                                      {v: randint(0, (1 << self.Pk.Params.LmCommit) - 1) for v
+                                      secure_randint(self.Pk.Params.LeCommit),
+                                      secure_randint(self.Pk.Params.LvCommit),
+                                      {v: secure_randint(self.Pk.Params.LmCommit) for v
                                        in getUndisclosedAttributes(disclosedAttributes, len(self.Attributes))},
                                       1,
                                       disclosedAttributes,
