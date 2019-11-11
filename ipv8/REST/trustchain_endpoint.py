@@ -52,7 +52,7 @@ class TrustchainEndpoint(BaseEndpoint):
             }
         }
     )
-    def get_recent_blocks(self, request):
+    async def get_recent_blocks(self, request):
         if not self.trustchain:
             return Response({"error": "Trustchain community not found"}, status=HTTP_NOT_FOUND)
 
@@ -86,7 +86,7 @@ class TrustchainEndpoint(BaseEndpoint):
             }
         }
     )
-    def get_block(self, request):
+    async def get_block(self, request):
         if not self.trustchain:
             return Response({"error": "Trustchain community not found"}, status=HTTP_NOT_FOUND)
 
@@ -129,7 +129,7 @@ class TrustchainEndpoint(BaseEndpoint):
             }
         }
     )
-    def get_users(self, request):
+    async def get_users(self, request):
         if not self.trustchain:
             return Response({"error": "Trustchain community not found"}, status=HTTP_NOT_FOUND)
 
@@ -159,7 +159,7 @@ class TrustchainEndpoint(BaseEndpoint):
             }
         }
     )
-    def get_blocks_for_user(self, request):
+    async def get_blocks_for_user(self, request):
         if not self.trustchain:
             return Response({"error": "Trustchain community not found"}, status=HTTP_NOT_FOUND)
 

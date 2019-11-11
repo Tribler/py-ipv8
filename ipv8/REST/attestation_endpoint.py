@@ -174,7 +174,7 @@ class AttestationEndpoint(BaseEndpoint):
         type=attributes&mid=mid_b64 -> [(attribute_name, attribute_hash)]
         """
     )
-    def handle_get(self, request):
+    async def handle_get(self, request):
         if not self.attestation_overlay or not self.identity_overlay:
             return Response({"error": "attestation or identity community not found"}, status=HTTP_NOT_FOUND)
 
@@ -327,7 +327,7 @@ class AttestationEndpoint(BaseEndpoint):
             mid_b64 = args['mid']
             attribute_hash = b64decode(args['attribute_hash'])
             reference_values = [b64decode(v) for v in args['attribute_values'].split(',')]
-            id_format = args.get('id_format', ['id_metadata'])
+            id_format = args.get('id_format', 'id_metadata')
             peer = self.get_peer_from_mid(mid_b64)
             if peer:
                 self.verification_output[b64decode(args['attribute_hash'])] = \

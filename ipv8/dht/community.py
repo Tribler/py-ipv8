@@ -240,7 +240,7 @@ class DHTCommunity(Community):
 
         # Check if we also need to store this key-value pair
         largest_distance = max([distance(node.id, key) for node in nodes])
-        if distance(self.my_node_id, key) < largest_distance:
+        if len(nodes) < TARGET_NODES or distance(self.my_node_id, key) < largest_distance:
             for value in reversed(values):
                 self.add_value(key, value)
 

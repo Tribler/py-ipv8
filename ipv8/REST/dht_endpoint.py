@@ -68,7 +68,7 @@ class DHTEndpoint(BaseEndpoint):
             }
         }
     )
-    def get_statistics(self, _):
+    async def get_statistics(self, _):
         if not self.dht:
             return Response({"error": "DHT community not found"}, status=HTTP_NOT_FOUND)
 
@@ -142,7 +142,7 @@ class DHTEndpoint(BaseEndpoint):
             }
         }
     )
-    def get_stored_values(self, _):
+    async def get_stored_values(self, _):
         if not self.dht:
             return Response({"error": "DHT community not found"}, status=HTTP_NOT_FOUND)
 
@@ -477,8 +477,9 @@ class DHTBlockPublisher(BlockListener):
                         chunk_dict[package.version] = [b''] * package.block_count
                         counts[package.version] = package.block_count
 
-                    chunk_dict[package.version][package.block_position] = package.payload
-                    counts[package.version] -= 1
+                    if not chunk_dict[package.version][package.block_position]:
+                        chunk_dict[package.version][package.block_position] = package.payload
+                        counts[package.version] -= 1
             except PackError:
                 logging.error("PackError: Found a clandestine entry in the DHT when reconstructing TC blocks: %s",
                               entry)

@@ -1,120 +1,137 @@
-import json
-from asyncio import new_event_loop, sleep
+from asyncio import sleep
 from base64 import b64encode
-from hashlib import sha1
 
-from .rest_peer_communication import HTTPGetRequesterAE, HTTPPostRequesterAE
-from ...mocking.rest.base import RESTTestBase
-from ...mocking.rest.comunities import TestAttestationCommunity, TestIdentityCommunity
-from ...mocking.rest.peer_interactive_behavior import RequesterRestTestPeer
-from ...mocking.rest.rest_api_peer import RestTestPeer
-from ...mocking.rest.rest_peer_communication import string_to_url
-from ....REST.json_util import dumps
+from ...REST.rest_base import RESTTestBase, partial_cls
 from ....attestation.identity.community import IdentityCommunity
+from ....attestation.wallet.community import AttestationCommunity
 
 
 class TestAttestationEndpoint(RESTTestBase):
     """
-    Class for testing the REST API of the IPv8 object
+    Class for testing the REST API of the AttestationEndpoint
     """
 
     async def setUp(self):
         super(TestAttestationEndpoint, self).setUp()
-        await self.initialize_configurations([(1, RestTestPeer)], HTTPGetRequesterAE(), HTTPPostRequesterAE())
+        await self.initialize([partial_cls(AttestationCommunity, working_directory=':memory:'),
+                               partial_cls(IdentityCommunity, working_directory=':memory:')], 2)
 
-    async def create_new_peer(self, peer_cls, port, *args, **kwargs):
-        await self._create_new_peer_inner(peer_cls, port, [TestAttestationCommunity, TestIdentityCommunity],
-                                          *args, **kwargs)
-
-    async def create_new_interactive_peer(self, peer_cls, port, *args, loop=None, **kwargs):
-        loop = loop or new_event_loop()
-        await self._create_new_peer_inner(peer_cls, port, [TestAttestationCommunity, TestIdentityCommunity],
-                                          HTTPGetRequesterAE(loop), HTTPPostRequesterAE(loop),
-                                          *args, loop=loop, **kwargs)
-
-    def get_latest_blocks(self, peer):
+    async def make_outstanding(self, node):
         """
-        Gets the latest blocks (max 200) for a peer
-
-        :param peer: the peer whose blocks are returned
-        :return: the blocks for the peer (limit to 200 blocks)
+        Forward a request for outstanding attestation requests.
         """
-        trimmed = {}
-        public_key = peer.get_named_key('my_peer').public_key.key_to_bin()
+        return await self.make_request(node, 'attestation', 'get', {'type': 'outstanding'})
 
-        blocks = peer.get_overlay_by_class(IdentityCommunity).persistence.get_latest_blocks(public_key, 200)
+    async def make_verification_output(self, node):
+        """
+        Forward a request for the verification outputs.
+        """
+        return await self.make_request(node, 'attestation', 'get', {'type': 'verification_output'})
 
-        for b in blocks:
-            attester = b64encode(sha1(b.link_public_key).digest())
-            previous = trimmed.get((attester, b.transaction[b"name"]), None)
-            if not previous or previous.sequence_number < b.sequence_number:
-                trimmed[(attester, b.transaction[b"name"])] = b
+    async def make_peers(self, node):
+        """
+        Forward a request for the known peers in the network.
+        """
+        return await self.make_request(node, 'attestation', 'get', {'type': 'peers'})
 
-        return [(b.transaction[b"name"], b64encode(b.transaction[b"hash"]).decode('utf-8'), b.transaction[b"metadata"],
-                 b64encode(sha1(b.link_public_key).digest()).decode('utf-8'))
-                for b in trimmed.values()]
+    async def make_attributes(self, node):
+        """
+        Forward a request for the attributes of a peer.
+        """
+        return await self.make_request(node, 'attestation', 'get', {'type': 'attributes'})
 
-    async def wait_for_peers(self, dict_param, excluded_peer_mids=None):
+    async def make_dht_block(self, node, public_key):
+        """
+        Forward a request for the latest TC block of a peer
+        """
+        return await self.make_request(node, 'attestation', 'get', {'public_key': public_key})
+
+    async def make_drop_identity(self, node):
+        """
+        Forward a request for dropping a peer's identity.
+        """
+        return await self.make_request(node, 'attestation', 'get', {'type': 'drop_identity'})
+
+    async def make_outstanding_verify(self, node):
+        """
+        Forward a request which requests information on the outstanding verify requests
+        """
+        return await self.make_request(node, 'attestation', 'get', {'type': 'outstanding_verify'})
+
+    async def make_attestation_request(self, node, attribute_name, mid, metadata=None):
+        """
+        Forward a request for the attestation of an attribute.
+        """
+
+        # Add the type of the request (request), and the rest of the parameters
+        request_parameters = {'type': 'request',
+                              'id_format': 'id_metadata',
+                              'attribute_name': attribute_name,
+                              'mid': mid}
+        if metadata:
+            request_parameters['metadata'] = metadata
+        return await self.make_request(node, 'attestation', 'post', request_parameters)
+
+    async def make_attest(self, node, attribute_name, attribute_value, mid):
+        """
+        Forward a request which attests an attestation request.
+        """
+        return await self.make_request(node, 'attestation', 'post', {'type': 'attest',
+                                                                     'attribute_name': attribute_name,
+                                                                     'attribute_value': attribute_value,
+                                                                     'mid': mid})
+
+    async def make_verify(self, node, attribute_hash, attribute_values, mid):
+        """
+        Forward a request which demands the verification of an attestation
+        """
+        return await self.make_request(node, 'attestation', 'post', {'type': 'verify',
+                                                                     'attribute_hash': attribute_hash,
+                                                                     'mid': mid,
+                                                                     'attribute_values': attribute_values})
+
+    async def make_allow_verify(self, node, attribute_name, mid):
+        """
+        Forward a request which requests that verifications be allowed for a particular peer for a particular attribute
+        """
+        return await self.make_request(node, 'attestation', 'post', {'type': 'allow_verify',
+                                                                     'attribute_name': attribute_name,
+                                                                     'mid': mid})
+
+    async def create_attestation_request(self, node, attribute_name, metadata=None):
+        peer_list = await self.wait_for_peers(node)
+        for mid in peer_list:
+            await self.make_attestation_request(node, attribute_name, mid, metadata=metadata)
+
+    async def wait_for_peers(self, node):
         """
         Wait until this peer receives a non-empty list of fellow peers in the network
-
-        :param dict_param: the required parameters by the GET request generator for the peers request type
-        :param excluded_peer_mids: A list of peer mids which should not be taken into consideration peers
-        :return: a list of currently known peers in the network
         """
-        assert isinstance(excluded_peer_mids, (list, set)) or not excluded_peer_mids, "excluded_peer_mids " \
-                                                                                      "must be a list, set or None"
-
-        # Make sure excluded_peer_mids is a set
-        if not excluded_peer_mids:
-            excluded_peer_mids = set()
-        elif isinstance(excluded_peer_mids, list):
-            excluded_peer_mids = set(excluded_peer_mids)
-
-        peer_list = await self._get_style_requests.make_peers(dict_param)
-        peer_list = set(peer_list)
-
-        # Keep iterating until peer_list is non-empty
-        while not peer_list - excluded_peer_mids:
+        peer_list = await self.make_peers(node)
+        while not peer_list:
             await sleep(.1)
+            peer_list = await self.make_peers(node)
+        return peer_list
 
-            # Forward and wait for the response
-            peer_list = await self._get_style_requests.make_peers(dict_param)
-            peer_list = set(peer_list)
-
-        # Return the peer list, after they are encoded in utf-8 byte format
-        return [x.encode('utf-8') for x in list(peer_list - excluded_peer_mids)]
-
-    async def wait_for_outstanding_requests(self, dict_param):
+    async def wait_for_outstanding_requests(self, node):
         """
         Wait until this peer receives a non-empty list of outstanding attestation requests
-
-        :param dict_param: the required parameters by the GET request generator for the outstanding request type
-        :return: a list of outstanding attestation requests
         """
-        outstanding_requests = await self._get_style_requests.make_outstanding(dict_param)
-
-        # Keep iterating until peer_list is non-empty
+        outstanding_requests = await self.make_outstanding(node)
         while not outstanding_requests:
             await sleep(.1)
-
-            # Forward and wait for the response
-            outstanding_requests = await self._get_style_requests.make_outstanding(dict_param)
-
-        # Return the peer list
+            outstanding_requests = await self.make_outstanding(node)
         return [(x[0].encode('utf-8'), x[1], x[2]) for x in outstanding_requests]
 
-    async def attest_all_outstanding_requests(self, param_dict):
+    async def attest_all_outstanding_requests(self, node, attribute_name, attribute_value):
         """
         Forward an attestation for each of the outstanding attestation requests
 
         :param param_dict: the parameters required to contact a well-known peer for the POST and GET requests
         :return: a list of the outstanding requests and their (empty if successful) request responses
         """
-        assert 'attribute_name' in param_dict, "No attribute name was specified"
-        assert 'attribute_value' in param_dict, "No attribute value was specified"
 
-        outstanding_requests = await self.wait_for_outstanding_requests(param_dict)
+        outstanding_requests = await self.wait_for_outstanding_requests(node)
         self.assertFalse(outstanding_requests == [], "Something went wrong, no request was received.")
 
         # Collect the responses of the attestations; if functioning properly, this should be a list of empty strings
@@ -122,13 +139,15 @@ class TestAttestationEndpoint(RESTTestBase):
 
         for outstanding_request in outstanding_requests:
             # The attestation value is already computed, so don't bother recomputing it here
-            param_dict['mid'] = string_to_url(outstanding_request[0])
-            response = await self._post_style_requests.make_attest(param_dict)
+            mid = outstanding_request[0].decode('utf-8')
+            attribute_value = b64encode(attribute_value).decode('utf-8')\
+                if isinstance(attribute_value, bytes) else attribute_value
+            response = await self.make_attest(node, attribute_name, attribute_value, mid)
             responses.append(response)
 
         return outstanding_requests, responses
 
-    async def verify_all_attestations(self, peer_mids, param_dict):
+    async def verify_all_attestations(self, node, peer_mids, attribute_hash, attribute_values):
         """
         Forward an attestation verification for a set of attestations
 
@@ -137,14 +156,12 @@ class TestAttestationEndpoint(RESTTestBase):
         :return: the verification responses, as returned by the well-known peer. Ideally these should be all empty
         """
         assert peer_mids, "Attestation list is empty"
-        assert 'attribute_hash' in param_dict, "No attestation hash was specified"
-        assert 'attribute_values' in param_dict, "No attestation values were specified"
 
         verification_responses = []
 
         for mid in peer_mids:
-            param_dict['mid'] = string_to_url(mid)
-            intermediary_response = await self._post_style_requests.make_verify(param_dict)
+            mid = b64encode(mid).decode('utf-8') if isinstance(mid, bytes) else mid
+            intermediary_response = await self.make_verify(node, attribute_hash, attribute_values, mid)
             verification_responses.append(intermediary_response)
 
         return verification_responses
@@ -153,96 +170,57 @@ class TestAttestationEndpoint(RESTTestBase):
         """
         Test the (GET: peers request) type
         """
-        param_dict = {
-            'port': self.nodes[0].port,
-            'interface': self.nodes[0].interface,
-            'endpoint': 'attestation'
-        }
 
-        # Create a dummy peer which will be used towards peer discovery; there is no need to start() it
-        await self.create_new_peer(RestTestPeer, None, memory_dbs=True)
-        other_peer_mids = [b64encode(x.mid) for x in self.nodes[1].get_keys().values()]
-
-        # Add the peers
-        self.nodes[0].add_and_verify_peers([self.nodes[1]])
-
-        result = await self.wait_for_peers(param_dict)
-
+        await self.introduce_nodes()
+        other_peer_mids = [b64encode(self.nodes[1].my_peer.mid).decode('utf-8')]
+        result = await self.wait_for_peers(self.nodes[0])
         self.assertTrue(any(x in other_peer_mids for x in result), "Could not find the second peer.")
 
     async def test_get_outstanding_requests(self):
         """
         Test the (GET: outstanding) request type
         """
-        param_dict = {
-            'port': self.nodes[0].port,
-            'interface': self.nodes[0].interface,
-            'endpoint': 'attestation',
-            'attribute_name': 'QR'
-        }
 
-        await self.create_new_interactive_peer(RequesterRestTestPeer, None, param_dict.copy(), memory_dbs=True)
-        await self.introduce_nodes(IdentityCommunity)
+        await self.introduce_nodes()
+        await self.create_attestation_request(self.nodes[1], 'QR')
 
-        self.nodes[1].start()
+        result = yield self.wait_for_outstanding_requests(self.nodes[0])
 
-        result = await self.wait_for_outstanding_requests(param_dict)
-
-        self.assertTrue(any((x[0] == y and x[1] == param_dict['attribute_name'] for x in result)
-                            for y in self.nodes[1].get_mids()),
+        mid = b64encode(self.nodes[1].my_peer.mid).decode('utf-8')
+        self.assertTrue(any((x[0] == mid and x[1] == 'QR' for x in result)),
                         "Could not find the outstanding request forwarded by the second peer")
 
     async def test_get_verification_output(self):
         """
         Test the (GET: verification output) request type
         """
-        param_dict = {
-            'port': self.nodes[0].port,
-            'interface': self.nodes[0].interface,
-            'endpoint': 'attestation',
-            'attribute_name': 'QR',
-            'attribute_value': string_to_url(b64encode(b'binarydata'), True),
-            'attribute_values': 'YXNk,YXNkMg==',
-            'metadata': b64encode(dumps({'psn': '1234567890'}).encode('utf-8'))
-        }
 
         # Forward the attestations to the well-known peer
-        await self.create_new_interactive_peer(RequesterRestTestPeer, None, param_dict.copy(), memory_dbs=True)
-        await self.introduce_nodes(IdentityCommunity)
-
-        self.nodes[1].start()
-
-        await self.attest_all_outstanding_requests(param_dict.copy())
+        await self.introduce_nodes()
+        await self.create_attestation_request(self.nodes[1], 'QR')
+        await self.attest_all_outstanding_requests(self.nodes[0], 'QR', b'data')
 
         # Get the hash of the attestation to be validated (the one which was just attested)
-        param_dict.update({'port': self.nodes[1].port, 'interface': self.nodes[1].interface})
-        attributes = await self._get_style_requests.make_attributes(param_dict)
-        param_dict.update({'port': self.nodes[0].port, 'interface': self.nodes[0].interface})
-
-        param_dict['attribute_hash'] = string_to_url(attributes[0][1])
+        attributes = await self.make_attributes(self.nodes[1])
+        attribute_hash = attributes[0][1]
 
         # Forward the actual verification
-        verification_responses = await self.verify_all_attestations(self.nodes[1].get_mids(), param_dict.copy())
-        verification_responses = [json.loads(response) for response in verification_responses]
+        verification_responses = await self.verify_all_attestations(self.nodes[0],
+                                                                    [self.nodes[1].my_peer.mid],
+                                                                    attribute_hash, 'YXNk,YXNkMg==')
         self.assertTrue(all("success" in x and x["success"] for x in verification_responses),
                         "At least one of the verification responses was non-empty.")
 
         # Unlock the verification
-        param_dict['port'] = self.nodes[1].port
-
-        outstanding_verifications = await self._get_style_requests.make_outstanding_verify(param_dict)
+        outstanding_verifications = await self.make_outstanding_verify(self.nodes[1])
         self.assertIsNotNone(outstanding_verifications, "Could not retrieve any outstanding verifications")
 
-        param_dict['mid'] = string_to_url(outstanding_verifications[0][0])
-
-        await self._post_style_requests.make_allow_verify(param_dict)
+        mid = outstanding_verifications[0][0]
+        await self.make_allow_verify(self.nodes[1], 'QR', mid)
         await sleep(.1)
 
-        param_dict['port'] = self.nodes[0].port
-
         # Get the output
-        verification_output = await self._get_style_requests.make_verification_output(param_dict)
-
+        verification_output = await self.make_verification_output(self.nodes[0])
         self.assertTrue([["YXNk", 0.0], ["YXNkMg==", 0.0]] in verification_output.values(),
                         "Something went wrong with the verification. Unexpected output values.")
 
@@ -250,76 +228,42 @@ class TestAttestationEndpoint(RESTTestBase):
         """
         Test the (GET: outstanding verify) request type
         """
-        param_dict = {
-            'port': self.nodes[0].port,
-            'interface': self.nodes[0].interface,
-            'endpoint': 'attestation',
-            'attribute_name': 'QR',
-            'attribute_value': string_to_url(b64encode(b'binarydata'), True),
-            'attribute_values': 'YXNk,YXNkMg==',
-            'metadata': b64encode(dumps({'psn': '1234567890'}).encode('utf-8'))
-        }
 
         # Forward the attestations to the well-known peer
-        await self.create_new_interactive_peer(RequesterRestTestPeer, None, param_dict.copy(), memory_dbs=True)
-        await self.introduce_nodes(IdentityCommunity)
-
-        self.nodes[1].start()
-
-        await self.attest_all_outstanding_requests(param_dict.copy())
+        await self.introduce_nodes()
+        await self.create_attestation_request(self.nodes[1], 'QR')
+        await self.attest_all_outstanding_requests(self.nodes[0], 'QR', b'data')
 
         # Get the hash of the attestation to be validated (the one which was just attested)
-        param_dict.update({'port': self.nodes[1].port, 'interface': self.nodes[1].interface})
-        attributes = await self._get_style_requests.make_attributes(param_dict)
-        param_dict.update({'port': self.nodes[0].port, 'interface': self.nodes[0].interface})
-
-        param_dict['attribute_hash'] = string_to_url(attributes[0][1])
+        attributes = await self.make_attributes(self.nodes[1])
+        attribute_hash = attributes[0][1]
 
         # Forward the actual verification
-        verification_responses = await self.verify_all_attestations(self.nodes[1].get_mids(), param_dict.copy())
-        verification_responses = [json.loads(response) for response in verification_responses]
+        verification_responses = await self.verify_all_attestations(self.nodes[0],
+                                                                    [self.nodes[1].my_peer.mid],
+                                                                    attribute_hash, 'YXNk,YXNkMg==')
         self.assertTrue(all("success" in x and x["success"] for x in verification_responses),
                         "At least one of the verification responses was non-empty.")
 
-        param_dict['port'] = self.nodes[1].port
-        result = await self._get_style_requests.make_outstanding_verify(param_dict)
+        result = await self.make_outstanding_verify(self.nodes[1])
 
         # Retrieve only the mids
-        result = [x[0].encode('utf-8') for x in result]
-
-        self.assertTrue(any(x in result for x in self.nodes[0].get_mids(False)), "Something went wrong. Could not "
-                                                                                 "find a master peer mid in the "
-                                                                                 "outstanding verification "
-                                                                                 "requests.")
+        result = [x[0] for x in result]
+        self.assertTrue(any(x in result for x in [b64encode(self.nodes[0].my_peer.mid).decode('utf-8')]),
+                        "Something went wrong. Could not find a master peer mid in the "
+                        "outstanding verification requests.")
 
     async def test_get_attributes(self):
         """
         Test the (GET: attributes) request type
         """
-        param_dict = {
-            'port': self.nodes[0].port,
-            'interface': self.nodes[0].interface,
-            'endpoint': 'attestation',
-            'attribute_name': 'QR',
-            'attribute_value': string_to_url(b64encode(b'binarydata'), True),
-            'attribute_values': 'YXNk,YXNkMg==',
-            'metadata': b64encode(dumps({'psn': '1234567890'}).encode('utf-8'))
-        }
-
-        # Forward the attestations to the well-known peer
-        await self.create_new_interactive_peer(RequesterRestTestPeer, None, param_dict.copy(), memory_dbs=True)
-        await self.introduce_nodes(IdentityCommunity)
-
-        self.nodes[1].start()
-
-        await self.attest_all_outstanding_requests(param_dict.copy())
+        await self.introduce_nodes()
+        await self.create_attestation_request(self.nodes[1], 'QR')
+        await self.attest_all_outstanding_requests(self.nodes[0], 'QR', b'data')
 
         # Get the hash of the attestation to be validated (the one which was just attested)
-        param_dict.update({'port': self.nodes[1].port, 'interface': self.nodes[1].interface})
-        attributes = await self._get_style_requests.make_attributes(param_dict)
-        param_dict.update({'port': self.nodes[0].port, 'interface': self.nodes[0].interface})
-
-        self.assertTrue(attributes[0][0] == param_dict['attribute_name'] and attributes[0][1] != "",
+        attributes = await self.make_attributes(self.nodes[1])
+        self.assertTrue(attributes[0][0] == 'QR' and attributes[0][1] != "",
                         "The response was not as expected. This would suggest that something went wrong with "
                         "the attributes request.")
 
@@ -327,163 +271,93 @@ class TestAttestationEndpoint(RESTTestBase):
         """
         Test the (GET: drop identity) request type
         """
-        param_dict = {
-            'port': self.nodes[0].port,
-            'interface': self.nodes[0].interface,
-            'endpoint': 'attestation',
-            'attribute_name': 'QR',
-            'attribute_value': string_to_url(b64encode(b'binarydata'), True),
-            'attribute_values': 'YXNk,YXNkMg==',
-            'metadata': b64encode(dumps({'psn': '1234567890'}).encode('utf-8'))
-        }
 
-        # Send a random attestation request to the well-known peer
-        await self.create_new_interactive_peer(RequesterRestTestPeer, None, param_dict.copy(), memory_dbs=True)
-        await self.introduce_nodes(IdentityCommunity)
-
-        self.nodes[1].start()
-
-        outstanding_requests = await self.wait_for_outstanding_requests(param_dict)
-
+        await self.introduce_nodes()
+        await self.create_attestation_request(self.nodes[1], 'QR')
+        outstanding_requests = await self.wait_for_outstanding_requests(self.nodes[0])
         self.assertFalse(outstanding_requests == [], "The attestation requests were not received.")
 
         # Ensure that no block/attestation exists
-        param_dict.update({'port': self.nodes[1].port, 'interface': self.nodes[1].interface})
-        attributes = await self._get_style_requests.make_attributes(param_dict)
-        param_dict.update({'port': self.nodes[0].port, 'interface': self.nodes[0].interface})
-
+        attributes = await self.make_attributes(self.nodes[1])
         self.assertEqual(attributes, [], "Something's wrong, there shouldn't be any blocks.")
 
         # Attest the outstanding request. This should mean that the attribute DB is non-empty in the well-known peer
-        await self.attest_all_outstanding_requests(param_dict)
+        await self.attest_all_outstanding_requests(self.nodes[0], 'QR', b'data')
 
         # Ensure that the attestation has been completed
-        param_dict.update({'port': self.nodes[1].port, 'interface': self.nodes[1].interface})
-        attributes = await self._get_style_requests.make_attributes(param_dict)
-        param_dict.update({'port': self.nodes[0].port, 'interface': self.nodes[0].interface})
-
+        attributes = await self.make_attributes(self.nodes[1])
         self.assertNotEqual(attributes, [], "Something's wrong, the attribute list should be non-empty.")
 
         # Drop the identity
-        result = await self._get_style_requests.make_drop_identity(param_dict)
-        json_response = json.loads(result)
-        self.assertIn("success", json_response, "The identity could not be dropped. Success parameter not in response.")
-        self.assertTrue(json_response["success"], "The identity could not be dropped, not successful.")
+        result = await self.make_drop_identity(self.nodes[0])
+        self.assertIn("success", result, "The identity could not be dropped. Success parameter not in response.")
+        self.assertTrue(result["success"], "The identity could not be dropped, not successful.")
 
         # Make sure the identity was successfully dropped
-        result = await self._get_style_requests.make_attributes(param_dict)
-        param_dict.update({'port': self.nodes[0].port, 'interface': self.nodes[0].interface})
-
+        result = await self.make_attributes(self.nodes[0])
         self.assertEqual(result, [], 'The identity could not be dropped. Block DB still populated.')
 
-        result = await self._get_style_requests.make_outstanding(param_dict)
+        result = await self.make_outstanding(self.nodes[0])
         self.assertEqual(result, [], 'The identity could not be dropped. Outstanding requests still remaining.')
 
     async def test_post_attestation_request(self):
         """
         Test the (POST: request) request type
         """
-        param_dict = {
-            'port': self.nodes[0].port,
-            'interface': self.nodes[0].interface,
-            'endpoint': 'attestation',
-            'attribute_name': 'QR',
-            'metadata': b64encode(dumps({'psn': '1234567890'}).encode('utf-8'))
-        }
 
         # This should return an empty response
-        outstanding_requests = await self._get_style_requests.make_outstanding(param_dict)
-
+        outstanding_requests = await self.make_outstanding(self.nodes[0])
         self.assertEqual(outstanding_requests, [], "Something went wrong, there should be no outstanding requests.")
 
-        await self.create_new_interactive_peer(RequesterRestTestPeer, None, param_dict.copy(), memory_dbs=True)
-        await self.introduce_nodes(IdentityCommunity)
-
-        self.nodes[1].start()
+        await self.introduce_nodes()
+        await self.create_attestation_request(self.nodes[1], 'QR')
 
         # This should return a non-empty response
-        outstanding_requests = await self.wait_for_outstanding_requests(param_dict)
+        outstanding_requests = await self.wait_for_outstanding_requests(self.nodes[0])
         self.assertFalse(outstanding_requests == [], "Something went wrong, no request was received.")
 
     async def test_post_attest(self):
         """
         Test the (POST: attest) request type
         """
-        param_dict = {
-            'port': self.nodes[0].port,
-            'interface': self.nodes[0].interface,
-            'endpoint': 'attestation',
-            'attribute_name': 'QR',
-            'attribute_value': string_to_url(b64encode(b'binarydata'), True),
-            'metadata': b64encode(dumps({'psn': '1234567890'}).encode('utf-8'))
-        }
 
-        await self.create_new_interactive_peer(RequesterRestTestPeer, None, param_dict.copy(), memory_dbs=True)
-        await self.introduce_nodes(IdentityCommunity)
+        await self.introduce_nodes()
+        await self.create_attestation_request(self.nodes[1], 'QR')
 
-        self.nodes[1].start()
-
-        param_dict['port'] = self.nodes[1].port
-        # attributes = await self._get_style_requests.make_attributes(param_dict)
-        param_dict.update({'port': self.nodes[1].port, 'interface': self.nodes[1].interface})
-        attributes = await self._get_style_requests.make_attributes(param_dict)
-        param_dict.update({'port': self.nodes[0].port, 'interface': self.nodes[0].interface})
-
+        attributes = await self.make_attributes(self.nodes[1])
         self.assertTrue(len(attributes) == 0, "There mustn't already be any attestations in the other peer.")
 
-        param_dict['port'] = self.nodes[0].port
-        responses = await self.attest_all_outstanding_requests(param_dict.copy())
-        request_responses = [json.loads(response) for response in responses[1]]
+        responses = await self.attest_all_outstanding_requests(self.nodes[0], 'QR', b'data')
+        request_responses = [response for response in responses[1]]
         self.assertTrue(all("success" in x and x["success"] for x in request_responses),
                         "Something went wrong, not all responses were successful.")
 
-        param_dict.update({'port': self.nodes[1].port, 'interface': self.nodes[1].interface})
-        attributes = await self._get_style_requests.make_attributes(param_dict)
-
+        attributes = await self.make_attributes(self.nodes[1])
         self.assertTrue(len(attributes) == 1, "There should only be one attestation in the DB.")
-        self.assertTrue(attributes[0][0] == param_dict['attribute_name'], "Expected attestation for %s, got it for "
-                                                                          "%s" % (param_dict['attribute_name'],
-                                                                                  attributes[0][0]))
+        self.assertTrue(attributes[0][0] == 'QR', "Expected attestation for %s, got it for "
+                                                  "%s" % ('QR', attributes[0][0]))
 
-        param_dict.update({'port': self.nodes[0].port, 'interface': self.nodes[0].interface})
-        attributes = await self._get_style_requests.make_attributes(param_dict)
+        attributes = await self.make_attributes(self.nodes[0])
         self.assertTrue(len(attributes) == 0, "There should be no attribute in the DB of the attester.")
 
     async def test_post_verify(self):
         """
         Test the (POST: verify) request type
         """
-        param_dict = {
-            'port': self.nodes[0].port,
-            'interface': self.nodes[0].interface,
-            'endpoint': 'attestation',
-            'attribute_name': 'QR',
-            'attribute_value': string_to_url(b64encode(b'binarydata'), True),
-            'attribute_values': 'YXNk,YXNkMg==',
-            'metadata': b64encode(dumps({'psn': '1234567890'}).encode('utf-8'))
-        }
 
         # Forward the attestations to the well-known peer
-        await self.create_new_interactive_peer(RequesterRestTestPeer, None, param_dict.copy(), memory_dbs=True)
-        await self.introduce_nodes(IdentityCommunity)
-
-        self.nodes[1].start()
-
-        await self.attest_all_outstanding_requests(param_dict.copy())
-
-        # Get the mids of the other peer
-        other_peer_mids = [string_to_url(b64encode(x.mid)) for x in self.nodes[1].get_keys().values()]
+        await self.introduce_nodes()
+        await self.create_attestation_request(self.nodes[1], 'QR')
+        await self.attest_all_outstanding_requests(self.nodes[0], 'QR', b'data')
 
         # Get the hash of the attestation to be validated (the one which was just attested)
-        param_dict.update({'port': self.nodes[1].port, 'interface': self.nodes[1].interface})
-        attributes = await self._get_style_requests.make_attributes(param_dict)
-        param_dict.update({'port': self.nodes[0].port, 'interface': self.nodes[0].interface})
-
-        param_dict['attribute_hash'] = string_to_url(attributes[0][1])
+        attributes = await self.make_attributes(self.nodes[1])
+        attribute_hash = attributes[0][1]
 
         # Forward the actual verification
-        verification_responses = await self.verify_all_attestations(other_peer_mids, param_dict.copy())
-        verification_responses = [json.loads(response) for response in verification_responses]
+        verification_responses = await self.verify_all_attestations(self.nodes[0],
+                                                                    [self.nodes[1].my_peer.mid],
+                                                                    attribute_hash, 'YXNk,YXNkMg==')
         self.assertTrue(all("success" in x and x["success"] for x in verification_responses),
                         "At least one of the verification responses was non-empty.")
 
@@ -491,46 +365,28 @@ class TestAttestationEndpoint(RESTTestBase):
         """
         Test the (POST: allow verify) request type
         """
-        param_dict = {
-            'port': self.nodes[0].port,
-            'interface': self.nodes[0].interface,
-            'endpoint': 'attestation',
-            'attribute_name': 'QR',
-            'attribute_value': string_to_url(b64encode(b'binarydata'), True),
-            'attribute_values': 'YXNk,YXNkMg==',
-            'metadata': b64encode(dumps({'psn': '1234567890'}).encode('utf-8'))
-        }
 
         # Forward the attestations to the well-known peer
-        await self.create_new_interactive_peer(RequesterRestTestPeer, None, param_dict.copy(), memory_dbs=True)
-        await self.introduce_nodes(IdentityCommunity)
-
-        self.nodes[1].start()
-
-        await self.attest_all_outstanding_requests(param_dict.copy())
+        await self.introduce_nodes()
+        await self.create_attestation_request(self.nodes[1], 'QR')
+        await self.attest_all_outstanding_requests(self.nodes[0], 'QR', b'data')
 
         # Get the hash of the attestation to be validated (the one which was just attested)
-        param_dict.update({'port': self.nodes[1].port, 'interface': self.nodes[1].interface})
-        attributes = await self._get_style_requests.make_attributes(param_dict)
-        param_dict.update({'port': self.nodes[0].port, 'interface': self.nodes[0].interface})
-
-        param_dict['attribute_hash'] = string_to_url(attributes[0][1])
+        attributes = await self.make_attributes(self.nodes[1])
+        attribute_hash = attributes[0][1]
 
         # Forward the actual verification
-        verification_responses = await self.verify_all_attestations(self.nodes[1].get_mids(), param_dict.copy())
-        verification_responses = [json.loads(response) for response in verification_responses]
+        verification_responses = await self.verify_all_attestations(self.nodes[0],
+                                                                    [self.nodes[1].my_peer.mid],
+                                                                    attribute_hash, 'YXNk,YXNkMg==')
         self.assertTrue(all("success" in x and x["success"] for x in verification_responses),
                         "At least one of the verification responses was non-empty.")
 
         # Unlock the verification
-        param_dict['port'] = self.nodes[1].port
-        outstanding_verifications = await self._get_style_requests.make_outstanding_verify(param_dict)
+        outstanding_verifications = await self.make_outstanding_verify(self.nodes[1])
         self.assertIsNotNone(outstanding_verifications, "Could not retrieve any outstanding verifications")
 
-        param_dict['mid'] = string_to_url(outstanding_verifications[0][0])
-
-        response = await self._post_style_requests.make_allow_verify(param_dict)
-        json_response = json.loads(response)
-
-        self.assertIn("success", json_response, "The attestion could not be unlocked: success not in JSON response")
-        self.assertTrue(json_response["success"], "The attestation could not be unlocked: not successful.")
+        mid = outstanding_verifications[0][0]
+        response = await self.make_allow_verify(self.nodes[1], 'QR', mid)
+        self.assertIn("success", response, "The attestion could not be unlocked: success not in JSON response")
+        self.assertTrue(response["success"], "The attestation could not be unlocked: not successful.")
