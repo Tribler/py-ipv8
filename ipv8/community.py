@@ -323,7 +323,7 @@ class Community(EZPackOverlay):
             try:
                 result = handler(source_address, data)
                 if iscoroutine(result):
-                    ensure_future(result)
+                    self.register_anonymous_task('on_packet', ensure_future(result))
             except:
                 self.logger.error("Exception occurred while handling packet!\n"
                                   + ''.join(format_exception(*sys.exc_info())))
