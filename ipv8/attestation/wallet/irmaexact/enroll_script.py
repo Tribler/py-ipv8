@@ -1,7 +1,6 @@
 import base64
 import binascii
 import json
-import random
 import sys
 import time
 
@@ -11,6 +10,7 @@ from PyQt5.QtWidgets import QApplication
 
 import urllib3
 
+from . import secure_randint
 from .gabi.attributes import make_attribute_list
 from .gabi.builder import BuildDistributedProofList, Challenge, CredentialBuilder, IssueCommitmentMessage, IssueSignatureMessage
 from .gabi.keys import CLSignature, DefaultSystemParameters
@@ -45,7 +45,7 @@ my_web.show()
 
 my_app.exec_()
 
-secret = random.randint(0, (1 << DefaultSystemParameters[1024].Lm) - 1)
+secret = secure_randint(DefaultSystemParameters[1024].Lm)
 
 no_pin = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\\n'
 
@@ -185,7 +185,7 @@ for i in range(len(cbs)):
     credential = cb.ConstructCredential(ism, attribute_ints)
     builder = credential.CreateDisclosureProofBuilder(list(range(1, len(attribute_ints) + 1)))
     builder.MergeProofPCommitment(ProofPCommitment(P, Pcommit))
-    commit_randomizer = random.randint(0, 1 << (nijmegen_pk.Params.LmCommit - 1))
+    commit_randomizer = secure_randint(nijmegen_pk.Params.LmCommit)
     A, Z = builder.Commit(commit_randomizer)
     p = builder.CreateProof(challenge)
     p.MergeProofP(proofP, nijmegen_pk)

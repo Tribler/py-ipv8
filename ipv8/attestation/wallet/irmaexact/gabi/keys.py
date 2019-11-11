@@ -8,10 +8,10 @@ The authors of this file are not -in any way- affiliated with the original autho
 
 from binascii import hexlify
 from os import urandom
-from random import randint
 
 from cryptography.hazmat.primitives.asymmetric.rsa import _modinv
 
+from .. import secure_randint
 from ...primitives.attestation import sha256_as_int
 from ...primitives.cryptography_wrapper import generate_safe_prime, is_prime
 from ...primitives.value import FP2Value
@@ -124,7 +124,7 @@ def GenerateKeyPair(param, numAttributes, counter, expiryDate):
     N = p * q
 
     while True:
-        S = randint(0, (1 << param.Ln) - 1)
+        S = secure_randint(param.Ln)
         if S > N:
             continue
         if legendreSymbol(S, p) == 1 and legendreSymbol(S, q) == 1:
@@ -132,7 +132,7 @@ def GenerateKeyPair(param, numAttributes, counter, expiryDate):
 
     primeSize = param.Ln // 2
     while True:
-        x = randint(0, (1 << primeSize) - 1)
+        x = secure_randint(primeSize)
         if x > 2 and x < N:
             break
 
@@ -142,7 +142,7 @@ def GenerateKeyPair(param, numAttributes, counter, expiryDate):
 
     for i in range(numAttributes):
         while True:
-            x = randint(0, (1 << primeSize) - 1)
+            x = secure_randint(primeSize)
             if x > 2 and x < N:
                 break
         R.append(FP2Value(N, S).intpow(x).a)
@@ -184,7 +184,7 @@ class CLSignature(object):
         return pk.Z == Q
 
     def Randomize(self, pk):
-        r = randint(0, 1 << (pk.Params.LRA - 1))
+        r = secure_randint(pk.Params.LRA)
         APrime = (FP2Value(pk.N, self.A) * FP2Value(pk.N, pk.S).intpow(r)).a
         t = self.E * r
         VPrime = self.V - t
@@ -242,7 +242,7 @@ def randomPrimeInRange(start, length):
 
 def signMessageBlockAndCommitment(sk, pk, U, ms):
     R = RepresentToPublicKey(pk, ms)
-    vTilde = randint(0, (1 << pk.Params.Lv) - 1)
+    vTilde = secure_randint(pk.Params.Lv)
     twoLv = 1 << (pk.Params.Lv - 1)
     v = twoLv + vTilde
 
