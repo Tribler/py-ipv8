@@ -109,6 +109,11 @@ class RequesterRestTestPeer(AECommonBehaviorTestPeer):
             self._logger.info("Sending an attestation request to %s", self._param_dict['mid'])
             await self._post_style_requests.make_attestation_request(self._param_dict)
 
+    async def unload(self):
+        await super(RequesterRestTestPeer, self).unload()
+        if self.loop:
+            self.loop.stop()
+
 
 class MinimalActivityRestTestPeer(AECommonBehaviorTestPeer):
     """

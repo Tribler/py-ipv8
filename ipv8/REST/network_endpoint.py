@@ -2,7 +2,12 @@ from base64 import b64encode
 
 from aiohttp import web
 
+from aiohttp_apispec import docs
+
+from marshmallow.fields import Integer, List, String
+
 from .base_endpoint import BaseEndpoint, Response
+from .schema import schema
 
 
 class NetworkEndpoint(BaseEndpoint):
@@ -13,6 +18,22 @@ class NetworkEndpoint(BaseEndpoint):
     def setup_routes(self):
         self.app.add_routes([web.get('', self.retrieve_peers)])
 
+    @docs(
+        tags=["Network"],
+        summary="Return a list of all known peers.",
+        responses={
+            200: {
+                "schema": schema(PeersResponse={
+                    "peers": [schema(Peer={
+                        "ip": String,
+                        "port": Integer,
+                        "public_key": String,
+                        "services": List(String),
+                    })]
+                })
+            }
+        }
+    )
     async def retrieve_peers(self, _):
         network = self.session.network
         peer_list = network.verified_peers[:]
