@@ -52,7 +52,7 @@ class TunnelEndpoint(BaseEndpoint):
             }
         }
     )
-    def get_circuits(self, _):
+    async def get_circuits(self, _):
         return Response({"circuits": [{
             "circuit_id": circuit.circuit_id,
             "goal_hops": circuit.goal_hops,
@@ -84,7 +84,7 @@ class TunnelEndpoint(BaseEndpoint):
             }
         }
     )
-    def get_relays(self, _):
+    async def get_relays(self, _):
         return Response({"relays": [{
             "circuit_from": circuit_from,
             "circuit_to": relay.circuit_id,
@@ -111,7 +111,7 @@ class TunnelEndpoint(BaseEndpoint):
             }
         }
     )
-    def get_exits(self, _):
+    async def get_exits(self, _):
         return Response({"exits": [{
             "circuit_from": circuit_from,
             "enabled": exit_socket.enabled,
@@ -140,7 +140,7 @@ class TunnelEndpoint(BaseEndpoint):
             }
         }
     )
-    def get_swarms(self, _):
+    async def get_swarms(self, _):
         return Response({"swarms": [{
             "info_hash": hexlify(swarm.info_hash).decode('utf-8'),
             "num_seeders": swarm.get_num_seeders(),

@@ -48,7 +48,7 @@ class NoBlockDHTEndpoint(BaseEndpoint):
             }
         }
     )
-    def handle_get(self, request):
+    async def handle_get(self, request):
         if not self.dht:
             return Response({"error": "DHT community not found"}, status=HTTP_NOT_FOUND)
 

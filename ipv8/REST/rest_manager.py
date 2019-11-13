@@ -47,11 +47,13 @@ class RESTManager:
         )
 
         from apispec.core import VALID_METHODS_OPENAPI_V2
-        VALID_METHODS_OPENAPI_V2.remove('head')
+        if 'head' in VALID_METHODS_OPENAPI_V2:
+            VALID_METHODS_OPENAPI_V2.remove('head')
 
         runner = web.AppRunner(root_endpoint.app, access_log=None)
         await runner.setup()
-        self.site = web.TCPSite(runner, 'localhost', port)
+        # If localhost is used as hostname, it will randomly either use 127.0.0.1 or ::1
+        self.site = web.TCPSite(runner, '127.0.0.1', port)
         await self.site.start()
 
     async def stop(self):

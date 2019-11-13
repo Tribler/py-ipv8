@@ -41,7 +41,7 @@ class OverlaysEndpoint(BaseEndpoint):
             }
         }
     )
-    def get_overlays(self, _):
+    async def get_overlays(self, _):
         overlay_stats = []
         for overlay in self.session.overlays:
             peers = overlay.get_peers()
@@ -71,7 +71,7 @@ class OverlaysEndpoint(BaseEndpoint):
             }
         }
     )
-    def get_statistics(self, _):
+    async def get_statistics(self, _):
         overlay_stats = []
         for overlay in self.session.overlays:
             statistics = self.session.endpoint.get_statistics(overlay.get_prefix()) if self.statistics_supported else {}
