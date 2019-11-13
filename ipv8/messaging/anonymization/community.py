@@ -3,7 +3,7 @@ The tunnel community.
 
 Author(s): Egbert Bouman
 """
-from asyncio import coroutine, ensure_future, iscoroutine
+from asyncio import ensure_future, iscoroutine
 from binascii import unhexlify
 
 from .caches import *
@@ -168,8 +168,8 @@ class TunnelCommunity(Community):
             self.endpoint.set_tunnel_community(self)
             self.endpoint.set_anonymity(self._prefix, False)
 
-        self.register_task("do_circuits", coroutine(self.do_circuits), interval=5, delay=0)
-        self.register_task("do_ping", coroutine(self.do_ping), interval=PING_INTERVAL)
+        self.register_task("do_circuits", self.do_circuits, interval=5, delay=0)
+        self.register_task("do_ping", self.do_ping, interval=PING_INTERVAL)
 
     async def unload(self):
         # Remove all circuits/relays/exitsockets
@@ -381,7 +381,7 @@ class TunnelCommunity(Community):
             remove_circuit_info()
         elif not self.is_pending_task_active("remove_circuit_%s" % circuit_id):
             self.register_task("remove_circuit_%s" % circuit_id,
-                               coroutine(remove_circuit_info), delay=self.settings.remove_tunnel_delay)
+                               remove_circuit_info, delay=self.settings.remove_tunnel_delay)
 
         return remove_future
 
@@ -421,7 +421,7 @@ class TunnelCommunity(Community):
                 remove_relay_info(cid)
             elif not self.is_pending_task_active("remove_relay_%s" % cid):
                 self.register_task("remove_relay_%s" % cid,
-                                   coroutine(lambda cid_copy=cid: remove_relay_info(cid_copy)),
+                                   lambda cid_copy=cid: remove_relay_info(cid_copy),
                                    delay=self.settings.remove_tunnel_delay)
 
         return removed_relays
@@ -688,7 +688,7 @@ class TunnelCommunity(Community):
                 handler = self.decode_map_private[msg_id]
                 result = handler(source_address, data, circuit_id)
                 if iscoroutine(result):
-                    ensure_future(result)
+                    self.register_anonymous_task('on_packet_from_circuit', ensure_future(result))
             except:
                 self.logger.error("Exception occurred while handling packet!\n"
                                   + ''.join(format_exception(*sys.exc_info())))

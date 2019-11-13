@@ -9,7 +9,7 @@ import random
 import signal
 import sys
 import time
-from asyncio import all_tasks, coroutine, ensure_future, gather, get_event_loop, sleep
+from asyncio import ensure_future, get_event_loop, sleep
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
@@ -46,7 +46,7 @@ class EndpointServer(Community):
         self.signature_length = default_eccrypto.get_signature_length(my_peer.public_key)
         super(EndpointServer, self).__init__(my_peer, endpoint, Network())
         self.churn_strategy = SimpleChurn(self)
-        self.churn_task = self.register_task("churn", coroutine(self.churn_strategy.take_step), interval=30)
+        self.churn_task = self.register_task("churn", self.churn_strategy.take_step, interval=30)
 
     def on_packet(self, packet, warn_unknown=False):
         source_address, data = packet
@@ -116,7 +116,7 @@ class TrackerService(object):
                 get_event_loop().stop()
 
         signal.signal(signal.SIGINT, lambda sig, _: ensure_future(signal_handler(sig)))
-        signal.signal(signal.SIGTERM, lambda sign, _: ensure_future(signal_handler(sig)))
+        signal.signal(signal.SIGTERM, lambda sig, _: ensure_future(signal_handler(sig)))
 
         print("Started tracker")
 
