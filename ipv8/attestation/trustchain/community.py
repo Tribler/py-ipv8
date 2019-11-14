@@ -6,7 +6,7 @@ Every node has a chain and these chains intertwine by blocks shared by chains.
 import logging
 import random
 import struct
-from asyncio import Future, coroutine, ensure_future, get_event_loop
+from asyncio import Future, ensure_future, get_event_loop
 from binascii import hexlify, unhexlify
 from functools import wraps
 from threading import RLock
@@ -61,7 +61,7 @@ class TrustChainCommunity(Community):
                           hexlify(self.my_peer.public_key.key_to_bin()))
         self.shutting_down = False
         self.listeners_map = {}  # Map of block_type -> [callbacks]
-        self.register_task("db_cleanup", coroutine(self.do_db_cleanup), interval=600)
+        self.register_task("db_cleanup", self.do_db_cleanup, interval=600)
 
         self.decode_map.update({
             chr(1): self.received_half_block,

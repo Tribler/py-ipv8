@@ -1,7 +1,7 @@
 import hashlib
 import os
 import time
-from asyncio import Future, coroutine, ensure_future, gather
+from asyncio import Future, ensure_future, gather
 from binascii import hexlify, unhexlify
 from collections import defaultdict, deque
 from itertools import zip_longest
@@ -100,7 +100,7 @@ class DHTCommunity(Community):
         self.tokens = {}
         self.token_secrets = deque(maxlen=2)
         self.register_task('value_maintenance', self.value_maintenance, interval=3600)
-        self.register_task('token_maintenance', coroutine(self.token_maintenance), interval=300, delay=0)
+        self.register_task('token_maintenance', self.token_maintenance, interval=300, delay=0)
 
         # Register messages
         self.decode_map.update({

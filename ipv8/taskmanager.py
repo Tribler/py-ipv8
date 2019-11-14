@@ -1,12 +1,9 @@
 import logging
-from asyncio import CancelledError, Future, Task, ensure_future, gather, iscoroutinefunction, sleep
+from asyncio import CancelledError, Future, Task, coroutine, ensure_future, gather, iscoroutinefunction, sleep
 from contextlib import suppress
-from inspect import isgeneratorfunction
 from threading import RLock
 
 from .util import succeed
-
-CLEANUP_FREQUENCY = 100
 
 
 async def interval_runner(delay, interval, task, *args, **kwargs):
@@ -29,7 +26,6 @@ class TaskManager(object):
 
     def __init__(self):
         self._pending_tasks = {}
-        self._cleanup_counter = CLEANUP_FREQUENCY
         self._task_lock = RLock()
         self._shutdown = False
         self._logger = logging.getLogger(self.__class__.__name__)
@@ -49,14 +45,14 @@ class TaskManager(object):
         cancel_future.add_done_callback(cancel_cb)
         return new_task
 
-    def register_task(self, name, task, *args, delay=None, interval=None):
+    def register_task(self, name, task, *args, delay=None, interval=None, **kwargs):
         """
-        Register a coroutine/Task so it can be canceled at shutdown time or by name.
+        Register a Task/(coroutine)function so it can be canceled at shutdown time or by name.
         """
-        if not isinstance(task, (Task, Future)) and not iscoroutinefunction(task) and not isgeneratorfunction(task):
-            raise ValueError('Register_task takes a coroutine/generator function or a Task/Future as a parameter')
-        if (interval or delay) and isinstance(task, (Task, Future)):
-            raise ValueError('Cannot run Task/Future at an interval or with a delay')
+        if not isinstance(task, Task) and not iscoroutinefunction(task) and not callable(task):
+            raise ValueError('Register_task takes a Task or a (coroutine)function as a parameter')
+        if (interval or delay) and isinstance(task, Task):
+            raise ValueError('Cannot run Task at an interval or with a delay')
 
         with self._task_lock:
             if self._shutdown:
@@ -70,20 +66,21 @@ class TaskManager(object):
             if self.is_pending_task_active(name):
                 raise RuntimeError("Task already exists: '%s'" % name)
 
-            if iscoroutinefunction(task) or isgeneratorfunction(task):
+            if iscoroutinefunction(task) or callable(task):
+                task = task if iscoroutinefunction(task) else coroutine(task)
                 if interval:
                     # The default delay for looping calls is the same as the interval
                     delay = interval if delay is None else delay
-                    task = ensure_future(interval_runner(delay, interval, task, *args))
+                    task = ensure_future(interval_runner(delay, interval, task, *args, **kwargs))
                 elif delay:
-                    task = ensure_future(delay_runner(delay, task, *args))
+                    task = ensure_future(delay_runner(delay, task, *args, **kwargs))
                 else:
-                    task = ensure_future(task(*args))
+                    task = ensure_future(task(*args, **kwargs))
 
-            assert isinstance(task, (Task, Future))
+            assert isinstance(task, Task)
 
-            self._maybe_clean_task_list()
             self._pending_tasks[name] = task
+            task.add_done_callback(lambda f: self._pending_tasks.pop(name, None))
             return task
 
     def register_anonymous_task(self, basename, task, *args, delay=None, interval=None):
@@ -97,8 +94,6 @@ class TaskManager(object):
         Cancels the named task
         """
         with self._task_lock:
-            self._maybe_clean_task_list()
-
             task = self._pending_tasks.get(name, None)
             if not task:
                 return succeed(None)
@@ -135,8 +130,7 @@ class TaskManager(object):
         Returns a list of all registered tasks.
         """
         with self._task_lock:
-            self._maybe_clean_task_list()
-            return list(self._iter_tasks())
+            return list(self._pending_tasks.values())
 
     async def wait_for_tasks(self):
         """
@@ -147,30 +141,12 @@ class TaskManager(object):
             if tasks:
                 await gather(*tasks)
 
-    def _iter_tasks(self):
-        with self._task_lock:
-            for task in self._pending_tasks.values():
-                yield task
-
     def _get_isactive_stopper(self, task):
         """
         Return a boolean determining if a task is active and its cancel/stop method if the task is registered.
         """
         with self._task_lock:
             return not task.done(), task.cancel
-
-    def _maybe_clean_task_list(self):
-        """
-        Removes finished tasks from the task list.
-        """
-        with self._task_lock:
-            if self._cleanup_counter:
-                self._cleanup_counter -= 1
-            else:
-                self._cleanup_counter = CLEANUP_FREQUENCY
-                for name in list(self._pending_tasks.keys()):
-                    if not self.is_pending_task_active(name):
-                        self._pending_tasks.pop(name, None)
 
     async def shutdown_task_manager(self):
         """

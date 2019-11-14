@@ -1,5 +1,5 @@
 import logging
-from asyncio import CancelledError, coroutine, gather
+from asyncio import CancelledError, gather
 from contextlib import suppress
 from random import random
 from threading import Lock
@@ -101,7 +101,7 @@ class RequestCache(TaskManager):
             else:
                 self._logger.debug("add %s", cache)
                 self._identifiers[identifier] = cache
-                self.register_task(cache, coroutine(lambda: self._on_timeout(cache)), delay=cache.timeout_delay)
+                self.register_task(cache, lambda: self._on_timeout(cache), delay=cache.timeout_delay)
                 return cache
 
     def has(self, prefix, number):

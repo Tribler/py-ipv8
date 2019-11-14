@@ -452,7 +452,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         if callback:
             result = callback((self.circuit_id_to_ip(circuit.circuit_id), CIRCUIT_ID_PORT))
             if iscoroutine(result):
-                ensure_future(result)
+                self.register_anonymous_task('e2e_callback', ensure_future(result))
         else:
             self.logger.error('On linked e2e: could not find download for %s!', cache.info_hash)
 
