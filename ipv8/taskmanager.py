@@ -6,16 +6,16 @@ from threading import RLock
 from .util import succeed
 
 
-async def interval_runner(delay, interval, task, *args, **kwargs):
+async def interval_runner(delay, interval, task, *args):
     await sleep(delay)
     while True:
-        await task(*args, **kwargs)
+        await task(*args)
         await sleep(interval)
 
 
-async def delay_runner(delay, task, *args, **kwargs):
+async def delay_runner(delay, task, *args):
     await sleep(delay)
-    await task(*args, **kwargs)
+    await task(*args)
 
 
 class TaskManager(object):
@@ -36,16 +36,17 @@ class TaskManager(object):
         """
         new_task = Future()
 
-        def cancel_cb(cancelled_future):
-            with suppress(CancelledError):
-                cancelled_future.result()
-            new_task.set_result(self.register_task(name, *args, **kwargs))
+        def cancel_cb(_):
+            try:
+                new_task.set_result(self.register_task(name, *args, **kwargs))
+            except Exception as e:
+                new_task.set_exception(e)
 
-        cancel_future = self.cancel_pending_task(name)
-        cancel_future.add_done_callback(cancel_cb)
+        old_task = self.cancel_pending_task(name)
+        old_task.add_done_callback(cancel_cb)
         return new_task
 
-    def register_task(self, name, task, *args, delay=None, interval=None, **kwargs):
+    def register_task(self, name, task, *args, delay=None, interval=None, ignore=()):
         """
         Register a Task/(coroutine)function so it can be canceled at shutdown time or by name.
         """
@@ -53,6 +54,8 @@ class TaskManager(object):
             raise ValueError('Register_task takes a Task or a (coroutine)function as a parameter')
         if (interval or delay) and isinstance(task, Task):
             raise ValueError('Cannot run Task at an interval or with a delay')
+        if not isinstance(ignore, tuple) or not all((issubclass(e, Exception) for e in ignore)):
+            raise ValueError('Ignore should be a tuple of Exceptions or None')
 
         with self._task_lock:
             if self._shutdown:
@@ -71,23 +74,32 @@ class TaskManager(object):
                 if interval:
                     # The default delay for looping calls is the same as the interval
                     delay = interval if delay is None else delay
-                    task = ensure_future(interval_runner(delay, interval, task, *args, **kwargs))
+                    task = ensure_future(interval_runner(delay, interval, task, *args))
                 elif delay:
-                    task = ensure_future(delay_runner(delay, task, *args, **kwargs))
+                    task = ensure_future(delay_runner(delay, task, *args))
                 else:
-                    task = ensure_future(task(*args, **kwargs))
+                    task = ensure_future(task(*args))
 
             assert isinstance(task, Task)
 
+            def done_cb(future):
+                self._pending_tasks.pop(name, None)
+                try:
+                    future.result()
+                except CancelledError:
+                    pass
+                except ignore as e:
+                    self._logger.error('Task resulted in error: %s', e)
+
             self._pending_tasks[name] = task
-            task.add_done_callback(lambda f: self._pending_tasks.pop(name, None))
+            task.add_done_callback(done_cb)
             return task
 
-    def register_anonymous_task(self, basename, task, *args, delay=None, interval=None):
+    def register_anonymous_task(self, basename, task, *args, **kwargs):
         """
         Wrapper for register_task to derive a unique name from the basename.
         """
-        return self.register_task(basename + str(id(task)), task, *args, delay=delay, interval=interval)
+        return self.register_task(basename + str(id(task)), task, *args, **kwargs)
 
     def cancel_pending_task(self, name):
         """
@@ -100,10 +112,6 @@ class TaskManager(object):
 
             is_active, stopfn = self._get_isactive_stopper(task)
             if is_active and stopfn:
-                def done_cb(future):
-                    with suppress(CancelledError):
-                        future.result()
-                task.add_done_callback(done_cb)
                 stopfn()
                 self._pending_tasks.pop(name, None)
             return task
@@ -139,7 +147,7 @@ class TaskManager(object):
         with self._task_lock:
             tasks = self.get_tasks()
             if tasks:
-                await gather(*tasks)
+                await gather(*tasks, return_exceptions=True)
 
     def _get_isactive_stopper(self, task):
         """
@@ -154,9 +162,9 @@ class TaskManager(object):
         """
         with self._task_lock:
             self._shutdown = True
-            with suppress(CancelledError):
-                tasks = self.cancel_all_pending_tasks()
-                if tasks:
+            tasks = self.cancel_all_pending_tasks()
+            if tasks:
+                with suppress(CancelledError):
                     await gather(*tasks)
 
 

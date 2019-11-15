@@ -1,4 +1,5 @@
-from asyncio import coroutine, ensure_future, sleep
+from asyncio import coroutine, ensure_future, get_event_loop, sleep
+from contextlib import suppress
 
 from .base import TestBase
 from ..taskmanager import TaskManager
@@ -37,6 +38,10 @@ class TestTaskManager(TestBase):
         self.assertTrue(self.tm.is_pending_task_active("test"))
         self.assertFalse(task.done())
 
+    async def test_replace_with_error(self):
+        with self.assertRaises(ValueError):
+            await self.tm.replace_task("test", "bad argument", delay=10)
+
     def test_looping_call(self):
         self.tm.register_task("test", lambda: None, interval=10)
         self.assertTrue(self.tm.is_pending_task_active("test"))
@@ -58,7 +63,6 @@ class TestTaskManager(TestBase):
         self.assertFalse(self.tm.is_pending_task_active("test"))
 
     async def test_delayed_looping_call_register_wait_and_cancel(self):
-        # TODO:
         self.assertFalse(self.tm.is_pending_task_active("test"))
         self.tm.register_task("test", self.count, interval=.1)
         self.assertTrue(self.tm.is_pending_task_active("test"))
@@ -84,7 +88,7 @@ class TestTaskManager(TestBase):
         self.assertEqual(2, len(self.tm.get_tasks()))
         self.tm.cancel_all_pending_tasks()
 
-    def test_duplicate_anon_task_deferred(self):
+    def test_duplicate_anon_task(self):
         task = lambda: None
         self.tm.register_anonymous_task("test", task)
         with self.assertRaises(RuntimeError):
@@ -113,6 +117,26 @@ class TestTaskManager(TestBase):
         await self.tm.register_anonymous_task("test", lambda: None)
         self.tm.register_anonymous_task("test", sleep, 10)
         self.assertEqual(1, len(self.tm.get_tasks()))
+
+    async def test_task_with_exception(self):
+        def exception_handler(_, __):
+            exception_handler.called = True
+        exception_handler.called = False
+
+        get_event_loop().set_exception_handler(exception_handler)
+        with suppress(ZeroDivisionError):
+            await self.tm.register_task('test', lambda: 1 / 0)
+        self.assertTrue(exception_handler.called)
+
+    async def test_task_with_exception_ignore(self):
+        def exception_handler(_, __):
+            exception_handler.called = True
+        exception_handler.called = False
+
+        get_event_loop().set_exception_handler(exception_handler)
+        with suppress(ZeroDivisionError):
+            await self.tm.register_task('test', lambda: 1 / 0, ignore=(ZeroDivisionError,))
+        self.assertFalse(exception_handler.called)
 
     def count(self):
         self.counter += 1
