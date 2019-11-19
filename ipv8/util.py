@@ -2,7 +2,7 @@ import logging
 import math
 import operator
 import struct
-from asyncio import Future, coroutine, ensure_future, iscoroutine
+from asyncio import Future, iscoroutine
 
 logger = logging.getLogger(__name__)
 maximum_integer = 2147483647
@@ -35,11 +35,3 @@ def maybe_coroutine(func, *args, **kwargs):
     async def coro():
         return value
     return coro()
-
-
-def call_later(delay, func, *args, **kwargs):
-    if not iscoroutine(func):
-        func = coroutine(func)
-
-    from ipv8.taskmanager import delay_runner
-    return ensure_future(delay_runner(delay, func, *args, **kwargs))
