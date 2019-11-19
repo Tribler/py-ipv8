@@ -39,7 +39,7 @@ Each instance will have two fields: ``field1`` and ``field2`` corresponding to t
 .. code-block:: python
 
     class MySerializable(Serializable):
-        
+
         format_list = ['I']
         optional_format_list = ['H']
 
@@ -59,7 +59,7 @@ Each instance will have two fields: ``field1`` and ``field2`` corresponding to t
 
 
     class MyPayload(Payload):
-        
+
         format_list = ['I']
         optional_format_list = ['H']
 
@@ -79,7 +79,14 @@ Each instance will have two fields: ``field1`` and ``field2`` corresponding to t
 
 
     class MyVariablePayload(VariablePayload):
-        
+
+        format_list = ['I']
+        optional_format_list = ['H']
+        names = ['field1', 'field2']
+
+    @vp_compile
+    class MyCVariablePayload(VariablePayload):
+
         format_list = ['I']
         optional_format_list = ['H']
         names = ['field1', 'field2']
@@ -93,58 +100,70 @@ To show some of the differences, let's check out the output of the following scr
     serializable1 = MySerializable(1)
     serializable2 = MyPayload(1)
     serializable3 = MyVariablePayload(1)
+    serializable4 = MyCVariablePayload(1)
 
     print("As string:")
     print(serializable1)
     print(serializable2)
     print(serializable3)
+    print(serializable4)
 
     print("Field values:")
     print(serializable1.field1, serializable1.field2)
     print(serializable2.field1, serializable2.field2)
     print(serializable3.field1, getattr(serializable3, 'field2', '<undefined>'))
+    print(serializable4.field1, getattr(serializable4, 'field2', '<undefined>'))
 
     print("Serialization speed:")
     print(timeit.timeit('serializable1.to_pack_list()', number=1000, globals=locals()))
     print(timeit.timeit('serializable2.to_pack_list()', number=1000, globals=locals()))
     print(timeit.timeit('serializable3.to_pack_list()', number=1000, globals=locals()))
+    print(timeit.timeit('serializable4.to_pack_list()', number=1000, globals=locals()))
 
     print("Unserialization speed:")
     print(timeit.timeit('serializable1.from_unpack_list(1, 2)', number=1000, globals=locals()))
     print(timeit.timeit('serializable2.from_unpack_list(1, 2)', number=1000, globals=locals()))
     print(timeit.timeit('serializable3.from_unpack_list(1, 2)', number=1000, globals=locals()))
+    print(timeit.timeit('serializable4.from_unpack_list(1, 2)', number=1000, globals=locals()))
 
     print("Unserialization speed w/o optional:")
     print(timeit.timeit('serializable1.from_unpack_list(1)', number=1000, globals=locals()))
     print(timeit.timeit('serializable2.from_unpack_list(1)', number=1000, globals=locals()))
     print(timeit.timeit('serializable3.from_unpack_list(1)', number=1000, globals=locals()))
+    print(timeit.timeit('serializable4.from_unpack_list(1)', number=1000, globals=locals()))
 
 
 .. code-block:: bash
 
     As string:
-    <__main__.MySerializable object at 0x7f1e25331828>
+    <__main__.MySerializable object at 0x7fb493a8b1d0>
     MyPayload
     | field1: 1
     | field2: None
     MyVariablePayload
     | field1: 1
+    MyCVariablePayload
+    | field1: 1
     Field values:
     1 None
     1 None
     1 <undefined>
+    1 <undefined>
     Serialization speed:
-    0.000744990999919537
-    0.0007516030000260798
-    0.006438396999328688
+    0.0007182089993875707
+    0.0007311019999178825
+    0.006567462998646079
+    0.0008536430013919016
     Unserialization speed:
-    0.001271658999939973
-    0.0012590780006576097
-    0.021930812000391597
+    0.0013339410015760222
+    0.0014789169999858132
+    0.01917448600033822
+    0.0028652559994952753
     Unserialization speed w/o optional:
-    0.0012806849999833503
-    0.00126321699917753
-    0.014179239999975835
+    0.001269377000426175
+    0.0012895309992018156
+    0.014515060998746776
+    0.0018252249992656289
 
 .. _Datatypes Section:
 
