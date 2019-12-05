@@ -24,7 +24,7 @@ class TrustchainEndpoint(BaseEndpoint):
         self.app.add_routes([web.get('/recent', self.get_recent_blocks),
                              web.get('/blocks/{block_hash}', self.get_block),
                              web.get('/users', self.get_users),
-                             web.get('/users/{pub_key}', self.get_blocks_for_user)])
+                             web.get('/users/{pub_key}/blocks', self.get_blocks_for_user)])
 
     def initialize(self, session):
         super(TrustchainEndpoint, self).initialize(session)
