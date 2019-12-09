@@ -52,7 +52,8 @@ class TestPeer(unittest.TestCase):
         """
         other = Peer(self.peer.key, self.peer.address)
 
-        self.assertEqual(self.peer, other)
+        self.assertTrue(self.peer == other)
+        self.assertFalse(self.peer != other)
 
     def test_peer_inequality_key(self):
         """
