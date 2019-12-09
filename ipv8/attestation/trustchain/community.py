@@ -388,32 +388,34 @@ class TrustChainCommunity(Community):
 
         self.logger.info("Received request block addressed to us (%s)", blk)
 
-        def on_should_sign_outcome(should_sign):
-            if not should_sign:
-                self.logger.info("Not signing block %s", blk)
-                return succeed(None)
-
-            # It is important that the request matches up with its previous block, gaps cannot be tolerated at
-            # this point. We already dropped invalids, so here we delay this message if the result is partial,
-            # partial_previous or no-info. We send a crawl request to the requester to (hopefully) close the gap
-            if (validation[0] == ValidationResult.partial_previous or validation[0] == ValidationResult.partial
-                    or validation[0] == ValidationResult.no_info) and self.settings.validation_range > 0:
-                self.logger.info("Request block could not be validated sufficiently, crawling requester. %s",
-                                 validation)
-                # Note that this code does not cover the scenario where we obtain this block indirectly.
-                if not self.request_cache.has(u"crawl", blk.hash_number):
-                    crawl_deferred = self.send_crawl_request(peer,
-                                                             blk.public_key,
-                                                             max(GENESIS_SEQ, (blk.sequence_number
-                                                                               - self.settings.validation_range)),
-                                                             max(GENESIS_SEQ, blk.sequence_number - 1),
-                                                             for_half_block=blk)
-                    return addCallback(crawl_deferred, lambda _: self.process_half_block(blk, peer))
-            else:
-                return self.sign_block(peer, linked=blk)
-
         # determine if we want to sign this block
-        return addCallback(maybeDeferred(self.should_sign, blk), on_should_sign_outcome)
+        return addCallback(maybeDeferred(self.should_sign, blk),
+                           lambda should_sign, blk=blk, peer=peer, validation=validation:
+                           self.on_should_sign_outcome(should_sign, blk, peer, validation))
+
+    def on_should_sign_outcome(self, should_sign, blk, peer, validation):
+        if not should_sign:
+            self.logger.info("Not signing block %s", blk)
+            return succeed(None)
+
+        # It is important that the request matches up with its previous block, gaps cannot be tolerated at
+        # this point. We already dropped invalids, so here we delay this message if the result is partial,
+        # partial_previous or no-info. We send a crawl request to the requester to (hopefully) close the gap
+        if (validation[0] == ValidationResult.partial_previous or validation[0] == ValidationResult.partial
+                or validation[0] == ValidationResult.no_info) and self.settings.validation_range > 0:
+            self.logger.info("Request block could not be validated sufficiently, crawling requester. %s",
+                             validation)
+            # Note that this code does not cover the scenario where we obtain this block indirectly.
+            if not self.request_cache.has(u"crawl", blk.hash_number):
+                crawl_deferred = self.send_crawl_request(peer,
+                                                         blk.public_key,
+                                                         max(GENESIS_SEQ, (blk.sequence_number
+                                                                           - self.settings.validation_range)),
+                                                         max(GENESIS_SEQ, blk.sequence_number - 1),
+                                                         for_half_block=blk)
+                return addCallback(crawl_deferred, lambda _: self.process_half_block(blk, peer))
+        else:
+            return self.sign_block(peer, linked=blk)
 
     def crawl_chain(self, peer, latest_block_num=0):
         """
