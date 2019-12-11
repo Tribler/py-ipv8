@@ -265,7 +265,7 @@ class TunnelCommunity(Community):
         return self.settings.max_time
 
     def find_circuits(self, ctype=CIRCUIT_TYPE_DATA, state=CIRCUIT_STATE_READY, hops=None):
-        return [c for c in self.circuits.values()
+        return [c for c in list(self.circuits.values())
                 if (state is None or c.state == state)
                 and (ctype is None or c.ctype == ctype)
                 and (hops is None or hops == c.goal_hops)]
@@ -314,7 +314,7 @@ class TunnelCommunity(Community):
             self.logger.info("Look for a first hop that is not an exit node and is not used before")
             # First build a list of hops, then filter the list. Avoids issues when create_circuit is called
             # from a different thread (caused by circuit.peer being reset to None).
-            first_hops = [c.peer for c in self.circuits.values()]
+            first_hops = [c.peer for c in list(self.circuits.values())]
             first_hops = {h.address for h in first_hops if h}
             possible_first_hops = [c for c in relay_candidates if c.address not in first_hops
                                    and c.address != required_exit.address]
