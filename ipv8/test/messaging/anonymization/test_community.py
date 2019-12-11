@@ -27,8 +27,7 @@ class MockDHTProvider(object):
         return await self.lookup(mid)
 
     async def lookup(self, info_hash):
-        if info_hash in global_dht_services:
-            return (info_hash, global_dht_services[info_hash])
+        return info_hash, global_dht_services.get(info_hash, [])
 
     async def announce(self, info_hash, intro_point):
         global_dht_services[info_hash].append(intro_point)
