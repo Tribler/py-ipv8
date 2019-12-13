@@ -4,7 +4,30 @@ TrustChain
 This document entails a high-level overview of the implementation of TrustChain in IPv8.
 TrustChain is a scalable, tamper-proof and distributed ledger, built for secure accounting.
 For more information about TrustChain itself, we refer to our `IETF internet standard <https://tools.ietf.org/html/draft-pouwelse-trustchain-01>`_.
-Additional information can be found `in our published scientific article <https://www.sciencedirect.com/science/article/pii/S0167739X17318988>`_.
+Additional information can be found `in our published scientific article <https://www.sciencedirect.com/science/article/pii/S0167739X17318988>`_ and our ` vision paper describing various applications using TrustChain <http://pure.tudelft.nl/ws/files/41225519/article.pdf>`_.
+
+Overview
+--------
+
+The key idea of TrustChain is that each peer maintains its own *individual ledger* with transaction.
+A transaction between two peers consists of two types of blocks: a *proposal* block, created by the initiator of the transaction, and an *agreement* block, created by the counterparty.
+The TrustChain implementation refers to these blocks as *half blocks*.
+During a transaction, a peer adds local information regarding a transaction to a half block, and commits to this information by adding its digital signature to the half block.
+
+A transaction between peer A and B proceeds as follows.
+First, peer A creates a *proposal* block, digitally signs it, and sends the proposal block to peer B.
+When peer B receives the proposal block, it assesses the validity of the proposal block and inspects the transaction content.
+If peer B does not agree with the transaction data, it ignores the received block.
+Otherwise, peer B creates an *agreement* block, digitally signs it, and sends it back to peer A.
+Agreement of both parties can now be proven to other peers by revealing the block created by peers A and B.
+
+Newly created blocks are immediately appended to the individual ledger of their creator.
+Each individual ledger contains all transactions that a specific peer participated in, in chronological order.
+Each block, except for the first block in the individual ledger, contains a pointer to the prior block.
+Modifications of the individual ledger can be detected and proven by transaction counterparties.
+
+Implementation
+--------------
 
 The TrustChain implementation is provided in 4 files:
 
