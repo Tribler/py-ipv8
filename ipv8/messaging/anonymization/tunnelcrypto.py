@@ -38,12 +38,12 @@ class TunnelCrypto(ECCrypto):
         Y = tmp_key.key.pk
         shared_secret = libnacl.crypto_box_beforenm(dh_received, y) + libnacl.crypto_box_beforenm(dh_received, key.key.sk)
 
-        AUTH = libnacl.crypto_auth(Y, shared_secret)
+        AUTH = libnacl.crypto_auth(Y, shared_secret[:32])
         return shared_secret, Y, AUTH
 
     def verify_and_generate_shared_secret(self, dh_secret, dh_received, auth, B):
         shared_secret = libnacl.crypto_box_beforenm(dh_received, dh_secret.key.sk) + libnacl.crypto_box_beforenm(B, dh_secret.key.sk)
-        libnacl.crypto_auth_verify(auth, dh_received, shared_secret)
+        libnacl.crypto_auth_verify(auth, dh_received, shared_secret[:32])
 
         return shared_secret
 
