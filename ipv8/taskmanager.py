@@ -28,6 +28,7 @@ class TaskManager(object):
         self._pending_tasks = {}
         self._task_lock = RLock()
         self._shutdown = False
+        self._counter = 0
         self._logger = logging.getLogger(self.__class__.__name__)
 
     def replace_task(self, name, *args, **kwargs):
@@ -99,7 +100,8 @@ class TaskManager(object):
         """
         Wrapper for register_task to derive a unique name from the basename.
         """
-        return self.register_task(basename + str(id(task)), task, *args, **kwargs)
+        self._counter += 1
+        return self.register_task(basename + ' ' + str(self._counter), task, *args, **kwargs)
 
     def cancel_pending_task(self, name):
         """

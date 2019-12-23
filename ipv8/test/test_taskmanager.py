@@ -82,17 +82,11 @@ class TestTaskManager(TestBase):
         with self.assertRaises(RuntimeError):
             self.tm.register_task("test", lambda: None)
 
-    async def test_duplicate_anon_task_name(self):
-        self.tm.register_anonymous_task("test", lambda: None)
-        self.tm.register_anonymous_task("test", lambda: None)
-        self.assertEqual(2, len(self.tm.get_tasks()))
-        self.tm.cancel_all_pending_tasks()
-
     def test_duplicate_anon_task(self):
         task = lambda: None
         self.tm.register_anonymous_task("test", task)
-        with self.assertRaises(RuntimeError):
-            self.tm.register_anonymous_task("test", task)
+        self.tm.register_anonymous_task("test", task)
+        self.assertEqual(2, len(self.tm.get_tasks()))
         self.tm.cancel_all_pending_tasks()
 
     async def test_shutdown(self):
