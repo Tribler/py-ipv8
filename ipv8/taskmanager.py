@@ -1,6 +1,7 @@
 import logging
 from asyncio import CancelledError, Future, Task, coroutine, ensure_future, gather, iscoroutinefunction, sleep
 from contextlib import suppress
+from functools import wraps
 from threading import RLock
 
 from .util import succeed
@@ -18,6 +19,20 @@ async def delay_runner(delay, task, *args):
     await task(*args)
 
 
+def task(func):
+    """
+    Register a TaskManager function as an anonymous task and return
+    the Task object so that it can be awaited if needed.
+    """
+    if not iscoroutinefunction(func):
+        raise TypeError('Task decorator should be used with coroutine functions only!')
+
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        return self.register_anonymous_task(func.__name__, ensure_future(func(self, *args, **kwargs)))
+    return wrapper
+
+
 class TaskManager(object):
     """
     Provides a set of tools to maintain a list of asyncio Tasks that are to be
@@ -28,6 +43,7 @@ class TaskManager(object):
         self._pending_tasks = {}
         self._task_lock = RLock()
         self._shutdown = False
+        self._counter = 0
         self._logger = logging.getLogger(self.__class__.__name__)
 
     def replace_task(self, name, *args, **kwargs):
@@ -99,7 +115,8 @@ class TaskManager(object):
         """
         Wrapper for register_task to derive a unique name from the basename.
         """
-        return self.register_task(basename + str(id(task)), task, *args, **kwargs)
+        self._counter += 1
+        return self.register_task(basename + ' ' + str(self._counter), task, *args, **kwargs)
 
     def cancel_pending_task(self, name):
         """

@@ -1,8 +1,8 @@
-from asyncio import coroutine, ensure_future, get_event_loop, sleep
+from asyncio import Future, coroutine, ensure_future, get_event_loop, sleep
 from contextlib import suppress
 
 from .base import TestBase
-from ..taskmanager import TaskManager
+from ..taskmanager import TaskManager, task
 
 
 class TestTaskManager(TestBase):
@@ -82,17 +82,11 @@ class TestTaskManager(TestBase):
         with self.assertRaises(RuntimeError):
             self.tm.register_task("test", lambda: None)
 
-    async def test_duplicate_anon_task_name(self):
-        self.tm.register_anonymous_task("test", lambda: None)
-        self.tm.register_anonymous_task("test", lambda: None)
-        self.assertEqual(2, len(self.tm.get_tasks()))
-        self.tm.cancel_all_pending_tasks()
-
     def test_duplicate_anon_task(self):
         task = lambda: None
         self.tm.register_anonymous_task("test", task)
-        with self.assertRaises(RuntimeError):
-            self.tm.register_anonymous_task("test", task)
+        self.tm.register_anonymous_task("test", task)
+        self.assertEqual(2, len(self.tm.get_tasks()))
         self.tm.cancel_all_pending_tasks()
 
     async def test_shutdown(self):
@@ -137,6 +131,21 @@ class TestTaskManager(TestBase):
         with suppress(ZeroDivisionError):
             await self.tm.register_task('test', lambda: 1 / 0, ignore=(ZeroDivisionError,))
         self.assertFalse(exception_handler.called)
+
+    async def test_task_decorator_coro(self):
+        future = Future()
+
+        @task
+        async def task_func(_):
+            future.set_result(None)
+        task_func(self.tm)
+        await future
+
+    def test_task_decorator_no_coro(self):
+        with self.assertRaises(TypeError):
+            @task
+            def task_func(_):
+                pass
 
     def count(self):
         self.counter += 1
