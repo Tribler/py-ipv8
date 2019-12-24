@@ -1,8 +1,8 @@
-from asyncio import coroutine, ensure_future, get_event_loop, sleep
+from asyncio import Future, coroutine, ensure_future, get_event_loop, sleep
 from contextlib import suppress
 
 from .base import TestBase
-from ..taskmanager import TaskManager
+from ..taskmanager import TaskManager, task
 
 
 class TestTaskManager(TestBase):
@@ -131,6 +131,21 @@ class TestTaskManager(TestBase):
         with suppress(ZeroDivisionError):
             await self.tm.register_task('test', lambda: 1 / 0, ignore=(ZeroDivisionError,))
         self.assertFalse(exception_handler.called)
+
+    async def test_task_decorator_coro(self):
+        future = Future()
+
+        @task
+        async def task_func(_):
+            future.set_result(None)
+        task_func(self.tm)
+        await future
+
+    def test_task_decorator_no_coro(self):
+        with self.assertRaises(TypeError):
+            @task
+            def task_func(_):
+                pass
 
     def count(self):
         self.counter += 1

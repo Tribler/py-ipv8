@@ -1,6 +1,7 @@
 import logging
 from asyncio import CancelledError, Future, Task, coroutine, ensure_future, gather, iscoroutinefunction, sleep
 from contextlib import suppress
+from functools import wraps
 from threading import RLock
 
 from .util import succeed
@@ -16,6 +17,20 @@ async def interval_runner(delay, interval, task, *args):
 async def delay_runner(delay, task, *args):
     await sleep(delay)
     await task(*args)
+
+
+def task(func):
+    """
+    Register a TaskManager function as an anonymous task and return
+    the Task object so that it can be awaited if needed.
+    """
+    if not iscoroutinefunction(func):
+        raise TypeError('Task decorator should be used with coroutine functions only!')
+
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        return self.register_anonymous_task(func.__name__, ensure_future(func(self, *args, **kwargs)))
+    return wrapper
 
 
 class TaskManager(object):
