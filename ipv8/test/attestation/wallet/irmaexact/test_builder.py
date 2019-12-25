@@ -81,5 +81,5 @@ class TestBuilder(asynctest.TestCase):
         proof = issuer.proveSignature(sig, nonce)
 
         self.assertTrue(proof.Verify(self.testPubK, sig, context, nonce))
-        self.assertFalse(proof.Verify(self.testPubK, sig, context, 10))
-        self.assertFalse(proof.Verify(self.testPubK, sig, 10, nonce))
+        self.assertFalse(proof.Verify(self.testPubK, sig, context, nonce + 1))
+        self.assertFalse(proof.Verify(self.testPubK, sig, context + 1, nonce))
