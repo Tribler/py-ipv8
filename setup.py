@@ -17,11 +17,14 @@ setup(
     install_requires=[
         "cryptography",
         "libnacl",
-        "netifaces",
         "aiohttp",
         "aiohttp_apispec",
-        "pyOpenSSL"
+        "pyOpenSSL",
+        "pyasn1"
     ],
+    extras_require={
+        'netifaces': ["netifaces"]
+    },
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",
