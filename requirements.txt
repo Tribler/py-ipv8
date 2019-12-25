@@ -4,3 +4,4 @@ netifaces
 aiohttp
 aiohttp_apispec
 pyOpenSSL
+pyasn1
