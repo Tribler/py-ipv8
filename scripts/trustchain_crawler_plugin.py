@@ -6,14 +6,12 @@ import logging
 import os
 import signal
 import sys
-from asyncio import all_tasks, coroutine, ensure_future, gather, get_event_loop, sleep
+from asyncio import all_tasks, ensure_future, gather, get_event_loop, sleep
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from ipv8.REST.rest_manager import RESTManager
 from ipv8.attestation.trustchain.settings import TrustChainSettings
-
-import yappi
 
 from ipv8_service import IPv8
 
@@ -154,7 +152,7 @@ class TrustchainCrawlerService(object):
                 get_event_loop().stop()
 
         signal.signal(signal.SIGINT, lambda sig, _: ensure_future(signal_handler(sig)))
-        signal.signal(signal.SIGTERM, lambda sign, _: ensure_future(signal_handler(sig)))
+        signal.signal(signal.SIGTERM, lambda sig, _: ensure_future(signal_handler(sig)))
 
         print("Starting TrustChain crawler")
 
