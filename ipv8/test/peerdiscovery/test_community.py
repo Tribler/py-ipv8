@@ -70,7 +70,9 @@ class TestDiscoveryCommunity(TestBase):
 
         for overlay in self.overlays:
             intros = overlay.network.get_introductions_from(self.tracker.my_peer)
-            self.assertEqual(len(intros), 1)
+            # Over time we get more than one option per network interface.
+            # Usually deliver_messages will not deliver more than 1 option, but we could get more.
+            self.assertGreaterEqual(len(intros), 1)
             self.assertNotIn(overlay.my_peer.mid, intros)
             self.assertNotIn(self.tracker.my_peer.mid, intros)
 
