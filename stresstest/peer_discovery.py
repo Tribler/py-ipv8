@@ -1,6 +1,5 @@
 import time
 from asyncio import ensure_future, get_event_loop
-from os import path
 from random import randint
 
 # Check if we are running from the root directory
@@ -9,8 +8,7 @@ try:
     import ipv8
     del ipv8
 except ImportError:
-    import sys
-    sys.path.append(path.abspath(path.join(path.dirname(__file__), "..")))
+    import __scriptpath__  # noqa: F401
 
 from ipv8.community import Community
 from ipv8.configuration import get_default_configuration

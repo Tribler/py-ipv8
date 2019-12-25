@@ -2,12 +2,18 @@
 This script enables to start IPv8 headless.
 """
 import argparse
-import os
 import signal
 import sys
 from asyncio import all_tasks, ensure_future, gather, get_event_loop, sleep
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# Check if we are running from the root directory
+# If not, modify our path so that we can import IPv8
+try:
+    import ipv8
+    del ipv8
+except ImportError:
+    import __scriptpath__  # noqa: F401
+
 
 from ipv8.REST.rest_manager import RESTManager
 from ipv8.configuration import get_default_configuration

@@ -1,3 +1,4 @@
+import sys
 import time
 from asyncio import ensure_future, get_event_loop, sleep
 from os import chdir, getcwd, mkdir, path
@@ -9,8 +10,8 @@ try:
     import ipv8
     del ipv8
 except ImportError:
-    import sys
-    sys.path.append(path.abspath(path.join(path.dirname(__file__), "..")))
+    import __scriptpath__  # noqa: F401
+
 
 from ipv8.configuration import get_default_configuration  # pylint: disable=ungrouped-imports
 from ipv8.keyvault.crypto import ECCrypto  # pylint: disable=ungrouped-imports
@@ -58,7 +59,7 @@ async def start_communities():
         configuration['logger']['level'] = "CRITICAL"
         for overlay in configuration['overlays']:
             overlay['walkers'] = [walker for walker in overlay['walkers'] if walker['strategy'] in _WALKERS]
-        workdir = path.abspath(path.join(path.dirname(__file__), "%d" % i))
+        workdir = path.abspath(path.join(path.dirname(__file__), str(i)))
         if not path.exists(workdir):
             mkdir(workdir)
         chdir(workdir)
