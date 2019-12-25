@@ -4,3 +4,4 @@ netifaces
 Twisted>=17.9.0
 pyOpenSSL
 six
+pyasn1

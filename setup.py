@@ -22,8 +22,12 @@ setup(
         "netifaces",
         "Twisted",
         "pyOpenSSL",
-        "six"
+        "six",
+        "pyasn1"
     ],
+    extras_require={
+        'netifaces': ["netifaces"]
+    },
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Framework :: Twisted",
