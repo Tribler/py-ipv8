@@ -12,8 +12,8 @@ try:
     import ipv8
     del ipv8
 except ImportError:
-    import sys
-    sys.path.append(path.abspath(path.join(path.dirname(__file__), "..")))
+    import __scriptpath__  # noqa: F401
+
 
 from ipv8.configuration import get_default_configuration
 from ipv8.keyvault.crypto import default_eccrypto
