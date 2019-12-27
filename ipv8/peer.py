@@ -80,7 +80,12 @@ class Peer(object):
     def __eq__(self, other):
         if not isinstance(other, Peer):
             return False
-        return (self.public_key.key_to_bin() == other.public_key.key_to_bin())
+        return self.public_key.key_to_bin() == other.public_key.key_to_bin()
+
+    def __ne__(self, other):
+        if not isinstance(other, Peer):
+            return True
+        return self.public_key.key_to_bin() != other.public_key.key_to_bin()
 
     def __str__(self):
         return 'Peer<%s:%d, %s>' % (self.address[0], self.address[1], b64encode(self.mid).decode('utf-8'))
