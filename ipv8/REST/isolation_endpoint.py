@@ -63,7 +63,7 @@ class IsolationEndpoint(BaseEndpoint):
             address_str = cast_to_chr(args['ip'])
             port_str = cast_to_chr(args['port'])
             fmt_address = (address_str, int(port_str))
-        except:
+        except Exception:
             import traceback
             return Response({"success": False, "error": traceback.format_exc()}, status=HTTP_BAD_REQUEST)
         # Actually add the address to the requested service

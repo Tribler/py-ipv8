@@ -93,7 +93,7 @@ class MyCommunity(Community):
             try:
                 ip = gethostbyname(address)
                 dnsmap[(ip, port)] = address
-            except:
+            except OSError:
                 pass
 
         UNKNOWN_NAME = '*'

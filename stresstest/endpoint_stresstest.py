@@ -188,7 +188,7 @@ prefix = "./endpoint_stresstest_results/"
 old_prefix = None
 try:
     makedirs(prefix)
-except:
+except OSError:
     old_prefix = path.abspath(prefix) + '_old'
     rmtree(old_prefix, ignore_errors=True)
     rename(path.abspath(prefix), old_prefix)

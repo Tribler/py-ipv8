@@ -72,9 +72,9 @@ class DataChecker(object):
     @staticmethod
     def could_be_dht(data):
         try:
-            if len(data) > 1 and data[0:1] == 'd' and data[-1:] == 'e':
+            if len(data) > 1 and data[0] == 'd' and data[-1] == 'e':
                 return True
-        except:
+        except TypeError:
             pass
         return False
 
@@ -173,7 +173,7 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
             if DataChecker.is_allowed(data):
                 try:
                     self.tunnel_data(source, data)
-                except:
+                except Exception:
                     self.logger.error("Exception occurred while handling incoming exit node data!\n"
                                       + ''.join(format_exception(*sys.exc_info())))
             else:

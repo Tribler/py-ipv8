@@ -1,3 +1,4 @@
+import logging
 import time
 from binascii import hexlify
 from collections import namedtuple
@@ -7,7 +8,7 @@ from .payload import HalfBlockPayload
 from ...database import database_blob
 from ...keyvault.crypto import default_eccrypto
 from ...messaging.deprecated.encoding import decode, encode
-from ...messaging.serialization import default_serializer
+from ...messaging.serialization import PackError, default_serializer
 from ...util import old_round
 
 GENESIS_HASH = b'0' * 32  # ID of the first block of the chain.
@@ -124,6 +125,7 @@ class TrustChainBlock(object):
             self.signature = self.signature if isinstance(self.signature, bytes) else bytes(self.signature)
         self.hash = self.calculate_hash()
         self.crypto = default_eccrypto
+        self.logger = logging.getLogger(self.__class__.__name__)
 
     @classmethod
     def from_payload(cls, payload, serializer):
@@ -329,7 +331,8 @@ class TrustChainBlock(object):
             # we want to keep checking for more errors, so just catch all packing exceptions and err() if any happen.
             try:
                 pck = self.pack(signature=False)
-            except:
+            except PackError as e:
+                self.logger.debug("Failed to pack 'self.pack' (error %s)", e)
                 pck = None
             if pck is None or not self.crypto.is_valid_signature(
                     self.crypto.key_from_public_bin(self.public_key), pck, self.signature):

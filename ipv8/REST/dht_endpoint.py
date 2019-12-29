@@ -388,7 +388,7 @@ class DHTBlockPublisher(BlockListener):
                 # Try to add the current chunk to the DHT; if it works, move to the next, otherwise retry
                 try:
                     await self.dht.store_value(self._hashed_dht_key, blob_chunk[0])
-                except:
+                except (RuntimeError, PackError):
                     chunk_attempt += 1
                 else:
                     slice_pointer += self.CHUNK_SIZE

@@ -54,6 +54,7 @@ class RetryRequestCache(NumberCache):
         self.max_tries = max_tries
         self.retry_func = retry_func
         self.timeout = timeout
+        self.logger = logging.getLogger(__name__)
 
     @property
     def timeout_delay(self):
@@ -70,8 +71,8 @@ class RetryRequestCache(NumberCache):
         async def retry_later():
             try:
                 self.retry_func(self.circuit, self.candidates, self.max_tries)
-            except:
-                pass
+            except Exception as e:
+                self.logger.info("Error encountered during 'on_timeout' (error: %s)", e)
         self.community.request_cache.register_anonymous_task("retry-later", retry_later, delay=0)
 
 
