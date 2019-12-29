@@ -763,16 +763,10 @@ class TunnelCommunity(Community):
             self.directions[request.from_circuit_id] = EXIT_NODE
             self.remove_exit_socket(request.from_circuit_id)
 
-            self.send_cell(
-                [relay.peer],
-                "extended",
-                ExtendedPayload(
-                    relay.circuit_id,
-                    payload.key,
-                    payload.auth,
-                    payload.candidate_list_enc
-                )
-            )
+            self.send_cell([relay.peer], "extended", ExtendedPayload(relay.circuit_id,
+                                                                     payload.key,
+                                                                     payload.auth,
+                                                                     payload.candidate_list_enc))
         elif self.request_cache.has("retry", payload.circuit_id):
             circuit = self.circuits[circuit_id]
             self._ours_on_created_extended(circuit, payload)

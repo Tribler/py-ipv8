@@ -72,7 +72,7 @@ class DataChecker(object):
     @staticmethod
     def could_be_dht(data):
         try:
-            if len(data) > 1 and data[0] == 'd' and data[-1] == 'e':
+            if len(data) > 1 and data[0:1] == b'd' and data[-1:] == b'e':
                 return True
         except TypeError:
             pass

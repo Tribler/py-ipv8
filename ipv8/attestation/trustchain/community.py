@@ -288,8 +288,8 @@ class TrustChainCommunity(Community):
         block = self.get_block_class(payload.type).from_payload(payload, self.serializer)
         try:
             await self.process_half_block(block, peer)
-        except RuntimeError:
-            self.logger
+        except RuntimeError as e:
+            self.logger.info("Failed to process half block (error %s)", e)
 
     @synchronized
     @lazy_wrapper_unsigned(GlobalTimeDistributionPayload, HalfBlockBroadcastPayload)
