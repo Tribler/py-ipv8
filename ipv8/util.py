@@ -1,5 +1,4 @@
 import logging
-import math
 import operator
 import struct
 from asyncio import Future, iscoroutine
@@ -9,10 +8,24 @@ maximum_integer = 2147483647
 
 int2byte = struct.Struct(">B").pack
 byte2int = operator.itemgetter(0)
-cast_to_unicode = lambda x: "".join([chr(c) for c in x]) if isinstance(x, bytes) else str(x)
-cast_to_bin = lambda x: x if isinstance(x, bytes) else bytes([ord(c) for c in x])
-cast_to_chr = lambda x: "".join([chr(c) for c in x])
-old_round = lambda x: float(math.floor((x) + math.copysign(0.5, x)))
+
+
+def cast_to_unicode(obj):
+    if isinstance(obj, (bytes, bytearray)):
+        return "".join(chr(c) for c in obj)
+    if isinstance(obj, str):
+        return obj
+    return str(obj)
+
+
+def cast_to_bin(obj):
+    if isinstance(obj, bytes):
+        return obj
+    return bytes(ord(c) for c in obj)
+
+
+def cast_to_chr(obj):
+    return "".join(chr(c) for c in obj)
 
 
 def succeed(result):

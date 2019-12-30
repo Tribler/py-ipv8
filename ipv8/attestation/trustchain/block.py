@@ -8,7 +8,6 @@ from ...database import database_blob
 from ...keyvault.crypto import default_eccrypto
 from ...messaging.deprecated.encoding import decode, encode
 from ...messaging.serialization import default_serializer
-from ...util import old_round
 
 GENESIS_HASH = b'0' * 32  # ID of the first block of the chain.
 GENESIS_SEQ = 1
@@ -105,7 +104,7 @@ class TrustChainBlock(object):
             # validation
             self.previous_hash = GENESIS_HASH
             self.signature = EMPTY_SIG
-            self.timestamp = int(old_round(time.time() * 1000))
+            self.timestamp = int(time.time() * 1000)
             # debug stuff
             self.insert_time = None
         else:
