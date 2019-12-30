@@ -92,7 +92,7 @@ else:
                                 peer = Peer(M2CryptoSK(keystring=content))
                                 peer.mid  # This will error out if the keystring is not M2Crypto
                                 self.keys[key_block['alias']] = peer
-                            except:
+                            except Exception:
                                 # Try old LibNacl format
                                 content = "LibNaCLSK:" + content
                                 self.keys[key_block['alias']] = Peer(default_eccrypto.key_from_private_bin(content))
@@ -150,7 +150,7 @@ else:
                             # We wrap the take_step into a general except as it is prone to programmer error.
                             try:
                                 strategy.take_step()
-                            except:
+                            except Exception:
                                 logging.error("Exception occurred while trying to walk!\n"
                                               + ''.join(format_exception(*sys.exc_info())))
                         ticker -= 1 if ticker else 0

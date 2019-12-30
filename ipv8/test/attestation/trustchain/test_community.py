@@ -596,7 +596,7 @@ class TestTrustChainCommunity(TestBase):
         block1 = TestBlock()
         try:
             result = await self.nodes[1].overlay.process_half_block(block1, self.nodes[0].my_peer)
-        except:
+        except RuntimeError:
             pass
             # The block is not valid - ignore the error
         self.assertIsNone(result)

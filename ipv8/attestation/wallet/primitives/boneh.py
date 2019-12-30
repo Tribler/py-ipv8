@@ -35,7 +35,7 @@ def bilinear_group(n, p, g1x, g1y, g2x, g2y):
                          (FP2Value(p, b=g2x), FP2Value(p, g2y)),
                          (FP2Value(p), FP2Value(p)))
         return wp
-    except:
+    except Exception:
         return FP2Value(p)
 
 

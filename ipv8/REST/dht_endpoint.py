@@ -15,6 +15,7 @@ from .schema import DHTValueSchema, DefaultResponseSchema, schema
 from ..attestation.trustchain.community import TrustChainCommunity
 from ..attestation.trustchain.listener import BlockListener
 from ..attestation.trustchain.payload import DHTBlockPayload
+from ..dht import DHTError
 from ..dht.community import DHTCommunity, MAX_ENTRY_SIZE, MAX_VALUES_IN_FIND
 from ..dht.discovery import DHTDiscoveryCommunity
 from ..keyvault.public.libnaclkey import LibNaCLPK
@@ -388,7 +389,7 @@ class DHTBlockPublisher(BlockListener):
                 # Try to add the current chunk to the DHT; if it works, move to the next, otherwise retry
                 try:
                     await self.dht.store_value(self._hashed_dht_key, blob_chunk[0])
-                except:
+                except (DHTError, PackError):
                     chunk_attempt += 1
                 else:
                     slice_pointer += self.CHUNK_SIZE

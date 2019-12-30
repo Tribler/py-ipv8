@@ -1,3 +1,4 @@
+import logging
 import time
 from binascii import hexlify
 from collections import namedtuple
@@ -7,7 +8,8 @@ from .payload import HalfBlockPayload
 from ...database import database_blob
 from ...keyvault.crypto import default_eccrypto
 from ...messaging.deprecated.encoding import decode, encode
-from ...messaging.serialization import default_serializer
+from ...messaging.serialization import PackError, default_serializer
+
 
 GENESIS_HASH = b'0' * 32  # ID of the first block of the chain.
 GENESIS_SEQ = 1
@@ -15,6 +17,7 @@ UNKNOWN_SEQ = 0
 EMPTY_SIG = b'0' * 64
 EMPTY_PK = b'0' * 74
 ANY_COUNTERPARTY_PK = EMPTY_PK
+SKIP_ATTRIBUTES = {'key', 'serializer', 'crypto', '_transaction', '_logger'}
 
 
 class TrustChainBlock(object):
@@ -123,6 +126,7 @@ class TrustChainBlock(object):
             self.signature = self.signature if isinstance(self.signature, bytes) else bytes(self.signature)
         self.hash = self.calculate_hash()
         self.crypto = default_eccrypto
+        self._logger = logging.getLogger(self.__class__.__name__)
 
     @classmethod
     def from_payload(cls, payload, serializer):
@@ -328,7 +332,8 @@ class TrustChainBlock(object):
             # we want to keep checking for more errors, so just catch all packing exceptions and err() if any happen.
             try:
                 pck = self.pack(signature=False)
-            except:
+            except PackError as e:
+                self._logger.debug("Failed to pack 'self.pack' (error %s)", e)
                 pck = None
             if pck is None or not self.crypto.is_valid_signature(
                     self.crypto.key_from_public_bin(self.public_key), pck, self.signature):
@@ -503,7 +508,7 @@ class TrustChainBlock(object):
         :return: generator to iterate over all properties of this block
         """
         for key, value in self.__dict__.items():
-            if key == 'key' or key == 'serializer' or key == 'crypto' or key == '_transaction':
+            if key in SKIP_ATTRIBUTES:
                 continue
             if key == 'transaction':
                 yield key, decode(self._transaction, cast_utf8=True)[1]

@@ -288,8 +288,8 @@ class TrustChainCommunity(Community):
         block = self.get_block_class(payload.type).from_payload(payload, self.serializer)
         try:
             await self.process_half_block(block, peer)
-        except:
-            pass
+        except RuntimeError as e:
+            self.logger.info("Failed to process half block (error %s)", e)
 
     @synchronized
     @lazy_wrapper_unsigned(GlobalTimeDistributionPayload, HalfBlockBroadcastPayload)
@@ -366,12 +366,12 @@ class TrustChainCommunity(Community):
         validation = self.validate_persist_block(blk)
         self.logger.info("Block validation result %s, %s, (%s)", validation[0], validation[1], blk)
         if validation[0] == ValidationResult.invalid:
-            raise RuntimeError("Block could not be validated: %s, %s" % (validation[0], validation[1]))
+            raise RuntimeError(f"Block could not be validated: {validation[0]}, {validation[1]}")
 
         # Check if we are waiting for this signature response
         link_block_id_int = int(hexlify(blk.linked_block_id), 16) % 100000000
-        if self.request_cache.has(u'sign', link_block_id_int):
-            cache = self.request_cache.pop(u'sign', link_block_id_int)
+        if self.request_cache.has('sign', link_block_id_int):
+            cache = self.request_cache.pop('sign', link_block_id_int)
 
             # We cannot guarantee that we're on the event loop thread.
             get_event_loop().call_soon_threadsafe(cache.sign_future.set_result,
@@ -402,7 +402,7 @@ class TrustChainCommunity(Community):
                 or validation[0] == ValidationResult.no_info) and self.settings.validation_range > 0:
             self.logger.info("Request block could not be validated sufficiently, crawling requester. %s", validation)
             # Note that this code does not cover the scenario where we obtain this block indirectly.
-            if not self.request_cache.has(u"crawl", blk.hash_number):
+            if not self.request_cache.has("crawl", blk.hash_number):
                 try:
                     await self.send_crawl_request(peer,
                                                   blk.public_key,
@@ -443,7 +443,7 @@ class TrustChainCommunity(Community):
         Send a crawl request to a specific peer.
         """
         crawl_id = for_half_block.hash_number if for_half_block else \
-            RandomNumberCache.find_unclaimed_identifier(self.request_cache, u"crawl")
+            RandomNumberCache.find_unclaimed_identifier(self.request_cache, "crawl")
         crawl_future = Future()
         self.request_cache.add(CrawlRequestCache(self, crawl_id, crawl_future))
         self.logger.info("Requesting crawl of node %s (blocks %d to %d) with id %d",
@@ -472,7 +472,7 @@ class TrustChainCommunity(Community):
             cache.current_request_attempts = 0
         elif cache.current_request_attempts == 3:
             # We already tried the same request three times, bail out
-            self.request_cache.pop(u"chaincrawl", cache.number)
+            self.request_cache.pop("chaincrawl", cache.number)
             cache.crawl_future.set_result(None)
             return
 
@@ -488,7 +488,7 @@ class TrustChainCommunity(Community):
         lowest_unknown = self.persistence.get_lowest_sequence_number_unknown(cache.peer.public_key.key_to_bin())
         if cache.known_chain_length and cache.known_chain_length == lowest_unknown - 1:
             # At this point, we have all the blocks we need
-            self.request_cache.pop(u"chaincrawl", cache.number)
+            self.request_cache.pop("chaincrawl", cache.number)
             cache.crawl_future.set_result(None)
             return
 
@@ -496,7 +496,7 @@ class TrustChainCommunity(Community):
             # Do we know the chain length of the crawled peer? If not, make sure we get to know this first.
             blocks = await self.send_crawl_request(cache.peer, cache.peer.public_key.key_to_bin(), -1, -1)
             if not blocks:
-                self.request_cache.pop(u"chaincrawl", cache.number)
+                self.request_cache.pop("chaincrawl", cache.number)
                 cache.crawl_future.set_result(None)
                 return
 
@@ -516,7 +516,7 @@ class TrustChainCommunity(Community):
                 await self.perform_partial_chain_crawl(cache, latest_block.sequence_number + 1, cache.known_chain_length)
                 return
             else:
-                self.request_cache.pop(u"chaincrawl", cache.number)
+                self.request_cache.pop("chaincrawl", cache.number)
                 cache.crawl_future.set_result(None)
                 return
 
@@ -625,13 +625,13 @@ class TrustChainCommunity(Community):
         await self.received_half_block(source_address, data[:-12])  # We cut off a few bytes to make it a BlockPayload
 
         block = self.get_block_class(payload.type).from_payload(payload, self.serializer)
-        cache = self.request_cache.get(u"crawl", payload.crawl_id)
+        cache = self.request_cache.get("crawl", payload.crawl_id)
         if cache:
             cache.received_block(block, payload.total_count)
 
     @lazy_wrapper_unsigned_wd(GlobalTimeDistributionPayload, EmptyCrawlResponsePayload)
     def received_empty_crawl_response(self, source_address, dist, payload, data):
-        cache = self.request_cache.get(u"crawl", payload.crawl_id)
+        cache = self.request_cache.get("crawl", payload.crawl_id)
         if cache:
             self.logger.info("Received empty crawl response for crawl with ID %d", payload.crawl_id)
             cache.received_empty_response()
@@ -665,8 +665,8 @@ class TrustChainCommunity(Community):
             return
 
         # Check if we have pending crawl requests for this peer
-        has_intro_crawl = self.request_cache.has(u"introcrawltimeout", IntroCrawlTimeout.get_number_for(peer))
-        has_chain_crawl = self.request_cache.has(u"chaincrawl", ChainCrawlCache.get_number_for(peer))
+        has_intro_crawl = self.request_cache.has("introcrawltimeout", IntroCrawlTimeout.get_number_for(peer))
+        has_chain_crawl = self.request_cache.has("chaincrawl", ChainCrawlCache.get_number_for(peer))
         if has_intro_crawl or has_chain_crawl:
             self.logger.debug("Skipping crawl of peer %s, another crawl is pending", peer)
             return

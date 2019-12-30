@@ -64,7 +64,7 @@ class EndpointServer(Community):
                 self.on_generic_introduction_request(source_address, data, data[:22])
             elif warn_unknown:
                 self.logger.warning("Tracker received unknown message %s", str(data[22]))
-        except:
+        except Exception:
             import traceback
             traceback.print_exc()
 

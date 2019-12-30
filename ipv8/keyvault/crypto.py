@@ -81,7 +81,7 @@ class ECCrypto(object):
         "Returns True if the input is a valid public/private keypair stored in a binary format"
         try:
             self.key_from_private_bin(string)
-        except:
+        except Exception:
             return False
         return True
 
@@ -89,7 +89,7 @@ class ECCrypto(object):
         "Returns True if the input is a valid public key"
         try:
             self.key_from_public_bin(string)
-        except:
+        except Exception:
             return False
         return True
 
@@ -130,7 +130,7 @@ class ECCrypto(object):
 
         try:
             return ec.verify(signature, data)
-        except:
+        except Exception:
             return False
 
 

@@ -46,8 +46,8 @@ class DHTCommunityProvider(object):
                 seeder_pk = b'LibNaCLPK:' + value[14 + intro_key_len:14 + intro_key_len + seeder_key_len]
 
                 results.append(IntroductionPoint(intro_peer, seeder_pk, PEER_SOURCE_DHT, last_seen))
-            except:
-                pass
+            except Exception as e:
+                self.logger.info("Error encountered during lookup %s on the DHTCommunity (error: %s)", hexlify(info_hash), e)
         self.logger.info("Looked up %s in the DHTCommunity, got %d results", hexlify(info_hash), len(results))
         return info_hash, results
 

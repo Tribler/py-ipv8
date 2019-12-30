@@ -8,6 +8,7 @@ from aiohttp_apispec import docs
 
 from .base_endpoint import BaseEndpoint, HTTP_NOT_FOUND, Response
 from .schema import DefaultResponseSchema
+from ..dht import DHTError
 from ..dht.community import DHTCommunity
 
 
@@ -57,7 +58,7 @@ class NoBlockDHTEndpoint(BaseEndpoint):
         async def connect_peer():
             try:
                 self.dht.connect_peer(mid)
-            except:
+            except DHTError:
                 logging.error("DHT Failed to connect to %s", hexlify(mid))
             else:
                 logging.error("DHT connected to %s", hexlify(mid))

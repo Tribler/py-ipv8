@@ -180,7 +180,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
                and swarm.get_num_connections() < self.settings.swarm_connection_limit:
                 try:
                     ips = await swarm.lookup()
-                except:
+                except (IndexError, RuntimeError):
                     self.logger.info('Failed to do peer discovery for swarm %s', binascii.hexlify(info_hash))
                     continue
 

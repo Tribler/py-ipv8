@@ -22,7 +22,7 @@ def encode_address(host, port):
     try:
         ip = socket.inet_aton(host)
         is_ip = True
-    except:
+    except OSError:
         is_ip = False
 
     if is_ip:
