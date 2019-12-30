@@ -164,8 +164,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         if ctype in [CIRCUIT_TYPE_IP_SEEDER, CIRCUIT_TYPE_RP_DOWNLOADER]:
             hops += 1
 
-        circuit_id = self.create_circuit(hops, ctype, *args, info_hash=info_hash, **kwargs)
-        return self.circuits.get(circuit_id)
+        return self.create_circuit(hops, ctype, *args, info_hash=info_hash, **kwargs)
 
     def ip_to_circuit_id(self, ip_str):
         return struct.unpack("!I", socket.inet_aton(ip_str))[0]

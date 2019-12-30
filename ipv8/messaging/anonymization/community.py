@@ -299,7 +299,7 @@ class TunnelCommunity(Community):
 
         if not required_exit:
             self.logger.info("Could not create circuit, no available exit-nodes")
-            return False
+            return
 
         # Determine the first hop
         if goal_hops == 1 and required_exit:
@@ -317,7 +317,7 @@ class TunnelCommunity(Community):
 
         if not possible_first_hops:
             self.logger.info("Could not create circuit, no first hop available")
-            return False
+            return
 
         # Finally, construct the Circuit object and send the CREATE message
         circuit_id = self._generate_circuit_id()
@@ -325,7 +325,7 @@ class TunnelCommunity(Community):
         self.send_initial_create(circuit, possible_first_hops,
                                  self.settings.circuit_timeout // self.settings.next_hop_timeout)
 
-        return circuit_id
+        return circuit
 
     def send_initial_create(self, circuit, candidate_list, max_tries):
         if self.request_cache.has("retry", circuit.circuit_id):
