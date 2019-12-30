@@ -10,6 +10,7 @@ from ...keyvault.crypto import default_eccrypto
 from ...messaging.deprecated.encoding import decode, encode
 from ...messaging.serialization import PackError, default_serializer
 
+
 GENESIS_HASH = b'0' * 32  # ID of the first block of the chain.
 GENESIS_SEQ = 1
 UNKNOWN_SEQ = 0

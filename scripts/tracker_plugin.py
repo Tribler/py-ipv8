@@ -4,14 +4,20 @@ This script enables to start the tracker.
 Select the port you want to use by setting the `listen_port` command line argument.
 """
 import argparse
-import os
 import random
 import signal
 import sys
 import time
 from asyncio import ensure_future, get_event_loop, sleep
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# Check if we are running from the root directory
+# If not, modify our path so that we can import IPv8
+try:
+    import ipv8
+    del ipv8
+except ImportError:
+    import __scriptpath__  # noqa: F401
+
 
 from ipv8.community import Community
 from ipv8.keyvault.crypto import default_eccrypto

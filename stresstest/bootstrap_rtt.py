@@ -1,6 +1,5 @@
 import time
 from asyncio import ensure_future, get_event_loop
-from os import path
 from random import randint
 from socket import gethostbyname
 
@@ -10,8 +9,8 @@ try:
     import ipv8
     del ipv8
 except ImportError:
-    import sys
-    sys.path.append(path.abspath(path.join(path.dirname(__file__), "..")))
+    import __scriptpath__  # noqa: F401
+
 
 from ipv8.community import Community, _DEFAULT_ADDRESSES, _DNS_ADDRESSES
 from ipv8.configuration import get_default_configuration
