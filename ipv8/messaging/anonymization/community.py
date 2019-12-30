@@ -730,7 +730,7 @@ class TunnelCommunity(Community):
                        CreatedPayload(circuit_id, key, auth, candidate_list_enc))
 
     @tc_lazy_wrapper_unsigned(CreatePayload)
-    def on_create(self, source_address, payload, _):
+    async def on_create(self, source_address, payload, _):
         if not self.settings.peer_flags:
             self.logger.warning("Ignoring create for circuit %d", payload.circuit_id)
             return
@@ -738,13 +738,11 @@ class TunnelCommunity(Community):
             self.logger.warning("Already have a request for circuit %d", payload.circuit_id)
             return
 
-        async def decide_to_join():
-            result = await self.should_join_circuit(payload, source_address)
-            if result:
-                self.join_circuit(payload, source_address)
-            else:
-                self.logger.warning("We're not joining circuit with ID %s", payload.circuit_id)
-        ensure_future(decide_to_join())
+        result = await self.should_join_circuit(payload, source_address)
+        if result:
+            self.join_circuit(payload, source_address)
+        else:
+            self.logger.warning("We're not joining circuit with ID %s", payload.circuit_id)
 
     @tc_lazy_wrapper_unsigned(CreatedPayload)
     def on_created(self, source_address, payload, _):
