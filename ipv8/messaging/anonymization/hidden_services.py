@@ -8,7 +8,7 @@ import os
 import random
 import struct
 import time
-from asyncio import ensure_future, gather, iscoroutine
+from asyncio import gather, iscoroutine
 
 from .caches import *
 from .community import TunnelCommunity, message_to_payload, tc_lazy_wrapper_unsigned
@@ -22,6 +22,7 @@ from ...messaging.deprecated.encoding import decode, encode
 from ...peer import Peer
 from ...peerdiscovery.discovery import RandomWalk
 from ...peerdiscovery.network import Network
+from ...taskmanager import task
 from ...util import fail
 
 
@@ -451,7 +452,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         if callback:
             result = callback((self.circuit_id_to_ip(circuit.circuit_id), CIRCUIT_ID_PORT))
             if iscoroutine(result):
-                self.register_anonymous_task('e2e_callback', ensure_future(result))
+                self.register_anonymous_task('e2e_callback', result)
         else:
             self.logger.error('On linked e2e: could not find download for %s!', cache.info_hash)
 
@@ -507,10 +508,8 @@ class HiddenTunnelCommunity(TunnelCommunity):
             self.pex[payload.info_hash].start_announce(payload.public_key)
 
         # DHT announce
-        task = ensure_future(self.dht_announce(payload.info_hash,
-                                               IntroductionPoint(Peer(self.my_peer.key, self.my_estimated_wan),
-                                                                 payload.public_key)))
-        self.register_task('announce_%s' % binascii.hexlify(payload.info_hash).decode('utf-8'), task)
+        self.dht_announce(payload.info_hash, IntroductionPoint(Peer(self.my_peer.key, self.my_estimated_wan),
+                                                               payload.public_key))
 
         self.send_cell([source_address], u"intro-established",
                        IntroEstablishedPayload(circuit.circuit_id, payload.identifier))
@@ -563,6 +562,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         else:
             self.logger.error("Need a DHT provider to lookup on the DHT")
 
+    @task
     async def dht_announce(self, info_hash, intro_point):
         if self.dht_provider:
             return await self.dht_provider.announce(info_hash, intro_point)
