@@ -16,7 +16,7 @@ class Network(object):
         # All known IP:port addresses, mapped to (introduction peer, services)
         self._all_addresses = {}
         # All verified Peer objects (Peer.address must be in _all_addresses)
-        self.verified_peers = []
+        self.verified_peers = set()
         self.graph_lock = RLock()
         # Peers we should not add to the network
         # For example, bootstrap peers
@@ -98,12 +98,12 @@ class Network(object):
                 if peer not in self.verified_peers:
                     # This should always happen, unless someone edits the verified_peers dict directly.
                     # This would be a programmer 'error', but we will allow it.
-                    self.verified_peers.append(peer)
+                    self.verified_peers.add(peer)
             elif peer.address not in self.blacklist:
                 if peer.address not in self._all_addresses:
                     self._all_addresses[peer.address] = ('', None)
                 if peer not in self.verified_peers:
-                    self.verified_peers.append(peer)
+                    self.verified_peers.add(peer)
 
     def register_service_provider(self, service_id, overlay):
         """
@@ -180,9 +180,9 @@ class Network(object):
         with self.graph_lock:
             peer = self.reverse_ip_lookup.pop(address, None)
             if not peer:
-                for i in range(len(self.verified_peers)):
-                    if self.verified_peers[i].address == address:
-                        peer = self.verified_peers[i]
+                for p in self.verified_peers:
+                    if p.address == address:
+                        peer = p
                         self.reverse_ip_lookup[peer.address] = peer
                         if len(self.reverse_ip_lookup) > self.reverse_ip_cache_size:
                             self.reverse_ip_lookup.popitem(False)  # Pop the oldest cache entry
@@ -200,9 +200,9 @@ class Network(object):
         :return: the Peer object for this public_key_bin or None
         """
         with self.graph_lock:
-            for i in range(len(self.verified_peers)):
-                if self.verified_peers[i].public_key.key_to_bin() == public_key_bin:
-                    return self.verified_peers[i]
+            for p in self.verified_peers:
+                if p.public_key.key_to_bin() == public_key_bin:
+                    return p
 
     def get_introductions_from(self, peer):
         """
@@ -230,8 +230,8 @@ class Network(object):
             self._all_addresses.pop(address, None)
             # Note that the services_per_peer will never be 0, we abuse the lazy `or` to pop the peers from
             # the services_per_peer mapping if they are no longer included. This is fast.
-            self.verified_peers = [peer for peer in self.verified_peers
-                                   if peer.address != address or self.services_per_peer.pop(peer.mid, None) == 0]
+            self.verified_peers = {peer for peer in self.verified_peers
+                                   if peer.address != address or self.services_per_peer.pop(peer.mid, None) == 0}
 
     def remove_peer(self, peer):
         """
