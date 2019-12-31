@@ -51,8 +51,8 @@ class TestTrustChainCommunity(TestBase):
         self.nodes[1].overlay.should_sign = lambda x: False
 
         my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
-        his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
-        self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
+        his_pubkey = list(self.nodes[0].network.verified_peers)[0].public_key.key_to_bin()
+        self.nodes[0].overlay.sign_block(list(self.nodes[0].network.verified_peers)[0], public_key=his_pubkey,
                                          block_type=b'test', transaction={})
 
         await self.deliver_messages()
@@ -65,8 +65,8 @@ class TestTrustChainCommunity(TestBase):
         """
         Check if a double signed transaction is stored in the databases of both parties.
         """
-        his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
-        block, link_block = await self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0],
+        his_pubkey = list(self.nodes[0].network.verified_peers)[0].public_key.key_to_bin()
+        block, link_block = await self.nodes[0].overlay.sign_block(list(self.nodes[0].network.verified_peers)[0],
                                                                    public_key=his_pubkey, block_type=b'test',
                                                                    transaction={})
         self.assertIsInstance(block, DummyBlock)
@@ -81,8 +81,8 @@ class TestTrustChainCommunity(TestBase):
         Check if a both halves of a fully signed block link to each other.
         """
         my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
-        his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
-        self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
+        his_pubkey = list(self.nodes[0].network.verified_peers)[0].public_key.key_to_bin()
+        self.nodes[0].overlay.sign_block(list(self.nodes[0].network.verified_peers)[0], public_key=his_pubkey,
                                          block_type=b'test', transaction={})
 
         await self.deliver_messages()
@@ -105,8 +105,8 @@ class TestTrustChainCommunity(TestBase):
         self.nodes[0].endpoint.close()
 
         my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
-        his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
-        self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
+        his_pubkey = list(self.nodes[0].network.verified_peers)[0].public_key.key_to_bin()
+        self.nodes[0].overlay.sign_block(list(self.nodes[0].network.verified_peers)[0], public_key=his_pubkey,
                                          block_type=b'test', transaction={})
 
         await self.deliver_messages()
@@ -129,8 +129,8 @@ class TestTrustChainCommunity(TestBase):
         self.nodes[0].endpoint.close()
 
         my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
-        his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
-        self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
+        his_pubkey = list(self.nodes[0].network.verified_peers)[0].public_key.key_to_bin()
+        self.nodes[0].overlay.sign_block(list(self.nodes[0].network.verified_peers)[0], public_key=his_pubkey,
                                          block_type=b'test', transaction={})
 
         await self.deliver_messages()
@@ -162,8 +162,8 @@ class TestTrustChainCommunity(TestBase):
         self.nodes[0].endpoint.close()
 
         my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
-        his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
-        self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
+        his_pubkey = list(self.nodes[0].network.verified_peers)[0].public_key.key_to_bin()
+        self.nodes[0].overlay.sign_block(list(self.nodes[0].network.verified_peers)[0], public_key=his_pubkey,
                                          block_type=b'test', transaction={})
 
         await self.deliver_messages()
@@ -182,9 +182,9 @@ class TestTrustChainCommunity(TestBase):
         Test crawling the lowest unknown block of a specific peer.
         """
         my_pubkey = self.nodes[0].my_peer.public_key.key_to_bin()
-        his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
+        his_pubkey = list(self.nodes[0].network.verified_peers)[0].public_key.key_to_bin()
         for _ in [0, 1, 2]:
-            await self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
+            await self.nodes[0].overlay.sign_block(list(self.nodes[0].network.verified_peers)[0], public_key=his_pubkey,
                                                    block_type=b'test', transaction={})
 
         self.nodes[1].overlay.persistence.execute(u"DELETE FROM blocks WHERE sequence_number = 2 AND public_key = ?",
@@ -200,8 +200,8 @@ class TestTrustChainCommunity(TestBase):
         """
         Test crawling a block pair.
         """
-        his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
-        await self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
+        his_pubkey = list(self.nodes[0].network.verified_peers)[0].public_key.key_to_bin()
+        await self.nodes[0].overlay.sign_block(list(self.nodes[0].network.verified_peers)[0], public_key=his_pubkey,
                                                block_type=b'test', transaction={})
 
         self.add_node_to_experiment(self.create_node())
@@ -217,10 +217,10 @@ class TestTrustChainCommunity(TestBase):
         """
         Check if blocks created in parallel will properly be stored in the database.
         """
-        his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
-        self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
+        his_pubkey = list(self.nodes[0].network.verified_peers)[0].public_key.key_to_bin()
+        self.nodes[0].overlay.sign_block(list(self.nodes[0].network.verified_peers)[0], public_key=his_pubkey,
                                          block_type=b'test', transaction={})
-        self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
+        self.nodes[0].overlay.sign_block(list(self.nodes[0].network.verified_peers)[0], public_key=his_pubkey,
                                          block_type=b'test', transaction={})
 
         await self.deliver_messages()
@@ -247,15 +247,15 @@ class TestTrustChainCommunity(TestBase):
         """
         Check if missing blocks are retrieved through a crawl request.
         """
-        his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
+        his_pubkey = list(self.nodes[0].network.verified_peers)[0].public_key.key_to_bin()
         self.nodes[0].endpoint.close()
-        signed1 = self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
+        signed1 = self.nodes[0].overlay.sign_block(list(self.nodes[0].network.verified_peers)[0], public_key=his_pubkey,
                                                    block_type=b'test', transaction={})
 
         await self.deliver_messages()
 
         self.nodes[0].endpoint.open()
-        signed2 = self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
+        signed2 = self.nodes[0].overlay.sign_block(list(self.nodes[0].network.verified_peers)[0], public_key=his_pubkey,
                                                    block_type=b'test', transaction={})
 
         await signed1
@@ -275,7 +275,7 @@ class TestTrustChainCommunity(TestBase):
         """
         block1 = TestBlock()
         block2 = TestBlock()
-        self.nodes[0].overlay.send_block_pair(block1, block2, self.nodes[0].network.verified_peers[0].address)
+        self.nodes[0].overlay.send_block_pair(block1, block2, list(self.nodes[0].network.verified_peers)[0].address)
 
         await self.deliver_messages()
 
@@ -385,8 +385,8 @@ class TestTrustChainCommunity(TestBase):
         # We should see that we have database corruption and clean up our chain.
         # Afterward we continue the signing as usual
         my_pubkey = self.nodes[0].overlay.my_peer.public_key.key_to_bin()
-        his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
-        await self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_pubkey,
+        his_pubkey = list(self.nodes[0].network.verified_peers)[0].public_key.key_to_bin()
+        await self.nodes[0].overlay.sign_block(list(self.nodes[0].network.verified_peers)[0], public_key=his_pubkey,
                                                block_type=b'test', transaction={})
 
         await self.deliver_messages()
@@ -488,8 +488,8 @@ class TestTrustChainCommunity(TestBase):
         for node in self.nodes:
             node.overlay.settings.block_types_bc_disabled.add(b'test')
         my_pubkey = self.nodes[0].overlay.my_peer.public_key.key_to_bin()
-        his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
-        block1, block2 = await self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0],
+        his_pubkey = list(self.nodes[0].network.verified_peers)[0].public_key.key_to_bin()
+        block1, block2 = await self.nodes[0].overlay.sign_block(list(self.nodes[0].network.verified_peers)[0],
                                                                 public_key=his_pubkey, block_type=b'test',
                                                                 transaction={})
         await self.deliver_messages()
@@ -497,7 +497,7 @@ class TestTrustChainCommunity(TestBase):
         self.nodes[0].overlay.persistence.remove_block(block2)
 
         # Double spend
-        self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0],
+        self.nodes[0].overlay.sign_block(list(self.nodes[0].network.verified_peers)[0],
                                          public_key=his_pubkey, block_type=b'test', transaction={})
         await self.deliver_messages()
         self.assertTrue(self.nodes[1].overlay.persistence.did_double_spend(my_pubkey))
@@ -506,10 +506,10 @@ class TestTrustChainCommunity(TestBase):
         """
         Test crawling a whole chain with gaps from a specific user.
         """
-        his_pubkey = self.nodes[0].network.verified_peers[0].public_key.key_to_bin()
+        his_pubkey = list(self.nodes[0].network.verified_peers)[0].public_key.key_to_bin()
         created_blocks = []
         for _ in range(0, 5):
-            blocks = await self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0],
+            blocks = await self.nodes[0].overlay.sign_block(list(self.nodes[0].network.verified_peers)[0],
                                                             public_key=his_pubkey, block_type=b'test', transaction={})
             created_blocks.append(blocks)
 
@@ -536,7 +536,7 @@ class TestTrustChainCommunity(TestBase):
         self.nodes[0].endpoint.close()
         key = default_eccrypto.generate_key(u'very-low').pub().key_to_bin()
         for _ in range(4):
-            self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=key,
+            self.nodes[0].overlay.sign_block(list(self.nodes[0].network.verified_peers)[0], public_key=key,
                                              block_type=b'test', transaction={})
         self.nodes[0].endpoint.open()
 
@@ -556,7 +556,7 @@ class TestTrustChainCommunity(TestBase):
             self.nodes[0].endpoint.close()
             key = default_eccrypto.generate_key(u'curve25519').pub().key_to_bin()
             for _ in range(num):
-                self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=key,
+                self.nodes[0].overlay.sign_block(list(self.nodes[0].network.verified_peers)[0], public_key=key,
                                                  block_type=b'test', transaction={})
             self.nodes[0].endpoint.open()
 
@@ -577,8 +577,8 @@ class TestTrustChainCommunity(TestBase):
         """
         Test whether we get correct linked blocks when crawling the chain of a specific peer
         """
-        his_pubkey = self.nodes[1].network.verified_peers[0].public_key.key_to_bin()
-        await self.nodes[1].overlay.sign_block(self.nodes[1].network.verified_peers[0], public_key=his_pubkey,
+        his_pubkey = list(self.nodes[1].network.verified_peers)[0].public_key.key_to_bin()
+        await self.nodes[1].overlay.sign_block(list(self.nodes[1].network.verified_peers)[0], public_key=his_pubkey,
                                                block_type=b'test', transaction={})
 
         # Now, a third peer crawl the chain of peer 0. We should both get the linked block and the originating block.
@@ -607,7 +607,7 @@ class TestTrustChainCommunity(TestBase):
         """
         self.nodes[0].endpoint.close()
         his_key = self.nodes[1].my_peer.public_key.key_to_bin()
-        self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_key,
+        self.nodes[0].overlay.sign_block(list(self.nodes[0].network.verified_peers)[0], public_key=his_key,
                                          block_type=b'test', transaction={})
         block = self.nodes[0].overlay.persistence.get_latest(self.nodes[0].my_peer.public_key.key_to_bin())
         self.nodes[0].endpoint.open()
@@ -621,10 +621,10 @@ class TestTrustChainCommunity(TestBase):
         """
         self.nodes[0].endpoint.close()
         key = default_eccrypto.generate_key(u'very-low').pub().key_to_bin()
-        self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=key,
+        self.nodes[0].overlay.sign_block(list(self.nodes[0].network.verified_peers)[0], public_key=key,
                                          block_type=b'test', transaction={})
         his_key = self.nodes[1].my_peer.public_key.key_to_bin()
-        self.nodes[0].overlay.sign_block(self.nodes[0].network.verified_peers[0], public_key=his_key,
+        self.nodes[0].overlay.sign_block(list(self.nodes[0].network.verified_peers)[0], public_key=his_key,
                                          block_type=b'test', transaction={})
         block = self.nodes[0].overlay.persistence.get_latest(self.nodes[0].my_peer.public_key.key_to_bin())
         self.nodes[0].endpoint.open()
