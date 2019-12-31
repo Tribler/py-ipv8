@@ -1,5 +1,5 @@
 from binascii import unhexlify
-from random import choice
+from random import sample
 from time import time
 
 from .churn import DiscoveryStrategy, RandomChurn
@@ -28,7 +28,7 @@ class PeriodicSimilarity(DiscoveryStrategy):
             return
         self.last_step = now
         with self.walk_lock:
-            self.overlay.send_similarity_request(choice(self.overlay.network.verified_peers).address)
+            self.overlay.send_similarity_request(sample(self.overlay.network.verified_peers, 1)[0].address)
 
 
 class PingRequestCache(NumberCache):
@@ -96,7 +96,7 @@ class DiscoveryCommunity(Community):
         introduce_to = getattr(payload, 'introduce_to', None)
         introduction = None
         if introduce_to:
-            peers = self.network.verified_peers[:]
+            peers = self.network.verified_peers
             matches = [p for p in peers if p.mid == introduce_to]
             introduction = matches[0] if matches else None
         packet = self.create_introduction_response(payload.destination_address, source_address, payload.identifier,

@@ -36,7 +36,7 @@ class NetworkEndpoint(BaseEndpoint):
     )
     async def retrieve_peers(self, _):
         network = self.session.network
-        peer_list = network.verified_peers[:]
+        peer_list = network.verified_peers
         return Response({"peers": {
             b64encode(peer.mid).decode('utf-8'): {
                 "ip": peer.address[0],

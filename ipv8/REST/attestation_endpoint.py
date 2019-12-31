@@ -98,7 +98,7 @@ class AttestationEndpoint(BaseEndpoint):
         Find a peer by base64 encoded mid.
         """
         mid = b64decode(mid_b64)
-        peers = self.session.network.verified_peers[:]
+        peers = self.session.network.verified_peers
         matches = [p for p in peers if p.mid == mid]
         return matches[0] if matches else None
 
