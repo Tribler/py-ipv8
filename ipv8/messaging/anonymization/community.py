@@ -3,7 +3,7 @@ The tunnel community.
 
 Author(s): Egbert Bouman
 """
-from asyncio import ensure_future, iscoroutine
+from asyncio import iscoroutine, sleep
 from binascii import unhexlify
 
 from .caches import *
@@ -17,7 +17,7 @@ from ...messaging.deprecated.encoding import decode, encode
 from ...messaging.payload_headers import BinMemberAuthenticationPayload
 from ...peer import Peer
 from ...requestcache import RequestCache
-from ...util import succeed
+from ...taskmanager import task
 
 message_to_payload = {
     "data": (0, DataPayload),
@@ -349,7 +349,8 @@ class TunnelCommunity(Community):
                                                                        self.my_peer.public_key.key_to_bin(),
                                                                        circuit.unverified_hop.dh_first_part)))
 
-    def remove_circuit(self, circuit_id, additional_info='', remove_now=False, destroy=False):
+    @task
+    async def remove_circuit(self, circuit_id, additional_info='', remove_now=False, destroy=False):
         """
         Remove a circuit and return a deferred that fires when all data associated with the circuit is destroyed.
         Optionally send a destroy message.
@@ -357,36 +358,28 @@ class TunnelCommunity(Community):
         circuit_to_remove = self.circuits.get(circuit_id, None)
         if circuit_to_remove is None:
             self.logger.warning('Cannot remove unknown circuit %d', circuit_id)
-            return succeed(None)
+            return
 
-        remove_future = Future()
         self.logger.info("Removing %s circuit %d %s", circuit_to_remove.ctype, circuit_id, additional_info)
 
         if destroy:
             self.destroy_circuit(circuit_to_remove)
 
-        def remove_circuit_info():
-            circuit = self.circuits.pop(circuit_id, None)
-            if circuit:
-                self.logger.info("Removed circuit %d " + additional_info, circuit_id)
-
-            # Clean up the directions dictionary
-            self.directions.pop(circuit_id, None)
-
-            remove_future.set_result(circuit)
-
         circuit_to_remove.close()
 
-        if self.settings.remove_tunnel_delay == 0 or remove_now:
-            remove_circuit_info()
-        elif not self.is_pending_task_active(f"remove_circuit_{circuit_id}"):
-            self.register_task(f"remove_circuit_{circuit_id}",
-                               remove_circuit_info, delay=self.settings.remove_tunnel_delay)
+        if not remove_now or self.settings.remove_tunnel_delay > 0:
+            await sleep(self.settings.remove_tunnel_delay)
 
-        return remove_future
+        circuit = self.circuits.pop(circuit_id, None)
+        if circuit:
+            self.logger.info("Removed circuit %d " + additional_info, circuit_id)
 
-    def remove_relay(self, circuit_id, additional_info='', remove_now=False, destroy=False,
-                     got_destroy_from=None, both_sides=True):
+        # Clean up the directions dictionary
+        self.directions.pop(circuit_id, None)
+
+    @task
+    async def remove_relay(self, circuit_id, additional_info='', remove_now=False, destroy=False,
+                           got_destroy_from=None, both_sides=True):
         """
         Remove a relay and all information associated with the relay. Return the relays that have been removed.
         """
@@ -401,57 +394,47 @@ class TunnelCommunity(Community):
         if destroy:
             self.destroy_relay(to_remove, got_destroy_from=got_destroy_from)
 
+        if not remove_now or self.settings.remove_tunnel_delay > 0:
+            await sleep(self.settings.remove_tunnel_delay)
+
         removed_relays = []
         for cid in to_remove:
-            def remove_relay_info(cid_to_remove):
-                # Remove the relay
-                self.logger.info("Removing relay %d %s", cid_to_remove, additional_info)
+            # Remove the relay
+            self.logger.info("Removing relay %d %s", cid, additional_info)
 
-                relay = self.relay_from_to.pop(cid_to_remove, None)
-                if relay:
-                    removed_relays.append(relay)
+            relay = self.relay_from_to.pop(cid, None)
+            if relay:
+                removed_relays.append(relay)
 
-                # Remove old session key
-                self.relay_session_keys.pop(cid_to_remove, None)
+            # Remove old session key
+            self.relay_session_keys.pop(cid, None)
 
-                # Clean directions dictionary
-                self.directions.pop(cid_to_remove, None)
-
-            if self.settings.remove_tunnel_delay == 0 or remove_now:
-                remove_relay_info(cid)
-            elif not self.is_pending_task_active(f"remove_relay_{cid}"):
-                self.register_task(f"remove_relay_{cid}",
-                                   lambda cid_copy=cid: remove_relay_info(cid_copy),
-                                   delay=self.settings.remove_tunnel_delay)
+            # Clean directions dictionary
+            self.directions.pop(cid, None)
 
         return removed_relays
 
-    def remove_exit_socket(self, circuit_id, additional_info='', remove_now=False, destroy=False):
+    @task
+    async def remove_exit_socket(self, circuit_id, additional_info='', remove_now=False, destroy=False):
         """
         Remove an exit socket. Send a destroy message if necessary.
         """
-        remove_future = Future()
-
         exit_socket_to_destroy = self.exit_sockets.get(circuit_id, None)
         if exit_socket_to_destroy and destroy:
             self.destroy_exit_socket(exit_socket_to_destroy)
 
-        async def remove_exit_socket_info():
-            exit_socket = self.exit_sockets.pop(circuit_id, None)
-            if exit_socket:
-                # Close socket
-                if exit_socket.enabled:
-                    self.logger.info("Removing exit socket %d %s", circuit_id, additional_info)
-                    await exit_socket.close()
-                    # Remove old session key
-                    self.relay_session_keys.pop(circuit_id, None)
-            remove_future.set_result(exit_socket)
+        if not remove_now or self.settings.remove_tunnel_delay > 0:
+            await sleep(self.settings.remove_tunnel_delay)
 
-        if not self.is_pending_task_active(f"remove_exit_socket_{circuit_id}"):
-            delay = 0 if remove_now else self.settings.remove_tunnel_delay
-            self.register_task(f"remove_exit_socket_{circuit_id}", remove_exit_socket_info, delay=delay)
-            return remove_future
-        return succeed(None)
+        exit_socket = self.exit_sockets.pop(circuit_id, None)
+        if exit_socket:
+            # Close socket
+            if exit_socket.enabled:
+                self.logger.info("Removing exit socket %d %s", circuit_id, additional_info)
+                await exit_socket.close()
+                # Remove old session key
+                self.relay_session_keys.pop(circuit_id, None)
+        return exit_socket
 
     def destroy_circuit(self, circuit, reason=0):
         sock_addr = circuit.peer.address
