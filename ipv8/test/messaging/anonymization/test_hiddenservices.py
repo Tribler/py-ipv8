@@ -93,7 +93,7 @@ class TestHiddenServices(TestBase):
         """
         Create an 1 hop introduction point for some node for some service.
         """
-        self.nodes[node_nr].overlay.create_introduction_point(service, required_ip=required_ip)
+        await self.nodes[node_nr].overlay.create_introduction_point(service, required_ip=required_ip)
 
         await self.deliver_messages()
 

@@ -274,8 +274,7 @@ class TunnelCommunity(Community):
         self.select_index = (self.select_index + 1) % len(circuits)
         return circuits[self.select_index]
 
-    def create_circuit(self, goal_hops, ctype=CIRCUIT_TYPE_DATA, callback=None, required_exit=None, info_hash=None):
-
+    def create_circuit(self, goal_hops, ctype=CIRCUIT_TYPE_DATA, required_exit=None, info_hash=None):
         self.logger.info("Creating a new circuit of length %d (type: %s)", goal_hops, ctype)
         exit_candidates = self.get_candidates(PEER_FLAG_EXIT_ANY)
         if ctype == CIRCUIT_TYPE_IPV8:
@@ -321,7 +320,7 @@ class TunnelCommunity(Community):
 
         # Finally, construct the Circuit object and send the CREATE message
         circuit_id = self._generate_circuit_id()
-        self.circuits[circuit_id] = circuit = Circuit(circuit_id, goal_hops, ctype, callback, required_exit, info_hash)
+        self.circuits[circuit_id] = circuit = Circuit(circuit_id, goal_hops, ctype, required_exit, info_hash)
         self.send_initial_create(circuit, possible_first_hops,
                                  self.settings.circuit_timeout // self.settings.next_hop_timeout)
 
@@ -534,8 +533,8 @@ class TunnelCommunity(Community):
             self.remove_circuit(circuit.circuit_id, "error while verifying shared secret, bailing out.")
             return
 
-        circuit.add_hop(hop)
         circuit.unverified_hop = None
+        circuit.add_hop(hop)
 
         if circuit.state == CIRCUIT_STATE_EXTENDING:
             candidate_list_enc = payload.candidate_list_enc
@@ -547,11 +546,6 @@ class TunnelCommunity(Community):
 
         elif circuit.state == CIRCUIT_STATE_READY:
             self.request_cache.pop("retry", payload.circuit_id)
-
-            # Execute callback
-            if circuit.callback:
-                circuit.callback(circuit)
-                circuit.callback = None
 
     def send_extend(self, circuit, candidate_list, max_tries):
         if self.request_cache.has("retry", circuit.circuit_id):
