@@ -71,7 +71,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         Note that the seeder should also create introduction points by calling create_introduction_point().
 
         :param info_hash: the swarm identifier
-        :type info_hash: str
+        :type info_hash: bytes
         :param hops: the amount of hops for our introduction/rendezvous circuits
         :type hops: int
         :param callback: the callback function to call when we have established an e2e circuit
@@ -84,17 +84,14 @@ class HiddenTunnelCommunity(TunnelCommunity):
 
         self.swarms[info_hash] = Swarm(info_hash, hops, self.send_peers_request,
                                        self.crypto.generate_key(u"curve25519") if seeding else None)
-
-        self.e2e_callbacks.pop(info_hash, None)
-        if callback:
-            self.e2e_callbacks[info_hash] = callback
+        self.e2e_callbacks[info_hash] = callback
 
     def leave_swarm(self, info_hash):
         """
         Leave a hidden swarm. Can be called by both the downloader and the seeder.
 
         :param info_hash: the swarm identifier
-        :type info_hash: str
+        :type info_hash: bytes
         """
         self.e2e_callbacks.pop(info_hash, None)
         swarm = self.swarms.pop(info_hash, None)
@@ -364,10 +361,9 @@ class HiddenTunnelCommunity(TunnelCommunity):
             self.logger.info('On create-e2e: creating rendezvous point')
             swarm = self.swarms.get(payload.info_hash)
             if swarm and swarm.seeding:
-                await self.create_rendezvous_point(payload.info_hash,
-                                                   lambda rendezvous_point:
-                                                   self.create_created_e2e(rendezvous_point, source_address,
-                                                                           payload, circuit_id))
+                rp = await self.create_rendezvous_point(payload.info_hash)
+                if rp and await rp.ready:
+                    self.create_created_e2e(rp, source_address, payload, circuit_id)
 
     def create_created_e2e(self, rendezvous_point, source_address, payload, circuit_id):
         key = self.swarms[payload.info_hash].seeder_sk
@@ -450,8 +446,8 @@ class HiddenTunnelCommunity(TunnelCommunity):
         else:
             self.logger.error('On linked e2e: could not find download for %s!', cache.info_hash)
 
-    async def create_introduction_point(self, info_hash, amount=1, required_ip=None):
-        self.logger.info("Creating %d introduction point(s)", amount)
+    async def create_introduction_point(self, info_hash, required_ip=None):
+        self.logger.info("Creating introduction point")
 
         if info_hash not in self.swarms:
             self.logger.warning('Cannot create introduction point for unknown swarm')
@@ -460,19 +456,16 @@ class HiddenTunnelCommunity(TunnelCommunity):
             self.logger.warning('Cannot create introduction point for swarm that is not seeding')
             return
 
-        seed_sk = self.swarms[info_hash].seeder_sk
+        circuit = self.create_circuit_for_infohash(info_hash, CIRCUIT_TYPE_IP_SEEDER, required_exit=required_ip)
 
-        for _ in range(amount):
-            circuit = self.create_circuit_for_infohash(info_hash, CIRCUIT_TYPE_IP_SEEDER, required_exit=required_ip)
-
-            if circuit and await circuit.ready:
-                # We got a circuit, now let's create an introduction point
-                circuit_id = circuit.circuit_id
-                cache = self.request_cache.add(IPRequestCache(self, circuit))
-                self.send_cell([circuit.peer],
-                               u'establish-intro', EstablishIntroPayload(circuit_id, cache.number, info_hash,
-                                                                         seed_sk.pub().key_to_bin()))
-                self.logger.info("Established introduction tunnel %s", circuit_id)
+        if circuit and await circuit.ready:
+            # We got a circuit, now let's create an introduction point
+            seed_pk = self.swarms[info_hash].seeder_sk.pub().key_to_bin()
+            circuit_id = circuit.circuit_id
+            cache = self.request_cache.add(IPRequestCache(self, circuit))
+            self.send_cell([circuit.peer], 'establish-intro', EstablishIntroPayload(circuit_id, cache.number,
+                                                                                    info_hash, seed_pk))
+            self.logger.info("Established introduction tunnel %s", circuit_id)
 
     @tc_lazy_wrapper_unsigned(EstablishIntroPayload)
     def on_establish_intro(self, source_address, payload, circuit_id):
@@ -517,17 +510,18 @@ class HiddenTunnelCommunity(TunnelCommunity):
         self.request_cache.pop(u"establish-intro", payload.identifier)
         self.logger.info("Got intro-established from %s", source_address)
 
-    async def create_rendezvous_point(self, info_hash, finished_callback):
+    async def create_rendezvous_point(self, info_hash):
         # Create a new circuit to be used for transferring data
         circuit = self.create_circuit_for_infohash(info_hash, CIRCUIT_TYPE_RP_SEEDER)
 
         if circuit and await circuit.ready:
             # We got a circuit, now let's create a rendezvous point
-            rp = RendezvousPoint(circuit, os.urandom(20), finished_callback)
+            rp = RendezvousPoint(circuit, os.urandom(20))
             cache = self.request_cache.add(RPRequestCache(self, rp))
             self.send_cell([circuit.peer],
                            'establish-rendezvous', EstablishRendezvousPayload(circuit.circuit_id,
                                                                               cache.number, rp.cookie))
+            return rp
 
     @tc_lazy_wrapper_unsigned(EstablishRendezvousPayload)
     def on_establish_rendezvous(self, source_address, payload, circuit_id):
@@ -547,7 +541,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
 
         sock_addr = payload.rendezvous_point_addr
         rp.rp_info = (sock_addr[0], sock_addr[1], self.crypto.key_to_bin(rp.circuit.hops[-1].public_key))
-        rp.finished_callback(rp)
+        rp.ready.set_result(rp)
 
     async def dht_lookup(self, info_hash):
         if self.dht_provider:

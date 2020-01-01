@@ -350,10 +350,10 @@ class RelayRoute(Tunnel):
 
 class RendezvousPoint(object):
 
-    def __init__(self, circuit, cookie, finished_callback):
+    def __init__(self, circuit, cookie):
         self.circuit = circuit
         self.cookie = cookie
-        self.finished_callback = finished_callback
+        self.ready = Future()
         self.rp_info = None
 
 
