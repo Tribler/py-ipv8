@@ -32,7 +32,7 @@ This document is a short walkthrough to set up IPv8 and run Trustchain Crawler f
 
 #. 
    As we are running as a service, we require a few additional dependencies:
-    a. `Install Libsodium <../preliminaries/install_libsodium.html>`_ 
+    a. `Install Libsodium <../../preliminaries/install_libsodium>`_ 
     b. Yappi - a profiling tool
 
    .. code-block:: bash
