@@ -4,7 +4,7 @@ TrustChain
 This document entails a high-level overview of the implementation of TrustChain in IPv8.
 TrustChain is a scalable, tamper-proof and distributed ledger, built for secure accounting.
 For more information about TrustChain itself, we refer to our `IETF internet standard <https://tools.ietf.org/html/draft-pouwelse-trustchain-01>`_.
-Additional information can be found `in our published scientific article <https://www.sciencedirect.com/science/article/pii/S0167739X17318988>`_ and our ` vision paper describing various applications using TrustChain <http://pure.tudelft.nl/ws/files/41225519/article.pdf>`_.
+Additional information can be found `in our published scientific article <https://www.sciencedirect.com/science/article/pii/S0167739X17318988>`_ and our `vision paper describing various applications using TrustChain <http://pure.tudelft.nl/ws/files/41225519/article.pdf>`_.
 
 Overview
 --------
