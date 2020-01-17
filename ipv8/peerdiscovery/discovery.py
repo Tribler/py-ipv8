@@ -71,7 +71,7 @@ class RandomWalk(DiscoveryStrategy):
             if self.window_size and self.window_size > 0 and len(self.intro_timeouts) >= self.window_size:
                 return
             # Take step
-            known = self.overlay.network.get_walkable_addresses()
+            known = self.overlay.get_walkable_addresses()
             available = list(set(known) - set(self.intro_timeouts.keys()))
 
             # We can get stuck in an infinite loop of unreachable peers if we never contact the tracker again
