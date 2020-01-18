@@ -23,7 +23,8 @@ setup(
         "pyasn1"
     ],
     extras_require={
-        'netifaces': ["netifaces"]
+        'netifaces': ["netifaces"],
+        'asynctest': ["asynctest"]
     },
     classifiers=[
         "Development Status :: 5 - Production/Stable",
