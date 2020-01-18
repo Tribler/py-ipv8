@@ -60,7 +60,7 @@ class EndpointServer(Community):
             probable_peer = self.network.get_verified_by_address(source_address)
             if probable_peer:
                 probable_peer.last_response = time.time()
-            if data[22] == chr(246):
+            if data[22] == 246:
                 self.on_generic_introduction_request(source_address, data, data[:22])
             elif warn_unknown:
                 self.logger.warning("Tracker received unknown message %s", str(data[22]))
