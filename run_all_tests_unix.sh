@@ -9,19 +9,19 @@ test_files="$(grep ^[^#] test_classes_list.txt)"
 tty -s && tput bold
 
 # 2.1 Check for python interpreter version
-if [ -x "$(command -v python2)" ]; then
-    interpreter="python2"
+if [ -x "$(command -v python3)" ]; then
+    interpreter="python3"
 else
-    echo "No python2 command found! Will use the default python command."
+    echo "No python3 command found! Will use the default python command."
     interpreter="python"
 fi
 
 echo -n "Starting IPv8 testsuite: "
 if nosetests --version >>/dev/null 2>&1; then
     echo "using test runner 'nosetests'!"
-    # Use nosetests2 if available and if not, try version possibly incompatible with python2
-    if [ -x "$(command -v nosetests2)" ]; then
-        test_command="nosetests2"
+    # Use nosetests3 if available and if not, try version possibly incompatible with python3
+    if [ -x "$(command -v nosetests3)" ]; then
+        test_command="nosetests3"
     else
         test_command="nosetests"
     fi

@@ -9,7 +9,7 @@ setup(
     description='The Python implementation of the IPV8 library',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    version='1.9.0',
+    version='2.0.0',
     url='https://github.com/Tribler/py-ipv8',
     package_data={'': ['*.*']},
     packages=find_packages(),
@@ -23,7 +23,8 @@ setup(
         "pyasn1"
     ],
     extras_require={
-        'netifaces': ["netifaces"]
+        'netifaces': ["netifaces"],
+        'asynctest': ["asynctest"]
     },
     classifiers=[
         "Development Status :: 5 - Production/Stable",
@@ -31,7 +32,6 @@ setup(
         "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
         "Natural Language :: English",
         "Operating System :: OS Independent",
-        "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Topic :: Scientific/Engineering",
         "Topic :: Software Development :: Libraries :: Python Modules",
