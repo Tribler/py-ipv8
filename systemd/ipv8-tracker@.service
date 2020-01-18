@@ -9,7 +9,7 @@ Environment="PYTHONPATH=/opt/ipv8"
 WorkingDirectory=/opt/ipv8
 
 ExecStartPre=/bin/mkdir -p ${HOME}/%i
-ExecStart=python scripts/tracker_plugin.py --listen_port=%i
+ExecStart=/usr/bin/python3 scripts/tracker_plugin.py --listen_port=%i
 
 User=ipv8_tracker
 Group=ipv8_tracker
