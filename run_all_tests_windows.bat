@@ -3,9 +3,9 @@ set failed=0
 REM 1. Figure out if the user has nosetests installed.
 REM    Change the test command and parameters accordingly.
 echo|set /p="Starting IPv8 testsuite: "
-where /q nosetests
+where /q nosetests3
 if %ERRORLEVEL%==0 (
-	echo using test runner 'nosetests'!
+	echo using test runner 'nosetests3'!
 	set usenose=1
 ) else (
 	echo using test runner 'python -m unittest'!
@@ -45,7 +45,7 @@ echo  %line%
 echo ======================================================================
 REM 5.b. Pipe the output of the test command  to a subroutine
 if %usenose%==1 (
-	for /f "tokens=1-5" %%G in ('nosetests -s -x -v %line% ^2^>^&^1') do (
+	for /f "tokens=1-5" %%G in ('nosetests3 -s -x -v %line% ^2^>^&^1') do (
 		echo %%G %%H %%I %%J %%K
 		if "%%G"=="FAIL:" (
 			set failed=1
@@ -79,7 +79,7 @@ exit /b
 
 :parseline
 REM 5.c. Parse the command output and extract the test time and test count for
-REM      this particular class. Then proceed to add them to the totals. 
+REM      this particular class. Then proceed to add them to the totals.
 set "command=%1"
 set "testcount=%2"
 set "testtime=%5"
