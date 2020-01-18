@@ -1,6 +1,6 @@
 from aiohttp import web
 
-from aiohttp_apispec import docs, form_schema
+from aiohttp_apispec import docs, json_schema
 
 from marshmallow.fields import Boolean, Integer, String
 
@@ -43,7 +43,7 @@ class IsolationEndpoint(BaseEndpoint):
             }
         }
     )
-    @form_schema(schema(IsolationRequest={
+    @json_schema(schema(IsolationRequest={
         'ip*': String,
         'port*': Integer,
         'bootstrapnode': Boolean,
@@ -51,7 +51,7 @@ class IsolationEndpoint(BaseEndpoint):
     }))
     async def handle_post(self, request):
         # Check if we have arguments, containing an address and the type of address to add.
-        args = await request.post()
+        args = await request.json()
         if not args or 'ip' not in args or 'port' not in args:
             return Response({"success": False, "error": "Parameters 'ip' and 'port' are required"},
                             status=HTTP_BAD_REQUEST)

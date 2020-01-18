@@ -6,7 +6,7 @@ from hashlib import sha1
 
 from aiohttp import web
 
-from aiohttp_apispec import docs, form_schema
+from aiohttp_apispec import docs, json_schema
 
 from marshmallow.fields import Integer, String
 
@@ -214,14 +214,14 @@ class DHTEndpoint(BaseEndpoint):
             }
         }
     )
-    @form_schema(schema(DHTStoreRequest={
+    @json_schema(schema(DHTStoreRequest={
         'value*': String
     }))
     async def put_value(self, request):
         if not self.dht:
             return Response({"error": "DHT community not found"}, status=HTTP_NOT_FOUND)
 
-        parameters = await request.post()
+        parameters = await request.json()
         if 'value' not in parameters:
             return Response({"error": "incorrect parameters"}, status=HTTP_BAD_REQUEST)
 

@@ -2,7 +2,7 @@ from binascii import hexlify
 
 from aiohttp import web
 
-from aiohttp_apispec import docs, form_schema
+from aiohttp_apispec import docs, json_schema
 
 from marshmallow.fields import Boolean, Dict, List, Nested, String
 
@@ -51,7 +51,9 @@ class OverlaysEndpoint(BaseEndpoint):
                 "master_peer": hexlify(overlay.master_peer.public_key.key_to_bin()).decode('utf-8'),
                 "my_peer": hexlify(overlay.my_peer.public_key.key_to_bin()).decode('utf-8'),
                 "global_time": overlay.global_time,
-                "peers": [str(peer) for peer in peers],
+                "peers": [{'ip': peer.address[0],
+                           'port': peer.address[1],
+                           'public_key': hexlify(peer.public_key.key_to_bin()).decode('utf-8')} for peer in peers],
                 "overlay_name": overlay.__class__.__name__,
                 "statistics": statistics
             })
@@ -109,7 +111,7 @@ class OverlaysEndpoint(BaseEndpoint):
             }
         }
     )
-    @form_schema(schema(EnableStatisticsRequest={
+    @json_schema(schema(EnableStatisticsRequest={
         'enable*': (Boolean, 'Whether to enable or disable the statistics'),
         'all': (Boolean, 'Whether update applies to all overlays'),
         'overlay_name': (String, 'Class name of the overlay'),
@@ -122,7 +124,7 @@ class OverlaysEndpoint(BaseEndpoint):
         all_overlays = False
         overlay_name = None
 
-        args = await request.post()
+        args = await request.json()
         if 'enable' not in args or not args['enable']:
             return Response({"success": False, "error": "Parameter 'enable' is required"}, status=HTTP_BAD_REQUEST)
         enable = args['enable'].lower() == 'true'
