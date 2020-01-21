@@ -426,6 +426,10 @@ class TrustChainCommunity(Community):
         Crawl the whole chain of a specific peer.
         :param latest_block_num: The latest block number of the peer in question, if available.
         """
+        if self.request_cache.has("chaincrawl", ChainCrawlCache.get_number_for(peer)):
+            self.logger.debug("Skipping crawl of peer %s, another crawl is pending", peer)
+            return succeed(None)
+
         crawl_future = Future()
         cache = ChainCrawlCache(self, peer, crawl_future, known_chain_length=latest_block_num)
         self.request_cache.add(cache)
