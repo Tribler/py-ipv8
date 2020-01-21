@@ -1,16 +1,16 @@
 [Unit]
-Description = TrustChain Crawler
-After = network-online.target
+Description=TrustChain Crawler
+After=network-online.target
 
 [Service]
-Type = simple
+Type=simple
 Environment="PYTHONPATH=/opt/ipv8"
 User=trustchain_crawler
 Group=trustchain_crawler
 WorkingDirectory=/opt/ipv8
-ExecStart = python scripts/trustchain_crawler_plugin.py --statedir=/var/lib/trustchain_crawler $EXTRA_CRAWLER_ARGS
-Restart = always
-Environment=EXTRA_CRAWLER_ARGS=--
+ExecStart=/usr/bin/python3 scripts/trustchain_crawler_plugin.py --statedir=/var/lib/trustchain_crawler $EXTRA_CRAWLER_ARGS
+Restart=always
+Environment=EXTRA_CRAWLER_ARGS=
 
 [Install]
-WantedBy = multi-user.target
+WantedBy=multi-user.target

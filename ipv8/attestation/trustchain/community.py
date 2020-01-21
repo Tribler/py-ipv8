@@ -49,13 +49,17 @@ class TrustChainCommunity(Community):
 
     def __init__(self, *args, **kwargs):
         working_directory = kwargs.pop('working_directory', '')
+        self.persistence = kwargs.pop('persistence', None)
         db_name = kwargs.pop('db_name', self.DB_NAME)
         self.settings = kwargs.pop('settings', TrustChainSettings())
         self.receive_block_lock = RLock()
+
         super(TrustChainCommunity, self).__init__(*args, **kwargs)
         self.request_cache = RequestCache()
         self.logger = logging.getLogger(self.__class__.__name__)
-        self.persistence = self.DB_CLASS(working_directory, db_name, self.my_peer.public_key.key_to_bin())
+
+        if not self.persistence:
+            self.persistence = self.DB_CLASS(working_directory, db_name, self.my_peer.public_key.key_to_bin())
         self.relayed_broadcasts = []
         self.logger.debug("The trustchain community started with Public Key: %s",
                           hexlify(self.my_peer.public_key.key_to_bin()))
