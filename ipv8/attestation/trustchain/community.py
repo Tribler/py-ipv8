@@ -49,13 +49,17 @@ class TrustChainCommunity(Community):
 
     def __init__(self, *args, **kwargs):
         working_directory = kwargs.pop('working_directory', '')
+        self.persistence = kwargs.pop('persistence', None)
         db_name = kwargs.pop('db_name', self.DB_NAME)
         self.settings = kwargs.pop('settings', TrustChainSettings())
         self.receive_block_lock = RLock()
+
         super(TrustChainCommunity, self).__init__(*args, **kwargs)
         self.request_cache = RequestCache()
         self.logger = logging.getLogger(self.__class__.__name__)
-        self.persistence = self.DB_CLASS(working_directory, db_name, self.my_peer.public_key.key_to_bin())
+
+        if not self.persistence:
+            self.persistence = self.DB_CLASS(working_directory, db_name, self.my_peer.public_key.key_to_bin())
         self.relayed_broadcasts = []
         self.logger.debug("The trustchain community started with Public Key: %s",
                           hexlify(self.my_peer.public_key.key_to_bin()))
@@ -422,6 +426,10 @@ class TrustChainCommunity(Community):
         Crawl the whole chain of a specific peer.
         :param latest_block_num: The latest block number of the peer in question, if available.
         """
+        if self.request_cache.has("chaincrawl", ChainCrawlCache.get_number_for(peer)):
+            self.logger.debug("Skipping crawl of peer %s, another crawl is pending", peer)
+            return succeed(None)
+
         crawl_future = Future()
         cache = ChainCrawlCache(self, peer, crawl_future, known_chain_length=latest_block_num)
         self.request_cache.add(cache)

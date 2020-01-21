@@ -4,9 +4,11 @@ This script starts a TrustChain crawler.
 import argparse
 import logging
 import os
+import random
 import signal
 import sys
 from asyncio import all_tasks, ensure_future, gather, get_event_loop, sleep
+from binascii import unhexlify
 
 # Check if we are running from the root directory
 # If not, modify our path so that we can import IPv8
@@ -18,14 +20,76 @@ except ImportError:
 
 
 from ipv8.REST.rest_manager import RESTManager
+from ipv8.attestation.trustchain.community import TrustChainCommunity
+from ipv8.attestation.trustchain.database import TrustChainDB
 from ipv8.attestation.trustchain.settings import TrustChainSettings
+from ipv8.peer import Peer
 
 from ipv8_service import IPv8
 
+logger = logging.getLogger(__name__)
 
 tc_settings = TrustChainSettings()
 tc_settings.crawler = True
 tc_settings.max_db_blocks = 1000000000
+
+
+class TrustChainCrawlerCommunity(TrustChainCommunity):
+    """
+    TrustChain community specifically for the crawler.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super(TrustChainCrawlerCommunity, self).__init__(*args, **kwargs)
+        ensure_future(self.start_crawling())
+
+    async def start_crawling(self):
+        self._logger.info("Starting to crawl...")
+        while True:
+            await sleep(2)
+            ensure_future(self.crawl_peer())
+
+    def on_latest_block(self, peer, blocks):
+        his_block = None
+        if not blocks:
+            return
+
+        for block in blocks:
+            if block.public_key == peer.public_key.key_to_bin():
+                his_block = block
+                break
+
+        if his_block:
+            self._logger.info("Sending full crawl request to peer %s", peer)
+            self.crawl_chain(peer, his_block.sequence_number)
+
+    async def crawl_peer(self):
+        """
+        Crawl a random peer.
+        """
+        tc_peers = self.get_peers()
+        if not tc_peers:
+            self._logger.info("No peers to crawl")
+            return
+
+        random_peer = random.choice(self.get_peers())
+        try:
+            blk = await self.send_crawl_request(random_peer, random_peer.public_key.key_to_bin(), -1, -1)
+            self.on_latest_block(random_peer, blk)
+        except Exception as exc:
+            self._logger.error("Exception occurred while crawling: %s" % exc)
+            pass
+
+
+class TrustChainBackwardsCrawlerCommunity(TrustChainCrawlerCommunity):
+    """
+    Backwards-compatible TrustChain community.
+    """
+    master_peer = Peer(unhexlify("3081a7301006072a8648ce3d020106052b8104002703819200040672297aa47c7bb2648ba0385275bc"
+                                 "8ade5aedc3677a615f5f9ca83b9b28c75e543342875f7f353bbf74baff7e3dae895ee9c9a9f80df023"
+                                 "dbfb72362426b50ce35549e6f0e0a319015a2fd425e2e34c92a3fb33b26929bcabb73e14f63684129b"
+                                 "66f0373ca425015cc9fad75b267de0cfb46ed798796058b23e12fc4c42ce9868f1eb7d59cc2023c039"
+                                 "14175ebb9703"))
 
 
 crawler_config = {
@@ -39,7 +103,7 @@ crawler_config = {
         }
     ],
     'logger': {
-        'level': "ERROR"
+        'level': "INFO"
     },
     'walker_interval': 0.5,
     'overlays': [
@@ -77,7 +141,7 @@ crawler_config = {
                 ('resolve_dns_bootstrap_addresses', )
             ]
         }, {
-            'class': 'TrustChainCommunity',
+            'class': 'TrustChainCrawlerCommunity',
             'key': "my peer",
             'walkers': [
                 {
@@ -91,6 +155,15 @@ crawler_config = {
             'initialize': {
                 'max_peers': -1,
                 'settings': tc_settings
+            },
+            'on_start': [],
+        }, {
+            'class': 'TrustChainBackwardsCrawlerCommunity',
+            'key': "my peer",
+            'walkers': [],
+            'initialize': {
+                'max_peers': -1,
+                'settings': tc_settings,
             },
             'on_start': [],
         },
@@ -107,18 +180,15 @@ class TrustchainCrawlerService(object):
         self.ipv8 = None
         self.restapi = None
         self._stopping = False
+        self.tc_persistence = None
 
     async def start_crawler(self, statedir, apiport, no_rest_api, testnet, yappi):
         """
         Main method to startup the TrustChain crawler.
         """
-        root = logging.getLogger()
-        root.setLevel(logging.INFO)
 
-        stderr_handler = logging.StreamHandler(sys.stderr)
-        stderr_handler.setLevel(logging.INFO)
-        stderr_handler.setFormatter(logging.Formatter("%(asctime)s:%(levelname)s:%(message)s"))
-        root.addHandler(stderr_handler)
+        # Open the database
+        self.tc_persistence = TrustChainDB(statedir, 'trustchain')
 
         if statedir:
             # If we use a custom state directory, update various variables
@@ -126,15 +196,20 @@ class TrustchainCrawlerService(object):
                 key["file"] = os.path.join(statedir, key["file"])
 
             for community in crawler_config["overlays"]:
-                if community["class"] == "TrustChainCommunity":
-                    community["initialize"]["working_directory"] = statedir
+                if community["class"] == "TrustChainCrawlerCommunity" or community["class"] == "TrustChainBackwardsCrawlerCommunity":
+                    community["initialize"]["persistence"] = self.tc_persistence
 
         if testnet:
             for community in crawler_config["overlays"]:
                 if community["class"] == "TrustChainCommunity":
                     community["class"] = "TrustChainTestnetCommunity"
 
-        self.ipv8 = IPv8(crawler_config)
+        extra_communities = {
+            "TrustChainCrawlerCommunity": TrustChainCrawlerCommunity,
+            "TrustChainBackwardsCrawlerCommunity": TrustChainBackwardsCrawlerCommunity
+        }
+        self.ipv8 = IPv8(crawler_config, extra_communities=extra_communities)
+
         await self.ipv8.start()
 
         async def signal_handler(sig):
@@ -174,7 +249,7 @@ class TrustchainCrawlerService(object):
 def main(argv):
     parser = argparse.ArgumentParser(add_help=False, description=('TrustChain crawler'))
     parser.add_argument('--help', '-h', action='help', default=argparse.SUPPRESS, help='Show this help message and exit')
-    parser.add_argument('--statedir', '-s', default=None, type=str, help='Use an alternate statedir')
+    parser.add_argument('--statedir', '-s', default='.', type=str, help='Use an alternate statedir')
     parser.add_argument('--apiport', '-p', default=8085, type=int, help='Use an alternative port for the REST api')
     parser.add_argument('--no-rest-api', '-a', action='store_const', default=False, const=True, help='Autonomous: disable the REST api')
     parser.add_argument('--testnet', '-t', action='store_const', default=False, const=True, help='Join the testnet')
