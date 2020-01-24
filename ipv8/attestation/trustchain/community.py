@@ -301,11 +301,10 @@ class TrustChainCommunity(Community):
         """
         We received a half block, part of a broadcast. Disseminate it further.
         """
-        payload.ttl -= 1
         block = self.get_block_class(payload.type).from_payload(payload, self.serializer)
         self.validate_persist_block(block)
 
-        if block.block_id not in self.relayed_broadcasts and payload.ttl > 0:
+        if block.block_id not in self.relayed_broadcasts and payload.ttl > 1:
             self.send_block(block, ttl=payload.ttl - 1)
 
     @synchronized
