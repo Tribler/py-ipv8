@@ -323,12 +323,11 @@ class TrustChainCommunity(Community):
         """
         We received a half block pair, part of a broadcast. Disseminate it further.
         """
-        payload.ttl -= 1
         block1, block2 = self.get_block_class(payload.type1).from_pair_payload(payload, self.serializer)
         self.validate_persist_block(block1)
         self.validate_persist_block(block2)
 
-        if block1.block_id not in self.relayed_broadcasts and payload.ttl > 0:
+        if block1.block_id not in self.relayed_broadcasts and payload.ttl > 1:
             self.send_block_pair(block1, block2, ttl=payload.ttl - 1)
 
     def validate_persist_block(self, block):
