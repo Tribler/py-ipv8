@@ -143,8 +143,8 @@ class TrustChainCommunity(Community):
             self.logger.debug("Broadcasting block %s", block)
             payload = HalfBlockBroadcastPayload.from_half_block(block, ttl).to_pack_list()
             packet = self._ez_pack(self._prefix, 5, [dist, payload], False)
-            for peer in random.sample(self.network.verified_peers, min(len(self.network.verified_peers),
-                                                                       self.settings.broadcast_fanout)):
+            peers = self.get_peers()
+            for peer in random.sample(peers, min(len(peers), self.settings.broadcast_fanout)):
                 self.endpoint.send(peer.address, packet)
             self.relayed_broadcasts.append(block.block_id)
 
@@ -164,8 +164,8 @@ class TrustChainCommunity(Community):
             self.logger.debug("Broadcasting blocks %s and %s", block1, block2)
             payload = HalfBlockPairBroadcastPayload.from_half_blocks(block1, block2, ttl).to_pack_list()
             packet = self._ez_pack(self._prefix, 6, [dist, payload], False)
-            for peer in random.sample(self.network.verified_peers, min(len(self.network.verified_peers),
-                                                                       self.settings.broadcast_fanout)):
+            peers = self.get_peers()
+            for peer in random.sample(peers, min(len(peers), self.settings.broadcast_fanout)):
                 self.endpoint.send(peer.address, packet)
             self.relayed_broadcasts.append(block1.block_id)
 
