@@ -308,6 +308,14 @@ class TestTrustChainCommunity(TestBase):
         self.assertIn(block.block_id, self.nodes[1].overlay.relayed_broadcasts)
         self.assertNotIn(block.block_id, node3.overlay.relayed_broadcasts)
 
+        # TTL=3 (should be relayed twice)
+        block = TestBlock()
+        self.nodes[0].overlay.send_block(block, ttl=3)
+        await self.deliver_messages()
+        self.assertIn(block.block_id, self.nodes[0].overlay.relayed_broadcasts)
+        self.assertIn(block.block_id, self.nodes[1].overlay.relayed_broadcasts)
+        self.assertIn(block.block_id, node3.overlay.relayed_broadcasts)
+
     async def test_broadcast_half_block_pair(self):
         """
         Test broadcasting a half block pair
@@ -335,6 +343,15 @@ class TestTrustChainCommunity(TestBase):
         self.assertIn(block1.block_id, self.nodes[0].overlay.relayed_broadcasts)
         self.assertIn(block1.block_id, self.nodes[1].overlay.relayed_broadcasts)
         self.assertNotIn(block1.block_id, node3.overlay.relayed_broadcasts)
+
+        # TTL=3 (should be relayed twice)
+        block1 = TestBlock()
+        block2 = TestBlock()
+        self.nodes[0].overlay.send_block_pair(block1, block2, ttl=3)
+        await self.deliver_messages()
+        self.assertIn(block1.block_id, self.nodes[0].overlay.relayed_broadcasts)
+        self.assertIn(block1.block_id, self.nodes[1].overlay.relayed_broadcasts)
+        self.assertIn(block1.block_id, node3.overlay.relayed_broadcasts)
 
     async def test_intro_response_crawl(self):
         """
