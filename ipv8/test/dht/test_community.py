@@ -1,11 +1,12 @@
 import time
+from asyncio import TimeoutError, wait_for
 
 from ..base import TestBase
 from ..mocking.ipv8 import MockIPv8
 from ...dht import DHTError
 from ...dht.community import DHTCommunity
 from ...dht.provider import DHTCommunityProvider
-from ...dht.routing import NODE_LIMIT_QUERIES, Node, distance
+from ...dht.routing import NODE_LIMIT_QUERIES, Node, RoutingTable, distance
 from ...messaging.anonymization.tunnel import IntroductionPoint
 from ...util import succeed
 
@@ -61,9 +62,9 @@ class TestDHTCommunity(TestBase):
     async def test_ping_pong_fail(self):
         await self.introduce_nodes()
         await self.nodes[1].unload()
-        node = await self.nodes[0].overlay.ping(Node(self.nodes[1].my_peer.key,
-                                                     self.nodes[1].my_peer.address))
-        self.assertIsNone(node)
+        with self.assertRaises(TimeoutError):
+            await wait_for(self.nodes[0].overlay.ping(Node(self.nodes[1].my_peer.key,
+                                                           self.nodes[1].my_peer.address)), 0.1)
 
     async def test_store_value(self):
         await self.introduce_nodes()
@@ -73,7 +74,7 @@ class TestDHTCommunity(TestBase):
 
     async def test_store_value_fail(self):
         await self.introduce_nodes()
-        await self.nodes[1].unload()
+        self.nodes[0].overlay.routing_table = RoutingTable(self.nodes[0].overlay.my_node_id)
         with self.assertRaises(DHTError):
             await self.nodes[0].overlay.store_value(self.key, self.value)
 
@@ -197,8 +198,8 @@ class TestDHTCommunity(TestBase):
         # Node1 must have blocked node0
         self.assertTrue(self.nodes[1].overlay.routing_table.get(node0.id).blocked)
         # Additional pings should get dropped (i.e. timeout)
-        node = await self.nodes[0].overlay.ping(node1)
-        self.assertIsNone(node)
+        with self.assertRaises(TimeoutError):
+            await wait_for(self.nodes[0].overlay.ping(node1), 0.1)
 
 
 class TestDHTCommunityXL(TestBase):

@@ -4,7 +4,7 @@ from ..base import TestBase
 from ..mocking.ipv8 import MockIPv8
 from ...dht import DHTError
 from ...dht.discovery import DHTDiscoveryCommunity
-from ...dht.routing import Node
+from ...dht.routing import Node, RoutingTable
 from ...util import succeed
 
 
@@ -39,7 +39,7 @@ class TestDHTDiscoveryCommunity(TestBase):
 
     async def test_store_peer_fail(self):
         await self.introduce_nodes()
-        await self.nodes[1].unload()
+        self.nodes[0].overlay.routing_table = RoutingTable(self.nodes[0].overlay.my_node_id)
         self.assertFalse(await self.nodes[0].overlay.store_peer())
 
     async def test_connect_peer(self):
@@ -67,7 +67,7 @@ class TestDHTDiscoveryCommunity(TestBase):
 
     async def test_connect_peer_fail(self):
         await self.introduce_nodes()
-        await self.nodes[1].unload()
+        self.nodes[0].overlay.routing_table = RoutingTable(self.nodes[0].overlay.my_node_id)
         with self.assertRaises(DHTError):
             await self.nodes[0].overlay.connect_peer(self.nodes[1].my_peer.mid)
 
