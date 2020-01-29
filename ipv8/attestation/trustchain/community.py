@@ -21,6 +21,7 @@ from ...lazy_community import lazy_wrapper, lazy_wrapper_unsigned, lazy_wrapper_
 from ...messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from ...peer import Peer
 from ...requestcache import RandomNumberCache, RequestCache
+from ...taskmanager import task
 from ...util import fail, maybe_coroutine, succeed
 
 
@@ -465,6 +466,7 @@ class TrustChainCommunity(Community):
 
         return crawl_future
 
+    @task
     async def perform_partial_chain_crawl(self, cache, start, stop):
         """
         Perform a partial crawl request for a specific range, when crawling a chain.
@@ -514,20 +516,19 @@ class TrustChainCommunity(Community):
         if not latest_block:
             # We have no knowledge of this peer but we have the length of the chain.
             # Simply send a request from the genesis block to the known chain length.
-            await self.perform_partial_chain_crawl(cache, 1, cache.known_chain_length)
+            self.perform_partial_chain_crawl(cache, 1, cache.known_chain_length)
             return
         elif latest_block and lowest_unknown == latest_block.sequence_number + 1:
             # It seems that we filled all gaps in the database; check whether we can do one final request
             if latest_block.sequence_number < cache.known_chain_length:
-                await self.perform_partial_chain_crawl(cache, latest_block.sequence_number + 1, cache.known_chain_length)
-                return
+                self.perform_partial_chain_crawl(cache, latest_block.sequence_number + 1, cache.known_chain_length)
             else:
                 self.request_cache.pop("chaincrawl", cache.number)
                 cache.crawl_future.set_result(None)
-                return
+            return
 
         start, stop = self.persistence.get_lowest_range_unknown(cache.peer.public_key.key_to_bin())
-        await self.perform_partial_chain_crawl(cache, start, stop)
+        self.perform_partial_chain_crawl(cache, start, stop)
 
     @synchronized
     @lazy_wrapper(GlobalTimeDistributionPayload, CrawlRequestPayload)
