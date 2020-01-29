@@ -41,8 +41,8 @@ class DHTEndpoint(BaseEndpoint):
 
     def initialize(self, session):
         super(DHTEndpoint, self).initialize(session)
-        self.dht = next((o for o in session.overlays if isinstance(o, DHTCommunity)), None)
-        tc = next((o for o in session.overlays if isinstance(o, TrustChainCommunity)), None)
+        self.dht = session.get_overlay(DHTCommunity)
+        tc = session.get_overlay(TrustChainCommunity)
         self.publisher = DHTBlockPublisher(self.dht, tc) if self.dht and tc else None
 
     @docs(

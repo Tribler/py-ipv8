@@ -26,7 +26,7 @@ class NoBlockDHTEndpoint(BaseEndpoint):
 
     def initialize(self, session):
         super(NoBlockDHTEndpoint, self).initialize(session)
-        self.dht = next((overlay for overlay in session.overlays if isinstance(overlay, DHTCommunity)), None)
+        self.dht = session.get_overlay(DHTCommunity)
 
     @docs(
         tags=["DHT"],
