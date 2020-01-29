@@ -416,7 +416,7 @@ class TestTunnelCommunity(TestBase):
         # When a circuit closes, sending data should fail
         sender.called = False
         circuit = self.nodes[0].overlay.find_circuits(ctype=CIRCUIT_TYPE_IPV8)[0]
-        self.nodes[0].overlay.remove_circuit(circuit.circuit_id)
+        await self.nodes[0].overlay.remove_circuit(circuit.circuit_id)
         endpoint.send(self.nodes[1].overlay.my_estimated_wan, prefix + b'DATA')
         await self.deliver_messages()
         self.assertEqual(len(ep_listener.received_packets), 1)

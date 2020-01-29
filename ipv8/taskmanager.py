@@ -185,4 +185,4 @@ class TaskManager(object):
                     await gather(*tasks)
 
 
-__all__ = ["TaskManager"]
+__all__ = ["TaskManager", "task"]

@@ -1,7 +1,7 @@
 import hashlib
 import os
 import time
-from asyncio import Future, ensure_future, gather
+from asyncio import Future, gather
 from binascii import hexlify, unhexlify
 from collections import defaultdict, deque
 from itertools import zip_longest
@@ -17,6 +17,7 @@ from ..messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTi
 from ..peer import Peer
 from ..peerdiscovery.churn import PingChurn
 from ..requestcache import RandomNumberCache, RequestCache
+from ..taskmanager import task
 from ..util import cast_to_bin
 
 PING_INTERVAL = 25
@@ -232,6 +233,7 @@ class DHTCommunity(Community):
             raise DHTError('Failed to store value on DHT')
         return nodes
 
+    @task
     async def store_on_nodes(self, key, values, nodes):
         if not nodes:
             raise DHTError('No nodes found for storing the key-value pairs')
@@ -385,7 +387,7 @@ class DHTCommunity(Community):
         if recent and values:
             # Store the key-value pair on the most recently visited node that
             # did not have it (for caching purposes).
-            ensure_future(self.store_on_nodes(target, values, [recent]))
+            self.store_on_nodes(target, values, [recent])
 
         return self.post_process_values(values)
 

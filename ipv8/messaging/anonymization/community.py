@@ -3,7 +3,7 @@ The tunnel community.
 
 Author(s): Egbert Bouman
 """
-from asyncio import ensure_future, iscoroutine
+from asyncio import iscoroutine, sleep
 from binascii import unhexlify
 
 from .caches import *
@@ -17,7 +17,7 @@ from ...messaging.deprecated.encoding import decode, encode
 from ...messaging.payload_headers import BinMemberAuthenticationPayload
 from ...peer import Peer
 from ...requestcache import RequestCache
-from ...util import succeed
+from ...taskmanager import task
 
 message_to_payload = {
     "data": (0, DataPayload),
@@ -274,8 +274,7 @@ class TunnelCommunity(Community):
         self.select_index = (self.select_index + 1) % len(circuits)
         return circuits[self.select_index]
 
-    def create_circuit(self, goal_hops, ctype=CIRCUIT_TYPE_DATA, callback=None, required_exit=None, info_hash=None):
-
+    def create_circuit(self, goal_hops, ctype=CIRCUIT_TYPE_DATA, required_exit=None, info_hash=None):
         self.logger.info("Creating a new circuit of length %d (type: %s)", goal_hops, ctype)
         exit_candidates = self.get_candidates(PEER_FLAG_EXIT_ANY)
         if ctype == CIRCUIT_TYPE_IPV8:
@@ -299,7 +298,7 @@ class TunnelCommunity(Community):
 
         if not required_exit:
             self.logger.info("Could not create circuit, no available exit-nodes")
-            return False
+            return
 
         # Determine the first hop
         if goal_hops == 1 and required_exit:
@@ -317,15 +316,15 @@ class TunnelCommunity(Community):
 
         if not possible_first_hops:
             self.logger.info("Could not create circuit, no first hop available")
-            return False
+            return
 
         # Finally, construct the Circuit object and send the CREATE message
         circuit_id = self._generate_circuit_id()
-        self.circuits[circuit_id] = circuit = Circuit(circuit_id, goal_hops, ctype, callback, required_exit, info_hash)
+        self.circuits[circuit_id] = circuit = Circuit(circuit_id, goal_hops, ctype, required_exit, info_hash)
         self.send_initial_create(circuit, possible_first_hops,
                                  self.settings.circuit_timeout // self.settings.next_hop_timeout)
 
-        return circuit_id
+        return circuit
 
     def send_initial_create(self, circuit, candidate_list, max_tries):
         if self.request_cache.has("retry", circuit.circuit_id):
@@ -349,7 +348,8 @@ class TunnelCommunity(Community):
                                                                        self.my_peer.public_key.key_to_bin(),
                                                                        circuit.unverified_hop.dh_first_part)))
 
-    def remove_circuit(self, circuit_id, additional_info='', remove_now=False, destroy=False):
+    @task
+    async def remove_circuit(self, circuit_id, additional_info='', remove_now=False, destroy=False):
         """
         Remove a circuit and return a deferred that fires when all data associated with the circuit is destroyed.
         Optionally send a destroy message.
@@ -357,36 +357,28 @@ class TunnelCommunity(Community):
         circuit_to_remove = self.circuits.get(circuit_id, None)
         if circuit_to_remove is None:
             self.logger.warning('Cannot remove unknown circuit %d', circuit_id)
-            return succeed(None)
+            return
 
-        remove_future = Future()
         self.logger.info("Removing %s circuit %d %s", circuit_to_remove.ctype, circuit_id, additional_info)
 
         if destroy:
             self.destroy_circuit(circuit_to_remove)
 
-        def remove_circuit_info():
-            circuit = self.circuits.pop(circuit_id, None)
-            if circuit:
-                self.logger.info("Removed circuit %d " + additional_info, circuit_id)
-
-            # Clean up the directions dictionary
-            self.directions.pop(circuit_id, None)
-
-            remove_future.set_result(circuit)
-
         circuit_to_remove.close()
 
-        if self.settings.remove_tunnel_delay == 0 or remove_now:
-            remove_circuit_info()
-        elif not self.is_pending_task_active(f"remove_circuit_{circuit_id}"):
-            self.register_task(f"remove_circuit_{circuit_id}",
-                               remove_circuit_info, delay=self.settings.remove_tunnel_delay)
+        if not remove_now or self.settings.remove_tunnel_delay > 0:
+            await sleep(self.settings.remove_tunnel_delay)
 
-        return remove_future
+        circuit = self.circuits.pop(circuit_id, None)
+        if circuit:
+            self.logger.info("Removed circuit %d " + additional_info, circuit_id)
 
-    def remove_relay(self, circuit_id, additional_info='', remove_now=False, destroy=False,
-                     got_destroy_from=None, both_sides=True):
+        # Clean up the directions dictionary
+        self.directions.pop(circuit_id, None)
+
+    @task
+    async def remove_relay(self, circuit_id, additional_info='', remove_now=False, destroy=False,
+                           got_destroy_from=None, both_sides=True):
         """
         Remove a relay and all information associated with the relay. Return the relays that have been removed.
         """
@@ -401,57 +393,47 @@ class TunnelCommunity(Community):
         if destroy:
             self.destroy_relay(to_remove, got_destroy_from=got_destroy_from)
 
+        if not remove_now or self.settings.remove_tunnel_delay > 0:
+            await sleep(self.settings.remove_tunnel_delay)
+
         removed_relays = []
         for cid in to_remove:
-            def remove_relay_info(cid_to_remove):
-                # Remove the relay
-                self.logger.info("Removing relay %d %s", cid_to_remove, additional_info)
+            # Remove the relay
+            self.logger.info("Removing relay %d %s", cid, additional_info)
 
-                relay = self.relay_from_to.pop(cid_to_remove, None)
-                if relay:
-                    removed_relays.append(relay)
+            relay = self.relay_from_to.pop(cid, None)
+            if relay:
+                removed_relays.append(relay)
 
-                # Remove old session key
-                self.relay_session_keys.pop(cid_to_remove, None)
+            # Remove old session key
+            self.relay_session_keys.pop(cid, None)
 
-                # Clean directions dictionary
-                self.directions.pop(cid_to_remove, None)
-
-            if self.settings.remove_tunnel_delay == 0 or remove_now:
-                remove_relay_info(cid)
-            elif not self.is_pending_task_active(f"remove_relay_{cid}"):
-                self.register_task(f"remove_relay_{cid}",
-                                   lambda cid_copy=cid: remove_relay_info(cid_copy),
-                                   delay=self.settings.remove_tunnel_delay)
+            # Clean directions dictionary
+            self.directions.pop(cid, None)
 
         return removed_relays
 
-    def remove_exit_socket(self, circuit_id, additional_info='', remove_now=False, destroy=False):
+    @task
+    async def remove_exit_socket(self, circuit_id, additional_info='', remove_now=False, destroy=False):
         """
         Remove an exit socket. Send a destroy message if necessary.
         """
-        remove_future = Future()
-
         exit_socket_to_destroy = self.exit_sockets.get(circuit_id, None)
         if exit_socket_to_destroy and destroy:
             self.destroy_exit_socket(exit_socket_to_destroy)
 
-        async def remove_exit_socket_info():
-            exit_socket = self.exit_sockets.pop(circuit_id, None)
-            if exit_socket:
-                # Close socket
-                if exit_socket.enabled:
-                    self.logger.info("Removing exit socket %d %s", circuit_id, additional_info)
-                    await exit_socket.close()
-                    # Remove old session key
-                    self.relay_session_keys.pop(circuit_id, None)
-            remove_future.set_result(exit_socket)
+        if not remove_now or self.settings.remove_tunnel_delay > 0:
+            await sleep(self.settings.remove_tunnel_delay)
 
-        if not self.is_pending_task_active(f"remove_exit_socket_{circuit_id}"):
-            delay = 0 if remove_now else self.settings.remove_tunnel_delay
-            self.register_task(f"remove_exit_socket_{circuit_id}", remove_exit_socket_info, delay=delay)
-            return remove_future
-        return succeed(None)
+        exit_socket = self.exit_sockets.pop(circuit_id, None)
+        if exit_socket:
+            # Close socket
+            if exit_socket.enabled:
+                self.logger.info("Removing exit socket %d %s", circuit_id, additional_info)
+                await exit_socket.close()
+                # Remove old session key
+                self.relay_session_keys.pop(circuit_id, None)
+        return exit_socket
 
     def destroy_circuit(self, circuit, reason=0):
         sock_addr = circuit.peer.address
@@ -521,6 +503,10 @@ class TunnelCommunity(Community):
 
     def relay_cell(self, cell):
         next_relay = self.relay_from_to[cell.circuit_id]
+        if cell.plaintext:
+            self.logger.warning('Dropping cell (cell not encrypted)')
+            return
+
         try:
             if next_relay.rendezvous_relay:
                 cell.decrypt(self.crypto, relay_session_keys=self.relay_session_keys[cell.circuit_id])
@@ -551,8 +537,8 @@ class TunnelCommunity(Community):
             self.remove_circuit(circuit.circuit_id, "error while verifying shared secret, bailing out.")
             return
 
-        circuit.add_hop(hop)
         circuit.unverified_hop = None
+        circuit.add_hop(hop)
 
         if circuit.state == CIRCUIT_STATE_EXTENDING:
             candidate_list_enc = payload.candidate_list_enc
@@ -564,11 +550,6 @@ class TunnelCommunity(Community):
 
         elif circuit.state == CIRCUIT_STATE_READY:
             self.request_cache.pop("retry", payload.circuit_id)
-
-            # Execute callback
-            if circuit.callback:
-                circuit.callback(circuit)
-                circuit.callback = None
 
     def send_extend(self, circuit, candidate_list, max_tries):
         if self.request_cache.has("retry", circuit.circuit_id):
@@ -673,6 +654,9 @@ class TunnelCommunity(Community):
             return
         self.logger.debug("Got cell(%s) from circuit %d (sender %s, receiver %s)",
                           cell.message[0], circuit_id, source_address, self.my_peer)
+        if cell.plaintext and ord(cell.message[0:1]) not in NO_CRYPTO_PACKETS:
+            self.logger.warning('Dropping cell (only create/created can have plaintext flag set)')
+            return
         self.on_packet_from_circuit(source_address, cell.unwrap(self._prefix), circuit_id)
 
         if circuit:
@@ -730,7 +714,7 @@ class TunnelCommunity(Community):
                        CreatedPayload(circuit_id, key, auth, candidate_list_enc))
 
     @tc_lazy_wrapper_unsigned(CreatePayload)
-    def on_create(self, source_address, payload, _):
+    async def on_create(self, source_address, payload, _):
         if not self.settings.peer_flags:
             self.logger.warning("Ignoring create for circuit %d", payload.circuit_id)
             return
@@ -738,13 +722,11 @@ class TunnelCommunity(Community):
             self.logger.warning("Already have a request for circuit %d", payload.circuit_id)
             return
 
-        async def decide_to_join():
-            result = await self.should_join_circuit(payload, source_address)
-            if result:
-                self.join_circuit(payload, source_address)
-            else:
-                self.logger.warning("We're not joining circuit with ID %s", payload.circuit_id)
-        ensure_future(decide_to_join())
+        result = await self.should_join_circuit(payload, source_address)
+        if result:
+            self.join_circuit(payload, source_address)
+        else:
+            self.logger.warning("We're not joining circuit with ID %s", payload.circuit_id)
 
     @tc_lazy_wrapper_unsigned(CreatedPayload)
     def on_created(self, source_address, payload, _):

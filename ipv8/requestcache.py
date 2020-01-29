@@ -1,6 +1,4 @@
 import logging
-from asyncio import CancelledError, gather
-from contextlib import suppress
 from random import random
 from threading import Lock
 
@@ -166,11 +164,10 @@ class RequestCache(TaskManager):
         self._identifiers.clear()
         return tasks
 
-    async def shutdown(self):
+    def shutdown(self):
         """
         Clear the cache, cancel all pending tasks and disallow new caches being added.
         """
-        with self.lock:
-            self._shutdown = True
-            with suppress(CancelledError):
-                await gather(*self.clear())
+        result = self.shutdown_task_manager()
+        self._identifiers.clear()
+        return result

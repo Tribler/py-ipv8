@@ -3,7 +3,7 @@ import random
 import socket
 import sys
 import time
-from asyncio import DatagramProtocol, ensure_future, get_event_loop
+from asyncio import DatagramProtocol, Future, ensure_future, get_event_loop
 from binascii import hexlify
 from collections import defaultdict, deque
 from struct import unpack_from
@@ -215,15 +215,14 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
 
 class Circuit(Tunnel):
 
-    def __init__(self, circuit_id, goal_hops=0, ctype=CIRCUIT_TYPE_DATA,
-                 callback=None, required_exit=None, info_hash=None):
+    def __init__(self, circuit_id, goal_hops=0, ctype=CIRCUIT_TYPE_DATA, required_exit=None, info_hash=None):
         super(Circuit, self).__init__(circuit_id, None)
         self.goal_hops = goal_hops
         self.ctype = ctype
-        self.callback = callback
         self.required_exit = required_exit
         self.info_hash = info_hash
 
+        self.ready = Future()
         self._closing = False
         self._hops = []
         self.unverified_hop = None
@@ -248,6 +247,8 @@ class Circuit(Tunnel):
         @param Hop hop: the hop to add
         """
         self._hops.append(hop)
+        if self.state == CIRCUIT_STATE_READY:
+            self.ready.set_result(self)
 
     @property
     def state(self):
@@ -270,6 +271,8 @@ class Circuit(Tunnel):
         will not be used to contact new peers.
         """
         self._closing = True
+        if not self.ready.done():
+            self.ready.set_result(None)
 
     def __eq__(self, other):
         return other and self.circuit_id == other.circuit_id
@@ -347,10 +350,10 @@ class RelayRoute(Tunnel):
 
 class RendezvousPoint(object):
 
-    def __init__(self, circuit, cookie, finished_callback):
+    def __init__(self, circuit, cookie):
         self.circuit = circuit
         self.cookie = cookie
-        self.finished_callback = finished_callback
+        self.ready = Future()
         self.rp_info = None
 
 
