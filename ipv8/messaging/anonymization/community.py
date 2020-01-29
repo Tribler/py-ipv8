@@ -503,6 +503,10 @@ class TunnelCommunity(Community):
 
     def relay_cell(self, cell):
         next_relay = self.relay_from_to[cell.circuit_id]
+        if cell.plaintext:
+            self.logger.warning('Dropping cell (cell not encrypted)')
+            return
+
         try:
             if next_relay.rendezvous_relay:
                 cell.decrypt(self.crypto, relay_session_keys=self.relay_session_keys[cell.circuit_id])
@@ -650,6 +654,9 @@ class TunnelCommunity(Community):
             return
         self.logger.debug("Got cell(%s) from circuit %d (sender %s, receiver %s)",
                           cell.message[0], circuit_id, source_address, self.my_peer)
+        if cell.plaintext and ord(cell.message[0:1]) not in NO_CRYPTO_PACKETS:
+            self.logger.warning('Dropping cell (only create/created can have plaintext flag set)')
+            return
         self.on_packet_from_circuit(source_address, cell.unwrap(self._prefix), circuit_id)
 
         if circuit:
