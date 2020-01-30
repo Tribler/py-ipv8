@@ -28,7 +28,7 @@ class TunnelEndpoint(BaseEndpoint):
 
     def initialize(self, session):
         super(TunnelEndpoint, self).initialize(session)
-        self.tunnels = next((o for o in session.overlays if isinstance(o, TunnelCommunity)), None)
+        self.tunnels = session.get_overlay(TunnelCommunity)
 
     @docs(
         tags=["Tunnels"],

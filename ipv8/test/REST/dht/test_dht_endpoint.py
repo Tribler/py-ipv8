@@ -57,7 +57,7 @@ class TestDHTEndpoint(RESTTestBase):
 
             blob_chunk = self.serializer.pack_multiple(DHTBlockPayload(signature, numeric_version, i, total_chunks,
                                                                        chunk).to_pack_list())
-            await node.get_overlay_by_class(DHTCommunity).store_value(key, blob_chunk[0])
+            await node.get_overlay(DHTCommunity).store_value(key, blob_chunk[0])
 
         await self.deliver_messages()
 
@@ -74,7 +74,7 @@ class TestDHTEndpoint(RESTTestBase):
 
     def _increase_request_limit(self, new_request_limit):
         for node in self.nodes:
-            routing_table = node.get_overlay_by_class(DHTCommunity).routing_table
+            routing_table = node.get_overlay(DHTCommunity).routing_table
             for other in routing_table.closest_nodes(routing_table.my_node_id):
                 if other != node:
                     routing_table.get(other.id).last_queries = deque(maxlen=new_request_limit)
@@ -100,7 +100,7 @@ class TestDHTEndpoint(RESTTestBase):
 
         # Reconstruct the block from what was received in the response
         payload = self.deserialize_payload((HalfBlockPayload,), response)
-        reconstructed_block = self.nodes[0].get_overlay_by_class(TrustChainCommunity).get_block_class(payload.type) \
+        reconstructed_block = self.nodes[0].get_overlay(TrustChainCommunity).get_block_class(payload.type) \
             .from_payload(payload, self.serializer)
 
         self.assertEqual(reconstructed_block, original_block, "The received block was not the one which was expected")
@@ -113,8 +113,8 @@ class TestDHTEndpoint(RESTTestBase):
         await self.introduce_nodes()
         publisher_pk = self.nodes[0].my_peer.public_key.key_to_bin()
 
-        await self.nodes[0].get_overlay_by_class(TrustChainCommunity).create_source_block(b'test', {})
-        original_block = self.nodes[0].get_overlay_by_class(TrustChainCommunity).persistence.get(publisher_pk, 1)
+        await self.nodes[0].get_overlay(TrustChainCommunity).create_source_block(b'test', {})
+        original_block = self.nodes[0].get_overlay(TrustChainCommunity).persistence.get(publisher_pk, 1)
         await self.deliver_messages()
         await sleep(.1)
 
@@ -125,7 +125,7 @@ class TestDHTEndpoint(RESTTestBase):
 
         # Reconstruct the block from what was received in the response
         payload = self.deserialize_payload((HalfBlockPayload,), response)
-        reconstructed_block = self.nodes[0].get_overlay_by_class(TrustChainCommunity).get_block_class(payload.type) \
+        reconstructed_block = self.nodes[0].get_overlay(TrustChainCommunity).get_block_class(payload.type) \
             .from_payload(payload, self.serializer)
 
         self.assertEqual(reconstructed_block, original_block, "The received block was not the one which was expected")
@@ -155,7 +155,7 @@ class TestDHTEndpoint(RESTTestBase):
 
         # Reconstruct the block from what was received in the response
         payload = self.deserialize_payload((HalfBlockPayload,), response)
-        reconstructed_block = self.nodes[0].get_overlay_by_class(TrustChainCommunity).get_block_class(
+        reconstructed_block = self.nodes[0].get_overlay(TrustChainCommunity).get_block_class(
             payload.type).from_payload(payload, self.serializer)
 
         self.assertEqual(reconstructed_block, original_block_2, "The received block was not equal to the latest block")
@@ -171,29 +171,29 @@ class TestDHTEndpoint(RESTTestBase):
 
         # Manually create and add a block to the TrustChain
         original_block = TestBlock(key=self.nodes[0].my_peer.key)
-        self.nodes[0].get_overlay_by_class(TrustChainCommunity).persistence.add_block(original_block)
+        self.nodes[0].get_overlay(TrustChainCommunity).persistence.add_block(original_block)
 
         # Publish the node to the DHT
         hash_key = sha1(self.nodes[0].my_peer.public_key.key_to_bin() + DHTBlockPublisher.KEY_SUFFIX).digest()
 
-        result = await self.nodes[1].get_overlay_by_class(DHTCommunity).find_values(hash_key)
+        result = await self.nodes[1].get_overlay(DHTCommunity).find_values(hash_key)
         self.assertEqual(result, [], "There shouldn't be any blocks for this key")
 
         await self.publish_to_DHT(self.nodes[0], hash_key, original_block.pack(), 4536)
 
-        result = await self.nodes[1].get_overlay_by_class(DHTCommunity).find_values(hash_key)
+        result = await self.nodes[1].get_overlay(DHTCommunity).find_values(hash_key)
         self.assertNotEqual(result, [], "There should be at least one chunk for this key")
 
         chunk_number = len(result)
 
         # Force call the method which publishes the latest block to the DHT and check that it did not affect the DHT
-        self.nodes[0].get_overlay_by_class(TrustChainCommunity) \
+        self.nodes[0].get_overlay(TrustChainCommunity) \
             .notify_listeners(TestBlock(TrustChainCommunity.UNIVERSAL_BLOCK_LISTENER))
         await self.deliver_messages()
         await sleep(.1)
 
         # Query the DHT again
-        result = await self.nodes[1].get_overlay_by_class(DHTCommunity).find_values(hash_key)
+        result = await self.nodes[1].get_overlay(DHTCommunity).find_values(hash_key)
         self.assertEqual(len(result), chunk_number, "The contents of the DHT have been changed. This should not happen")
 
     async def test_block_duplication_implicit(self):
@@ -207,27 +207,27 @@ class TestDHTEndpoint(RESTTestBase):
         # Publish the node to the DHT
         hash_key = sha1(self.nodes[0].my_peer.public_key.key_to_bin() + DHTBlockPublisher.KEY_SUFFIX).digest()
 
-        result = await self.nodes[1].get_overlay_by_class(DHTCommunity).find_values(hash_key)
+        result = await self.nodes[1].get_overlay(DHTCommunity).find_values(hash_key)
         self.assertEqual(result, [], "There shouldn't be any blocks for this key")
 
         # Create a source block, and implicitly disseminate it
-        await self.nodes[0].get_overlay_by_class(TrustChainCommunity).create_source_block(b'test', {})
+        await self.nodes[0].get_overlay(TrustChainCommunity).create_source_block(b'test', {})
         await self.deliver_messages()
         await sleep(.1)
 
-        result = await self.nodes[1].get_overlay_by_class(DHTCommunity).find_values(hash_key)
+        result = await self.nodes[1].get_overlay(DHTCommunity).find_values(hash_key)
         self.assertNotEqual(result, [], "There should be at least one chunk for this key")
 
         chunk_number = len(result)
 
         # Force call the method which publishes the latest block to the DHT and check that it did not affect the DHT
-        self.nodes[0].get_overlay_by_class(TrustChainCommunity) \
+        self.nodes[0].get_overlay(TrustChainCommunity) \
             .notify_listeners(TestBlock(TrustChainCommunity.UNIVERSAL_BLOCK_LISTENER))
         await self.deliver_messages()
         await sleep(.1)
 
         # Query the DHT again
-        result = await self.nodes[1].get_overlay_by_class(DHTCommunity).find_values(hash_key)
+        result = await self.nodes[1].get_overlay(DHTCommunity).find_values(hash_key)
         self.assertEqual(len(result), chunk_number, "The contents of the DHT have been changed. This should not happen")
 
     async def test_many_blocks(self):
@@ -256,7 +256,7 @@ class TestDHTEndpoint(RESTTestBase):
 
         # Reconstruct the block from what was received in the response
         payload = self.deserialize_payload((HalfBlockPayload,), response)
-        reconstructed_block = self.nodes[0].get_overlay_by_class(TrustChainCommunity).get_block_class(
+        reconstructed_block = self.nodes[0].get_overlay(TrustChainCommunity).get_block_class(
             payload.type).from_payload(payload, self.serializer)
 
         self.assertEqual(reconstructed_block, block_array[0][1], "The received block was not equal to the latest block")
@@ -287,7 +287,7 @@ class TestDHTEndpoint(RESTTestBase):
 
         # Reconstruct the block from what was received in the response
         payload = self.deserialize_payload((HalfBlockPayload,), response)
-        reconstructed_block = self.nodes[0].get_overlay_by_class(TrustChainCommunity).get_block_class(
+        reconstructed_block = self.nodes[0].get_overlay(TrustChainCommunity).get_block_class(
             payload.type).from_payload(payload, self.serializer)
 
         self.assertEqual(reconstructed_block, block_array[0][1],

@@ -28,7 +28,7 @@ class TrustchainEndpoint(BaseEndpoint):
 
     def initialize(self, session):
         super(TrustchainEndpoint, self).initialize(session)
-        self.trustchain = next((o for o in session.overlays if isinstance(o, TrustChainCommunity)), None)
+        self.trustchain = session.get_overlay(TrustChainCommunity)
 
     @docs(
         tags=["TrustChain"],

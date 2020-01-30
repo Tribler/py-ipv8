@@ -164,10 +164,10 @@ class RequestCache(TaskManager):
         self._identifiers.clear()
         return tasks
 
-    def shutdown(self):
+    async def shutdown(self):
         """
         Clear the cache, cancel all pending tasks and disallow new caches being added.
         """
-        result = self.shutdown_task_manager()
-        self._identifiers.clear()
-        return result
+        with self.lock:
+            await self.shutdown_task_manager()
+            self._identifiers.clear()

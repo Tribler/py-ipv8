@@ -169,6 +169,12 @@ else:
                                    if strategy.overlay != instance]
                 return maybe_coroutine(instance.unload)
 
+        def get_overlay(self, overlay_cls):
+            return next(self.get_overlays(overlay_cls), None)
+
+        def get_overlays(self, overlay_cls):
+            return (o for o in self.overlays if isinstance(o, overlay_cls))
+
         async def stop(self, stop_loop=True):
             if self.state_machine_task:
                 self.state_machine_task.cancel()
