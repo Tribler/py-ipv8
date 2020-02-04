@@ -10,7 +10,7 @@ from ...messaging.anonymization.tunnel import (CIRCUIT_TYPE_RP_DOWNLOADER, CIRCU
 from ...messaging.anonymization.tunnelcrypto import CryptoException
 from ...messaging.lazy_payload import VariablePayload
 from ...messaging.payload import Payload
-from ...util import cast_to_bin, cast_to_chr, ensure_str
+from ...util import cast_to_bin, cast_to_chr, ensure_binary, ensure_str
 
 ADDRESS_TYPE_IPV4 = 0x01
 ADDRESS_TYPE_DOMAIN_NAME = 0x02
@@ -30,7 +30,7 @@ def encode_address(host, port):
     if is_ip:
         return pack("!B4sH", ADDRESS_TYPE_IPV4, ip, port)
     else:
-        return pack("!BH", ADDRESS_TYPE_DOMAIN_NAME, len(host)) + cast_to_bin(host) + pack("!H", port)
+        return pack("!BH", ADDRESS_TYPE_DOMAIN_NAME, len(host)) + ensure_binary(host) + pack("!H", port)
 
 
 def decode_address(packet):
