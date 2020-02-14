@@ -203,7 +203,7 @@ class TunnelCommunity(Community):
         return circuit_id
 
     def do_circuits(self):
-        for circuit_length, num_circuits in self.circuits_needed.items():
+        for circuit_length, num_circuits in list(self.circuits_needed.items()):
             num_to_build = max(0, num_circuits - len(self.find_circuits(state=None, hops=circuit_length)))
             self.logger.info("Want %d data circuits of length %d", num_to_build, circuit_length)
             for _ in range(num_to_build):
@@ -258,7 +258,7 @@ class TunnelCommunity(Community):
                 self.logger.info("Removed candidate from candidates dictionary")
 
     def get_candidates(self, flag):
-        return [peer for peer, flags in self.candidates.items()
+        return [peer for peer, flags in list(self.candidates.items())
                 if flags & flag and self.crypto.is_key_compatible(peer.public_key)]
 
     def get_max_time(self, circuit_id):
@@ -397,7 +397,7 @@ class TunnelCommunity(Community):
         to_remove = [circuit_id]
         if both_sides:
             # Find other side of relay
-            for k, v in self.relay_from_to.items():
+            for k, v in list(self.relay_from_to.items()):
                 if circuit_id == v.circuit_id:
                     to_remove.append(k)
 
