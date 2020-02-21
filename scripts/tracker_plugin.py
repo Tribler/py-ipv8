@@ -36,9 +36,12 @@ class SimpleChurn(DiscoveryStrategy):
     def take_step(self):
         with self.walk_lock:
             with self.overlay.network.graph_lock:
-                for peer in self.overlay.network.verified_peers.copy():
+                to_remove = []
+                for peer in self.overlay.network.verified_peers:
                     if time.time() - peer.last_response > 120:
-                        self.overlay.network.remove_peer(peer)
+                        to_remove.append(peer)
+                for peer in to_remove:
+                    self.overlay.network.remove_peer(peer)
 
 
 class EndpointServer(Community):
