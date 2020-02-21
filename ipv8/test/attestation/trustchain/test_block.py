@@ -418,6 +418,7 @@ class TestTrustChainBlock(asynctest.TestCase):
         block = TestBlock()
         block.sequence_number = GENESIS_SEQ
         block.previous_hash = b"abcdefg"
+        block.sign(block.key)
         block.update_block_invariant(None, result)
 
         self.assertEqual(ValidationResult.invalid, result.state)
@@ -430,6 +431,7 @@ class TestTrustChainBlock(asynctest.TestCase):
         block = TestBlock()
         block.sequence_number = 2
         block.previous_hash = GENESIS_HASH
+        block.sign(block.key)
         block.update_block_invariant(None, result)
 
         self.assertEqual(ValidationResult.invalid, result.state)
