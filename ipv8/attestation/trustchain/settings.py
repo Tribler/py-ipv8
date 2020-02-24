@@ -10,6 +10,9 @@ class TrustChainSettings(object):
         # The fan-out of the broadcast when a new block is created
         self.broadcast_fanout = 25
 
+        # The amount of history to keep for broadcasts
+        self.broadcast_history_size = 100000
+
         # How many prior blocks we require before signing a new incoming block
         self.validation_range = 5
 

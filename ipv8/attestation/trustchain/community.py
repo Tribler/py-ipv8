@@ -8,6 +8,7 @@ import random
 import struct
 from asyncio import Future, ensure_future, get_event_loop
 from binascii import hexlify, unhexlify
+from collections import deque
 from functools import wraps
 from threading import RLock
 
@@ -61,7 +62,8 @@ class TrustChainCommunity(Community):
 
         if not self.persistence:
             self.persistence = self.DB_CLASS(working_directory, db_name, self.my_peer.public_key.key_to_bin())
-        self.relayed_broadcasts = []
+        self.relayed_broadcasts = set()
+        self.relayed_broadcasts_order = deque()
         self.logger.debug("The trustchain community started with Public Key: %s",
                           hexlify(self.my_peer.public_key.key_to_bin()))
         self.shutting_down = False
@@ -128,6 +130,13 @@ class TrustChainCommunity(Community):
 
         return False
 
+    def _add_broadcasted_blockid(self, block_id):
+        self.relayed_broadcasts.add(block_id)
+        self.relayed_broadcasts_order.append(block_id)
+        if len(self.relayed_broadcasts) > self.settings.broadcast_history_size:
+            to_remove = self.relayed_broadcasts_order.popleft()
+            self.relayed_broadcasts.remove(to_remove)
+
     def send_block(self, block, address=None, ttl=1):
         """
         Send a block to a specific address, or do a broadcast to known peers if no peer is specified.
@@ -147,7 +156,7 @@ class TrustChainCommunity(Community):
             peers = self.get_peers()
             for peer in random.sample(peers, min(len(peers), self.settings.broadcast_fanout)):
                 self.endpoint.send(peer.address, packet)
-            self.relayed_broadcasts.append(block.block_id)
+            self._add_broadcasted_blockid(block.block_id)
 
     def send_block_pair(self, block1, block2, address=None, ttl=1):
         """
@@ -168,7 +177,7 @@ class TrustChainCommunity(Community):
             peers = self.get_peers()
             for peer in random.sample(peers, min(len(peers), self.settings.broadcast_fanout)):
                 self.endpoint.send(peer.address, packet)
-            self.relayed_broadcasts.append(block1.block_id)
+            self._add_broadcasted_blockid(block1.block_id)
 
     def self_sign_block(self, block_type=b'unknown', transaction=None):
         return self.sign_block(self.my_peer, block_type=block_type, transaction=transaction)
