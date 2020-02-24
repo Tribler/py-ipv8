@@ -1,11 +1,11 @@
 **FAQ:**
 
- - **Q:** Is this the new official Layer 3 solution for the Internet?
- - **A:** No, the naming is a [10-years-old](https://www.tribler.org/IPv8/) mockery of the deployment failure of IPv6 (which we sincerely hope will be deployed properly at some point in time).
-
-[![Documentation Status](https://readthedocs.org/projects/py-ipv8/badge/?version=latest)](https://py-ipv8.readthedocs.io/)
+- **Q:** Is this the new official Layer 3 solution for the Internet?
+- **A:** No, the naming is a [10-years-old](https://www.tribler.org/IPv8/) mockery of the deployment failure of IPv6 (which we sincerely hope will be deployed properly at some point in time).
 
 **Linux**: [![](http://jenkins-ci.tribler.org/job/ipv8/job/test_ipv8_linux/badge/icon)](http://jenkins-ci.tribler.org/job/ipv8/job/test_ipv8_linux/) **Windows**: [![](http://jenkins-ci.tribler.org/job/ipv8/job/test_ipv8_windows/badge/icon)](http://jenkins-ci.tribler.org/job/ipv8/job/test_ipv8_windows/) **Mac**: [![](http://jenkins-ci.tribler.org/job/ipv8/job/test_ipv8_mac/badge/icon)](http://jenkins-ci.tribler.org/job/ipv8/job/test_ipv8_mac/)
+
+**Read the Docs**: [![](https://readthedocs.org/projects/py-ipv8/badge/?version=latest)](https://py-ipv8.readthedocs.io/)
 
 ## What is IPv8 ?
 
