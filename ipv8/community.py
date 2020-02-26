@@ -17,7 +17,7 @@ from traceback import format_exception
 
 from .lazy_community import EZPackOverlay, lazy_wrapper, lazy_wrapper_unsigned
 from .messaging.anonymization.endpoint import TunnelEndpoint
-from .messaging.payload import (IntroductionRequestPayload, IntroductionResponsePayload, PuncturePayload,
+from .messaging.payload import (IntroductionRequestPayload, IntroductionResponsePayload, Payload, PuncturePayload,
                                 PunctureRequestPayload)
 from .messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 
@@ -141,12 +141,17 @@ class Community(EZPackOverlay):
         Add a handler for a message identifier. Any messages coming in with this identifier will be delivered to
         the specified callback function.
 
-        :param msg_num: the message id to listen for
-        :type msg_num: int
+        :param msg_num: the message id to listen for (or a Payload object with a msg_id field)
+        :type msg_num: int or Payload
         :param callback: the callback function for this message id
         :type callback: function
         :returns: None
         """
+        if isinstance(msg_num, Payload):
+            if not hasattr(msg_num, "msg_id"):
+                raise RuntimeError("Attempted to add a handler for Payload %s, which does not specify a msg_id!"
+                                   % msg_num)
+            msg_num = msg_num.msg_id
         if msg_num < 0 or msg_num > 255:
             raise RuntimeError("Attempted to add a handler for message number %d, which is not a byte!" % msg_num)
         if chr(msg_num) in self.decode_map:
