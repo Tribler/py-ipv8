@@ -17,7 +17,7 @@ from traceback import format_exception
 
 from .lazy_community import EZPackOverlay, lazy_wrapper, lazy_wrapper_unsigned
 from .messaging.anonymization.endpoint import TunnelEndpoint
-from .messaging.payload import (IntroductionRequestPayload, IntroductionResponsePayload, Payload, PuncturePayload,
+from .messaging.payload import (IntroductionRequestPayload, IntroductionResponsePayload, PuncturePayload,
                                 PunctureRequestPayload)
 from .messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 
@@ -142,12 +142,12 @@ class Community(EZPackOverlay):
         the specified callback function.
 
         :param msg_num: the message id to listen for (or a Payload object with a msg_id field)
-        :type msg_num: int or Payload
+        :type msg_num: int or object
         :param callback: the callback function for this message id
         :type callback: function
         :returns: None
         """
-        if isinstance(msg_num, Payload):
+        if not isinstance(msg_num, int):
             if not hasattr(msg_num, "msg_id"):
                 raise RuntimeError("Attempted to add a handler for Payload %s, which does not specify a msg_id!"
                                    % msg_num)
