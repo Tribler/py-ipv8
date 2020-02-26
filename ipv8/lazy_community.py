@@ -139,6 +139,37 @@ def lazy_wrapper_unsigned_wd(*payloads):
 
 class EZPackOverlay(Overlay):
 
+    def ez_send(self, peer, *payloads, **kwargs):
+        """
+        Send a Payload instance (with a defined `msg_id` field) to a peer.
+        If you supply more than one Payload instance, the `msg_id` of the LAST instance will be used.
+
+        :param peer: the peer to send to
+        :type peer: Peer
+        :param sig: whether or not to sign this message
+        :type sig: bool
+        :param payloads: the list of Payload instances to serialize
+        :type payloads: [Payload]
+        :returns: None
+        """
+        self._ez_senda(peer.address, *payloads, **kwargs)
+
+    def _ez_senda(self, address, *payloads, **kwargs):
+        """
+        Send a Payload instance to an address.
+
+        You will probably not need this, try to use `ez_send` instead.
+
+        :param address: the address to send to
+        :type address: (str, int)
+        :param sig: whether or not to sign this message
+        :type sig: bool
+        :param payloads: the list of Payload instances to serialize
+        :type payloads: [Payload]
+        :returns: None
+        """
+        self.endpoint.send(address, self.ezr_pack(payloads[-1].msg_id, *payloads, **kwargs))
+
     def ezr_pack(self, msg_num, *payloads, **kwargs):
         """
         The easier way to pack your messages. Supply with the message number and the Payloads you want to serialize.
