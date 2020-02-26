@@ -135,6 +135,7 @@ else:
             async def ticker():
                 while True:
                     await self.on_tick()
+                    await sleep(0.0)
             self.state_machine_task = ensure_future(ticker())
 
         async def on_tick(self):
@@ -160,6 +161,8 @@ else:
                             # By awaiting, we might have been stopped.
                             # In that case, exit out of the loop.
                             break
+                    else:
+                        await sleep(self.walk_interval)
 
         def unload_overlay(self, instance):
             with self.overlay_lock:
