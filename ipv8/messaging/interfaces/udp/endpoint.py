@@ -4,8 +4,6 @@ import socket
 
 from ..endpoint import Endpoint, EndpointClosedException
 
-UDP_MAX_SIZE = 2 ** 16 - 60
-
 
 class UDPEndpoint(Endpoint, asyncio.DatagramProtocol):
 
@@ -65,7 +63,7 @@ class UDPEndpoint(Endpoint, asyncio.DatagramProtocol):
                                                                          local_addr=(self._ip, self._port),
                                                                          reuse_port=False)
                 sock = self._transport.get_extra_info("socket")
-                sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, UDP_MAX_SIZE)
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 870400)
 
                 self._logger.debug("Listening at %d", self._port)
                 break

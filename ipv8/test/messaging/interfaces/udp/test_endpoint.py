@@ -5,7 +5,7 @@ from asyncio import sleep
 from asynctest import TestCase, skipIf
 
 from .....messaging.interfaces.endpoint import EndpointListener
-from .....messaging.interfaces.udp.endpoint import UDPEndpoint, UDP_MAX_SIZE
+from .....messaging.interfaces.udp.endpoint import UDPEndpoint
 
 
 class DummyEndpointListener(EndpointListener):
@@ -70,7 +70,7 @@ class TestUDPEndpoint(TestCase):
         """
         Test sending a too big message through the UDP endpoint.
         """
-        self.endpoint1.send(self.ep2_address, b'a' * (UDP_MAX_SIZE + 1000))
+        self.endpoint1.send(self.ep2_address, b'a' * (70000))
         await sleep(.05)
         self.assertFalse(self.endpoint2_listener.incoming)
 
