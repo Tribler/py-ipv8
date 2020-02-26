@@ -134,7 +134,6 @@ else:
 
             async def ticker():
                 while True:
-                    await sleep(self.walk_interval)
                     await self.on_tick()
             self.state_machine_task = ensure_future(ticker())
 
