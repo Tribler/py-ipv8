@@ -59,11 +59,14 @@ class UDPEndpoint(Endpoint, asyncio.DatagramProtocol):
             try:
                 # It is recommended that this endpoint is opened at port = 0,
                 # such that the OS handles the port assignment
+                self._transport = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                self._transport.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 870400)
+                self._transport.bind((self._ip, self._port))
+                self._transport.setblocking(False)
+                self._port = self._transport.getsockname()[1]
+
                 self._transport, _ = await loop.create_datagram_endpoint(lambda: self,
-                                                                         local_addr=(self._ip, self._port),
-                                                                         reuse_port=False)
-                sock = self._transport.get_extra_info("socket")
-                sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 870400)
+                                                                         sock=self._transport)
 
                 self._logger.debug("Listening at %d", self._port)
                 break
