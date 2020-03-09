@@ -21,15 +21,18 @@ async def delay_runner(delay, task, *args):
 
 def task(func):
     """
-    Register a TaskManager function as an anonymous task and return
-    the Task object so that it can be awaited if needed.
+    Register a TaskManager function as an anonymous task and return the Task
+    object so that it can be awaited if needed. Any exceptions will be logged.
+    Note that if awaited, exceptions will still need to be handled.
     """
     if not iscoroutinefunction(func):
         raise TypeError('Task decorator should be used with coroutine functions only!')
 
     @wraps(func)
     def wrapper(self, *args, **kwargs):
-        return self.register_anonymous_task(func.__name__, ensure_future(func(self, *args, **kwargs)))
+        return self.register_anonymous_task(func.__name__,
+                                            ensure_future(func(self, *args, **kwargs)),
+                                            ignore=(Exception,))
     return wrapper
 
 
