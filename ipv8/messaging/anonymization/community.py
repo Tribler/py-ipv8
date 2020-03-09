@@ -672,7 +672,7 @@ class TunnelCommunity(Community):
                 handler = self.decode_map_private[msg_id]
                 result = handler(source_address, data, circuit_id)
                 if iscoroutine(result):
-                    self.register_anonymous_task('on_packet_from_circuit', ensure_future(result))
+                    self.register_anonymous_task('on_packet_from_circuit', result, ignore=(Exception,))
             except Exception:
                 self.logger.error("Exception occurred while handling packet!\n"
                                   + ''.join(format_exception(*sys.exc_info())))
