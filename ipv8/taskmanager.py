@@ -3,6 +3,7 @@ from asyncio import CancelledError, Future, Task, coroutine, ensure_future, gath
 from contextlib import suppress
 from functools import wraps
 from threading import RLock
+from weakref import WeakValueDictionary
 
 from .util import succeed
 
@@ -43,7 +44,7 @@ class TaskManager(object):
     """
 
     def __init__(self):
-        self._pending_tasks = {}
+        self._pending_tasks = WeakValueDictionary()
         self._task_lock = RLock()
         self._shutdown = False
         self._counter = 0
