@@ -278,7 +278,7 @@ class AttestationEndpoint(BaseEndpoint):
         if args['type'] == 'request':
             mid_b64 = args['mid']
             attribute_name = args['attribute_name']
-            id_format = args.get('id_format', ['id_metadata'])
+            id_format = args.get('id_format', 'id_metadata')
             peer = self.get_peer_from_mid(mid_b64)
             if peer:
                 key = self.attestation_overlay.get_id_algorithm(id_format).generate_secret_key()
