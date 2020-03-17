@@ -15,7 +15,7 @@ def lazy_wrapper(*payloads):
 
     ::
 
-        @lazy_wrapper(GlobalTimeDistributionPayload, IntroductionRequestPayload, IntroductionResponsePayload)
+        @lazy_wrapper(IntroductionRequestPayload, IntroductionResponsePayload)
         def on_message(peer, payload1, payload2):
             '''
             :type peer: Peer
@@ -50,7 +50,7 @@ def lazy_wrapper_wd(*payloads):
 
     ::
 
-        @lazy_wrapper(GlobalTimeDistributionPayload, IntroductionRequestPayload, IntroductionResponsePayload)
+        @lazy_wrapper(IntroductionRequestPayload, IntroductionResponsePayload)
         def on_message(peer, payload1, payload2, data):
             '''
             :type peer: Peer
@@ -85,7 +85,7 @@ def lazy_wrapper_unsigned(*payloads):
 
     ::
 
-        @lazy_wrapper_unsigned(GlobalTimeDistributionPayload, IntroductionRequestPayload, IntroductionResponsePayload)
+        @lazy_wrapper_unsigned(IntroductionRequestPayload, IntroductionResponsePayload)
         def on_message(source_address, payload1, payload2):
             '''
             :type source_address: str
@@ -113,8 +113,7 @@ def lazy_wrapper_unsigned_wd(*payloads):
 
     ::
 
-        @lazy_wrapper_unsigned_wd(GlobalTimeDistributionPayload, IntroductionRequestPayload,
-        IntroductionResponsePayload)
+        @lazy_wrapper_unsigned_wd(IntroductionRequestPayload, IntroductionResponsePayload)
         def on_message(source_address, payload1, payload2, data):
             '''
             :type source_address: str
