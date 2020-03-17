@@ -71,6 +71,8 @@ class Community(EZPackOverlay):
         super(Community, self).__init__(self.master_peer, my_peer, endpoint, network)
 
         self._prefix = b'\x00' + self.version + self.master_peer.mid
+        self.endpoint.remove_listener(self)
+        self.endpoint.add_prefix_listener(self, self._prefix)
         self.logger.debug("Launching %s with prefix %s.", self.__class__.__name__, hexlify(self._prefix))
 
         self.max_peers = max_peers

@@ -5,50 +5,7 @@ from collections import deque
 from ...community import Community
 from ...messaging.anonymization.tunnel import IntroductionPoint, PEER_SOURCE_PEX
 from ...messaging.deprecated.encoding import decode, encode
-from ...messaging.interfaces.endpoint import Endpoint, EndpointListener
 from ...peer import Peer
-
-
-class PexEndpointAdapter(Endpoint, EndpointListener):
-
-    def __init__(self, master):
-        Endpoint.__init__(self)
-        EndpointListener.__init__(self, master)
-        self.master = master
-        self.master.add_listener(self)
-        self._listeners = {}
-        self._port = 0
-
-    def add_listener(self, listener):
-        self._listeners[listener.get_prefix()] = listener
-
-    def remove_listener(self, listener):
-        self._listeners.pop(listener.get_prefix(), None)
-
-    def on_packet(self, packet):
-        listener = self._listeners.get(packet[1][:22], None)
-        if listener:
-            listener.on_packet(packet)
-
-    def assert_open(self):
-        self.master.assert_open()
-
-    def is_open(self):
-        return self.master.is_open()
-
-    def get_address(self):
-        return self.master.get_address()
-
-    def send(self, socket_address, packet):
-        self.master.send(socket_address, packet)
-
-    def open(self):
-        out = self.master.open()
-        self._port = self.master._port
-        return out
-
-    def close(self):
-        return self.master.close()
 
 
 class PexMasterPeer(object):

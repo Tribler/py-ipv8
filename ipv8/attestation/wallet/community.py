@@ -2,9 +2,10 @@ import json
 import os
 from base64 import decodebytes, encodebytes
 from binascii import unhexlify
+from functools import wraps
 from hashlib import sha1
 from random import choice
-from threading import Lock
+from threading import RLock
 
 from .bonehexact.algorithm import BonehExactAlgorithm
 from .caches import (HashCache, PeerCache, PendingChallengeCache, ProvingAttestationCache,
@@ -28,15 +29,14 @@ ID_ALGORITHMS = {
     "pengbaorange": PengBaoRangeAlgorithm
 }
 
-receive_block_lock = Lock()
-
 
 def synchronized(f):
     """
     Due to database inconsistencies, we can't allow multiple threads to handle a received_half_block at the same time.
     """
+    @wraps(f)
     def wrapper(self, *args, **kwargs):
-        with receive_block_lock:
+        with self.receive_block_lock:
             return f(self, *args, **kwargs)
     return wrapper
 
@@ -58,6 +58,8 @@ class AttestationCommunity(Community):
         db_name = kwargs.pop('db_name', 'attestations')
 
         super(AttestationCommunity, self).__init__(*args, **kwargs)
+
+        self.receive_block_lock = RLock()
 
         self.attestation_request_callback = lambda peer, attribute_name, metadata: None
         self.attestation_request_complete_callback = \
