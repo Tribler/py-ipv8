@@ -2,6 +2,7 @@ import abc
 import logging
 import socket
 import struct
+import threading
 
 try:
     # Especially on Android netifaces may fail.
@@ -16,9 +17,12 @@ class Endpoint(metaclass=abc.ABCMeta):
     Interface for sending messages over the Internet.
     """
 
-    def __init__(self):
+    def __init__(self, prefixlen=22):
         self._logger = logging.getLogger(self.__class__.__name__)
         self._listeners = []
+        self._prefix_map = {}
+        self.prefixlen = prefixlen
+        self.listener_update_lock = threading.RLock()
 
     def add_listener(self, listener):
         """
@@ -28,19 +32,44 @@ class Endpoint(metaclass=abc.ABCMeta):
         """
         if not isinstance(listener, EndpointListener):
             raise IllegalEndpointListenerError(listener)
-        self._listeners.append(listener)
+        with self.listener_update_lock:
+            self._listeners.append(listener)
+            for prefix in self._prefix_map:
+                self._prefix_map[prefix].append(listener)
+
+    def add_prefix_listener(self, listener, prefix):
+        """
+        Add an EndpointListener to our listeners, only triggers on packets with a specific prefix.
+
+        :raises: IllegalEndpointListenerError if the provided listener is not an EndpointListener
+        """
+        if not isinstance(listener, EndpointListener):
+            raise IllegalEndpointListenerError(listener)
+        if not len(prefix) == self.prefixlen:
+            raise RuntimeError("Tried to register a prefix of length %d, required to be of length %d!"
+                               % (len(prefix), self.prefixlen))
+        with self.listener_update_lock:
+            self._prefix_map[prefix] = self._prefix_map.get(prefix, []) + [listener] + self._listeners
 
     def remove_listener(self, listener):
         """
         Remove a listener from our listeners, if it is registered.
         """
-        self._listeners = [l for l in self._listeners if l != listener]
+        with self.listener_update_lock:
+            self._listeners = [l for l in self._listeners if l != listener]
+            new_prefix_map = {}
+            for prefix in self._prefix_map:
+                listeners = [l for l in self._prefix_map[prefix] if l != listener]
+                if set(listeners) != set(self._listeners):
+                    new_prefix_map[prefix] = listeners
+            self._prefix_map = new_prefix_map
 
     def _deliver_later(self, listener, packet):
         """
         Ensure that the listener is still loaded when delivering the packet later.
         """
-        if self.is_open() and listener in self._listeners:
+
+        if self.is_open() and (packet[1][:self.prefixlen] in self._prefix_map or listener in self._listeners):
             listener.on_packet(packet)
 
     def notify_listeners(self, packet):
@@ -49,7 +78,10 @@ class Endpoint(metaclass=abc.ABCMeta):
 
         :param data: the data to send to all listeners.
         """
-        for listener in self._listeners:
+        prefix = packet[1][:self.prefixlen]
+        listeners = self._prefix_map.get(prefix, self._listeners)
+        for listener in listeners:
+            # TODO: Respect listener.use_main_thread:
             self._deliver_later(listener, packet)
 
     @abc.abstractmethod

@@ -34,8 +34,7 @@ class MockEndpoint(Endpoint):
         if socket_address in internet:
             # For the unit tests we handle messages in separate asyncio tasks to prevent infinite recursion.
             ep = internet[socket_address]
-            for listener in ep._listeners:
-                get_event_loop().call_soon(ep._deliver_later, listener, (self.wan_address, packet))
+            get_event_loop().call_soon(ep.notify_listeners, (self.wan_address, packet))
         else:
             raise AssertionError("Received data from unregistered address %s" % repr(socket_address))
 
