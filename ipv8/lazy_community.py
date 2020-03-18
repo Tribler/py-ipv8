@@ -29,7 +29,7 @@ def lazy_wrapper(*payloads):
         def wrapper(self, source_address, data):
             # UNPACK
             auth, remainder = self.serializer.unpack_to_serializables([BinMemberAuthenticationPayload, ], data[23:])
-            signature_valid, remainder = self._verify_signature(auth, data)
+            signature_valid, remainder = self._verify_signature(auth, bytes(data))
             unpacked = self.serializer.ez_unpack_serializables(payloads, remainder[23:])
             # ASSERT
             if not signature_valid:
@@ -64,7 +64,7 @@ def lazy_wrapper_wd(*payloads):
         def wrapper(self, source_address, data):
             # UNPACK
             auth, remainder = self.serializer.unpack_to_serializables([BinMemberAuthenticationPayload, ], data[23:])
-            signature_valid, remainder = self._verify_signature(auth, data)
+            signature_valid, remainder = self._verify_signature(auth, bytes(data))
             unpacked = self.serializer.ez_unpack_serializables(payloads, remainder[23:])
             # ASSERT
             if not signature_valid:
@@ -204,12 +204,12 @@ class EZPackOverlay(Overlay):
         signature_length = ec.get_signature_length(public_key)
         remainder = data[2 + len(auth.public_key_bin):-signature_length]
         signature = data[-signature_length:]
-        return ec.is_valid_signature(public_key, data[:-signature_length], signature), remainder
+        return ec.is_valid_signature(public_key, bytes(data[:-signature_length]), bytes(signature)), remainder
 
     def _ez_unpack_auth(self, payload_class, data):
         # UNPACK
         auth, remainder = self.serializer.unpack_to_serializables([BinMemberAuthenticationPayload, ], data[23:])
-        signature_valid, remainder = self._verify_signature(auth, data)
+        signature_valid, remainder = self._verify_signature(auth, bytes(data))
         format = [GlobalTimeDistributionPayload, payload_class]
         dist, payload = self.serializer.ez_unpack_serializables(format, remainder[23:])
         # ASSERT

@@ -52,7 +52,7 @@ class StatisticsEndpoint(EndpointListener):
     def on_packet(self, packet):
         _, data = packet
 
-        prefix = data[:22]
+        prefix = bytes(data[:22])
         if prefix not in list(self.statistics.keys()) or len(data) < 22:
             return
 

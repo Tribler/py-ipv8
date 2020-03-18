@@ -69,7 +69,7 @@ class Endpoint(metaclass=abc.ABCMeta):
         Ensure that the listener is still loaded when delivering the packet later.
         """
 
-        if self.is_open() and (packet[1][:self.prefixlen] in self._prefix_map or listener in self._listeners):
+        if self.is_open() and (bytes(packet[1][:self.prefixlen]) in self._prefix_map or listener in self._listeners):
             listener.on_packet(packet)
 
     def notify_listeners(self, packet):
@@ -78,7 +78,7 @@ class Endpoint(metaclass=abc.ABCMeta):
 
         :param data: the data to send to all listeners.
         """
-        prefix = packet[1][:self.prefixlen]
+        prefix = bytes(packet[1][:self.prefixlen])
         listeners = self._prefix_map.get(prefix, self._listeners)
         for listener in listeners:
             # TODO: Respect listener.use_main_thread:

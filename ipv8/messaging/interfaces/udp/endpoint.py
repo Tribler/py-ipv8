@@ -25,7 +25,7 @@ class UDPEndpoint(Endpoint, asyncio.DatagramProtocol):
         # If the endpoint is still running, accept incoming requests, otherwise drop them
         if self._running:
             self.bytes_down += len(datagram)
-            self.notify_listeners((addr, datagram))
+            self.notify_listeners((addr, bytearray(datagram)))
 
     def send(self, socket_address, packet):
         """

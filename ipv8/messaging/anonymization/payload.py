@@ -172,7 +172,7 @@ class CellPayload(object):
     @classmethod
     def from_bin(cls, packet):
         circuit_id, plaintext = unpack_from('!I?', packet, 23)
-        return cls(circuit_id, packet[28:], plaintext)
+        return cls(circuit_id, bytes(packet[28:]), plaintext)
 
 
 class CreatePayload(VariablePayload):

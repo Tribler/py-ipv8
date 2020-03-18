@@ -129,7 +129,7 @@ class Raw(object):
 
     def unpack_from(self, data, offset=0):
         out = data[offset:]
-        return out, len(out)
+        return bytes(out), len(out)
 
 
 class VarLen(object):
