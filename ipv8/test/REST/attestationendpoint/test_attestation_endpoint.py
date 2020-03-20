@@ -224,6 +224,22 @@ class TestAttestationEndpoint(RESTTestBase):
         self.assertTrue([["YXNk", 0.0], ["YXNkMg==", 0.0]] in verification_output.values(),
                         "Something went wrong with the verification. Unexpected output values.")
 
+    async def test_trustchain_recent(self):
+        """
+        Check if the attributes can be correctly shown in the trustchain REST interface.
+        """
+        await self.introduce_nodes()
+        await self.create_attestation_request(self.nodes[1], 'QR')
+        await self.attest_all_outstanding_requests(self.nodes[0], 'QR', b'data')
+        result = await self.make_request(self.nodes[1], 'trustchain/recent', 'GET', {})
+        block1, block2 = result['blocks']
+
+        self.assertEqual(block1['type'], block2['type'])
+        self.assertEqual(block1['transaction']['hash'], block2['transaction']['hash'])
+        self.assertEqual(block1['transaction']['name'], block2['transaction']['name'])
+        self.assertEqual(block1['transaction']['date'], block2['transaction']['date'])
+        self.assertEqual(block1['transaction']['metadata'], block2['transaction']['metadata'])
+
     async def test_get_outstanding_verify(self):
         """
         Test the (GET: outstanding verify) request type
