@@ -311,7 +311,7 @@ class TestDHTEndpoint(RESTTestBase):
         Test the retrieval of large blocks when all the blocks are incomplete.
         """
 
-        yield self.introduce_nodes()
+        await self.introduce_nodes()
         self._increase_request_limit(100)
         hash_key = sha1(self.nodes[0].my_peer.public_key.key_to_bin() + DHTBlockPublisher.KEY_SUFFIX).digest()
 

@@ -189,7 +189,8 @@ class DHTCommunity(Community):
         self.logger.debug('Got ping-response from %s', peer.address)
         cache = self.request_cache.pop(u'ping', payload.identifier)
         cache.on_complete()
-        cache.future.set_result(cache.node)
+        if not cache.future.done():
+            cache.future.set_result(cache.node)
 
     def serialize_value(self, data, sign=True):
         if sign:
@@ -303,7 +304,8 @@ class DHTCommunity(Community):
         self.logger.debug('Got store-response from %s', peer.address)
         cache = self.request_cache.pop(u'store', payload.identifier)
         cache.on_complete()
-        cache.future.set_result(cache.node)
+        if not cache.future.done():
+            cache.future.set_result(cache.node)
 
     def _send_find_request(self, node, target, force_nodes, start_idx=0):
         cache = self.request_cache.add(Request(self, u'find', node, [force_nodes]))

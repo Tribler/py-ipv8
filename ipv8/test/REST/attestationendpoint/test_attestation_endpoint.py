@@ -184,9 +184,9 @@ class TestAttestationEndpoint(RESTTestBase):
         await self.introduce_nodes()
         await self.create_attestation_request(self.nodes[1], 'QR')
 
-        result = yield self.wait_for_outstanding_requests(self.nodes[0])
+        result = await self.wait_for_outstanding_requests(self.nodes[0])
 
-        mid = b64encode(self.nodes[1].my_peer.mid).decode('utf-8')
+        mid = b64encode(self.nodes[1].my_peer.mid)
         self.assertTrue(any((x[0] == mid and x[1] == 'QR' for x in result)),
                         "Could not find the outstanding request forwarded by the second peer")
 

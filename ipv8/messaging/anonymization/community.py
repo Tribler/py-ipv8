@@ -184,11 +184,6 @@ class TunnelCommunity(Community):
 
         await super(TunnelCommunity, self).unload()
 
-    def get_session_keys(self, keys, direction):
-        # increment salt_explicit
-        keys[direction + 4] += 1
-        return keys[direction], keys[direction + 2], keys[direction + 4]
-
     def _generate_circuit_id(self):
         circuit_id = random.getrandbits(32)
 
@@ -708,8 +703,8 @@ class TunnelCommunity(Community):
         self.exit_sockets[circuit_id] = TunnelExitSocket(circuit_id, peer, self)
 
         candidate_list_enc = self.crypto.encrypt_str(encode(list(peers_keys.keys())),
-                                                     *self.get_session_keys(self.relay_session_keys[circuit_id],
-                                                                            EXIT_NODE))
+                                                     *self.crypto.get_session_keys(self.relay_session_keys[circuit_id],
+                                                                                   EXIT_NODE))
         self.send_cell([Peer(create_payload.node_public_key, previous_node_address)], "created",
                        CreatedPayload(circuit_id, key, auth, candidate_list_enc))
 
