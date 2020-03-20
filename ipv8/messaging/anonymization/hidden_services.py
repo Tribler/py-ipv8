@@ -370,7 +370,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         rendezvous_point.circuit.hs_session_keys = self.crypto.generate_session_keys(shared_secret)
         rp_info_enc = self.crypto.encrypt_str(
             encode((rendezvous_point.rp_info, rendezvous_point.cookie)),
-            *self.get_session_keys(rendezvous_point.circuit.hs_session_keys, EXIT_NODE))
+            *self.crypto.get_session_keys(rendezvous_point.circuit.hs_session_keys, EXIT_NODE))
 
         circuit = self.circuits[circuit_id]
         self.tunnel_data(circuit, source_address, u'created-e2e',
