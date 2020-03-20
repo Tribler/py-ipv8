@@ -32,6 +32,9 @@ class MockRestIPv8(object):
     def get_overlay(self, overlay_cls):
         return next((o for o in self.overlays if isinstance(o, overlay_cls)), None)
 
+    def get_overlays(self, overlay_cls):
+        return (o for o in self.overlays if isinstance(o, overlay_cls))
+
     async def start_api(self):
         self.rest_manager = RESTManager(self)
         await self.rest_manager.start(0)
