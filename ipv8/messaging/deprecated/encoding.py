@@ -212,6 +212,16 @@ def _a_decode_unicode(stream, offset, count, _):
         raise ValueError("Invalid stream length", len(stream), offset + count)
 
 
+def _a_decode_unicode_safe(stream, offset, count, _):
+    """
+    'a3sba\x80',3,3 --> 6,u'ba\x80'
+    """
+    if len(stream) >= offset + count:
+        return offset + count, "".join([chr(c) for c in stream[offset:offset + count]])
+    else:
+        raise ValueError("Invalid stream length", len(stream), offset + count)
+
+
 def _a_decode_bytes(stream, offset, count, _):
     """
     'a3bfoo',3,3 --> 6,'foo'
@@ -335,7 +345,7 @@ _a_decode_mapping = {b"i": _a_decode_int,
                      b"F": _a_decode_false}
 
 _a_decode_mapping_utf8 = _a_decode_mapping.copy()
-_a_decode_mapping_utf8[b"b"] = _a_decode_mapping_utf8[b"s"]
+_a_decode_mapping_utf8[b"b"] = _a_decode_unicode_safe
 
 
 def decode(stream, offset=0, cast_utf8=False):
