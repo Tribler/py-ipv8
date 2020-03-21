@@ -99,7 +99,7 @@ class RequestCache(TaskManager):
             else:
                 self._logger.debug("add %s", cache)
                 self._identifiers[identifier] = cache
-                self.register_task(cache, lambda: self._on_timeout(cache), delay=cache.timeout_delay)
+                self.register_task(identifier, lambda: self._on_timeout(cache), delay=cache.timeout_delay)
                 return cache
 
     def has(self, prefix, number):
@@ -128,7 +128,7 @@ class RequestCache(TaskManager):
 
         identifier = self._create_identifier(number, prefix)
         cache = self._identifiers.pop(identifier)
-        self.cancel_pending_task(cache)
+        self.cancel_pending_task(identifier)
         return cache
 
     def _on_timeout(self, cache):
@@ -149,7 +149,7 @@ class RequestCache(TaskManager):
 
         cache.on_timeout()
 
-        self.cancel_pending_task(cache)
+        self.cancel_pending_task(identifier)
 
     def _create_identifier(self, number, prefix):
         return u"%s:%d" % (prefix, number)
