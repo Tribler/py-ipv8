@@ -20,6 +20,22 @@ class NumberCache(object):
         self._prefix = prefix
         self._number = number
 
+        self._managed_futures = []
+
+    def register_future(self, future):
+        """
+        Register a future for this Cache that will be canceled when this Cache times out.
+
+        :param future: the future to register for this instance
+        :type future: Future
+        :returns: None
+        """
+        self._managed_futures.append(future)
+
+    @property
+    def managed_futures(self):
+        return self._managed_futures
+
     @property
     def prefix(self):
         return self._prefix
@@ -148,6 +164,10 @@ class RequestCache(TaskManager):
             del self._identifiers[identifier]
 
         cache.on_timeout()
+
+        for future in cache.managed_futures:
+            if not future.done():
+                future.cancel()
 
         self.cancel_pending_task(cache)
 
