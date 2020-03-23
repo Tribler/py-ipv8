@@ -156,7 +156,7 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
                 try:
                     socket.inet_aton(destination[0])
                     on_ip_address(succeed(destination[0]))
-                except socket.error:
+                except (OSError, ValueError):
                     task = ensure_future(self.resolve(destination[0]))
                     self.register_task("resolving_%r" % destination[0], task).add_done_callback(on_ip_address)
 
