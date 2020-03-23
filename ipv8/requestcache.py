@@ -167,7 +167,7 @@ class RequestCache(TaskManager):
 
         for future in cache.managed_futures:
             if not future.done():
-                future.cancel()
+                future.set_exception(SystemExit(0))
 
         self.cancel_pending_task(cache)
 

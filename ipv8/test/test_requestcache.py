@@ -1,5 +1,4 @@
 from asyncio import Future, all_tasks
-from concurrent.futures import CancelledError
 
 import asynctest
 
@@ -81,6 +80,7 @@ class TestRequestCache(asynctest.TestCase):
         cache = MockRegisteredCache(request_cache)
         request_cache.add(cache)
 
-        self.assertAsyncRaises(CancelledError, cache.timed_out)
+        with self.assertRaises(SystemExit):
+            await cache.timed_out
 
         await request_cache.shutdown()
