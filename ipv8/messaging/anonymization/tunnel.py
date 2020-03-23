@@ -158,7 +158,7 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
                     on_ip_address(succeed(destination[0]))
                 except (OSError, ValueError):
                     task = ensure_future(self.resolve(destination[0]))
-                    self.register_task("resolving_%r" % destination[0], task).add_done_callback(on_ip_address)
+                    self.register_anonymous_task("resolving_%r" % destination[0], task).add_done_callback(on_ip_address)
 
     async def resolve(self, host):
         # Using asyncio's getaddrinfo since the aiodns resolver seems to have issues.
