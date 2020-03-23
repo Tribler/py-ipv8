@@ -1,5 +1,4 @@
 from asyncio import Future, all_tasks
-from concurrent.futures import CancelledError
 
 import asynctest
 
@@ -73,14 +72,49 @@ class TestRequestCache(asynctest.TestCase):
 
         await request_cache.shutdown()
 
-    async def test_cancel_future(self):
+    async def test_timeout_future_default_value(self):
         """
-        Test if a registered future gets canceled on timeout.
+        Test if a registered future gets set to None on timeout.
+        """
+        request_cache = RequestCache()
+        cache = MockRegisteredCache(request_cache)
+        request_cache.add(cache)
+        self.assertEqual(None, (await cache.timed_out))
+        await request_cache.shutdown()
+
+    async def test_timeout_future_custom_value(self):
+        """
+        Test if a registered future gets set to a value on timeout.
         """
         request_cache = RequestCache()
         cache = MockRegisteredCache(request_cache)
         request_cache.add(cache)
 
-        self.assertAsyncRaises(CancelledError, cache.timed_out)
+        cache.managed_futures[0] = (cache.managed_futures[0][0], 123)
+        self.assertEqual(123, (await cache.timed_out))
 
         await request_cache.shutdown()
+
+    async def test_timeout_future_exception(self):
+        """
+        Test if a registered future raises an exception on timeout.
+        """
+        request_cache = RequestCache()
+        cache = MockRegisteredCache(request_cache)
+        request_cache.add(cache)
+
+        cache.managed_futures[0] = (cache.managed_futures[0][0], RuntimeError())
+        with self.assertRaises(RuntimeError):
+            await cache.timed_out
+
+        await request_cache.shutdown()
+
+    async def test_cancel_future(self):
+        """
+        Test if a registered future gets canceled at shutdown.
+        """
+        request_cache = RequestCache()
+        cache = MockRegisteredCache(request_cache)
+        request_cache.add(cache)
+        await request_cache.shutdown()
+        self.assertTrue(cache.timed_out.cancelled())

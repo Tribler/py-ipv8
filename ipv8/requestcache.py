@@ -1,4 +1,6 @@
 import logging
+from asyncio import CancelledError
+from contextlib import suppress
 from random import random
 from threading import Lock
 
@@ -22,15 +24,18 @@ class NumberCache(object):
 
         self._managed_futures = []
 
-    def register_future(self, future):
+    def register_future(self, future, on_timeout=None):
         """
         Register a future for this Cache that will be canceled when this Cache times out.
 
         :param future: the future to register for this instance
         :type future: Future
+        :param on_timeout: The value to which the future is to be set when a timeout occurs. If the value is an
+                           instance of Exception, future.set_exception will be called instead of future.set_result
+        :type on_timeout: Object
         :returns: None
         """
-        self._managed_futures.append(future)
+        self._managed_futures.append((future, on_timeout))
 
     @property
     def managed_futures(self):
@@ -115,7 +120,7 @@ class RequestCache(TaskManager):
             else:
                 self._logger.debug("add %s", cache)
                 self._identifiers[identifier] = cache
-                self.register_task(cache, lambda: self._on_timeout(cache), delay=cache.timeout_delay)
+                self.register_task(cache, self._on_timeout, cache, delay=cache.timeout_delay)
                 return cache
 
     def has(self, prefix, number):
@@ -165,9 +170,12 @@ class RequestCache(TaskManager):
 
         cache.on_timeout()
 
-        for future in cache.managed_futures:
+        for future, on_timeout in cache.managed_futures:
             if not future.done():
-                future.cancel()
+                if isinstance(on_timeout, Exception):
+                    future.set_exception(on_timeout)
+                else:
+                    future.set_result(on_timeout)
 
         self.cancel_pending_task(cache)
 
@@ -190,4 +198,10 @@ class RequestCache(TaskManager):
         """
         with self.lock:
             await self.shutdown_task_manager()
+            for cache in self._identifiers.values():
+                # Cancel all managed futures, and suppress the CancelledErrors
+                for future, _ in cache.managed_futures:
+                    future.cancel()
+                    with suppress(CancelledError):
+                        await future
             self._identifiers.clear()

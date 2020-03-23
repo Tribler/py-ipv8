@@ -231,7 +231,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
                         self.pex.pop(info_hash, None)
                         self.ipv8.overlays.remove(pex)
                         self.ipv8.strategies = [t for t in self.ipv8.strategies if t[0].overlay != pex]
-                        self.register_task('unload_pex', pex.unload)
+                        self.register_anonymous_task('unload_pex', pex.unload)
 
         for cookie, rendezvous_circuit in list(self.rendezvous_point_for.items()):
             if rendezvous_circuit.circuit_id == circuit_id:
