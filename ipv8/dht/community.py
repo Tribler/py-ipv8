@@ -100,8 +100,10 @@ class DHTCommunity(Community):
         self.request_cache = RequestCache()
         self.tokens = {}
         self.token_secrets = deque(maxlen=2)
+        # First call to token_maintenance should happen immediately, in case we get requests before it gets executed
+        self.token_maintenance()
+        self.register_task('token_maintenance', self.token_maintenance, interval=300)
         self.register_task('value_maintenance', self.value_maintenance, interval=3600)
-        self.register_task('token_maintenance', self.token_maintenance, interval=300, delay=0)
 
         # Register messages
         self.decode_map.update({
