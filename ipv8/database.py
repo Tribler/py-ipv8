@@ -146,6 +146,7 @@ class Database(metaclass=ABCMeta):
 
     def _connect(self):
         self._connection = sqlite3.connect(self._file_path, check_same_thread=False)
+        self._connection.text_factory = bytes
         self._cursor = self._connection.cursor()
 
         assert self._cursor
