@@ -17,7 +17,7 @@ class TrustChainDB(Database):
     Connection layer to SQLiteDB.
     Ensures a proper DB schema on startup.
     """
-    LATEST_DB_VERSION = 7
+    LATEST_DB_VERSION = 8
 
     def __init__(self, working_directory, db_name, my_pk=None):
         """
@@ -407,6 +407,13 @@ class TrustChainDB(Database):
             """
         elif current_version == 5:
             return self.get_sql_create_blocks_table("double_spends", "public_key, sequence_number, block_hash")
+        elif current_version == 7:
+            # Make sure that everything in the sqlite database is stored as BLOB.
+            return u"""
+            UPDATE blocks SET type=CAST(type AS BLOB), tx=CAST(tx AS BLOB), public_key=CAST(public_key AS BLOB),
+                              link_public_key=CAST(link_public_key AS BLOB), previous_hash=CAST(previous_hash AS BLOB),
+                              signature=CAST(signature AS BLOB), block_hash=CAST(block_hash AS BLOB);
+            """
 
     def open(self, initial_statements=True, prepare_visioning=True):
         return super(TrustChainDB, self).open(initial_statements, prepare_visioning)
