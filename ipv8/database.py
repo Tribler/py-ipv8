@@ -224,10 +224,10 @@ class Database(metaclass=ABCMeta):
                 version, = next(self.execute(u"SELECT value FROM option WHERE key == 'database_version' LIMIT 1"))
             except StopIteration:
                 # the 'database_version' key was not found
-                version = u"0"
+                version = b"0"
         else:
             # the 'option' table probably hasn't been created yet
-            version = u"0"
+            version = b"0"
 
         self._database_version = self.check_database(version)
         self._assert(isinstance(self._database_version, int),

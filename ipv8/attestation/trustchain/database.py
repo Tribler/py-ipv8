@@ -433,11 +433,12 @@ class TrustChainDB(Database):
         database_version = int(database_version)
 
         if database_version < self.LATEST_DB_VERSION:
-            while database_version < self.LATEST_DB_VERSION:
-                upgrade_script = self.get_upgrade_script(current_version=database_version)
-                if upgrade_script:
-                    self.executescript(upgrade_script)
-                database_version += 1
+            if database_version > 0:  # Only run the upgrade loop if there is something to upgrade.
+                while database_version < self.LATEST_DB_VERSION:
+                    upgrade_script = self.get_upgrade_script(current_version=database_version)
+                    if upgrade_script:
+                        self.executescript(upgrade_script)
+                    database_version += 1
             self.executescript(self.get_schema())
             self.commit()
 
