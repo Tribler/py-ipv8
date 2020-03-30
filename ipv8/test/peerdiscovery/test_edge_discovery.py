@@ -107,7 +107,7 @@ class TestEdgeWalk(TestBase):
         Check if we can complete an edge.
         """
         self.strategies[0].edge_length = 2  # Finish with one other node
-        self.strategies[0].edge_timeout = 0.1  # Finish the edge, but allow the network to walk
+        self.strategies[0].edge_timeout = 0.15  # Finish the edge, but allow the network to walk
         self.overlays[0].network.add_verified_peer(self.overlays[1].my_peer)
         self.overlays[0].network.discover_services(self.overlays[1].my_peer, [self.overlays[1].master_peer.mid, ])
 
