@@ -45,7 +45,7 @@ class TestRequestCache(asynctest.TestCase):
         num_tasks = len(all_tasks())
         request_cache = RequestCache()
         request_cache.add(MockCache(request_cache))
-        self.assertEqual(len(all_tasks()), num_tasks + 1)
+        self.assertEqual(len(all_tasks()), num_tasks + 2)
         await request_cache.shutdown()
         self.assertEqual(len(all_tasks()), num_tasks)
         request_cache.add(MockCache(request_cache))
