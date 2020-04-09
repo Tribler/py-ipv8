@@ -184,7 +184,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
             for index in range(len(nodes) - 1, -1, -1):
                 node = nodes[index]
                 if node.status == NODE_STATUS_BAD:
-                    del self.store_for_me[key][index]
+                    self.store_for_me[key].pop(index)
                     self.logger.debug('Deleting peer %s that stored us (key %s)', node, hexlify(key))
                 elif node not in pinged and now > node.last_response + PING_INTERVAL:
                     self.ping(node)
@@ -194,4 +194,4 @@ class DHTDiscoveryCommunity(DHTCommunity):
                 node = nodes[index]
                 if now > node.last_query + 60:
                     self.logger.debug('Deleting peer %s (key %s)', node, hexlify(key))
-                    del self.store[key][index]
+                    self.store[key].pop(index)

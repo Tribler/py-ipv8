@@ -57,7 +57,7 @@ class RandomWalk(DiscoveryStrategy):
                 if self.intro_timeouts[node] + self.node_timeout < time():
                     to_remove.append(node)
             for node in to_remove:
-                del self.intro_timeouts[node]
+                self.intro_timeouts.pop(node)
                 if not self.overlay.network.get_verified_by_address(node):
                     self.overlay.network.remove_by_address(node)
             # Slow down the walk if a target_interval has been specified
@@ -155,4 +155,4 @@ class EdgeWalk(DiscoveryStrategy):
                                 self.complete_edges.append(self.under_construction[root])
                             completed.append(root)
                     for root in completed:
-                        del self.under_construction[root]
+                        self.under_construction.pop(root)
