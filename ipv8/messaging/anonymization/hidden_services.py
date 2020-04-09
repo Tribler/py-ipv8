@@ -219,7 +219,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
     def remove_exit_socket(self, circuit_id, additional_info='', remove_now=False, destroy=False):
         for seeder_pk, (intro_circuit, info_hash) in list(self.intro_point_for.items()):
             if intro_circuit.circuit_id == circuit_id:
-                del self.intro_point_for[seeder_pk]
+                self.intro_point_for.pop(seeder_pk)
 
                 # Stop announcing in PEX community
                 pex = self.pex.get(info_hash)
@@ -235,7 +235,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
 
         for cookie, rendezvous_circuit in list(self.rendezvous_point_for.items()):
             if rendezvous_circuit.circuit_id == circuit_id:
-                del self.rendezvous_point_for[cookie]
+                self.rendezvous_point_for.pop(cookie)
 
         return super(HiddenTunnelCommunity, self).remove_exit_socket(circuit_id, additional_info, remove_now, destroy)
 

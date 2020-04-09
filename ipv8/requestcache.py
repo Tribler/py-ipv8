@@ -166,7 +166,7 @@ class RequestCache(TaskManager):
         # the on_timeout call could have already removed the identifier from the cache using pop
         identifier = self._create_identifier(cache.number, cache.prefix)
         if identifier in self._identifiers:
-            del self._identifiers[identifier]
+            self._identifiers.pop(identifier)
 
         cache.on_timeout()
 

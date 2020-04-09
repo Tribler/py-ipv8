@@ -66,7 +66,7 @@ class Trie(object):
         node.value = None
         while node.value is None and not node.children and toremove:
             char, node = toremove.pop()
-            del node.children[char]
+            node.children.pop(char)
 
     def itervalues(self):
         def generator(node):

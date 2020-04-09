@@ -127,12 +127,12 @@ class Bucket(object):
         if len(self.nodes) >= self.max_size:
             for n in list(self.nodes.values()):
                 if n.status == NODE_STATUS_BAD:
-                    del self.nodes[n.id]
+                    self.nodes.pop(n.id)
                     break
 
             for n in list(self.nodes.values()):
                 if node.rtt and n.rtt / node.rtt >= 2.0:
-                    del self.nodes[n.id]
+                    self.nodes.pop(n.id)
                     break
 
         # Insert

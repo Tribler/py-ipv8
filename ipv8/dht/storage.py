@@ -46,7 +46,7 @@ class Storage(object):
             index = self.items[key].index(new_value)
             old_value = self.items[key][index]
             if new_value.version >= old_value.version:
-                del self.items[key][index]
+                self.items[key].pop(index)
                 self.items[key].insert(0, new_value)
                 self.items[key].sort(key=lambda v: 1 if v.id == key else 0)
         except ValueError:
@@ -67,6 +67,6 @@ class Storage(object):
         for key in self.items:
             for index, value in reversed(list(enumerate(self.items[key]))):
                 if value.expired:
-                    del self.items[key][index]
+                    self.items[key].pop(index)
                 else:
                     break
