@@ -1,6 +1,6 @@
 import abc
 
-from .block import TrustChainBlock
+from .block import NoodleBlock
 
 
 class BlockListener(metaclass=abc.ABCMeta):
@@ -8,7 +8,7 @@ class BlockListener(metaclass=abc.ABCMeta):
     This class defines a listener for TrustChain blocks with a specific type.
     """
 
-    BLOCK_CLASS = TrustChainBlock
+    BLOCK_CLASS = NoodleBlock
 
     @abc.abstractmethod
     def should_sign(self, block):

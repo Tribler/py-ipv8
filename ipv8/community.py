@@ -379,3 +379,11 @@ class Community(EZPackOverlay):
 
     def get_peers(self):
         return self.network.get_peers_for_service(self.master_peer.mid)
+
+    def get_peer_by_pub_key(self, pub_key):
+        return self.network.get_service_peer_by_public_key_bin(pub_key, self.master_peer.mid)
+
+    def get_peer_by_mid(self, peer_mid):
+        for peer in self.get_peers():
+            if peer.mid == peer_mid:
+                return peer
