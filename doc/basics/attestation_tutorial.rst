@@ -207,8 +207,6 @@ To verify an attribute we will go through the following steps:
 #. Peer 1 allows verification of its attribute.
 #. Peer 2 checks the verification output for the requested verification.
 
-**NOTE: YOU NEED TO BE FAST**\ : if you take more than 10 seconds between step 1 and 2, the request will time out.
-
 **0. SANITY CHECK -** First we check if both peers can see each other using their respective interfaces.
 
 .. code-block:: bash
