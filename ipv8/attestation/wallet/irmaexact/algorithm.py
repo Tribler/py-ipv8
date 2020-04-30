@@ -7,7 +7,7 @@ from .gabi.keys import DefaultSystemParameters
 from .gabi.proofs import createChallenge
 from .wrappers import challenge_response, serialize_proof_d, unserialize_proof_d
 from ..primitives.structs import ipack, iunpack
-from ...identity_formats import Attestation, FORMATS, IdentityAlgorithm
+from ...identity_formats import Attestation, IdentityAlgorithm
 
 
 class IRMAAttestation(Attestation):
@@ -50,21 +50,21 @@ class KeyStub(object):
 
 class IRMAExactAlgorithm(IdentityAlgorithm):
 
-    def __init__(self, id_format):
-        super(IRMAExactAlgorithm, self).__init__(id_format)
+    def __init__(self, id_format, formats):
+        super(IRMAExactAlgorithm, self).__init__(id_format, formats)
 
         # Check algorithm match
-        if FORMATS[id_format]["algorithm"] != "irmaexact":
+        if formats[id_format]["algorithm"] != "irmaexact":
             raise RuntimeError("Identity format linked to wrong algorithm")
 
-        self.issuer_pk = FORMATS[self.id_format]["issuer_pk"]
-        self.attribute_order = FORMATS[self.id_format]["order"]
-        self.validity = FORMATS[self.id_format]["validity"]
+        self.issuer_pk = formats[self.id_format]["issuer_pk"]
+        self.attribute_order = formats[self.id_format]["order"]
+        self.validity = formats[self.id_format]["validity"]
 
         self.base_meta = {
-            u"credential": FORMATS[self.id_format]["credential"],
-            u"keyCounter": FORMATS[self.id_format]["keyCounter"],
-            u"validity": FORMATS[self.id_format]["validity"]
+            u"credential": formats[self.id_format]["credential"],
+            u"keyCounter": formats[self.id_format]["keyCounter"],
+            u"validity": formats[self.id_format]["validity"]
         }
 
         self.system_parameters = DefaultSystemParameters[1024]

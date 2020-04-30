@@ -28,6 +28,7 @@ ipv8/test/attestation/wallet/irmaexact/test_keys.py:TestKeys
 ipv8/test/attestation/wallet/irmaexact/test_proofs.py:TestProofs
 ipv8/test/attestation/wallet/irmaexact/test_builder.py:TestBuilder
 ipv8/test/attestation/wallet/irmaexact/test_credential.py:TestCredential
+ipv8/test/attestation/wallet/irmaexact/test_algorithm.py:TestAlgorithm
 ipv8/test/attestation/wallet/pengbaorange/test_boudot.py:TestBoudot
 ipv8/test/attestation/wallet/test_attestation_community.py:TestCommunity
 

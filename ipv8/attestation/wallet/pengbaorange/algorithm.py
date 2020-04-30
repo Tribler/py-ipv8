@@ -6,7 +6,7 @@ from ..pengbaorange.attestation import create_attest_pair
 from ..pengbaorange.structs import PengBaoAttestation
 from ..primitives.boneh import generate_keypair
 from ..primitives.structs import BonehPrivateKey, BonehPublicKey, pack_pair, unpack_pair
-from ...identity_formats import FORMATS, IdentityAlgorithm
+from ...identity_formats import IdentityAlgorithm
 
 LARGE_INTEGER = 32765
 
@@ -28,20 +28,20 @@ def _safe_rndint(key_size, mod):
 
 class PengBaoRangeAlgorithm(IdentityAlgorithm):
 
-    def __init__(self, id_format):
-        super(PengBaoRangeAlgorithm, self).__init__(id_format)
+    def __init__(self, id_format, formats):
+        super(PengBaoRangeAlgorithm, self).__init__(id_format, formats)
 
         # Check algorithm match
-        if FORMATS[id_format]["algorithm"] != "pengbaorange":
+        if formats[id_format]["algorithm"] != "pengbaorange":
             raise RuntimeError("Identity format linked to wrong algorithm")
 
         # Check key size match
-        self.key_size = FORMATS[self.id_format]["key_size"]
+        self.key_size = formats[self.id_format]["key_size"]
         if self.key_size < 32 or self.key_size > 512:
             raise RuntimeError("Illegal key size specified")
 
-        self.a = FORMATS[self.id_format]["min"]
-        self.b = FORMATS[self.id_format]["max"]
+        self.a = formats[self.id_format]["min"]
+        self.b = formats[self.id_format]["max"]
 
     def generate_secret_key(self):
         """

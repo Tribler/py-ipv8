@@ -1,7 +1,7 @@
 from binascii import unhexlify
 from time import time
 
-from ..identity_formats import FORMATS
+from ..default_identity_formats import FORMATS
 from ...attestation.trustchain.community import TrustChainCommunity
 from ...attestation.trustchain.listener import BlockListener
 from ...peer import Peer
