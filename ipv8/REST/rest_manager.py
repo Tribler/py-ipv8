@@ -32,7 +32,7 @@ class RESTManager:
         self.session = session
         self.site = None
 
-    async def start(self, port=8085):
+    async def start(self, port=8085, host='127.0.0.1'):
         """
         Starts the HTTP API with the listen port as specified in the session configuration.
         """
@@ -53,7 +53,7 @@ class RESTManager:
         runner = web.AppRunner(root_endpoint.app, access_log=None)
         await runner.setup()
         # If localhost is used as hostname, it will randomly either use 127.0.0.1 or ::1
-        self.site = web.TCPSite(runner, '127.0.0.1', port)
+        self.site = web.TCPSite(runner, host, port)
         await self.site.start()
 
     async def stop(self):
