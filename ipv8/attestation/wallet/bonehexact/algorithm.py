@@ -7,26 +7,26 @@ from .attestation import (attest_sha256, attest_sha256_4, attest_sha512, binary_
 from .structs import BonehAttestation
 from ..primitives.boneh import generate_keypair
 from ..primitives.structs import BonehPrivateKey, BonehPublicKey, pack_pair, unpack_pair
-from ...identity_formats import FORMATS, IdentityAlgorithm
+from ...identity_formats import IdentityAlgorithm
 
 
 class BonehExactAlgorithm(IdentityAlgorithm):
 
-    def __init__(self, id_format):
-        super(BonehExactAlgorithm, self).__init__(id_format)
+    def __init__(self, id_format, formats):
+        super(BonehExactAlgorithm, self).__init__(id_format, formats)
         self.honesty_check = True
 
         # Check algorithm match
-        if FORMATS[id_format]["algorithm"] != "bonehexact":
+        if formats[id_format]["algorithm"] != "bonehexact":
             raise RuntimeError("Identity format linked to wrong algorithm")
 
         # Check key size match
-        self.key_size = FORMATS[self.id_format]["key_size"]
+        self.key_size = formats[self.id_format]["key_size"]
         if self.key_size < 32 or self.key_size > 512:
             raise RuntimeError("Illegal key size specified")
 
         # Check hash mode match
-        hash_mode = FORMATS[self.id_format]["hash"]
+        hash_mode = formats[self.id_format]["hash"]
         if hash_mode == "sha256":
             self.attest_function = attest_sha256
             self.aggregate_reference = binary_relativity_sha256

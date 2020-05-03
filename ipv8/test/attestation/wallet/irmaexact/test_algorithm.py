@@ -1,5 +1,6 @@
 import asynctest
 
+from .....attestation.default_identity_formats import FORMATS
 from .....attestation.wallet.irmaexact.algorithm import IRMAExactAlgorithm
 
 
@@ -16,7 +17,7 @@ class TestAlgorithm(asynctest.TestCase):
 
     def test_integration(self):
         id_format = "id_irma_nijmegen_ageLimits_1568208470"
-        algorithm = IRMAExactAlgorithm(id_format)
+        algorithm = IRMAExactAlgorithm(id_format, FORMATS)
         attestation_blob, _ = algorithm.import_blob(self.blob)
         attestation = algorithm.get_attestation_class().unserialize_private(None, attestation_blob, id_format)
         attestation_public = attestation.unserialize(attestation.serialize(), id_format)
@@ -32,7 +33,7 @@ class TestAlgorithm(asynctest.TestCase):
 
     def test_integration_incomplete(self):
         id_format = "id_irma_nijmegen_ageLimits_1568208470"
-        algorithm = IRMAExactAlgorithm(id_format)
+        algorithm = IRMAExactAlgorithm(id_format, FORMATS)
 
         attestation_blob, _ = algorithm.import_blob(self.blob)
         attestation = algorithm.get_attestation_class().unserialize_private(None, attestation_blob, id_format)
@@ -49,7 +50,7 @@ class TestAlgorithm(asynctest.TestCase):
 
     def test_integration_wrong(self):
         id_format = "id_irma_nijmegen_ageLimits_1568208470"
-        algorithm = IRMAExactAlgorithm(id_format)
+        algorithm = IRMAExactAlgorithm(id_format, FORMATS)
 
         attestation_blob, _ = algorithm.import_blob(self.blob)
         attestation = algorithm.get_attestation_class().unserialize_private(None, attestation_blob, id_format)

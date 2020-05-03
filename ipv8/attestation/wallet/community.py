@@ -7,27 +7,18 @@ from hashlib import sha1
 from random import choice
 from threading import RLock
 
-from .bonehexact.algorithm import BonehExactAlgorithm
 from .caches import (HashCache, PeerCache, PendingChallengeCache, ProvingAttestationCache,
                      ReceiveAttestationRequestCache, ReceiveAttestationVerifyCache)
 from .database import AttestationsDB
-from .irmaexact.algorithm import IRMAExactAlgorithm
 from .payload import (AttestationChunkPayload, ChallengePayload, ChallengeResponsePayload, RequestAttestationPayload,
                       VerifyAttestationRequestPayload)
-from .pengbaorange.algorithm import PengBaoRangeAlgorithm
-from ..identity_formats import FORMATS
+from ..schema.manager import SchemaManager
 from ...community import Community
 from ...lazy_community import lazy_wrapper
 from ...messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from ...peer import Peer
 from ...requestcache import RequestCache
 from ...util import cast_to_bin, cast_to_chr, cast_to_unicode, maybe_coroutine
-
-ID_ALGORITHMS = {
-    "bonehexact": BonehExactAlgorithm,
-    "irmaexact": IRMAExactAlgorithm,
-    "pengbaorange": PengBaoRangeAlgorithm
-}
 
 
 def synchronized(f):
@@ -60,6 +51,9 @@ class AttestationCommunity(Community):
         super(AttestationCommunity, self).__init__(*args, **kwargs)
 
         self.receive_block_lock = RLock()
+
+        self.schema_manager = SchemaManager()
+        self.schema_manager.register_default_schemas()
 
         self.attestation_request_callback = lambda peer, attribute_name, metadata: None
         self.attestation_request_complete_callback = \
@@ -95,7 +89,7 @@ class AttestationCommunity(Community):
         self.database.close()
 
     def get_id_algorithm(self, id_format):
-        return ID_ALGORITHMS[FORMATS[id_format]["algorithm"]](id_format)
+        return self.schema_manager.get_algorithm_instance(id_format)
 
     def set_attestation_request_callback(self, f):
         """
