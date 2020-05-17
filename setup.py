@@ -26,6 +26,7 @@ setup(
         'netifaces': ["netifaces"],
         'asynctest': ["asynctest"]
     },
+    tests_require=['coverage', 'asynctest'],
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",
