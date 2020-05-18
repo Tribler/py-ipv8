@@ -39,7 +39,7 @@ At the end of this setup step you should have the following files in your workin
 Running the IPv8 service
 ------------------------
 
-Fill your ``main.py`` file with the following code (runnable with ``python main.py``\ ):
+Fill your ``main.py`` file with the following code (runnable with ``python3 main.py``\ ):
 
 .. code-block:: python
 
@@ -94,7 +94,7 @@ Running the service should yield something like the following output in your ter
 
 .. code-block:: bash
 
-   $ python main.py 
+   $ python3 main.py
    Starting peer aQVwz9aRMRypGwBkaxGRSdQs80c=
    Starting peer bPyWPyswqXMhbW8+0RS6xUtNJrs=
 

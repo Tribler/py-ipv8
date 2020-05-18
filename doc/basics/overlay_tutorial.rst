@@ -63,7 +63,7 @@ You can now run this file using Python as follows:
 
 .. code-block:: bash
 
-   python main.py
+   python3 main.py
 
 You should see some debug information being printed to your terminal.
 If this step failed, you are probably missing dependencies.

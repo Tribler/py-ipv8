@@ -38,6 +38,14 @@ class CustomTestResult(unittest.TextTestResult):
         super(CustomTestResult, self).startTest(test)
         self.last_test = time.time()
 
+    def addSuccess(self, test):
+        super(unittest.TextTestResult, self).addSuccess(test)
+        if self.showAll:
+            self.stream.writeln(f"ok [{round((time.time() - self.last_test) * 1000, 2)} ms]")
+        elif self.dots:
+            self.stream.write('.')
+            self.stream.flush()
+
     def stopTestRun(self) -> None:
         super(CustomTestResult, self).stopTestRun()
         self.end_time = time.time()
@@ -178,7 +186,7 @@ if __name__ == "__main__":
         print(unittest.TextTestResult.separator1)
         global_event_log.sort(key=lambda x: x[0])
         for event in global_event_log:
-            print(('\033[91m' if event[1] == "ERR" else ('\033[33m' if event[1] == "LOG" else '\033[0m'))
+            print(('\033[91m' if event[1] == "ERR" else ('\033[94m' if event[1] == "LOG" else '\033[0m'))
                   + event[2] + '\033[0m',
                   end='')
         print("\r\n" + unittest.TextTestResult.separator1)
