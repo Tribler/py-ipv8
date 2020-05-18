@@ -18,8 +18,7 @@ It's great that you want to contribute to IPv8. We would like you to take heed o
  2. We accept Pull Requests that are tied to issues or change a very small amount of lines. If you forget to open an issue with your Pull Request, the discussion will take place in the Pull Request - often leading to a very unstructured discussion. Contributions to the documentation are exempt from this rule, as they are quite literally self-documenting.
  3. It is better to make small changes than large ones, as smaller changes usually have less bugs.
  4. Make sure the automatic Pull Request tests pass or rationalize why it is O.K. that they do not.
- 5. If you add new test _files_, add them to the `test_classes_list.txt` list and make sure they are run after your preconditions so the test suite fails on the lowest-level broken functionality.
- 6. When you deem it done, clearly mark your Pull Request as ready for review (prefix it with `READY:` for example) or ask an administrator to review your Pull Request.
+ 5. When you deem it done, clearly mark your Pull Request as ready for review (prefix it with `READY:` for example) or ask an administrator to review your Pull Request.
  
 ### I have administrator rights
 

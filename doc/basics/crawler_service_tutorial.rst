@@ -8,7 +8,7 @@ This document is a short walkthrough to set up IPv8 and run Trustchain Crawler f
 
 
 #. Git is installed. If not, please check `here <https://git-scm.com/book/en/v2/Getting-Started-Installing-Git>`__.
-#. Python2.7.9+ is installed. If not, please check `here <https://www.python.org/downloads/release/python-2715/>`__.
+#. Python3.7+ is installed. If not, please check `here <https://www.python.org/>`__.
 #. Python PIP is available in PATH and ``pip`` command is working.
 #. PyCharm IDE (optional) if you want to make changes to the code. Download link `here <https://www.jetbrains.com/pycharm/download/>`__.
 
@@ -28,7 +28,7 @@ This document is a short walkthrough to set up IPv8 and run Trustchain Crawler f
    .. code-block:: bash
 
        cd py-ipv8
-       pip install -r requirements.txt
+       python3 -m pip install -r requirements.txt
 
 #. 
    As we are running as a service, we require a few additional dependencies:
@@ -37,7 +37,7 @@ This document is a short walkthrough to set up IPv8 and run Trustchain Crawler f
 
    .. code-block:: bash
 
-       pip install yappi
+       python3 -m pip install yappi
 
 #. 
    Now we are ready to run the Trustchain crawler. To run it, execute the following in the command line from
@@ -46,7 +46,7 @@ This document is a short walkthrough to set up IPv8 and run Trustchain Crawler f
    .. code-block:: bash
 
        export PYTHONPATH=.
-       python scripts/trustchain_crawler_plugin.py
+       python3 scripts/trustchain_crawler_plugin.py
 
 #. 
    The Trustchain crawler should now be running. To confirm, open the following URL in the browser:
