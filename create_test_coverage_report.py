@@ -8,6 +8,8 @@ from unittest.suite import TestSuite
 
 import coverage
 
+from run_all_tests import find_all_test_class_names
+
 if __name__ != '__main__':
     print(__file__, "should be run stand-alone! Instead, it is being imported!", file=sys.stderr)
     sys.exit(1)
@@ -27,32 +29,30 @@ def clean_directory(prepare=False):
 
 clean_directory(prepare=True)
 
-with open('test_classes_list.txt', 'r') as test_class_file:
-    lines = [line[:-1] for line in test_class_file.readlines() if line.strip() and not line.startswith('#')]
+test_paths = find_all_test_class_names()
 
-    cov = coverage.Coverage(data_file=data_file, data_suffix=True, config_file=False,
-                            branch=True, source=['ipv8'], include=['*'], omit=["ipv8/test/*", "ipv8_service.py"])
-    cov.exclude('pass')
-    cov.start()
+cov = coverage.Coverage(data_file=data_file, data_suffix=True, config_file=False,
+                        branch=True, source=['ipv8'], include=['*'], omit=["ipv8/test/*", "ipv8_service.py"])
+cov.exclude('pass')
+cov.start()
 
-    for line in lines:
-        print("Measuring coverage for", line)
+for test_path in test_paths:
+    print("Measuring coverage for", test_path)
 
-        output_stream = StringIO()
-        formatted_line = line.replace('/', '.').replace('.py:', '.')
+    output_stream = StringIO()
 
-        suite = TestSuite()
-        suite.addTest(defaultTestLoader.loadTestsFromName(formatted_line))
-        reporter = TextTestRunner(stream=output_stream, failfast=True)
-        test_result = reporter.run(suite)
+    suite = TestSuite()
+    suite.addTest(defaultTestLoader.loadTestsFromName(test_path))
+    reporter = TextTestRunner(stream=output_stream, failfast=True)
+    test_result = reporter.run(suite)
 
-        assert len(test_result.errors) == 0,\
-            "ERROR: UNIT TESTS FAILED, PLEASE FIX BEFORE RUNNING COVERAGE:\n%s\n%s" % (output_stream.getvalue(), ''.join([repr(error) for error in test_result.errors]))
-        output_stream.close()
+    assert len(test_result.errors) == 0,\
+        "ERROR: UNIT TESTS FAILED, PLEASE FIX BEFORE RUNNING COVERAGE:\n%s\n%s" % (output_stream.getvalue(), ''.join([repr(error) for error in test_result.errors]))
+    output_stream.close()
 
-    cov.stop()
-    print("Generating HTML report")
-    cov.html_report(directory='coverage', omit="ipv8/keyvault/libnacl/*")
-    cov.erase()
+cov.stop()
+print("Generating HTML report")
+cov.html_report(directory='coverage', omit="ipv8/keyvault/libnacl/*")
+cov.erase()
 
 clean_directory()
