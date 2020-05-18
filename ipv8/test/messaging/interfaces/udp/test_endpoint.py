@@ -1,8 +1,6 @@
-import socket
-import sys
 from asyncio import sleep
 
-from asynctest import TestCase, skipIf
+from asynctest import TestCase
 
 from .....messaging.interfaces.endpoint import EndpointListener
 from .....messaging.interfaces.udp.endpoint import UDPEndpoint
@@ -79,55 +77,3 @@ class TestUDPEndpoint(TestCase):
         Test sending a message with an invalid destination through the UDP endpoint.
         """
         self.endpoint1.send(("0.0.0.0", 0), b'a' * 10)
-
-    @skipIf(sys.version_info.major > 2, "sendto is write-only in Python3")
-    async def test_blocking_endpoint_resend(self):
-        """
-        Test rescheduling on blocking socket in Windows.
-        """
-        # Raise an error on socket send()
-        def cb_err_sendto(data, sock_addr):
-            raise socket.error(10035, "Fake WSAEWOULDBLOCK")
-        real_sendto = self.endpoint1.transport.socket.sendto
-        self.endpoint1.transport.socket.sendto = cb_err_sendto
-
-        # The following send raises a WSAEWOULDBLOCK and should queue the packet
-        self.endpoint1.send(self.ep2_address, 'a' * 20)
-        self.endpoint1.transport.socket.sendto = real_sendto
-        await sleep(0.05)
-        # Nothing should have arrived
-        self.assertEqual(len(self.endpoint2_listener.incoming), 0)
-
-        # Now that the socket no longer errors, both messages should be delivered
-        self.endpoint1.send(self.ep2_address, 'a' * 20)
-        await sleep(0.05)
-        self.assertEqual(len(self.endpoint2_listener.incoming), 2)
-
-    @skipIf(sys.version_info.major > 2, "sendto is write-only in Python3")
-    async def test_blocking_endpoint_resend_limit(self):
-        """
-        Test not rescheduling more than 100 packets.
-        """
-
-        # Raise an error on socket send()
-        def cb_err_sendto(data, sock_addr):
-            raise socket.error(10035, "Fake WSAEWOULDBLOCK")
-
-        real_sendto = self.endpoint1.transport.socket.sendto
-        self.endpoint1.transport.socket.sendto = cb_err_sendto
-
-        # The following send raises a WSAEWOULDBLOCK and should queue the packet
-        for i in range(102):
-            self.endpoint1.send(self.ep2_address, str(i))
-        self.endpoint1.transport.socket.sendto = real_sendto
-        await sleep(0.05)
-        # Nothing should have arrived
-        self.assertEqual(len(self.endpoint2_listener.incoming), 0)
-
-        # Now that the socket no longer errors, messages should be delivered
-        # The first two messages ('0' and '1') should have been bumped out of the queue
-        self.endpoint1.send(self.ep2_address, '102')
-        await sleep(0.05)
-        self.assertEqual(len(self.endpoint2_listener.incoming), 101)
-        self.assertSetEqual({data for _, data in self.endpoint2_listener.incoming},
-                            {str(i) for i in range(2, 103)})
