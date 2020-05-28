@@ -64,7 +64,7 @@ class RetryRequestCache(NumberCache):
         if self.circuit.state == CIRCUIT_STATE_CLOSING:
             return
         if not self.candidates or self.max_tries < 1:
-            reason = 'timeout on RetryRequestCache (tries left: %d)' % self.max_tries
+            reason = f'timeout, {self.max_tries} tries left'
             self.community.remove_circuit(self.circuit.circuit_id, reason)
             return
 

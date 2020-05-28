@@ -61,7 +61,7 @@ class TunnelEndpoint(BaseEndpoint):
             "verified_hops": [hexlify(hop.mid).decode('utf-8') for hop in circuit.hops],
             "unverified_hop": hexlify(circuit.unverified_hop.mid).decode('utf-8') if circuit.unverified_hop else '',
             "type": circuit.ctype,
-            "state": circuit.state,
+            "state": f'{circuit.state} ({circuit.closing_info})' if circuit.closing_info else circuit.state,
             "bytes_up": circuit.bytes_up,
             "bytes_down": circuit.bytes_down,
             "creation_time": circuit.creation_time

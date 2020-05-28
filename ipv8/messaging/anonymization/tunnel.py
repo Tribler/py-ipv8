@@ -43,7 +43,7 @@ CIRCUIT_STATE_EXTENDING = 'EXTENDING'
 CIRCUIT_STATE_CLOSING = 'CLOSING'
 
 CIRCUIT_ID_PORT = 1024
-PING_INTERVAL = 15.0
+PING_INTERVAL = 7.5
 
 # Reasons for sending destroy messages. Code 0 must not be used for legacy reasons.
 DESTROY_REASON_SHUTDOWN = 1
@@ -230,6 +230,7 @@ class Circuit(Tunnel):
         self.info_hash = info_hash
 
         self.ready = Future()
+        self.closing_info = ''
         self._closing = False
         self._hops = []
         self.unverified_hop = None
@@ -272,11 +273,12 @@ class Circuit(Tunnel):
         else:
             return CIRCUIT_STATE_READY
 
-    def close(self):
+    def close(self, closing_info=''):
         """
         Sets the state of the circuit to CIRCUIT_STATE_CLOSING. This ensures that this circuit
         will not be used to contact new peers.
         """
+        self.closing_info = closing_info
         self._closing = True
         if not self.ready.done():
             self.ready.set_result(None)

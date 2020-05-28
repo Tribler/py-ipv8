@@ -359,7 +359,7 @@ class TunnelCommunity(Community):
         if destroy:
             self.destroy_circuit(circuit_to_remove, reason=destroy)
 
-        circuit_to_remove.close()
+        circuit_to_remove.close(additional_info)
 
         if not remove_now or self.settings.remove_tunnel_delay > 0:
             await sleep(self.settings.remove_tunnel_delay)
@@ -897,16 +897,16 @@ class TunnelCommunity(Community):
         self.logger.info("Got destroy from %s for circuit %s", source_address, circuit_id)
 
         if circuit_id in self.relay_from_to:
-            self.remove_relay(circuit_id, "Got destroy", destroy=DESTROY_REASON_FORWARD,
+            self.remove_relay(circuit_id, "got destroy", destroy=DESTROY_REASON_FORWARD,
                               got_destroy_from=(circuit_id, source_address))
 
         elif circuit_id in self.exit_sockets and source_address == self.exit_sockets[circuit_id].peer.address:
             self.logger.info("Got an exit socket %s %s", circuit_id, source_address)
-            self.remove_exit_socket(circuit_id, "Got destroy")
+            self.remove_exit_socket(circuit_id, f"got destroy with reason {payload.reason}")
 
         elif circuit_id in self.circuits and source_address == self.circuits[circuit_id].peer.address:
             self.logger.info("Got a circuit %s %s", circuit_id, source_address)
-            self.remove_circuit(circuit_id, "Got destroy")
+            self.remove_circuit(circuit_id, f"got destroy with reason {payload.reason}")
 
         else:
             self.logger.warning("Invalid or unauthorized destroy")
