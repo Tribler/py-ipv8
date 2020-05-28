@@ -64,14 +64,17 @@ def schema(**kwargs):
     name, spec = items[0]
 
     schema_dict = {}
-    for k, v in spec.items():
-        if isinstance(v, SchemaMeta):
-            schema_dict[k] = Nested(v)
-        elif isinstance(v, list) and len(v) == 1:
-            schema_dict[k] = List(Nested(v[0])) if isinstance(v[0], SchemaMeta) else List(v[0])
+    for key, value in spec.items():
+        cls, description = value if isinstance(value, tuple) else (value, None)
+        required = key.endswith('*')
+        key = key.rstrip('*')
+        kwargs = {'required': required, 'description': description}
+
+        if isinstance(cls, SchemaMeta):
+            schema_dict[key] = Nested(cls, required=required)
+        elif isinstance(cls, list) and len(cls) == 1:
+            cls = cls[0]
+            schema_dict[key] = List(Nested(cls), **kwargs) if isinstance(cls, SchemaMeta) else List(cls, **kwargs)
         else:
-            d = None
-            if isinstance(v, tuple):
-                v, d = v
-            schema_dict[k.rstrip('*')] = v.__call__(description=d, required=k.endswith('*')) if callable(v) else v
+            schema_dict[key] = cls.__call__(**kwargs) if callable(cls) else cls
     return type(name, (Schema,), schema_dict)
