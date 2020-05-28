@@ -45,6 +45,10 @@ CIRCUIT_STATE_CLOSING = 'CLOSING'
 CIRCUIT_ID_PORT = 1024
 PING_INTERVAL = 15.0
 
+# Reasons for sending destroy messages. Code 0 must not be used for legacy reasons.
+DESTROY_REASON_SHUTDOWN = 1
+DESTROY_REASON_FORWARD = 2
+
 
 class DataChecker(object):
 
