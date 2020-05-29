@@ -108,7 +108,7 @@ class TestHiddenServices(TestBase):
         """
         exit_node = self.create_node()
         self.private_nodes.append(exit_node)
-        exit_node.overlay.settings.peer_flags |= PEER_FLAG_EXIT_ANY
+        exit_node.overlay.settings.peer_flags.add(PEER_FLAG_EXIT_ANY)
         public_peer = Peer(exit_node.my_peer.public_key, exit_node.my_peer.address)
         self.nodes[node_nr].network.add_verified_peer(public_peer)
         self.nodes[node_nr].network.discover_services(public_peer, exit_node.overlay.master_peer.mid)

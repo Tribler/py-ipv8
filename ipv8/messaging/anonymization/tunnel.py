@@ -243,7 +243,7 @@ class Circuit(Tunnel):
 
     @property
     def exit_flags(self):
-        return self.hops[-1].flags if self.hops else 0
+        return self.hops[-1].flags if self.hops else []
 
     @property
     def hops(self):
@@ -298,7 +298,7 @@ class Hop(object):
     the Diffie-Hellman handshake
     """
 
-    def __init__(self, public_key, flags=0):
+    def __init__(self, public_key, flags=None):
         """
         @param LibNaCLPK public_key: public key object of the hop
         """
@@ -309,7 +309,7 @@ class Hop(object):
         self.dh_secret = None
         self.address = None
         self.public_key = public_key
-        self.flags = flags
+        self.flags = flags or []
 
     @property
     def host(self):

@@ -1,4 +1,5 @@
 import socket
+from functools import reduce
 from struct import pack, unpack_from
 
 from cryptography.exceptions import InvalidTag
@@ -47,10 +48,20 @@ def decode_address(packet):
     return None
 
 
-class ExtraIntroductionPayload(VariablePayload):
+class ExtraIntroductionPayload(Payload):
 
     format_list = ['H']
-    names = ['flags']
+
+    def __init__(self, flags):
+        super(ExtraIntroductionPayload, self).__init__()
+        self.flags = flags
+
+    def to_pack_list(self):
+        return [('H', reduce(lambda a, b: a | b, self.flags))]
+
+    @classmethod
+    def from_unpack_list(cls, flags):
+        return ExtraIntroductionPayload(list(filter(None, [flags & (2**i) for i in range(16)])))
 
 
 class DataPayload(object):

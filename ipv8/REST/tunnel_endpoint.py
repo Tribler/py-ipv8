@@ -65,7 +65,7 @@ class TunnelEndpoint(BaseEndpoint):
             "bytes_up": circuit.bytes_up,
             "bytes_down": circuit.bytes_down,
             "creation_time": circuit.creation_time,
-            "exit_flags":  list(filter(lambda x: x > 0, [circuit.exit_flags & (2**i) for i in range(16)]))
+            "exit_flags": circuit.exit_flags
         } for circuit in self.tunnels.circuits.values()]})
 
     @docs(
@@ -177,5 +177,5 @@ class TunnelEndpoint(BaseEndpoint):
             "port": peer.address[1],
             "mid": hexlify(peer.mid).decode('utf-8'),
             "is_key_compatible": self.tunnels.crypto.is_key_compatible(peer.public_key),
-            "flags": list(filter(lambda x: x > 0, [flags & (2**i) for i in range(16)]))
+            "flags": flags
         } for peer, flags in self.tunnels.candidates.items()]})
