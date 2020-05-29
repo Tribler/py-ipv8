@@ -242,7 +242,7 @@ class TunnelCommunity(Community):
                 self.remove_exit_socket(circuit_id, 'traffic limit exceeded')
 
         # Remove candidates that are not returned as verified peers
-        current_peers = set(self.network.get_peers_for_service(self.master_peer.mid))
+        current_peers = self.get_peers()
         for peer in list(self.candidates):
             if peer not in current_peers:
                 self.candidates.pop(peer)
@@ -328,7 +328,7 @@ class TunnelCommunity(Community):
         first_hop = random.choice(candidate_list)
         alt_first_hops = [c for c in candidate_list if c != first_hop]
 
-        circuit.unverified_hop = Hop(first_hop.public_key)
+        circuit.unverified_hop = Hop(first_hop.public_key, flags=self.candidates.get(first_hop, 0))
         circuit.unverified_hop.address = first_hop.address
         circuit.unverified_hop.dh_secret, circuit.unverified_hop.dh_first_part = self.crypto.generate_diffie_secret()
 
@@ -550,8 +550,7 @@ class TunnelCommunity(Community):
         if self.request_cache.has("retry", circuit.circuit_id):
             self.request_cache.pop("retry", circuit.circuit_id)
 
-        ignore_candidates = [self.crypto.key_to_bin(chop.public_key) for chop in circuit.hops] + \
-                            [self.my_peer.public_key]
+        ignore_candidates = [hop.node_public_key for hop in circuit.hops] + [self.my_peer.public_key.key_to_bin()]
         if circuit.required_exit:
             ignore_candidates.append(circuit.required_exit.public_key.key_to_bin())
 
@@ -577,7 +576,8 @@ class TunnelCommunity(Community):
 
         if extend_hop_public_bin:
             extend_hop_public_key = self.crypto.key_from_public_bin(extend_hop_public_bin)
-            circuit.unverified_hop = Hop(extend_hop_public_key)
+            circuit.unverified_hop = Hop(extend_hop_public_key,
+                                         flags=self.candidates.get(Peer(extend_hop_public_bin), 0))
             circuit.unverified_hop.dh_secret, circuit.unverified_hop.dh_first_part = \
                 self.crypto.generate_diffie_secret()
 

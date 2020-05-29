@@ -242,6 +242,10 @@ class Circuit(Tunnel):
         return self._hops[0] if self._hops else self.unverified_hop
 
     @property
+    def exit_flags(self):
+        return self.hops[-1].flags if self.hops else 0
+
+    @property
     def hops(self):
         """
         Return a read only tuple version of the hop-list of this circuit
@@ -294,18 +298,18 @@ class Hop(object):
     the Diffie-Hellman handshake
     """
 
-    def __init__(self, public_key=None):
+    def __init__(self, public_key, flags=0):
         """
-        @param None|LibNaCLPK public_key: public key object of the hop
+        @param LibNaCLPK public_key: public key object of the hop
         """
-
-        assert public_key is None or isinstance(public_key, LibNaCLPK)
+        assert isinstance(public_key, LibNaCLPK)
 
         self.session_keys = None
         self.dh_first_part = None
         self.dh_secret = None
         self.address = None
         self.public_key = public_key
+        self.flags = flags
 
     @property
     def host(self):
