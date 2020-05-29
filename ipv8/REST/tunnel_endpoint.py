@@ -24,7 +24,8 @@ class TunnelEndpoint(BaseEndpoint):
         self.app.add_routes([web.get('/circuits', self.get_circuits),
                              web.get('/relays', self.get_relays),
                              web.get('/exits', self.get_exits),
-                             web.get('/swarms', self.get_swarms)])
+                             web.get('/swarms', self.get_swarms),
+                             web.get('/peers', self.get_peers)])
 
     def initialize(self, session):
         super(TunnelEndpoint, self).initialize(session)
@@ -60,7 +61,7 @@ class TunnelEndpoint(BaseEndpoint):
             "verified_hops": [hexlify(hop.mid).decode('utf-8') for hop in circuit.hops],
             "unverified_hop": hexlify(circuit.unverified_hop.mid).decode('utf-8') if circuit.unverified_hop else '',
             "type": circuit.ctype,
-            "state": circuit.state,
+            "state": f'{circuit.state} ({circuit.closing_info})' if circuit.closing_info else circuit.state,
             "bytes_up": circuit.bytes_up,
             "bytes_down": circuit.bytes_down,
             "creation_time": circuit.creation_time
@@ -151,3 +152,29 @@ class TunnelEndpoint(BaseEndpoint):
             "bytes_up": swarm.get_total_up(),
             "bytes_down": swarm.get_total_down()
         } for swarm in self.tunnels.swarms.values()]})
+
+    @docs(
+        tags=["Tunnels"],
+        summary="Return a list of all peers currently part of the tunnel community.",
+        responses={
+            200: {
+                "schema": schema(TunnelPeersResponse={
+                    "peers": [schema(TunnelPeer={
+                        "ip": String,
+                        "port": Integer,
+                        "mid": String,
+                        "is_key_compatible": Boolean,
+                        "flags": List(Integer),
+                    })]
+                })
+            }
+        }
+    )
+    async def get_peers(self, _):
+        return Response({"peers": [{
+            "ip": peer.address[0],
+            "port": peer.address[1],
+            "mid": hexlify(peer.mid).decode('utf-8'),
+            "is_key_compatible": self.tunnels.crypto.is_key_compatible(peer.public_key),
+            "flags": list(filter(lambda x: x > 0, [flags & (2**i) for i in range(16)]))
+        } for peer, flags in self.tunnels.candidates.items()]})
