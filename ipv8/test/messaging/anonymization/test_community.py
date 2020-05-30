@@ -168,7 +168,7 @@ class TestTunnelCommunity(TestBase):
         await self.deliver_messages()
 
         # Destroy the circuit we just created using a destroy message
-        await self.nodes[0].overlay.remove_circuit(list(self.nodes[0].overlay.circuits.keys())[0], destroy=True)
+        await self.nodes[0].overlay.remove_circuit(list(self.nodes[0].overlay.circuits.keys())[0], destroy=1)
         await self.deliver_messages()
 
         self.assert_no_more_tunnels()
@@ -183,7 +183,7 @@ class TestTunnelCommunity(TestBase):
         self.nodes[0].overlay.build_tunnels(2)
         await self.deliver_messages()
 
-        await self.nodes[2].overlay.remove_exit_socket(list(self.nodes[2].overlay.exit_sockets.keys())[0], destroy=True)
+        await self.nodes[2].overlay.remove_exit_socket(list(self.nodes[2].overlay.exit_sockets.keys())[0], destroy=1)
         await self.deliver_messages()
 
         self.assert_no_more_tunnels()
@@ -198,7 +198,7 @@ class TestTunnelCommunity(TestBase):
         self.nodes[0].overlay.build_tunnels(2)
         await self.deliver_messages()
 
-        self.nodes[1].overlay.remove_relay(list(self.nodes[1].overlay.relay_from_to.keys())[0], destroy=True)
+        self.nodes[1].overlay.remove_relay(list(self.nodes[1].overlay.relay_from_to.keys())[0], destroy=1)
         await self.deliver_messages()
 
         self.assert_no_more_tunnels()
@@ -214,7 +214,7 @@ class TestTunnelCommunity(TestBase):
 
         # Destroy a circuit which does not exist (circuit_id + 1)
         # This should not affect other circuits
-        await self.nodes[0].overlay.remove_circuit(list(self.nodes[0].overlay.circuits.keys())[0] + 1, destroy=True)
+        await self.nodes[0].overlay.remove_circuit(list(self.nodes[0].overlay.circuits.keys())[0] + 1, destroy=1)
         await self.deliver_messages()
 
         # Node 0 should still have all of its required 1 hop circuits (1.0/100%)

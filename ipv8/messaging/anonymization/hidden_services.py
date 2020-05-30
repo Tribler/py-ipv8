@@ -98,14 +98,14 @@ class HiddenTunnelCommunity(TunnelCommunity):
             # If there are no other swarms with the same hop count, remove the data circuits
             if not [s for s in self.swarms.values() if s != swarm and s.hops == swarm.hops]:
                 for circuit in self.find_circuits(hops=swarm.hops, state=None):
-                    self.remove_circuit(circuit.circuit_id, 'not needed', destroy=True)
+                    self.remove_circuit(circuit.circuit_id, 'not needed', destroy=DESTROY_REASON_UNNEEDED)
             # Remove e2e circuits
             for rp_circuit, _ in swarm.connections.values():
-                self.remove_circuit(rp_circuit.circuit_id, 'leaving hidden swarm', destroy=True)
+                self.remove_circuit(rp_circuit.circuit_id, 'leaving hidden swarm', destroy=DESTROY_REASON_LEAVE_SWARM)
         # Remove introduction points
         for ip_circuit in self.circuits.values():
             if ip_circuit.info_hash == info_hash and ip_circuit.ctype == CIRCUIT_TYPE_IP_SEEDER:
-                self.remove_circuit(ip_circuit.circuit_id, 'leaving hidden swarm', destroy=True)
+                self.remove_circuit(ip_circuit.circuit_id, 'leaving hidden swarm', destroy=DESTROY_REASON_LEAVE_SWARM)
 
     async def estimate_swarm_size(self, info_hash, hops=1, max_requests=10):
         """

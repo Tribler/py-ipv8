@@ -46,8 +46,12 @@ CIRCUIT_ID_PORT = 1024
 PING_INTERVAL = 7.5
 
 # Reasons for sending destroy messages. Code 0 must not be used for legacy reasons.
-DESTROY_REASON_SHUTDOWN = 1
-DESTROY_REASON_FORWARD = 2
+DESTROY_REASON_UNKNOWN = 1
+DESTROY_REASON_SHUTDOWN = 2
+DESTROY_REASON_FORWARD = 3
+DESTROY_REASON_UNNEEDED = 4
+DESTROY_REASON_LEAVE_SWARM = 5
+DESTROY_REASON_FORBIDDEN = 6
 
 
 class DataChecker(object):
@@ -207,7 +211,7 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
 
         max_packets_without_reply = self.overlay.settings.max_packets_without_reply
         if self.ips[ip] >= (max_packets_without_reply + 1 if incoming else max_packets_without_reply):
-            self.overlay.remove_exit_socket(self.circuit_id, destroy=True)
+            self.overlay.remove_exit_socket(self.circuit_id, destroy=DESTROY_REASON_FORBIDDEN)
             self.logger.error("too many packets to a destination without a reply, "
                               "removing exit socket with circuit_id %d", self.circuit_id)
             return False
