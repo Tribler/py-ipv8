@@ -46,8 +46,12 @@ CIRCUIT_ID_PORT = 1024
 PING_INTERVAL = 7.5
 
 # Reasons for sending destroy messages. Code 0 must not be used for legacy reasons.
-DESTROY_REASON_SHUTDOWN = 1
-DESTROY_REASON_FORWARD = 2
+DESTROY_REASON_UNKNOWN = 1
+DESTROY_REASON_SHUTDOWN = 2
+DESTROY_REASON_FORWARD = 3
+DESTROY_REASON_UNNEEDED = 4
+DESTROY_REASON_LEAVE_SWARM = 5
+DESTROY_REASON_FORBIDDEN = 6
 
 
 class DataChecker(object):
@@ -207,7 +211,7 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
 
         max_packets_without_reply = self.overlay.settings.max_packets_without_reply
         if self.ips[ip] >= (max_packets_without_reply + 1 if incoming else max_packets_without_reply):
-            self.overlay.remove_exit_socket(self.circuit_id, destroy=True)
+            self.overlay.remove_exit_socket(self.circuit_id, destroy=DESTROY_REASON_FORBIDDEN)
             self.logger.error("too many packets to a destination without a reply, "
                               "removing exit socket with circuit_id %d", self.circuit_id)
             return False
@@ -240,6 +244,10 @@ class Circuit(Tunnel):
     @property
     def peer(self):
         return self._hops[0] if self._hops else self.unverified_hop
+
+    @property
+    def exit_flags(self):
+        return self.hops[-1].flags if self.hops else []
 
     @property
     def hops(self):
@@ -294,18 +302,18 @@ class Hop(object):
     the Diffie-Hellman handshake
     """
 
-    def __init__(self, public_key=None):
+    def __init__(self, public_key, flags=None):
         """
-        @param None|LibNaCLPK public_key: public key object of the hop
+        @param LibNaCLPK public_key: public key object of the hop
         """
-
-        assert public_key is None or isinstance(public_key, LibNaCLPK)
+        assert isinstance(public_key, LibNaCLPK)
 
         self.session_keys = None
         self.dh_first_part = None
         self.dh_secret = None
         self.address = None
         self.public_key = public_key
+        self.flags = flags or []
 
     @property
     def host(self):

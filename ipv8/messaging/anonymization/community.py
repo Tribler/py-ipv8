@@ -109,7 +109,7 @@ class TunnelSettings(object):
         self.remove_tunnel_delay = 5
 
         self.num_ip_circuits = 3
-        self.peer_flags = PEER_FLAG_RELAY
+        self.peer_flags = {PEER_FLAG_RELAY}
 
 
 class TunnelCommunity(Community):
@@ -160,7 +160,7 @@ class TunnelCommunity(Community):
 
         self.crypto = self.settings.crypto
 
-        self.logger.info("Setting exitnode = %s", self.settings.peer_flags & PEER_FLAG_EXIT_ANY)
+        self.logger.info("Setting exitnode = %s", PEER_FLAG_EXIT_ANY in self.settings.peer_flags)
 
         self.crypto.initialize(self.my_peer.key)
 
@@ -242,7 +242,7 @@ class TunnelCommunity(Community):
                 self.remove_exit_socket(circuit_id, 'traffic limit exceeded')
 
         # Remove candidates that are not returned as verified peers
-        current_peers = set(self.network.get_peers_for_service(self.master_peer.mid))
+        current_peers = self.get_peers()
         for peer in list(self.candidates):
             if peer not in current_peers:
                 self.candidates.pop(peer)
@@ -250,7 +250,7 @@ class TunnelCommunity(Community):
 
     def get_candidates(self, flag):
         return [peer for peer, flags in self.candidates.items()
-                if flags & flag and self.crypto.is_key_compatible(peer.public_key)]
+                if flag in flags and self.crypto.is_key_compatible(peer.public_key)]
 
     def get_max_time(self, circuit_id):
         return self.settings.max_time
@@ -328,7 +328,7 @@ class TunnelCommunity(Community):
         first_hop = random.choice(candidate_list)
         alt_first_hops = [c for c in candidate_list if c != first_hop]
 
-        circuit.unverified_hop = Hop(first_hop.public_key)
+        circuit.unverified_hop = Hop(first_hop.public_key, flags=self.candidates.get(first_hop))
         circuit.unverified_hop.address = first_hop.address
         circuit.unverified_hop.dh_secret, circuit.unverified_hop.dh_first_part = self.crypto.generate_diffie_secret()
 
@@ -550,8 +550,7 @@ class TunnelCommunity(Community):
         if self.request_cache.has("retry", circuit.circuit_id):
             self.request_cache.pop("retry", circuit.circuit_id)
 
-        ignore_candidates = [self.crypto.key_to_bin(chop.public_key) for chop in circuit.hops] + \
-                            [self.my_peer.public_key]
+        ignore_candidates = [hop.node_public_key for hop in circuit.hops] + [self.my_peer.public_key.key_to_bin()]
         if circuit.required_exit:
             ignore_candidates.append(circuit.required_exit.public_key.key_to_bin())
 
@@ -577,7 +576,8 @@ class TunnelCommunity(Community):
 
         if extend_hop_public_bin:
             extend_hop_public_key = self.crypto.key_from_public_bin(extend_hop_public_bin)
-            circuit.unverified_hop = Hop(extend_hop_public_key)
+            circuit.unverified_hop = Hop(extend_hop_public_key,
+                                         flags=self.candidates.get(Peer(extend_hop_public_bin)))
             circuit.unverified_hop.dh_secret, circuit.unverified_hop.dh_first_part = \
                 self.crypto.generate_diffie_secret()
 
@@ -603,7 +603,7 @@ class TunnelCommunity(Community):
 
     def extract_peer_flags(self, extra_bytes):
         if not extra_bytes:
-            return 0
+            return []
 
         payload = self.serializer.unpack_to_serializables([ExtraIntroductionPayload], extra_bytes)[0]
         return payload.flags
@@ -752,7 +752,7 @@ class TunnelCommunity(Community):
 
     @tc_lazy_wrapper_unsigned(ExtendPayload)
     async def on_extend(self, source_address, payload, _):
-        if not self.settings.peer_flags & PEER_FLAG_RELAY:
+        if PEER_FLAG_RELAY not in self.settings.peer_flags:
             self.logger.warning("Ignoring create for circuit %d", payload.circuit_id)
             return
         if not self.request_cache.has("created", payload.circuit_id):
@@ -915,12 +915,12 @@ class TunnelCommunity(Community):
         is_ipv8 = DataChecker.could_be_ipv8(data)
         is_ipv8_tunnel = is_ipv8 and self._prefix == data[:22]
 
-        if not (is_ipv8 or self.settings.peer_flags & PEER_FLAG_EXIT_ANY):
+        if not (is_ipv8 or PEER_FLAG_EXIT_ANY in self.settings.peer_flags):
             self.logger.error("Dropping data packets, refusing to be an exit node for data")
 
         elif not (is_ipv8_tunnel
-                  or self.settings.peer_flags & PEER_FLAG_EXIT_IPV8
-                  or self.settings.peer_flags & PEER_FLAG_EXIT_ANY):
+                  or PEER_FLAG_EXIT_IPV8 in self.settings.peer_flags
+                  or PEER_FLAG_EXIT_ANY in self.settings.peer_flags):
             self.logger.error("Dropping data packets, refusing to be an exit node for ipv8")
 
         elif circuit_id in self.exit_sockets:
