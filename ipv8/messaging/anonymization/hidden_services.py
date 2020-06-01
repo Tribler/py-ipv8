@@ -14,8 +14,9 @@ from .caches import *
 from .community import TunnelCommunity, message_to_payload, tc_lazy_wrapper_unsigned
 from .payload import *
 from .tunnel import (CIRCUIT_ID_PORT, CIRCUIT_TYPE_IP_SEEDER, CIRCUIT_TYPE_RP_DOWNLOADER, CIRCUIT_TYPE_RP_SEEDER,
-                     EXIT_NODE, EXIT_NODE_SALT, Hop, IntroductionPoint, PEER_SOURCE_DHT, PEER_SOURCE_PEX, RelayRoute,
-                     RendezvousPoint, Swarm, TunnelExitSocket)
+                     DESTROY_REASON_LEAVE_SWARM, DESTROY_REASON_UNNEEDED, EXIT_NODE, EXIT_NODE_SALT, Hop,
+                     IntroductionPoint, PEER_SOURCE_DHT, PEER_SOURCE_PEX, RelayRoute, RendezvousPoint, Swarm,
+                     TunnelExitSocket)
 from ...keyvault.public.libnaclkey import LibNaCLPK
 from ...messaging.anonymization.pex import PexCommunity
 from ...messaging.deprecated.encoding import decode, encode

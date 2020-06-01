@@ -1,5 +1,5 @@
 import time
-from asyncio import Future
+from asyncio import Future, sleep
 
 from .test_community import MockDHTProvider
 from ...base import TestBase
@@ -7,7 +7,8 @@ from ...mocking.exit_socket import MockTunnelExitSocket
 from ...mocking.ipv8 import MockIPv8
 from ....messaging.anonymization.community import CIRCUIT_TYPE_RP_DOWNLOADER, TunnelSettings
 from ....messaging.anonymization.hidden_services import HiddenTunnelCommunity
-from ....messaging.anonymization.tunnel import IntroductionPoint, PEER_FLAG_EXIT_ANY, PEER_SOURCE_DHT
+from ....messaging.anonymization.tunnel import CIRCUIT_TYPE_DATA, CIRCUIT_TYPE_IP_SEEDER, IntroductionPoint,\
+    PEER_FLAG_EXIT_ANY, PEER_SOURCE_DHT
 from ....peer import Peer
 from ....util import fail, succeed
 
@@ -136,6 +137,11 @@ class TestHiddenServices(TestBase):
 
         self.assertTrue(intro_made)
 
+        self.nodes[0].overlay.leave_swarm(self.service)
+        self.assertNotIn(self.service, self.nodes[0].overlay.swarms)
+        await sleep(.1)
+        self.assertFalse(self.nodes[0].overlay.find_circuits(ctype=CIRCUIT_TYPE_IP_SEEDER))
+
     async def test_dht_lookup_with_counterparty(self):
         """
         Check if a DHT lookup works.
@@ -147,6 +153,7 @@ class TestHiddenServices(TestBase):
          4. Link the circuit e2e
          5. Callback the service handler
          6. Send data
+         7. Remove circuits
         """
         future = Future()
 
@@ -174,6 +181,13 @@ class TestHiddenServices(TestBase):
         await self.deliver_messages()
         self.assertEqual(len(self.received_packets), 1)
         self.assertEqual(self.received_packets[0], data)
+
+        self.nodes[0].overlay.leave_swarm(self.service)
+        self.assertNotIn(self.service, self.nodes[0].overlay.swarms)
+        await sleep(.1)
+        self.assertFalse(self.nodes[0].overlay.find_circuits(ctype=CIRCUIT_TYPE_IP_SEEDER))
+        self.assertFalse(self.nodes[0].overlay.find_circuits(ctype=CIRCUIT_TYPE_RP_DOWNLOADER))
+        self.assertFalse(self.nodes[0].overlay.find_circuits(ctype=CIRCUIT_TYPE_DATA))
 
     async def test_dht_lookup_no_counterparty(self):
         """
