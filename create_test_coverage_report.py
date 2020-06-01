@@ -31,6 +31,13 @@ clean_directory(prepare=True)
 
 test_paths = find_all_test_class_names()
 
+# The find_all_test_class_names method imports and scans all source files.
+# This causes the coverage module to not consider module-level imports covered.
+# We remove them again to get the correct coverage.
+for module_name in list(sys.modules.keys()):
+    if module_name.startswith('ipv8'):
+        del sys.modules[module_name]
+
 cov = coverage.Coverage(data_file=data_file, data_suffix=True, config_file=False,
                         branch=True, source=['ipv8'], include=['*'], omit=["ipv8/test/*", "ipv8_service.py"])
 cov.exclude('pass')
