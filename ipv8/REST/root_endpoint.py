@@ -1,6 +1,7 @@
 from .attestation_endpoint import AttestationEndpoint
 from .base_endpoint import BaseEndpoint
 from .dht_endpoint import DHTEndpoint
+from .health_endpoint import HealthEndpoint
 from .isolation_endpoint import IsolationEndpoint
 from .network_endpoint import NetworkEndpoint
 from .noblock_dht_endpoint import NoBlockDHTEndpoint
@@ -18,6 +19,7 @@ class RootEndpoint(BaseEndpoint):
     def setup_routes(self):
         endpoints = {'/attestation': AttestationEndpoint,
                      '/dht': DHTEndpoint,
+                     '/health': HealthEndpoint,
                      '/isolation': IsolationEndpoint,
                      '/network': NetworkEndpoint,
                      '/noblockdht': NoBlockDHTEndpoint,
