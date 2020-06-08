@@ -79,7 +79,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
         futures = []
         for node in nodes:
             if node in self.tokens:
-                cache = self.request_cache.add(Request(self, u'store-peer', node, [key]))
+                cache = self.request_cache.add(Request(self, 'store-peer', node, [key]))
                 futures.append(cache.future)
                 self.send_message(node.address, MSG_STORE_PEER_REQUEST, StorePeerRequestPayload,
                                   (cache.number, self.tokens[node][1], key))
@@ -108,7 +108,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
 
         futures = []
         for node in nodes:
-            cache = self.request_cache.add(Request(self, u'connect-peer', node))
+            cache = self.request_cache.add(Request(self, 'connect-peer', node))
             futures.append(cache.future)
             self.send_message(node.address, MSG_CONNECT_PEER_REQUEST,
                               ConnectPeerRequestPayload, (cache.number, self.my_estimated_lan, key))
@@ -139,13 +139,13 @@ class DHTDiscoveryCommunity(DHTCommunity):
 
     @lazy_wrapper(GlobalTimeDistributionPayload, StorePeerResponsePayload)
     def on_store_peer_response(self, peer, dist, payload):
-        if not self.request_cache.has(u'store-peer', payload.identifier):
+        if not self.request_cache.has('store-peer', payload.identifier):
             self.logger.error('Got store-peer-response with unknown identifier, dropping packet')
             return
 
         self.logger.debug('Got store-peer-response from %s', peer.address)
 
-        cache = self.request_cache.pop(u'store-peer', payload.identifier)
+        cache = self.request_cache.pop('store-peer', payload.identifier)
 
         key = cache.params[0]
         if cache.node not in self.store_for_me[key]:
@@ -169,12 +169,12 @@ class DHTDiscoveryCommunity(DHTCommunity):
 
     @lazy_wrapper(GlobalTimeDistributionPayload, ConnectPeerResponsePayload)
     def on_connect_peer_response(self, peer, dist, payload):
-        if not self.request_cache.has(u'connect-peer', payload.identifier):
+        if not self.request_cache.has('connect-peer', payload.identifier):
             self.logger.error('Got connect-peer-response with unknown identifier, dropping packet')
             return
 
         self.logger.debug('Got connect-peer-response from %s', peer.address)
-        cache = self.request_cache.pop(u'connect-peer', payload.identifier)
+        cache = self.request_cache.pop('connect-peer', payload.identifier)
         cache.future.set_result(payload.nodes)
 
     def ping_all(self):

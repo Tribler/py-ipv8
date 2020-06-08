@@ -94,7 +94,7 @@ class TestDHTDiscoveryCommunity(TestBase):
         self.nodes[0].overlay.ping = lambda n: setattr(self, 'pinged', n) or succeed(None)
 
         node1 = Node(self.nodes[1].my_peer.key, self.nodes[1].my_peer.address)
-        node1.last_response = time.time()
+        node1.last_ping_sent = time.time()
         node1.last_queries.append(time.time())
 
         self.nodes[0].overlay.store[node1.mid].append(node1)
@@ -110,7 +110,7 @@ class TestDHTDiscoveryCommunity(TestBase):
         self.nodes[0].overlay.ping_all()
         self.assertIn(node1.mid, self.nodes[0].overlay.store_for_me)
 
-        node1.last_response -= 30
+        node1.last_ping_sent -= 30
         self.nodes[0].overlay.ping_all()
         self.assertEqual(self.pinged, node1)
         self.assertIn(node1, self.nodes[0].overlay.store_for_me[node1.mid])

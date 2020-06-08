@@ -97,27 +97,27 @@ class FindRequestPayload(BasePayload):
 
     format_list = BasePayload.format_list + ['varlenI', '20s', 'I', '?']
 
-    def __init__(self, identifier, lan_address, target, start_idx, force_nodes):
+    def __init__(self, identifier, lan_address, target, offset, force_nodes):
         super(FindRequestPayload, self).__init__(identifier)
         self.lan_address = lan_address
         self.target = target
-        self.start_idx = start_idx
+        self.offset = offset
         self.force_nodes = force_nodes
 
     def to_pack_list(self):
         data = super(FindRequestPayload, self).to_pack_list()
         data.append(('varlenI', inet_aton(self.lan_address[0]) + pack("!H", self.lan_address[1])))
         data.append(('20s', self.target))
-        data.append(('I', self.start_idx))
+        data.append(('I', self.offset))
         data.append(('?', self.force_nodes))
         return data
 
     @classmethod
-    def from_unpack_list(cls, identifier, lan_address, target, start_idx, force_nodes):
+    def from_unpack_list(cls, identifier, lan_address, target, offset, force_nodes):
         return FindRequestPayload(identifier,
                                   (inet_ntoa(lan_address[:4]), unpack('!H', lan_address[4:6])[0]),
                                   target,
-                                  start_idx,
+                                  offset,
                                   force_nodes)
 
 
