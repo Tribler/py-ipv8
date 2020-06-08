@@ -10,7 +10,7 @@ from aiohttp_apispec import docs, json_schema
 
 from marshmallow.fields import Integer, String
 
-from .base_endpoint import BaseEndpoint, HTTP_BAD_REQUEST, HTTP_INTERNAL_SERVER_ERROR, HTTP_NOT_FOUND, Response
+from .base_endpoint import BaseEndpoint, HTTP_BAD_REQUEST, HTTP_NOT_FOUND, Response
 from .schema import DHTValueSchema, DefaultResponseSchema, schema
 from ..attestation.trustchain.community import TrustChainCommunity
 from ..attestation.trustchain.listener import BlockListener
@@ -37,6 +37,8 @@ class DHTEndpoint(BaseEndpoint):
                              web.get('/values/{key}', self.get_values),
                              web.put('/values/{key}', self.put_value),
                              web.get('/peers/{mid}', self.get_peer),
+                             web.get('/buckets', self.get_buckets),
+                             web.get('/buckets/{prefix:\\w*}/refresh', self.refresh_bucket),
                              web.get('/block', self.get_block)])
 
     def initialize(self, session):
@@ -71,7 +73,7 @@ class DHTEndpoint(BaseEndpoint):
     )
     async def get_statistics(self, _):
         if not self.dht:
-            return Response({"error": "DHT community not found"}, status=HTTP_NOT_FOUND)
+            return Response({"success": False, "error": "DHT community not found"}, status=HTTP_NOT_FOUND)
 
         buckets = self.dht.routing_table.trie.values()
         stats = {"node_id": hexlify(self.dht.my_node_id).decode('utf-8'),
@@ -111,20 +113,10 @@ class DHTEndpoint(BaseEndpoint):
     )
     async def get_peer(self, request):
         if not self.dht:
-            return Response({"error": "DHT community not found"}, status=HTTP_NOT_FOUND)
+            return Response({"success": False, "error": "DHT community not found"}, status=HTTP_NOT_FOUND)
 
         mid = unhexlify(request.match_info['mid'])
-        try:
-            nodes = await self.dht.connect_peer(mid)
-        except Exception as e:
-            return Response({
-                "error": {
-                    "handled": True,
-                    "code": e.__class__.__name__,
-                    "message": e.message
-                }
-            }, status=HTTP_INTERNAL_SERVER_ERROR)
-
+        nodes = await self.dht.connect_peer(mid)
         return Response({"peers": [{'public_key': b64encode(node.public_key.key_to_bin()).decode('utf-8'),
                                     'address': node.address} for node in nodes]})
 
@@ -145,7 +137,7 @@ class DHTEndpoint(BaseEndpoint):
     )
     async def get_stored_values(self, _):
         if not self.dht:
-            return Response({"error": "DHT community not found"}, status=HTTP_NOT_FOUND)
+            return Response({"success": False, "error": "DHT community not found"}, status=HTTP_NOT_FOUND)
 
         results = {}
         for key, raw_values in self.dht.storage.items.items():
@@ -178,19 +170,10 @@ class DHTEndpoint(BaseEndpoint):
     )
     async def get_values(self, request):
         if not self.dht:
-            return Response({"error": "DHT community not found"}, status=HTTP_NOT_FOUND)
+            return Response({"success": False, "error": "DHT community not found"}, status=HTTP_NOT_FOUND)
 
         key = unhexlify(request.match_info['key'])
-        try:
-            values = await self.dht.find_values(key)
-        except Exception as e:
-            return Response({
-                "error": {
-                    "handled": True,
-                    "code": e.__class__.__name__,
-                    "message": e.message
-                }
-            }, status=HTTP_INTERNAL_SERVER_ERROR)
+        values = await self.dht.find_values(key)
 
         return Response({"values": [{'public_key': b64encode(public_key).decode('utf-8') if public_key else None,
                                      'key': hexlify(key).decode('utf-8'),
@@ -219,25 +202,87 @@ class DHTEndpoint(BaseEndpoint):
     }))
     async def put_value(self, request):
         if not self.dht:
-            return Response({"error": "DHT community not found"}, status=HTTP_NOT_FOUND)
+            return Response({"success": False, "error": "DHT community not found"}, status=HTTP_NOT_FOUND)
 
         parameters = await request.json()
         if 'value' not in parameters:
-            return Response({"error": "incorrect parameters"}, status=HTTP_BAD_REQUEST)
+            return Response({"success": False, "error": "incorrect parameters"}, status=HTTP_BAD_REQUEST)
 
         key = unhexlify(request.match_info['key'])
-        try:
-            await self.dht.store_value(key, unhexlify(parameters['value']), sign=True)
-        except Exception as e:
-            return Response({
-                "error": {
-                    "handled": True,
-                    "code": e.__class__.__name__,
-                    "message": e.message
-                }
-            }, status=HTTP_INTERNAL_SERVER_ERROR)
-
+        await self.dht.store_value(key, unhexlify(parameters['value']), sign=True)
         return Response({"success": True})
+
+    @docs(
+        tags=["DHT"],
+        summary="Return a list of all buckets in the routing table of the DHT community.",
+        responses={
+            200: {
+                "schema": schema(BucketsResponse={
+                    "buckets": [schema(Bucket={
+                        "prefix": String,
+                        "peers": [schema(BucketPeer={
+                            "ip": String,
+                            "port": Integer,
+                            "mid": String,
+                            "id": String,
+                            "failed": Integer,
+                            "last_contact": Integer,
+                            "distance": Integer
+                        })]
+                    })]
+                })
+            }
+        }
+    )
+    async def get_buckets(self, _):
+        return Response({"buckets": [{
+            "prefix": bucket.prefix_id,
+            "peers": [{
+                "ip": peer.address[0],
+                "port": peer.address[1],
+                "mid": hexlify(peer.mid).decode('utf-8'),
+                "id": hexlify(peer.id).decode('utf-8'),
+                "failed": peer.failed,
+                "last_contact": peer.last_contact,
+                "distance": peer.distance(self.dht.my_node_id),
+            } for peer in bucket.nodes.values()]
+        } for bucket in self.dht.routing_table.trie.values()]})
+
+    @docs(
+        tags=["DHT"],
+        summary="Refresh a specific bucket in the DHT community.",
+        parameters=[{
+            'in': 'path',
+            'name': 'prefix',
+            'description': 'Prefix of the bucket which to refresh.',
+            'type': 'string',
+            'required': True
+        }],
+        responses={
+            200: {
+                "schema": DefaultResponseSchema,
+                "example": {"success": True}
+            },
+            400: {
+                "schema": DefaultResponseSchema,
+                "examples": {'Unknown bucket': {"success": False, "error": "no such bucket"}}
+            }
+        }
+    )
+    async def refresh_bucket(self, request):
+        prefix = request.match_info['prefix']
+
+        try:
+            bucket = self.dht.routing_table.trie[prefix]
+        except KeyError:
+            return Response({"success": False, "error": "no such bucket"}, status=HTTP_BAD_REQUEST)
+
+        try:
+            await self.dht.find_values(bucket.generate_id())
+        except DHTError as e:
+            return Response({"success": False, "error": str(e)})
+        else:
+            return Response({"success": True})
 
     @docs(
         tags=["DHT"],
@@ -266,33 +311,19 @@ class DHTEndpoint(BaseEndpoint):
         :return: the latest block of the peer, if found
         """
         if not self.dht:
-            return Response({"error": "DHT community not found"}, status=HTTP_NOT_FOUND)
+            return Response({"success": False, "error": "DHT community not found"}, status=HTTP_NOT_FOUND)
         if not self.publisher:
-            return Response({"error": "DHT publisher not found"}, status=HTTP_NOT_FOUND)
+            return Response({"success": False, "error": "DHT publisher not found"}, status=HTTP_NOT_FOUND)
 
         parameters = request.query
         if 'public_key' not in parameters:
-            return Response({"error": "Must specify the peer's public key"}, status=HTTP_BAD_REQUEST)
+            return Response({"success": False, "error": "Must specify the peer's public key"}, status=HTTP_BAD_REQUEST)
 
         raw_public_key = b64decode(parameters['public_key'])
-        try:
-            block = await self.publisher.retrieve_block(raw_public_key)
-        except Exception as e:
-            return Response({
-                "error": {
-                    "handled": True,
-                    "code": e.__class__.__name__,
-                    "message": str(e)
-                }
-            }, status=HTTP_INTERNAL_SERVER_ERROR)
+        block = await self.publisher.retrieve_block(raw_public_key)
 
         if not block:
-            return Response({
-                "error": {
-                    "handled": True,
-                    "message": "Could not find any blocks for the specified key."
-                }
-            }, status=HTTP_NOT_FOUND)
+            return Response({"success": False, "error": "No block found"}, status=HTTP_NOT_FOUND)
 
         return Response({"block": b64encode(block).decode('utf-8')})
 

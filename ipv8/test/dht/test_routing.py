@@ -191,7 +191,7 @@ class TestRoutingTable(TestBase):
         self.routing_table.add(node2)
         self.routing_table.add(node3)
 
-        closest_nodes = self.routing_table.closest_nodes('\00' * 20)
+        closest_nodes = self.routing_table.closest_nodes(b'\00' * 20)
         self.assertEqual(closest_nodes[0], node1)
         self.assertEqual(closest_nodes[1], node3)
         self.assertEqual(closest_nodes[2], node2)
@@ -207,10 +207,10 @@ class TestRoutingTable(TestBase):
         self.routing_table.add(node2)
         self.routing_table.add(node3)
 
-        closest_nodes = self.routing_table.closest_nodes('\00' * 20)
+        closest_nodes = self.routing_table.closest_nodes(b'\00' * 20)
         self.assertEqual(closest_nodes[0], node3)
         self.assertEqual(closest_nodes[1], node2)
         self.assertEqual(closest_nodes[2], node1)
 
     def test_closest_nodes_no_nodes(self):
-        self.assertFalse(self.routing_table.closest_nodes('\00' * 20))
+        self.assertFalse(self.routing_table.closest_nodes(b'\00' * 20))
