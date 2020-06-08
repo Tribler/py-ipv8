@@ -57,7 +57,8 @@ class TestChain(TestCase):
         """
         chain = TokenChain(public_key=self.public_key)
         real_token = Token(chain.genesis_hash, content=b"some data", private_key=self.private_key)
-        token = chain.gather(real_token.previous_token_hash, real_token.content_hash, real_token.signature)
+        pub_token = Token.unserialize(real_token.get_plaintext_signed(), self.public_key)
+        token = chain.gather_token(pub_token)
 
         self.assertEqual(1, len(chain.chain))
         self.assertEqual(0, len(chain.unchained))
@@ -71,12 +72,13 @@ class TestChain(TestCase):
         Check if content is not added to another's chain if it is not linked to existing data.
         """
         chain = TokenChain(public_key=self.public_key)
-        real_token = Token(b"some hash", content=b"some data", private_key=self.private_key)
-        token = chain.gather(real_token.previous_token_hash, real_token.content_hash, real_token.signature)
+        real_token = Token(b"ab" * 16, content=b"some data", private_key=self.private_key)
+        pub_token = Token.unserialize(real_token.get_plaintext_signed(), self.public_key)
+        token = chain.gather_token(pub_token)
 
         self.assertEqual(0, len(chain.chain))
         self.assertEqual(1, len(chain.unchained))
-        self.assertListEqual([b"some hash"], list(chain.get_missing()))
+        self.assertListEqual([b"ab" * 16], list(chain.get_missing()))
         self.assertTrue(chain.verify())
         self.assertIsNone(token.content)
         self.assertNotIn(token.get_hash(), chain.chain_lookup)
@@ -88,14 +90,16 @@ class TestChain(TestCase):
         """
         chain = TokenChain(public_key=self.public_key)
         chain.unchained_max_size = 1
-        real_token1 = Token(b"some hash", content=b"some data", private_key=self.private_key)
-        real_token2 = Token(b"some other hash", content=b"some other data", private_key=self.private_key)
-        chain.gather(real_token1.previous_token_hash, real_token1.content_hash, real_token1.signature)
-        chain.gather(real_token2.previous_token_hash, real_token2.content_hash, real_token2.signature)
+        real_token1 = Token(b"ab" * 16, content=b"some data", private_key=self.private_key)
+        real_token2 = Token(b"cd" * 16, content=b"some other data", private_key=self.private_key)
+        pub_token1 = Token.unserialize(real_token1.get_plaintext_signed(), self.public_key)
+        pub_token2 = Token.unserialize(real_token2.get_plaintext_signed(), self.public_key)
+        chain.gather_token(pub_token1)
+        chain.gather_token(pub_token2)
 
         self.assertEqual(0, len(chain.chain))
         self.assertEqual(1, len(chain.unchained))
-        self.assertListEqual([b"some other hash"], list(chain.get_missing()))
+        self.assertListEqual([b"cd" * 16], list(chain.get_missing()))
         self.assertTrue(chain.verify())
 
     def test_other_add_duplicate(self):
@@ -104,8 +108,9 @@ class TestChain(TestCase):
         """
         chain = TokenChain(public_key=self.public_key)
         real_token = Token(chain.genesis_hash, content=b"some data", private_key=self.private_key)
-        token = chain.gather(real_token.previous_token_hash, real_token.content_hash, real_token.signature)
-        chain.gather(real_token.previous_token_hash, real_token.content_hash, real_token.signature)
+        pub_token = Token.unserialize(real_token.get_plaintext_signed(), self.public_key)
+        token = chain.gather_token(pub_token)
+        chain.gather_token(pub_token)
 
         self.assertEqual(1, len(chain.chain))
         self.assertEqual(0, len(chain.unchained))
@@ -120,7 +125,8 @@ class TestChain(TestCase):
         """
         chain = TokenChain(public_key=self.public_key)
         real_token = Token(chain.genesis_hash, content=b"some data", private_key=self.private_key)
-        token = chain.gather(real_token.previous_token_hash, real_token.content_hash, real_token.signature)
+        pub_token = Token.unserialize(real_token.get_plaintext_signed(), self.public_key)
+        token = chain.gather_token(pub_token)
         chain.gather_token(real_token)
 
         self.assertEqual(1, len(chain.chain))
