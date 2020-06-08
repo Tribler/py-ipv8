@@ -15,7 +15,6 @@ from ..community import Community
 from ..lazy_community import lazy_wrapper, lazy_wrapper_wd
 from ..messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from ..peer import Peer
-from ..peerdiscovery.churn import PingChurn
 from ..requestcache import RandomNumberCache, RequestCache
 from ..taskmanager import task
 from ..util import cast_to_bin
@@ -102,6 +101,7 @@ class DHTCommunity(Community):
         self.token_secrets = deque(maxlen=2)
         # First call to token_maintenance should happen immediately, in case we get requests before it gets executed
         self.token_maintenance()
+        self.register_task('ping_all', self.ping_all, interval=10)
         self.register_task('token_maintenance', self.token_maintenance, interval=300)
         self.register_task('value_maintenance', self.value_maintenance, interval=3600)
 
@@ -116,9 +116,6 @@ class DHTCommunity(Community):
         })
 
         self.logger.info('DHT community initialized (peer mid %s)', hexlify(self.my_peer.mid))
-
-    def get_available_strategies(self):
-        return {'PingChurn': PingChurn}
 
     async def unload(self):
         await self.request_cache.shutdown()
@@ -171,6 +168,18 @@ class DHTCommunity(Community):
         cache = self.request_cache.add(Request(self, u'ping', node, consume_errors=True))
         self.send_message(node.address, MSG_PING, PingRequestPayload, (cache.number,))
         return cache.future
+
+    def ping_all(self):
+        self.routing_table.remove_bad_nodes()
+
+        pinged = []
+        now = time.time()
+        for bucket in self.routing_table.trie.values():
+            for node in bucket.nodes.values():
+                if node.last_response + PING_INTERVAL <= now:
+                    self.ping(node)
+                    pinged.append(node)
+        return pinged
 
     @lazy_wrapper_wd(GlobalTimeDistributionPayload, PingRequestPayload)
     def on_ping_request(self, peer, dist, payload, data):

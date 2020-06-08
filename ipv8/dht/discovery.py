@@ -177,7 +177,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
         cache.future.set_result(payload.nodes)
 
     def ping_all(self):
-        pinged = self.get_available_strategies()['PingChurn'](self).take_step()
+        pinged = super(DHTDiscoveryCommunity, self).ping_all()
 
         now = time.time()
         for key, nodes in self.store_for_me.items():

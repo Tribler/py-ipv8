@@ -66,6 +66,28 @@ class TestDHTCommunity(TestBase):
             await wait_for(self.nodes[0].overlay.ping(Node(self.nodes[1].my_peer.key,
                                                            self.nodes[1].my_peer.address)), 0.1)
 
+    async def test_ping_all(self):
+        await self.introduce_nodes()
+        bucket = self.nodes[0].overlay.routing_table.trie['']
+        node1 = bucket.get(self.nodes[1].overlay.my_node_id)
+        node1.failed = 1
+        node1.last_response = 0
+
+        self.nodes[0].overlay.ping_all()
+        await self.deliver_messages()
+        self.assertTrue(node1.failed == 0)
+        self.assertNotEqual(node1.last_response, 0)
+
+    async def test_ping_all_skip(self):
+        await self.introduce_nodes()
+        bucket = self.nodes[0].overlay.routing_table.trie['']
+        node1 = bucket.get(self.nodes[1].overlay.my_node_id)
+        node1.failed = 1
+        node1.last_response = time.time()
+
+        self.nodes[0].overlay.ping_all()
+        self.assertTrue(node1.failed == 1)
+
     async def test_store_value(self):
         await self.introduce_nodes()
         node = await self.nodes[0].overlay.store_value(self.key, self.value)
