@@ -38,5 +38,25 @@ class Attestation(AbstractSignedObject):
     def create(cls, metadata: Metadata, private_key: PrivateKey) -> AttestationType:
         return Attestation(metadata.get_hash(), private_key=private_key)
 
+    def to_database_tuple(self) -> typing.Tuple[bytes, bytes]:
+        """
+        Get a representation of this Attestation as two byte strings (metadata hash and signature).
+
+        :returns: the two byte strings for database insertion.
+        """
+        return self.metadata_pointer, self.signature
+
+    @classmethod
+    def from_database_tuple(cls,
+                            metadata_pointer: bytes,
+                            signature: bytes) -> AttestationType:
+        """
+        Create a Token from a two-byte-string representation (metadata hash and signature).
+
+        :param metadata_pointer: the hash of the Attestation.
+        :param signature: the signature over the plaintext Attestation.
+        """
+        return Attestation(metadata_pointer, signature=signature)
+
     def __str__(self) -> str:
         return f"Attestation({binascii.hexlify(self.metadata_pointer).decode()})"
