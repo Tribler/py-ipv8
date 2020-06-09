@@ -1,7 +1,6 @@
 import logging
 from collections import OrderedDict
 from hashlib import sha3_256
-from struct import unpack_from
 from typing import Optional, Set, TypeVar
 
 from .token import Token
@@ -63,19 +62,6 @@ class TokenChain(object):
             raise RuntimeError("Attempted to create token without a key!")
         previous_hash = self.genesis_hash if not self.chain else self.chain[-1].get_hash()
         return self._append(Token(previous_hash, content=content, private_key=self.private_key))
-
-    def gather(self, previous_token_hash: bytes, content_hash: bytes, signature: bytes) -> Optional[Token]:
-        """
-        Attempt to add received data to this chain.
-        Data may be pending missing Tokens before being added to the chain structure.
-
-        :param previous_token_hash: the hash of the preceding token.
-        :param content_hash: the hash of the content the token points to.
-        :param signature: the signature over the Token.
-        :returns: the newly added token or None if the operation was not successful.
-        """
-        token = Token(previous_token_hash, content_hash=content_hash, signature=signature)
-        return self.gather_token(token)
 
     def gather_token(self, token: Token) -> Optional[Token]:
         """
@@ -161,8 +147,7 @@ class TokenChain(object):
         chunk_size = 64 + sig_len
         chain = TokenChain(public_key=public_key)
         for i in range(0, len(s), chunk_size):
-            prev_ptr, cont_ptr, sig = unpack_from(f">32s32s{sig_len}s", s, offset=i)
-            chain.gather(prev_ptr, cont_ptr, sig)
+            chain.gather_token(Token.unserialize(s, public_key, offset=i))
         return chain
 
     def _append(self, token: Token) -> Token:
