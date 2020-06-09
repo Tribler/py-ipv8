@@ -63,23 +63,3 @@ class RandomChurn(DiscoveryStrategy):
                         if peer.address not in self._pinged:
                             self._pinged[peer.address] = time()
                             self.overlay.send_ping(peer)
-
-
-class PingChurn(DiscoveryStrategy):
-
-    def __init__(self, overlay, ping_interval=25):
-        super(PingChurn, self).__init__(overlay)
-        self.ping_interval = ping_interval
-
-    def take_step(self):
-        with self.walk_lock:
-            self.overlay.routing_table.remove_bad_nodes()
-
-            pinged = []
-            now = time()
-            for bucket in self.overlay.routing_table.trie.values():
-                for node in bucket.nodes.values():
-                    if node.last_response + self.ping_interval <= now:
-                        self.overlay.ping(node)
-                        pinged.append(node)
-            return pinged

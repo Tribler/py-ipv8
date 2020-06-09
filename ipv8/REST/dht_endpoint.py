@@ -220,6 +220,7 @@ class DHTEndpoint(BaseEndpoint):
                 "schema": schema(BucketsResponse={
                     "buckets": [schema(Bucket={
                         "prefix": String,
+                        "last_changed": Integer,
                         "peers": [schema(BucketPeer={
                             "ip": String,
                             "port": Integer,
@@ -237,6 +238,7 @@ class DHTEndpoint(BaseEndpoint):
     async def get_buckets(self, _):
         return Response({"buckets": [{
             "prefix": bucket.prefix_id,
+            "last_changed": bucket.last_changed,
             "peers": [{
                 "ip": peer.address[0],
                 "port": peer.address[1],

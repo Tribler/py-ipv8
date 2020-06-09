@@ -121,13 +121,13 @@ class TestDHTCommunity(TestBase):
         bucket.last_changed = 0
 
         self.nodes[0].overlay.find_values = lambda *args: setattr(self, 'is_called', True) or succeed([])
-        await self.nodes[0].overlay.value_maintenance()
+        await self.nodes[0].overlay.node_maintenance()
         self.assertNotEqual(bucket.last_changed, 0)
         self.assertTrue(self.is_called)
 
         self.is_called = False
         prev_ts = bucket.last_changed
-        await self.nodes[0].overlay.value_maintenance()
+        await self.nodes[0].overlay.node_maintenance()
         self.assertEqual(bucket.last_changed, prev_ts)
         self.assertFalse(self.is_called)
 

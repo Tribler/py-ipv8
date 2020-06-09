@@ -51,6 +51,7 @@ class Node(Peer):
         self.bucket = None
         self.last_response = 0
         self.last_queries = deque(maxlen=NODE_LIMIT_QUERIES)
+        self.last_ping_sent = 0
         self.failed = 0
         self.rtt = 0
 
@@ -196,10 +197,13 @@ class RoutingTable(object):
 
     def remove_bad_nodes(self):
         with self.lock:
+            removed = []
             for bucket in self.trie.values():
                 for node_id, node in list(bucket.nodes.items()):
                     if node.status == NODE_STATUS_BAD:
                         bucket.nodes.pop(node_id, None)
+                        removed.append(node)
+            return removed
 
     def has(self, node_id):
         return bool(self.get(node_id))
