@@ -35,6 +35,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
         })
 
         self.register_task('store_peer', self.store_peer, interval=30)
+        self.register_task('ping_all', self.ping_all, interval=10)
 
     @lazy_wrapper_wd(GlobalTimeDistributionPayload, PingRequestPayload)
     def on_ping_request(self, peer, dist, payload, data):
@@ -177,8 +178,6 @@ class DHTDiscoveryCommunity(DHTCommunity):
         cache.future.set_result(payload.nodes)
 
     def ping_all(self):
-        pinged = self.get_available_strategies()['PingChurn'](self).take_step()
-
         now = time.time()
         for key, nodes in self.store_for_me.items():
             for index in range(len(nodes) - 1, -1, -1):
@@ -186,7 +185,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
                 if node.status == NODE_STATUS_BAD:
                     self.store_for_me[key].pop(index)
                     self.logger.debug('Deleting peer %s that stored us (key %s)', node, hexlify(key))
-                elif node not in pinged and now > node.last_response + PING_INTERVAL:
+                elif node.last_ping_sent + PING_INTERVAL <= now:
                     self.ping(node)
 
         for key, nodes in self.store.items():

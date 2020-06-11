@@ -7,15 +7,16 @@ from collections import defaultdict, deque
 from itertools import zip_longest
 
 from . import DHTError
+from .churn import PingChurn
 from .payload import (FindRequestPayload, FindResponsePayload, PingRequestPayload, PingResponsePayload,
                       SignedStrPayload, StoreRequestPayload, StoreResponsePayload, StrPayload)
 from .routing import Node, RoutingTable, calc_node_id, distance
 from .storage import Storage
-from ..community import Community
+from ..community import Community, _DEFAULT_ADDRESSES
 from ..lazy_community import lazy_wrapper, lazy_wrapper_wd
 from ..messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from ..peer import Peer
-from ..peerdiscovery.churn import PingChurn
+from ..peerdiscovery.network import Network
 from ..requestcache import RandomNumberCache, RequestCache
 from ..taskmanager import task
 from ..util import cast_to_bin
@@ -95,6 +96,10 @@ class DHTCommunity(Community):
 
     def __init__(self, *args, **kwargs):
         super(DHTCommunity, self).__init__(*args, **kwargs)
+        self.network = Network()
+        self.network.blacklist_mids.append(self.my_peer.mid)
+        self.network.blacklist.extend(_DEFAULT_ADDRESSES)
+
         self.routing_table = RoutingTable(self.my_node_id)
         self.storage = Storage()
         self.request_cache = RequestCache()
@@ -103,7 +108,7 @@ class DHTCommunity(Community):
         # First call to token_maintenance should happen immediately, in case we get requests before it gets executed
         self.token_maintenance()
         self.register_task('token_maintenance', self.token_maintenance, interval=300)
-        self.register_task('value_maintenance', self.value_maintenance, interval=3600)
+        self.register_task('node_maintenance', self.node_maintenance, interval=60)
 
         # Register messages
         self.decode_map.update({
@@ -167,9 +172,9 @@ class DHTCommunity(Community):
 
     def ping(self, node):
         self.logger.debug('Pinging node %s', node)
-
         cache = self.request_cache.add(Request(self, u'ping', node, consume_errors=True))
         self.send_message(node.address, MSG_PING, PingRequestPayload, (cache.number,))
+        node.last_ping_sent = time.time()
         return cache.future
 
     @lazy_wrapper_wd(GlobalTimeDistributionPayload, PingRequestPayload)
@@ -330,6 +335,7 @@ class DHTCommunity(Community):
 
                 if node:
                     nodes.add(node)
+                    self.routing_table.add(node)
 
                     # If we picked any node other than the first one, we will need to puncture.
                     if node != response['nodes'][0]:
@@ -466,7 +472,7 @@ class DHTCommunity(Community):
             cache.future.set_result((cache.node,
                                      {'values': payload.values} if payload.values else {'nodes': payload.nodes}))
 
-    async def value_maintenance(self):
+    async def node_maintenance(self):
         # Refresh buckets
         now = time.time()
         for bucket in self.routing_table.trie.values():
@@ -476,12 +482,6 @@ class DHTCommunity(Community):
                 except DHTError:
                     pass
                 bucket.last_changed = now
-
-        # FIXME: Disable replication for now, as it creates too much traffic
-        # for key, value in self.storage.items_older_than(3600):
-        #    self._store(key, value).addErrback(lambda _: None)
-
-        # Also republish our own key-value pairs every 24h?
 
     def token_maintenance(self):
         self.token_secrets.append(os.urandom(16))

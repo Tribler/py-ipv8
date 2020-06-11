@@ -4,6 +4,7 @@ from aiohttp import web
 
 from aiohttp_apispec import setup_aiohttp_apispec
 
+from .base_endpoint import HTTP_INTERNAL_SERVER_ERROR, Response
 from .root_endpoint import RootEndpoint
 
 
@@ -22,6 +23,21 @@ async def cors_middleware(request, handler):
     return response
 
 
+@web.middleware
+async def error_middleware(request, handler):
+    try:
+        response = await handler(request)
+    except Exception as e:
+        return Response({
+            "success": False,
+            "error": {
+                "code": e.__class__.__name__,
+                "message": str(e)
+            }
+        }, status=HTTP_INTERNAL_SERVER_ERROR)
+    return response
+
+
 class RESTManager:
     """
     This class is responsible for managing the startup and closing of the HTTP API.
@@ -36,7 +52,7 @@ class RESTManager:
         """
         Starts the HTTP API with the listen port as specified in the session configuration.
         """
-        root_endpoint = RootEndpoint(middlewares=[cors_middleware])
+        root_endpoint = RootEndpoint(middlewares=[cors_middleware, error_middleware])
         root_endpoint.initialize(self.session)
         setup_aiohttp_apispec(
             app=root_endpoint.app,
