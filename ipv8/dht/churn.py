@@ -20,7 +20,8 @@ class PingChurn(DiscoveryStrategy):
                 if peer.address in self.overlay.network.blacklist:
                     continue
 
-                if not self.overlay.routing_table.add(Node(peer.key, peer.address)):
+                node = Node(peer.key, peer.address)
+                if not self.overlay.routing_table.has(node.id) and not self.overlay.routing_table.add(node):
                     self.overlay.network.remove_peer(peer)
 
             for bucket in self.overlay.routing_table.trie.values():
