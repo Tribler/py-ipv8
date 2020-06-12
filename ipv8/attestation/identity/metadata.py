@@ -3,7 +3,7 @@ import json
 import typing
 
 from ..signed_object import AbstractSignedObject
-from ..tokenchain.token import Token
+from ..tokentree.token import Token
 from ...keyvault.keys import PrivateKey
 
 

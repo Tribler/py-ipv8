@@ -1,6 +1,6 @@
 from asynctest import TestCase
 
-from ....attestation.tokenchain.token import Token
+from ....attestation.tokentree.token import Token
 from ....keyvault.crypto import ECCrypto
 
 

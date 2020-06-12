@@ -108,5 +108,6 @@ class Token(AbstractSignedObject):
         return token
 
     def __str__(self) -> str:
-        return (f"Token({binascii.hexlify(self.previous_token_hash).decode()}, "
+        return (f"Token[{binascii.hexlify(self.get_hash()).decode()}]"
+                f"({binascii.hexlify(self.previous_token_hash).decode()}, "
                 f"{binascii.hexlify(self.content_hash).decode()})")
