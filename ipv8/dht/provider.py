@@ -20,9 +20,9 @@ class DHTCommunityProvider(object):
         self.port = port
         self.logger = logging.getLogger(self.__class__.__name__)
 
-    async def peer_lookup(self, mid):
+    async def peer_lookup(self, mid, peer=None):
         try:
-            await self.dht_community.connect_peer(mid)
+            await self.dht_community.connect_peer(mid, peer)
         except DHTError as e:
             self.logger.debug("Failed to connect %s using the DHTCommunity (error: %s)", hexlify(mid), e)
             return

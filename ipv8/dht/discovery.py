@@ -58,11 +58,12 @@ class DHTDiscoveryCommunity(DHTCommunity):
                     return node
 
     async def store_peer(self):
+        key = self.my_peer.mid
+
         # Do we already have enough peers storing our address?
-        if len(self.store_for_me) >= TARGET_NODES // 2:
+        if len(self.store_for_me[key]) >= TARGET_NODES // 2:
             return []
 
-        key = self.my_peer.mid
         try:
             nodes = await self.find_nodes(key)
             return await self.send_store_peer_request(key, nodes[:TARGET_NODES])
@@ -90,9 +91,21 @@ class DHTDiscoveryCommunity(DHTCommunity):
             raise DHTError('Peer was not stored')
         return await gather_without_errors(*futures)
 
-    async def connect_peer(self, mid):
+    async def connect_peer(self, mid, peer=None):
         if mid in self.store:
             return self.store[mid]
+
+        # If a peer is provided, we will first try to ping the peer (to see if it's connectable).
+        # This could potentially save an expensive DHT lookup.
+        if peer:
+            node = Node(peer.key, peer.address)
+            try:
+                await self.ping(node)
+            except DHTError:
+                pass
+            else:
+                return [node]
+
         nodes = await self.find_nodes(mid)
         nodes = await self.send_connect_peer_request(mid, nodes[:TARGET_NODES])
         if not nodes:

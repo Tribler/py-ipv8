@@ -775,7 +775,7 @@ class TunnelCommunity(Community):
 
             # Ensure that we are able to contact this peer
             if extend_candidate.last_response + 57.5 < time.time():
-                await self.dht_peer_lookup(extend_candidate.mid)
+                await self.dht_peer_lookup(extend_candidate.mid, peer=extend_candidate)
 
         self.logger.info("On_extend send CREATE for circuit (%s, %d) to %s:%d", source_address,
                          circuit_id, *extend_candidate.address)
@@ -944,8 +944,8 @@ class TunnelCommunity(Community):
     def increase_bytes_received(self, obj, num_bytes):
         obj.bytes_down += num_bytes
 
-    async def dht_peer_lookup(self, mid):
+    async def dht_peer_lookup(self, mid, peer=None):
         if self.dht_provider:
-            await self.dht_provider.peer_lookup(mid)
+            await self.dht_provider.peer_lookup(mid, peer)
         else:
             self.logger.error("Need a DHT provider to connect to a peer using the DHT")
