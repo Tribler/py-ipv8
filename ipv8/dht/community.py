@@ -63,7 +63,7 @@ class Request(RandomNumberCache):
     """
     This request cache keeps track of all outstanding requests within the DHTCommunity.
     """
-    def __init__(self, community, msg_type, node, params=None, consume_errors=False):
+    def __init__(self, community, msg_type, node, params=None, consume_errors=False, timeout=5.0):
         super(Request, self).__init__(community.request_cache, msg_type)
         self.msg_type = msg_type
         self.node = node
@@ -71,10 +71,11 @@ class Request(RandomNumberCache):
         self.future = Future()
         self.start_time = time.time()
         self.consume_errors = consume_errors
+        self.timeout = timeout
 
     @property
     def timeout_delay(self):
-        return 5.0
+        return self.timeout
 
     def on_timeout(self):
         if not self.future.done():
@@ -377,7 +378,7 @@ class DHTCommunity(Community):
             cache.future.set_result(cache.node)
 
     def _send_find_request(self, node, target, force_nodes, offset=0):
-        cache = self.request_cache.add(Request(self, 'find', node, [force_nodes], consume_errors=True))
+        cache = self.request_cache.add(Request(self, 'find', node, [force_nodes], consume_errors=True, timeout=2.0))
         self.send_message(node.address, MSG_FIND_REQUEST, FindRequestPayload,
                           (cache.number, self.my_estimated_lan, target, offset, force_nodes))
         return cache.future
