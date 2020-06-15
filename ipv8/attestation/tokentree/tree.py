@@ -1,7 +1,7 @@
 import logging
 from collections import OrderedDict
 from hashlib import sha3_256
-from typing import Optional, Set, TypeVar
+from typing import List, Optional, Set, TypeVar
 
 from .token import Token
 from ...keyvault.keys import PrivateKey, PublicKey
@@ -90,6 +90,7 @@ class TokenTree(object):
                 if len(self.unchained) > self.unchained_max_size:
                     self.unchained.popitem(False)
                 self._logger.info(f"Delaying unchained token {token}!")
+                return None
             elif token.get_hash() in self.elements:
                 shadow_token = self.elements[token.get_hash()]
                 if shadow_token.content is None and token.content is not None:
@@ -130,6 +131,32 @@ class TokenTree(object):
             current = self.elements[current.previous_token_hash]
             steps += 1
         return steps < maxdepth
+
+    def get_root_path(self, token: Token, maxdepth: int = 1000) -> List[Token]:
+        """
+        Calculate the path back to the root, including this token.
+
+        :param token: the token to start checking from.
+        :param maxdepth: the maximum amount of steps (after which this returns an empty list).
+        :returns: the length of the path back to the root or an empty list if it doesn't exist.
+        """
+        current = token
+        steps = 0
+        path = [token]
+        while maxdepth == -1 or maxdepth > steps:
+            if not current.verify(self.public_key):
+                return []
+            if current.previous_token_hash == self.genesis_hash:
+                break
+            if current.previous_token_hash not in self.elements:
+                return []
+            current = self.elements[current.previous_token_hash]
+            path += [current]
+            steps += 1
+        if steps < maxdepth:
+            return path
+        else:
+            return []
 
     def serialize_public(self, up_to: Optional[Token] = None) -> bytes:
         """

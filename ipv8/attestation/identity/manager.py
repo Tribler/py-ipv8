@@ -32,8 +32,7 @@ class PseudonymManager(object):
 
         logging.info(f"Loading public key {binascii.hexlify(self.public_key.key_to_hash()).decode()} from database")
         for token in self.database.get_tokens_for(self.public_key):
-            if self.tree.gather_token(token) is None:
-                logging.error(f"Failed to insert {str(token)} loaded from database!")
+            self.tree.elements[token.get_hash()] = token
         self.credentials = self.database.get_credentials_for(self.public_key)
 
     @property
@@ -172,7 +171,7 @@ class PseudonymManager(object):
             tokens.add(root_token)
             current_token = root_token
             while current_token.previous_token_hash != self.tree.genesis_hash:
-                current_token = self.tree.elements.get[current_token.previous_token_hash]
+                current_token = self.tree.elements[current_token.previous_token_hash]
                 tokens.add(current_token)
         return s_metadata, b''.join(token.get_plaintext_signed() for token in tokens), attestations, authorities
 

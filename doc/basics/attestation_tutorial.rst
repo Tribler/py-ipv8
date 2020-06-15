@@ -64,7 +64,6 @@ Fill your ``main.py`` file with the following code (runnable with ``python3 main
            configuration['logger']['level'] = "ERROR"
            configuration['keys'] = [
                {'alias': "anonymous id", 'generation': u"curve25519", 'file': u"ec%d_multichain.pem" % i},
-               {'alias': "my peer", 'generation': u"medium", 'file': u"ec%d.pem" % i}
            ]
 
            # Only load the basic communities
@@ -192,7 +191,7 @@ Peer 2 will now attest to some attribute value of Peer 1 (\ ``dmFsdWU%3D`` is th
 .. code-block:: bash
 
    $ curl http://localhost:14411/attestation?type=attributes
-   [["my_attribute", "oEkkmxqu0Hd/aMVpSOdyP0SIlUM=", {}, "bPyWPyswqXMhbW8+0RS6xUtNJrs="]]
+   [["my_attribute", "oEkkmxqu0Hd/aMVpSOdyP0SIlUM=", {"name": "my_attribute", "schema": "id_metadata", "date": 1592227939.021873}, "bPyWPyswqXMhbW8+0RS6xUtNJrs="]]
    $ curl http://localhost:14412/attestation?type=attributes
    []
 
