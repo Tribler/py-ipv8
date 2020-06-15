@@ -1,4 +1,4 @@
-from binascii import hexlify
+from binascii import hexlify, unhexlify
 
 from aiohttp import web
 
@@ -25,6 +25,7 @@ class TunnelEndpoint(BaseEndpoint):
                              web.get('/relays', self.get_relays),
                              web.get('/exits', self.get_exits),
                              web.get('/swarms', self.get_swarms),
+                             web.get('/swarms/{infohash}/size', self.get_swarm_size),
                              web.get('/peers', self.get_peers)])
 
     def initialize(self, session):
@@ -153,6 +154,29 @@ class TunnelEndpoint(BaseEndpoint):
             "bytes_up": swarm.get_total_up(),
             "bytes_down": swarm.get_total_down()
         } for swarm in self.tunnels.swarms.values()]})
+
+    @docs(
+        tags=["Tunnels"],
+        summary="Estimate the hidden swarm size for a given infohash.",
+        parameters=[{
+            'in': 'path',
+            'name': 'infohash',
+            'description': 'Infohash of the swarm for which to estimate the size.',
+            'type': 'string',
+            'required': True
+        }],
+        responses={
+            200: {
+                "schema": schema(SwarmsSizeResponse={
+                    "swarm_size": Integer
+                })
+            }
+        }
+    )
+    async def get_swarm_size(self, request):
+        infohash = unhexlify(request.match_info['infohash'])
+        swarm_size = await self.tunnels.estimate_swarm_size(infohash, hops=request.query.get('hops', 1))
+        return Response({"swarm_size": swarm_size})
 
     @docs(
         tags=["Tunnels"],
