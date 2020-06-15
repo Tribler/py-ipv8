@@ -84,7 +84,7 @@ def task_test(*test_names):
     reporter = unittest.TextTestRunner(stream=output_stream, failfast=True, verbosity=2, resultclass=CustomTestResult)
     test_result = reporter.run(suite)
 
-    failed = len(test_result.errors) > 0
+    failed = len(test_result.errors) > 0 or len(test_result.failures) > 0
     event_log = []
     event_log.extend(output_stream.raw_lines if failed else output_stream.raw_lines[:-9])
     event_log.extend(stdio_replacement.raw_lines)
