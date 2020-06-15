@@ -104,10 +104,10 @@ class TestDHTDiscoveryCommunity(TestBase):
         node1.last_queries[-1] -= 100
         self.nodes[0].overlay.ping_all()
         self.assertNotIn(node1, self.nodes[0].overlay.store[node1.mid])
+        self.assertEqual(self.pinged, None)
 
         self.nodes[0].overlay.store_for_me[node1.mid].append(node1)
         self.nodes[0].overlay.ping_all()
-        self.assertEqual(self.pinged, None)
         self.assertIn(node1.mid, self.nodes[0].overlay.store_for_me)
 
         node1.last_response -= 30
