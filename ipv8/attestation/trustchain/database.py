@@ -400,20 +400,20 @@ class TrustChainDB(Database):
         :param current_version: the version of the script to return.
         """
         # All these version introduce changes that are not backwards compatible
-        if current_version <= 4 or current_version == 6:
+        if current_version <= 6:
             return u"""
             DROP TABLE IF EXISTS blocks;
             DROP TABLE IF EXISTS option;
             """
-        elif current_version == 5:
-            return self.get_sql_create_blocks_table("double_spends", "public_key, sequence_number, block_hash")
         elif current_version == 7:
             # Make sure that everything in the sqlite database is stored as BLOB.
             return u"""
-            UPDATE blocks SET type=CAST(type AS BLOB), tx=CAST(tx AS BLOB), public_key=CAST(public_key AS BLOB),
-                              link_public_key=CAST(link_public_key AS BLOB), previous_hash=CAST(previous_hash AS BLOB),
-                              signature=CAST(signature AS BLOB), block_hash=CAST(block_hash AS BLOB);
-            """
+            %s
+            UPDATE OR REPLACE blocks SET type=CAST(type AS BLOB), tx=CAST(tx AS BLOB),
+                              public_key=CAST(public_key AS BLOB), link_public_key=CAST(link_public_key AS BLOB),
+                              previous_hash=CAST(previous_hash AS BLOB), signature=CAST(signature AS BLOB),
+                              block_hash=CAST(block_hash AS BLOB);
+            """ % self.get_sql_create_blocks_table("blocks", "public_key, sequence_number, block_hash")
 
     def open(self, initial_statements=True, prepare_visioning=True):
         return super(TrustChainDB, self).open(initial_statements, prepare_visioning)
