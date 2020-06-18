@@ -134,7 +134,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
 
             # Issue as many requests as possible in parallel
             ips = random.sample(not_tried, min(len(not_tried), max_requests - len(tried)))
-            responses = await gather(*[swarm.lookup(ip) for ip in ips], return_errors=True)
+            responses = await gather(*[swarm.lookup(ip) for ip in ips], return_exceptions=True)
 
             # Collect responses
             all_ += sum([result for result in responses if not isinstance(result, Exception)], [])

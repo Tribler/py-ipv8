@@ -1,5 +1,6 @@
 from base64 import b64encode
 from binascii import hexlify, unhexlify
+from timeit import default_timer
 
 from aiohttp import web
 
@@ -162,11 +163,23 @@ class DHTEndpoint(BaseEndpoint):
             return Response({"success": False, "error": "DHT community not found"}, status=HTTP_NOT_FOUND)
 
         key = unhexlify(request.match_info['key'])
-        values = await self.dht.find_values(key)
 
-        return Response({"values": [{'public_key': b64encode(public_key).decode('utf-8') if public_key else None,
-                                     'key': hexlify(key).decode('utf-8'),
-                                     'value': hexlify(data).decode('utf-8')} for data, public_key in values]})
+        start = default_timer()
+        values, crawl = await self.dht.find_values(key, debug=True)
+        stop = default_timer()
+
+        return Response({
+            "values": [{'public_key': b64encode(public_key).decode('utf-8') if public_key else None,
+                        'key': hexlify(key).decode('utf-8'),
+                        'value': hexlify(data).decode('utf-8')} for data, public_key in values],
+            "debug": {
+                "requests": len(crawl.nodes_tried),
+                "responses": len(crawl.responses),
+                "responses_with_nodes": len([r for s, r in crawl.responses if 'nodes' in r]),
+                "responses_with_values": len([r for s, r in crawl.responses if 'values' in r]),
+                "time": stop - start
+            }
+        })
 
     @docs(
         tags=["DHT"],

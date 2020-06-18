@@ -53,7 +53,7 @@ class Trie(object):
         toremove = []
 
         node = self.root
-        toremove.append((u'', node))
+        toremove.append(('', node))
         for char in key:
             toremove.append((char, node))
             node = node.children.get(char)
@@ -81,7 +81,7 @@ class Trie(object):
         return list(self.itervalues())
 
     def longest_prefix_item(self, key, default=Null):
-        prefix = u''
+        prefix = ''
         value = None
 
         node = self.root
@@ -114,7 +114,7 @@ class Trie(object):
         if node is None:
             return suffixes
         if node.value is not None:
-            suffixes.append(u'')
+            suffixes.append('')
 
         for char, node in node.children.items():
             if node.value:

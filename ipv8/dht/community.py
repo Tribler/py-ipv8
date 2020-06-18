@@ -1,7 +1,7 @@
 import hashlib
 import os
 import time
-from asyncio import Future, gather
+from asyncio import FIRST_COMPLETED, Future, ensure_future, gather, wait
 from binascii import hexlify, unhexlify
 from collections import defaultdict, deque
 from itertools import zip_longest
@@ -32,8 +32,12 @@ DHT_ENTRY_STR_SIGNED = 1
 MAX_ENTRY_SIZE = 170
 MAX_ENTRY_AGE = 86400
 
-MAX_FIND_WALKS = 8
-MAX_FIND_STEPS = 4
+# Maximum number of nodes to start a crawl with
+MAX_CRAWL_NODES = 8
+# Maximum number of find-requests a single crawl is allowed to make (excluding punctures)
+MAX_CRAWL_REQUESTS = 24
+# Maximum number of simultaneous outstanding find-requests per crawl
+MAX_CRAWL_TASKS = 4
 
 MAX_VALUES_IN_STORE = 8
 MAX_VALUES_IN_FIND = 8
@@ -59,7 +63,7 @@ class Request(RandomNumberCache):
     """
     This request cache keeps track of all outstanding requests within the DHTCommunity.
     """
-    def __init__(self, community, msg_type, node, params=None, consume_errors=False):
+    def __init__(self, community, msg_type, node, params=None, consume_errors=False, timeout=5.0):
         super(Request, self).__init__(community.request_cache, msg_type)
         self.msg_type = msg_type
         self.node = node
@@ -67,10 +71,11 @@ class Request(RandomNumberCache):
         self.future = Future()
         self.start_time = time.time()
         self.consume_errors = consume_errors
+        self.timeout = timeout
 
     @property
     def timeout_delay(self):
-        return 5.0
+        return self.timeout
 
     def on_timeout(self):
         if not self.future.done():
@@ -85,6 +90,64 @@ class Request(RandomNumberCache):
         self.node.last_response = time.time()
         self.node.failed = 0
         self.node.rtt = time.time() - self.start_time
+
+
+class Crawl:
+
+    def __init__(self, target, nodes, force_nodes=False, offset=0):
+        self.target = target
+        # Keep a list of nodes that still need to be contacted: [(node_to_contact, node_to_puncture)]
+        self.nodes_todo = [[n, None] for n in nodes]
+        self.nodes_tried = set()
+        self.responses = []
+
+        self.force_nodes = force_nodes
+        self.offset = offset
+
+    def add_response(self, sender, response):
+        self.responses.append((sender, response))
+
+        for index, node in enumerate(response.get('nodes', [])):
+            if node in self.nodes_tried:
+                continue
+
+            # Only add nodes that are better than our current top-4
+            if len(self.nodes_todo) >= 4 \
+               and distance(node.id, self.target) > distance(self.nodes_todo[3][0].id, self.target):
+                continue
+
+            index_existing = next((i for i, t in enumerate(self.nodes_todo) if t[0] == node), None)
+            if index_existing is not None:
+                self.nodes_todo[index_existing][1] = None if index == 0 else sender
+                continue
+
+            self.nodes_todo.append([node, None if index == 0 else sender])
+            self.nodes_todo.sort(key=lambda t: distance(t[0].id, self.target))
+
+    @property
+    def done(self):
+        return len(self.nodes_tried) >= MAX_CRAWL_REQUESTS or not self.nodes_todo
+
+    @property
+    def cache_candidate(self):
+        # Return closest node to the target that did not respond with values
+        nodes_no_values = [sender for sender, response in self.responses if 'values' not in response]
+        nodes_no_values.sort(key=lambda n: distance(n.id, self.target))
+        return nodes_no_values[0] if nodes_no_values else None
+
+    @property
+    def values(self):
+        # Merge all values received into one tuple. First pick the first value from each tuple, then the second, etc.
+        value_responses = [response['values'] for _, response in self.responses if 'values' in response]
+        values = sum(zip_longest(*value_responses), ())
+
+        # Filter out duplicates while preserving order
+        seen = set()
+        return [v for v in values if v is not None and not (v in seen or seen.add(v))]
+
+    @property
+    def nodes(self):
+        return sorted(self.nodes_tried, key=lambda n: distance(n.id, self.target))
 
 
 class DHTCommunity(Community):
@@ -172,7 +235,7 @@ class DHTCommunity(Community):
 
     def ping(self, node):
         self.logger.debug('Pinging node %s', node)
-        cache = self.request_cache.add(Request(self, u'ping', node, consume_errors=True))
+        cache = self.request_cache.add(Request(self, 'ping', node, consume_errors=True))
         self.send_message(node.address, MSG_PING, PingRequestPayload, (cache.number,))
         node.last_ping_sent = time.time()
         return cache.future
@@ -189,12 +252,12 @@ class DHTCommunity(Community):
 
     @lazy_wrapper_wd(GlobalTimeDistributionPayload, PingResponsePayload)
     def on_ping_response(self, peer, dist, payload, data):
-        if not self.request_cache.has(u'ping', payload.identifier):
+        if not self.request_cache.has('ping', payload.identifier):
             self.logger.error('Got ping-response with unknown identifier, dropping packet')
             return
 
         self.logger.debug('Got ping-response from %s', peer.address)
-        cache = self.request_cache.pop(u'ping', payload.identifier)
+        cache = self.request_cache.pop('ping', payload.identifier)
         cache.on_complete()
         if not cache.future.done():
             cache.future.set_result(cache.node)
@@ -258,7 +321,7 @@ class DHTCommunity(Community):
         futures = []
         for node in nodes:
             if node in self.tokens and self.tokens[node][0] + TOKEN_EXPIRATION_TIME > now:
-                cache = self.request_cache.add(Request(self, u'store', node))
+                cache = self.request_cache.add(Request(self, 'store', node))
                 futures.append(cache.future)
                 self.send_message(node.address, MSG_STORE_REQUEST, StoreRequestPayload,
                                   (cache.number, self.tokens[node][1], key, values))
@@ -304,101 +367,61 @@ class DHTCommunity(Community):
 
     @lazy_wrapper(GlobalTimeDistributionPayload, StoreResponsePayload)
     def on_store_response(self, peer, dist, payload):
-        if not self.request_cache.has(u'store', payload.identifier):
+        if not self.request_cache.has('store', payload.identifier):
             self.logger.error('Got store-response with unknown identifier, dropping packet')
             return
 
         self.logger.debug('Got store-response from %s', peer.address)
-        cache = self.request_cache.pop(u'store', payload.identifier)
+        cache = self.request_cache.pop('store', payload.identifier)
         cache.on_complete()
         if not cache.future.done():
             cache.future.set_result(cache.node)
 
-    def _send_find_request(self, node, target, force_nodes, start_idx=0):
-        cache = self.request_cache.add(Request(self, u'find', node, [force_nodes]))
+    def _send_find_request(self, node, target, force_nodes, offset=0):
+        cache = self.request_cache.add(Request(self, 'find', node, [force_nodes], consume_errors=True, timeout=2.0))
         self.send_message(node.address, MSG_FIND_REQUEST, FindRequestPayload,
-                          (cache.number, self.my_estimated_lan, target, start_idx, force_nodes))
+                          (cache.number, self.my_estimated_lan, target, offset, force_nodes))
         return cache.future
 
-    def _process_find_responses(self, responses, nodes_tried):
-        values = []
-        nodes = set()
-        to_puncture = {}
+    async def _contact_node(self, crawl, node, puncture_node):
+        if puncture_node:
+            await self._send_find_request(puncture_node, node.id, crawl.force_nodes)
+        result = await self._send_find_request(node, crawl.target, crawl.force_nodes, crawl.offset)
+        if result:
+            self.routing_table.add(node)
+            crawl.add_response(node, result)
 
-        for sender, response in responses:
-            if 'values' in response:
-                values.append(response['values'])
-            else:
-                # Pick a node that we haven't tried yet.
-                node = next((n for n in response['nodes']
-                             if n not in nodes_tried and n not in list(to_puncture.values())), None)
-
-                if node:
-                    nodes.add(node)
-                    self.routing_table.add(node)
-
-                    # If we picked any node other than the first one, we will need to puncture.
-                    if node != response['nodes'][0]:
-                        to_puncture[sender] = node
-
-        return values, nodes, to_puncture
-
-    async def _find(self, target, force_nodes=False, start_idx=0):
-        assert start_idx >= 0, "The query cannot start from a negative index"
-
-        nodes_closest = set(self.routing_table.closest_nodes(target, max_nodes=MAX_FIND_WALKS))
+    async def _find(self, target, force_nodes=False, offset=0, debug=False):
+        nodes_closest = self.routing_table.closest_nodes(target, max_nodes=MAX_CRAWL_NODES)
         if not nodes_closest:
             raise DHTError('No nodes found in the routing table')
 
-        nodes_tried = set()
-        values = []
-        recent = None
-
-        for _ in range(MAX_FIND_STEPS):
-            if not nodes_closest:
+        crawl = Crawl(target, nodes_closest, force_nodes=force_nodes, offset=offset)
+        tasks = set()
+        while True:
+            # Keep running tasks until work is done.
+            while not crawl.done and len(tasks) < MAX_CRAWL_TASKS:
+                node, puncture_node = crawl.nodes_todo.pop(0)
+                tasks.add(ensure_future(self._contact_node(crawl, node, puncture_node)))
+                # Add to nodes_tried immediately to prevent sending multiple find-requests to the same node.
+                crawl.nodes_tried.add(node)
+            if not tasks:
                 break
-
-            # Send closest nodes a find-node-request
-            futures = [self._send_find_request(node, target, force_nodes, start_idx=start_idx)
-                       for node in nodes_closest]
-            responses = await gather_without_errors(*futures)
-            recent = next((sender for sender, response in responses if 'nodes' in response), recent)
-
-            nodes_tried |= nodes_closest
-            nodes_closest.clear()
-
-            # Process responses and puncture nodes that we haven't tried yet
-            new_values, new_nodes, to_puncture = self._process_find_responses(responses, nodes_tried)
-            values += new_values
-            nodes_closest |= new_nodes
-
-            futures = [self._send_find_request(sender, node.id, force_nodes)
-                       for sender, node in to_puncture.items()]
-
-            # Wait for punctures (if any)...
-            await gather(*futures, return_exceptions=True)
-
-            # Ensure we haven't tried these nodes yet
-            nodes_closest -= nodes_tried
-            # Only consider top-k closest to our target
-            if len(nodes_closest) > MAX_FIND_WALKS:
-                nodes_closest = set(sorted(nodes_closest, key=lambda n: distance(n.id, target))[:MAX_FIND_WALKS])
+            _, tasks = await wait(tasks, return_when=FIRST_COMPLETED)
 
         if force_nodes:
-            return sorted(nodes_tried, key=lambda n: distance(n.id, target))
+            return crawl.nodes
 
-        # Merge all values received into one tuple. First pick the first value from each tuple, then the second, etc.
-        values = sum(zip_longest(*values), ())
+        cache_candidate = crawl.cache_candidate
+        values = crawl.values
 
-        # Filter out duplicates while preserving order
-        seen = set()
-        values = [v for v in values if v is not None and not (v in seen or seen.add(v))]
-
-        if recent and values:
+        if cache_candidate and values:
             # Store the key-value pair on the most recently visited node that
             # did not have it (for caching purposes).
-            self.store_on_nodes(target, values, [recent])
+            self.store_on_nodes(target, values, [cache_candidate])
 
+        if debug:
+            return self.post_process_values(values), crawl
         return self.post_process_values(values)
 
     def post_process_values(self, values):
@@ -423,11 +446,11 @@ class DHTCommunity(Community):
 
         return results
 
-    def find_values(self, target, start_idx=0):
-        return self._find(target, force_nodes=False, start_idx=start_idx)
+    def find_values(self, target, offset=0, debug=False):
+        return self._find(target, force_nodes=False, offset=offset, debug=debug)
 
-    def find_nodes(self, target):
-        return self._find(target, force_nodes=True)
+    def find_nodes(self, target, debug=False):
+        return self._find(target, force_nodes=True, debug=debug)
 
     @lazy_wrapper(GlobalTimeDistributionPayload, FindRequestPayload)
     def on_find_request(self, peer, dist, payload):
@@ -438,7 +461,7 @@ class DHTCommunity(Community):
             return
 
         nodes = []
-        values = self.storage.get(payload.target, starting_point=payload.start_idx, limit=MAX_VALUES_IN_FIND) \
+        values = self.storage.get(payload.target, starting_point=payload.offset, limit=MAX_VALUES_IN_FIND) \
             if not payload.force_nodes else []
 
         if payload.force_nodes or not values:
@@ -453,12 +476,12 @@ class DHTCommunity(Community):
 
     @lazy_wrapper(GlobalTimeDistributionPayload, FindResponsePayload)
     def on_find_response(self, peer, dist, payload):
-        if not self.request_cache.has(u'find', payload.identifier):
+        if not self.request_cache.has('find', payload.identifier):
             self.logger.error('Got find-response with unknown identifier, dropping packet')
             return
 
         self.logger.debug('Got find-response from %s', peer.address)
-        cache = self.request_cache.pop(u'find', payload.identifier)
+        cache = self.request_cache.pop('find', payload.identifier)
         cache.on_complete()
 
         self.tokens[cache.node] = (time.time(), payload.token)
@@ -467,10 +490,9 @@ class DHTCommunity(Community):
             # The errback must already have been called (due to a timeout)
             return
         elif cache.params[0]:
-            cache.future.set_result((cache.node, {'nodes': payload.nodes}))
+            cache.future.set_result({'nodes': payload.nodes})
         else:
-            cache.future.set_result((cache.node,
-                                     {'values': payload.values} if payload.values else {'nodes': payload.nodes}))
+            cache.future.set_result({'values': payload.values} if payload.values else {'nodes': payload.nodes})
 
     async def node_maintenance(self):
         # Refresh buckets

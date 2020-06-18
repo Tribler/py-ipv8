@@ -58,11 +58,12 @@ class DHTDiscoveryCommunity(DHTCommunity):
                     return node
 
     async def store_peer(self):
+        key = self.my_peer.mid
+
         # Do we already have enough peers storing our address?
-        if len(self.store_for_me) >= TARGET_NODES // 2:
+        if len(self.store_for_me[key]) >= TARGET_NODES // 2:
             return []
 
-        key = self.my_peer.mid
         try:
             nodes = await self.find_nodes(key)
             return await self.send_store_peer_request(key, nodes[:TARGET_NODES])
@@ -79,7 +80,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
         futures = []
         for node in nodes:
             if node in self.tokens:
-                cache = self.request_cache.add(Request(self, u'store-peer', node, [key]))
+                cache = self.request_cache.add(Request(self, 'store-peer', node, [key]))
                 futures.append(cache.future)
                 self.send_message(node.address, MSG_STORE_PEER_REQUEST, StorePeerRequestPayload,
                                   (cache.number, self.tokens[node][1], key))
@@ -90,9 +91,21 @@ class DHTDiscoveryCommunity(DHTCommunity):
             raise DHTError('Peer was not stored')
         return await gather_without_errors(*futures)
 
-    async def connect_peer(self, mid):
+    async def connect_peer(self, mid, peer=None):
         if mid in self.store:
             return self.store[mid]
+
+        # If a peer is provided, we will first try to ping the peer (to see if it's connectable).
+        # This could potentially save an expensive DHT lookup.
+        if peer:
+            node = Node(peer.key, peer.address)
+            try:
+                await self.ping(node)
+            except DHTError:
+                pass
+            else:
+                return [node]
+
         nodes = await self.find_nodes(mid)
         nodes = await self.send_connect_peer_request(mid, nodes[:TARGET_NODES])
         if not nodes:
@@ -108,7 +121,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
 
         futures = []
         for node in nodes:
-            cache = self.request_cache.add(Request(self, u'connect-peer', node))
+            cache = self.request_cache.add(Request(self, 'connect-peer', node))
             futures.append(cache.future)
             self.send_message(node.address, MSG_CONNECT_PEER_REQUEST,
                               ConnectPeerRequestPayload, (cache.number, self.my_estimated_lan, key))
@@ -139,13 +152,13 @@ class DHTDiscoveryCommunity(DHTCommunity):
 
     @lazy_wrapper(GlobalTimeDistributionPayload, StorePeerResponsePayload)
     def on_store_peer_response(self, peer, dist, payload):
-        if not self.request_cache.has(u'store-peer', payload.identifier):
+        if not self.request_cache.has('store-peer', payload.identifier):
             self.logger.error('Got store-peer-response with unknown identifier, dropping packet')
             return
 
         self.logger.debug('Got store-peer-response from %s', peer.address)
 
-        cache = self.request_cache.pop(u'store-peer', payload.identifier)
+        cache = self.request_cache.pop('store-peer', payload.identifier)
 
         key = cache.params[0]
         if cache.node not in self.store_for_me[key]:
@@ -169,12 +182,12 @@ class DHTDiscoveryCommunity(DHTCommunity):
 
     @lazy_wrapper(GlobalTimeDistributionPayload, ConnectPeerResponsePayload)
     def on_connect_peer_response(self, peer, dist, payload):
-        if not self.request_cache.has(u'connect-peer', payload.identifier):
+        if not self.request_cache.has('connect-peer', payload.identifier):
             self.logger.error('Got connect-peer-response with unknown identifier, dropping packet')
             return
 
         self.logger.debug('Got connect-peer-response from %s', peer.address)
-        cache = self.request_cache.pop(u'connect-peer', payload.identifier)
+        cache = self.request_cache.pop('connect-peer', payload.identifier)
         cache.future.set_result(payload.nodes)
 
     def ping_all(self):
