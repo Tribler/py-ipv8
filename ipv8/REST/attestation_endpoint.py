@@ -8,12 +8,11 @@ from aiohttp_apispec import docs
 
 from . import json_util as json
 from .base_endpoint import BaseEndpoint, HTTP_BAD_REQUEST, HTTP_NOT_FOUND, Response
-from ..attestation.identity.community import IdentityCommunity
+from ..attestation.identity.community import IdentityCommunity, create_community
 from ..attestation.wallet.community import AttestationCommunity
-from ..database import database_blob
 from ..keyvault.crypto import default_eccrypto
 from ..peer import Peer
-from ..util import cast_to_bin, cast_to_unicode, succeed
+from ..util import cast_to_bin, succeed
 
 
 class AttestationEndpoint(BaseEndpoint):
@@ -75,10 +74,10 @@ class AttestationEndpoint(BaseEndpoint):
         """
         Return the measurement of an attribute for a certain peer.
         """
-        block = self.identity_overlay.get_attestation_by_hash(attribute_hash)
-        if not block:
+        metadata = self.identity_overlay.get_attestation_by_hash(attribute_hash)
+        if not metadata:
             return succeed(None)
-        attribute_name = block.transaction[b"name"]
+        attribute_name = json.loads(metadata.serialized_json_dict)["name"]
         future = Future()
         self.verify_requests[(b64encode(peer.mid).decode(), attribute_name)] = future
         return future
@@ -111,23 +110,24 @@ class AttestationEndpoint(BaseEndpoint):
         :return: the list of attestation hashes which have been removed
         :rtype: [database_blob]
         """
-        if not keys_to_keep:
-            block_selection_stmt = u""
-            params = ()
-        else:
-            value_insert = u"AND".join(u"public_key != ? AND link_public_key != ?" for _ in range(len(keys_to_keep)))
-            block_selection_stmt = (u" WHERE " + value_insert + u" ORDER BY block_timestamp")
-            params = ()
-            for key in keys_to_keep:
-                params += (database_blob(key), database_blob(key))
+        database = self.identity_overlay.identity_manager.database
+        all_identities = database.get_known_identities()
+        to_remove = []
+        attestation_hashes = []
+        for key in all_identities:
+            if key not in keys_to_keep:
+                to_remove.append(key)
+                attestation_hashes.extend([t.content_hash for t in database.get_tokens_for(Peer(key).public_key)])
 
-        blocks_to_remove = self.identity_overlay.persistence._getall(block_selection_stmt, params)
-        attestation_hashes = [database_blob(b.transaction[b"hash"]) for b in blocks_to_remove]
-
-        self.identity_overlay.persistence.execute(u"DELETE FROM blocks"
-                                                  + u" WHERE block_hash IN (SELECT block_hash FROM blocks "
-                                                  + block_selection_stmt + u")", params)
-        self.identity_overlay.persistence.commit()
+        with database:
+            for public_key in to_remove:
+                database.executescript("BEGIN TRANSACTION; "
+                                       "DELETE FROM Tokens WHERE public_key = ?; "
+                                       "DELETE FROM Metadata WHERE public_key = ?; "
+                                       "DELETE FROM Attestations WHERE public_key = ?; "
+                                       "COMMIT;",
+                                       (public_key, public_key, public_key))
+        database.commit()
 
         return attestation_hashes
 
@@ -208,22 +208,25 @@ class AttestationEndpoint(BaseEndpoint):
             else:
                 peer = self.identity_overlay.my_peer
             if peer:
-                blocks = self.identity_overlay.persistence.get_latest_blocks(peer.public_key.key_to_bin(), 200)
+                pseudonym = self.identity_overlay.identity_manager.get_pseudonym(peer.public_key)
                 trimmed = {}
-                for b in blocks:
-                    owner = b.public_key
-                    if owner != peer.public_key.key_to_bin() or b.link_sequence_number != 0:
-                        # We are only interested in blocks we made and are not attestations of other's attributes
-                        continue
-                    attester = b64encode(sha1(b.link_public_key).digest())
-                    previous = trimmed.get((attester, b.transaction[b"name"]), None)
-                    if not previous or previous.sequence_number < b.sequence_number:
-                        trimmed[(attester, b.transaction[b"name"])] = b
+                for credential in pseudonym.get_credentials():
+                    # TODO: add support for more attesters
+                    attestations = list(credential.attestations)
+                    if attestations:
+                        authority = self.identity_overlay.identity_manager.database.get_authority(attestations[0])
+                        attester = b64encode(sha1(authority).digest()).decode()
+                    else:
+                        attester = ""
+                    attribute_hash = pseudonym.tree.elements[credential.metadata.token_pointer].content_hash
+                    json_metadata = json.loads(credential.metadata.serialized_json_dict)
+                    trimmed[attribute_hash] = (json_metadata["name"], json_metadata, attester)
+                # List of (name, attribute_hash, metadata, attester)
                 return Response([(
-                    b.transaction[b"name"],
-                    b64encode(b.transaction[b"hash"]).decode('utf-8'),
-                    {cast_to_unicode(k): cast_to_unicode(v) for k, v in b.transaction[b"metadata"].items()},
-                    b64encode(sha1(b.link_public_key).digest()).decode('utf-8')) for b in trimmed.values()])
+                    data[0],
+                    b64encode(attribute_hash.lstrip(b'SHA-1\x00\x00\x00\x00\x00\x00\x00')).decode(),
+                    data[1],
+                    data[2]) for attribute_hash, data in trimmed.items()])
             else:
                 return Response([])
 
@@ -241,6 +244,9 @@ class AttestationEndpoint(BaseEndpoint):
 
             # Generate new key
             my_new_peer = Peer(default_eccrypto.generate_key(u"curve25519"))
+            identity_manager = self.identity_overlay.identity_manager
+            self.session.unload_overlay(self.identity_overlay)
+            self.identity_overlay = create_community(my_new_peer.key, self.session, identity_manager)
             for overlay in self.session.overlays:
                 overlay.my_peer = my_new_peer
             return Response({"success": True})
@@ -330,7 +336,7 @@ class AttestationEndpoint(BaseEndpoint):
             id_format = args.get('id_format', 'id_metadata')
             peer = self.get_peer_from_mid(mid_b64)
             if peer:
-                self.verification_output[b64decode(args['attribute_hash'])] = \
+                self.verification_output[attribute_hash] = \
                     [(b64decode(v), 0.0) for v in args['attribute_values'].split(',')]
                 self.attestation_overlay.verify_attestation_values(peer.address, attribute_hash, reference_values,
                                                                    self.on_verification_results, id_format)

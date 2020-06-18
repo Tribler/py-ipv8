@@ -76,7 +76,7 @@ class TestTree(TestCase):
         self.assertEqual(1, len(tree.unchained))
         self.assertListEqual([b"ab" * 16], list(tree.get_missing()))
         self.assertFalse(tree.verify(pub_token))
-        self.assertIsNone(token.content)
+        self.assertIsNone(token)
 
     def test_other_add_outsequence_overflow(self):
         """

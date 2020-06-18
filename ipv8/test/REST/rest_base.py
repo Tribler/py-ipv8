@@ -1,4 +1,5 @@
 import functools
+from threading import RLock
 
 from aiohttp import ClientSession
 
@@ -9,6 +10,7 @@ from ...peer import Peer
 from ...peerdiscovery.network import Network
 from ...test.mocking.discovery import MockWalk
 from ...test.mocking.endpoint import AutoMockEndpoint
+from ...util import maybe_coroutine
 
 
 def partial_cls(cls, *args, **kwargs):
@@ -28,9 +30,16 @@ class MockRestIPv8(object):
         self.strategies = [(MockWalk(overlay), 20) for overlay in self.overlays]
         self.rest_manager = None
         self.rest_port = 0
+        self.overlay_lock = RLock()
 
     def get_overlay(self, overlay_cls):
         return next((o for o in self.overlays if isinstance(o, overlay_cls)), None)
+
+    def unload_overlay(self, instance):
+        self.overlays = [overlay for overlay in self.overlays if overlay != instance]
+        self.strategies = [(strategy, target_peers) for (strategy, target_peers) in self.strategies
+                           if strategy.overlay != instance]
+        return maybe_coroutine(instance.unload)
 
     async def start_api(self):
         self.rest_manager = RESTManager(self)

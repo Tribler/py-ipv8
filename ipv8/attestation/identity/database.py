@@ -134,6 +134,16 @@ class IdentityDatabase(Database):
         return [Credential(metadata, self.get_attestations_over(metadata))
                 for metadata in self.get_metadata_for(public_key)]
 
+    def get_known_identities(self):
+        """
+        List the public keys of all known identity owners.
+        """
+        out = []
+        for result in self.execute("SELECT public_key FROM Tokens", fetch_all=True):
+            # These are single item tuples
+            out.append(result[0])
+        return out
+
     def get_schema(self, version: int) -> str:
         """
         Return the schema for the database.
