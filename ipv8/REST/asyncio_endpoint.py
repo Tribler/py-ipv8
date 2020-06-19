@@ -28,13 +28,13 @@ class DriftMeasurementStrategy(DiscoveryStrategy):
             self.last_measurement = this_time
 
 
-class HealthEndpoint(BaseEndpoint):
+class AsyncioEndpoint(BaseEndpoint):
     """
     This endpoint manages measurements of non-functional requirements.
     """
 
     def __init__(self):
-        super(HealthEndpoint, self).__init__()
+        super(AsyncioEndpoint, self).__init__()
         self.strategy = None
         self.enabled = False
 
@@ -62,7 +62,7 @@ class HealthEndpoint(BaseEndpoint):
         return True
 
     @docs(
-        tags=["Health"],
+        tags=["Asyncio"],
         summary="Measure the core drift.",
         responses={
             200: {
@@ -86,7 +86,7 @@ class HealthEndpoint(BaseEndpoint):
             return Response({"measurements": [{"timestamp": e[0], "drift": e[1]} for e in self.strategy.history]})
 
     @docs(
-        tags=["Health"],
+        tags=["Asyncio"],
         summary="Enable or disable measurements.",
         responses={
             200: {
@@ -99,7 +99,7 @@ class HealthEndpoint(BaseEndpoint):
             }
         }
     )
-    @json_schema(schema(EnableHealthRequest={
+    @json_schema(schema(EnableDriftRequest={
         'enable*': (Boolean, 'Whether to enable or disable measuring.'),
     }))
     async def enable_measurements(self, request):
