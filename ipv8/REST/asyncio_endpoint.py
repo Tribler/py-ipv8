@@ -1,15 +1,27 @@
 import collections
+import logging
 import time
+from asyncio import all_tasks, current_task, get_event_loop
 
 from aiohttp import web
 
 from aiohttp_apispec import docs, json_schema
 
-from marshmallow.fields import Boolean, Float
+from marshmallow.fields import Boolean, Float, Integer, String
 
 from .base_endpoint import BaseEndpoint, HTTP_BAD_REQUEST, HTTP_NOT_FOUND, Response
 from .schema import DefaultResponseSchema, schema
 from ..peerdiscovery.discovery import DiscoveryStrategy
+
+
+class DequeLogHandler(logging.Handler):
+
+    def __init__(self, maxlen=50):
+        super(DequeLogHandler, self).__init__()
+        self.deque = collections.deque(maxlen=maxlen)
+
+    def emit(self, record):
+        self.deque.append(self.format(record))
 
 
 class DriftMeasurementStrategy(DiscoveryStrategy):
@@ -30,21 +42,25 @@ class DriftMeasurementStrategy(DiscoveryStrategy):
 
 class AsyncioEndpoint(BaseEndpoint):
     """
-    This endpoint manages measurements of non-functional requirements.
+    This endpoint helps with the monitoring of the Asyncio thread.
     """
 
     def __init__(self):
         super(AsyncioEndpoint, self).__init__()
         self.strategy = None
-        self.enabled = False
+        self.asyncio_log_handler = None
 
     def setup_routes(self):
-        self.app.add_routes([web.get('/drift', self.retrieve_drift), web.put('/enable', self.enable_measurements)])
+        self.app.add_routes([web.get('/drift', self.retrieve_drift),
+                             web.put('/drift', self.enable_measurements),
+                             web.get('/tasks', self.get_asyncio_tasks),
+                             web.put('/debug', self.set_asyncio_debug),
+                             web.get('/debug', self.get_asyncio_debug)])
 
     def enable(self):
         if not self.session:
             return False
-        if not self.enabled:
+        if not self.strategy:
             self.strategy = DriftMeasurementStrategy(self.session.walk_interval)
             with self.session.overlay_lock:
                 self.session.strategies.append((self.strategy, -1))
@@ -54,10 +70,11 @@ class AsyncioEndpoint(BaseEndpoint):
     def disable(self):
         if not self.session:
             return False
-        if self.enabled:
+        if self.strategy:
             with self.session.overlay_lock:
                 self.session.strategies = [s for s in self.session.strategies
                                            if not isinstance(s[0], DriftMeasurementStrategy)]
+            self.strategy = None
             return True
         return True
 
@@ -87,7 +104,7 @@ class AsyncioEndpoint(BaseEndpoint):
 
     @docs(
         tags=["Asyncio"],
-        summary="Enable or disable measurements.",
+        summary="Enable or disable drift measurements.",
         responses={
             200: {
                 "schema": DefaultResponseSchema,
@@ -112,3 +129,108 @@ class AsyncioEndpoint(BaseEndpoint):
             return Response({"success": True})
         else:
             return Response({"success": False, "error": "Session not initialized."})
+
+    @docs(
+        tags=["Asyncio"],
+        summary="Return all currently running Asyncio tasks.",
+        responses={
+            200: {
+                "schema": schema(AsyncioTasksResponse={"tasks": [
+                    schema(AsyncioTask={
+                        "name": String,
+                        "running": Boolean,
+                        "stack": [String],
+                        "taskmanager": String,
+                        "start_time": Float,
+                        "interval": Integer
+                    })
+                ]})
+            },
+            400: {
+                "schema": DefaultResponseSchema,
+                "example": {"success": False, "error": "at least Python 3.7 is required"}
+            }
+        }
+    )
+    async def get_asyncio_tasks(self, _):
+        current = current_task()
+        tasks = []
+        for task in all_tasks():
+            # Only in Python 3.8+ will we have a get_name function
+            name = task.get_name() if hasattr(task, 'get_name') else getattr(task, 'name', f'Task-{id(task)}')
+
+            task_dict = {"name": name,
+                         "running": task == current,
+                         "stack": [str(f) for f in task.get_stack()]}
+
+            # Add info specific to tasks owner by TaskManager
+            if hasattr(task, "start_time"):
+                # Only TaskManager tasks have a start_time attribute
+                cls, tsk = name.split(":")
+                task_dict.update({"name": tsk, "taskmanager": cls, "start_time": task.start_time})
+                if task.interval:
+                    task_dict["interval"] = task.interval
+            tasks.append(task_dict)
+        return Response({"tasks": tasks})
+
+    @docs(
+        tags=["Asyncio"],
+        summary="Set asyncio debug options.",
+        responses={
+            200: {
+                "schema": DefaultResponseSchema,
+                "example": {"success": True}
+            },
+            400: {
+                "schema": DefaultResponseSchema,
+                "example": {"success": False, "error": "incorrect parameters"}
+            }
+        }
+    )
+    @json_schema(schema(AsyncioDebugRequest={
+        'enable': (Boolean, 'Whether to enable or disable asyncio debug mode.'),
+        'slow_callback_duration': (Integer, 'Time threshold above which tasks will be logged.'),
+    }))
+    async def set_asyncio_debug(self, request):
+        parameters = await request.json()
+        if 'enable' not in parameters and 'slow_callback_duration' not in parameters:
+            return Response({"success": False, "error": "incorrect parameters"}, status=HTTP_BAD_REQUEST)
+
+        loop = get_event_loop()
+        loop.slow_callback_duration = parameters.get('slow_callback_duration', loop.slow_callback_duration)
+
+        if 'enable' in parameters:
+            enable = bool(parameters['enable'])
+            loop.set_debug(enable)
+
+            # Add/remove asyncio log handler
+            if enable and not self.asyncio_log_handler:
+                self.asyncio_log_handler = DequeLogHandler()
+                logging.getLogger('asyncio').addHandler(self.asyncio_log_handler)
+            if not enable and self.asyncio_log_handler:
+                logging.getLogger('asyncio').removeHandler(self.asyncio_log_handler)
+                self.asyncio_log_handler = None
+
+        return Response({"success": True})
+
+    @docs(
+        tags=["Asyncio"],
+        summary="Return Asyncio log messages.",
+        responses={
+            200: {
+                "schema": schema(AsyncioLogResponse={"debug": [
+                    schema(AsyncioLogMessage={
+                        "message": String
+                    })
+                ]})
+            },
+            400: {
+                "schema": DefaultResponseSchema,
+                "example": {"success": False, "error": "debug mode is disabled"}
+            }
+        }
+    )
+    async def get_asyncio_debug(self, _):
+        if self.asyncio_log_handler:
+            return Response({'debug': [{'message': r} for r in self.asyncio_log_handler.deque]})
+        return Response({"success": False, 'error': 'debug mode is disabled'})

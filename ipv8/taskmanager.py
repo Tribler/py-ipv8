@@ -114,6 +114,12 @@ class TaskManager(object):
             # in _pending_tasks. Instead we add them as attributes to the task.
             task.start_time = time.time()
             task.interval = interval
+            # The set_name function is only available in Python 3.8+
+            task_name = f'{self.__class__.__name__}:{name}'
+            if hasattr(task, 'set_name'):
+                task.set_name(task_name)
+            else:
+                task.name = task_name
 
             assert isinstance(task, Task)
 
