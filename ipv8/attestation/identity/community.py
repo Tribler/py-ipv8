@@ -12,6 +12,7 @@ from .payload import AttestPayload, DiclosePayload, MissingResponsePayload, Requ
 from ...community import Community, DEFAULT_MAX_PEERS
 from ...keyvault.keys import PrivateKey, PublicKey
 from ...lazy_community import lazy_wrapper
+from ...messaging.interfaces.endpoint import Endpoint
 from ...peer import Peer
 from ...peerdiscovery.discovery import RandomWalk
 from ...peerdiscovery.network import Network
@@ -280,11 +281,15 @@ class IdentityCommunity(Community):
         self._received_disclosure_for_attest(peer, (b'', response.tokens, b'', b''))
 
 
-def create_community(private_key: PrivateKey, ipv8, identity_manager: IdentityManager) -> IdentityCommunity:
+def create_community(private_key: PrivateKey, ipv8, identity_manager: IdentityManager,
+                     endpoint: typing.Optional[Endpoint] = None, working_directory=".") -> IdentityCommunity:
     my_peer = Peer(private_key)
-    community = IdentityCommunity(my_peer, ipv8.endpoint, identity_manager=identity_manager)
+    if endpoint is None:
+        endpoint = ipv8.produce_anonymized_endpoint()
+    community = IdentityCommunity(my_peer, endpoint, identity_manager=identity_manager,
+                                  working_directory=working_directory)
     strategy = RandomWalk(community, target_interval=30)
     with ipv8.overlay_lock:
-        ipv8.strategies.append(strategy)
+        ipv8.strategies.append((strategy, -1))
         ipv8.overlays.append(community)
     return community

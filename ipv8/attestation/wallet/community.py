@@ -18,7 +18,7 @@ from ...lazy_community import lazy_wrapper
 from ...messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from ...peer import Peer
 from ...requestcache import RequestCache
-from ...util import cast_to_bin, cast_to_chr, cast_to_unicode, maybe_coroutine
+from ...util import cast_to_bin, cast_to_chr, maybe_coroutine
 
 
 def synchronized(f):
@@ -157,7 +157,7 @@ class AttestationCommunity(Community):
             "id_format": id_format
         }
         meta_dict.update(metadata)
-        metadata = cast_to_bin(json.dumps({cast_to_unicode(k): cast_to_unicode(v) for k, v in meta_dict.items()}))
+        metadata = json.dumps(meta_dict).encode()
 
         global_time = self.claim_global_time()
         auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()

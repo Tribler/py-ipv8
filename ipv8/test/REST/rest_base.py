@@ -41,6 +41,11 @@ class MockRestIPv8(object):
                            if strategy.overlay != instance]
         return maybe_coroutine(instance.unload)
 
+    def produce_anonymized_endpoint(self):
+        endpoint = AutoMockEndpoint()
+        endpoint.open()
+        return endpoint
+
     async def start_api(self):
         self.rest_manager = RESTManager(self)
         await self.rest_manager.start(0)
@@ -84,7 +89,7 @@ class RESTTestBase(TestBase):
                         overlay.walk_to(other.endpoint.wan_address)
         await self.deliver_messages()
 
-    async def make_request(self, node, endpoint, request_type, arguments, json_response=True):
+    async def make_request(self, node, endpoint, request_type, arguments=None, json_response=True, json=None):
         """
         Forward an HTTP request of the specified type to a url, with the specified set of arguments.
 
@@ -100,5 +105,5 @@ class RESTTestBase(TestBase):
         headers = {'User-Agent': 'aiohttp'}
 
         async with ClientSession() as session:
-            async with session.request(request_type, url, params=arguments, headers=headers) as response:
+            async with session.request(request_type, url, json=json, params=arguments, headers=headers) as response:
                 return await response.json(content_type=None) if json_response else await response.read()

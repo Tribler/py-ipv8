@@ -146,7 +146,7 @@ class TestBase(asynctest.TestCase):
         await self.deliver_messages()
 
     def temporary_directory(self):
-        rndstr = 'temp_'.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(10))
+        rndstr = '_temp_' + ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(10))
         d = os.path.abspath(self.__class__.__name__ + rndstr)
         self._tempdirs.append(d)
         os.makedirs(d)
