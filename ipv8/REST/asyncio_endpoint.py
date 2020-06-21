@@ -231,6 +231,8 @@ class AsyncioEndpoint(BaseEndpoint):
         }
     )
     async def get_asyncio_debug(self, _):
-        if self.asyncio_log_handler:
-            return Response({'debug': [{'message': r} for r in self.asyncio_log_handler.deque]})
-        return Response({"success": False, 'error': 'debug mode is disabled'})
+        loop = get_event_loop()
+        messages = self.asyncio_log_handler.deque if self.asyncio_log_handler else []
+        return Response({'messages': [{'message': r} for r in messages],
+                         'enable': loop.get_debug(),
+                         'slow_callback_duration': loop.slow_callback_duration})
