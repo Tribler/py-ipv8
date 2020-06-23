@@ -186,10 +186,9 @@ class TaskManager(object):
         """
         Waits until all registered tasks are done.
         """
-        with self._task_lock:
-            tasks = self.get_tasks()
-            if tasks:
-                await gather(*tasks, return_exceptions=True)
+        tasks = self.get_tasks()
+        if tasks:
+            await gather(*tasks, return_exceptions=True)
 
     async def shutdown_task_manager(self):
         """
@@ -198,9 +197,10 @@ class TaskManager(object):
         with self._task_lock:
             self._shutdown = True
             tasks = self.cancel_all_pending_tasks()
-            if tasks:
-                with suppress(CancelledError):
-                    await gather(*tasks)
+
+        if tasks:
+            with suppress(CancelledError):
+                await gather(*tasks)
 
 
 __all__ = ["TaskManager", "task"]
