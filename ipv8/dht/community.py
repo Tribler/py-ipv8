@@ -189,8 +189,11 @@ class DHTCommunity(Community):
         return {'PingChurn': PingChurn}
 
     async def unload(self):
-        await self.request_cache.shutdown()
+        # Note that order matters here. First we unload the community, then we shutdown
+        # the RequestCache. This prevents calls to RequestCache.add after
+        # RequestCache.shutdown is called (which will return None after shutdown).
         await super(DHTCommunity, self).unload()
+        await self.request_cache.shutdown()
 
     @property
     def my_node_id(self):

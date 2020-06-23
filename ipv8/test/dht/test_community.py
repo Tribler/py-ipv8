@@ -1,5 +1,5 @@
 import time
-from asyncio import TimeoutError, wait_for
+from asyncio import TimeoutError, ensure_future, wait_for
 
 from ..base import TestBase
 from ..mocking.ipv8 import MockIPv8
@@ -200,6 +200,14 @@ class TestDHTCommunity(TestBase):
         # Additional pings should get dropped (i.e. timeout)
         with self.assertRaises(TimeoutError):
             await wait_for(self.nodes[0].overlay.ping(node1), 0.1)
+
+    async def test_unload_while_contacting_node(self):
+        await self.introduce_nodes()
+        overlay = self.nodes[0].overlay
+        ensure_future(overlay.find_nodes(self.key))
+        await overlay.unload()
+        self.assertTrue(overlay.request_cache._shutdown)
+        self.assertTrue(overlay._shutdown)
 
 
 class TestDHTCommunityXL(TestBase):
