@@ -95,7 +95,8 @@ class TaskManager(object):
                 if isinstance(task, (Task, Future)):
                     if not task.done():
                         task.cancel()
-                return task
+                # We need to return an awaitable in case the caller awaits the output of register_task.
+                return succeed(None)
 
             if self.is_pending_task_active(name):
                 raise RuntimeError("Task already exists: '%s'" % name)
