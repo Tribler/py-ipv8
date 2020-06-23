@@ -1,7 +1,7 @@
 import hashlib
 import os
 import time
-from asyncio import FIRST_COMPLETED, Future, ensure_future, gather, wait
+from asyncio import FIRST_COMPLETED, Future, gather, wait
 from binascii import hexlify, unhexlify
 from collections import defaultdict, deque
 from itertools import zip_longest
@@ -402,7 +402,7 @@ class DHTCommunity(Community):
             # Keep running tasks until work is done.
             while not crawl.done and len(tasks) < MAX_CRAWL_TASKS:
                 node, puncture_node = crawl.nodes_todo.pop(0)
-                tasks.add(ensure_future(self._contact_node(crawl, node, puncture_node)))
+                tasks.add(self.register_anonymous_task('contact_node', self._contact_node, crawl, node, puncture_node))
                 # Add to nodes_tried immediately to prevent sending multiple find-requests to the same node.
                 crawl.nodes_tried.add(node)
             if not tasks:
