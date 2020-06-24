@@ -129,7 +129,7 @@ class TestTree(TestCase):
         self.assertEqual(0, len(tree.get_missing()))
         self.assertTrue(tree.verify(pub_token))
         self.assertTrue(tree.verify(token))
-        self.assertEquals(b"some data", token.content)
+        self.assertEqual(b"some data", token.content)
 
     def test_serialize_public(self):
         """

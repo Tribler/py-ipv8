@@ -40,7 +40,7 @@ class VariablePayload(Payload):
         # If our super class is an old-style Payload function, forward the required arguments.
         if not issubclass(super(VariablePayload, self).__class__, VariablePayload) and \
                 inspect.ismethod(super(VariablePayload, self).__init__):
-            super_argspec = inspect.getargspec(super(VariablePayload, self).__init__).args[1:]
+            super_argspec = inspect.getfullargspec(super(VariablePayload, self).__init__).args[1:]
             for arg in super_argspec:
                 if arg in kwargs:
                     fwd_args[arg] = kwargs.pop(arg)

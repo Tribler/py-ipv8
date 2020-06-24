@@ -1,12 +1,12 @@
 import logging
 import time
-from asyncio import CancelledError, Future, Task, coroutine, ensure_future, gather, iscoroutinefunction, sleep
+from asyncio import CancelledError, Future, Task, ensure_future, gather, iscoroutinefunction, sleep
 from contextlib import suppress
 from functools import wraps
 from threading import RLock
 from weakref import WeakValueDictionary
 
-from .util import succeed
+from .util import coroutine, succeed
 
 MAX_TASK_AGE = 600
 

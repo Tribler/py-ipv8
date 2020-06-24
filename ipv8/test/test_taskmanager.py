@@ -1,8 +1,9 @@
-from asyncio import Future, coroutine, ensure_future, get_event_loop, sleep
+from asyncio import Future, ensure_future, get_event_loop, sleep
 from contextlib import suppress
 
 from .base import TestBase
 from ..taskmanager import TaskManager, task
+from ..util import coroutine
 
 
 class TestTaskManager(TestBase):

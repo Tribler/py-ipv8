@@ -48,3 +48,9 @@ def maybe_coroutine(func, *args, **kwargs):
     async def coro():
         return value
     return coro()
+
+
+def coroutine(func):
+    async def call_async(*args, **kwargs):
+        return func(*args, **kwargs)
+    return call_async
