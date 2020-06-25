@@ -245,8 +245,9 @@ class AttestationEndpoint(BaseEndpoint):
             # Generate new key
             my_new_peer = Peer(default_eccrypto.generate_key(u"curve25519"))
             identity_manager = self.identity_overlay.identity_manager
-            self.session.unload_overlay(self.identity_overlay)
-            self.identity_overlay = create_community(my_new_peer.key, self.session, identity_manager)
+            await self.session.unload_overlay(self.identity_overlay)
+            self.identity_overlay = create_community(my_new_peer.key, self.session, identity_manager,
+                                                     endpoint=self.session.endpoint)
             for overlay in self.session.overlays:
                 overlay.my_peer = my_new_peer
             return Response({"success": True})
@@ -291,8 +292,7 @@ class AttestationEndpoint(BaseEndpoint):
                 metadata = {"id_format": id_format}
                 if 'metadata' in args:
                     metadata_unicode = json.loads(b64decode(args['metadata']))
-                    for k, v in metadata_unicode.items():
-                        metadata[cast_to_bin(k)] = cast_to_bin(v)
+                    metadata.update(metadata_unicode)
                 self.attestation_metadata[(self.identity_overlay.my_peer, attribute_name)] = metadata
                 self.attestation_overlay.request_attestation(peer, attribute_name, key, metadata)
                 return Response({"success": True})

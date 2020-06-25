@@ -214,8 +214,11 @@ class TestAttestationEndpoint(RESTTestBase):
                         "At least one of the verification responses was non-empty.")
 
         # Unlock the verification
-        outstanding_verifications = await self.make_outstanding_verify(self.nodes[1])
-        self.assertIsNotNone(outstanding_verifications, "Could not retrieve any outstanding verifications")
+        outstanding_verifications = []
+        while not outstanding_verifications:
+            outstanding_verifications = await self.make_outstanding_verify(self.nodes[1])
+            self.assertIsNotNone(outstanding_verifications, "Could not retrieve any outstanding verifications")
+            await self.deliver_messages()
 
         mid = outstanding_verifications[0][0]
         await self.make_allow_verify(self.nodes[1], 'QR', mid)
@@ -252,6 +255,7 @@ class TestAttestationEndpoint(RESTTestBase):
         while not outstanding_verifications:
             outstanding_verifications = await self.make_outstanding_verify(self.nodes[1])
             self.assertIsNotNone(outstanding_verifications, "Could not retrieve any outstanding verifications")
+            await self.deliver_messages()
 
         # Retrieve only the mids
         result = [x[0] for x in outstanding_verifications]
@@ -393,6 +397,7 @@ class TestAttestationEndpoint(RESTTestBase):
         while not outstanding_verifications:
             outstanding_verifications = await self.make_outstanding_verify(self.nodes[1])
             self.assertIsNotNone(outstanding_verifications, "Could not retrieve any outstanding verifications")
+            await self.deliver_messages()
 
         mid = outstanding_verifications[0][0]
         response = await self.make_allow_verify(self.nodes[1], 'QR', mid)

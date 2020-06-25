@@ -65,6 +65,9 @@ else:
     class IPv8(object):
 
         def __init__(self, configuration, endpoint_override=None, enable_statistics=False, extra_communities=None):
+            super(IPv8, self).__init__()
+            self.configuration = configuration
+
             if endpoint_override:
                 self.endpoint = endpoint_override
             else:
@@ -176,6 +179,11 @@ else:
 
         def get_overlays(self, overlay_cls):
             return (o for o in self.overlays if isinstance(o, overlay_cls))
+
+        def produce_anonymized_endpoint(self):
+            base_endpoint = UDPEndpoint(port=self.configuration['port'], ip=self.configuration['address'])
+            base_endpoint.open()
+            return TunnelEndpoint(base_endpoint)
 
         async def stop(self, stop_loop=True):
             if self.state_machine_task:

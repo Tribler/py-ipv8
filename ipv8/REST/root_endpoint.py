@@ -2,6 +2,7 @@ from .asyncio_endpoint import AsyncioEndpoint
 from .attestation_endpoint import AttestationEndpoint
 from .base_endpoint import BaseEndpoint
 from .dht_endpoint import DHTEndpoint
+from .identity_endpoint import IdentityEndpoint
 from .isolation_endpoint import IsolationEndpoint
 from .network_endpoint import NetworkEndpoint
 from .noblock_dht_endpoint import NoBlockDHTEndpoint
@@ -20,6 +21,7 @@ class RootEndpoint(BaseEndpoint):
         endpoints = {'/asyncio': AsyncioEndpoint,
                      '/attestation': AttestationEndpoint,
                      '/dht': DHTEndpoint,
+                     '/identity': IdentityEndpoint,
                      '/isolation': IsolationEndpoint,
                      '/network': NetworkEndpoint,
                      '/noblockdht': NoBlockDHTEndpoint,
