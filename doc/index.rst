@@ -34,8 +34,8 @@ IPv8 Example
 
 IPv8 is a tool to build interesting distributed applications. IPv8 overlays can be used to offer various services for your application. Our flagship application Tribler, for example, uses seven IPv8 overlays for serverless discovery. Tribler's services range from DHT-based lookup, Tor-inspired privacy to a completely decentralised marketplace for bandwidth. If we take a look at Tribler's debug screen, it shows IPv8 in action: you can observe statistics such as active neighbors and utilized network traffic to make sure you have made a healthy overlay.
 
- .. image:: ./further-reading/resources/healthy_IPv8_overlay_collection.png
-   :target: ./further-reading/resources/healthy_IPv8_overlay_collection.png
+ .. image:: ./resources/healthy_IPv8_overlay_collection.png
+   :target: ./resources/healthy_IPv8_overlay_collection.png
    :alt: A screenshot of Tribler's IPv8 statistics
    
 
@@ -59,7 +59,7 @@ Table of contents
 
    basics/overlay_tutorial.rst
    basics/crawler_service_tutorial.rst
-   basics/attestation_tutorial.rst
+   basics/identity_tutorial.rst
 
 .. toctree::
    :maxdepth: 2
@@ -75,7 +75,13 @@ Table of contents
 
    further-reading/trustchain.rst
    further-reading/anonymization.rst
-   further-reading/attestation_prototype.rst
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Deprecated/Archive:
+
+   deprecated/attestation_prototype.rst
+   deprecated/attestation_tutorial.rst
 
 
 Search

@@ -88,7 +88,7 @@ class IdentityEndpoint(BaseEndpoint):
         }
     )
     async def list_schemas(self, request):
-        channel = self.communication_manager.load(request.match_info['pseudonym_name'])
+        channel = await self.communication_manager.load(request.match_info['pseudonym_name'])
         return Response({"schemas": channel.schemas})
 
     @docs(
@@ -107,7 +107,7 @@ class IdentityEndpoint(BaseEndpoint):
         }
     )
     async def get_pseudonym_public_key(self, request):
-        channel = self.communication_manager.load(request.match_info['pseudonym_name'])
+        channel = await self.communication_manager.load(request.match_info['pseudonym_name'])
         return Response({"public_key": ez_b64_encode(channel.public_key_bin)})
 
     @docs(
@@ -166,7 +166,7 @@ class IdentityEndpoint(BaseEndpoint):
         }
     )
     async def list_pseudonym_credentials(self, request):
-        channel = self.communication_manager.load(request.match_info['pseudonym_name'])
+        channel = await self.communication_manager.load(request.match_info['pseudonym_name'])
         return Response({"names": [{
             "name": data[0],
             "hash": ez_b64_encode(attribute_hash.lstrip(b'SHA-1\x00\x00\x00\x00\x00\x00\x00')),
@@ -204,7 +204,7 @@ class IdentityEndpoint(BaseEndpoint):
         }
     )
     async def list_subject_credentials(self, request):
-        channel = self.communication_manager.load(request.match_info['pseudonym_name'])
+        channel = await self.communication_manager.load(request.match_info['pseudonym_name'])
 
         subject = None
         for peer in channel.peers:
@@ -239,7 +239,7 @@ class IdentityEndpoint(BaseEndpoint):
         }
     )
     async def list_pseudonym_peers(self, request):
-        channel = self.communication_manager.load(request.match_info['pseudonym_name'])
+        channel = await self.communication_manager.load(request.match_info['pseudonym_name'])
         return Response({"peers": [ez_b64_encode(peer.public_key.key_to_bin()) for peer in channel.peers]})
 
     @docs(
@@ -278,7 +278,7 @@ class IdentityEndpoint(BaseEndpoint):
         if 'name' not in parameters:
             return Response({"error": "incorrect parameters"}, status=HTTP_BAD_REQUEST)
 
-        channel = self.communication_manager.load(request.match_info['pseudonym_name'])
+        channel = await self.communication_manager.load(request.match_info['pseudonym_name'])
         verifier = None
         for peer in channel.peers:
             if peer.public_key.key_to_bin() == ez_b64_decode(request.match_info['verifier_key']):
@@ -327,7 +327,7 @@ class IdentityEndpoint(BaseEndpoint):
         if 'name' not in parameters:
             return Response({"error": "incorrect parameters"}, status=HTTP_BAD_REQUEST)
 
-        channel = self.communication_manager.load(request.match_info['pseudonym_name'])
+        channel = await self.communication_manager.load(request.match_info['pseudonym_name'])
         verifier = None
         for peer in channel.peers:
             if peer.public_key.key_to_bin() == ez_b64_decode(request.match_info['verifier_key']):
@@ -378,7 +378,7 @@ class IdentityEndpoint(BaseEndpoint):
         if 'name' not in parameters or 'schema' not in parameters:
             return Response({"error": "incorrect parameters"}, status=HTTP_BAD_REQUEST)
 
-        channel = self.communication_manager.load(request.match_info['pseudonym_name'])
+        channel = await self.communication_manager.load(request.match_info['pseudonym_name'])
         authority = None
         for peer in channel.peers:
             if peer.public_key.key_to_bin() == ez_b64_decode(request.match_info['authority_key']):
@@ -429,7 +429,7 @@ class IdentityEndpoint(BaseEndpoint):
         if 'name' not in parameters or 'value' not in parameters:
             return Response({"error": "incorrect parameters"}, status=HTTP_BAD_REQUEST)
 
-        channel = self.communication_manager.load(request.match_info['pseudonym_name'])
+        channel = await self.communication_manager.load(request.match_info['pseudonym_name'])
 
         subject = None
         for peer in channel.peers:
@@ -481,7 +481,7 @@ class IdentityEndpoint(BaseEndpoint):
         if 'hash' not in parameters or 'value' not in parameters or 'schema' not in parameters:
             return Response({"error": "incorrect parameters"}, status=HTTP_BAD_REQUEST)
 
-        channel = self.communication_manager.load(request.match_info['pseudonym_name'])
+        channel = await self.communication_manager.load(request.match_info['pseudonym_name'])
 
         subject = None
         for peer in channel.peers:
@@ -516,7 +516,7 @@ class IdentityEndpoint(BaseEndpoint):
         }
     )
     async def list_pseudonym_outstanding_attestations(self, request):
-        channel = self.communication_manager.load(request.match_info['pseudonym_name'])
+        channel = await self.communication_manager.load(request.match_info['pseudonym_name'])
         formatted = []
         for k, v in channel.attestation_requests.items():
             formatted.append({
@@ -545,7 +545,7 @@ class IdentityEndpoint(BaseEndpoint):
         }
     )
     async def list_pseudonym_outstanding_verifications(self, request):
-        channel = self.communication_manager.load(request.match_info['pseudonym_name'])
+        channel = await self.communication_manager.load(request.match_info['pseudonym_name'])
         formatted = []
         for k in channel.verify_requests.keys():
             formatted.append({
@@ -576,7 +576,7 @@ class IdentityEndpoint(BaseEndpoint):
         }
     )
     async def list_pseudonym_verification_output(self, request):
-        channel = self.communication_manager.load(request.match_info['pseudonym_name'])
+        channel = await self.communication_manager.load(request.match_info['pseudonym_name'])
 
         formatted = []
         for k, v in channel.verification_output.items():

@@ -13,6 +13,7 @@ default = {
     'logger': {
         'level': "INFO"
     },
+    'working_directory': ".",
     'walker_interval': 0.5,
     'overlays': [
         {

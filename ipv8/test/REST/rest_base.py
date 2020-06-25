@@ -5,7 +5,9 @@ from aiohttp import ClientSession
 
 from ..base import TestBase
 from ...REST.rest_manager import RESTManager
+from ...configuration import get_default_configuration
 from ...keyvault.crypto import ECCrypto
+from ...messaging.anonymization.endpoint import TunnelEndpoint
 from ...peer import Peer
 from ...peerdiscovery.network import Network
 from ...test.mocking.discovery import MockWalk
@@ -23,6 +25,8 @@ class MockRestIPv8(object):
     def __init__(self, crypto_curve, overlay_classes, *args, **kwargs):
         self.endpoint = AutoMockEndpoint()
         self.endpoint.open()
+        self.configuration = get_default_configuration()
+        self.configuration["working_directory"] = ":memory:"
         self.network = Network()
         self.my_peer = Peer(ECCrypto().generate_key(crypto_curve))
         self.overlays = [overlay_cls(self.my_peer, self.endpoint, self.network, *args, **kwargs)
@@ -41,8 +45,8 @@ class MockRestIPv8(object):
                            if strategy.overlay != instance]
         return maybe_coroutine(instance.unload)
 
-    def produce_anonymized_endpoint(self):
-        endpoint = AutoMockEndpoint()
+    async def produce_anonymized_endpoint(self):
+        endpoint = TunnelEndpoint(AutoMockEndpoint())
         endpoint.open()
         return endpoint
 

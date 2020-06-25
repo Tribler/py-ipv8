@@ -246,8 +246,8 @@ class AttestationEndpoint(BaseEndpoint):
             my_new_peer = Peer(default_eccrypto.generate_key(u"curve25519"))
             identity_manager = self.identity_overlay.identity_manager
             await self.session.unload_overlay(self.identity_overlay)
-            self.identity_overlay = create_community(my_new_peer.key, self.session, identity_manager,
-                                                     endpoint=self.session.endpoint)
+            self.identity_overlay = await create_community(my_new_peer.key, self.session, identity_manager,
+                                                           endpoint=self.session.endpoint)
             for overlay in self.session.overlays:
                 overlay.my_peer = my_new_peer
             return Response({"success": True})
