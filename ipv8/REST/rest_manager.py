@@ -4,8 +4,25 @@ from aiohttp import web
 
 from aiohttp_apispec import setup_aiohttp_apispec
 
-from .base_endpoint import HTTP_INTERNAL_SERVER_ERROR, Response
+from .base_endpoint import HTTP_INTERNAL_SERVER_ERROR, HTTP_UNAUTHORIZED, Response
 from .root_endpoint import RootEndpoint
+
+
+@web.middleware
+class ApiKeyMiddleware(object):
+    def __init__(self, api_key):
+        self.api_key = api_key
+
+    async def __call__(self, request, handler):
+        if self.authenticate(request):
+            return await handler(request)
+        else:
+            return Response({'error': 'Unauthorized access'}, status=HTTP_UNAUTHORIZED)
+
+    def authenticate(self, request):
+        # The api key can either be in the headers or as part of the url query
+        api_key = request.headers.get('X-Api-Key') or request.query.get('apikey')
+        return not self.api_key or self.api_key == api_key
 
 
 @web.middleware
@@ -48,11 +65,13 @@ class RESTManager:
         self.session = session
         self.site = None
 
-    async def start(self, port=8085, host='127.0.0.1'):
+    async def start(self, port=8085, host='127.0.0.1', api_key=None, ssl_context=None):
         """
         Starts the HTTP API with the listen port as specified in the session configuration.
         """
-        root_endpoint = RootEndpoint(middlewares=[cors_middleware, error_middleware])
+        root_endpoint = RootEndpoint(middlewares=[ApiKeyMiddleware(api_key),
+                                                  cors_middleware,
+                                                  error_middleware])
         root_endpoint.initialize(self.session)
         setup_aiohttp_apispec(
             app=root_endpoint.app,
@@ -69,7 +88,7 @@ class RESTManager:
         runner = web.AppRunner(root_endpoint.app, access_log=None)
         await runner.setup()
         # If localhost is used as hostname, it will randomly either use 127.0.0.1 or ::1
-        self.site = web.TCPSite(runner, host, port)
+        self.site = web.TCPSite(runner, host, port, ssl_context=ssl_context)
         await self.site.start()
 
     async def stop(self):
