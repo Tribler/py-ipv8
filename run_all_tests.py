@@ -61,7 +61,10 @@ class CustomLinePrint(io.StringIO):
 
     def write(self, __text: str) -> int:
         wtime = time.time()
-        self.raw_lines.append((wtime, self.prefix, __text))
+        if self.raw_lines and not self.raw_lines[-1][2].endswith('\n'):
+            self.raw_lines[-1] = (self.raw_lines[-1][0], self.raw_lines[-1][1], self.raw_lines[-1][2] + __text)
+        else:
+            self.raw_lines.append((wtime, self.prefix, __text))
         return self.delegated.write(__text)
 
 
