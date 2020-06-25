@@ -1,12 +1,12 @@
 import logging
 import time
-from asyncio import CancelledError, Future, Task, coroutine, ensure_future, gather, iscoroutinefunction, sleep
+from asyncio import CancelledError, Future, Task, ensure_future, gather, iscoroutinefunction, sleep
 from contextlib import suppress
 from functools import wraps
 from threading import RLock
 from weakref import WeakValueDictionary
 
-from .util import succeed
+from .util import coroutine, succeed
 
 MAX_TASK_AGE = 600
 
@@ -95,7 +95,8 @@ class TaskManager(object):
                 if isinstance(task, (Task, Future)):
                     if not task.done():
                         task.cancel()
-                return task
+                # We need to return an awaitable in case the caller awaits the output of register_task.
+                return succeed(None)
 
             if self.is_pending_task_active(name):
                 raise RuntimeError("Task already exists: '%s'" % name)
@@ -185,10 +186,9 @@ class TaskManager(object):
         """
         Waits until all registered tasks are done.
         """
-        with self._task_lock:
-            tasks = self.get_tasks()
-            if tasks:
-                await gather(*tasks, return_exceptions=True)
+        tasks = self.get_tasks()
+        if tasks:
+            await gather(*tasks, return_exceptions=True)
 
     async def shutdown_task_manager(self):
         """
@@ -197,9 +197,10 @@ class TaskManager(object):
         with self._task_lock:
             self._shutdown = True
             tasks = self.cancel_all_pending_tasks()
-            if tasks:
-                with suppress(CancelledError):
-                    await gather(*tasks)
+
+        if tasks:
+            with suppress(CancelledError):
+                await gather(*tasks)
 
 
 __all__ = ["TaskManager", "task"]

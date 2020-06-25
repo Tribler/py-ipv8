@@ -1,5 +1,5 @@
 import logging
-from asyncio import CancelledError
+from asyncio import CancelledError, gather
 from contextlib import suppress
 from random import random
 from threading import Lock
@@ -197,11 +197,18 @@ class RequestCache(TaskManager):
         Clear the cache, cancel all pending tasks and disallow new caches being added.
         """
         with self.lock:
-            await self.shutdown_task_manager()
+            # Don't call TaskManager.shutdown_task_manager here since
+            # we don't want to await stuff while holding a non-async lock.
+            with self._task_lock:
+                self._shutdown = True
+                tasks = self.cancel_all_pending_tasks()
+
             for cache in self._identifiers.values():
                 # Cancel all managed futures, and suppress the CancelledErrors
                 for future, _ in cache.managed_futures:
                     future.cancel()
-                    with suppress(CancelledError):
-                        await future
             self._identifiers.clear()
+
+        if tasks:
+            with suppress(CancelledError):
+                await gather(*tasks)

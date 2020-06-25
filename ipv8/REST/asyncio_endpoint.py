@@ -145,10 +145,6 @@ class AsyncioEndpoint(BaseEndpoint):
                         "interval": Integer
                     })
                 ]})
-            },
-            400: {
-                "schema": DefaultResponseSchema,
-                "example": {"success": False, "error": "at least Python 3.7 is required"}
             }
         }
     )

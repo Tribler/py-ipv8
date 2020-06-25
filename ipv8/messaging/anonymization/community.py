@@ -428,6 +428,7 @@ class TunnelCommunity(Community):
                 await exit_socket.close()
                 # Remove old session key
                 self.relay_session_keys.pop(circuit_id, None)
+            await exit_socket.shutdown_task_manager()
         return exit_socket
 
     def destroy_circuit(self, circuit, reason=0):
