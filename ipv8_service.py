@@ -180,9 +180,9 @@ else:
         def get_overlays(self, overlay_cls):
             return (o for o in self.overlays if isinstance(o, overlay_cls))
 
-        def produce_anonymized_endpoint(self):
-            base_endpoint = UDPEndpoint(port=self.configuration['port'], ip=self.configuration['address'])
-            base_endpoint.open()
+        async def produce_anonymized_endpoint(self):
+            base_endpoint = UDPEndpoint(port=0, ip=self.configuration['address'])
+            await base_endpoint.open()
             return TunnelEndpoint(base_endpoint)
 
         async def stop(self, stop_loop=True):

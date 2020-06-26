@@ -7,6 +7,7 @@ from .identity.community import IdentityCommunity, create_community
 from .identity.manager import IdentityManager
 from .wallet.community import AttestationCommunity
 from ..keyvault.crypto import ECCrypto
+from ..messaging.anonymization.hidden_services import HiddenTunnelCommunity
 from ..util import succeed
 
 
@@ -177,13 +178,12 @@ class CommunicationChannel(object):
 
 class CommunicationManager(object):
 
-    def __init__(self, ipv8_instance, pseudonym_folder: str = "pseudonyms", working_directory="."):
+    def __init__(self, ipv8_instance, pseudonym_folder: str = "pseudonyms", working_directory=None):
         super(CommunicationManager, self).__init__()
 
         self.ipv8_instance = ipv8_instance
         self.channels = {}
 
-        self.working_directory = working_directory
         self.pseudonym_folder = pseudonym_folder
         self.name_to_channel = {}
 
@@ -193,10 +193,14 @@ class CommunicationManager(object):
         if loaded_community is not None:
             self.identity_manager = loaded_community.identity_manager
         else:
+            if working_directory is None:
+                working_directory = ipv8_instance.configuration.get("working_directory", ".")
             self.identity_manager = IdentityManager(working_directory if working_directory == ":memory:"
-                                                    else os.path.join(working_directory, "identity.db"))
+                                                    else os.path.join(working_directory, "sqlite", "identity.db"))
 
-    def load(self, name: str) -> CommunicationChannel:
+        self.working_directory = working_directory
+
+    async def load(self, name: str) -> CommunicationChannel:
         """
         Load a pseudonym.
         """
@@ -215,11 +219,15 @@ class CommunicationManager(object):
 
         public_key = private_key.pub().key_to_bin()
         if public_key not in self.channels:
-            identity_overlay = create_community(private_key, self.ipv8_instance, self.identity_manager,
-                                                working_directory=self.working_directory)
+            tunnel_community = self.ipv8_instance.get_overlay(HiddenTunnelCommunity)
+            identity_overlay = await create_community(private_key, self.ipv8_instance, self.identity_manager,
+                                                      working_directory=self.working_directory,
+                                                      anonymize=tunnel_community is not None)
             attestation_overlay = AttestationCommunity(identity_overlay.my_peer, identity_overlay.endpoint,
                                                        identity_overlay.network,
-                                                       working_directory=self.working_directory)
+                                                       working_directory=self.working_directory,
+                                                       anonymize=tunnel_community is not None)
+            identity_overlay.endpoint.set_tunnel_community(tunnel_community)
             self.channels[public_key] = CommunicationChannel(attestation_overlay, identity_overlay)
             self.name_to_channel[name] = self.channels[public_key]
 

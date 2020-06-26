@@ -26,11 +26,14 @@ class IdentityCommunity(Community):
     master_peer = Peer(unhexlify("4c69624e61434c504b3aabacc18bacd5abd4c93dc867759474f619e24b460fede1668a880297b19"
                                  "4a0433324a0902192e7b853bda54b6e1b18e670d9ad4bd8f7e7e1dac71723989add3a"))
 
-    def __init__(self, my_peer, endpoint, network=Network(), max_peers=DEFAULT_MAX_PEERS,
+    def __init__(self, my_peer, endpoint, network=None, max_peers=DEFAULT_MAX_PEERS,
                  anonymize=True, identity_manager=None, working_directory="."):
+        if network is None:
+            network = Network()
         super(IdentityCommunity, self).__init__(my_peer, endpoint, network, max_peers, anonymize)
         if identity_manager is None:
-            dbpath = ":memory:" if working_directory == ":memory:" else os.path.join(working_directory, "identity.db")
+            dbpath = ":memory:" if working_directory == ":memory:" else os.path.join(working_directory, "sqlite",
+                                                                                     "identity.db")
             identity_manager = IdentityManager(database_path=dbpath)
 
         # Dict of hash -> (attribute_name, date, public_key)
@@ -281,14 +284,17 @@ class IdentityCommunity(Community):
         self._received_disclosure_for_attest(peer, (b'', response.tokens, b'', b''))
 
 
-def create_community(private_key: PrivateKey, ipv8, identity_manager: IdentityManager,
-                     endpoint: typing.Optional[Endpoint] = None, working_directory=".") -> IdentityCommunity:
+async def create_community(private_key: PrivateKey, ipv8, identity_manager: IdentityManager,
+                           endpoint: typing.Optional[Endpoint] = None, working_directory: str = None,
+                           anonymize: bool = True) -> IdentityCommunity:
     my_peer = Peer(private_key)
     if endpoint is None:
-        endpoint = ipv8.produce_anonymized_endpoint()
+        endpoint = await ipv8.produce_anonymized_endpoint()
+    if not working_directory:
+        working_directory = ipv8.configuration.get("working_directory")
     community = IdentityCommunity(my_peer, endpoint, identity_manager=identity_manager,
-                                  working_directory=working_directory)
-    strategy = RandomWalk(community, target_interval=30)
+                                  working_directory=working_directory, anonymize=anonymize)
+    strategy = RandomWalk(community)
     with ipv8.overlay_lock:
         ipv8.strategies.append((strategy, -1))
         ipv8.overlays.append(community)

@@ -284,7 +284,8 @@ class Community(EZPackOverlay):
 
     @lazy_wrapper(GlobalTimeDistributionPayload, IntroductionResponsePayload)
     def on_introduction_response(self, peer, dist, payload):
-        self.my_estimated_wan = payload.destination_address
+        if not self.address_is_lan(payload.destination_address[0]):
+            self.my_estimated_wan = payload.destination_address
 
         self.network.add_verified_peer(peer)
         self.network.discover_services(peer, [self.master_peer.mid, ])
