@@ -218,7 +218,10 @@ class TestIdentityEndpoint(RESTTestBase):
                                               "metadata": {"Some key": "Some value"}})
         self.assertTrue(request['success'])
 
-        outstanding = await self.make_request(self.node(1), 'identity/my_peer1/outstanding/attestations', 'get')
+        outstanding = []
+        while not outstanding:
+            await self.deliver_messages()
+            outstanding = await self.make_request(self.node(1), 'identity/my_peer1/outstanding/attestations', 'get')
 
         self.assertEqual(1, len(outstanding['requests']))
         self.assertEqual(b64_subject_key, outstanding['requests'][0]['peer'])
@@ -238,7 +241,12 @@ class TestIdentityEndpoint(RESTTestBase):
 
         await self.introduce_pseudonyms()
         await self.make_request(self.node(0), f'identity/my_peer0/request/{qb64_authority_key}', 'put', json=request)
-        await self.make_request(self.node(1), 'identity/my_peer1/outstanding/attestations', 'get')
+
+        attestation_requests = []
+        while not attestation_requests:
+            await self.deliver_messages()
+            attestation_requests = await self.make_request(self.node(1), 'identity/my_peer1/outstanding/attestations',
+                                                           'get')
 
         result = await self.make_request(self.node(1), f'identity/my_peer1/attest/{qb64_subject_key}', 'put',
                                          json={
@@ -296,10 +304,12 @@ class TestIdentityEndpoint(RESTTestBase):
                                              "schema": request["schema"]})
         self.assertTrue(result['success'])
 
-        await self.deliver_messages()
-        verification_requests = (await self.make_request(self.node(0),
-                                                         f'identity/my_peer0/outstanding/verifications',
-                                                         'get'))['requests']
+        verification_requests = []
+        while not verification_requests:
+            await self.deliver_messages()
+            verification_requests = (await self.make_request(self.node(0),
+                                                             f'identity/my_peer0/outstanding/verifications',
+                                                             'get'))['requests']
         self.assertEqual(b64_verifier_key, verification_requests[0]['peer'])
         self.assertEqual("My attribute", verification_requests[0]['attribute_name'])
 
@@ -347,10 +357,12 @@ class TestIdentityEndpoint(RESTTestBase):
                                              "schema": request["schema"]})
         self.assertTrue(result['success'])
 
-        await self.deliver_messages()
-        verification_requests = (await self.make_request(self.node(0),
-                                                         f'identity/my_peer0/outstanding/verifications',
-                                                         'get'))['requests']
+        verification_requests = []
+        while not verification_requests:
+            await self.deliver_messages()
+            verification_requests = (await self.make_request(self.node(0),
+                                                             f'identity/my_peer0/outstanding/verifications',
+                                                             'get'))['requests']
         self.assertEqual(b64_verifier_key, verification_requests[0]['peer'])
         self.assertEqual("My attribute", verification_requests[0]['attribute_name'])
 
