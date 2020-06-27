@@ -1,15 +1,15 @@
 import json
 
-import asynctest
-
+from ...base import TestBase
 from ....attestation.identity.database import IdentityDatabase
 from ....attestation.identity.manager import IdentityManager
 from ....keyvault.crypto import ECCrypto
 
 
-class TestIdentityManager(asynctest.TestCase):
+class TestIdentityManager(TestBase):
 
     def setUp(self) -> None:
+        super(TestIdentityManager, self).setUp()
         self.crypto = ECCrypto()
         self.private_key = self.crypto.generate_key("curve25519")
         self.public_key = self.private_key.pub()

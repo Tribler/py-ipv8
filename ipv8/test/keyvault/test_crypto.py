@@ -1,12 +1,11 @@
-import asynctest
-
+from ..base import TestBase
 from ...keyvault.crypto import ECCrypto
 from ...keyvault.keys import Key, PrivateKey, PublicKey
 from ...keyvault.private.libnaclkey import LibNaCLPK, LibNaCLSK
 from ...keyvault.private.m2crypto import M2CryptoPK, M2CryptoSK
 
 
-class TestECCrypto(asynctest.TestCase):
+class TestECCrypto(TestBase):
 
     m2crypto_key = ECCrypto().generate_key(u"very-low")
     libnacl_key = ECCrypto().generate_key(u"curve25519")

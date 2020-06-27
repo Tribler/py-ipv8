@@ -383,6 +383,9 @@ class TestAttestationEndpoint(RESTTestBase):
 
         # Get the hash of the attestation to be validated (the one which was just attested)
         attributes = await self.make_attributes(self.nodes[1])
+        while not attributes:
+            attributes = await self.make_attributes(self.nodes[1])
+            await sleep(0.1)
         attribute_hash = attributes[0][1]
 
         # Forward the actual verification

@@ -1,7 +1,6 @@
 from asyncio import sleep
 
-from asynctest import TestCase
-
+from ....base import TestBase
 from .....messaging.interfaces.endpoint import EndpointListener
 from .....messaging.interfaces.udp.endpoint import UDPEndpoint
 
@@ -18,11 +17,12 @@ class DummyEndpointListener(EndpointListener):
         self.incoming.append(packet)
 
 
-class TestUDPEndpoint(TestCase):
+class TestUDPEndpoint(TestBase):
     """
     This class contains various tests for the UDP endpoint.
     """
     async def setUp(self):
+        super(TestUDPEndpoint, self).setUp()
         self.endpoint1 = UDPEndpoint()
         await self.endpoint1.open()
         self.endpoint2 = UDPEndpoint()
@@ -33,13 +33,13 @@ class TestUDPEndpoint(TestCase):
         self.endpoint2_listener = DummyEndpointListener(self.endpoint2)
         self.endpoint2.add_listener(self.endpoint2_listener)
 
-    def tearDown(self):
+    async def tearDown(self):
         # If an endpoint was used, close it
         if self.endpoint1.is_open():
             self.endpoint1.close()
         if self.endpoint2.is_open():
             self.endpoint2.close()
-        super(TestUDPEndpoint, self).tearDown()
+        await super(TestUDPEndpoint, self).tearDown()
 
     async def test_send_message(self):
         """

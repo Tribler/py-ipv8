@@ -1,6 +1,6 @@
 import struct
-from unittest import TestCase
 
+from ..base import TestBase
 from ...messaging.serialization import PackError, Serializable, Serializer
 
 
@@ -18,9 +18,10 @@ class TestSerializable(Serializable):
         return TestSerializable(*args)
 
 
-class TestSerializer(TestCase):
+class TestSerializer(TestBase):
 
     def setUp(self):
+        super(TestSerializer, self).setUp()
         self.serializer = Serializer()
 
     def test_pack_bool_true(self):

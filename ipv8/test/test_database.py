@@ -1,5 +1,4 @@
-import asynctest
-
+from .base import TestBase
 from ..database import Database
 
 
@@ -12,7 +11,7 @@ class MockDatabase(Database):
         return 0
 
 
-class TestDatabase(asynctest.TestCase):
+class TestDatabase(TestBase):
 
     def setUp(self):
         super(TestDatabase, self).setUp()

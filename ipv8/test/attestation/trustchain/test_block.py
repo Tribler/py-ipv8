@@ -1,5 +1,4 @@
-import asynctest
-
+from ...base import TestBase
 from ....attestation.trustchain.block import EMPTY_SIG, GENESIS_HASH, GENESIS_SEQ, TrustChainBlock, ValidationResult
 from ....keyvault.crypto import default_eccrypto
 from ....messaging.deprecated.encoding import encode
@@ -94,7 +93,7 @@ class MockDatabase(object):
         self.double_spends.append((block1, block2))
 
 
-class TestTrustChainBlock(asynctest.TestCase):
+class TestTrustChainBlock(TestBase):
     """
     This class contains tests for a TrustChain block.
     """

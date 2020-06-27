@@ -9,8 +9,7 @@ The authors of this file are not -in any way- affiliated with the original autho
 import random
 import time
 
-import asynctest
-
+from ....base import TestBase
 from .....attestation.wallet.irmaexact.gabi.attributes import make_attribute_list
 from .....attestation.wallet.irmaexact.gabi.builder import (BuildDistributedProofList, BuildProofList, Challenge,
                                                             CredentialBuilder, IssueCommitmentMessage, Issuer, Verify)
@@ -20,9 +19,10 @@ from .....attestation.wallet.irmaexact.gabi.proofs import ProofP, ProofPCommitme
 from .....attestation.wallet.primitives.value import FP2Value
 
 
-class TestCredential(asynctest.TestCase):
+class TestCredential(TestBase):
 
     def setUp(self):
+        super(TestCredential, self).setUp()
         self.testAttributes1 = [1, 2, 3, 4]
         self.testAttributes2 = [5, 6, 7, 8]
 

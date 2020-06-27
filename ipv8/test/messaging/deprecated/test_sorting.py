@@ -1,11 +1,10 @@
 from collections import OrderedDict
 
-import asynctest
-
+from ...base import TestBase
 from ....messaging.deprecated.sorting import sortable_sort
 
 
-class TestSorting(asynctest.TestCase):
+class TestSorting(TestBase):
 
     def test_illegal_object(self):
         self.assertRaises(RuntimeError, sortable_sort, self)

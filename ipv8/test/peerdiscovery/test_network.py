@@ -1,8 +1,7 @@
 import random
 from binascii import unhexlify
 
-import asynctest
-
+from ..base import TestBase
 from ...keyvault.crypto import default_eccrypto
 from ...peer import Peer
 from ...peerdiscovery.network import Network
@@ -14,7 +13,7 @@ def _generate_peer():
     return Peer(key, address)
 
 
-class TestNetwork(asynctest.TestCase):
+class TestNetwork(TestBase):
 
     peers = [_generate_peer() for _ in range(4)]
 

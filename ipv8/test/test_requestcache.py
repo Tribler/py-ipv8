@@ -1,7 +1,6 @@
 from asyncio import Future, all_tasks
 
-import asynctest
-
+from .base import TestBase
 from ..requestcache import RandomNumberCache, RequestCache
 
 CACHE_TIMEOUT = 0.01
@@ -36,7 +35,7 @@ class MockRegisteredCache(RandomNumberCache):
         pass
 
 
-class TestRequestCache(asynctest.TestCase):
+class TestRequestCache(TestBase):
 
     async def test_shutdown(self):
         """

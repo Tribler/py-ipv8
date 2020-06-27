@@ -1,5 +1,4 @@
-from unittest import TestCase
-
+from ..base import TestBase
 from ...messaging.lazy_payload import VariablePayload, vp_compile
 from ...messaging.payload import Payload
 from ...messaging.serialization import default_serializer
@@ -102,7 +101,7 @@ class CompiledNewC(NewC):
     pass
 
 
-class TestVariablePayload(TestCase):
+class TestVariablePayload(TestBase):
 
     def _pack_and_unpack(self, payload, instance):
         """

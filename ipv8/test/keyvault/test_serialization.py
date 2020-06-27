@@ -1,13 +1,12 @@
 from base64 import decodebytes
 
-import asynctest
-
+from ..base import TestBase
 from ...keyvault.crypto import default_eccrypto
 from ...keyvault.private.m2crypto import M2CryptoSK
 from ...keyvault.public.m2crypto import M2CryptoPK
 
 
-class TestSerialization(asynctest.TestCase):
+class TestSerialization(TestBase):
     """
     Test whether keys can be serialized and unserialized correctly.
     """

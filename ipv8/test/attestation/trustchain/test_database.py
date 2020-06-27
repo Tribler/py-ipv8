@@ -1,5 +1,3 @@
-import unittest
-
 from ...base import TestBase
 from ....attestation.trustchain.block import TrustChainBlock
 from ....attestation.trustchain.database import TrustChainDB
@@ -7,9 +5,10 @@ from ....keyvault.crypto import default_eccrypto
 from ....test.attestation.trustchain.test_block import TestBlock
 
 
-class TestTrustChainMemoryDB(unittest.TestCase):
+class TestTrustChainMemoryDB(TestBase):
 
     def setUp(self):
+        super(TestTrustChainMemoryDB, self).setUp()
         self.key = default_eccrypto.generate_key(u"curve25519")
         self.public_key = self.key.pub().key_to_bin()
         self.db = TrustChainDB(u":memory:", 'temp_trustchain', my_pk=self.public_key)

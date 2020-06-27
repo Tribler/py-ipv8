@@ -1,9 +1,8 @@
-import asynctest
-
+from ....base import TestBase
 from .....attestation.wallet.primitives.value import FP2Value
 
 
-class TestFP2Value(asynctest.TestCase):
+class TestFP2Value(TestBase):
 
     def test_add_unary(self):
         """

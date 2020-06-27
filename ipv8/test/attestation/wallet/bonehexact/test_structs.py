@@ -1,11 +1,10 @@
-import asynctest
-
+from ....base import TestBase
 from .....attestation.wallet.bonehexact.structs import BitPairAttestation, BonehAttestation
 from .....attestation.wallet.primitives.structs import BonehPrivateKey, BonehPublicKey, pack_pair, unpack_pair
 from .....attestation.wallet.primitives.value import FP2Value
 
 
-class TestStructs(asynctest.TestCase):
+class TestStructs(TestBase):
 
     def test_pack_pair(self):
         """

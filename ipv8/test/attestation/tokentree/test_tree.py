@@ -1,14 +1,14 @@
-from asynctest import TestCase
-
+from ...base import TestBase
 from ....attestation.tokentree.token import Token
 from ....attestation.tokentree.tree import TokenTree
 from ....keyvault.crypto import ECCrypto
 from ....keyvault.keys import PublicKey
 
 
-class TestTree(TestCase):
+class TestTree(TestBase):
 
     def setUp(self) -> None:
+        super(TestTree, self).setUp()
         self.crypto = ECCrypto()
         self.private_key = self.crypto.generate_key("curve25519")
         self.public_key = self.private_key.pub()

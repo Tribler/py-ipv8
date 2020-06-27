@@ -1,10 +1,9 @@
-from asynctest import TestCase
-
+from ...base import TestBase
 from ....attestation.tokentree.token import Token
 from ....keyvault.crypto import ECCrypto
 
 
-class TestToken(TestCase):
+class TestToken(TestBase):
 
     @classmethod
     def setUpClass(cls) -> None:

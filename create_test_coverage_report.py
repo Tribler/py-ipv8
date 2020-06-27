@@ -34,8 +34,12 @@ test_paths = find_all_test_class_names()
 # The find_all_test_class_names method imports and scans all source files.
 # This causes the coverage module to not consider module-level imports covered.
 # We remove them again to get the correct coverage.
+# We also remove the singleton entries for the REST API to avoid double binding to names.
 for module_name in list(sys.modules.keys()):
-    if module_name.startswith('ipv8'):
+    if (module_name.startswith('ipv8')
+            or module_name.startswith('marshmallow')
+            or module_name.startswith('apispec')
+            or module_name.startswith('aiohttp')):
         del sys.modules[module_name]
 
 cov = coverage.Coverage(data_file=data_file, data_suffix=True, config_file=False,
