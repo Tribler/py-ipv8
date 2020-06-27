@@ -24,7 +24,8 @@ setup(
     ],
     extras_require={
         'netifaces': ["netifaces"],
-        'asynctest': ["asynctest"]
+        'asynctest': ["asynctest"],
+        'marshmallow': ["marshmallow"]
     },
     tests_require=['coverage', 'asynctest'],
     classifiers=[

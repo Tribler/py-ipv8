@@ -1,10 +1,9 @@
-import asynctest
-
+from ....base import TestBase
 from .....attestation.wallet.primitives.ec import esum, weilpairing
 from .....attestation.wallet.primitives.value import FP2Value
 
 
-class TestPairing(asynctest.TestCase):
+class TestPairing(TestBase):
 
     def test_small_weilpairing(self):
         """

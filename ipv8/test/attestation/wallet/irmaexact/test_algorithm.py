@@ -1,12 +1,12 @@
-import asynctest
-
+from ....base import TestBase
 from .....attestation.default_identity_formats import FORMATS
 from .....attestation.wallet.irmaexact.algorithm import IRMAExactAlgorithm
 
 
-class TestAlgorithm(asynctest.TestCase):
+class TestAlgorithm(TestBase):
 
     def setUp(self):
+        super(TestAlgorithm, self).setUp()
         self.blob = """
         {
             "sign_date": 2586,

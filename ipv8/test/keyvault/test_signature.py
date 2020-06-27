@@ -1,10 +1,9 @@
-import asynctest
-
+from ..base import TestBase
 from ...keyvault.crypto import default_eccrypto
 from ...util import cast_to_bin
 
 
-class TestSignatures(asynctest.TestCase):
+class TestSignatures(TestBase):
     """
     Test whether signatures can be created and then decoded correctly.
     """

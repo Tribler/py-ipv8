@@ -7,12 +7,11 @@ The authors of this file are not -in any way- affiliated with the original autho
 """
 import unittest
 
-import asynctest
-
+from ....base import TestBase
 from .....attestation.wallet.irmaexact.gabi.keys import DefaultSystemParameters, GenerateKeyPair, SignMessageBlock
 
 
-class TestKeys(asynctest.TestCase):
+class TestKeys(TestBase):
 
     @unittest.SkipTest  # Too slow and unused.
     def test_generate_and_sign(self):

@@ -1,9 +1,8 @@
-import asynctest
-
+from ...base import TestBase
 from ....messaging.deprecated.encoding import decode, encode
 
 
-class TestEncoding(asynctest.TestCase):
+class TestEncoding(TestBase):
 
     def test_encode_int(self):
         """

@@ -1,7 +1,6 @@
 from binascii import unhexlify
 
-import asynctest
-
+from ....base import TestBase
 from .....attestation.wallet.bonehexact.attestation import (attest, binary_relativity, binary_relativity_certainty,
                                                             binary_relativity_match, create_challenge,
                                                             create_challenge_response, create_empty_relativity_map,
@@ -10,7 +9,7 @@ from .....attestation.wallet.bonehexact.attestation import (attest, binary_relat
 from .....attestation.wallet.primitives.structs import BonehPrivateKey
 
 
-class TestAttestation(asynctest.TestCase):
+class TestAttestation(TestBase):
 
     private_key = BonehPrivateKey.unserialize(unhexlify('01011d01011401011101011c01011c01010f010103'))
 

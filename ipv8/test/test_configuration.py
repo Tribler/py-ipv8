@@ -1,9 +1,8 @@
-import asynctest
-
+from .base import TestBase
 from ..configuration import ConfigBuilder, Strategy, WalkerDefinition, get_default_configuration
 
 
-class TestConfiguration(asynctest.TestCase):
+class TestConfiguration(TestBase):
 
     def assertDictInDict(self, expected: dict, container: dict):
         self.assertTrue(any(all(entry.get(key) == expected[key] for key in expected.keys())

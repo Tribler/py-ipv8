@@ -1,12 +1,11 @@
 from base64 import b64encode
 
-import asynctest
-
+from .base import TestBase
 from ..keyvault.crypto import default_eccrypto
 from ..peer import Peer
 
 
-class TestPeer(asynctest.TestCase):
+class TestPeer(TestBase):
 
     test_key = default_eccrypto.generate_key(u"very-low")
 

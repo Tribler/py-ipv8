@@ -1,13 +1,12 @@
 from binascii import unhexlify
 
-import asynctest
-
+from ....base import TestBase
 from .....attestation.wallet.primitives.boneh import (FP2Value, bilinear_group, decode, encode, generate_keypair,
                                                       generate_prime, get_good_wp, is_good_wp)
 from .....attestation.wallet.primitives.structs import BonehPrivateKey
 
 
-class TestBoneh(asynctest.TestCase):
+class TestBoneh(TestBase):
 
     private_key = BonehPrivateKey.unserialize(unhexlify("0142018eceb3e03820006219a5c5a959abfd40b042c381ff894f7c3d62"
                                                         "5ee9a02302dcdeda322aa8372b66c8d9b4df981e96eb1e4f7dacda5bca"

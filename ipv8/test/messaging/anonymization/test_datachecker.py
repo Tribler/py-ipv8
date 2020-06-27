@@ -6,9 +6,6 @@ from ....messaging.anonymization.tunnel import DataChecker
 
 class TestDataChecker(TestBase):
 
-    def setUp(self):
-        super(TestDataChecker, self).setUp()
-
     def test_could_be_dht_correct(self):
         """
         Check if a valid DHT packet is correctly identified.

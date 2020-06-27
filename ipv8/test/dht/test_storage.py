@@ -1,11 +1,10 @@
 import time
 
-import asynctest
-
+from ..base import TestBase
 from ...dht.storage import Storage
 
 
-class TestStorage(asynctest.TestCase):
+class TestStorage(TestBase):
 
     def test_get_and_put(self):
         storage = Storage()
