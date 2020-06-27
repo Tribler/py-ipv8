@@ -27,7 +27,7 @@ You are free to choose whatever directory you want, to place your files in.
 
 At the end of this setup step you should have the following files in your working directory:
 
-.. code-block:: none
+.. code-block::
 
    (folder) pyipv8
    (file) __init__.py
@@ -106,16 +106,16 @@ To do this, fill your ``main.py`` file with the following code:
 
 .. code-block:: python
 
-   from asyncio import ensure_future, get_event_loop
+    from asyncio import ensure_future, get_event_loop
 
-   from pyipv8.ipv8.community import Community
-   from pyipv8.ipv8_service import IPv8
-   from pyipv8.ipv8.configuration import get_default_configuration
-   from pyipv8.ipv8.keyvault.crypto import ECCrypto
-   from pyipv8.ipv8.peer import Peer
+    from pyipv8.ipv8.community import Community
+    from pyipv8.ipv8_service import IPv8
+    from pyipv8.ipv8.configuration import ConfigBuilder, Strategy, WalkerDefinition
+    from pyipv8.ipv8.keyvault.crypto import ECCrypto
+    from pyipv8.ipv8.peer import Peer
 
 
-   class MyCommunity(Community):
+    class MyCommunity(Community):
        # Register this community with a master peer.
        # This peer defines the service identifier of this community.
        # Other peers will connect to this community based on the sha-1
@@ -123,43 +123,27 @@ To do this, fill your ``main.py`` file with the following code:
        master_peer = Peer(ECCrypto().generate_key(u"medium"))
 
 
-   async def start_communities():
+    async def start_communities():
        for i in [1, 2]:
-           configuration = get_default_configuration()
+           builder = ConfigBuilder().clear_keys().clear_overlays()
            # If we actually want to communicate between two different peers
            # we need to assign them different keys.
            # We will generate an EC key called 'my peer' which has 'medium'
            # security and will be stored in file 'ecI.pem' where 'I' is replaced
            # by the peer number (1 or 2).
-           configuration['keys'] = [{
-               'alias': "my peer",
-               'generation': u"medium",
-               'file': u"ec%d.pem" % i
-           }]
+           builder.add_key("my peer", "medium", f"ec{i}.pem")
            # Instruct IPv8 to load our custom overlay, registered in _COMMUNITIES.
            # We use the 'my peer' key, which we registered before.
            # We will attempt to find other peers in this overlay using the
            # RandomWalk strategy, until we find 10 peers.
            # We do not provide additional startup arguments or a function to run
            # once the overlay has been initialized.
-           configuration['overlays'] = [{
-               'class': 'MyCommunity',
-               'key': "my peer",
-               'walkers': [{
-                               'strategy': "RandomWalk",
-                               'peers': 10,
-                               'init': {
-                                   'timeout': 3.0
-                               }
-                           }],
-               'initialize': {},
-               'on_start': []
-           }]
-           ipv8 = IPv8(configuration, extra_communities={'MyCommunity': MyCommunity})
+           builder.add_overlay("MyCommunity", "my peer", [WalkerDefinition(Strategy.RandomWalk, 10, {'timeout': 3.0})], {}, [])
+           ipv8 = IPv8(builder.finalize(), extra_communities={'MyCommunity': MyCommunity})
            await ipv8.start()
 
-   ensure_future(start_communities())
-   get_event_loop().run_forever()
+    ensure_future(start_communities())
+    get_event_loop().run_forever()
 
 
 As we replaced the default overlays, you should no longer see any debug information being printed to your terminal.
@@ -173,16 +157,16 @@ We will now modify ``main.py`` again to print the current amount of peers:
 
 .. code-block:: python
 
-   from asyncio import ensure_future, get_event_loop
+    from asyncio import ensure_future, get_event_loop
 
-   from pyipv8.ipv8.community import Community
-   from pyipv8.ipv8_service import IPv8
-   from pyipv8.ipv8.configuration import get_default_configuration
-   from pyipv8.ipv8.keyvault.crypto import ECCrypto
-   from pyipv8.ipv8.peer import Peer
+    from pyipv8.ipv8.community import Community
+    from pyipv8.ipv8_service import IPv8
+    from pyipv8.ipv8.configuration import ConfigBuilder, Strategy, WalkerDefinition
+    from pyipv8.ipv8.keyvault.crypto import ECCrypto
+    from pyipv8.ipv8.peer import Peer
 
 
-   class MyCommunity(Community):
+    class MyCommunity(Community):
        master_peer = Peer(ECCrypto().generate_key(u"medium"))
 
        def started(self):
@@ -194,34 +178,18 @@ We will now modify ``main.py`` again to print the current amount of peers:
            self.register_task("print_peers", print_peers, interval=5.0, delay=0)
 
 
-   async def start_communities():
+    async def start_communities():
        for i in [1, 2]:
-           configuration = get_default_configuration()
-           configuration['keys'] = [{
-                       'alias': "my peer",
-                       'generation': u"medium",
-                       'file': u"ec%d.pem" % i
-                   }]
+           builder = ConfigBuilder().clear_keys().clear_overlays()
+           builder.add_key("my peer", "medium", f"ec{i}.pem")
            # We provide the 'started' function to the 'on_start'.
            # We will call the overlay's 'started' function without any
            # arguments once IPv8 is initialized.
-           configuration['overlays'] = [{
-               'class': 'MyCommunity',
-               'key': "my peer",
-               'walkers': [{
-                               'strategy': "RandomWalk",
-                               'peers': 10,
-                               'init': {
-                                   'timeout': 3.0
-                               }
-                           }],
-               'initialize': {},
-               'on_start': [('started', )]
-           }]
-           await IPv8(configuration, extra_communities={'MyCommunity': MyCommunity}).start()
+           builder.add_overlay("MyCommunity", "my peer", [WalkerDefinition(Strategy.RandomWalk, 10, {'timeout': 3.0})], {}, [('started', )])
+           await IPv8(builder.finalize(), extra_communities={'MyCommunity': MyCommunity}).start()
 
-   ensure_future(start_communities())
-   get_event_loop().run_forever()
+    ensure_future(start_communities())
+    get_event_loop().run_forever()
 
 Running this should yield something like the following output:
 
@@ -245,23 +213,24 @@ Update your ``main.py`` once again to contain the following code:
 
 .. code-block:: python
 
-   from asyncio import ensure_future, get_event_loop
+    from asyncio import ensure_future, get_event_loop
 
-   from pyipv8.ipv8.community import Community
-   from pyipv8.ipv8.configuration import get_default_configuration
-   from pyipv8.ipv8.keyvault.crypto import ECCrypto
-   from pyipv8.ipv8.lazy_community import lazy_wrapper
-   from pyipv8.ipv8.messaging.lazy_payload import VariablePayload
-   from pyipv8.ipv8.peer import Peer
-   from pyipv8.ipv8_service import IPv8
+    from pyipv8.ipv8.community import Community
+    from pyipv8.ipv8.configuration import ConfigBuilder, Strategy, WalkerDefinition
+    from pyipv8.ipv8.keyvault.crypto import ECCrypto
+    from pyipv8.ipv8.lazy_community import lazy_wrapper
+    from pyipv8.ipv8.messaging.lazy_payload import VariablePayload, vp_compile
+    from pyipv8.ipv8.peer import Peer
+    from pyipv8.ipv8_service import IPv8
 
 
-   class MyMessage(VariablePayload):
+    @vp_compile
+    class MyMessage(VariablePayload):
        format_list = ['I'] # When reading data, we unpack an unsigned integer from it.
        names = ["clock"] # We will name this unsigned integer "clock"
 
 
-   class MyCommunity(Community):
+    class MyCommunity(Community):
        master_peer = Peer(ECCrypto().generate_key(u"medium"))
 
        def __init__(self, my_peer, endpoint, network):
@@ -297,30 +266,15 @@ Update your ``main.py`` once again to contain the following code:
            self.send_message(peer.address)
 
 
-   async def start_communities():
+    async def start_communities():
        for i in [1, 2, 3]:
-           configuration = get_default_configuration()
-           configuration['keys'] = [{
-                       'alias': "my peer",
-                       'generation': u"medium",
-                       'file': u"ec%d.pem" % i
-                   }]
-           configuration['overlays'] = [{
-               'class': 'MyCommunity',
-               'key': "my peer",
-               'walkers': [{
-                               'strategy': "RandomWalk",
-                               'peers': 10,
-                               'init': {
-                                   'timeout': 3.0
-                               }
-                           }],
-               'initialize': {},
-               'on_start': [('started', )]
-           }]
-           await IPv8(configuration, extra_communities={'MyCommunity': MyCommunity}).start()
+           builder = ConfigBuilder().clear_keys().clear_overlays()
+           builder.add_key("my peer", "medium", f"ec{i}.pem")
+           builder.add_overlay("MyCommunity", "my peer", [WalkerDefinition(Strategy.RandomWalk, 10, {'timeout': 3.0})], {}, [('started', )])
+           await IPv8(builder.finalize(), extra_communities={'MyCommunity': MyCommunity}).start()
 
-   ensure_future(start_communities())
-   get_event_loop().run_forever()
+    ensure_future(start_communities())
+    get_event_loop().run_forever()
+
 
 If you run this, you should see the three peers actively trying to establish an ever-increasing global clock value.
