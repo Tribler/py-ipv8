@@ -18,6 +18,7 @@ from ...util import maybe_coroutine
 def partial_cls(cls, *args, **kwargs):
     class PartialCls(cls):
         __init__ = functools.partialmethod(cls.__init__, *args, **kwargs)
+    PartialCls.__name__ = cls.__name__
     return PartialCls
 
 
