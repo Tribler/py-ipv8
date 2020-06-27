@@ -91,6 +91,7 @@ class TestBase(asynctest.TestCase):
             os.kill(os.getpid(), signal.SIGINT)
             # But sometimes it just flat out refuses to die (sys.exit will also not work in this case).
             # So we double kill ourselves:
+            time.sleep(5.0)  # Just in case anyone is listening to our signal and wishes to log some stats quickly.
             os._exit(1)  # pylint: disable=W0212
         t = threading.Thread(target=check_loop)
         t.daemon = True

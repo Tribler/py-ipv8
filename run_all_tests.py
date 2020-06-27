@@ -85,20 +85,34 @@ def task_test(*test_names):
     for test_name in test_names:
         suite.addTest(unittest.defaultTestLoader.loadTestsFromName(test_name))
     reporter = unittest.TextTestRunner(stream=output_stream, failfast=True, verbosity=2, resultclass=CustomTestResult)
-    test_result = reporter.run(suite)
+    test_result = None
 
-    failed = len(test_result.errors) > 0 or len(test_result.failures) > 0
-    event_log = []
-    event_log.extend(output_stream.raw_lines if failed else output_stream.raw_lines[:-9])
-    event_log.extend(stdio_replacement.raw_lines)
-    event_log.extend(stderr_replacement.raw_lines)
-    if failed and logging_replacement.raw_lines:
-        relevant_log = [line for line in logging_replacement.raw_lines if line[0] >= test_result.last_test]
-        event_log.append((relevant_log[0][0], "LOG", "\n"))
-        event_log.extend(relevant_log)
+    start_time = time.time()
+    end_time = start_time
+    last_test = start_time
+    tests_run_count = 0
+    tests_failed = False
+    combined_event_log = []
+    try:
+        test_result = reporter.run(suite)
+        tests_failed = len(test_result.errors) > 0 or len(test_result.failures) > 0
+        start_time = test_result.start_time
+        end_time = test_result.end_time
+        last_test = test_result.last_test
+        tests_run_count = test_result.testsRun
+    except BaseException:
+        tests_failed = True
+        end_time = time.time()
+    finally:
+        combined_event_log.extend(output_stream.raw_lines if tests_failed else output_stream.raw_lines[:-9])
+        combined_event_log.extend(stdio_replacement.raw_lines)
+        combined_event_log.extend(stderr_replacement.raw_lines)
+        if tests_failed and logging_replacement.raw_lines:
+            relevant_log = [line for line in logging_replacement.raw_lines if line[0] >= last_test]
+            combined_event_log.append((relevant_log[0][0], "LOG", "\n"))
+            combined_event_log.extend(relevant_log)
 
-    return (failed, test_result.testsRun, test_result.end_time - test_result.start_time,
-            event_log, print_stream.getvalue())
+    return tests_failed, tests_run_count, end_time - start_time, combined_event_log, print_stream.getvalue()
 
 
 def scan_for_test_files(directory=pathlib.Path('./ipv8/test')):
