@@ -114,6 +114,12 @@ class TestBase(asynctest.TestCase):
             node.network.discover_services(public_peer, node.overlay.master_peer.mid)
         self.nodes.append(node)
 
+    @staticmethod
+    def is_background_task(task):
+        # Only in Python 3.8+ will we have a get_name function
+        name = task.get_name() if hasattr(task, 'get_name') else getattr(task, 'name', f'Task-{id(task)}')
+        return name.endswith('_check_tasks')
+
     async def deliver_messages(self, timeout=.1):
         """
         Allow peers to communicate.
@@ -131,7 +137,7 @@ class TestBase(asynctest.TestCase):
         while (rtime < timeout):
             await sleep(.01)
             rtime += .01
-            if len(all_tasks()) < 2:
+            if len([task for task in all_tasks() if not self.is_background_task(task)]) < 2:
                 if probable_exit:
                     break
                 probable_exit = True
