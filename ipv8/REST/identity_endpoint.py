@@ -9,6 +9,7 @@ from marshmallow.fields import Dict, Float, String
 from .base_endpoint import BaseEndpoint, HTTP_BAD_REQUEST, Response
 from .schema import DefaultResponseSchema, schema
 from ..attestation.communication_manager import CommunicationManager
+from ..util import strip_sha1_padding
 
 
 PseudonymListResponseSchema = schema(PseudonymListResponse={"names": [String]})
@@ -169,7 +170,7 @@ class IdentityEndpoint(BaseEndpoint):
         channel = await self.communication_manager.load(request.match_info['pseudonym_name'])
         return Response({"names": [{
             "name": data[0],
-            "hash": ez_b64_encode(attribute_hash.lstrip(b'SHA-1\x00\x00\x00\x00\x00\x00\x00')),
+            "hash": ez_b64_encode(strip_sha1_padding(attribute_hash)),
             "metadata": data[1],
             "attesters": [ez_b64_encode(attester) for attester in data[2]]
         }
@@ -216,7 +217,7 @@ class IdentityEndpoint(BaseEndpoint):
 
         return Response({"names": [{
             "name": data[0],
-            "hash": ez_b64_encode(attribute_hash.lstrip(b'SHA-1\x00\x00\x00\x00\x00\x00\x00')),
+            "hash": ez_b64_encode(strip_sha1_padding(attribute_hash)),
             "metadata": data[1],
             "attesters": [ez_b64_encode(attester) for attester in data[2]]
         }

@@ -42,6 +42,16 @@ class TestAttestationEndpoint(RESTTestBase):
         """
         return await self.make_request(node, 'attestation', 'get', {'type': 'attributes'})
 
+    async def wait_for_attributes(self, node):
+        """
+        Forward a request for the attributes of a peer.
+        """
+        attributes = await self.make_request(node, 'attestation', 'get', {'type': 'attributes'})
+        while not attributes:
+            attributes = await self.make_request(node, 'attestation', 'get', {'type': 'attributes'})
+            await self.deliver_messages()
+        return attributes
+
     async def make_dht_block(self, node, public_key):
         """
         Forward a request for the latest TC block of a peer
@@ -203,7 +213,7 @@ class TestAttestationEndpoint(RESTTestBase):
         await self.attest_all_outstanding_requests(self.nodes[0], 'QR', b'data')
 
         # Get the hash of the attestation to be validated (the one which was just attested)
-        attributes = await self.make_attributes(self.nodes[1])
+        attributes = await self.wait_for_attributes(self.nodes[1])
         attribute_hash = attributes[0][1]
 
         # Forward the actual verification
@@ -240,7 +250,7 @@ class TestAttestationEndpoint(RESTTestBase):
         await self.attest_all_outstanding_requests(self.nodes[0], 'QR', b'data')
 
         # Get the hash of the attestation to be validated (the one which was just attested)
-        attributes = await self.make_attributes(self.nodes[1])
+        attributes = await self.wait_for_attributes(self.nodes[1])
         attribute_hash = attributes[0][1]
 
         # Forward the actual verification
@@ -272,7 +282,7 @@ class TestAttestationEndpoint(RESTTestBase):
         await self.attest_all_outstanding_requests(self.nodes[0], 'QR', 'data')
 
         # Get the hash of the attestation to be validated (the one which was just attested)
-        attributes = await self.make_attributes(self.nodes[1])
+        attributes = await self.wait_for_attributes(self.nodes[1])
         self.assertTrue(attributes[0][0] == 'QR' and attributes[0][1] != "",
                         "The response was not as expected. This would suggest that something went wrong with "
                         "the attributes request.")
@@ -295,7 +305,7 @@ class TestAttestationEndpoint(RESTTestBase):
         await self.attest_all_outstanding_requests(self.nodes[0], 'QR', 'data')
 
         # Ensure that the attestation has been completed
-        attributes = await self.make_attributes(self.nodes[1])
+        attributes = await self.wait_for_attributes(self.nodes[1])
         self.assertNotEqual(attributes, [], "Something's wrong, the attribute list should be non-empty.")
 
         # Drop the identity
@@ -342,7 +352,7 @@ class TestAttestationEndpoint(RESTTestBase):
         self.assertTrue(all("success" in x and x["success"] for x in request_responses),
                         "Something went wrong, not all responses were successful.")
 
-        attributes = await self.make_attributes(self.nodes[1])
+        attributes = await self.wait_for_attributes(self.nodes[1])
         self.assertTrue(len(attributes) == 1, "There should only be one attestation in the DB.")
         self.assertTrue(attributes[0][0] == 'QR', "Expected attestation for %s, got it for "
                                                   "%s" % ('QR', attributes[0][0]))
@@ -361,7 +371,7 @@ class TestAttestationEndpoint(RESTTestBase):
         await self.attest_all_outstanding_requests(self.nodes[0], 'QR', 'data')
 
         # Get the hash of the attestation to be validated (the one which was just attested)
-        attributes = await self.make_attributes(self.nodes[1])
+        attributes = await self.wait_for_attributes(self.nodes[1])
         attribute_hash = attributes[0][1]
 
         # Forward the actual verification
@@ -382,10 +392,7 @@ class TestAttestationEndpoint(RESTTestBase):
         await self.attest_all_outstanding_requests(self.nodes[0], 'QR', 'data')
 
         # Get the hash of the attestation to be validated (the one which was just attested)
-        attributes = await self.make_attributes(self.nodes[1])
-        while not attributes:
-            attributes = await self.make_attributes(self.nodes[1])
-            await sleep(0.1)
+        attributes = await self.wait_for_attributes(self.nodes[1])
         attribute_hash = attributes[0][1]
 
         # Forward the actual verification
