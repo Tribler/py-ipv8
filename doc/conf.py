@@ -20,13 +20,13 @@
 # -- Project information -----------------------------------------------------
 
 project = u'IPv8'
-copyright = u'2019, Tribler'
+copyright = '2019, Tribler'  # Do not change manually! Handled by github_increment_version.py
 author = u'Tribler'
 
 # The short X.Y version
-version = u'2.1'
+version = '2.1'  # Do not change manually! Handled by github_increment_version.py
 # The full version, including alpha/beta/rc tags
-release = u'2.1.0'
+release = '2.1.0'  # Do not change manually! Handled by github_increment_version.py
 
 
 # -- General configuration ---------------------------------------------------

@@ -79,7 +79,7 @@ class RESTManager:
         setup_aiohttp_apispec(
             app=self.root_endpoint.app,
             title="IPv8 REST API documentation",
-            version="v1.9",
+            version="v1.9",  # Do not change manually! Handled by github_increment_version.py
             url="/docs/swagger.json",
             swagger_path="/docs",
         )
