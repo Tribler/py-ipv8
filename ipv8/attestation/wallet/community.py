@@ -244,8 +244,13 @@ class AttestationCommunity(Community):
         """
         We received a request to verify one of our attestations. Send the requested attestation back.
         """
-        attestation_blob, = self.database.get_attestation_by_hash(payload.hash)
+        attestation_blob = self.database.get_attestation_by_hash(payload.hash)
         if not attestation_blob:
+            self.logger.warning("Dropping verification request of unknown hash!")
+            return
+        attestation_blob, = attestation_blob
+        if not attestation_blob:
+            self.logger.warning("Attestation blob for verification is empty!")
             return
 
         value = await maybe_coroutine(self.verify_request_callback, peer, payload.hash)
