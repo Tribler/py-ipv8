@@ -156,46 +156,50 @@ if __name__ == "__main__":
                         help="The amount of processes to spawn.")
     parser.add_argument('-q', '--quiet', action='store_true', required=False,
                         help="Don't show succeeded tests.")
+    parser.add_argument('-a', '--noanimation', action='store_true', required=False,
+                        help="Don't animate the terminal output.")
     args = parser.parse_args()
 
     process_count = args.processes
-    process_pool = multiprocessing.Pool(process_count)
 
-    test_class_names = find_all_test_class_names()
-    buckets = make_buckets(test_class_names, process_count)
+    with multiprocessing.get_context("spawn").Pool(process_count) as process_pool:
+        test_class_names = find_all_test_class_names()
+        buckets = make_buckets(test_class_names, process_count)
 
-    print(f"Launching in {process_count} processes ... ", end="")
-    total_end_time = 0
-    total_start_time = time.time()
-    result = process_pool.starmap_async(task_test, buckets)
-    print(f"awaiting results ... \033[s", end="", flush=True)
+        print(f"Launching in {process_count} processes ... ", end="")
+        total_end_time = 0
+        total_start_time = time.time()
+        result = process_pool.starmap_async(task_test, buckets)
+        print(f"awaiting results ... \033[s", end="", flush=True)
 
-    programmer_distractor.starttime = time.time()
-    timer = threading.Timer(0.1, programmer_distractor)
-    programmer_distractor.t = timer
-    timer.start()
+        if not args.noanimation:
+            programmer_distractor.starttime = time.time()
+            timer = threading.Timer(0.1, programmer_distractor)
+            programmer_distractor.t = timer
+            timer.start()
 
-    global_event_log = []
-    total_time_taken = 0
-    total_tests_run = 0
-    total_fail = False
-    print_output = ''
+        global_event_log = []
+        total_time_taken = 0
+        total_tests_run = 0
+        total_fail = False
+        print_output = ''
 
-    for process_output_handle in result.get():
-        if total_end_time == 0:
-            total_end_time = time.time()
-        failed, tests_run, time_taken, event_log, print_output = process_output_handle
-        total_fail |= failed
-        total_tests_run += tests_run
-        total_time_taken += time_taken
-        if failed:
-            global_event_log = event_log
-            break
-        global_event_log.extend(event_log)
+        for process_output_handle in result.get():
+            if total_end_time == 0:
+                total_end_time = time.time()
+            failed, tests_run, time_taken, event_log, print_output = process_output_handle
+            total_fail |= failed
+            total_tests_run += tests_run
+            total_time_taken += time_taken
+            if failed:
+                global_event_log = event_log
+                break
+            global_event_log.extend(event_log)
 
-    process_pool.close()
-    process_pool.join()
-    programmer_distractor.t.cancel()
+        process_pool.close()
+        process_pool.join()
+    if not args.noanimation:
+        programmer_distractor.t.cancel()
 
     print(f"\033[u\033[Kdone!", end="\r\n\r\n", flush=True)
 
