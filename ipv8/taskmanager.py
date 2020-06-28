@@ -1,5 +1,6 @@
 import logging
 import time
+import traceback
 from asyncio import CancelledError, Future, Task, ensure_future, gather, iscoroutinefunction, sleep
 from contextlib import suppress
 from functools import wraps
@@ -131,7 +132,7 @@ class TaskManager(object):
                 except CancelledError:
                     pass
                 except ignore as e:
-                    self._logger.error('Task resulted in error: %s', e)
+                    self._logger.error('Task resulted in error: %s\n%s', e, ''.join(traceback.format_exc()))
 
             self._pending_tasks[name] = task
             task.add_done_callback(done_cb)
