@@ -12,7 +12,7 @@ from ..attestation.identity.community import IdentityCommunity, create_community
 from ..attestation.wallet.community import AttestationCommunity
 from ..keyvault.crypto import default_eccrypto
 from ..peer import Peer
-from ..util import cast_to_bin, succeed
+from ..util import cast_to_bin, strip_sha1_padding, succeed
 
 
 class AttestationEndpoint(BaseEndpoint):
@@ -224,7 +224,7 @@ class AttestationEndpoint(BaseEndpoint):
                 # List of (name, attribute_hash, metadata, attester)
                 return Response([(
                     data[0],
-                    b64encode(attribute_hash.lstrip(b'SHA-1\x00\x00\x00\x00\x00\x00\x00')).decode(),
+                    b64encode(strip_sha1_padding(attribute_hash)).decode(),
                     data[1],
                     data[2]) for attribute_hash, data in trimmed.items()])
             else:

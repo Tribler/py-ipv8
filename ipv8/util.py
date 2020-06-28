@@ -54,3 +54,7 @@ def coroutine(func):
     async def call_async(*args, **kwargs):
         return func(*args, **kwargs)
     return call_async
+
+
+def strip_sha1_padding(s: bytes):
+    return s[12:] if s.startswith(b'SHA-1\x00\x00\x00\x00\x00\x00\x00') else s

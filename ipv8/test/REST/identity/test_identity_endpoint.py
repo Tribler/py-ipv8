@@ -71,6 +71,23 @@ class TestIdentityEndpoint(RESTTestBase):
     def node(self, i):
         return self.nodes[i]
 
+    async def wait_for(self, *args, **kwargs):
+        output = []
+        while not output:
+            output = await self.make_request(*args)
+            await self.deliver_messages()
+        return output
+
+    async def wait_for_requests(self, *args, **kwargs):
+        requests = []
+        while not requests:
+            output = await self.wait_for(*args)
+            if 'requests' in output:
+                requests = output['requests']
+            else:
+                await self.deliver_messages()
+        return requests
+
     async def test_list_pseudonyms_empty(self):
         """
         Check that we do not start with any pseudonyms.
@@ -194,7 +211,7 @@ class TestIdentityEndpoint(RESTTestBase):
                                               "metadata": {}})
         self.assertTrue(request['success'])
 
-        outstanding = await self.make_request(self.node(1), 'identity/my_peer1/outstanding/attestations', 'get')
+        outstanding = await self.wait_for(self.node(1), 'identity/my_peer1/outstanding/attestations', 'get')
 
         self.assertEqual(1, len(outstanding['requests']))
         self.assertEqual(b64_subject_key, outstanding['requests'][0]['peer'])
@@ -218,10 +235,7 @@ class TestIdentityEndpoint(RESTTestBase):
                                               "metadata": {"Some key": "Some value"}})
         self.assertTrue(request['success'])
 
-        outstanding = []
-        while not outstanding:
-            await self.deliver_messages()
-            outstanding = await self.make_request(self.node(1), 'identity/my_peer1/outstanding/attestations', 'get')
+        outstanding = await self.wait_for(self.node(1), 'identity/my_peer1/outstanding/attestations', 'get')
 
         self.assertEqual(1, len(outstanding['requests']))
         self.assertEqual(b64_subject_key, outstanding['requests'][0]['peer'])
@@ -241,12 +255,7 @@ class TestIdentityEndpoint(RESTTestBase):
 
         await self.introduce_pseudonyms()
         await self.make_request(self.node(0), f'identity/my_peer0/request/{qb64_authority_key}', 'put', json=request)
-
-        attestation_requests = []
-        while not attestation_requests:
-            await self.deliver_messages()
-            attestation_requests = await self.make_request(self.node(1), 'identity/my_peer1/outstanding/attestations',
-                                                           'get')
+        await self.wait_for(self.node(1), 'identity/my_peer1/outstanding/attestations', 'get')
 
         result = await self.make_request(self.node(1), f'identity/my_peer1/attest/{qb64_subject_key}', 'put',
                                          json={
@@ -255,7 +264,7 @@ class TestIdentityEndpoint(RESTTestBase):
         self.assertTrue(result['success'])
 
         # How node 0 sees itself after receiving the attestation
-        result = await self.make_request(self.node(0), 'identity/my_peer0/credentials', 'get')
+        result = await self.wait_for(self.node(0), 'identity/my_peer0/credentials', 'get')
         self.assertEqual(1, len(result['names']))
         self.assertEqual("My attribute", result['names'][0]['name'])
         self.assertListEqual([b64_authority_key], result['names'][0]['attesters'])
@@ -264,7 +273,7 @@ class TestIdentityEndpoint(RESTTestBase):
             self.assertEqual(v, result['names'][0]['metadata'][k])
 
         # How node 1 sees node 0 after making the attestation
-        result = await self.make_request(self.node(1), f'identity/my_peer1/credentials/{qb64_subject_key}', 'get')
+        result = await self.wait_for(self.node(1), f'identity/my_peer1/credentials/{qb64_subject_key}', 'get')
         self.assertEqual(1, len(result['names']))
         self.assertEqual("My attribute", result['names'][0]['name'])
         self.assertListEqual([b64_authority_key], result['names'][0]['attesters'])
@@ -291,10 +300,10 @@ class TestIdentityEndpoint(RESTTestBase):
 
         await self.introduce_pseudonyms()
         await self.make_request(self.node(0), f'identity/my_peer0/request/{qb64_authority_key}', 'put', json=request)
-        await self.make_request(self.node(1), 'identity/my_peer1/outstanding/attestations', 'get')
+        await self.wait_for(self.node(1), 'identity/my_peer1/outstanding/attestations', 'get')
         await self.make_request(self.node(1), f'identity/my_peer1/attest/{qb64_subject_key}', 'put', json=attest)
 
-        credentials = await self.make_request(self.node(0), 'identity/my_peer0/credentials', 'get')
+        credentials = await self.wait_for(self.node(0), 'identity/my_peer0/credentials', 'get')
         attribute_hash = credentials["names"][0]["hash"]
 
         result = await self.make_request(self.node(2), f'identity/my_peer2/verify/{qb64_subject_key}', 'put',
@@ -304,12 +313,9 @@ class TestIdentityEndpoint(RESTTestBase):
                                              "schema": request["schema"]})
         self.assertTrue(result['success'])
 
-        verification_requests = []
-        while not verification_requests:
-            await self.deliver_messages()
-            verification_requests = (await self.make_request(self.node(0),
+        verification_requests = await self.wait_for_requests(self.node(0),
                                                              f'identity/my_peer0/outstanding/verifications',
-                                                             'get'))['requests']
+                                                             'get')
         self.assertEqual(b64_verifier_key, verification_requests[0]['peer'])
         self.assertEqual("My attribute", verification_requests[0]['attribute_name'])
 
@@ -344,10 +350,10 @@ class TestIdentityEndpoint(RESTTestBase):
 
         await self.introduce_pseudonyms()
         await self.make_request(self.node(0), f'identity/my_peer0/request/{qb64_authority_key}', 'put', json=request)
-        await self.make_request(self.node(1), 'identity/my_peer1/outstanding/attestations', 'get')
+        await self.wait_for(self.node(1), 'identity/my_peer1/outstanding/attestations', 'get')
         await self.make_request(self.node(1), f'identity/my_peer1/attest/{qb64_subject_key}', 'put', json=attest)
 
-        credentials = await self.make_request(self.node(0), 'identity/my_peer0/credentials', 'get')
+        credentials = await self.wait_for(self.node(0), 'identity/my_peer0/credentials', 'get')
         attribute_hash = credentials["names"][0]["hash"]
 
         result = await self.make_request(self.node(2), f'identity/my_peer2/verify/{qb64_subject_key}', 'put',
@@ -357,12 +363,9 @@ class TestIdentityEndpoint(RESTTestBase):
                                              "schema": request["schema"]})
         self.assertTrue(result['success'])
 
-        verification_requests = []
-        while not verification_requests:
-            await self.deliver_messages()
-            verification_requests = (await self.make_request(self.node(0),
+        verification_requests = await self.wait_for_requests(self.node(0),
                                                              f'identity/my_peer0/outstanding/verifications',
-                                                             'get'))['requests']
+                                                             'get')
         self.assertEqual(b64_verifier_key, verification_requests[0]['peer'])
         self.assertEqual("My attribute", verification_requests[0]['attribute_name'])
 
