@@ -51,5 +51,5 @@ IPv8 can be used as a library or as a service. It is easiest to start off with t
 This file will load the IPv8 stack for *signed messaging*, *anonymous messaging*, *attribute attestation*, *public service discovery*, *peer discovery* and *peer keep-alive*.
 You can start creating your first network overlay by following [the overlay creation tutorial](https://py-ipv8.readthedocs.io/en/latest/basics/overlay_tutorial/).
 
-Additional documentation is also available for the [TrustChain](https://py-ipv8.readthedocs.io/en/latest/further-reading/trustchain/) and [anonymous overlay](https://py-ipv8.readthedocs.io/en/latest/further-reading/anonymization/) provided in IPv8.
+Additional documentation is also available for the [TrustChain](https://py-ipv8.readthedocs.io/en/latest/further-reading/trustchain/) and [anonymous overlay](https://py-ipv8.readthedocs.io/en/latest/further-reading/anonymization/) provided in IPv10.
 
