@@ -482,10 +482,9 @@ class HiddenTunnelCommunity(TunnelCommunity):
             self.logger.error('No IPv8 service object available, cannot start PEXCommunity')
         elif payload.info_hash not in self.pex:
             community = PexCommunity(self.my_peer, self.endpoint, Network(), info_hash=payload.info_hash)
-            self.ipv8.overlays.append(community)
             # Since IPv8 takes a step every .5s until we have 10 peers, the PexCommunity will generate
             # a lot of traffic in case there are <10 peers in existence. Therefore, we slow the walk down to a 5s/step.
-            self.ipv8.strategies.append((RandomWalk(community, target_interval=5), 10))
+            self.ipv8.add_strategy(community, RandomWalk(community, target_interval=5), 10)
             self.pex[payload.info_hash] = community
 
         # PEX announce

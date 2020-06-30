@@ -167,6 +167,12 @@ else:
                     else:
                         await sleep(self.walk_interval)
 
+        def add_strategy(self, overlay, strategy, target_peers):
+            with self.overlay_lock:
+                if overlay not in self.overlays:
+                    self.overlays.append(overlay)
+                self.strategies.append((strategy, target_peers))
+
         def unload_overlay(self, instance):
             with self.overlay_lock:
                 self.overlays = [overlay for overlay in self.overlays if overlay != instance]

@@ -294,8 +294,5 @@ async def create_community(private_key: PrivateKey, ipv8, identity_manager: Iden
         working_directory = ipv8.configuration.get("working_directory")
     community = IdentityCommunity(my_peer, endpoint, identity_manager=identity_manager,
                                   working_directory=working_directory, anonymize=anonymize)
-    strategy = RandomWalk(community)
-    with ipv8.overlay_lock:
-        ipv8.strategies.append((strategy, -1))
-        ipv8.overlays.append(community)
+    ipv8.add_strategy(community, RandomWalk(community), -1)
     return community
