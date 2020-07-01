@@ -40,6 +40,11 @@ class MockRestIPv8(object):
     def get_overlay(self, overlay_cls):
         return next((o for o in self.overlays if isinstance(o, overlay_cls)), None)
 
+    def add_strategy(self, overlay, strategy, target_peers):
+        with self.overlay_lock:
+            self.overlays.append(overlay)
+            self.strategies.append((strategy, target_peers))
+
     def unload_overlay(self, instance):
         self.overlays = [overlay for overlay in self.overlays if overlay != instance]
         self.strategies = [(strategy, target_peers) for (strategy, target_peers) in self.strategies

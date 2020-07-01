@@ -77,9 +77,6 @@ class TestHiddenServices(TestBase):
         settings.min_circuits = 0
         settings.max_circuits = 0
         ipv8 = MockIPv8(u"curve25519", HiddenTunnelCommunity, settings=settings)
-
-        ipv8.overlays = []
-        ipv8.strategies = []
         ipv8.overlay.ipv8 = ipv8
 
         # Then kill all automated circuit creation

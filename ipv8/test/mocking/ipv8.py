@@ -42,8 +42,15 @@ class MockIPv8(object):
         self.overlay.my_estimated_wan = self.endpoint.wan_address
         self.overlay.my_estimated_lan = self.endpoint.lan_address
 
+        self.overlays = []
+        self.strategies = []
+
         if enable_statistics:
             self.endpoint.enable_community_statistics(self.overlay.get_prefix(), True)
+
+    def add_strategy(self, overlay, strategy, target_peers):
+        self.overlays.append(overlay)
+        self.strategies.append((strategy, target_peers))
 
     def get_overlay(self, overlay_cls):
         return next(self.get_overlays(overlay_cls), None)
