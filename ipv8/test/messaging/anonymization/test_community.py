@@ -23,7 +23,7 @@ class MockDHTProvider(object):
         # DHTDiscoveryCommunity functionality
         global_dht_services[peer.mid].append(peer)
 
-    async def peer_lookup(self, mid):
+    async def peer_lookup(self, mid, peer=None):
         return await self.lookup(mid)
 
     async def lookup(self, info_hash):

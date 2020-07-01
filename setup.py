@@ -20,12 +20,12 @@ setup(
         "aiohttp",
         "aiohttp_apispec",
         "pyOpenSSL",
-        "pyasn1"
+        "pyasn1",
+        "marshmallow"
     ],
     extras_require={
         'netifaces': ["netifaces"],
         'asynctest': ["asynctest"],
-        'marshmallow': ["marshmallow"],
         'coverage': ["coverage"]
     },
     tests_require=['coverage', 'asynctest'],
