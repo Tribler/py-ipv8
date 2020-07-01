@@ -6,3 +6,4 @@ aiohttp_apispec
 pyOpenSSL
 pyasn1
 asynctest
+marshmallow
