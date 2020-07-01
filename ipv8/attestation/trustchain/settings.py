@@ -24,3 +24,9 @@ class TrustChainSettings(object):
 
         # How many blocks at most we allow others to crawl in one batch
         self.max_crawl_batch = 10
+
+        # The delay in seconds after which we send a half block to the counterparty again
+        self.sign_attempt_delay = 10
+
+        # The timeout after which we stop trying to get the half block signed by the counterparty
+        self.sign_timeout = 360
