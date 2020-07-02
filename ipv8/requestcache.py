@@ -104,7 +104,7 @@ class RequestCache(TaskManager):
         assert isinstance(cache, NumberCache), type(cache)
         assert isinstance(cache.number, int), type(cache.number)
         assert isinstance(cache.prefix, str), type(cache.prefix)
-        assert isinstance(cache.timeout_delay, float), type(cache.timeout_delay)
+        assert isinstance(cache.timeout_delay, (int, float)), type(cache.timeout_delay)
         assert cache.timeout_delay > 0.0, cache.timeout_delay
 
         with self.lock:
