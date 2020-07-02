@@ -306,8 +306,7 @@ class TunnelCommunity(Community):
             # from a different thread (caused by circuit.peer being reset to None).
             first_hops = [c.peer for c in self.circuits.values()]
             first_hops = {h.address for h in first_hops if h}
-            possible_first_hops = [c for c in relay_candidates if c.address not in first_hops
-                                   and c.address != required_exit.address]
+            possible_first_hops = [c for c in relay_candidates if c.address not in first_hops and c != required_exit]
 
         if not possible_first_hops:
             self.logger.info("Could not create circuit, no first hop available")
@@ -644,7 +643,8 @@ class TunnelCommunity(Community):
         circuit = self.circuits.get(circuit_id, None)
         try:
             cell.decrypt(self.crypto, circuit=circuit, relay_session_keys=self.relay_session_keys.get(circuit_id))
-        except CryptoException:
+        except CryptoException as e:
+            self.logger.debug(str(e))
             if circuit:
                 self.send_destroy(circuit.peer, circuit_id, 0)
             return
