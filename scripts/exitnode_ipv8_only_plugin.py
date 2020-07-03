@@ -55,7 +55,7 @@ class ExitnodeIPv8Service(object):
                 overlay['initialize']['settings']['min_circuits'] = 0
                 overlay['initialize']['settings']['max_circuits'] = 0
                 overlay['initialize']['settings']['max_relays_or_exits'] = 1000
-                overlay['initialize']['settings']['peer_flags'] = PEER_FLAG_EXIT_IPV8
+                overlay['initialize']['settings']['peer_flags'] = {PEER_FLAG_EXIT_IPV8}
 
         self.ipv8 = IPv8(configuration, enable_statistics=statistics)
         await self.ipv8.start()
