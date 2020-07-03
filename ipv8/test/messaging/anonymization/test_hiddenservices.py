@@ -76,6 +76,7 @@ class TestHiddenServices(TestBase):
         settings = TunnelSettings()
         settings.min_circuits = 0
         settings.max_circuits = 0
+        settings.remove_tunnel_delay = 0
         ipv8 = MockIPv8(u"curve25519", HiddenTunnelCommunity, settings=settings)
         ipv8.overlay.ipv8 = ipv8
 
@@ -97,8 +98,8 @@ class TestHiddenServices(TestBase):
 
         for node in self.nodes:
             exit_sockets = node.overlay.exit_sockets
-            for exit_socket in exit_sockets:
-                exit_sockets[exit_socket] = MockTunnelExitSocket(exit_sockets[exit_socket])
+            for circuit_id in exit_sockets:
+                exit_sockets[circuit_id] = MockTunnelExitSocket(exit_sockets[circuit_id])
 
     async def assign_exit_node(self, node_nr):
         """
