@@ -2,6 +2,7 @@
 This script enables to start IPv8 headless.
 """
 import argparse
+import os
 import signal
 import sys
 from asyncio import all_tasks, ensure_future, gather, get_event_loop, sleep
@@ -16,6 +17,7 @@ except ImportError:
 
 
 from ipv8.REST.rest_manager import RESTManager
+from ipv8.attestation.trustchain.database import TrustChainDB
 from ipv8.configuration import get_default_configuration
 from ipv8.messaging.anonymization.tunnel import PEER_FLAG_EXIT_IPV8
 
@@ -31,13 +33,26 @@ class ExitnodeIPv8Service(object):
         self.ipv8 = None
         self.restapi = None
         self._stopping = False
+        self.tc_persistence = None
 
-    async def start_ipv8(self, listen_port, statistics, no_rest_api):
+    async def start_ipv8(self, statedir, listen_port, statistics, no_rest_api):
         """
         Main method to startup IPv8.
         """
         configuration = get_default_configuration()
         configuration['port'] = listen_port
+
+        # Open the database
+        self.tc_persistence = TrustChainDB(statedir, 'trustchain')
+
+        if statedir:
+            # If we use a custom state directory, update various variables
+            for key in configuration["keys"]:
+                key["file"] = os.path.join(statedir, key["file"])
+
+            for community in configuration["overlays"]:
+                if community["class"] == "TrustChainCommunity":
+                    community["initialize"]["persistence"] = self.tc_persistence
 
         allowed_overlays = ['DHTDiscoveryCommunity', 'DiscoveryCommunity', 'HiddenTunnelCommunity',
                             'TrustChainCommunity']
@@ -49,7 +64,7 @@ class ExitnodeIPv8Service(object):
                 overlay['initialize']['settings']['min_circuits'] = 0
                 overlay['initialize']['settings']['max_circuits'] = 0
                 overlay['initialize']['settings']['max_relays_or_exits'] = 1000
-                overlay['initialize']['settings']['peer_flags'] = PEER_FLAG_EXIT_IPV8
+                overlay['initialize']['settings']['peer_flags'] = {PEER_FLAG_EXIT_IPV8}
 
         self.ipv8 = IPv8(configuration, enable_statistics=statistics)
         await self.ipv8.start()
@@ -79,13 +94,14 @@ def main(argv):
     parser.add_argument('--help', '-h', action='help', default=argparse.SUPPRESS, help='Show this help message and exit')
     parser.add_argument('--listen_port', '-p', default=8090, type=int, help='Use an alternative port')
     parser.add_argument('--no_rest_api', '-a', action='store_const', default=False, const=True, help='Autonomous: disable the REST api')
+    parser.add_argument('--statedir', default='.', type=str, help='Use an alternate statedir')
     parser.add_argument('--statistics', '-s', action='store_const', default=False, const=True, help='Enable IPv8 overlay statistics')
 
     args = parser.parse_args(sys.argv[1:])
     service = ExitnodeIPv8Service()
 
     loop = get_event_loop()
-    coro = service.start_ipv8(args.listen_port, args.statistics, args.no_rest_api)
+    coro = service.start_ipv8(args.statedir, args.listen_port, args.statistics, args.no_rest_api)
     ensure_future(coro)
 
     if sys.platform == 'win32':
