@@ -305,8 +305,8 @@ class TunnelCommunity(Community):
             # First build a list of hops, then filter the list. Avoids issues when create_circuit is called
             # from a different thread (caused by circuit.peer being reset to None).
             first_hops = [c.peer for c in self.circuits.values()]
-            first_hops = {h.address for h in first_hops if h}
-            possible_first_hops = [c for c in relay_candidates if c.address not in first_hops and c != required_exit]
+            first_hops = {h for h in first_hops if h}
+            possible_first_hops = [c for c in relay_candidates if c not in first_hops and c != required_exit]
 
         if not possible_first_hops:
             self.logger.info("Could not create circuit, no first hop available")
@@ -327,8 +327,7 @@ class TunnelCommunity(Community):
         first_hop = random.choice(candidate_list)
         alt_first_hops = [c for c in candidate_list if c != first_hop]
 
-        circuit.unverified_hop = Hop(first_hop.public_key, flags=self.candidates.get(first_hop))
-        circuit.unverified_hop.address = first_hop.address
+        circuit.unverified_hop = Hop(first_hop, flags=self.candidates.get(first_hop))
         circuit.unverified_hop.dh_secret, circuit.unverified_hop.dh_first_part = self.crypto.generate_diffie_secret()
 
         self.logger.info("Adding first hop %s:%d to circuit %d", *(first_hop.address + (circuit.circuit_id,)))
@@ -576,7 +575,7 @@ class TunnelCommunity(Community):
 
         if extend_hop_public_bin:
             extend_hop_public_key = self.crypto.key_from_public_bin(extend_hop_public_bin)
-            circuit.unverified_hop = Hop(extend_hop_public_key,
+            circuit.unverified_hop = Hop(Peer(extend_hop_public_key),
                                          flags=self.candidates.get(Peer(extend_hop_public_bin)))
             circuit.unverified_hop.dh_secret, circuit.unverified_hop.dh_first_part = \
                 self.crypto.generate_diffie_secret()

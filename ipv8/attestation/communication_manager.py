@@ -259,6 +259,10 @@ class CommunicationManager(object):
             if os.path.exists(pseudonym_file):
                 os.remove(pseudonym_file)
 
+    async def shutdown(self) -> None:
+        for name in list(self.name_to_channel):
+            await self.unload(name)
+
     def list_names(self) -> typing.List[str]:
         """
         List all known pseudonyms.

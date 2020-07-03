@@ -339,7 +339,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
             self.logger.error("No circuit for contacting the introduction point")
             return
 
-        hop = Hop(LibNaCLPK(intro_point.seeder_pk[10:]))
+        hop = Hop(Peer(LibNaCLPK(intro_point.seeder_pk[10:])))
         hop.dh_secret, hop.dh_first_part = self.crypto.generate_diffie_secret()
         self.logger.info('Creating e2e circuit for introduction point %s', intro_point.peer)
         cache = self.request_cache.add(E2ERequestCache(self, info_hash, hop, intro_point))

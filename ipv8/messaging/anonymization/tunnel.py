@@ -9,7 +9,6 @@ from collections import defaultdict, deque
 from struct import unpack_from
 from traceback import format_exception
 
-from ...keyvault.public.libnaclkey import LibNaCLPK
 from ...taskmanager import TaskManager
 from ...util import succeed
 
@@ -202,8 +201,9 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
         # The resolution tasks can't be cancelled, so we need to wait for
         # them to finish.
         await self.shutdown_task_manager()
-        self.transport.close()
-        self.transport = None
+        if self.transport:
+            self.transport.close()
+            self.transport = None
 
     def check_num_packets(self, ip, incoming):
         if self.ips[ip] < 0:
@@ -243,7 +243,10 @@ class Circuit(Tunnel):
 
     @property
     def peer(self):
-        return self._hops[0] if self._hops else self.unverified_hop
+        if self._hops:
+            return self._hops[0].peer
+        elif self.unverified_hop:
+            return self.unverified_hop.peer
 
     @property
     def exit_flags(self):
@@ -302,50 +305,30 @@ class Hop(object):
     the Diffie-Hellman handshake
     """
 
-    def __init__(self, public_key, flags=None):
+    def __init__(self, peer, flags=None):
         """
-        @param LibNaCLPK public_key: public key object of the hop
+        @param Peer peer: IPv8 peer object of the hop
         """
-        assert isinstance(public_key, LibNaCLPK)
-
+        self.peer = peer
         self.session_keys = None
         self.dh_first_part = None
         self.dh_secret = None
-        self.address = None
-        self.public_key = public_key
         self.flags = flags or []
 
     @property
-    def host(self):
-        """
-        The hop's hostname
-        """
-        if self.address:
-            return self.address[0]
-        return " UNKNOWN HOST "
-
-    @property
-    def port(self):
-        """
-        The hop's port
-        """
-        if self.address:
-            return self.address[1]
-        return " UNKNOWN PORT "
+    def public_key(self):
+        return self.peer.public_key
 
     @property
     def node_public_key(self):
         """
         The hop's public_key
         """
-        if self.public_key:
-            return self.public_key.key_to_bin()
-
-        raise RuntimeError("public key unknown")
+        return self.peer.public_key.key_to_bin()
 
     @property
     def mid(self):
-        return self.public_key.key_to_hash()
+        return self.peer.public_key.key_to_hash()
 
 
 class RelayRoute(Tunnel):
