@@ -1,7 +1,7 @@
 import json
 import os
 import typing
-from binascii import unhexlify
+from binascii import hexlify, unhexlify
 from time import time
 
 from .attestation import Attestation
@@ -286,13 +286,22 @@ class IdentityCommunity(Community):
 
 async def create_community(private_key: PrivateKey, ipv8, identity_manager: IdentityManager,
                            endpoint: typing.Optional[Endpoint] = None, working_directory: str = None,
-                           anonymize: bool = True) -> IdentityCommunity:
+                           anonymize: bool = True,
+                           rendezvous_token: typing.Optional[bytes] = None) -> IdentityCommunity:
     my_peer = Peer(private_key)
     if endpoint is None:
         endpoint = await ipv8.produce_anonymized_endpoint()
     if not working_directory:
         working_directory = ipv8.configuration.get("working_directory")
-    community = IdentityCommunity(my_peer, endpoint, identity_manager=identity_manager,
-                                  working_directory=working_directory, anonymize=anonymize)
+    overlay_cls = IdentityCommunity
+    if rendezvous_token is not None:
+        token_str = hexlify(rendezvous_token).decode()
+        rendezvous_id = bytes(b ^ rendezvous_token[i] if i < len(rendezvous_token) else b
+                              for i, b in enumerate(IdentityCommunity.master_peer.mid))
+        overlay_cls = type(f"IdentityCommunity-{token_str}", (IdentityCommunity, ), {
+            'master_peer': type(f"RendezvousID-{token_str}", (object, ), {'mid': rendezvous_id})
+        })
+    community = overlay_cls(my_peer, endpoint, identity_manager=identity_manager,
+                            working_directory=working_directory, anonymize=anonymize)
     ipv8.add_strategy(community, RandomWalk(community), -1)
     return community

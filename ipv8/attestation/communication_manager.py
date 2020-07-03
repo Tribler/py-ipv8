@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import json
 import os
 import typing
@@ -200,7 +201,7 @@ class CommunicationManager(object):
 
         self.working_directory = working_directory
 
-    async def load(self, name: str) -> CommunicationChannel:
+    async def load(self, name: str, rendezvous_token: typing.Optional[str] = None) -> CommunicationChannel:
         """
         Load a pseudonym.
         """
@@ -220,9 +221,12 @@ class CommunicationManager(object):
         public_key = private_key.pub().key_to_bin()
         if public_key not in self.channels:
             tunnel_community = self.ipv8_instance.get_overlay(HiddenTunnelCommunity)
+            decoded_rendezvous_token = (base64.b64decode(rendezvous_token.encode())
+                                        if rendezvous_token is not None else None)
             identity_overlay = await create_community(private_key, self.ipv8_instance, self.identity_manager,
                                                       working_directory=self.working_directory,
-                                                      anonymize=tunnel_community is not None)
+                                                      anonymize=tunnel_community is not None,
+                                                      rendezvous_token=decoded_rendezvous_token)
             attestation_overlay = AttestationCommunity(identity_overlay.my_peer, identity_overlay.endpoint,
                                                        identity_overlay.network,
                                                        working_directory=self.working_directory,
