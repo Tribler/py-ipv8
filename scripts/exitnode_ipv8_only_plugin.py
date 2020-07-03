@@ -2,6 +2,7 @@
 This script enables to start IPv8 headless.
 """
 import argparse
+import os
 import signal
 import sys
 from asyncio import all_tasks, ensure_future, gather, get_event_loop, sleep
@@ -32,12 +33,17 @@ class ExitnodeIPv8Service(object):
         self.restapi = None
         self._stopping = False
 
-    async def start_ipv8(self, listen_port, statistics, no_rest_api):
+    async def start_ipv8(self, statedir, listen_port, statistics, no_rest_api):
         """
         Main method to startup IPv8.
         """
         configuration = get_default_configuration()
         configuration['port'] = listen_port
+
+        if statedir:
+            # If we use a custom state directory, update various variables
+            for key in configuration["keys"]:
+                key["file"] = os.path.join(statedir, key["file"])
 
         allowed_overlays = ['DHTDiscoveryCommunity', 'DiscoveryCommunity', 'HiddenTunnelCommunity',
                             'TrustChainCommunity']
@@ -79,13 +85,14 @@ def main(argv):
     parser.add_argument('--help', '-h', action='help', default=argparse.SUPPRESS, help='Show this help message and exit')
     parser.add_argument('--listen_port', '-p', default=8090, type=int, help='Use an alternative port')
     parser.add_argument('--no_rest_api', '-a', action='store_const', default=False, const=True, help='Autonomous: disable the REST api')
+    parser.add_argument('--statedir', default='.', type=str, help='Use an alternate statedir')
     parser.add_argument('--statistics', '-s', action='store_const', default=False, const=True, help='Enable IPv8 overlay statistics')
 
     args = parser.parse_args(sys.argv[1:])
     service = ExitnodeIPv8Service()
 
     loop = get_event_loop()
-    coro = service.start_ipv8(args.listen_port, args.statistics, args.no_rest_api)
+    coro = service.start_ipv8(args.statedir, args.listen_port, args.statistics, args.no_rest_api)
     ensure_future(coro)
 
     if sys.platform == 'win32':
