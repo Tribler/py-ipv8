@@ -1,7 +1,6 @@
 from ..mocking.endpoint import AutoMockEndpoint
 from ...messaging.anonymization.tunnel import DataChecker, TunnelExitSocket
 from ...messaging.interfaces.endpoint import EndpointListener
-from ...util import succeed
 
 
 class MockTunnelExitSocket(TunnelExitSocket, EndpointListener):
@@ -9,6 +8,7 @@ class MockTunnelExitSocket(TunnelExitSocket, EndpointListener):
     def __init__(self, parent):
         self.endpoint = AutoMockEndpoint()
         self.endpoint.open()
+        self.parent = parent
 
         TunnelExitSocket.__init__(self, parent.circuit_id, parent.peer, parent.overlay)
         EndpointListener.__init__(self, self.endpoint, main_thread=False)
@@ -30,4 +30,4 @@ class MockTunnelExitSocket(TunnelExitSocket, EndpointListener):
 
     async def close(self):
         await self.shutdown_task_manager()
-        return succeed(True)
+        await self.parent.close()

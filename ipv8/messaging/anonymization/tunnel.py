@@ -202,8 +202,9 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
         # The resolution tasks can't be cancelled, so we need to wait for
         # them to finish.
         await self.shutdown_task_manager()
-        self.transport.close()
-        self.transport = None
+        if self.transport:
+            self.transport.close()
+            self.transport = None
 
     def check_num_packets(self, ip, incoming):
         if self.ips[ip] < 0:
