@@ -30,6 +30,7 @@ class IdentityEndpoint(BaseEndpoint):
     def __init__(self, middlewares=()):
         super(IdentityEndpoint, self).__init__(middlewares)
         self.communication_manager = None
+        self.app.on_shutdown.append(self.on_shutdown)
 
     def initialize(self, session):
         super(IdentityEndpoint, self).initialize(session)
@@ -600,3 +601,6 @@ class IdentityEndpoint(BaseEndpoint):
             formatted.append({"hash": ez_b64_encode(k), "reference": ez_b64_encode(v[0][0]), "match": v[0][1]})
 
         return Response({"outputs": formatted})
+
+    async def on_shutdown(self, _):
+        await self.communication_manager.shutdown()
