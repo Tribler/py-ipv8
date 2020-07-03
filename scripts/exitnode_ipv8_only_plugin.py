@@ -17,6 +17,7 @@ except ImportError:
 
 
 from ipv8.REST.rest_manager import RESTManager
+from ipv8.attestation.trustchain.database import TrustChainDB
 from ipv8.configuration import get_default_configuration
 from ipv8.messaging.anonymization.tunnel import PEER_FLAG_EXIT_IPV8
 
@@ -32,6 +33,7 @@ class ExitnodeIPv8Service(object):
         self.ipv8 = None
         self.restapi = None
         self._stopping = False
+        self.tc_persistence = None
 
     async def start_ipv8(self, statedir, listen_port, statistics, no_rest_api):
         """
@@ -40,10 +42,17 @@ class ExitnodeIPv8Service(object):
         configuration = get_default_configuration()
         configuration['port'] = listen_port
 
+        # Open the database
+        self.tc_persistence = TrustChainDB(statedir, 'trustchain')
+
         if statedir:
             # If we use a custom state directory, update various variables
             for key in configuration["keys"]:
                 key["file"] = os.path.join(statedir, key["file"])
+
+            for community in configuration["overlays"]:
+                if community["class"] == "TrustChainCommunity":
+                    community["initialize"]["persistence"] = self.tc_persistence
 
         allowed_overlays = ['DHTDiscoveryCommunity', 'DiscoveryCommunity', 'HiddenTunnelCommunity',
                             'TrustChainCommunity']
