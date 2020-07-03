@@ -1,0 +1,20 @@
+[Unit]
+Description=IPv8 exit node listening at port %i
+
+[Service]
+ProtectSystem=yes
+
+Environment="PYTHONPATH=/opt/ipv8"
+
+WorkingDirectory=/opt/ipv8
+
+ExecStartPre=/bin/mkdir -p ${HOME}/%i
+ExecStart=/usr/bin/python3 scripts/exitnode_ipv8_only_plugin.py --listen_port=%i --statedir=${HOME}/%i
+
+User=ipv8_exitnode
+Group=ipv8_exitnode
+
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
