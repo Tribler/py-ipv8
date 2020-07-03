@@ -2,7 +2,7 @@ import logging
 
 from aiohttp import web
 
-from aiohttp_apispec import setup_aiohttp_apispec
+from aiohttp_apispec import AiohttpApiSpec
 
 from .base_endpoint import HTTP_INTERNAL_SERVER_ERROR, HTTP_UNAUTHORIZED, Response
 from .root_endpoint import RootEndpoint
@@ -20,6 +20,8 @@ class ApiKeyMiddleware(object):
             return Response({'error': 'Unauthorized access'}, status=HTTP_UNAUTHORIZED)
 
     def authenticate(self, request):
+        if request.path.startswith('/docs') or request.path.startswith('/static'):
+            return True
         # The api key can either be in the headers or as part of the url query
         api_key = request.headers.get('X-Api-Key') or request.query.get('apikey')
         return not self.api_key or self.api_key == api_key
@@ -76,13 +78,21 @@ class RESTManager:
                                                        cors_middleware,
                                                        error_middleware])
         self.root_endpoint.initialize(self.session)
-        setup_aiohttp_apispec(
+
+        # Not using setup_aiohttp_apispec here, as we need access to the APISpec to set the security scheme
+        aiohttp_apispec = AiohttpApiSpec(
             app=self.root_endpoint.app,
             title="IPv8 REST API documentation",
             version="v2.2",  # Do not change manually! Handled by github_increment_version.py
             url="/docs/swagger.json",
             swagger_path="/docs",
         )
+        if api_key:
+            # Set security scheme and apply to all endpoints
+            aiohttp_apispec.spec.options['security'] = [{'apiKey': []}]
+            aiohttp_apispec.spec.components.security_scheme('apiKey', {'type': 'apiKey',
+                                                                       'in': 'header',
+                                                                       'name': 'X-Api-Key'})
 
         from apispec.core import VALID_METHODS_OPENAPI_V2
         if 'head' in VALID_METHODS_OPENAPI_V2:
