@@ -1,5 +1,6 @@
 from asyncio import Future
 from collections import defaultdict
+from unittest.mock import Mock
 
 from ...base import TestBase
 from ...mocking.endpoint import MockEndpointListener
@@ -392,14 +393,8 @@ class TestTunnelCommunity(TestBase):
         exit_socket = list(self.nodes[2].overlay.exit_sockets.values())[0]
         self.nodes[2].overlay.exit_sockets[exit_socket.circuit_id] = MockTunnelExitSocket(exit_socket)
 
-        sender = self.nodes[0].overlay
-        send_data_org = sender.send_data
-
-        def send_data(*args):
-            sender.called = True
-            send_data_org(*args)
-        sender.called = False
-        sender.send_data = send_data
+        send_data = self.nodes[0].overlay.send_data
+        self.nodes[0].overlay.send_data = Mock(wraps=send_data)
 
         prefix = b'\x00\x01' + b'\x00' * 20
         self.nodes[0].overlay.endpoint = endpoint = TunnelEndpoint(self.nodes[0].overlay.endpoint)
@@ -411,16 +406,16 @@ class TestTunnelCommunity(TestBase):
         await self.deliver_messages()
         self.assertEqual(len(ep_listener.received_packets), 1)
         self.assertEqual(ep_listener.received_packets[0][1], prefix + b'DATA')
-        self.assertTrue(sender.called)
+        self.nodes[0].overlay.send_data.assert_called_once()
 
         # When a circuit closes, sending data should fail
-        sender.called = False
+        self.nodes[0].overlay.send_data = Mock(wraps=send_data)
         circuit = self.nodes[0].overlay.find_circuits(ctype=CIRCUIT_TYPE_IPV8)[0]
         await self.nodes[0].overlay.remove_circuit(circuit.circuit_id)
         endpoint.send(self.nodes[1].overlay.my_estimated_wan, prefix + b'DATA')
         await self.deliver_messages()
         self.assertEqual(len(ep_listener.received_packets), 1)
-        self.assertFalse(sender.called)
+        self.nodes[0].overlay.send_data.assert_not_called()
 
     async def test_tunnel_endpoint_no_anon(self):
         """
@@ -438,3 +433,22 @@ class TestTunnelCommunity(TestBase):
 
         self.assertEqual(len(ep_listener.received_packets), 1)
         self.assertEqual(ep_listener.received_packets[0][1], prefix + b'DATA')
+
+    async def test_tunnel_unicode_destination(self):
+        """
+        Check if the encoding/decoding a unicode hostname works.
+        """
+        self.nodes[1].overlay.settings.peer_flags.add(PEER_FLAG_EXIT_ANY)
+        await self.introduce_nodes()
+        circuit = self.nodes[0].overlay.create_circuit(1)
+        await circuit.ready
+
+        exit = list(self.nodes[1].overlay.exit_sockets.values())[0]
+        mock_exit = self.nodes[1].overlay.exit_sockets[exit.circuit_id] = MockTunnelExitSocket(exit)
+        mock_exit.sendto = Mock()
+
+        unicode_destination = ('JP納豆.例.jp', 1234)
+        self.nodes[0].overlay.send_data(circuit.peer, circuit.circuit_id, unicode_destination, ('0.0.0.0', 0), b'')
+        await self.deliver_messages()
+
+        mock_exit.sendto.assert_called_with(b'', unicode_destination)
