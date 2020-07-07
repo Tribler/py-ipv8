@@ -335,7 +335,7 @@ class TunnelCommunity(Community):
         self.request_cache.add(RetryRequestCache(self, circuit, alt_first_hops, max_tries - 1,
                                                  self.send_initial_create, self.settings.next_hop_timeout))
 
-        self.increase_bytes_sent(circuit, self.send_cell([first_hop],
+        self.increase_bytes_sent(circuit, self.send_cell(first_hop,
                                                          "create",
                                                          CreatePayload(circuit.circuit_id,
                                                                        self.my_peer.public_key.key_to_bin(),
@@ -463,7 +463,7 @@ class TunnelCommunity(Community):
     def is_exit(self, circuit_id):
         return circuit_id > 0 and circuit_id in self.exit_sockets
 
-    def send_cell(self, candidates, message_type, payload, circuit_id=None):
+    def send_cell(self, peer, message_type, payload, circuit_id=None):
         message_id, _ = message_to_payload[message_type]
         circuit_id = circuit_id or payload.circuit_id
         if isinstance(payload, DataPayload):
@@ -477,23 +477,21 @@ class TunnelCommunity(Community):
             self.logger.warning(str(e))
             return
         packet = cell.to_bin(self._prefix)
-        return self.send_packet(candidates, packet)
+        return self.send_packet(peer, packet)
 
-    def send_data(self, candidates, circuit_id, dest_address, source_address, data):
+    def send_data(self, peer, circuit_id, dest_address, source_address, data):
         payload = DataPayload(circuit_id, dest_address, source_address, data)
-        return self.send_cell(candidates, "data", payload, circuit_id)
+        return self.send_cell(peer, "data", payload, circuit_id)
 
-    def send_packet(self, candidates, packet):
-        for candidate in candidates:
-            address = candidate if isinstance(candidate, tuple) else candidate.address
-            self.endpoint.send(address, packet)
+    def send_packet(self, peer, packet):
+        self.endpoint.send(peer if isinstance(peer, tuple) else peer.address, packet)
         return len(packet)
 
-    def send_destroy(self, candidate, circuit_id, reason):
+    def send_destroy(self, peer, circuit_id, reason):
         auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
         payload = DestroyPayload(circuit_id, reason).to_pack_list()
         packet = self._ez_pack(self._prefix, 10, [auth, payload])
-        self.send_packet([candidate], packet)
+        self.send_packet(peer, packet)
 
     def relay_cell(self, cell):
         next_relay = self.relay_from_to[cell.circuit_id]
@@ -517,7 +515,7 @@ class TunnelCommunity(Community):
 
         cell.circuit_id = next_relay.circuit_id
         packet = cell.to_bin(self._prefix)
-        self.increase_bytes_sent(next_relay, self.send_packet([next_relay.peer], packet))
+        self.increase_bytes_sent(next_relay, self.send_packet(next_relay.peer, packet))
 
     def _ours_on_created_extended(self, circuit, payload):
         hop = circuit.unverified_hop
@@ -590,7 +588,7 @@ class TunnelCommunity(Community):
             self.request_cache.add(RetryRequestCache(self, circuit, alt_candidates, max_tries - 1,
                                                      self.send_extend, self.settings.next_hop_timeout))
 
-            self.increase_bytes_sent(circuit, self.send_cell([circuit.peer],
+            self.increase_bytes_sent(circuit, self.send_cell(circuit.peer,
                                                              "extend",
                                                              ExtendPayload(circuit.circuit_id,
                                                                            circuit.unverified_hop.node_public_key,
@@ -705,7 +703,7 @@ class TunnelCommunity(Community):
         candidate_list_enc = self.crypto.encrypt_str(encode(list(peers_keys.keys())),
                                                      *self.crypto.get_session_keys(self.relay_session_keys[circuit_id],
                                                                                    EXIT_NODE))
-        self.send_cell([Peer(create_payload.node_public_key, previous_node_address)], "created",
+        self.send_cell(Peer(create_payload.node_public_key, previous_node_address), "created",
                        CreatedPayload(circuit_id, key, auth, candidate_list_enc))
 
     @tc_lazy_wrapper_unsigned(CreatePayload)
@@ -740,10 +738,10 @@ class TunnelCommunity(Community):
             self.directions[request.from_circuit_id] = EXIT_NODE
             self.remove_exit_socket(request.from_circuit_id)
 
-            self.send_cell([relay.peer], "extended", ExtendedPayload(relay.circuit_id,
-                                                                     payload.key,
-                                                                     payload.auth,
-                                                                     payload.candidate_list_enc))
+            self.send_cell(relay.peer, "extended", ExtendedPayload(relay.circuit_id,
+                                                                   payload.key,
+                                                                   payload.auth,
+                                                                   payload.candidate_list_enc))
         elif self.request_cache.has("retry", payload.circuit_id):
             circuit = self.circuits[circuit_id]
             self._ours_on_created_extended(circuit, payload)
@@ -797,7 +795,7 @@ class TunnelCommunity(Community):
         self.request_cache.add(CreateRequestCache(self, to_circuit_id, circuit_id,
                                                   candidate, extend_candidate))
 
-        self.send_cell([extend_candidate], "create",
+        self.send_cell(extend_candidate, "create",
                        CreatePayload(to_circuit_id, self.my_peer.public_key.key_to_bin(), payload.key))
 
     @tc_lazy_wrapper_unsigned(ExtendedPayload)
@@ -867,7 +865,7 @@ class TunnelCommunity(Community):
         if exit_socket:
             exit_socket.beat_heart()
 
-        self.send_cell([source_address], "pong", PongPayload(payload.circuit_id, payload.identifier))
+        self.send_cell(source_address, "pong", PongPayload(payload.circuit_id, payload.identifier))
         self.logger.debug("Got ping from %s", source_address)
 
     @tc_lazy_wrapper_unsigned(PongPayload)
@@ -887,7 +885,7 @@ class TunnelCommunity(Community):
                     and circuit.circuit_id not in exclude \
                     and circuit.hops:
                 cache = self.request_cache.add(PingRequestCache(self, circuit))
-                self.increase_bytes_sent(circuit, self.send_cell([circuit.peer], "ping",
+                self.increase_bytes_sent(circuit, self.send_cell(circuit.peer, "ping",
                                                                  PingPayload(circuit.circuit_id, cache.number)))
 
     @lazy_wrapper(DestroyPayload)

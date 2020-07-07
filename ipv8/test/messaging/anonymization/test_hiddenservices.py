@@ -175,7 +175,7 @@ class TestHiddenServices(TestBase):
         data = b'PACKET'
         _, circuit = e2e_path[0]
         self.nodes[2].overlay.on_raw_data = lambda _, __, rdata: self.received_packets.append(rdata)
-        self.nodes[0].overlay.send_data([circuit.peer], circuit.circuit_id, ('0.0.0.0', 0), ('0.0.0.0', 0), data)
+        self.nodes[0].overlay.send_data(circuit.peer, circuit.circuit_id, ('0.0.0.0', 0), ('0.0.0.0', 0), data)
         await self.deliver_messages()
         self.assertEqual(len(self.received_packets), 1)
         self.assertEqual(self.received_packets[0], data)

@@ -246,7 +246,7 @@ class TestTunnelCommunity(TestBase):
 
         # Tunnel the data to the endpoint
         circuit = list(self.nodes[0].overlay.circuits.values())[0]
-        self.nodes[0].overlay.send_data([circuit.peer.address], circuit.circuit_id,
+        self.nodes[0].overlay.send_data(circuit.peer, circuit.circuit_id,
                                         ('localhost', self.public_endpoint.get_address()[1]), ('0.0.0.0', 0), data)
 
         future = Future()
