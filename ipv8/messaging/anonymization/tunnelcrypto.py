@@ -24,7 +24,7 @@ class TunnelCrypto(ECCrypto):
         return isinstance(key, LibNaCLPK)
 
     def generate_diffie_secret(self):
-        tmp_key = self.generate_key(u"curve25519")
+        tmp_key = self.generate_key("curve25519")
         X = tmp_key.key.pk
 
         return tmp_key, X
@@ -33,7 +33,7 @@ class TunnelCrypto(ECCrypto):
         if key is None:
             key = self.key
 
-        tmp_key = self.generate_key(u"curve25519")
+        tmp_key = self.generate_key("curve25519")
         y = tmp_key.key.sk
         Y = tmp_key.key.pk
         shared_secret = libnacl.crypto_box_beforenm(dh_received, y) + libnacl.crypto_box_beforenm(dh_received, key.key.sk)

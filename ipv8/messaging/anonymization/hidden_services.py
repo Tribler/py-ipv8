@@ -83,7 +83,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
             self.leave_swarm(info_hash)
 
         self.swarms[info_hash] = Swarm(info_hash, hops, self.send_peers_request,
-                                       self.crypto.generate_key(u"curve25519") if seeding else None)
+                                       self.crypto.generate_key("curve25519") if seeding else None)
         self.e2e_callbacks[info_hash] = callback
 
     def leave_swarm(self, info_hash):
@@ -282,10 +282,10 @@ class HiddenTunnelCommunity(TunnelCommunity):
         # Ask an introduction point if available (in which case we'll use PEX), otherwise let
         # the exit node do a DHT request.
         if target and target.peer.public_key != circuit.hops[-1].public_key:
-            self.tunnel_data(circuit, target.peer.address, u"peers-request", payload)
+            self.tunnel_data(circuit, target.peer.address, "peers-request", payload)
             self.logger.info("Sending peers request (intro point %s)", target.peer)
         else:
-            self.send_cell(circuit.peer, u"peers-request", payload)
+            self.send_cell(circuit.peer, "peers-request", payload)
             self.logger.info("Sending peers request as cell")
         return cache.future
 
@@ -322,10 +322,10 @@ class HiddenTunnelCommunity(TunnelCommunity):
 
     @tc_lazy_wrapper_unsigned(PeersResponsePayload)
     def on_peers_response(self, source_address, payload, circuit_id):
-        if not self.request_cache.has(u"peers-request", payload.identifier):
+        if not self.request_cache.has("peers-request", payload.identifier):
             self.logger.warning('Got a peers-response with an unknown identifier')
             return
-        cache = self.request_cache.pop(u"peers-request", payload.identifier)
+        cache = self.request_cache.pop("peers-request", payload.identifier)
 
         _, peers = decode(payload.peers)
         self.logger.info("Received peers-response containing %d peers", len(peers))
@@ -343,7 +343,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         hop.dh_secret, hop.dh_first_part = self.crypto.generate_diffie_secret()
         self.logger.info('Creating e2e circuit for introduction point %s', intro_point.peer)
         cache = self.request_cache.add(E2ERequestCache(self, info_hash, hop, intro_point))
-        self.tunnel_data(circuit, intro_point.peer.address, u'create-e2e',
+        self.tunnel_data(circuit, intro_point.peer.address, 'create-e2e',
                          CreateE2EPayload(cache.number, info_hash, hop.node_public_key, hop.dh_first_part))
 
     @tc_lazy_wrapper_unsigned(CreateE2EPayload)
@@ -353,7 +353,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
             if payload.node_public_key in self.intro_point_for:
                 self.logger.info('On create-e2e: forwarding message because received over socket')
                 relay_circuit, _ = self.intro_point_for[payload.node_public_key]
-                self.tunnel_data(relay_circuit, source_address, u'create-e2e', payload)
+                self.tunnel_data(relay_circuit, source_address, 'create-e2e', payload)
             else:
                 self.logger.info('On create-e2e: dropping message for unknown seeder key %s',
                                  binascii.hexlify(payload.node_public_key))
@@ -374,16 +374,16 @@ class HiddenTunnelCommunity(TunnelCommunity):
             *self.crypto.get_session_keys(rendezvous_point.circuit.hs_session_keys, EXIT_NODE))
 
         circuit = self.circuits[circuit_id]
-        self.tunnel_data(circuit, source_address, u'created-e2e',
+        self.tunnel_data(circuit, source_address, 'created-e2e',
                          CreatedE2EPayload(payload.identifier, Y, AUTH, rp_info_enc))
 
     @tc_lazy_wrapper_unsigned(CreatedE2EPayload)
     async def on_created_e2e(self, source_address, payload, circuit_id):
-        if not self.request_cache.has(u"e2e-request", payload.identifier):
+        if not self.request_cache.has("e2e-request", payload.identifier):
             self.logger.warning("Invalid created-e2e identifier")
             return
 
-        cache = self.request_cache.pop(u"e2e-request", payload.identifier)
+        cache = self.request_cache.pop("e2e-request", payload.identifier)
         shared_secret = self.crypto.verify_and_generate_shared_secret(cache.hop.dh_secret,
                                                                       payload.key,
                                                                       payload.auth,
@@ -402,7 +402,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
             self.swarms[cache.info_hash].add_connection(circuit, cache.intro_point)
             if await circuit.ready:
                 cache = self.request_cache.add(LinkRequestCache(self, circuit, cache.info_hash, session_keys))
-                self.send_cell(circuit.peer, u'link-e2e', LinkE2EPayload(circuit.circuit_id, cache.number, cookie))
+                self.send_cell(circuit.peer, 'link-e2e', LinkE2EPayload(circuit.circuit_id, cache.number, cookie))
 
     @tc_lazy_wrapper_unsigned(LinkE2EPayload)
     def on_link_e2e(self, source_address, payload, circuit_id):
@@ -426,15 +426,15 @@ class HiddenTunnelCommunity(TunnelCommunity):
         self.relay_from_to[circuit.circuit_id] = RelayRoute(relay_circuit.circuit_id, relay_circuit.peer, True)
         self.relay_from_to[relay_circuit.circuit_id] = RelayRoute(circuit.circuit_id, circuit.peer, True)
 
-        self.send_cell(source_address, u"linked-e2e", LinkedE2EPayload(circuit.circuit_id, payload.identifier))
+        self.send_cell(source_address, "linked-e2e", LinkedE2EPayload(circuit.circuit_id, payload.identifier))
 
     @tc_lazy_wrapper_unsigned(LinkedE2EPayload)
     def on_linked_e2e(self, source_address, payload, circuit_id):
-        if not self.request_cache.has(u"link-request", payload.identifier):
+        if not self.request_cache.has("link-request", payload.identifier):
             self.logger.warning("Invalid linked-e2e identifier")
             return
 
-        cache = self.request_cache.pop(u"link-request", payload.identifier)
+        cache = self.request_cache.pop("link-request", payload.identifier)
         circuit = cache.circuit
         circuit.e2e = True
         circuit.hs_session_keys = cache.hs_session_keys
@@ -495,16 +495,16 @@ class HiddenTunnelCommunity(TunnelCommunity):
         self.dht_announce(payload.info_hash, IntroductionPoint(Peer(self.my_peer.key, self.my_estimated_wan),
                                                                payload.public_key))
 
-        self.send_cell(source_address, u"intro-established",
+        self.send_cell(source_address, "intro-established",
                        IntroEstablishedPayload(circuit.circuit_id, payload.identifier))
 
     @tc_lazy_wrapper_unsigned(IntroEstablishedPayload)
     def on_intro_established(self, source_address, payload, circuit_id):
-        if not self.request_cache.has(u"establish-intro", payload.identifier):
+        if not self.request_cache.has("establish-intro", payload.identifier):
             self.logger.warning("Invalid intro-established request identifier")
             return
 
-        self.request_cache.pop(u"establish-intro", payload.identifier)
+        self.request_cache.pop("establish-intro", payload.identifier)
         self.logger.info("Got intro-established from %s", source_address)
 
     async def create_rendezvous_point(self, info_hash):
@@ -525,16 +525,16 @@ class HiddenTunnelCommunity(TunnelCommunity):
         circuit = self.exit_sockets[circuit_id]
         self.rendezvous_point_for[payload.cookie] = circuit
 
-        self.send_cell(source_address, u"rendezvous-established",
+        self.send_cell(source_address, "rendezvous-established",
                        RendezvousEstablishedPayload(circuit.circuit_id, payload.identifier, self.my_estimated_wan))
 
     @tc_lazy_wrapper_unsigned(RendezvousEstablishedPayload)
     def on_rendezvous_established(self, source_address, payload, circuit_id):
-        if not self.request_cache.has(u"establish-rendezvous", payload.identifier):
+        if not self.request_cache.has("establish-rendezvous", payload.identifier):
             self.logger.warning("Invalid rendezvous-established request identifier")
             return
 
-        rp = self.request_cache.pop(u"establish-rendezvous", payload.identifier).rp
+        rp = self.request_cache.pop("establish-rendezvous", payload.identifier).rp
 
         sock_addr = payload.rendezvous_point_addr
         rp.rp_info = (sock_addr[0], sock_addr[1], self.crypto.key_to_bin(rp.circuit.hops[-1].public_key))
