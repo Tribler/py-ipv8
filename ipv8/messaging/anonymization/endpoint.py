@@ -35,14 +35,13 @@ class TunnelEndpoint(object):
                 self.send_queue.append((address, packet))
                 return
 
-            circuit_address = circuit.peer.address
             circuit_id = circuit.circuit_id
-            self.tunnel_community.send_data((circuit_address,), circuit_id, address, ('0.0.0.0', 0), packet)
+            self.tunnel_community.send_data(circuit.peer, circuit_id, address, ('0.0.0.0', 0), packet)
 
             # Any packets still need sending?
             while self.send_queue:
                 address, packet = self.send_queue.popleft()
-                self.tunnel_community.send_data((circuit_address,), circuit_id, address, ('0.0.0.0', 0), packet)
+                self.tunnel_community.send_data(circuit.peer, circuit_id, address, ('0.0.0.0', 0), packet)
 
     def notify_listeners(self, packet, from_tunnel=False):
         for listener in self._listeners:

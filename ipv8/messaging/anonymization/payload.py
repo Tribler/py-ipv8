@@ -29,7 +29,8 @@ def encode_address(host, port):
     if is_ip:
         return pack("!B4sH", ADDRESS_TYPE_IPV4, ip, port)
     else:
-        return pack("!BH", ADDRESS_TYPE_DOMAIN_NAME, len(host)) + cast_to_bin(host) + pack("!H", port)
+        host_bytes = host.encode('utf-8')
+        return pack("!BH", ADDRESS_TYPE_DOMAIN_NAME, len(host_bytes)) + host_bytes + pack("!H", port)
 
 
 def decode_address(packet):
