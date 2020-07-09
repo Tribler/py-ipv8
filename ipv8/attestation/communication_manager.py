@@ -185,20 +185,18 @@ class CommunicationManager(object):
         self.ipv8_instance = ipv8_instance
         self.channels = {}
 
-        self.pseudonym_folder = pseudonym_folder
         self.name_to_channel = {}
 
         self.crypto = ECCrypto()
 
         loaded_community = ipv8_instance.get_overlay(IdentityCommunity)
-        if loaded_community is not None:
-            self.identity_manager = loaded_community.identity_manager
-        else:
-            if working_directory is None:
-                working_directory = ipv8_instance.configuration.get("working_directory", ".")
-            self.identity_manager = None
+        self.identity_manager = None if loaded_community is None else loaded_community.identity_manager
+
+        if working_directory is None:
+            working_directory = ipv8_instance.configuration.get("working_directory", ".")
 
         self.working_directory = working_directory
+        self.pseudonym_folder = os.path.join(self.working_directory, pseudonym_folder)
 
     def lazy_identity_manager(self) -> IdentityManager:
         """
