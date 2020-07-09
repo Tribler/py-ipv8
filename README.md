@@ -5,6 +5,8 @@
 
 **Linux**: [![](http://jenkins-ci.tribler.org/job/ipv8/job/test_ipv8_linux/badge/icon)](http://jenkins-ci.tribler.org/job/ipv8/job/test_ipv8_linux/) **Windows**: [![](http://jenkins-ci.tribler.org/job/ipv8/job/test_ipv8_windows/badge/icon)](http://jenkins-ci.tribler.org/job/ipv8/job/test_ipv8_windows/) **Mac**: [![](http://jenkins-ci.tribler.org/job/ipv8/job/test_ipv8_mac/badge/icon)](http://jenkins-ci.tribler.org/job/ipv8/job/test_ipv8_mac/)
 
+**Mutation Tests**: [![](https://jenkins-ci.tribler.org/job/ipv8/job/mutation_test_daily/badge/icon)](https://jenkins-ci.tribler.org/job/ipv8/job/mutation_test_daily/HTML_20Report/)
+
 **Read the Docs**: [![](https://readthedocs.org/projects/py-ipv8/badge/?version=latest)](https://py-ipv8.readthedocs.io/)
 
 ## What is IPv8 ?
