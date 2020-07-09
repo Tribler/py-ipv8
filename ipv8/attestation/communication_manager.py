@@ -196,10 +196,18 @@ class CommunicationManager(object):
         else:
             if working_directory is None:
                 working_directory = ipv8_instance.configuration.get("working_directory", ".")
-            self.identity_manager = IdentityManager(working_directory if working_directory == ":memory:"
-                                                    else os.path.join(working_directory, "sqlite", "identity.db"))
+            self.identity_manager = None
 
         self.working_directory = working_directory
+
+    def lazy_identity_manager(self) -> IdentityManager:
+        """
+        Lazy load the IdentityManager.
+        """
+        if self.identity_manager is None:
+            self.identity_manager = IdentityManager(self.working_directory if self.working_directory == ":memory:"
+                                                    else os.path.join(self.working_directory, "sqlite", "identity.db"))
+        return self.identity_manager
 
     async def load(self, name: str, rendezvous_token: typing.Optional[str] = None) -> CommunicationChannel:
         """
@@ -223,7 +231,7 @@ class CommunicationManager(object):
             tunnel_community = self.ipv8_instance.get_overlay(HiddenTunnelCommunity)
             decoded_rendezvous_token = (base64.b64decode(rendezvous_token.encode())
                                         if rendezvous_token is not None else None)
-            identity_overlay = await create_community(private_key, self.ipv8_instance, self.identity_manager,
+            identity_overlay = await create_community(private_key, self.ipv8_instance, self.lazy_identity_manager(),
                                                       working_directory=self.working_directory,
                                                       anonymize=tunnel_community is not None,
                                                       rendezvous_token=decoded_rendezvous_token)
