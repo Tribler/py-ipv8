@@ -246,7 +246,6 @@ class TunnelCommunity(Community):
         for peer in list(self.candidates):
             if peer not in current_peers:
                 self.candidates.pop(peer)
-                self.logger.info("Removed candidate from candidates dictionary")
 
     def get_candidates(self, flag):
         return [peer for peer, flags in self.candidates.items()
