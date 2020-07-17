@@ -7,8 +7,8 @@ from ...mocking.exit_socket import MockTunnelExitSocket
 from ...mocking.ipv8 import MockIPv8
 from ....messaging.anonymization.community import CIRCUIT_TYPE_RP_DOWNLOADER, TunnelSettings
 from ....messaging.anonymization.hidden_services import HiddenTunnelCommunity
-from ....messaging.anonymization.tunnel import CIRCUIT_TYPE_DATA, CIRCUIT_TYPE_IP_SEEDER, IntroductionPoint,\
-    PEER_FLAG_EXIT_ANY, PEER_SOURCE_DHT
+from ....messaging.anonymization.tunnel import CIRCUIT_TYPE_DATA, CIRCUIT_TYPE_IP_SEEDER, IntroductionPoint, \
+                                               PEER_FLAG_EXIT_BT, PEER_SOURCE_DHT
 from ....peer import Peer
 from ....util import fail, succeed
 
@@ -107,7 +107,7 @@ class TestHiddenServices(TestBase):
         """
         exit_node = self.create_node()
         self.private_nodes.append(exit_node)
-        exit_node.overlay.settings.peer_flags.add(PEER_FLAG_EXIT_ANY)
+        exit_node.overlay.settings.peer_flags.add(PEER_FLAG_EXIT_BT)
         public_peer = Peer(exit_node.my_peer.public_key, exit_node.my_peer.address)
         self.nodes[node_nr].network.add_verified_peer(public_peer)
         self.nodes[node_nr].network.discover_services(public_peer, exit_node.overlay.master_peer.mid)
