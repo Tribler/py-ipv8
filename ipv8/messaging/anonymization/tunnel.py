@@ -5,7 +5,7 @@ import sys
 import time
 from asyncio import DatagramProtocol, Future, ensure_future, get_event_loop
 from binascii import hexlify
-from collections import defaultdict, deque
+from collections import deque
 from struct import unpack_from
 from traceback import format_exception
 
@@ -124,7 +124,6 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
         self.transport = None
         self.queue = deque(maxlen=10)
         self.enabled = False
-        self.ips = defaultdict(int)
 
     def enable(self):
         if not self.enabled:
@@ -144,31 +143,30 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
             return
 
         self.beat_heart()
-        if self.check_num_packets(destination, False):
-            if DataChecker.is_allowed(data):
-                def on_ip_address(future):
-                    try:
-                        ip_address = future.result()
-                    except Exception as e:
-                        self.logger.error("Can't resolve ip address for %s. Failure: %s", destination[0], e)
-                        return
-
-                    self.logger.debug("Resolved hostname %s to ip_address %s", destination[0], ip_address)
-                    try:
-                        self.transport.sendto(data, (ip_address, destination[1]))
-                        self.overlay.increase_bytes_sent(self, len(data))
-                    except socket.error as e:
-                        self.logger.error("Failed to write to transport. Destination: %r error: %r", destination, e)
-
+        if DataChecker.is_allowed(data):
+            def on_ip_address(future):
                 try:
-                    socket.inet_aton(destination[0])
-                    on_ip_address(succeed(destination[0]))
-                except (OSError, ValueError):
-                    task = ensure_future(self.resolve(destination[0]))
-                    # If this also fails, the TaskManager logs the packet.
-                    # The host probably really does not exist.
-                    self.register_anonymous_task("resolving_%r" % destination[0], task,
-                                                 ignore=(OSError, ValueError)).add_done_callback(on_ip_address)
+                    ip_address = future.result()
+                except Exception as e:
+                    self.logger.error("Can't resolve ip address for %s. Failure: %s", destination[0], e)
+                    return
+
+                self.logger.debug("Resolved hostname %s to ip_address %s", destination[0], ip_address)
+                try:
+                    self.transport.sendto(data, (ip_address, destination[1]))
+                    self.overlay.increase_bytes_sent(self, len(data))
+                except socket.error as e:
+                    self.logger.error("Failed to write to transport. Destination: %r error: %r", destination, e)
+
+            try:
+                socket.inet_aton(destination[0])
+                on_ip_address(succeed(destination[0]))
+            except (OSError, ValueError):
+                task = ensure_future(self.resolve(destination[0]))
+                # If this also fails, the TaskManager logs the packet.
+                # The host probably really does not exist.
+                self.register_anonymous_task("resolving_%r" % destination[0], task,
+                                             ignore=(OSError, ValueError)).add_done_callback(on_ip_address)
 
     async def resolve(self, host):
         # Using asyncio's getaddrinfo since the aiodns resolver seems to have issues.
@@ -179,15 +177,14 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
     def datagram_received(self, data, source):
         self.beat_heart()
         self.overlay.increase_bytes_received(self, len(data))
-        if self.check_num_packets(source, True):
-            if DataChecker.is_allowed(data):
-                try:
-                    self.tunnel_data(source, data)
-                except Exception:
-                    self.logger.error("Exception occurred while handling incoming exit node data!\n"
-                                      + ''.join(format_exception(*sys.exc_info())))
-            else:
-                self.logger.warning("Dropping forbidden packets to exit socket with circuit_id %d", self.circuit_id)
+        if DataChecker.is_allowed(data):
+            try:
+                self.tunnel_data(source, data)
+            except Exception:
+                self.logger.error("Exception occurred while handling incoming exit node data!\n"
+                                  + ''.join(format_exception(*sys.exc_info())))
+        else:
+            self.logger.warning("Dropping forbidden packets to exit socket with circuit_id %d", self.circuit_id)
 
     def tunnel_data(self, source, data):
         self.logger.debug("Tunnel data to origin %s for circuit %s", ('0.0.0.0', 0), self.circuit_id)
@@ -204,24 +201,6 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
         if self.transport:
             self.transport.close()
             self.transport = None
-
-    def check_num_packets(self, ip, incoming):
-        if self.ips[ip] < 0:
-            return True
-
-        max_packets_without_reply = self.overlay.settings.max_packets_without_reply
-        if self.ips[ip] >= (max_packets_without_reply + 1 if incoming else max_packets_without_reply):
-            self.overlay.remove_exit_socket(self.circuit_id, destroy=DESTROY_REASON_FORBIDDEN)
-            self.logger.error("too many packets to a destination without a reply, "
-                              "removing exit socket with circuit_id %d", self.circuit_id)
-            return False
-
-        if incoming:
-            self.ips[ip] = -1
-        else:
-            self.ips[ip] += 1
-
-        return True
 
 
 class Circuit(Tunnel):

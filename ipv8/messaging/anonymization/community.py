@@ -5,6 +5,7 @@ Author(s): Egbert Bouman
 """
 from asyncio import iscoroutine, sleep
 from binascii import unhexlify
+from collections import defaultdict
 
 from .caches import *
 from .endpoint import TunnelEndpoint
@@ -90,8 +91,6 @@ class TunnelSettings(object):
         # Maximum number of seconds before a circuit is considered inactive (and is removed)
         self.max_time_inactive = 20
         self.max_traffic = 250 * 1024 * 1024
-
-        self.max_packets_without_reply = 50
 
         # Maximum number of seconds circuit creation is allowed to take. Within this time period, the unverified hop
         # of the circuit can still change in case it is unresponsive.
