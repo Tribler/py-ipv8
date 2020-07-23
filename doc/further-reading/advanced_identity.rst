@@ -76,6 +76,44 @@ All requests to the core will then have to use either:
 
 Any HTTP request without either of these entries or using the wrong key will be dropped.
 
+Using a REST API X509 certificate
+---------------------------------
+
+**Purpose:** *provide transport layer security (TLS) for the REST API.*
+
+In the basic identity tutorial we started the REST API as follows:
+
+.. code-block:: python
+
+    for peer_id in [1, 2]:
+        ipv8 = IPv8(configuration)
+        await ipv8.start()
+        rest_manager = RESTManager(ipv8)
+        await rest_manager.start(14410 + peer_id)
+
+To use a certificate file, we will have to pass it to the ``RESTManager`` constructor, as follows (replacing ``cert_fileX`` with the file path of your certificate file for the particular IPv8 instance):
+
+.. code-block:: python
+
+    for peer_id in [1, 2]:
+        ipv8 = IPv8(configuration)
+        await ipv8.start()
+        ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        ssl_context.load_cert_chain(cert_fileX)
+        rest_manager = RESTManager(ipv8, ssl_context=ssl_context)
+        await rest_manager.start(14410 + peer_id)
+
+This can (and should) be combined with an API key.
+Also note that if you start two IPv8 instances, you would normally want them to have different certificates.
+
+If you don't have a certificate file, you can generate one with ``openssl`` as follows:
+
+.. code-block:: bash
+
+    openssl req -newkey rsa:2048 -nodes -keyout private.key -x509 -days 365 -out certfile.pem
+    cat private.key >> certfile.pem
+    rm private.key
+
 Setting a rendezvous token
 --------------------------
 
