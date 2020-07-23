@@ -297,16 +297,6 @@ class TestConfiguration(TestBase):
                                                                                             'edge_timeout': 3.0})],
                                                   {},
                                                   []) \
-                                     .add_overlay("AttestationCommunity",
-                                                  "anonymous id",
-                                                  [WalkerDefinition(Strategy.RandomWalk, 20, {'timeout': 3.0})],
-                                                  {'anonymize': True},
-                                                  []) \
-                                     .add_overlay("IdentityCommunity",
-                                                  "anonymous id",
-                                                  [WalkerDefinition(Strategy.RandomWalk, 20, {'timeout': 3.0})],
-                                                  {'anonymize': True},
-                                                  []) \
                                      .add_overlay("DHTDiscoveryCommunity",
                                                   "anonymous id",
                                                   [WalkerDefinition(Strategy.RandomWalk, 20, {'timeout': 3.0})],

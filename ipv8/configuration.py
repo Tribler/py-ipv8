@@ -94,32 +94,6 @@ default = {
             'on_start': []
         },
         {
-            'class': 'AttestationCommunity',
-            'key': "anonymous id",
-            'walkers': [{
-                'strategy': "RandomWalk",
-                'peers': 20,
-                'init': {
-                    'timeout': 3.0
-                }
-            }],
-            'initialize': {'anonymize': True},
-            'on_start': []
-        },
-        {
-            'class': 'IdentityCommunity',
-            'key': "anonymous id",
-            'walkers': [{
-                'strategy': "RandomWalk",
-                'peers': 20,
-                'init': {
-                    'timeout': 3.0
-                }
-            }],
-            'initialize': {'anonymize': True},
-            'on_start': []
-        },
-        {
             'class': 'DHTDiscoveryCommunity',
             'key': "anonymous id",
             'walkers': [{
