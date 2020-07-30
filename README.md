@@ -49,9 +49,6 @@ python3 create_test_coverage_report.py
 ```
 
 ### Getting started
-IPv8 can be used as a library or as a service. It is easiest to start off with the service, which has been provided [here](https://github.com/Tribler/py-ipv8/blob/master/ipv8_service.py) (see the [configuration file](https://py-ipv8.readthedocs.io/en/latest/reference/configuration/) for invocation options).
-This file will load the IPv8 stack for *signed messaging*, *anonymous messaging*, *attribute attestation*, *public service discovery*, *peer discovery* and *peer keep-alive*.
 You can start creating your first network overlay by following [the overlay creation tutorial](https://py-ipv8.readthedocs.io/en/latest/basics/overlay_tutorial/).
 
-Additional documentation is also available for the [TrustChain](https://py-ipv8.readthedocs.io/en/latest/further-reading/trustchain/) and [anonymous overlay](https://py-ipv8.readthedocs.io/en/latest/further-reading/anonymization/) provided in IPv8.
-
+We provide additional documentation on [configuration](https://py-ipv8.readthedocs.io/en/latest/reference/configuration/), [key generation](https://py-ipv8.readthedocs.io/en/latest/reference/keys/) and [message serialization formats](https://py-ipv8.readthedocs.io/en/latest/reference/serialization/) on [our ReadTheDocs page](https://py-ipv8.readthedocs.io/en/latest/).
