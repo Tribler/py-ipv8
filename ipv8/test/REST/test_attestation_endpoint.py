@@ -1,10 +1,10 @@
 from asyncio import sleep
 from base64 import b64encode
 
-from ...REST.rest_base import RESTTestBase, partial_cls
-from ....attestation.identity.community import IdentityCommunity
-from ....attestation.identity.manager import IdentityManager
-from ....attestation.wallet.community import AttestationCommunity
+from ..REST.rest_base import RESTTestBase, partial_cls
+from ...attestation.identity.community import IdentityCommunity
+from ...attestation.identity.manager import IdentityManager
+from ...attestation.wallet.community import AttestationCommunity
 
 
 class TestAttestationEndpoint(RESTTestBase):
