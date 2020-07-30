@@ -1,3 +1,4 @@
+import json
 from asyncio import Future
 from base64 import b64decode, b64encode
 from hashlib import sha1
@@ -6,7 +7,6 @@ from aiohttp import web
 
 from aiohttp_apispec import docs
 
-from . import json_util as json
 from .base_endpoint import BaseEndpoint, HTTP_BAD_REQUEST, HTTP_NOT_FOUND, Response
 from ..attestation.identity.community import IdentityCommunity, create_community
 from ..attestation.wallet.community import AttestationCommunity

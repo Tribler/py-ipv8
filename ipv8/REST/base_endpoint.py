@@ -1,8 +1,7 @@
+import json
 import logging
 
 from aiohttp import web
-
-from . import json_util as json
 
 HTTP_BAD_REQUEST = 400
 HTTP_UNAUTHORIZED = 401
