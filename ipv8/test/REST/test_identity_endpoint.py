@@ -3,14 +3,14 @@ import json
 import os
 import urllib.parse
 
-from ...REST.rest_base import RESTTestBase, partial_cls
-from ....attestation.communication_manager import CommunicationChannel
-from ....attestation.default_identity_formats import FORMATS
-from ....attestation.identity.community import IdentityCommunity
-from ....attestation.identity.manager import IdentityManager
-from ....attestation.wallet.community import AttestationCommunity
-from ....community import _DEFAULT_ADDRESSES
-from ....keyvault.crypto import ECCrypto
+from ..REST.rest_base import RESTTestBase, partial_cls
+from ...attestation.communication_manager import CommunicationChannel
+from ...attestation.default_identity_formats import FORMATS
+from ...attestation.identity.community import IdentityCommunity
+from ...attestation.identity.manager import IdentityManager
+from ...attestation.wallet.community import AttestationCommunity
+from ...community import _DEFAULT_ADDRESSES
+from ...keyvault.crypto import ECCrypto
 
 
 class TestIdentityEndpoint(RESTTestBase):
