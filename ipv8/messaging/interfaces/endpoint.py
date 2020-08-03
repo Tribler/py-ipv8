@@ -125,7 +125,7 @@ class EndpointListener(metaclass=abc.ABCMeta):
         self.endpoint = endpoint
 
         self._netifaces_failed = netifaces is None
-        self.my_estimated_lan = (self._get_lan_address(True)[0], self.endpoint._port)
+        self.my_estimated_lan = (self._get_lan_address(True)[0], getattr(self.endpoint, "_port", 0))
         self.my_estimated_wan = self.my_estimated_lan
 
     @property

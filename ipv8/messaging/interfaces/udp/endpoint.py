@@ -1,11 +1,18 @@
 import asyncio
+import collections
 import logging
 import socket
 
 from ..endpoint import Endpoint, EndpointClosedException
 
 
+UDPv4Address = collections.namedtuple("UDPv4Address", ["ip", "port"])
+UDPv6Address = collections.namedtuple("UDPv6Address", ["ip", "port"])
+
+
 class UDPEndpoint(Endpoint, asyncio.DatagramProtocol):
+
+    SOCKET_FAMILY = socket.AF_INET
 
     def __init__(self, port=0, ip="0.0.0.0"):
         Endpoint.__init__(self)
@@ -25,7 +32,7 @@ class UDPEndpoint(Endpoint, asyncio.DatagramProtocol):
         # If the endpoint is still running, accept incoming requests, otherwise drop them
         if self._running:
             self.bytes_down += len(datagram)
-            self.notify_listeners((addr, datagram))
+            self.notify_listeners((UDPv4Address(*addr), datagram))
 
     def send(self, socket_address, packet):
         """
@@ -59,7 +66,7 @@ class UDPEndpoint(Endpoint, asyncio.DatagramProtocol):
             try:
                 # It is recommended that this endpoint is opened at port = 0,
                 # such that the OS handles the port assignment
-                self._transport = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                self._transport = socket.socket(self.SOCKET_FAMILY, socket.SOCK_DGRAM)
                 self._transport.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 870400)
                 self._transport.bind((self._ip, self._port))
                 self._transport.setblocking(False)
@@ -106,3 +113,17 @@ class UDPEndpoint(Endpoint, asyncio.DatagramProtocol):
         Check if the underlying socket is open.
         """
         return self._running
+
+
+class UDPv6Endpoint(UDPEndpoint):
+
+    SOCKET_FAMILY = socket.AF_INET6
+
+    def __init__(self, port=0, ip="::"):
+        super(UDPv6Endpoint, self).__init__(port, ip)
+
+    def datagram_received(self, datagram, addr):
+        # If the endpoint is still running, accept incoming requests, otherwise drop them
+        if self._running:
+            self.bytes_down += len(datagram)
+            self.notify_listeners((UDPv6Address(*addr), datagram))

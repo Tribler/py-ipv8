@@ -21,6 +21,7 @@ else:
         from ipv8.messaging.anonymization.community import TunnelCommunity
         from ipv8.messaging.anonymization.endpoint import TunnelEndpoint
         from ipv8.messaging.anonymization.hidden_services import HiddenTunnelCommunity
+        from ipv8.messaging.interfaces.dispatcher.endpoint import DispatcherEndpoint
         from ipv8.messaging.interfaces.udp.endpoint import UDPEndpoint
         from ipv8.peer import Peer
         from ipv8.peerdiscovery.community import DiscoveryCommunity
@@ -38,6 +39,7 @@ else:
         from .ipv8.messaging.anonymization.community import TunnelCommunity
         from .ipv8.messaging.anonymization.endpoint import TunnelEndpoint
         from .ipv8.messaging.anonymization.hidden_services import HiddenTunnelCommunity
+        from .ipv8.messaging.interfaces.dispatcher.endpoint import DispatcherEndpoint
         from .ipv8.messaging.interfaces.udp.endpoint import UDPEndpoint
         from .ipv8.peer import Peer
         from .ipv8.peerdiscovery.community import DiscoveryCommunity
@@ -71,7 +73,9 @@ else:
             if endpoint_override:
                 self.endpoint = endpoint_override
             else:
-                self.endpoint = UDPEndpoint(port=configuration['port'], ip=configuration['address'])
+                self.endpoint = DispatcherEndpoint(["UDPIPv4"],
+                                                   UDPIPv4={'port': configuration['port'],
+                                                            'ip': configuration['address']})
                 if enable_statistics:
                     self.endpoint = StatisticsEndpoint(self, self.endpoint)
                 if any([overlay.get('initialize', {}).get('anonymize') for overlay in configuration['overlays']]):
