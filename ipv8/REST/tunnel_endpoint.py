@@ -1,14 +1,27 @@
+from asyncio import FIRST_COMPLETED, wait
 from binascii import hexlify, unhexlify
+from statistics import mean, median
+from timeit import default_timer
 
 from aiohttp import web
 
 from aiohttp_apispec import docs
 
-from marshmallow.fields import Boolean, Integer, List, String
+from marshmallow.fields import Boolean, Float, Integer, List, String
 
-from .base_endpoint import BaseEndpoint, Response
+from .base_endpoint import BaseEndpoint, HTTP_BAD_REQUEST, HTTP_INTERNAL_SERVER_ERROR, HTTP_NOT_FOUND, Response
 from .schema import schema
-from ..messaging.anonymization.community import TunnelCommunity
+from ..messaging.anonymization.community import (CIRCUIT_STATE_READY, CIRCUIT_TYPE_DATA,
+                                                 PEER_FLAG_SPEED_TEST, TunnelCommunity)
+
+
+SpeedTestResponseSchema = schema(SpeedTestResponse={
+    "speed": (Float, 'Speed in MiB/s'),
+    "messages_sent": Integer,
+    "messages_received": Integer,
+    "rtt_mean": Float,
+    "rtt_median": Float
+})
 
 
 class TunnelEndpoint(BaseEndpoint):
@@ -22,6 +35,8 @@ class TunnelEndpoint(BaseEndpoint):
 
     def setup_routes(self):
         self.app.add_routes([web.get('/circuits', self.get_circuits),
+                             web.get('/circuits/test', self.speed_test_new_circuit),
+                             web.get('/circuits/{circuit_id}/test', self.speed_test_existing_circuit),
                              web.get('/relays', self.get_relays),
                              web.get('/exits', self.get_exits),
                              web.get('/swarms', self.get_swarms),
@@ -68,6 +83,113 @@ class TunnelEndpoint(BaseEndpoint):
             "creation_time": circuit.creation_time,
             "exit_flags": circuit.exit_flags
         } for circuit in self.tunnels.circuits.values()]})
+
+    @docs(
+        tags=["Tunnels"],
+        summary="Test the upload or download speed of a circuit.",
+        parameters=[{
+            'in': 'path',
+            'name': 'circuit_id',
+            'description': 'The circuit_id of the circuit which is to be tested.',
+            'type': 'integer',
+        }, {
+            'in': 'query',
+            'name': 'direction',
+            'description': 'The direction for which to test the speed.',
+            'type': 'string',
+            'enum': ['upload', 'download'],
+            'default': 'download'
+        }],
+        responses={
+            200: {"schema": SpeedTestResponseSchema}
+        }
+    )
+    async def speed_test_existing_circuit(self, request):
+        if not request.match_info['circuit_id'].isdigit():
+            return Response({"error": "circuit_id must be an integer"}, status=HTTP_BAD_REQUEST)
+
+        circuit = self.tunnels.circuits.get(int(request.match_info['circuit_id']))
+        if not circuit:
+            return Response({"error": "could not find requested circuit"}, status=HTTP_NOT_FOUND)
+        if circuit.state != CIRCUIT_STATE_READY:
+            return Response({"error": "the requested circuit is not ready to transfer data"}, status=HTTP_BAD_REQUEST)
+        if circuit.ctype == CIRCUIT_TYPE_DATA and PEER_FLAG_SPEED_TEST not in circuit.exit_flags:
+            return Response({"error": "the requested circuit does not support speed testing"}, status=HTTP_BAD_REQUEST)
+        return await self.run_speed_test(request, circuit)
+
+    @docs(
+        tags=["Tunnels"],
+        summary="Test the upload or download speed of a newly created circuit. "
+                "The circuit is destroyed after the test has completed.",
+        parameters=[{
+            'in': 'query',
+            'name': 'direction',
+            'description': 'The direction for which to test the speed.',
+            'type': 'string',
+            'enum': ['upload', 'download'],
+            'default': 'download'
+        }, {
+            'in': 'query',
+            'name': 'goal_hops',
+            'description': 'The hop count for the circuit that is to be created.',
+            'type': 'integer',
+            'default': 1
+        }],
+        responses={
+            200: {"schema": SpeedTestResponseSchema}
+        }
+    )
+    async def speed_test_new_circuit(self, request):
+        if 'goal_hops' in request.query and not request.query['goal_hops'].isdigit():
+            return Response({"error": "goal_hops must be an integer"}, status=HTTP_BAD_REQUEST)
+
+        goal_hops = int(request.query.get('goal_hops', 1))
+        circuit = self.tunnels.create_circuit(goal_hops, ctype='SPEED_TEST', exit_flags=(PEER_FLAG_SPEED_TEST,))
+        if not circuit or not await circuit.ready:
+            return Response({"error": "failed to create circuit"}, status=HTTP_INTERNAL_SERVER_ERROR)
+        result = await self.run_speed_test(request, circuit)
+        self.tunnels.remove_circuit(circuit.circuit_id, additional_info='speed test finished')
+        return result
+
+    async def run_speed_test(self, request, circuit):
+        direction = request.query.get('direction', 'download')
+        if direction not in ['upload', 'download']:
+            return Response({"error": "invalid direction specified"}, status=HTTP_BAD_REQUEST)
+
+        request_size = 0 if direction == 'download' else 1024
+        response_size = 1024 if direction == 'download' else 0
+        # Transfer 30 * 1024 * 1024 = 30MB for download a download test, and 15MB for
+        # a upload test (excluding protocol overhead).
+        num_packets = 30 * 1024 if direction == 'download' else 15 * 1024
+        num_sent = 0
+        num_ack = 0
+        window = 50
+        outstanding = set()
+        start = default_timer()
+        rtts = []
+
+        while True:
+            while num_sent < num_packets and len(outstanding) < window:
+                outstanding.add(self.tunnels.send_test_request(circuit, request_size, response_size))
+                num_sent += 1
+            if not outstanding:
+                break
+            done, outstanding = await wait(outstanding, return_when=FIRST_COMPLETED, timeout=3)
+            if not done and num_ack > 0.95 * num_packets:
+                # We have received nothing for the past 3s and did get an acknowledgement for 95%
+                # of our requests. To avoid waiting for packets that may never arrive we stop the
+                # test. Any pending messages are considered lost.
+                break
+            # Make sure to only count futures that haven't been set by on_timeout.
+            results = [f.result() for f in done if f.result() is not None]
+            num_ack += len(results)
+            rtts.extend([rtt for _, rtt in results])
+
+        return Response({'speed': (num_ack / 1024) / (default_timer() - start),
+                         'messages_sent': num_ack + len(outstanding),
+                         'messages_received': num_ack,
+                         'rtt_mean': mean(rtts),
+                         'rtt_median': median(rtts)})
 
     @docs(
         tags=["Tunnels"],

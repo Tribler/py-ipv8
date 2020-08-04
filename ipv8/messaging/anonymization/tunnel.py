@@ -26,6 +26,7 @@ PEER_SOURCE_PEX = 2
 PEER_FLAG_RELAY = 1
 PEER_FLAG_EXIT_BT = 2
 PEER_FLAG_EXIT_IPV8 = 4
+PEER_FLAG_SPEED_TEST = 8
 
 # Data circuits are general purpose circuits for exiting data
 CIRCUIT_TYPE_DATA = 'DATA'

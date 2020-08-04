@@ -326,3 +326,34 @@ class LinkedE2EPayload(VariablePayload):
 
     format_list = ['I', 'H']
     names = ['circuit_id', 'identifier']
+
+
+class TestRequestPayload:
+
+    def __init__(self, circuit_id, identifier, response_size, data):
+        self.circuit_id = circuit_id
+        self.identifier = identifier
+        self.response_size = response_size
+        self.data = data
+
+    def to_bin(self):
+        return pack(f'!HH{len(self.data)}s', self.identifier, self.response_size, self.data)
+
+    @classmethod
+    def from_bin(cls, packet):
+        return cls(*unpack_from('!IHH', packet, 23), packet[31:])
+
+
+class TestResponsePayload:
+
+    def __init__(self, circuit_id, identifier, data):
+        self.circuit_id = circuit_id
+        self.identifier = identifier
+        self.data = data
+
+    def to_bin(self):
+        return pack(f'!H{len(self.data)}s', self.identifier, self.data)
+
+    @classmethod
+    def from_bin(cls, packet):
+        return cls(*unpack_from('!IH', packet, 23), packet[29:])

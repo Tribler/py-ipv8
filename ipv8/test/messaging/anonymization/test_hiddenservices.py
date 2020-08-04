@@ -1,5 +1,6 @@
 import time
 from asyncio import Future, sleep
+from unittest.mock import Mock
 
 from .test_community import MockDHTProvider
 from ...base import TestBase
@@ -7,8 +8,8 @@ from ...mocking.exit_socket import MockTunnelExitSocket
 from ...mocking.ipv8 import MockIPv8
 from ....messaging.anonymization.community import CIRCUIT_TYPE_RP_DOWNLOADER, TunnelSettings
 from ....messaging.anonymization.hidden_services import HiddenTunnelCommunity
-from ....messaging.anonymization.tunnel import CIRCUIT_TYPE_DATA, CIRCUIT_TYPE_IP_SEEDER, IntroductionPoint, \
-                                               PEER_FLAG_EXIT_BT, PEER_SOURCE_DHT
+from ....messaging.anonymization.tunnel import (CIRCUIT_TYPE_DATA, CIRCUIT_TYPE_IP_SEEDER, IntroductionPoint,
+                                                PEER_FLAG_EXIT_BT, PEER_FLAG_SPEED_TEST, PEER_SOURCE_DHT)
 from ....peer import Peer
 from ....util import fail, succeed
 
@@ -287,3 +288,37 @@ class TestHiddenServices(TestBase):
         # Node 2 should be known as an introduction point
         peers = [ip.peer for ip in self.nodes[3].overlay.swarms[self.service].intro_points]
         self.assertCountEqual(peers, [self.nodes[1].my_peer, self.nodes[2].my_peer])
+
+    async def test_test_request_e2e(self):
+        """
+        Check if sending test-request messages over an e2e circuit works as expected.
+        """
+
+        future = Future()
+
+        self.nodes[0].overlay.join_swarm(self.service, 1, future.set_result, seeding=False)
+        self.nodes[2].overlay.join_swarm(self.service, 1, future.set_result)
+        self.nodes[2].overlay.settings.peer_flags.add(PEER_FLAG_SPEED_TEST)
+
+        await self.introduce_nodes()
+        await self.create_intro(2, self.service)
+        await self.assign_exit_node(0)
+
+        await self.nodes[0].overlay.do_peer_discovery()
+        await self.deliver_messages()
+
+        await future
+
+        send_cell = self.nodes[0].overlay.send_cell
+        self.nodes[0].overlay.send_cell = Mock(wraps=send_cell)
+        on_test_request = self.nodes[2].overlay.on_test_request
+        self.nodes[2].overlay.decode_map_private[chr(30)] = Mock(wraps=on_test_request)
+
+        circuit, = self.nodes[0].overlay.find_circuits(ctype=CIRCUIT_TYPE_RP_DOWNLOADER)
+        data, _ = await self.nodes[0].overlay.send_test_request(circuit, 3, 6)
+        self.assertEqual(len(self.nodes[0].overlay.send_cell.call_args[0][2].data), 3)
+        self.assertEqual(len(data), 6)
+        self.nodes[2].overlay.decode_map_private[chr(30)].assert_called_once()
+
+        self.nodes[0].overlay.leave_swarm(self.service)
+        self.nodes[2].overlay.leave_swarm(self.service)

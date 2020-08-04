@@ -8,7 +8,8 @@ from ...mocking.exit_socket import MockTunnelExitSocket
 from ...mocking.ipv8 import MockIPv8
 from ....messaging.anonymization.community import TunnelCommunity, TunnelSettings
 from ....messaging.anonymization.endpoint import TunnelEndpoint
-from ....messaging.anonymization.tunnel import CIRCUIT_STATE_EXTENDING, PEER_FLAG_EXIT_BT, PEER_FLAG_EXIT_IPV8
+from ....messaging.anonymization.tunnel import (CIRCUIT_STATE_EXTENDING, PEER_FLAG_EXIT_BT,
+                                                PEER_FLAG_EXIT_IPV8, PEER_FLAG_SPEED_TEST)
 from ....messaging.interfaces.udp.endpoint import UDPEndpoint
 from ....util import cast_to_bin, succeed
 
@@ -451,3 +452,19 @@ class TestTunnelCommunity(TestBase):
         await self.deliver_messages()
 
         mock_exit.sendto.assert_called_with(b'', unicode_destination)
+
+    async def test_test_request(self):
+        """
+        Check if sending test-request messages works as expected.
+        """
+        self.add_node_to_experiment(self.create_node())
+        self.nodes[1].overlay.settings.peer_flags.add(PEER_FLAG_SPEED_TEST)
+        await self.introduce_nodes()
+        circuit = self.nodes[0].overlay.create_circuit(2, exit_flags=[PEER_FLAG_SPEED_TEST])
+        await circuit.ready
+
+        send_cell = self.nodes[0].overlay.send_cell
+        self.nodes[0].overlay.send_cell = Mock(wraps=send_cell)
+        data, _ = await self.nodes[0].overlay.send_test_request(circuit, 3, 6)
+        self.assertEqual(len(self.nodes[0].overlay.send_cell.call_args[0][2].data), 3)
+        self.assertEqual(len(data), 6)

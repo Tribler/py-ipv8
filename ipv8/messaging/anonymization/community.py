@@ -3,6 +3,7 @@ The tunnel community.
 
 Author(s): Egbert Bouman
 """
+import os
 from asyncio import iscoroutine, sleep
 from binascii import unhexlify
 from collections import defaultdict
@@ -39,7 +40,9 @@ message_to_payload = {
     "link-e2e": (19, LinkE2EPayload),
     "linked-e2e": (20, LinkedE2EPayload),
     "peers-request": (21, PeersRequestPayload),
-    "peers-response": (22, PeersResponsePayload)
+    "peers-response": (22, PeersResponsePayload),
+    "test-request": (30, TestRequestPayload),
+    "test-response": (31, TestResponsePayload)
 }
 
 
@@ -108,7 +111,7 @@ class TunnelSettings(object):
         self.remove_tunnel_delay = 5
 
         self.num_ip_circuits = 3
-        self.peer_flags = {PEER_FLAG_RELAY}
+        self.peer_flags = {PEER_FLAG_RELAY, PEER_FLAG_SPEED_TEST}
 
 
 class TunnelCommunity(Community):
@@ -144,7 +147,9 @@ class TunnelCommunity(Community):
             chr(4): self.on_extend,
             chr(5): self.on_extended,
             chr(6): self.on_ping,
-            chr(7): self.on_pong
+            chr(7): self.on_pong,
+            chr(30): self.on_test_request,
+            chr(31): self.on_test_response
         }
 
         self.select_index = -1
@@ -181,9 +186,10 @@ class TunnelCommunity(Community):
         for circuit_id in list(self.exit_sockets.keys()):
             self.remove_exit_socket(circuit_id, 'unload', remove_now=True, destroy=DESTROY_REASON_SHUTDOWN)
 
-        await self.request_cache.shutdown()
-
+        # First we unload the community, then we shutdown the RequestCache. This prevents calls to
+        # RequestCache.add after RequestCache.shutdown is called (which will return None after shutdown).
         await super(TunnelCommunity, self).unload()
+        await self.request_cache.shutdown()
 
     def _generate_circuit_id(self):
         circuit_id = random.getrandbits(32)
@@ -456,7 +462,7 @@ class TunnelCommunity(Community):
     def send_cell(self, peer, message_type, payload, circuit_id=None):
         message_id, _ = message_to_payload[message_type]
         circuit_id = circuit_id or payload.circuit_id
-        if isinstance(payload, DataPayload):
+        if isinstance(payload, (DataPayload, TestRequestPayload, TestResponsePayload)):
             message = payload.to_bin()
         else:
             message = self.serializer.pack_multiple(payload.to_pack_list()[1:])[0]
@@ -928,3 +934,43 @@ class TunnelCommunity(Community):
             await self.dht_provider.peer_lookup(mid, peer)
         else:
             self.logger.error("Need a DHT provider to connect to a peer using the DHT")
+
+    def send_test_request(self, circuit, request_size=0, response_size=0):
+        cache = TestRequestCache(self, circuit)
+        self.request_cache.add(cache)
+        self.increase_bytes_sent(circuit,
+                                 self.send_cell(circuit.peer, "test-request",
+                                                TestRequestPayload(circuit.circuit_id, cache.number,
+                                                                   response_size, os.urandom(request_size))))
+        return cache.future
+
+    def on_test_request(self, source_address, data, circuit_id):
+        if PEER_FLAG_SPEED_TEST not in self.settings.peer_flags:
+            self.logger.warning("Ignoring test-request from circuit %d", circuit_id)
+            return
+
+        payload = TestRequestPayload.from_bin(data)
+        exit_socket = self.exit_sockets.get(circuit_id)
+        circuit = self.circuits.get(circuit_id)
+        if not exit_socket and not (circuit and circuit.ctype == CIRCUIT_TYPE_RP_SEEDER):
+            self.logger.error("Dropping test-request with unknown circuit_id")
+            return
+
+        self.logger.debug("Got test-request (%d) from %s, replying with response", circuit_id, source_address)
+        (exit_socket or circuit).beat_heart()
+        self.send_cell(source_address, "test-response",
+                       TestResponsePayload(circuit_id, payload.identifier, os.urandom(payload.response_size)))
+
+    def on_test_response(self, source_address, data, circuit_id):
+        payload = TestResponsePayload.from_bin(data)
+        circuit = self.circuits.get(circuit_id)
+        if not circuit:
+            self.logger.error("Dropping test-response with unknown circuit_id")
+            return
+        if not self.request_cache.has("test-request", payload.identifier):
+            self.logger.error("Dropping unexpected test-response")
+            return
+
+        self.logger.debug("Got test-response (%d) from %s", circuit_id, source_address)
+        cache = self.request_cache.pop("test-request", payload.identifier)
+        cache.future.set_result((payload.data, time.time() - cache.ts))
