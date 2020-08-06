@@ -2,6 +2,7 @@ from base64 import b64encode
 from collections import deque
 from struct import unpack
 from time import time
+from typing import Any, Optional, Tuple
 
 from .keyvault.crypto import default_eccrypto
 from .keyvault.keys import Key
@@ -9,13 +10,12 @@ from .keyvault.keys import Key
 
 class Peer(object):
 
-    def __init__(self, key, address=("0.0.0.0", 0), intro=True):
+    def __init__(self, key, address: Optional[Any] = None, intro: bool = True) -> None:
         """
         Create a new Peer.
 
         :param key: the peer's Key (mostly public) or public key bin
-        :param lan_address: the (IP, port) tuple of this peer on its LAN
-        :param wan_address: the (IP, port) tuple of this peer on its WAN
+        :param address: the address object for this peer (e.g. ("1.2.3.4", 0) for IPv4 over UDP)
         :param intro: is this peer suggested to us (otherwise it contacted us)
         """
         if not isinstance(key, Key):
@@ -24,10 +24,43 @@ class Peer(object):
             self.key = key
         self.mid = self.key.key_to_hash()
         self.public_key = self.key.pub()
-        self.address = address
+        self.addresses = {}
+        if address is not None:
+            self.addresses[address.__class__] = address
         self.last_response = 0 if intro else time()
         self._lamport_timestamp = 0
         self.pings = deque(maxlen=5)
+
+    @property
+    def address(self) -> Tuple[str, int]:
+        """
+        Deprecated way to retrieve the IPv4 address.
+
+        Use the ``.addresses`` dictionary instead!
+        """
+        from .messaging.interfaces.udp.endpoint import UDPv4Address
+        return self.addresses.get(UDPv4Address, self.addresses.get(tuple, ("0.0.0.0", 0)))
+
+    @address.setter
+    def address(self, value: Tuple[str, int]) -> None:
+        """
+        Deprecated way to set the IPv4 address.
+
+        Use ``add_address()`` instead!
+        """
+        self.add_address(value)
+
+    def add_address(self, value: Any) -> None:
+        """
+        Add a known address for this Peer.
+
+        Any object can form an address, but only one type of address can be used per object type.
+        For example:
+
+         - Adding instances A(1), B(2) leads to addresses {A: A(1), B: B(2)}
+         - Adding instances A(1), B(2), A(3) leads to addresses {A: A(3), B: B(2)}
+        """
+        self.addresses[value.__class__] = value
 
     def get_median_ping(self):
         """

@@ -88,16 +88,17 @@ class Network(object):
             # This may just be an address update
             for known in self.verified_peers:
                 if known.mid == peer.mid:
-                    known.address = peer.address
+                    known.addresses.update(peer.addresses)
                     return
-            if peer.address in self._all_addresses:
+            if any(address in self._all_addresses for address in peer.addresses.values()):
                 if peer not in self.verified_peers:
                     # This should always happen, unless someone edits the verified_peers dict directly.
                     # This would be a programmer 'error', but we will allow it.
                     self.verified_peers.add(peer)
-            elif peer.address not in self.blacklist:
-                if peer.address not in self._all_addresses:
-                    self._all_addresses[peer.address] = ('', None)
+            elif all(address not in self.blacklist for address in peer.addresses.values()):
+                for address in peer.addresses.values():
+                    if address not in self._all_addresses:
+                        self._all_addresses[address] = ('', None)
                 if peer not in self.verified_peers:
                     self.verified_peers.add(peer)
 
@@ -150,7 +151,9 @@ class Network(object):
         """
         with self.graph_lock:
             known = self.get_peers_for_service(service_id) if service_id else self.verified_peers
-            verified = [peer.address for peer in known]
+            verified = []
+            for peer in known:
+                verified.extend(peer.addresses.values())
             out = list(set(self._all_addresses.keys()) - set(verified))
             if service_id:
                 new_out = []
@@ -177,15 +180,15 @@ class Network(object):
             peer = self.reverse_ip_lookup.pop(address, None)
             if not peer:
                 for p in self.verified_peers:
-                    if p.address == address:
+                    if address in p.addresses.values():
                         peer = p
-                        self.reverse_ip_lookup[peer.address] = peer
+                        self.reverse_ip_lookup[address] = peer
                         if len(self.reverse_ip_lookup) > self.reverse_ip_cache_size:
                             self.reverse_ip_lookup.popitem(False)  # Pop the oldest cache entry
                         break
             else:
                 # Refresh the peer in the cache (by popping first, it is now on top of the stack again)
-                self.reverse_ip_lookup[peer.address] = peer
+                self.reverse_ip_lookup[address] = peer
         return peer
 
     def get_verified_by_public_key_bin(self, public_key_bin):
@@ -227,7 +230,8 @@ class Network(object):
             # Note that the services_per_peer will never be 0, we abuse the lazy `or` to pop the peers from
             # the services_per_peer mapping if they are no longer included. This is fast.
             self.verified_peers = {peer for peer in self.verified_peers
-                                   if peer.address != address or self.services_per_peer.pop(peer.mid, None) == 0}
+                                   if address not in peer.addresses.values()
+                                   or self.services_per_peer.pop(peer.mid, None) == 0}
 
     def remove_peer(self, peer):
         """
@@ -236,14 +240,17 @@ class Network(object):
         :param peer: the Peer to remove
         """
         with self.graph_lock:
-            self._all_addresses.pop(peer.address, None)
+            for address in peer.addresses.values():
+                self._all_addresses.pop(address, None)
             if peer in self.verified_peers:
                 self.verified_peers.remove(peer)
             self.services_per_peer.pop(peer.mid, None)
 
     def snapshot(self):
         """
-        Get a snapshot of all verified peers.
+        Get a snapshot of all IPv4 verified peers.
+
+        Deprecated, only supports IPv4 addresses!
 
         :return: the serialization (str) of all verified peers
         """
