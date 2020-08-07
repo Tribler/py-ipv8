@@ -107,7 +107,7 @@ class RESTTestBase(TestBase):
         :param endpoint: the endpoint of this request (i.e. http://<interface>:<port>/<endpoint>)
         :param request_type: the type of request (GET, POST, PUT, DELETE, etc.)
         :param arguments: the arguments to be attached to the request. This should be a dictionary or None
-        :return: a directionary object with the response
+        :return: a dictionary object with the response
         """
 
         # Using localhost in the URL will cause aiohttp to first try ::1, causing a 1s delay for each request
