@@ -107,6 +107,8 @@ class RESTTestBase(TestBase):
         :param endpoint: the endpoint of this request (i.e. http://<interface>:<port>/<endpoint>)
         :param request_type: the type of request (GET, POST, PUT, DELETE, etc.)
         :param arguments: the arguments to be attached to the request. This should be a dictionary or None
+        :param json_response: whether the response is expected to be JSON
+        :param json: a JSON-serializable dictionary that is sent when making the request
         :return: a dictionary object with the response
         """
 
