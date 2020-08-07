@@ -186,10 +186,9 @@ class TunnelCommunity(Community):
         for circuit_id in list(self.exit_sockets.keys()):
             self.remove_exit_socket(circuit_id, 'unload', remove_now=True, destroy=DESTROY_REASON_SHUTDOWN)
 
-        # First we unload the community, then we shutdown the RequestCache. This prevents calls to
-        # RequestCache.add after RequestCache.shutdown is called (which will return None after shutdown).
-        await super(TunnelCommunity, self).unload()
         await self.request_cache.shutdown()
+
+        await super(TunnelCommunity, self).unload()
 
     def _generate_circuit_id(self):
         circuit_id = random.getrandbits(32)
@@ -788,8 +787,7 @@ class TunnelCommunity(Community):
 
         self.logger.info("Extending circuit, got candidate with IP %s:%d from cache", *extend_candidate.address)
 
-        self.request_cache.add(CreateRequestCache(self, to_circuit_id, circuit_id,
-                                                  candidate, extend_candidate))
+        self.request_cache.add(CreateRequestCache(self, to_circuit_id, circuit_id, candidate, extend_candidate))
 
         self.send_cell(extend_candidate, "create",
                        CreatePayload(to_circuit_id, self.my_peer.public_key.key_to_bin(), payload.key))
@@ -880,7 +878,8 @@ class TunnelCommunity(Community):
             if circuit.state in [CIRCUIT_STATE_READY, CIRCUIT_STATE_EXTENDING] \
                     and circuit.circuit_id not in exclude \
                     and circuit.hops:
-                cache = self.request_cache.add(PingRequestCache(self, circuit))
+                cache = PingRequestCache(self, circuit)
+                self.request_cache.add(cache)
                 self.increase_bytes_sent(circuit, self.send_cell(circuit.peer, "ping",
                                                                  PingPayload(circuit.circuit_id, cache.number)))
 
