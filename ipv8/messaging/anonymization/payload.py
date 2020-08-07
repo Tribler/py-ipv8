@@ -7,7 +7,7 @@ from cryptography.exceptions import InvalidTag
 from ...messaging.anonymization.tunnel import (CIRCUIT_TYPE_RP_DOWNLOADER, CIRCUIT_TYPE_RP_SEEDER, EXIT_NODE,
                                                EXIT_NODE_SALT, ORIGINATOR, ORIGINATOR_SALT)
 from ...messaging.anonymization.tunnelcrypto import CryptoException
-from ...messaging.lazy_payload import VariablePayload
+from ...messaging.lazy_payload import VariablePayload, vp_compile
 from ...messaging.payload import Payload
 from ...util import cast_to_bin, cast_to_chr
 
@@ -66,6 +66,7 @@ class ExtraIntroductionPayload(Payload):
 
 
 class DataPayload(object):
+    msg_id = 0
 
     def __init__(self, circuit_id, dest_address, org_address, data):
         self.circuit_id = circuit_id
@@ -77,10 +78,8 @@ class DataPayload(object):
         # Note that since we always wrap data packets in cells, we do not need to include prefix + message_id
         dest = encode_address(*self.dest_address)
         org = encode_address(*self.org_address)
-        return b''.join([pack('!H', len(dest)),
-                         dest,
-                         pack('!H', len(org)),
-                         org,
+        return b''.join([pack('!H', len(dest)), dest,
+                         pack('!H', len(org)), org,
                          self.data])
 
     @classmethod
@@ -94,6 +93,7 @@ class DataPayload(object):
 
 
 class CellPayload(object):
+    msg_id = 1
 
     def __init__(self, circuit_id, message="", plaintext=False):
         self.circuit_id = circuit_id
@@ -187,20 +187,22 @@ class CellPayload(object):
         return cls(circuit_id, packet[28:], plaintext)
 
 
+@vp_compile
 class CreatePayload(VariablePayload):
-
+    msg_id = 2
     format_list = ['I', 'varlenH', 'varlenH']
     names = ['circuit_id', 'node_public_key', 'key']
 
 
+@vp_compile
 class CreatedPayload(VariablePayload):
-
+    msg_id = 3
     format_list = ['I', 'varlenH', '32s', 'raw']
     names = ['circuit_id', 'key', 'auth', 'candidate_list_enc']
 
 
 class ExtendPayload(Payload):
-
+    msg_id = 4
     format_list = ['I', 'varlenH', 'varlenH', 'raw']
 
     def __init__(self, circuit_id, node_public_key, node_addr, key):
@@ -217,8 +219,6 @@ class ExtendPayload(Payload):
 
         if self.node_addr:
             host, port = self.node_addr
-            if not isinstance(host, str):
-                host = cast_to_chr(host)
             data.append(('4SH', socket.inet_aton(host), port))
 
         return data
@@ -231,46 +231,53 @@ class ExtendPayload(Payload):
         return ExtendPayload(circuit_id, node_public_key, node_addr or None, key)
 
 
+@vp_compile
 class ExtendedPayload(CreatedPayload):
-    pass
+    msg_id = 5
 
 
+@vp_compile
 class PingPayload(VariablePayload):
-
+    msg_id = 6
     format_list = ['I', 'H']
     names = ['circuit_id', 'identifier']
 
 
+@vp_compile
 class PongPayload(PingPayload):
-    pass
+    msg_id = 7
 
 
+@vp_compile
 class DestroyPayload(VariablePayload):
-
+    msg_id = 10
     format_list = ['I', 'H']
     names = ['circuit_id', 'reason']
 
 
+@vp_compile
 class EstablishIntroPayload(VariablePayload):
-
+    msg_id = 11
     format_list = ['I', 'H', '20s', 'varlenH']
     names = ['circuit_id', 'identifier', 'info_hash', 'public_key']
 
 
+@vp_compile
 class IntroEstablishedPayload(VariablePayload):
-
+    msg_id = 12
     format_list = ['I', 'H']
     names = ['circuit_id', 'identifier']
 
 
+@vp_compile
 class EstablishRendezvousPayload(VariablePayload):
-
+    msg_id = 15
     format_list = ['I', 'H', '20s']
     names = ['circuit_id', 'identifier', 'cookie']
 
 
 class RendezvousEstablishedPayload(Payload):
-
+    msg_id = 16
     format_list = ['I', 'H', '4SH']
 
     def __init__(self, circuit_id, identifier, rendezvous_point_addr):
@@ -292,43 +299,50 @@ class RendezvousEstablishedPayload(Payload):
         return RendezvousEstablishedPayload(circuit_id, identifier, rendezvous_point_addr)
 
 
+@vp_compile
 class CreateE2EPayload(VariablePayload):
-
+    msg_id = 17
     format_list = ['H', '20s', 'varlenH', 'varlenH']
     names = ['identifier', 'info_hash', 'node_public_key', 'key']
 
 
+@vp_compile
 class CreatedE2EPayload(VariablePayload):
-
+    msg_id = 18
     format_list = ['H', 'varlenH', '32s', 'raw']
     names = ['identifier', 'key', 'auth', 'rp_info_enc']
 
 
-class PeersRequestPayload(VariablePayload):
-
-    format_list = ['I', 'H', '20s']
-    names = ['circuit_id', 'identifier', 'info_hash']
-
-
-class PeersResponsePayload(VariablePayload):
-
-    format_list = ['I', 'H', '20s', 'raw']
-    names = ['circuit_id', 'identifier', 'info_hash', 'peers']
-
-
+@vp_compile
 class LinkE2EPayload(VariablePayload):
-
+    msg_id = 19
     format_list = ['I', 'H', '20s']
     names = ['circuit_id', 'identifier', 'cookie']
 
 
+@vp_compile
 class LinkedE2EPayload(VariablePayload):
-
+    msg_id = 20
     format_list = ['I', 'H']
     names = ['circuit_id', 'identifier']
 
 
+@vp_compile
+class PeersRequestPayload(VariablePayload):
+    msg_id = 21
+    format_list = ['I', 'H', '20s']
+    names = ['circuit_id', 'identifier', 'info_hash']
+
+
+@vp_compile
+class PeersResponsePayload(VariablePayload):
+    msg_id = 22
+    format_list = ['I', 'H', '20s', 'raw']
+    names = ['circuit_id', 'identifier', 'info_hash', 'peers']
+
+
 class TestRequestPayload:
+    msg_id = 30
 
     def __init__(self, circuit_id, identifier, response_size, data):
         self.circuit_id = circuit_id
@@ -345,6 +359,7 @@ class TestRequestPayload:
 
 
 class TestResponsePayload:
+    msg_id = 31
 
     def __init__(self, circuit_id, identifier, data):
         self.circuit_id = circuit_id
