@@ -24,12 +24,12 @@ PEER_SOURCE_DHT = 1
 PEER_SOURCE_PEX = 2
 
 PEER_FLAG_RELAY = 1
-PEER_FLAG_EXIT_ANY = 2
+PEER_FLAG_EXIT_BT = 2
 PEER_FLAG_EXIT_IPV8 = 4
+PEER_FLAG_SPEED_TEST = 8
 
-# Data circuits are supposed to end in an exit peer that allows exiting data to the outside world
+# Data circuits are general purpose circuits for exiting data
 CIRCUIT_TYPE_DATA = 'DATA'
-CIRCUIT_TYPE_IPV8 = 'IPV8'
 
 # The other circuits are supposed to end in a connectable node, not allowed to exit
 # anything else than IPv8 messages, used for setting up end-to-end circuits
@@ -86,15 +86,14 @@ class DataChecker(object):
         return False
 
     @staticmethod
-    def could_be_ipv8(data):
-        return len(data) >= 23 and data[0:1] == b'\x00' and data[1:2] in [b'\x01', b'\x02']
-
-    @staticmethod
-    def is_allowed(data):
+    def could_be_bt(data):
         return (DataChecker.could_be_utp(data)
                 or DataChecker.could_be_udp_tracker(data)
-                or DataChecker.could_be_dht(data)
-                or DataChecker.could_be_ipv8(data))
+                or DataChecker.could_be_dht(data))
+
+    @staticmethod
+    def could_be_ipv8(data):
+        return len(data) >= 23 and data[0:1] == b'\x00' and data[1:2] in [b'\x01', b'\x02']
 
 
 class Tunnel(object):
@@ -143,7 +142,7 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
             return
 
         self.beat_heart()
-        if DataChecker.is_allowed(data):
+        if self.is_allowed(data):
             def on_ip_address(future):
                 try:
                     ip_address = future.result()
@@ -177,7 +176,7 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
     def datagram_received(self, data, source):
         self.beat_heart()
         self.overlay.increase_bytes_received(self, len(data))
-        if DataChecker.is_allowed(data):
+        if self.is_allowed(data):
             try:
                 self.tunnel_data(source, data)
             except Exception:
@@ -185,6 +184,17 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
                                   + ''.join(format_exception(*sys.exc_info())))
         else:
             self.logger.warning("Dropping forbidden packets to exit socket with circuit_id %d", self.circuit_id)
+
+    def is_allowed(self, data):
+        is_bt = DataChecker.could_be_bt(data)
+        is_ipv8 = DataChecker.could_be_ipv8(data)
+
+        if not (is_bt and PEER_FLAG_EXIT_BT in self.overlay.settings.peer_flags) \
+           and not (is_ipv8 and PEER_FLAG_EXIT_IPV8 in self.overlay.settings.peer_flags) \
+           and not (is_ipv8 and self.overlay._prefix == data[:22]):
+            self.logger.error("Dropping data packets, refusing to be an exit node (BT=%s, IPv8=%s)", is_bt, is_ipv8)
+            return False
+        return True
 
     def tunnel_data(self, source, data):
         self.logger.debug("Tunnel data to origin %s for circuit %s", ('0.0.0.0', 0), self.circuit_id)

@@ -1,6 +1,6 @@
 from collections import deque
 
-from .tunnel import CIRCUIT_STATE_READY, CIRCUIT_TYPE_IPV8
+from .tunnel import CIRCUIT_STATE_READY, PEER_FLAG_EXIT_IPV8
 
 
 class TunnelEndpoint(object):
@@ -26,12 +26,12 @@ class TunnelEndpoint(object):
             return
 
         if self.tunnel_community:
-            circuits = self.tunnel_community.find_circuits(ctype=CIRCUIT_TYPE_IPV8, hops=self.hops, state=None)
+            circuits = self.tunnel_community.find_circuits(exit_flags=[PEER_FLAG_EXIT_IPV8], hops=self.hops, state=None)
             circuit = circuits[0] if circuits else None
             if not circuit or circuit.state != CIRCUIT_STATE_READY:
                 # Recreate tunnel when needed
                 if not circuit:
-                    self.tunnel_community.create_circuit(self.hops, ctype=CIRCUIT_TYPE_IPV8)
+                    self.tunnel_community.create_circuit(self.hops, exit_flags=[PEER_FLAG_EXIT_IPV8])
                 self.send_queue.append((address, packet))
                 return
 

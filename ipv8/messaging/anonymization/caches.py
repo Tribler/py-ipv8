@@ -1,4 +1,5 @@
 import logging
+import time
 from asyncio import Future
 
 from .tunnel import CIRCUIT_STATE_CLOSING, CIRCUIT_STATE_READY
@@ -148,6 +149,19 @@ class LinkRequestCache(RandomNumberCache):
         self.circuit = circuit
         self.info_hash = info_hash
         self.hs_session_keys = hs_session_keys
+
+    def on_timeout(self):
+        pass
+
+
+class TestRequestCache(RandomNumberCache):
+
+    def __init__(self, community, circuit):
+        super(TestRequestCache, self).__init__(community.request_cache, "test-request")
+        self.circuit = circuit
+        self.ts = time.time()
+        self.future = Future()
+        self.register_future(self.future)
 
     def on_timeout(self):
         pass

@@ -19,7 +19,7 @@ class MockTunnelExitSocket(TunnelExitSocket, EndpointListener):
         self.enabled = True
 
     def sendto(self, data, destination):
-        if DataChecker.is_allowed(data):
+        if DataChecker.could_be_bt(data) or DataChecker.could_be_ipv8(data):
             self.endpoint.send(destination, data)
         else:
             raise AssertionError("Attempted to exit data which is not allowed" % repr(data))

@@ -276,7 +276,8 @@ class HiddenTunnelCommunity(TunnelCommunity):
             return fail(RuntimeError("No circuit for peers-request"))
 
         # Send a peers-request message over this circuit
-        cache = self.request_cache.add(PeersRequestCache(self, circuit, info_hash))
+        cache = PeersRequestCache(self, circuit, info_hash)
+        self.request_cache.add(cache)
         payload = PeersRequestPayload(circuit.circuit_id, cache.number, info_hash)
 
         # Ask an introduction point if available (in which case we'll use PEX), otherwise let
@@ -342,7 +343,8 @@ class HiddenTunnelCommunity(TunnelCommunity):
         hop = Hop(Peer(LibNaCLPK(intro_point.seeder_pk[10:])))
         hop.dh_secret, hop.dh_first_part = self.crypto.generate_diffie_secret()
         self.logger.info('Creating e2e circuit for introduction point %s', intro_point.peer)
-        cache = self.request_cache.add(E2ERequestCache(self, info_hash, hop, intro_point))
+        cache = E2ERequestCache(self, info_hash, hop, intro_point)
+        self.request_cache.add(cache)
         self.tunnel_data(circuit, intro_point.peer.address, 'create-e2e',
                          CreateE2EPayload(cache.number, info_hash, hop.node_public_key, hop.dh_first_part))
 
@@ -401,7 +403,8 @@ class HiddenTunnelCommunity(TunnelCommunity):
         if circuit:
             self.swarms[cache.info_hash].add_connection(circuit, cache.intro_point)
             if await circuit.ready:
-                cache = self.request_cache.add(LinkRequestCache(self, circuit, cache.info_hash, session_keys))
+                cache = LinkRequestCache(self, circuit, cache.info_hash, session_keys)
+                self.request_cache.add(cache)
                 self.send_cell(circuit.peer, 'link-e2e', LinkE2EPayload(circuit.circuit_id, cache.number, cookie))
 
     @tc_lazy_wrapper_unsigned(LinkE2EPayload)
@@ -462,7 +465,8 @@ class HiddenTunnelCommunity(TunnelCommunity):
             # We got a circuit, now let's create an introduction point
             seed_pk = self.swarms[info_hash].seeder_sk.pub().key_to_bin()
             circuit_id = circuit.circuit_id
-            cache = self.request_cache.add(IPRequestCache(self, circuit))
+            cache = IPRequestCache(self, circuit)
+            self.request_cache.add(cache)
             self.send_cell(circuit.peer, 'establish-intro', EstablishIntroPayload(circuit_id, cache.number,
                                                                                   info_hash, seed_pk))
             self.logger.info("Established introduction tunnel %s", circuit_id)
@@ -514,7 +518,8 @@ class HiddenTunnelCommunity(TunnelCommunity):
         if circuit and await circuit.ready:
             # We got a circuit, now let's create a rendezvous point
             rp = RendezvousPoint(circuit, os.urandom(20))
-            cache = self.request_cache.add(RPRequestCache(self, rp))
+            cache = RPRequestCache(self, rp)
+            self.request_cache.add(cache)
             self.send_cell(circuit.peer,
                            'establish-rendezvous', EstablishRendezvousPayload(circuit.circuit_id,
                                                                               cache.number, rp.cookie))
