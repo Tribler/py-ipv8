@@ -2,6 +2,7 @@ from base64 import b64encode
 
 from .base import TestBase
 from ..keyvault.crypto import default_eccrypto
+from ..messaging.interfaces.udp.endpoint import UDPv4Address, UDPv6Address
 from ..peer import Peer
 
 
@@ -112,3 +113,104 @@ class TestPeer(TestBase):
         Check if the __str__ method functions properly.
         """
         self.assertEqual(str(self.peer), "Peer<1.2.3.4:5, %s>" % b64encode(self.peer.mid).decode('utf-8'))
+
+    def test_set_address_init(self):
+        """
+        Check if the address property properly sets from the init.
+        """
+        address = UDPv4Address("1.2.3.4", 5)
+        peer = Peer(TestPeer.test_key, address)
+
+        self.assertEqual(peer.address, address)
+
+    def test_set_address_setter(self):
+        """
+        Check if the address property properly sets from the setter.
+        """
+        address = UDPv4Address("1.2.3.4", 5)
+        peer = Peer(TestPeer.test_key)
+        peer.address = address
+
+        self.assertEqual(peer.address, address)
+
+    def test_set_address_add(self):
+        """
+        Check if the address property properly sets from add_address.
+        """
+        address = UDPv4Address("1.2.3.4", 5)
+        peer = Peer(TestPeer.test_key)
+        peer.add_address(address)
+
+        self.assertEqual(peer.address, address)
+
+    def test_set_address_addv6(self):
+        """
+        Check if IPv6 addresses are properly returned.
+        """
+        address = UDPv6Address("1:2:3:4:5:6", 7)
+        peer = Peer(TestPeer.test_key)
+        peer.add_address(address)
+
+        self.assertEqual(peer.address, address)
+
+    def test_address_order1(self):
+        """
+        Check if IPv4 is preferred over IPv6 (append in-order).
+        """
+        address1 = UDPv4Address("1.2.3.4", 5)
+        address2 = UDPv6Address("1:2:3:4:5:6", 7)
+        peer = Peer(TestPeer.test_key)
+        peer.add_address(address1)
+        peer.add_address(address2)
+
+        self.assertEqual(peer.address, address1)
+
+    def test_address_order2(self):
+        """
+        Check if IPv4 is preferred over IPv6 (append out-of-order).
+        """
+        address1 = UDPv4Address("1.2.3.4", 5)
+        address2 = UDPv6Address("1:2:3:4:5:6", 7)
+        peer = Peer(TestPeer.test_key)
+        peer.add_address(address2)
+        peer.add_address(address1)
+
+        self.assertEqual(peer.address, address1)
+
+    def test_default_address(self):
+        """
+        Check if the default address is UDPv4Address("0.0.0.0", 0)
+        """
+        self.assertEqual(Peer(TestPeer.test_key).address, UDPv4Address("0.0.0.0", 0))
+
+    def test_manual_update(self):
+        """
+        Check if manual updates to the addresses dictionary are caught.
+        """
+        address = UDPv4Address("1.2.3.4", 5)
+        peer = Peer(TestPeer.test_key)
+        peer.addresses.update({UDPv4Address: address})
+
+        self.assertEqual(peer.address, address)
+
+    def test_manual_updates(self):
+        """
+        Check if manual updates to the addresses dictionary are caught (double update, out-of-order).
+        """
+        address1 = UDPv4Address("1.2.3.4", 5)
+        address2 = UDPv6Address("1:2:3:4:5:6", 7)
+        peer = Peer(TestPeer.test_key)
+        peer.addresses.update({UDPv6Address: address2})
+        peer.addresses.update({UDPv4Address: address1})
+
+        self.assertEqual(peer.address, address1)
+
+    def test_manual_update_overwrite(self):
+        """
+        Check if manual updates to the addresses dictionary are caught (overwrite same class).
+        """
+        address = UDPv4Address("1.2.3.4", 5)
+        peer = Peer(TestPeer.test_key, UDPv4Address("6.7.8.9", 10))
+        peer.addresses.update({UDPv4Address: address})
+
+        self.assertEqual(peer.address, address)
