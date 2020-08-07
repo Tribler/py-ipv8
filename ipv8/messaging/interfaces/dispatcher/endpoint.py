@@ -87,6 +87,14 @@ class DispatcherEndpoint(Endpoint):
         # The order of preference will not change, we can precompute the preferred interface Endpoint.
         self._preferred_interface = self.interfaces[self.interface_order[0]] if self.interface_order else None
 
+    @property
+    def bytes_up(self):
+        return sum(interface.bytes_up for interface in self.interfaces.values())
+
+    @property
+    def bytes_down(self):
+        return sum(interface.bytes_down for interface in self.interfaces.values())
+
     def add_listener(self, listener) -> None:
         for interface in self.interfaces.values():
             interface.add_listener(listener)
