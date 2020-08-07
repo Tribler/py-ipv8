@@ -64,19 +64,20 @@ class RESTManager:
     This class is responsible for managing the startup and closing of the HTTP API.
     """
 
-    def __init__(self, session):
+    def __init__(self, session, root_endpoint_class=None):
         self._logger = logging.getLogger(self.__class__.__name__)
         self.session = session
         self.site = None
         self.root_endpoint = None
+        self._root_endpoint_class = root_endpoint_class or RootEndpoint
 
     async def start(self, port=8085, host='127.0.0.1', api_key=None, ssl_context=None):
         """
         Starts the HTTP API with the listen port as specified in the session configuration.
         """
-        self.root_endpoint = RootEndpoint(middlewares=[ApiKeyMiddleware(api_key),
-                                                       cors_middleware,
-                                                       error_middleware])
+        self.root_endpoint = self._root_endpoint_class(middlewares=[ApiKeyMiddleware(api_key),
+                                                                    cors_middleware,
+                                                                    error_middleware])
         self.root_endpoint.initialize(self.session)
 
         # Not using setup_aiohttp_apispec here, as we need access to the APISpec to set the security scheme
