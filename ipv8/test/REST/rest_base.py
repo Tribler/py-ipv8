@@ -99,7 +99,8 @@ class RESTTestBase(TestBase):
                         overlay.walk_to(other.endpoint.wan_address)
         await self.deliver_messages()
 
-    async def make_request(self, node, endpoint, request_type, arguments=None, json_response=True, json=None):
+    async def make_request(self, node, endpoint, request_type, arguments=None, json_response=True, json=None,
+                           expected_status=200):
         """
         Forward an HTTP request of the specified type to a url, with the specified set of arguments.
 
@@ -109,6 +110,7 @@ class RESTTestBase(TestBase):
         :param arguments: the arguments to be attached to the request. This should be a dictionary or None
         :param json_response: whether the response is expected to be JSON
         :param json: a JSON-serializable dictionary that is sent when making the request
+        :param expected_status: the status code returned in the response, defaults to 200
         :return: a dictionary object with the response
         """
 
@@ -118,4 +120,6 @@ class RESTTestBase(TestBase):
 
         async with ClientSession() as session:
             async with session.request(request_type, url, json=json, params=arguments, headers=headers) as response:
+                self.assertEqual(response.status, expected_status,
+                                 "Expected HTTP status code %d, got %d" % (expected_status, response.status))
                 return await response.json(content_type=None) if json_response else await response.read()
