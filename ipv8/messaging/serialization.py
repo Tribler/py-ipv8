@@ -169,7 +169,7 @@ class IPv4:
 
     def unpack(self, data, offset, unpack_list):
         host_bytes, port = unpack_from('>4sH', data, offset)
-        unpack_list.append((socket.inet_ntoa(host_bytes), port))
+        unpack_list.append(UDPv4Address(socket.inet_ntoa(host_bytes), port))
         return offset + 6
 
 

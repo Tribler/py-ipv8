@@ -7,7 +7,7 @@ from threading import RLock
 class Network(object):
 
     def __init__(self):
-        # All known IP:port addresses, mapped to (introduction peer, services)
+        # All known IP:port addresses, mapped to (introduction peer, services, new_style)
         self._all_addresses = {}
         # All verified Peer objects (Peer.address must be in _all_addresses)
         self.verified_peers = set()
@@ -35,13 +35,17 @@ class Network(object):
         self.reverse_service_lookup = OrderedDict()
         self.reverse_service_cache_size = 500
 
-    def discover_address(self, peer, address, service=None):
+    def is_new_style(self, address):
+        return self._all_addresses.get(address, ('', None, False))[2]
+
+    def discover_address(self, peer, address, service=None, new_style=False):
         """
         A peer has introduced us to another IP address.
 
         :param peer: the peer that performed the introduction
         :param address: the introduced address
         :param service: the service through which we discovered the peer
+        :param new_style: the introduced address uses new introduction logic
         """
         if address in self.blacklist:
             self.add_verified_peer(peer)
@@ -51,7 +55,7 @@ class Network(object):
             if ((address not in self._all_addresses)
                     or (self._all_addresses[address][0] not in [p.mid for p in self.verified_peers])):
                 # This is a new address, or our previous parent has been removed
-                self._all_addresses[address] = (peer.mid, service)
+                self._all_addresses[address] = (peer.mid, service, new_style)
                 intro_cache = self.reverse_intro_lookup.get(peer, None)
                 if intro_cache:
                     intro_cache.append(address)
@@ -96,7 +100,7 @@ class Network(object):
             elif all(address not in self.blacklist for address in peer.addresses.values()):
                 for address in peer.addresses.values():
                     if address not in self._all_addresses:
-                        self._all_addresses[address] = ('', None)
+                        self._all_addresses[address] = ('', None, False)
                 if peer not in self.verified_peers:
                     self.verified_peers.add(peer)
 
@@ -141,7 +145,7 @@ class Network(object):
         with self.graph_lock:
             return self.services_per_peer.get(peer.mid, set())
 
-    def get_walkable_addresses(self, service_id=None):
+    def get_walkable_addresses(self, service_id=None, old_style=False):
         """
         Get all addresses ready to be walked to.
 
@@ -156,7 +160,9 @@ class Network(object):
             if service_id:
                 new_out = []
                 for address in out:
-                    intro_peer, service = self._all_addresses[address]
+                    intro_peer, service, new_style = self._all_addresses[address]
+                    if old_style and new_style:
+                        continue
                     services = self.services_per_peer.get(intro_peer, set([]))
                     if service:
                         services.add(service)
@@ -275,4 +281,4 @@ class Network(object):
                 sub = snapshot[i:i + 6]
                 ip = inet_ntoa(sub[0:4])
                 port = unpack(">H", sub[4:])[0]
-                self._all_addresses[(ip, port)] = ('', None)
+                self._all_addresses[(ip, port)] = ('', None, False)

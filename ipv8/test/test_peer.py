@@ -155,27 +155,27 @@ class TestPeer(TestBase):
 
     def test_address_order1(self):
         """
-        Check if IPv4 is preferred over IPv6 (append in-order).
+        Check if IPv6 is preferred over IPv4 (append out-of-order).
         """
         address1 = UDPv4Address("1.2.3.4", 5)
         address2 = UDPv6Address("1:2:3:4:5:6", 7)
         peer = Peer(TestPeer.test_key)
-        peer.add_address(address1)
         peer.add_address(address2)
+        peer.add_address(address1)
 
-        self.assertEqual(peer.address, address1)
+        self.assertEqual(peer.address, address2)
 
     def test_address_order2(self):
         """
-        Check if IPv4 is preferred over IPv6 (append out-of-order).
+        Check if IPv6 is preferred over IPv4 (append in-order).
         """
         address1 = UDPv4Address("1.2.3.4", 5)
         address2 = UDPv6Address("1:2:3:4:5:6", 7)
         peer = Peer(TestPeer.test_key)
-        peer.add_address(address2)
         peer.add_address(address1)
+        peer.add_address(address2)
 
-        self.assertEqual(peer.address, address1)
+        self.assertEqual(peer.address, address2)
 
     def test_default_address(self):
         """
@@ -197,11 +197,11 @@ class TestPeer(TestBase):
         """
         Check if manual updates to the addresses dictionary are caught (double update, out-of-order).
         """
-        address1 = UDPv4Address("1.2.3.4", 5)
-        address2 = UDPv6Address("1:2:3:4:5:6", 7)
+        address1 = UDPv6Address("1:2:3:4:5:6", 7)
+        address2 = UDPv4Address("1.2.3.4", 5)
         peer = Peer(TestPeer.test_key)
-        peer.addresses.update({UDPv6Address: address2})
-        peer.addresses.update({UDPv4Address: address1})
+        peer.addresses.update({UDPv4Address: address2})
+        peer.addresses.update({UDPv6Address: address1})
 
         self.assertEqual(peer.address, address1)
 
