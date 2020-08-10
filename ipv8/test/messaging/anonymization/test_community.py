@@ -466,5 +466,5 @@ class TestTunnelCommunity(TestBase):
         send_cell = self.nodes[0].overlay.send_cell
         self.nodes[0].overlay.send_cell = Mock(wraps=send_cell)
         data, _ = await self.nodes[0].overlay.send_test_request(circuit, 3, 6)
-        self.assertEqual(len(self.nodes[0].overlay.send_cell.call_args[0][2].data), 3)
+        self.assertEqual(len(self.nodes[0].overlay.send_cell.call_args[0][1].data), 3)
         self.assertEqual(len(data), 6)

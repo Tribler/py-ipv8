@@ -153,7 +153,7 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
                 self.logger.debug("Resolved hostname %s to ip_address %s", destination[0], ip_address)
                 try:
                     self.transport.sendto(data, (ip_address, destination[1]))
-                    self.overlay.increase_bytes_sent(self, len(data))
+                    self.bytes_up += len(data)
                 except socket.error as e:
                     self.logger.error("Failed to write to transport. Destination: %r error: %r", destination, e)
 
@@ -175,7 +175,7 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
 
     def datagram_received(self, data, source):
         self.beat_heart()
-        self.overlay.increase_bytes_received(self, len(data))
+        self.bytes_down += len(data)
         if self.is_allowed(data):
             try:
                 self.tunnel_data(source, data)

@@ -312,13 +312,13 @@ class TestHiddenServices(TestBase):
         send_cell = self.nodes[0].overlay.send_cell
         self.nodes[0].overlay.send_cell = Mock(wraps=send_cell)
         on_test_request = self.nodes[2].overlay.on_test_request
-        self.nodes[2].overlay.decode_map_private[chr(30)] = Mock(wraps=on_test_request)
+        self.nodes[2].overlay.decode_map_private[30] = Mock(wraps=on_test_request)
 
         circuit, = self.nodes[0].overlay.find_circuits(ctype=CIRCUIT_TYPE_RP_DOWNLOADER)
         data, _ = await self.nodes[0].overlay.send_test_request(circuit, 3, 6)
-        self.assertEqual(len(self.nodes[0].overlay.send_cell.call_args[0][2].data), 3)
+        self.assertEqual(len(self.nodes[0].overlay.send_cell.call_args[0][1].data), 3)
         self.assertEqual(len(data), 6)
-        self.nodes[2].overlay.decode_map_private[chr(30)].assert_called_once()
+        self.nodes[2].overlay.decode_map_private[30].assert_called_once()
 
         self.nodes[0].overlay.leave_swarm(self.service)
         self.nodes[2].overlay.leave_swarm(self.service)
