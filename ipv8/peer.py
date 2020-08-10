@@ -2,15 +2,51 @@ from base64 import b64encode
 from collections import deque
 from struct import unpack
 from time import time
-from typing import Any, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, Type
 
 from .keyvault.crypto import default_eccrypto
 from .keyvault.keys import Key
+from .messaging.interfaces.udp.endpoint import UDPv4Address, UDPv6Address
+
+AddressType = Tuple[str, int]
+
+
+class DirtyDict(dict):
+    """
+    Dictionary that becomes dirty when elements are changed.
+    """
+    def __init__(self, **kwargs):
+        super(DirtyDict, self).__init__(**kwargs)
+        self.dirty = True
+
+    def __setitem__(self, key, value):
+        super(DirtyDict, self).__setitem__(key, value)
+        self.dirty = True
+
+    def update(self, mapping, **kwargs):
+        super(DirtyDict, self).update(mapping, **kwargs)
+        self.dirty = True
+
+    def clear(self):
+        super(DirtyDict, self).clear()
+        self.dirty = True
+
+    def pop(self, key):
+        out = super(DirtyDict, self).pop(key)
+        self.dirty = True
+        return out
+
+    def popitem(self):
+        out = super(DirtyDict, self).popitem()
+        self.dirty = True
+        return out
 
 
 class Peer(object):
 
-    def __init__(self, key, address: Optional[Any] = None, intro: bool = True) -> None:
+    INTERFACE_ORDER = [UDPv4Address, UDPv6Address, tuple]
+
+    def __init__(self, key, address: Optional[AddressType] = None, intro: bool = True) -> None:
         """
         Create a new Peer.
 
@@ -24,29 +60,39 @@ class Peer(object):
             self.key = key
         self.mid = self.key.key_to_hash()
         self.public_key = self.key.pub()
-        self.addresses = {}
+        self._addresses = DirtyDict()
         if address is not None:
-            self.addresses[address.__class__] = address
+            self._addresses[address.__class__] = address
+        self._address = address
         self.last_response = 0 if intro else time()
         self._lamport_timestamp = 0
         self.pings = deque(maxlen=5)
 
     @property
-    def address(self) -> Tuple[str, int]:
+    def addresses(self) -> Dict[Type[AddressType], AddressType]:
         """
-        Deprecated way to retrieve the IPv4 address.
+        Retrieve the addresses belonging to this Peer.
 
-        Use the ``.addresses`` dictionary instead!
+        You are not allowed to set this addresses dict for a Peer manually.
+        You can change the dictionary itself by setting its items or calling its functions, for example ``update()``.
         """
-        from .messaging.interfaces.udp.endpoint import UDPv4Address
-        return self.addresses.get(UDPv4Address, self.addresses.get(tuple, ("0.0.0.0", 0)))
+        return self._addresses
+
+    @property
+    def address(self) -> AddressType:
+        """
+        Retrieve the preferred address for this Peer.
+
+        If you want to manually select the interface, use the ``.addresses`` dictionary instead.
+        """
+        if self._addresses.dirty:
+            self._update_preferred_address()
+        return self._address or UDPv4Address("0.0.0.0", 0)
 
     @address.setter
-    def address(self, value: Tuple[str, int]) -> None:
+    def address(self, value: AddressType) -> None:
         """
-        Deprecated way to set the IPv4 address.
-
-        Use ``add_address()`` instead!
+        Alias of ``add_address(value)``.
         """
         self.add_address(value)
 
@@ -55,12 +101,23 @@ class Peer(object):
         Add a known address for this Peer.
 
         Any object can form an address, but only one type of address can be used per object type.
-        For example:
+        For example (normally A, B and C are ``namedtuple`` types):
 
          - Adding instances A(1), B(2) leads to addresses {A: A(1), B: B(2)}
          - Adding instances A(1), B(2), A(3) leads to addresses {A: A(3), B: B(2)}
         """
-        self.addresses[value.__class__] = value
+        self._addresses[value.__class__] = value
+        self._update_preferred_address()
+
+    def _update_preferred_address(self):
+        """
+        Update the current address to be the most preferred.
+        """
+        for interface in self.INTERFACE_ORDER:
+            if interface in self._addresses:
+                self._address = self._addresses[interface]
+                break
+        self._addresses.dirty = False
 
     def get_median_ping(self):
         """
