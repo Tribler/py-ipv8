@@ -50,10 +50,14 @@ class AddressTester(EndpointListener):
     def on_packet(self, packet):
         pass
 
+    def is_lan(self, address):
+        return self._address_is_lan_without_netifaces(address)
+
 
 class AutoMockEndpoint(MockEndpoint):
 
     def __init__(self):
+        self._open = False
         super(AutoMockEndpoint, self).__init__(self._generate_unique_address(), self._generate_unique_address())
         self._port = 0
 
@@ -72,7 +76,7 @@ class AutoMockEndpoint(MockEndpoint):
         """
         self._port = address[1]
         address_tester = AddressTester(self)
-        return address_tester.address_is_lan(address[0])
+        return address_tester.is_lan(address[0])
 
     def _generate_unique_address(self):
         address = self._generate_address()
