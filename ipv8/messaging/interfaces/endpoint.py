@@ -125,8 +125,27 @@ class EndpointListener(metaclass=abc.ABCMeta):
         self.endpoint = endpoint
 
         self._netifaces_failed = netifaces is None
-        self.my_estimated_lan = (self._get_lan_address(True)[0], getattr(self.endpoint, "_port", 0))
+        self._my_estimated_lan = None
         self.my_estimated_wan = self.my_estimated_lan
+
+    @property
+    def my_estimated_lan(self):
+        """
+        Estimate our LAN IPv4 address and port.
+
+        If the endpoint is closed this returns ("0.0.0.0", 0).
+        If the endpoint is open and we have no idea what our address is, attempt to estimate it.
+        Otherwise, return the current value of the estimated LAN address and port.
+        """
+        if not self.endpoint.is_open():
+            return "0.0.0.0", 0
+        if self._my_estimated_lan is None:
+            self._my_estimated_lan = (self._get_lan_address(True)[0], self.endpoint.get_address()[1])
+        return self._my_estimated_lan
+
+    @my_estimated_lan.setter
+    def my_estimated_lan(self, value):
+        self._my_estimated_lan = value
 
     @property
     def use_main_thread(self):
