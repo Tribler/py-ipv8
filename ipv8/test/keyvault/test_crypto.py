@@ -131,3 +131,17 @@ class TestECCrypto(TestBase):
         Check if ECCrypto detects a valid public libnacl key as a public key.
         """
         self.assertTrue(self.ecc.is_valid_public_bin(TestECCrypto.libnacl_key.pub().key_to_bin()))
+
+    def test_sign_and_verify_m2crypto(self):
+        """
+        Check if ECCrypto is able to sign a verify using a m2crypto key.
+        """
+        sig = self.ecc.create_signature(TestECCrypto.m2crypto_key, b'test')
+        self.assertTrue(self.ecc.is_valid_signature(TestECCrypto.m2crypto_key.pub(), b'test', sig))
+
+    def test_sign_and_verify_libnacl(self):
+        """
+        Check if ECCrypto is able to sign a verify using a libnacl key.
+        """
+        sig = self.ecc.create_signature(TestECCrypto.libnacl_key, b'test')
+        self.assertTrue(self.ecc.is_valid_signature(TestECCrypto.libnacl_key, b'test', sig))

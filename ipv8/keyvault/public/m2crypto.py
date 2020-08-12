@@ -66,19 +66,19 @@ class M2CryptoPK(PublicKey):
         length = len(signature) // 2
         r = signature[:length]
         # remove all "\x00" prefixes
-        while r and r[0:1] == "\x00":
+        while r and r[0:1] == b"\x00":
             r = r[1:]
         # prepend "\x00" when the most significant bit is set
         if r[0] & 128:
-            r = "\x00" + r
+            r = b"\x00" + r
 
         s = signature[length:]
         # remove all "\x00" prefixes
-        while s and s[0:1] == "\x00":
+        while s and s[0:1] == b"\x00":
             s = s[1:]
         # prepend "\x00" when the most significant bit is set
         if s[0] & 128:
-            s = "\x00" + s
+            s = b"\x00" + s
         # turn back into int
         r = int(hexlify(r), 16)
         s = int(hexlify(s), 16)
