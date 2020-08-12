@@ -3,7 +3,7 @@ import random
 import socket
 import sys
 import time
-from asyncio import DatagramProtocol, Future, ensure_future, get_event_loop
+from asyncio import CancelledError, DatagramProtocol, Future, ensure_future, get_event_loop
 from binascii import hexlify
 from collections import deque
 from struct import unpack_from
@@ -146,7 +146,7 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
             def on_ip_address(future):
                 try:
                     ip_address = future.result()
-                except Exception as e:
+                except (CancelledError, Exception) as e:
                     self.logger.error("Can't resolve ip address for %s. Failure: %s", destination[0], e)
                     return
 
