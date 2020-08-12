@@ -69,7 +69,7 @@ class M2CryptoPK(PublicKey):
         while r and r[0:1] == "\x00":
             r = r[1:]
         # prepend "\x00" when the most significant bit is set
-        if ord(r[0:1]) & 128:
+        if r[0] & 128:
             r = "\x00" + r
 
         s = signature[length:]
@@ -77,7 +77,7 @@ class M2CryptoPK(PublicKey):
         while s and s[0:1] == "\x00":
             s = s[1:]
         # prepend "\x00" when the most significant bit is set
-        if ord(s[0:1]) & 128:
+        if s[0] & 128:
             s = "\x00" + s
         # turn back into int
         r = int(hexlify(r), 16)

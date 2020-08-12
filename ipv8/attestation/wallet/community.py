@@ -428,7 +428,7 @@ class AttestationCommunity(Community):
                 proving_cache.attestation_callbacks(proving_cache.hash, proving_cache.relativity_map)
             else:
                 # Send another proving hash
-                honesty_check = algorithm.honesty_check and (ord(os.urandom(1)[0:1]) < 38)
+                honesty_check = algorithm.honesty_check and (os.urandom(1)[0] < 38)
                 honesty_check_byte = choice([0, 1, 2]) if honesty_check else -1
                 challenge = None
                 if honesty_check:

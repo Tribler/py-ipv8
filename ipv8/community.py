@@ -325,7 +325,7 @@ class Community(EZPackOverlay):
             probable_peer.last_response = time()
         if self._prefix != data[:22]:
             return
-        msg_id = chr(ord(data[22:23]))
+        msg_id = chr(data[22])
         if msg_id in self.decode_map:
             handler = self.decode_map[msg_id]
             try:

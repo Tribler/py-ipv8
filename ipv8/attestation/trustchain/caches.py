@@ -24,7 +24,7 @@ class IntroCrawlTimeout(NumberCache):
         """
         charlist = []
         for i in range(len(peer.mid)):
-            charlist.append(ord(peer.mid[i:i + 1]))
+            charlist.append(peer.mid[i])
         return reduce(lambda a, b: ((a << 8) | b), charlist, 0)
 
     @property
