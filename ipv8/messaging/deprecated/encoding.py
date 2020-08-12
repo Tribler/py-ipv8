@@ -241,7 +241,7 @@ def _a_decode_list(stream, offset, count, mapping):
     for _ in range(count):
 
         index = offset
-        while 48 <= ord(stream[index:index + 1]) <= 57:
+        while 48 <= stream[index] <= 57:
             index += 1
         offset, value = mapping[stream[index:index + 1]](stream, index + 1, int(stream[offset:index]), mapping)
         container.append(value)
@@ -258,7 +258,7 @@ def _a_decode_set(stream, offset, count, mapping):
     for _ in range(count):
 
         index = offset
-        while 48 <= ord(stream[index:index + 1]) <= 57:
+        while 48 <= stream[index] <= 57:
             index += 1
         offset, value = mapping[stream[index:index + 1]](stream, index + 1, int(stream[offset:index]), mapping)
         container.add(value)
@@ -275,7 +275,7 @@ def _a_decode_tuple(stream, offset, count, mapping):
     for _ in range(count):
 
         index = offset
-        while 48 <= ord(stream[index:index + 1]) <= 57:
+        while 48 <= stream[index] <= 57:
             index += 1
         offset, value = mapping[stream[index:index + 1]](stream, index + 1, int(stream[offset:index]), mapping)
         container.append(value)
@@ -291,12 +291,12 @@ def _a_decode_dictionary(stream, offset, count, mapping):
     for _ in range(count):
 
         index = offset
-        while 48 <= ord(stream[index:index + 1]) <= 57:
+        while 48 <= stream[index] <= 57:
             index += 1
         offset, key = mapping[stream[index:index + 1]](stream, index + 1, int(stream[offset:index]), mapping)
 
         index = offset
-        while 48 <= ord(stream[index:index + 1]) <= 57:
+        while 48 <= stream[index] <= 57:
             index += 1
         offset, value = mapping[stream[index:index + 1]](stream, index + 1, int(stream[offset:index]), mapping)
 
@@ -367,7 +367,7 @@ def decode(stream, offset=0, cast_utf8=False):
 
     if stream[offset:offset + 1] == b"a":
         index = offset + 1
-        while 48 <= ord(stream[index:index + 1]) <= 57:
+        while 48 <= stream[index] <= 57:
             index += 1
         return decode_mapping[stream[index:index + 1]](stream, index + 1, int(stream[offset + 1:index]),
                                                        decode_mapping)

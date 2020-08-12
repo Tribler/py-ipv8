@@ -615,7 +615,7 @@ class TunnelCommunity(Community):
             return
         self.logger.debug("Got cell(%s) from circuit %d (sender %s, receiver %s)",
                           cell.message[0], circuit_id, source_address, self.my_peer)
-        if cell.plaintext and ord(cell.message[0:1]) not in NO_CRYPTO_PACKETS:
+        if cell.plaintext and cell.message[0] not in NO_CRYPTO_PACKETS:
             self.logger.warning('Dropping cell (only create/created can have plaintext flag set)')
             return
         self.on_packet_from_circuit(source_address, cell.unwrap(self._prefix), circuit_id)
@@ -627,7 +627,7 @@ class TunnelCommunity(Community):
     def on_packet_from_circuit(self, source_address, data, circuit_id):
         if self._prefix != data[:22]:
             return
-        msg_id = ord(data[22:23])
+        msg_id = data[22]
         if msg_id in self.decode_map_private:
             try:
                 handler = self.decode_map_private[msg_id]

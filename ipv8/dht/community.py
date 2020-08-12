@@ -273,10 +273,10 @@ class DHTCommunity(Community):
         return self._ez_pack(b'', DHT_ENTRY_STR, [payload.to_pack_list()], sig=False)
 
     def unserialize_value(self, value):
-        if ord(value[0:1]) == DHT_ENTRY_STR:
+        if value[0] == DHT_ENTRY_STR:
             payload = self.serializer.unpack_to_serializables([StrPayload], value[1:])[0]
             return payload.data, None, 0
-        elif ord(value[0:1]) == DHT_ENTRY_STR_SIGNED:
+        elif value[0] == DHT_ENTRY_STR_SIGNED:
             payload = self.serializer.unpack_to_serializables([SignedStrPayload], value[1:])[0]
             public_key = self.crypto.key_from_public_bin(payload.public_key)
             sig_len = self.crypto.get_signature_length(public_key)

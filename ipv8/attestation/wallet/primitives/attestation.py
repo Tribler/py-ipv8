@@ -17,7 +17,7 @@ def sha512_as_int(value):
     hashed = sha512(to_ascii(value)).digest()
     for i in range(len(hashed)):
         out <<= 8
-        out |= ord(hashed[i:i + 1])
+        out |= hashed[i]
     return out
 
 
@@ -29,7 +29,7 @@ def sha256_as_int(value):
     hashed = sha256(to_ascii(value)).digest()
     for i in range(len(hashed)):
         out <<= 8
-        out |= ord(hashed[i:i + 1])
+        out |= hashed[i]
     return out
 
 
@@ -41,5 +41,5 @@ def sha256_4_as_int(value):
     hashed = sha256(to_ascii(value)).digest()[:4]
     for i in range(len(hashed)):
         out <<= 8
-        out |= ord(hashed[i:i + 1])
+        out |= hashed[i]
     return out
