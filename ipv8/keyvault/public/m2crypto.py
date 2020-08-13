@@ -64,18 +64,12 @@ class M2CryptoPK(PublicKey):
         :param msg: the given message
         """
         length = len(signature) // 2
-        r = signature[:length]
-        # remove all "\x00" prefixes
-        while r and r[0:1] == b"\x00":
-            r = r[1:]
+        r = signature[:length].lstrip(b"\x00")  # remove all "\x00" prefixes
         # prepend "\x00" when the most significant bit is set
         if r[0] & 128:
             r = b"\x00" + r
 
-        s = signature[length:]
-        # remove all "\x00" prefixes
-        while s and s[0:1] == b"\x00":
-            s = s[1:]
+        s = signature[length:].lstrip(b"\x00")  # remove all "\x00" prefixes
         # prepend "\x00" when the most significant bit is set
         if s[0] & 128:
             s = b"\x00" + s
@@ -85,9 +79,9 @@ class M2CryptoPK(PublicKey):
         # verify
         try:
             if NEW_CRYPTOGRAPHY_SIGN_VERSION:
-                self.ec.verify(encode_dss_signature(r, s), msg, ec.ECDSA(hashes.SHA1()))
+                self.pub().ec.verify(encode_dss_signature(r, s), msg, ec.ECDSA(hashes.SHA1()))
             else:
-                self.ec.verifier(encode_dss_signature(r, s), ec.ECDSA(hashes.SHA1()))
+                self.pub().ec.verifier(encode_dss_signature(r, s), ec.ECDSA(hashes.SHA1()))
             return True
         except InvalidSignature:
             return False
