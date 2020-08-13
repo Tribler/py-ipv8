@@ -137,7 +137,7 @@ class TestECCrypto(TestBase):
         Check if ECCrypto is able to sign a verify using a m2crypto key.
         """
         sig = self.ecc.create_signature(TestECCrypto.m2crypto_key, b'test')
-        self.assertTrue(self.ecc.is_valid_signature(TestECCrypto.m2crypto_key.pub(), b'test', sig))
+        self.assertTrue(self.ecc.is_valid_signature(TestECCrypto.m2crypto_key, b'test', sig))
 
     def test_sign_and_verify_libnacl(self):
         """
