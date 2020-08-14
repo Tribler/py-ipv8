@@ -88,8 +88,8 @@ class OverlaysEndpoint(BaseEndpoint):
     def statistics_by_name(self, statistics, overlay):
         named_statistics = {}
         for message_id, network_stats in statistics.items():
-            if overlay.decode_map.get(chr(message_id)):
-                mapped_name = str(message_id) + ":" + overlay.decode_map[chr(message_id)].__name__
+            if overlay.decode_map[message_id]:
+                mapped_name = str(message_id) + ":" + overlay.decode_map[message_id].__name__
             else:
                 mapped_name = str(message_id) + ":unknown"
             mapped_value = network_stats.to_dict()

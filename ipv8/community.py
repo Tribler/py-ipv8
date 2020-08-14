@@ -89,7 +89,7 @@ class Community(EZPackOverlay):
         self.network.blacklist.extend(_DEFAULT_ADDRESSES)
 
         self.last_bootstrap = 0
-        self.decode_map = {}
+        self.decode_map = [None] * 256
 
         self.add_message_handler(PunctureRequestPayload, self.on_puncture_request)
         self.add_message_handler(PuncturePayload, self.on_puncture)
@@ -115,23 +115,23 @@ class Community(EZPackOverlay):
         self.add_message_handler(235, self.on_deprecated_message)
 
         self.deprecated_message_names = {
-            chr(255): "reserved-255",
-            chr(254): "on-missing-sequence",
-            chr(253): "missing-proof",
-            chr(252): "signature-request",
-            chr(251): "signature-response",
-            chr(248): "on-identity",
-            chr(247): "on-missing-identity",
-            chr(244): "destroy-community",
-            chr(243): "authorize",
-            chr(242): "revoke",
-            chr(241): "subjective-set",
-            chr(240): "missing-subjective-set",
-            chr(239): "on-missing-message",
-            chr(238): "undo-own",
-            chr(237): "undo-other",
-            chr(236): "dynamic-settings",
-            chr(235): "missing-last-message"
+            255: "reserved-255",
+            254: "on-missing-sequence",
+            253: "missing-proof",
+            252: "signature-request",
+            251: "signature-response",
+            248: "on-identity",
+            247: "on-missing-identity",
+            244: "destroy-community",
+            243: "authorize",
+            242: "revoke",
+            241: "subjective-set",
+            240: "missing-subjective-set",
+            239: "on-missing-message",
+            238: "undo-own",
+            237: "undo-other",
+            236: "dynamic-settings",
+            235: "missing-last-message"
         }
 
     def get_prefix(self):
@@ -155,10 +155,10 @@ class Community(EZPackOverlay):
             msg_num = msg_num.msg_id
         if msg_num < 0 or msg_num > 255:
             raise RuntimeError("Attempted to add a handler for message number %d, which is not a byte!" % msg_num)
-        if chr(msg_num) in self.decode_map:
+        if self.decode_map[msg_num]:
             raise RuntimeError("Attempted to add a handler for message number %d, already mapped to %s!" %
-                               (msg_num, self.decode_map[chr(msg_num)]))
-        self.decode_map[chr(msg_num)] = callback
+                               (msg_num, self.decode_map[msg_num]))
+        self.decode_map[msg_num] = callback
 
     def on_deprecated_message(self, source_address, data):
         self.logger.warning("Received deprecated message: %s from (%s, %d)",
@@ -324,8 +324,8 @@ class Community(EZPackOverlay):
             probable_peer.last_response = time()
         if self._prefix != data[:22]:
             return
-        msg_id = chr(data[22])
-        if msg_id in self.decode_map:
+        msg_id = data[22]
+        if self.decode_map[msg_id]:
             handler = self.decode_map[msg_id]
             try:
                 result = handler(source_address, data)
