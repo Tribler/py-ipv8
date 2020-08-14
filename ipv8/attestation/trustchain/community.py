@@ -70,15 +70,13 @@ class TrustChainCommunity(Community):
         self.listeners_map = {}  # Map of block_type -> [callbacks]
         self.register_task("db_cleanup", self.do_db_cleanup, interval=600)
 
-        self.decode_map.update({
-            chr(1): self.received_half_block,
-            chr(2): self.received_crawl_request,
-            chr(3): self.received_crawl_response,
-            chr(4): self.received_half_block_pair,
-            chr(5): self.received_half_block_broadcast,
-            chr(6): self.received_half_block_pair_broadcast,
-            chr(7): self.received_empty_crawl_response,
-        })
+        self.add_message_handler(HalfBlockPayload, self.received_half_block)
+        self.add_message_handler(CrawlRequestPayload, self.received_crawl_request)
+        self.add_message_handler(CrawlResponsePayload, self.received_crawl_response)
+        self.add_message_handler(HalfBlockPairPayload, self.received_half_block_pair)
+        self.add_message_handler(HalfBlockBroadcastPayload, self.received_half_block_broadcast)
+        self.add_message_handler(HalfBlockPairBroadcastPayload, self.received_half_block_pair_broadcast)
+        self.add_message_handler(EmptyCrawlResponsePayload, self.received_empty_crawl_response)
 
     def do_db_cleanup(self):
         """

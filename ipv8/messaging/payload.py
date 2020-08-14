@@ -34,6 +34,7 @@ class Payload(Serializable):
 
 class IntroductionRequestPayload(Payload):
 
+    msg_id = 246
     format_list = ['4SH', '4SH', '4SH', 'bits', 'H', 'raw']
 
     def __init__(self, destination_address, source_lan_address, source_wan_address, advice, connection_type,
@@ -99,6 +100,7 @@ class IntroductionRequestPayload(Payload):
 
 class IntroductionResponsePayload(Payload):
 
+    msg_id = 245
     format_list = ['4SH', '4SH', '4SH', '4SH', '4SH', 'bits', 'H', 'raw']
 
     def __init__(self, destination_address, source_lan_address, source_wan_address, lan_introduction_address,
@@ -183,6 +185,7 @@ class IntroductionResponsePayload(Payload):
 
 class PunctureRequestPayload(Payload):
 
+    msg_id = 250
     format_list = ['4SH', '4SH', 'H']
 
     def __init__(self, lan_walker_address, wan_walker_address, identifier):
@@ -226,6 +229,7 @@ class PunctureRequestPayload(Payload):
 
 class PuncturePayload(Payload):
 
+    msg_id = 249
     format_list = ['4SH', '4SH', 'H']
 
     def __init__(self, source_lan_address, source_wan_address, identifier):

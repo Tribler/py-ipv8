@@ -6,6 +6,7 @@ from ..messaging.payload import IntroductionRequestPayload, Payload, decode_conn
 
 class SimilarityRequestPayload(Payload):
 
+    msg_id = 1
     format_list = ['H', '4SH', '4SH', 'bits', 'raw']
 
     def __init__(self, identifier, lan_address, wan_address, connection_type, preference_list):
@@ -41,6 +42,7 @@ class SimilarityRequestPayload(Payload):
 
 class SimilarityResponsePayload(Payload):
 
+    msg_id = 2
     format_list = ['H', 'varlenHx20', 'raw']
 
     def __init__(self, identifier, preference_list, tb_overlap):
@@ -69,6 +71,7 @@ class SimilarityResponsePayload(Payload):
 
 class PingPayload(Payload):
 
+    msg_id = 3
     format_list = ['H']
 
     def __init__(self, identifier):
@@ -86,7 +89,7 @@ class PingPayload(Payload):
 
 
 class PongPayload(PingPayload):
-    pass
+    msg_id = 4
 
 
 class DiscoveryIntroductionRequestPayload(IntroductionRequestPayload):
