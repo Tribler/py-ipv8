@@ -89,31 +89,30 @@ class Community(EZPackOverlay):
         self.network.blacklist.extend(_DEFAULT_ADDRESSES)
 
         self.last_bootstrap = 0
+        self.decode_map = {}
 
-        self.decode_map = {
-            chr(250): self.on_puncture_request,
-            chr(249): self.on_puncture,
-            chr(246): self.on_introduction_request,
-            chr(245): self.on_introduction_response,
+        self.add_message_handler(PunctureRequestPayload, self.on_puncture_request)
+        self.add_message_handler(PuncturePayload, self.on_puncture)
+        self.add_message_handler(IntroductionRequestPayload, self.on_introduction_request)
+        self.add_message_handler(IntroductionResponsePayload, self.on_introduction_response)
 
-            chr(255): self.on_deprecated_message,
-            chr(254): self.on_deprecated_message,
-            chr(253): self.on_deprecated_message,
-            chr(252): self.on_deprecated_message,
-            chr(251): self.on_deprecated_message,
-            chr(248): self.on_deprecated_message,
-            chr(247): self.on_deprecated_message,
-            chr(244): self.on_deprecated_message,
-            chr(243): self.on_deprecated_message,
-            chr(242): self.on_deprecated_message,
-            chr(241): self.on_deprecated_message,
-            chr(240): self.on_deprecated_message,
-            chr(239): self.on_deprecated_message,
-            chr(238): self.on_deprecated_message,
-            chr(237): self.on_deprecated_message,
-            chr(236): self.on_deprecated_message,
-            chr(235): self.on_deprecated_message
-        }
+        self.add_message_handler(255, self.on_deprecated_message)
+        self.add_message_handler(254, self.on_deprecated_message)
+        self.add_message_handler(253, self.on_deprecated_message)
+        self.add_message_handler(252, self.on_deprecated_message)
+        self.add_message_handler(251, self.on_deprecated_message)
+        self.add_message_handler(248, self.on_deprecated_message)
+        self.add_message_handler(247, self.on_deprecated_message)
+        self.add_message_handler(244, self.on_deprecated_message)
+        self.add_message_handler(243, self.on_deprecated_message)
+        self.add_message_handler(242, self.on_deprecated_message)
+        self.add_message_handler(241, self.on_deprecated_message)
+        self.add_message_handler(240, self.on_deprecated_message)
+        self.add_message_handler(239, self.on_deprecated_message)
+        self.add_message_handler(238, self.on_deprecated_message)
+        self.add_message_handler(237, self.on_deprecated_message)
+        self.add_message_handler(236, self.on_deprecated_message)
+        self.add_message_handler(235, self.on_deprecated_message)
 
         self.deprecated_message_names = {
             chr(255): "reserved-255",

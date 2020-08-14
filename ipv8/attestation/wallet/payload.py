@@ -5,6 +5,7 @@ class RequestAttestationPayload(Payload):
     """
     Request an attestation based on some meta data.
     """
+    msg_id = 5
     format_list = ['raw']
 
     def __init__(self, metadata):
@@ -24,6 +25,7 @@ class VerifyAttestationRequestPayload(Payload):
     """
     Request an attestation by hash (published with metadata somewhere).
     """
+    msg_id = 1
     format_list = ['20s']
 
     def __init__(self, hash):
@@ -43,6 +45,7 @@ class AttestationChunkPayload(Payload):
     """
     A chunk of Attestation.
     """
+    msg_id = 2
     format_list = ['20s', 'H', 'raw']
 
     def __init__(self, hash, sequence_number, data):
@@ -67,6 +70,7 @@ class ChallengePayload(Payload):
     """
     A challenge for an Attestee by a Verifier
     """
+    msg_id = 3
     format_list = ['20s', 'raw']
 
     def __init__(self, attestation_hash, challenge):
@@ -87,6 +91,7 @@ class ChallengeResponsePayload(Payload):
     """
     A challenge response from an Attestee to a Verifier
     """
+    msg_id = 4
     format_list = ['20s', 'raw']
 
     def __init__(self, challenge_hash, response):

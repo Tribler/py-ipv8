@@ -64,12 +64,10 @@ class DiscoveryCommunity(Community):
 
         self.request_cache = RequestCache()
 
-        self.decode_map.update({
-            chr(1): self.on_similarity_request,
-            chr(2): self.on_similarity_response,
-            chr(3): self.on_ping,
-            chr(4): self.on_pong
-        })
+        self.add_message_handler(SimilarityRequestPayload, self.on_similarity_request)
+        self.add_message_handler(SimilarityResponsePayload, self.on_similarity_response)
+        self.add_message_handler(PingPayload, self.on_ping)
+        self.add_message_handler(PongPayload, self.on_pong)
 
     def get_available_strategies(self):
         return {'PeriodicSimilarity': PeriodicSimilarity, 'RandomChurn': RandomChurn}

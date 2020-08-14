@@ -10,11 +10,6 @@ from .routing import NODE_STATUS_BAD, Node
 from ..lazy_community import lazy_wrapper, lazy_wrapper_wd
 from ..messaging.payload_headers import GlobalTimeDistributionPayload
 
-MSG_STORE_PEER_REQUEST = 13
-MSG_STORE_PEER_RESPONSE = 14
-MSG_CONNECT_PEER_REQUEST = 15
-MSG_CONNECT_PEER_RESPONSE = 16
-
 
 class DHTDiscoveryCommunity(DHTCommunity):
     """
@@ -27,12 +22,10 @@ class DHTDiscoveryCommunity(DHTCommunity):
         self.store = defaultdict(list)
         self.store_for_me = defaultdict(list)
 
-        self.decode_map.update({
-            chr(MSG_STORE_PEER_REQUEST): self.on_store_peer_request,
-            chr(MSG_STORE_PEER_RESPONSE): self.on_store_peer_response,
-            chr(MSG_CONNECT_PEER_REQUEST): self.on_connect_peer_request,
-            chr(MSG_CONNECT_PEER_RESPONSE): self.on_connect_peer_response,
-        })
+        self.add_message_handler(StorePeerRequestPayload, self.on_store_peer_request)
+        self.add_message_handler(StorePeerResponsePayload, self.on_store_peer_response)
+        self.add_message_handler(ConnectPeerRequestPayload, self.on_connect_peer_request)
+        self.add_message_handler(ConnectPeerResponsePayload, self.on_connect_peer_response)
 
         self.register_task('store_peer', self.store_peer, interval=30)
         self.register_task('ping_all', self.ping_all, interval=10)
@@ -82,7 +75,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
             if node in self.tokens:
                 cache = self.request_cache.add(Request(self, 'store-peer', node, [key]))
                 futures.append(cache.future)
-                self.send_message(node.address, MSG_STORE_PEER_REQUEST, StorePeerRequestPayload,
+                self.send_message(node.address, StorePeerRequestPayload.msg_id, StorePeerRequestPayload,
                                   (cache.number, self.tokens[node][1], key))
             else:
                 self.logger.debug('Not sending store-peer-request to %s (no token available)', node)
@@ -123,7 +116,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
         for node in nodes:
             cache = self.request_cache.add(Request(self, 'connect-peer', node))
             futures.append(cache.future)
-            self.send_message(node.address, MSG_CONNECT_PEER_REQUEST,
+            self.send_message(node.address, ConnectPeerRequestPayload.msg_id,
                               ConnectPeerRequestPayload, (cache.number, self.my_estimated_lan, key))
 
         node_lists = await gather_without_errors(*futures)
@@ -147,7 +140,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
             self.logger.debug('Storing peer %s (key %s)', node, hexlify(payload.target))
             self.store[payload.target].append(node)
 
-        self.send_message(node.address, MSG_STORE_PEER_RESPONSE,
+        self.send_message(node.address, StorePeerResponsePayload.msg_id,
                           StorePeerResponsePayload, (payload.identifier,))
 
     @lazy_wrapper(GlobalTimeDistributionPayload, StorePeerResponsePayload)
@@ -177,7 +170,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
             self.endpoint.send(node.address, packet)
 
         self.logger.debug('Returning peers %s (key %s)', nodes, hexlify(payload.target))
-        self.send_message(peer.address, MSG_CONNECT_PEER_RESPONSE,
+        self.send_message(peer.address, ConnectPeerResponsePayload.msg_id,
                           ConnectPeerResponsePayload, (payload.identifier, nodes))
 
     @lazy_wrapper(GlobalTimeDistributionPayload, ConnectPeerResponsePayload)

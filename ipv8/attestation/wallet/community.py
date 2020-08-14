@@ -73,13 +73,11 @@ class AttestationCommunity(Community):
 
         self.request_cache = RequestCache()
 
-        self.decode_map.update({
-            chr(1): self.on_verify_attestation_request,
-            chr(2): self.on_attestation_chunk,
-            chr(3): self.on_challenge,
-            chr(4): self.on_challenge_response,
-            chr(5): self.on_request_attestation
-        })
+        self.add_message_handler(VerifyAttestationRequestPayload, self.on_verify_attestation_request)
+        self.add_message_handler(AttestationChunkPayload, self.on_attestation_chunk)
+        self.add_message_handler(ChallengePayload, self.on_challenge)
+        self.add_message_handler(ChallengeResponsePayload, self.on_challenge_response)
+        self.add_message_handler(RequestAttestationPayload, self.on_request_attestation)
 
     async def unload(self):
         await self.request_cache.shutdown()

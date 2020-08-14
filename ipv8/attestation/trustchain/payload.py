@@ -6,6 +6,7 @@ class CrawlRequestPayload(Payload):
     Request a crawl of blocks starting with a specific sequence number or the first if 0.
     """
 
+    msg_id = 2
     format_list = ['74s', 'l', 'l', 'I']
 
     def __init__(self, public_key, start_seq_num, end_seq_num, crawl_id):
@@ -33,6 +34,7 @@ class EmptyCrawlResponsePayload(Payload):
     Payload for the message that indicates that there are no blocks to respond.
     """
 
+    msg_id = 7
     format_list = ['I']
 
     def __init__(self, crawl_id):
@@ -53,6 +55,7 @@ class HalfBlockPayload(Payload):
     Payload for message that ships a half block
     """
 
+    msg_id = 1
     format_list = ['74s', 'I', '74s', 'I', '32s', '64s', 'varlenI', 'varlenI', 'Q']
 
     def __init__(self, public_key, sequence_number, link_public_key, link_sequence_number, previous_hash,
@@ -105,6 +108,7 @@ class HalfBlockBroadcastPayload(HalfBlockPayload):
     Payload for a message that contains a half block and a TTL field for broadcasts.
     """
 
+    msg_id = 5
     format_list = ['74s', 'I', '74s', 'I', '32s', '64s', 'varlenI', 'varlenI', 'Q', 'I']
 
     def __init__(self, public_key, sequence_number, link_public_key, link_sequence_number, previous_hash,
@@ -144,6 +148,7 @@ class CrawlResponsePayload(Payload):
     Payload for the response to a crawl request.
     """
 
+    msg_id = 3
     format_list = ['74s', 'I', '74s', 'I', '32s', '64s', 'varlenI', 'varlenI', 'Q', 'I', 'I', 'I']
 
     def __init__(self, public_key, sequence_number, link_public_key, link_sequence_number, previous_hash, signature,
@@ -205,6 +210,7 @@ class HalfBlockPairPayload(Payload):
     Payload for message that ships two half blocks
     """
 
+    msg_id = 4
     format_list = ['74s', 'I', '74s', 'I', '32s', '64s', 'varlenI', 'varlenI', 'Q'] * 2
 
     def __init__(self, public_key1, sequence_number1, link_public_key1, link_sequence_number1, previous_hash1,
@@ -286,6 +292,7 @@ class HalfBlockPairBroadcastPayload(HalfBlockPairPayload):
     Payload for a broadcast message that ships two half blocks
     """
 
+    msg_id = 6
     format_list = ['74s', 'I', '74s', 'I', '32s', '64s', 'varlenI', 'varlenI', 'Q'] * 2 + ['I']
 
     def __init__(self, public_key1, sequence_number1, link_public_key1, link_sequence_number1, previous_hash1,

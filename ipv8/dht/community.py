@@ -46,13 +46,6 @@ MAX_NODES_IN_FIND = 8
 # Target number of nodes at which a key-value pair should be stored
 TARGET_NODES = 8
 
-MSG_PING = 7
-MSG_PONG = 8
-MSG_STORE_REQUEST = 9
-MSG_STORE_RESPONSE = 10
-MSG_FIND_REQUEST = 11
-MSG_FIND_RESPONSE = 12
-
 
 async def gather_without_errors(*futures):
     results = await gather(*futures, return_exceptions=True)
@@ -174,14 +167,12 @@ class DHTCommunity(Community):
         self.register_task('node_maintenance', self.node_maintenance, interval=60)
 
         # Register messages
-        self.decode_map.update({
-            chr(MSG_PING): self.on_ping_request,
-            chr(MSG_PONG): self.on_ping_response,
-            chr(MSG_STORE_REQUEST): self.on_store_request,
-            chr(MSG_STORE_RESPONSE): self.on_store_response,
-            chr(MSG_FIND_REQUEST): self.on_find_request,
-            chr(MSG_FIND_RESPONSE): self.on_find_response,
-        })
+        self.add_message_handler(PingRequestPayload, self.on_ping_request)
+        self.add_message_handler(PingResponsePayload, self.on_ping_response)
+        self.add_message_handler(StoreRequestPayload, self.on_store_request)
+        self.add_message_handler(StoreResponsePayload, self.on_store_response)
+        self.add_message_handler(FindRequestPayload, self.on_find_request)
+        self.add_message_handler(FindResponsePayload, self.on_find_response)
 
         self.logger.info('DHT community initialized (peer mid %s)', hexlify(self.my_peer.mid))
 
@@ -239,7 +230,7 @@ class DHTCommunity(Community):
     def ping(self, node):
         self.logger.debug('Pinging node %s', node)
         cache = self.request_cache.add(Request(self, 'ping', node, consume_errors=True))
-        self.send_message(node.address, MSG_PING, PingRequestPayload, (cache.number,))
+        self.send_message(node.address, PingRequestPayload.msg_id, PingRequestPayload, (cache.number,))
         node.last_ping_sent = time.time()
         return cache.future
 
@@ -251,7 +242,7 @@ class DHTCommunity(Community):
         if not node:
             return
 
-        self.send_message(peer.address, MSG_PONG, PingResponsePayload, (payload.identifier,))
+        self.send_message(peer.address, PingResponsePayload.msg_id, PingResponsePayload, (payload.identifier,))
 
     @lazy_wrapper_wd(GlobalTimeDistributionPayload, PingResponsePayload)
     def on_ping_response(self, peer, dist, payload, data):
@@ -326,7 +317,7 @@ class DHTCommunity(Community):
             if node in self.tokens and self.tokens[node][0] + TOKEN_EXPIRATION_TIME > now:
                 cache = self.request_cache.add(Request(self, 'store', node))
                 futures.append(cache.future)
-                self.send_message(node.address, MSG_STORE_REQUEST, StoreRequestPayload,
+                self.send_message(node.address, StoreRequestPayload.msg_id, StoreRequestPayload,
                                   (cache.number, self.tokens[node][1], key, values))
             else:
                 self.logger.debug('Not sending store-request to %s (no token available)', node)
@@ -366,7 +357,7 @@ class DHTCommunity(Community):
         for value in payload.values:
             self.add_value(payload.target, value, max_age)
 
-        self.send_message(peer.address, MSG_STORE_RESPONSE, StoreResponsePayload, (payload.identifier,))
+        self.send_message(peer.address, StoreResponsePayload.msg_id, StoreResponsePayload, (payload.identifier,))
 
     @lazy_wrapper(GlobalTimeDistributionPayload, StoreResponsePayload)
     def on_store_response(self, peer, dist, payload):
@@ -382,7 +373,7 @@ class DHTCommunity(Community):
 
     def _send_find_request(self, node, target, force_nodes, offset=0):
         cache = self.request_cache.add(Request(self, 'find', node, [force_nodes], consume_errors=True, timeout=2.0))
-        self.send_message(node.address, MSG_FIND_REQUEST, FindRequestPayload,
+        self.send_message(node.address, FindRequestPayload.msg_id, FindRequestPayload,
                           (cache.number, self.my_estimated_lan, target, offset, force_nodes))
         return cache.future
 
@@ -474,7 +465,7 @@ class DHTCommunity(Community):
                 packet = self.create_puncture_request(payload.lan_address, peer.address, payload.identifier)
                 self.endpoint.send(nodes[0].address, packet)
 
-        self.send_message(peer.address, MSG_FIND_RESPONSE, FindResponsePayload,
+        self.send_message(peer.address, FindResponsePayload.msg_id, FindResponsePayload,
                           (payload.identifier, self.generate_token(node), values, nodes))
 
     @lazy_wrapper(GlobalTimeDistributionPayload, FindResponsePayload)

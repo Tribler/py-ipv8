@@ -59,15 +59,16 @@ class BasePayload(Payload):
 
 
 class PingRequestPayload(BasePayload):
-    pass
+    msg_id = 7
 
 
 class PingResponsePayload(BasePayload):
-    pass
+    msg_id = 8
 
 
 class StoreRequestPayload(BasePayload):
 
+    msg_id = 9
     format_list = BasePayload.format_list + ['20s', '20s', 'varlenH']
 
     def __init__(self, identifier, token, target, values):
@@ -90,11 +91,12 @@ class StoreRequestPayload(BasePayload):
 
 
 class StoreResponsePayload(BasePayload):
-    pass
+    msg_id = 10
 
 
 class FindRequestPayload(BasePayload):
 
+    msg_id = 11
     format_list = BasePayload.format_list + ['varlenI', '20s', 'I', '?']
 
     def __init__(self, identifier, lan_address, target, offset, force_nodes):
@@ -123,6 +125,7 @@ class FindRequestPayload(BasePayload):
 
 class FindResponsePayload(BasePayload):
 
+    msg_id = 12
     format_list = BasePayload.format_list + ['20s', 'varlenH', 'varlenH']
 
     def __init__(self, identifier, token, values, nodes):
@@ -181,6 +184,7 @@ class SignedStrPayload(Payload):
 
 class StorePeerRequestPayload(BasePayload):
 
+    msg_id = 13
     format_list = BasePayload.format_list + ['20s', '20s']
 
     def __init__(self, identifier, token, target):
@@ -200,11 +204,12 @@ class StorePeerRequestPayload(BasePayload):
 
 
 class StorePeerResponsePayload(BasePayload):
-    pass
+    msg_id = 14
 
 
 class ConnectPeerRequestPayload(BasePayload):
 
+    msg_id = 15
     format_list = BasePayload.format_list + ['varlenI', '20s']
 
     def __init__(self, identifier, lan_address, target):
@@ -227,6 +232,7 @@ class ConnectPeerRequestPayload(BasePayload):
 
 class ConnectPeerResponsePayload(BasePayload):
 
+    msg_id = 16
     format_list = BasePayload.format_list + ['varlenH']
 
     def __init__(self, identifier, nodes):
