@@ -108,6 +108,10 @@ class Endpoint(metaclass=abc.ABCMeta):
     def close(self):
         pass
 
+    @abc.abstractmethod
+    def reset_byte_counters(self):
+        pass
+
 
 class EndpointListener(metaclass=abc.ABCMeta):
     """
