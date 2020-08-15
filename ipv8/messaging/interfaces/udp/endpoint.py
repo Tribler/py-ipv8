@@ -114,6 +114,13 @@ class UDPEndpoint(Endpoint, asyncio.DatagramProtocol):
         """
         return self._running
 
+    def reset_byte_counters(self):
+        """
+        Set bytes_up and bytes_down to 0.
+        """
+        self.bytes_up = 0
+        self.bytes_down = 0
+
 
 class UDPv6Endpoint(UDPEndpoint):
 

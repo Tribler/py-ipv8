@@ -44,6 +44,9 @@ class MockEndpoint(Endpoint):
     def close(self, timeout=0.0):
         self._open = False
 
+    def reset_byte_counters(self):
+        pass
+
 
 class AddressTester(EndpointListener):
 

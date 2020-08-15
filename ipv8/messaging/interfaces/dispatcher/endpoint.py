@@ -140,3 +140,7 @@ class DispatcherEndpoint(Endpoint):
     def close(self) -> None:
         for interface in self.interfaces.values():
             interface.close()
+
+    def reset_byte_counters(self) -> None:
+        for interface in self.interfaces.values():
+            interface.reset_byte_counters()
