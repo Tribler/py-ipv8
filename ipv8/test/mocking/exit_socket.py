@@ -22,7 +22,7 @@ class MockTunnelExitSocket(TunnelExitSocket, EndpointListener):
         if DataChecker.could_be_bt(data) or DataChecker.could_be_ipv8(data):
             self.endpoint.send(destination, data)
         else:
-            raise AssertionError("Attempted to exit data which is not allowed" % repr(data))
+            raise AssertionError("Attempted to exit data which is not allowed: %s" % repr(data))
 
     def on_packet(self, packet):
         source_address, data = packet
