@@ -73,6 +73,7 @@ Table of contents
    :maxdepth: 2
    :caption: Further reading:
 
+   further-reading/advanced_identity.rst
    further-reading/trustchain.rst
    further-reading/anonymization.rst
 
