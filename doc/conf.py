@@ -24,9 +24,9 @@ copyright = '2017-2020, Tribler'  # Do not change manually! Handled by github_in
 author = u'Tribler'
 
 # The short X.Y version
-version = '2.2'  # Do not change manually! Handled by github_increment_version.py
+version = '2.3'  # Do not change manually! Handled by github_increment_version.py
 # The full version, including alpha/beta/rc tags
-release = '2.2.0'  # Do not change manually! Handled by github_increment_version.py
+release = '2.3.0'  # Do not change manually! Handled by github_increment_version.py
 
 
 # -- General configuration ---------------------------------------------------
