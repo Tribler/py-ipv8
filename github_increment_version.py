@@ -80,10 +80,13 @@ def parse_rest_manager():
             for inner_definition in element.body:
                 if isinstance(inner_definition, ast.AsyncFunctionDef) and inner_definition.name == "start":
                     for f_statement in inner_definition.body:
-                        if (isinstance(f_statement, ast.Expr)
+                        if (isinstance(f_statement, ast.Assign)
+                                and f_statement.targets
+                                and isinstance(f_statement.targets[0], ast.Name)
+                                and f_statement.targets[0].id == "aiohttp_apispec"
                                 and isinstance(f_statement.value, ast.Call)
                                 and isinstance(f_statement.value.func, ast.Name)
-                                and f_statement.value.func.id == "setup_aiohttp_apispec"):
+                                and f_statement.value.func.id == "AiohttpApiSpec"):
                             for setup_arg in f_statement.value.keywords:
                                 if setup_arg.arg == "version":
                                     version_element = setup_arg.value
