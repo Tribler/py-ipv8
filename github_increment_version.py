@@ -239,6 +239,66 @@ ipv8_fork_repo.create_git_ref(ref='refs/heads/automated_version_update', sha=new
 # CREATE PULL REQUEST
 print("[8/8] Creating Pull Request to main repository")
 
+
+def commit_messages_to_names(commit_msg_list):
+    """
+    Humans are not computers. Correct some common mistakes.
+    """
+    out = []
+    misspellings = {
+        "add ": "Added ",
+        "Add ": "Added ",
+        "ADD ": "Added ",
+        "added ": "Added ",
+        "ADDED ": "Added ",
+        "fix ": "Fixed ",
+        "Fix ": "Fixed ",
+        "FIX ": "Fixed ",
+        "fixed ": "Fixed ",
+        "FIXED ": "Fixed ",
+        "update ": "Updated ",
+        "Update ": "Updated ",
+        "UPDATE ": "Updated ",
+        "updated ": "Updated ",
+        "UPDATED ": "Updated ",
+        "remove ": "Removed ",
+        "Remove ": "Removed ",
+        "REMOVE ": "Removed ",
+        "removed ": "Removed ",
+        "REMOVED ": "Removed "
+    }
+    residual_prefixes = {
+        "READY: ": "",
+        "ready: ": "",
+        "Ready: ": "",
+        "READY ": "",
+        "ready ": "",
+        "Ready ": "",
+        "WIP: ": "",
+        "wip: ": "",
+        "Wip: ": "",
+        "WIP ": "",
+        "wip ": "",
+        "Wip ": "",
+        "[READY] ": "",
+        "[WIP] ": ""
+    }
+    for commit_msg in commit_msg_list:
+        corrected = commit_msg
+        # First, strip residual prefixes, e.g. "READY: Add some feature" -> "Add some feature".
+        for mistake in residual_prefixes:
+            if commit_msg.startswith(mistake):
+                corrected = residual_prefixes[mistake] + commit_msg[len(mistake):]
+        # Second, modify misspellings, e.g. "Add some feature" -> "Added some feature".
+        # We do this after the first step to correct compound errors (both leaving the prefix AND not adhering to
+        # the naming standard).
+        for mistake in misspellings:
+            if corrected.startswith(mistake):
+                corrected = misspellings[mistake] + corrected[len(mistake):]
+        out.append(corrected)
+    return sorted(out)
+
+
 pr = ipv8_repo.create_pull("Automated Version Update",
                            "Suggested release message\n"
                            + "---\n"
@@ -248,8 +308,9 @@ pr = ipv8_repo.create_pull("Automated Version Update",
                            + ("Includes the first %d commits (+%d since v%s) for IPv8, containing:\n" %
                               (total_commits, commits_since_last, old_version_tag))
                            + "\n - "
-                           + ("\n - ".join([c.commit.message.split('\n')[2]
-                                            for c in comparison.commits if c.commit.message.startswith('Merge')])),
+                           + ("\n - ".join(commit_messages_to_names([c.commit.message.split('\n')[2]
+                                                                     for c in comparison.commits
+                                                                     if c.commit.message.startswith('Merge')]))),
                            'master',
                            '{}:{}'.format(username, 'automated_version_update'), True)
 
