@@ -29,7 +29,9 @@ Only use them in the following situations:
  3. Allow testing of Pull Requests (type `ok to test` as a comment in the Pull Request).
  4. Merging Pull Requests, but only if the automated tests pass (or failure is properly ratified) and **all** reviewers are sufficiently satisfied with the change. **Never ever merge your own Pull Request** without approving reviews from others.
  5. Making a new branch on the main repository for **completed** changes that conflict with -or cannot be merged into- the `master` branch, but should not be lost. Feature branches that are still in development should not be in the main repository. 
- 6. Authoring releases. Make sure the version is incremented in `setup.py` (for which you can use `github_increment_version.py` in most cases) before authoring a release on GitHub. Next, create a release on PyPi with `python3 setup.py sdist bdist_wheel` and `python3 -m twine upload dist/*`.
+ 6. a. Authoring releases. Run `github_increment_version.py` to automatically generate a PR that increments the version entries and gives you a message and tag names you can paste into a GitHub release. GitHub Actions should automatically push this release to `pypi.org`.
+ 
+    b. Manually authoring releases (in case 6.a. does not work). Make sure the version is incremented in `setup.py`, `doc/conf.py` and `ipv8/REST/rest_manager.py` before authoring a release on GitHub. Next, create a release on PyPi with `python3 setup.py sdist bdist_wheel` and `python3 -m twine upload dist/*`.
 
 ### Common Q&A
 
