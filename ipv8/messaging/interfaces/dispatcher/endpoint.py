@@ -129,9 +129,9 @@ class DispatcherEndpoint(Endpoint):
         elif socket_address.__class__ in FAST_ADDR_TO_INTERFACE:
             self.interfaces[FAST_ADDR_TO_INTERFACE[socket_address.__class__]].send(socket_address, packet)
         else:
-            interface = guess_interface(socket_address)
+            interface = self.interfaces.get(guess_interface(socket_address))
             if interface is not None:
-                self.interfaces[interface].send(socket_address, packet)
+                interface.send(socket_address, packet)
 
     async def open(self) -> None:
         for interface in self.interfaces.values():
