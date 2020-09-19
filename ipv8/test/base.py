@@ -1,10 +1,9 @@
 import os
-import random
 import shutil
-import string
 import sys
 import threading
 import time
+import uuid
 from asyncio import all_tasks, get_event_loop, sleep
 
 import asynctest
@@ -155,7 +154,7 @@ class TestBase(asynctest.TestCase):
         await self.deliver_messages()
 
     def temporary_directory(self):
-        rndstr = '_temp_' + ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(10))
+        rndstr = '_temp_' + uuid.uuid4().hex
         d = os.path.abspath(self.__class__.__name__ + rndstr)
         self._tempdirs.append(d)
         os.makedirs(d)
