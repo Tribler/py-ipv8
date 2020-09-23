@@ -287,12 +287,12 @@ class EndpointListener(metaclass=abc.ABCMeta):
         :return: lan address
         """
         if self._netifaces_failed:
-            return (self.get_lan_address_without_netifaces(), self.endpoint._port)
+            return self.get_lan_address_without_netifaces(), self.endpoint.get_address()[1]
         else:
             self._local_interfaces = list(self._get_interface_addresses())
             interface = self._guess_lan_address(self._local_interfaces)
             return (interface.address if interface else self.get_lan_address_without_netifaces()), \
-                   (0 if bootstrap else self.endpoint._port)
+                   (0 if bootstrap else self.endpoint.get_address()[1])
 
     def _guess_lan_address(self, interfaces, default=None):
         """
