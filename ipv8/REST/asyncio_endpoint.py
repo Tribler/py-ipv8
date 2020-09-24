@@ -72,8 +72,7 @@ class AsyncioEndpoint(BaseEndpoint):
             return False
         if self.strategy:
             with self.session.overlay_lock:
-                self.session.strategies = [s for s in self.session.strategies
-                                           if not isinstance(s[0], DriftMeasurementStrategy)]
+                self.session.strategies = [s for s in self.session.strategies if s[0] != self.strategy]
             self.strategy = None
             return True
         return True
