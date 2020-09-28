@@ -146,10 +146,9 @@ class DiscoveryCommunity(Community):
         return [service_id for service_id, overlay in self.network.service_overlays.items()
                 if overlay.my_peer == peer]
 
-    def custom_pack(self, peer, msg_num, format_list_list):
+    def custom_pack(self, peer, msg_num, payloads):
         packet = self._prefix + cast_to_bin(chr(msg_num))
-        for format_list in format_list_list:
-            packet += self.serializer.pack_multiple(format_list)[0]
+        packet += self.serializer.pack_serializable_list(payloads)
         packet += default_eccrypto.create_signature(peer.key, packet)
         return packet
 
@@ -159,24 +158,24 @@ class DiscoveryCommunity(Community):
                                            self.my_estimated_lan,
                                            self.my_estimated_wan,
                                            u"unknown",
-                                           self.get_my_overlays(peer)).to_pack_list()
-        auth = BinMemberAuthenticationPayload(peer.public_key.key_to_bin()).to_pack_list()
-        dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
+                                           self.get_my_overlays(peer))
+        auth = BinMemberAuthenticationPayload(peer.public_key.key_to_bin())
+        dist = GlobalTimeDistributionPayload(global_time)
 
         return self.custom_pack(peer, 1, [auth, dist, payload])
 
     def create_similarity_response(self, identifier, peer):
         global_time = self.claim_global_time()
-        payload = SimilarityResponsePayload(identifier, self.get_my_overlays(peer), []).to_pack_list()
-        auth = BinMemberAuthenticationPayload(peer.public_key.key_to_bin()).to_pack_list()
-        dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
+        payload = SimilarityResponsePayload(identifier, self.get_my_overlays(peer), [])
+        auth = BinMemberAuthenticationPayload(peer.public_key.key_to_bin())
+        dist = GlobalTimeDistributionPayload(global_time)
 
         return self.custom_pack(peer, 2, [auth, dist, payload])
 
     def send_ping(self, peer):
         global_time = self.claim_global_time()
-        payload = PingPayload(global_time).to_pack_list()
-        dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
+        payload = PingPayload(global_time)
+        dist = GlobalTimeDistributionPayload(global_time)
 
         packet = self._ez_pack(self._prefix, 3, [dist, payload], False)
         self.request_cache.add(PingRequestCache(self.request_cache, global_time, peer, time()))
@@ -184,6 +183,6 @@ class DiscoveryCommunity(Community):
 
     def create_pong(self, identifier):
         global_time = self.claim_global_time()
-        payload = PongPayload(identifier).to_pack_list()
-        dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
+        payload = PongPayload(identifier)
+        dist = GlobalTimeDistributionPayload(global_time)
         return self._ez_pack(self._prefix, 4, [dist, payload], False)

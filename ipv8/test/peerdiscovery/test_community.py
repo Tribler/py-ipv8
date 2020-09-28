@@ -41,9 +41,9 @@ class TestDiscoveryCommunity(TestBase):
                                                       True,
                                                       u"unknown",
                                                       global_time,
-                                                      b'').to_pack_list()
-        auth = BinMemberAuthenticationPayload(self.overlays[0].my_peer.public_key.key_to_bin()).to_pack_list()
-        dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
+                                                      b'')
+        auth = BinMemberAuthenticationPayload(self.overlays[0].my_peer.public_key.key_to_bin())
+        dist = GlobalTimeDistributionPayload(global_time)
 
         packet = self.overlays[0]._ez_pack(self.overlays[0]._prefix, 246, [auth, dist, payload])
         self.overlays[1].on_introduction_request(self.overlays[0].endpoint.wan_address, packet)

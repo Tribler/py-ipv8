@@ -140,16 +140,16 @@ class TrustChainCommunity(Community):
         Send a block to a specific address, or do a broadcast to known peers if no peer is specified.
         """
         global_time = self.claim_global_time()
-        dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
+        dist = GlobalTimeDistributionPayload(global_time)
 
         if address:
             self.logger.debug("Sending block to (%s:%d) (%s)", address[0], address[1], block)
-            payload = HalfBlockPayload.from_half_block(block).to_pack_list()
+            payload = HalfBlockPayload.from_half_block(block)
             packet = self._ez_pack(self._prefix, 1, [dist, payload], False)
             self.endpoint.send(address, packet)
         else:
             self.logger.debug("Broadcasting block %s", block)
-            payload = HalfBlockBroadcastPayload.from_half_block(block, ttl).to_pack_list()
+            payload = HalfBlockBroadcastPayload.from_half_block(block, ttl)
             packet = self._ez_pack(self._prefix, 5, [dist, payload], False)
             peers = self.get_peers()
             for peer in random.sample(peers, min(len(peers), self.settings.broadcast_fanout)):
@@ -161,16 +161,16 @@ class TrustChainCommunity(Community):
         Send a half block pair to a specific address, or do a broadcast to known peers if no peer is specified.
         """
         global_time = self.claim_global_time()
-        dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
+        dist = GlobalTimeDistributionPayload(global_time)
 
         if address:
             self.logger.debug("Sending block pair to (%s:%d) (%s and %s)", address[0], address[1], block1, block2)
-            payload = HalfBlockPairPayload.from_half_blocks(block1, block2).to_pack_list()
+            payload = HalfBlockPairPayload.from_half_blocks(block1, block2)
             packet = self._ez_pack(self._prefix, 4, [dist, payload], False)
             self.endpoint.send(address, packet)
         else:
             self.logger.debug("Broadcasting blocks %s and %s", block1, block2)
-            payload = HalfBlockPairBroadcastPayload.from_half_blocks(block1, block2, ttl).to_pack_list()
+            payload = HalfBlockPairBroadcastPayload.from_half_blocks(block1, block2, ttl)
             packet = self._ez_pack(self._prefix, 6, [dist, payload], False)
             peers = self.get_peers()
             for peer in random.sample(peers, min(len(peers), self.settings.broadcast_fanout)):
@@ -464,9 +464,9 @@ class TrustChainCommunity(Community):
                          hexlify(peer.public_key.key_to_bin())[-8:], start_seq_num, end_seq_num, crawl_id)
 
         global_time = self.claim_global_time()
-        auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
-        payload = CrawlRequestPayload(public_key, start_seq_num, end_seq_num, crawl_id).to_pack_list()
-        dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
+        auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin())
+        payload = CrawlRequestPayload(public_key, start_seq_num, end_seq_num, crawl_id)
+        dist = GlobalTimeDistributionPayload(global_time)
 
         packet = self._ez_pack(self._prefix, 2, [auth, dist, payload])
         self.endpoint.send(peer.address, packet)
@@ -562,8 +562,8 @@ class TrustChainCommunity(Community):
 
         if total_count == 0:
             global_time = self.claim_global_time()
-            response_payload = EmptyCrawlResponsePayload(payload.crawl_id).to_pack_list()
-            dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
+            response_payload = EmptyCrawlResponsePayload(payload.crawl_id)
+            dist = GlobalTimeDistributionPayload(global_time)
             packet = self._ez_pack(self._prefix, 7, [dist, response_payload], False)
             self.endpoint.send(peer.address, packet)
         else:
@@ -627,8 +627,8 @@ class TrustChainCommunity(Community):
             return
 
         global_time = self.claim_global_time()
-        payload = CrawlResponsePayload.from_crawl(block, crawl_id, index, total_count).to_pack_list()
-        dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
+        payload = CrawlResponsePayload.from_crawl(block, crawl_id, index, total_count)
+        dist = GlobalTimeDistributionPayload(global_time)
 
         packet = self._ez_pack(self._prefix, 3, [dist, payload], False)
         self.endpoint.send(peer.address, packet)

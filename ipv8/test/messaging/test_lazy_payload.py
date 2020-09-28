@@ -112,9 +112,8 @@ class TestVariablePayload(TestBase):
         :type instance: Payload
         :return: the repacked instance
         """
-        plist = instance.to_pack_list()
-        serialized, _ = default_serializer.pack_multiple(plist)
-        deserialized, _ = default_serializer.unpack_to_serializables([payload], serialized)  # pylint: disable=E0632
+        serialized = default_serializer.pack_serializable(instance)
+        deserialized, _ = default_serializer.unpack_serializable(payload, serialized)  # pylint: disable=E0632
         return deserialized
 
     def test_base_unnamed(self):
@@ -168,6 +167,19 @@ class TestVariablePayload(TestBase):
         self.assertEqual(a.b, 1337)
         self.assertEqual(deserialized.a, 42)
         self.assertEqual(deserialized.b, 1337)
+
+    def test_optional_format_list(self):
+        """
+        Check if the wrapper allows for nested payloads.
+        """
+        a = A(1, 2)
+        b = B(a, 3)
+
+        deserialized = self._pack_and_unpack(B, b)
+
+        self.assertEqual(b.a.a, deserialized.a.a)
+        self.assertEqual(b.a.b, deserialized.a.b)
+        self.assertEqual(b.o, deserialized.o)
 
     def test_inheritance(self):
         """
@@ -287,7 +299,7 @@ class TestVariablePayload(TestBase):
         """
         d = D(0)
 
-        serialized, _ = default_serializer.pack_multiple(d.to_pack_list())
+        serialized = default_serializer.pack_serializable(d)
         deserialized = self._pack_and_unpack(D, d)
 
         self.assertEqual(d.a, 0)
@@ -300,7 +312,7 @@ class TestVariablePayload(TestBase):
         """
         d = CompiledD(0)
 
-        serialized, _ = default_serializer.pack_multiple(d.to_pack_list())
+        serialized = default_serializer.pack_serializable(d)
         deserialized = self._pack_and_unpack(CompiledD, d)
 
         self.assertEqual(d.a, 0)

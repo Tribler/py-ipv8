@@ -435,7 +435,7 @@ class TunnelCommunity(Community):
         if isinstance(payload, (DataPayload, TestRequestPayload, TestResponsePayload)):
             message = payload.to_bin()
         else:
-            message = self.serializer.pack_multiple(payload.to_pack_list()[1:])[0]
+            message = self.serializer.pack_serializable(payload)[4:]
         cell = CellPayload(circuit_id, pack('!B', payload.msg_id) + message, payload.msg_id in NO_CRYPTO_PACKETS)
         try:
             cell.encrypt(self.crypto, self.circuits.get(circuit_id), self.relay_session_keys.get(circuit_id))
@@ -458,8 +458,8 @@ class TunnelCommunity(Community):
         return len(packet)
 
     def send_destroy(self, peer, circuit_id, reason):
-        auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
-        payload = DestroyPayload(circuit_id, reason).to_pack_list()
+        auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin())
+        payload = DestroyPayload(circuit_id, reason)
         packet = self._ez_pack(self._prefix, 10, [auth, payload])
         self.send_packet(peer, packet)
 
@@ -570,7 +570,7 @@ class TunnelCommunity(Community):
         if not extra_bytes:
             return []
 
-        payload = self.serializer.unpack_to_serializables([ExtraIntroductionPayload], extra_bytes)[0]
+        payload, _ = self.serializer.unpack_serializable(ExtraIntroductionPayload, extra_bytes)
         return payload.flags
 
     def introduction_request_callback(self, peer, dist, payload):
@@ -581,13 +581,13 @@ class TunnelCommunity(Community):
 
     def create_introduction_request(self, socket_address, extra_bytes=b''):
         extra_payload = ExtraIntroductionPayload(self.settings.peer_flags)
-        extra_bytes = self.serializer.pack_multiple(extra_payload.to_pack_list())[0]
+        extra_bytes = self.serializer.pack_serializable(extra_payload)
         return super(TunnelCommunity, self).create_introduction_request(socket_address, extra_bytes)
 
     def create_introduction_response(self, lan_socket_address, socket_address, identifier,
                                      introduction=None, extra_bytes=b''):
         extra_payload = ExtraIntroductionPayload(self.settings.peer_flags)
-        extra_bytes = self.serializer.pack_multiple(extra_payload.to_pack_list())[0]
+        extra_bytes = self.serializer.pack_serializable(extra_payload)
         return super(TunnelCommunity, self).create_introduction_response(lan_socket_address, socket_address,
                                                                          identifier, introduction, extra_bytes)
 

@@ -187,9 +187,9 @@ class Community(EZPackOverlay):
                                              True,
                                              u"unknown",
                                              global_time,
-                                             extra_bytes).to_pack_list()
-        auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
-        dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
+                                             extra_bytes)
+        auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin())
+        dist = GlobalTimeDistributionPayload(global_time)
 
         return self._ez_pack(self._prefix, 246, [auth, dist, payload])
 
@@ -217,9 +217,9 @@ class Community(EZPackOverlay):
                                               u"unknown",
                                               False,
                                               identifier,
-                                              extra_bytes).to_pack_list()
-        auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
-        dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
+                                              extra_bytes)
+        auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin())
+        dist = GlobalTimeDistributionPayload(global_time)
 
         if introduced:
             packet = self.create_puncture_request(lan_socket_address, socket_address, identifier, prefix=prefix)
@@ -229,16 +229,16 @@ class Community(EZPackOverlay):
 
     def create_puncture(self, lan_walker, wan_walker, identifier):
         global_time = self.claim_global_time()
-        payload = PuncturePayload(lan_walker, wan_walker, identifier).to_pack_list()
-        auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
-        dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
+        payload = PuncturePayload(lan_walker, wan_walker, identifier)
+        auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin())
+        dist = GlobalTimeDistributionPayload(global_time)
 
         return self._ez_pack(self._prefix, 249, [auth, dist, payload])
 
     def create_puncture_request(self, lan_walker, wan_walker, identifier, prefix=None):
         global_time = self.claim_global_time()
-        payload = PunctureRequestPayload(lan_walker, wan_walker, identifier).to_pack_list()
-        dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
+        payload = PunctureRequestPayload(lan_walker, wan_walker, identifier)
+        dist = GlobalTimeDistributionPayload(global_time)
 
         return self._ez_pack(prefix or self._prefix, 250, [dist, payload], False)
 
