@@ -22,8 +22,7 @@ class B(VariablePayload):
     A VariablePayload with a nested Payload.
     """
     format_list = [A]
-    optional_format_list = ['Q']
-    names = ["a", "o"]
+    names = ["a"]
 
 
 @vp_compile
@@ -167,19 +166,6 @@ class TestVariablePayload(TestBase):
         self.assertEqual(a.b, 1337)
         self.assertEqual(deserialized.a, 42)
         self.assertEqual(deserialized.b, 1337)
-
-    def test_optional_format_list(self):
-        """
-        Check if the wrapper allows for nested payloads.
-        """
-        a = A(1, 2)
-        b = B(a, 3)
-
-        deserialized = self._pack_and_unpack(B, b)
-
-        self.assertEqual(b.a.a, deserialized.a.a)
-        self.assertEqual(b.a.b, deserialized.a.b)
-        self.assertEqual(b.o, deserialized.o)
 
     def test_inheritance(self):
         """

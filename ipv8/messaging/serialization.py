@@ -256,15 +256,8 @@ class Serializer(object):
         :param data: the data to unpack from
         :param offset: the optional offset to unpack data from
         """
-        index = 0
-        required_length = len(serializable.format_list)
-        data_length = len(data)
         unpack_list = []
-        for fmt in serializable.format_list + serializable.optional_format_list:
-            if index >= required_length and offset >= data_length:
-                # We can perform a clean break if we are in the optional set
-                break
-            index += 1
+        for fmt in serializable.format_list:
             try:
                 offset = self._packers[fmt].unpack(data, offset, unpack_list)
             except KeyError:
@@ -309,7 +302,6 @@ class Serializable(metaclass=abc.ABCMeta):
     """
 
     format_list = []
-    optional_format_list = []
 
     @abc.abstractmethod
     def to_pack_list(self):

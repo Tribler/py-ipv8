@@ -27,7 +27,7 @@ class Payload(Serializable):
         out = self.__class__.__name__
         for attribute in dir(self):
             if not (attribute.startswith('_') or callable(getattr(self, attribute))) \
-                    and attribute not in ['format_list', 'names', 'optional_format_list']:
+                    and attribute not in ['format_list', 'names']:
                 out += '\n| %s: %s' % (attribute, repr(getattr(self, attribute)))
         return out
 
