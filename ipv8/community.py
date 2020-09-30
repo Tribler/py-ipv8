@@ -335,7 +335,7 @@ class Community(EZPackOverlay):
                 self.logger.error("Exception occurred while handling packet!\n"
                                   + ''.join(format_exception(*sys.exc_info())))
         elif warn_unknown:
-            self.logger.warning("Received unknown message: %d from (%s, %d)", ord(msg_id), *source_address)
+            self.logger.warning("Received unknown message: %d from (%s, %d)", msg_id, *source_address)
 
     def walk_to(self, address):
         packet = self.create_introduction_request(address)

@@ -11,7 +11,7 @@ from ....messaging.anonymization.endpoint import TunnelEndpoint
 from ....messaging.anonymization.tunnel import (CIRCUIT_STATE_EXTENDING, PEER_FLAG_EXIT_BT,
                                                 PEER_FLAG_EXIT_IPV8, PEER_FLAG_SPEED_TEST)
 from ....messaging.interfaces.udp.endpoint import UDPEndpoint
-from ....util import cast_to_bin, succeed
+from ....util import succeed
 
 # Map of info_hash -> peer list
 global_dht_services = defaultdict(list)
@@ -240,7 +240,7 @@ class TestTunnelCommunity(TestBase):
 
         # Construct a data packet
         prefix = b'\x00' * 23
-        data = prefix + cast_to_bin(''.join([chr(i) for i in range(256)]))
+        data = prefix + bytes(range(256))
 
         self.public_endpoint.assert_open()
 

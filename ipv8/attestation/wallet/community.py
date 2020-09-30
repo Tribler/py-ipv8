@@ -18,7 +18,7 @@ from ...lazy_community import lazy_wrapper
 from ...messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from ...peer import Peer
 from ...requestcache import RequestCache
-from ...util import cast_to_bin, cast_to_chr, maybe_coroutine
+from ...util import maybe_coroutine
 
 
 def synchronized(f):
@@ -151,7 +151,7 @@ class AttestationCommunity(Community):
 
         meta_dict = {
             "attribute": attribute_name,
-            "public_key": cast_to_chr(encodebytes(public_key.serialize())),
+            "public_key": encodebytes(public_key.serialize()).decode(),
             "id_format": id_format
         }
         meta_dict.update(metadata)
@@ -178,7 +178,7 @@ class AttestationCommunity(Community):
         """
         metadata = json.loads(payload.metadata)
         attribute = metadata.pop('attribute')
-        pubkey_b64 = cast_to_bin(metadata.pop('public_key'))
+        pubkey_b64 = metadata.pop('public_key').encode()
         id_format = metadata.pop('id_format')
         id_algorithm = self.get_id_algorithm(id_format)
 
@@ -198,7 +198,7 @@ class AttestationCommunity(Community):
         """
         We got an Attestation delivered to us.
         """
-        self.attestation_keys[cast_to_bin(attestation_hash)] = (secret_key, id_format)
+        self.attestation_keys[attestation_hash] = (secret_key, id_format)
         self.database.insert_attestation(unserialized, attestation_hash, secret_key, id_format)
         self.attestation_request_complete_callback(self.my_peer, name, attestation_hash, id_format, peer)
 

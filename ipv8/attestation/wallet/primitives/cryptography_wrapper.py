@@ -1,7 +1,5 @@
 from cryptography.hazmat.backends import default_backend
 
-from ....util import cast_to_bin
-
 
 def generate_safe_prime(bit_length, backend=default_backend()):
     """
@@ -46,7 +44,7 @@ def is_prime(number, backend=default_backend()):
     if hex_n.endswith('L'):
         hex_n = hex_n[:-1]
     # hex() outputs a unicode string in Python 3
-    hex_n = cast_to_bin(hex_n)
+    hex_n = hex_n.encode()
     generated = backend._lib.BN_new()
     bn_pp = backend._ffi.new("BIGNUM **", generated)
     err = backend._lib.BN_hex2bn(bn_pp, hex_n)

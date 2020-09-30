@@ -19,7 +19,6 @@ from ..peer import Peer
 from ..peerdiscovery.network import Network
 from ..requestcache import RandomNumberCache, RequestCache
 from ..taskmanager import task
-from ..util import cast_to_bin
 
 PING_INTERVAL = 25
 
@@ -509,7 +508,7 @@ class DHTCommunity(Community):
                 self.tokens.pop(node, None)
 
     def generate_token(self, node):
-        return hashlib.sha1(cast_to_bin(str(node)) + self.token_secrets[-1]).digest()
+        return hashlib.sha1(str(node).encode() + self.token_secrets[-1]).digest()
 
     def check_token(self, node, token):
-        return any([hashlib.sha1(cast_to_bin(str(node)) + secret).digest() == token for secret in self.token_secrets])
+        return any([hashlib.sha1(str(node).encode() + secret).digest() == token for secret in self.token_secrets])

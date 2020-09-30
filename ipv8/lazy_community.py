@@ -4,7 +4,6 @@ from .keyvault.crypto import default_eccrypto
 from .messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from .overlay import Overlay
 from .peer import Peer
-from .util import cast_to_bin
 
 
 def lazy_wrapper(*payloads):
@@ -189,7 +188,7 @@ class EZPackOverlay(Overlay):
         return self._ez_pack(self._prefix, msg_num, payloads, sig)
 
     def _ez_pack(self, prefix, msg_num, payloads, sig=True):
-        packet = prefix + cast_to_bin(chr(msg_num)) + self.serializer.pack_serializable_list(payloads)
+        packet = prefix + bytes([msg_num]) + self.serializer.pack_serializable_list(payloads)
         if sig:
             packet += default_eccrypto.create_signature(self.my_peer.key, packet)
         return packet

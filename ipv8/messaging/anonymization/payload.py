@@ -9,7 +9,7 @@ from ...messaging.anonymization.tunnel import (CIRCUIT_TYPE_RP_DOWNLOADER, CIRCU
 from ...messaging.anonymization.tunnelcrypto import CryptoException
 from ...messaging.lazy_payload import VariablePayload, vp_compile
 from ...messaging.payload import Payload
-from ...util import cast_to_bin, cast_to_chr
+from ...util import cast_to_chr
 
 ADDRESS_TYPE_IPV4 = 0x01
 ADDRESS_TYPE_DOMAIN_NAME = 0x02
@@ -178,7 +178,7 @@ class CellPayload(object):
 
     def to_bin(self, prefix):
         return b''.join([prefix,
-                         cast_to_bin(chr(1)),
+                         bytes([1]),
                          pack('!I?', self.circuit_id, self.plaintext) + self.message])
 
     @classmethod

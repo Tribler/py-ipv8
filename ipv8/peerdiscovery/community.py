@@ -13,7 +13,6 @@ from ..messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTi
 from ..messaging.serialization import PackError
 from ..peer import Peer
 from ..requestcache import NumberCache, RequestCache
-from ..util import cast_to_bin
 
 
 class PeriodicSimilarity(DiscoveryStrategy):
@@ -147,7 +146,7 @@ class DiscoveryCommunity(Community):
                 if overlay.my_peer == peer]
 
     def custom_pack(self, peer, msg_num, payloads):
-        packet = self._prefix + cast_to_bin(chr(msg_num))
+        packet = self._prefix + bytes([msg_num])
         packet += self.serializer.pack_serializable_list(payloads)
         packet += default_eccrypto.create_signature(peer.key, packet)
         return packet

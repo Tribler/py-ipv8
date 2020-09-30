@@ -12,7 +12,7 @@ from ..attestation.identity.community import IdentityCommunity, create_community
 from ..attestation.wallet.community import AttestationCommunity
 from ..keyvault.crypto import default_eccrypto
 from ..peer import Peer
-from ..util import cast_to_bin, strip_sha1_padding, succeed
+from ..util import strip_sha1_padding, succeed
 
 
 class AttestationEndpoint(BaseEndpoint):
@@ -315,7 +315,7 @@ class AttestationEndpoint(BaseEndpoint):
             if 'metadata' in args:
                 metadata_unicode = json.loads(b64decode(args['metadata']))
                 for k, v in metadata_unicode.items():
-                    metadata[cast_to_bin(k)] = cast_to_bin(v)
+                    metadata[k.encode()] = v.encode()
             blob = await request.read()
 
             self.attestation_overlay.dump_blob(attribute_name, id_format, blob, metadata)
