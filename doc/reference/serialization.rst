@@ -28,30 +28,26 @@ Each serializable class has to specify the following class members:
    :widths: 10, 20
 
    "format_list", "A list containing valid data type primitive names."
-   "optional_format_list", "A list containing valid data type primitive names. As the name implies, any number of arguments may be supplied."
    "names", "Only for VariablePayload classes, the instance fields to bind the data types to."
 
 
 As an example, we will now define three completely wire-format compatible messages using the three classes.
-Each of the messages will serialize to a (four byte) unsigned integer followed by an optional (two byte) unsigned short.
+Each of the messages will serialize to a (four byte) unsigned integer followed by an (two byte) unsigned short.
 Each instance will have two fields: ``field1`` and ``field2`` corresponding to the integer and short.
 
 .. code-block:: python
 
     class MySerializable(Serializable):
 
-        format_list = ['I']
-        optional_format_list = ['H']
+        format_list = ['I', 'H']
 
-        def __init__(self, field1, field2=None):
+        def __init__(self, field1, field2):
             self.field1 = field1
             self.field2 = field2
 
         def to_pack_list(self):
-            out = [('I', self.field1)]
-            if self.field2 is not None:
-                out += [('H', self.field2)]
-            return out
+            return [('I', self.field1),
+                    ('H', self.field2)]
 
         @classmethod
         def from_unpack_list(cls, *args):
@@ -60,18 +56,15 @@ Each instance will have two fields: ``field1`` and ``field2`` corresponding to t
 
     class MyPayload(Payload):
 
-        format_list = ['I']
-        optional_format_list = ['H']
+        format_list = ['I', 'H']
 
-        def __init__(self, field1, field2=None):
+        def __init__(self, field1, field2):
             self.field1 = field1
             self.field2 = field2
 
         def to_pack_list(self):
-            out = [('I', self.field1)]
-            if self.field2 is not None:
-                out += [('H', self.field2)]
-            return out
+            return [('I', self.field1),
+                    ('H', self.field2)]
 
         @classmethod
         def from_unpack_list(cls, *args):
@@ -80,15 +73,13 @@ Each instance will have two fields: ``field1`` and ``field2`` corresponding to t
 
     class MyVariablePayload(VariablePayload):
 
-        format_list = ['I']
-        optional_format_list = ['H']
+        format_list = ['I', 'H']
         names = ['field1', 'field2']
 
     @vp_compile
     class MyCVariablePayload(VariablePayload):
 
-        format_list = ['I']
-        optional_format_list = ['H']
+        format_list = ['I', 'H']
         names = ['field1', 'field2']
 
 
@@ -97,10 +88,10 @@ To show some of the differences, let's check out the output of the following scr
 
 .. code-block:: python
 
-    serializable1 = MySerializable(1)
-    serializable2 = MyPayload(1)
-    serializable3 = MyVariablePayload(1)
-    serializable4 = MyCVariablePayload(1)
+    serializable1 = MySerializable(1, 2)
+    serializable2 = MyPayload(1, 2)
+    serializable3 = MyVariablePayload(1, 2)
+    serializable4 = MyCVariablePayload(1, 2)
 
     print("As string:")
     print(serializable1)
@@ -126,44 +117,35 @@ To show some of the differences, let's check out the output of the following scr
     print(timeit.timeit('serializable3.from_unpack_list(1, 2)', number=1000, globals=locals()))
     print(timeit.timeit('serializable4.from_unpack_list(1, 2)', number=1000, globals=locals()))
 
-    print("Unserialization speed w/o optional:")
-    print(timeit.timeit('serializable1.from_unpack_list(1)', number=1000, globals=locals()))
-    print(timeit.timeit('serializable2.from_unpack_list(1)', number=1000, globals=locals()))
-    print(timeit.timeit('serializable3.from_unpack_list(1)', number=1000, globals=locals()))
-    print(timeit.timeit('serializable4.from_unpack_list(1)', number=1000, globals=locals()))
-
 
 .. code-block:: bash
 
     As string:
-    <__main__.MySerializable object at 0x7fb493a8b1d0>
+    <__main__.MySerializable object at 0x00000127F1B91F70>
     MyPayload
     | field1: 1
-    | field2: None
+    | field2: 2
     MyVariablePayload
     | field1: 1
+    | field2: 2
     MyCVariablePayload
     | field1: 1
+    | field2: 2
     Field values:
-    1 None
-    1 None
-    1 <undefined>
-    1 <undefined>
+    1 2
+    1 2
+    1 2
+    1 2
     Serialization speed:
-    0.0007182089993875707
-    0.0007311019999178825
-    0.006567462998646079
-    0.0008536430013919016
+    0.00020690000000000985
+    0.00020630000000000648
+    0.0015785999999999994
+    0.0002122999999999986
     Unserialization speed:
-    0.0013339410015760222
-    0.0014789169999858132
-    0.01917448600033822
-    0.0028652559994952753
-    Unserialization speed w/o optional:
-    0.001269377000426175
-    0.0012895309992018156
-    0.014515060998746776
-    0.0018252249992656289
+    0.0003621000000000041
+    0.00036540000000000183
+    0.0036703999999999903
+    0.00045059999999999545
 
 .. _Datatypes Section:
 
