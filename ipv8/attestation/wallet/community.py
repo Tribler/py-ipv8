@@ -18,7 +18,7 @@ from ...lazy_community import lazy_wrapper
 from ...messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from ...peer import Peer
 from ...requestcache import RequestCache
-from ...util import cast_to_bin, cast_to_chr, maybe_coroutine
+from ...util import maybe_coroutine
 
 
 def synchronized(f):
@@ -151,16 +151,16 @@ class AttestationCommunity(Community):
 
         meta_dict = {
             "attribute": attribute_name,
-            "public_key": cast_to_chr(encodebytes(public_key.serialize())),
+            "public_key": encodebytes(public_key.serialize()).decode(),
             "id_format": id_format
         }
         meta_dict.update(metadata)
         metadata = json.dumps(meta_dict).encode()
 
         global_time = self.claim_global_time()
-        auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
-        payload = RequestAttestationPayload(metadata).to_pack_list()
-        dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
+        auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin())
+        payload = RequestAttestationPayload(metadata)
+        dist = GlobalTimeDistributionPayload(global_time)
 
         gtime_str = str(global_time).encode('utf-8')
         self.request_cache.add(ReceiveAttestationRequestCache(self, peer.mid + gtime_str, secret_key, attribute_name,
@@ -178,7 +178,7 @@ class AttestationCommunity(Community):
         """
         metadata = json.loads(payload.metadata)
         attribute = metadata.pop('attribute')
-        pubkey_b64 = cast_to_bin(metadata.pop('public_key'))
+        pubkey_b64 = metadata.pop('public_key').encode()
         id_format = metadata.pop('id_format')
         id_algorithm = self.get_id_algorithm(id_format)
 
@@ -198,7 +198,7 @@ class AttestationCommunity(Community):
         """
         We got an Attestation delivered to us.
         """
-        self.attestation_keys[cast_to_bin(attestation_hash)] = (secret_key, id_format)
+        self.attestation_keys[attestation_hash] = (secret_key, id_format)
         self.database.insert_attestation(unserialized, attestation_hash, secret_key, id_format)
         self.attestation_request_complete_callback(self.my_peer, name, attestation_hash, id_format, peer)
 
@@ -230,9 +230,9 @@ class AttestationCommunity(Community):
         self.request_cache.add(ReceiveAttestationVerifyCache(self, attestation_hash, id_format))
 
         global_time = self.claim_global_time()
-        auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
-        payload = VerifyAttestationRequestPayload(attestation_hash).to_pack_list()
-        dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
+        auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin())
+        payload = VerifyAttestationRequestPayload(attestation_hash)
+        dist = GlobalTimeDistributionPayload(global_time)
 
         packet = self._ez_pack(self._prefix, 1, [auth, dist, payload])
         self.endpoint.send(socket_address, packet)
@@ -270,9 +270,9 @@ class AttestationCommunity(Community):
             self.logger.debug("Sending attestation chunk %d to %s", sequence_number, str(socket_address))
             if global_time is None:
                 global_time = self.claim_global_time()
-            auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
-            payload = AttestationChunkPayload(sha1(blob).digest(), sequence_number, blob_chunk).to_pack_list()
-            dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
+            auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin())
+            payload = AttestationChunkPayload(sha1(blob).digest(), sequence_number, blob_chunk)
+            dist = GlobalTimeDistributionPayload(global_time)
             packet = self._ez_pack(self._prefix, 2, [auth, dist, payload])
             self.endpoint.send(socket_address, packet)
 
@@ -364,9 +364,9 @@ class AttestationCommunity(Community):
             self.request_cache.add(PendingChallengeCache(self, sha1(challenge).digest(), cache, cache.id_format))
 
             global_time = self.claim_global_time()
-            auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
-            payload = ChallengePayload(attestation_hash, challenge).to_pack_list()
-            dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
+            auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin())
+            payload = ChallengePayload(attestation_hash, challenge)
+            dist = GlobalTimeDistributionPayload(global_time)
 
             packet = self._ez_pack(self._prefix, 3, [auth, dist, payload])
             self.endpoint.send(peer.address, packet)
@@ -382,11 +382,10 @@ class AttestationCommunity(Community):
         attestation = self.cached_attestation_blobs[payload.attestation_hash]
 
         global_time = self.claim_global_time()
-        auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
+        auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin())
         payload = ChallengeResponsePayload(challenge_hash,
-                                           algorithm.create_challenge_response(SK, attestation, payload.challenge)
-                                           ).to_pack_list()
-        dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
+                                           algorithm.create_challenge_response(SK, attestation, payload.challenge))
+        dist = GlobalTimeDistributionPayload(global_time)
 
         packet = self._ez_pack(self._prefix, 4, [auth, dist, payload])
         self.endpoint.send(peer.address, packet)
@@ -450,9 +449,9 @@ class AttestationCommunity(Community):
                                                              cache.id_format, honesty_check_byte))
 
                 global_time = self.claim_global_time()
-                auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
-                payload = ChallengePayload(proving_cache.hash, challenge).to_pack_list()
-                dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
+                auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin())
+                payload = ChallengePayload(proving_cache.hash, challenge)
+                dist = GlobalTimeDistributionPayload(global_time)
 
                 packet = self._ez_pack(self._prefix, 3, [auth, dist, payload])
                 self.endpoint.send(peer.address, packet)

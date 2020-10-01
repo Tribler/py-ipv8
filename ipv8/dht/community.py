@@ -19,7 +19,6 @@ from ..peer import Peer
 from ..peerdiscovery.network import Network
 from ..requestcache import RandomNumberCache, RequestCache
 from ..taskmanager import task
-from ..util import cast_to_bin
 
 PING_INTERVAL = 25
 
@@ -192,9 +191,9 @@ class DHTCommunity(Community):
 
     def send_message(self, address, message_id, payload_cls, payload_args):
         global_time = self.claim_global_time()
-        auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()
-        payload = payload_cls(*payload_args).to_pack_list()
-        dist = GlobalTimeDistributionPayload(global_time).to_pack_list()
+        auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin())
+        payload = payload_cls(*payload_args)
+        dist = GlobalTimeDistributionPayload(global_time)
         packet = self._ez_pack(self._prefix, message_id, [auth, dist, payload])
         return self.endpoint.send(address, packet)
 
@@ -259,16 +258,16 @@ class DHTCommunity(Community):
     def serialize_value(self, data, sign=True):
         if sign:
             payload = SignedStrPayload(data, int(time.time()), self.my_peer.public_key.key_to_bin())
-            return self._ez_pack(b'', DHT_ENTRY_STR_SIGNED, [payload.to_pack_list()], sig=True)
+            return self._ez_pack(b'', DHT_ENTRY_STR_SIGNED, [payload], sig=True)
         payload = StrPayload(data)
-        return self._ez_pack(b'', DHT_ENTRY_STR, [payload.to_pack_list()], sig=False)
+        return self._ez_pack(b'', DHT_ENTRY_STR, [payload], sig=False)
 
     def unserialize_value(self, value):
         if value[0] == DHT_ENTRY_STR:
-            payload = self.serializer.unpack_to_serializables([StrPayload], value[1:])[0]
+            payload, _ = self.serializer.unpack_serializable(StrPayload, value, offset=1)
             return payload.data, None, 0
         elif value[0] == DHT_ENTRY_STR_SIGNED:
-            payload = self.serializer.unpack_to_serializables([SignedStrPayload], value[1:])[0]
+            payload, _ = self.serializer.unpack_serializable(SignedStrPayload, value, offset=1)
             public_key = self.crypto.key_from_public_bin(payload.public_key)
             sig_len = self.crypto.get_signature_length(public_key)
             sig = value[-sig_len:]
@@ -509,7 +508,7 @@ class DHTCommunity(Community):
                 self.tokens.pop(node, None)
 
     def generate_token(self, node):
-        return hashlib.sha1(cast_to_bin(str(node)) + self.token_secrets[-1]).digest()
+        return hashlib.sha1(str(node).encode() + self.token_secrets[-1]).digest()
 
     def check_token(self, node, token):
-        return any([hashlib.sha1(cast_to_bin(str(node)) + secret).digest() == token for secret in self.token_secrets])
+        return any([hashlib.sha1(str(node).encode() + secret).digest() == token for secret in self.token_secrets])

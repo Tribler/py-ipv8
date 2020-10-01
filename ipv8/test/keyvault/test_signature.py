@@ -1,6 +1,5 @@
 from ..base import TestBase
 from ...keyvault.crypto import default_eccrypto
-from ...util import cast_to_bin
 
 
 class TestSignatures(TestBase):
@@ -11,7 +10,7 @@ class TestSignatures(TestBase):
     def setUp(self):
         super(TestSignatures, self).setUp()
         self.ec = default_eccrypto
-        self.data = cast_to_bin("".join([chr(i) for i in range(256)]))
+        self.data = bytes(range(256))
 
     def test_vlow(self):
         """

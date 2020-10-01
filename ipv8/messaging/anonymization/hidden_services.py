@@ -243,7 +243,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         return super(HiddenTunnelCommunity, self).get_max_time(circuit_id)
 
     def tunnel_data(self, circuit, destination, payload):
-        packet = self._ez_pack(self._prefix, payload.msg_id, [payload.to_pack_list()], False)
+        packet = self._ez_pack(self._prefix, payload.msg_id, [payload], False)
         pre = ('0.0.0.0', 0)
         post = ('0.0.0.0', 0)
         if isinstance(circuit, TunnelExitSocket):
@@ -311,7 +311,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
             self.send_cell(target_addr, payload)
         else:
             # Send back to exit node
-            packet = self._ez_pack(self._prefix, payload.msg_id, [payload.to_pack_list()], False)
+            packet = self._ez_pack(self._prefix, payload.msg_id, [payload], False)
             self.send_packet(target_addr, packet)
 
     @unpack_cell(PeersResponsePayload)

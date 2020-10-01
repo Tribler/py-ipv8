@@ -166,8 +166,8 @@ class TestDHTCommunity(TestBase):
         dht_provider_1 = DHTCommunityProvider(self.nodes[0].overlay, 1337)
         dht_provider_2 = DHTCommunityProvider(self.nodes[1].overlay, 1338)
         dht_provider_3 = DHTCommunityProvider(self.nodes[2].overlay, 1338)
-        await dht_provider_1.announce(b'a' * 20, IntroductionPoint(self.nodes[0].overlay.my_peer, '\x01' * 20))
-        await dht_provider_2.announce(b'a' * 20, IntroductionPoint(self.nodes[1].overlay.my_peer, '\x02' * 20))
+        await dht_provider_1.announce(b'a' * 20, IntroductionPoint(self.nodes[0].overlay.my_peer, b'\x01' * 20))
+        await dht_provider_2.announce(b'a' * 20, IntroductionPoint(self.nodes[1].overlay.my_peer, b'\x02' * 20))
 
         await self.deliver_messages(.5)
 

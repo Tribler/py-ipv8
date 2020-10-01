@@ -58,14 +58,6 @@ class VariablePayload(Payload):
             index += 1
         if index != len(self.format_list):
             raise KeyError("%s missing %d arguments!" % (self.__class__.__name__, len(args) - index))
-        # Try to fill in the optional format specification.
-        for _ in self.optional_format_list:
-            # If we run out of anonymous and named arguments, we stop.
-            if index == len(args) and not kwargs:
-                break
-            value = args[index] if index < len(args) else kwargs.pop(self.names[index])
-            setattr(self, self.names[index], value)
-            index += 1
         if kwargs:
             raise KeyError("%s has leftover keyword arguments: %s!" % (self.__class__.__name__, str(kwargs)))
 
@@ -109,10 +101,6 @@ class VariablePayload(Payload):
         for _ in range(len(self.format_list)):
             out.append((self._to_packlist_fmt(self.format_list[index]), self._fix_pack(self.names[index])))
             index += 1
-        while index < len(self.names) and hasattr(self, self.names[index]):
-            out.append((self._to_packlist_fmt(self.optional_format_list[index - len(self.format_list)]),
-                        self._fix_pack(self.names[index])))
-            index += 1
         return out
 
 
@@ -138,11 +126,9 @@ def _compile_init(src_cls, fmt_list_len, names):
 
      .. code-block :: Python
 
-        def __init__(self, a, b, c=None):
+        def __init__(self, a, b):
             self.a = a
             self.b = b
-            if c is not None:
-                setattr(self, 'c', c)
 
     :param src_cls: the source class to use
     :param src_cls: VariablePayload
@@ -156,21 +142,9 @@ def _compile_init(src_cls, fmt_list_len, names):
     f_code = """
 def __init__(self, %s):
     Payload.__init__(self)
-    opt_args = 0
-    self._opt_list = []
     %s
-    """ % (', '.join([name for name in names[:fmt_list_len]]
-                     + ['%s=None' % name for name in names[fmt_list_len:]]),
-           '\n    '.join(['self.%s = %s' % (name, name) for name in names[:fmt_list_len]]
-                         + ["""if %s is not None:
-        setattr(self, "%s", %s)
-        self._opt_list.append((%s, %s))
-        opt_args += 1""" % (name, name, name,
-                            "self.optional_format_list[opt_args]"
-                            if isinstance(src_cls.optional_format_list[i], str) else '"payload"',
-                            "self.fix_pack_%s(self.%s)" % (name, name)
-                            if hasattr(src_cls, "fix_pack_" + name) else "self.%s" % name)
-                            for i, name in enumerate(names[fmt_list_len:])]))
+    """ % (', '.join(names),
+           '\n    '.join(['self.%s = %s' % (name, name) for name in names]))
     return compile(f_code, f_code, 'exec')
 
 
@@ -182,7 +156,7 @@ def _compile_from_unpack_list(src_cls, fmt_list_len, names):
 
     .. code-block :: Python
 
-        def from_unpack_list(cls, a, b, c=None):
+        def from_unpack_list(cls, a, b):
             return cls(a, fix_unpack_b(b), c)
 
     :param src_cls: the source class to use
@@ -194,7 +168,7 @@ def _compile_from_unpack_list(src_cls, fmt_list_len, names):
     :return: the compiled code object
     :rtype: code
     """
-    arg_list = ', '.join([name for name in names[:fmt_list_len]] + ['%s=None' % name for name in names[fmt_list_len:]])
+    arg_list = ', '.join(names)
     f_code = """
 def from_unpack_list(cls, %s):
     return cls(%s)
@@ -226,7 +200,7 @@ def _compile_to_pack_list(src_cls, format_list, names):
     """
     f_code = """
 def to_pack_list(self):
-    return [%s] + self._opt_list
+    return [%s]
         """ % ', '.join(('("%s", self.fix_pack_%s(self.%s))' % (fmt if isinstance(fmt, str) else "payload",
                                                                 names[i], names[i]))
                         if hasattr(src_cls, "fix_pack_" + names[i]) else

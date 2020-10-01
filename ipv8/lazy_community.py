@@ -4,7 +4,6 @@ from .keyvault.crypto import default_eccrypto
 from .messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from .overlay import Overlay
 from .peer import Peer
-from .util import cast_to_bin
 
 
 def lazy_wrapper(*payloads):
@@ -28,9 +27,9 @@ def lazy_wrapper(*payloads):
         @wraps(func)
         def wrapper(self, source_address, data):
             # UNPACK
-            auth, remainder = self.serializer.unpack_to_serializables([BinMemberAuthenticationPayload, ], data[23:])
+            auth, _ = self.serializer.unpack_serializable(BinMemberAuthenticationPayload, data, offset=23)
             signature_valid, remainder = self._verify_signature(auth, data)
-            unpacked = self.serializer.ez_unpack_serializables(payloads, remainder[23:])
+            unpacked = self.serializer.unpack_serializable_list(payloads, remainder, offset=23)
             # ASSERT
             if not signature_valid:
                 raise PacketDecodingError("Incoming packet %s has an invalid signature" %
@@ -63,9 +62,9 @@ def lazy_wrapper_wd(*payloads):
         @wraps(func)
         def wrapper(self, source_address, data):
             # UNPACK
-            auth, remainder = self.serializer.unpack_to_serializables([BinMemberAuthenticationPayload, ], data[23:])
+            auth, _ = self.serializer.unpack_serializable(BinMemberAuthenticationPayload, data, offset=23)
             signature_valid, remainder = self._verify_signature(auth, data)
-            unpacked = self.serializer.ez_unpack_serializables(payloads, remainder[23:])
+            unpacked = self.serializer.unpack_serializable_list(payloads, remainder, offset=23)
             # ASSERT
             if not signature_valid:
                 raise PacketDecodingError("Incoming packet %s has an invalid signature" %
@@ -98,7 +97,7 @@ def lazy_wrapper_unsigned(*payloads):
         @wraps(func)
         def wrapper(self, source_address, data):
             # UNPACK
-            unpacked = self.serializer.ez_unpack_serializables(payloads, data[23:])
+            unpacked = self.serializer.unpack_serializable_list(payloads, data, offset=23)
             return func(self, source_address, *unpacked)
         return wrapper
     return decorator
@@ -184,16 +183,12 @@ class EZPackOverlay(Overlay):
         :rtype: bytes or str
         """
         sig = kwargs.get('sig', True)
-        format_list_list = ([BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()).to_pack_list()]
-                            if sig else [])
-        for payload in payloads:
-            format_list_list += [payload.to_pack_list()]
-        return self._ez_pack(self._prefix, msg_num, format_list_list, sig)
+        if sig:
+            payloads = (BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()),) + payloads
+        return self._ez_pack(self._prefix, msg_num, payloads, sig)
 
-    def _ez_pack(self, prefix, msg_num, format_list_list, sig=True):
-        packet = prefix + cast_to_bin(chr(msg_num))
-        for format_list in format_list_list:
-            packet += self.serializer.pack_multiple(format_list)[0]
+    def _ez_pack(self, prefix, msg_num, payloads, sig=True):
+        packet = prefix + bytes([msg_num]) + self.serializer.pack_serializable_list(payloads)
         if sig:
             packet += default_eccrypto.create_signature(self.my_peer.key, packet)
         return packet
@@ -208,20 +203,20 @@ class EZPackOverlay(Overlay):
 
     def _ez_unpack_auth(self, payload_class, data):
         # UNPACK
-        auth, remainder = self.serializer.unpack_to_serializables([BinMemberAuthenticationPayload, ], data[23:])
+        auth, _ = self.serializer.unpack_serializable(BinMemberAuthenticationPayload, data, offset=23)
         signature_valid, remainder = self._verify_signature(auth, data)
         format = [GlobalTimeDistributionPayload, payload_class]
-        dist, payload = self.serializer.ez_unpack_serializables(format, remainder[23:])
+        unpacked = self.serializer.unpack_serializable_list(format, remainder, offset=23)
         # ASSERT
         if not signature_valid:
             raise PacketDecodingError("Incoming packet %s has an invalid signature" % payload_class.__name__)
         # PRODUCE
-        return auth, dist, payload
+        return auth, unpacked[0], unpacked[1]
 
     def _ez_unpack_noauth(self, payload_class, data, global_time=True):
         # UNPACK
         format = [GlobalTimeDistributionPayload, payload_class] if global_time else [payload_class]
-        unpacked = self.serializer.ez_unpack_serializables(format, data[23:])
+        unpacked = self.serializer.unpack_serializable_list(format, data, offset=23)
         # PRODUCE
         return unpacked if global_time else unpacked[0]
 

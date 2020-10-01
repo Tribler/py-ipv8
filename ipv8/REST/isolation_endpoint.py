@@ -8,7 +8,6 @@ from .base_endpoint import BaseEndpoint, HTTP_BAD_REQUEST, Response
 from .schema import DefaultResponseSchema, schema
 from ..community import _DEFAULT_ADDRESSES
 from ..messaging.anonymization.community import TunnelCommunity
-from ..util import cast_to_chr
 
 
 class IsolationEndpoint(BaseEndpoint):
@@ -58,14 +57,9 @@ class IsolationEndpoint(BaseEndpoint):
         if 'exitnode' not in args and 'bootstrapnode' not in args:
             return Response({"success": False, "error": "Parameter 'exitnode' or 'bootstrapnode' is required"},
                             status=HTTP_BAD_REQUEST)
-        # Attempt to decode the address
-        try:
-            address_str = cast_to_chr(args['ip'])
-            port_str = cast_to_chr(args['port'])
-            fmt_address = (address_str, int(port_str))
-        except Exception:
-            import traceback
-            return Response({"success": False, "error": traceback.format_exc()}, status=HTTP_BAD_REQUEST)
+        address_str = args['ip']
+        port_num = args['port']
+        fmt_address = (address_str, port_num)
         # Actually add the address to the requested service
         if 'exitnode' in args:
             self.add_exit_node(fmt_address)

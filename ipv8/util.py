@@ -18,12 +18,6 @@ def cast_to_unicode(obj):
     return str(obj)
 
 
-def cast_to_bin(obj):
-    if isinstance(obj, bytes):
-        return obj
-    return bytes(ord(c) for c in obj)
-
-
 def cast_to_chr(obj):
     return "".join(chr(c) for c in obj)
 

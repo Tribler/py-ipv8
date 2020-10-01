@@ -2,8 +2,6 @@ import logging
 from json import dumps
 from urllib.parse import ParseResult, parse_qsl, unquote, urlencode, urlparse
 
-from ...util import cast_to_bin
-
 logger = logging.getLogger(__name__)
 
 
@@ -47,8 +45,8 @@ def _a_encode_bytes(value, mapping):
     """
     'foo-bar' --> ('7', 'b', 'foo-bar')
     """
-    assert isinstance(value, (bytes, str)), "VALUE has invalid type: %s" % type(value)
-    return str(len(value)).encode("UTF-8"), b"b", cast_to_bin(value)
+    assert isinstance(value, bytes), "VALUE has invalid type: %s" % type(value)
+    return str(len(value)).encode("UTF-8"), b"b", value
 
 
 def _a_encode_str(value, mapping):

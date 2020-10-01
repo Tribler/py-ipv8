@@ -6,7 +6,6 @@ from struct import pack, unpack_from
 from . import DHTError
 from ..messaging.anonymization.tunnel import IntroductionPoint, PEER_SOURCE_DHT
 from ..peer import Peer
-from ..util import cast_to_bin
 
 
 class DHTCommunityProvider(object):
@@ -58,8 +57,8 @@ class DHTCommunityProvider(object):
 
         value = inet_aton(intro_point.peer.address[0]) + pack("!H", intro_point.peer.address[1])
         value += pack('!I', intro_point.last_seen)
-        value += pack('!H', len(intro_pk)) + cast_to_bin(intro_pk)
-        value += pack('!H', len(seeder_pk)) + cast_to_bin(seeder_pk)
+        value += pack('!H', len(intro_pk)) + intro_pk
+        value += pack('!H', len(seeder_pk)) + seeder_pk
 
         try:
             await self.dht_community.store_value(info_hash, value)
