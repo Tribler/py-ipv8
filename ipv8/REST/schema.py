@@ -40,7 +40,7 @@ class OverlayStatisticsSchema(Schema):
 
 
 class OverlaySchema(Schema):
-    master_peer = String()
+    id = String()
     my_peer = String()
     global_time = Integer()
     peers = List(String)

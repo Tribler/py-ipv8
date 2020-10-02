@@ -23,8 +23,7 @@ SAFE_UDP_PACKET_LENGTH = 1296
 
 class IdentityCommunity(Community):
 
-    master_peer = Peer(unhexlify("4c69624e61434c504b3aabacc18bacd5abd4c93dc867759474f619e24b460fede1668a880297b19"
-                                 "4a0433324a0902192e7b853bda54b6e1b18e670d9ad4bd8f7e7e1dac71723989add3a"))
+    community_id = unhexlify('d5889074c1e4c50423cdb6e9307ee0ca5695ead7')
 
     def __init__(self, my_peer, endpoint, network=None, max_peers=DEFAULT_MAX_PEERS,
                  anonymize=True, identity_manager=None, working_directory="."):
@@ -297,9 +296,9 @@ async def create_community(private_key: PrivateKey, ipv8, identity_manager: Iden
     if rendezvous_token is not None:
         token_str = hexlify(rendezvous_token).decode()
         rendezvous_id = bytes(b ^ rendezvous_token[i] if i < len(rendezvous_token) else b
-                              for i, b in enumerate(IdentityCommunity.master_peer.mid))
+                              for i, b in enumerate(IdentityCommunity.community_id))
         overlay_cls = type(f"IdentityCommunity-{token_str}", (IdentityCommunity, ), {
-            'master_peer': type(f"RendezvousID-{token_str}", (object, ), {'mid': rendezvous_id})
+            'community_id': rendezvous_id
         })
     community = overlay_cls(my_peer, endpoint, identity_manager=identity_manager,
                             working_directory=working_directory, anonymize=anonymize)

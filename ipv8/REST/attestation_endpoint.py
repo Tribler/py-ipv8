@@ -198,7 +198,7 @@ class AttestationEndpoint(BaseEndpoint):
             return Response(formatted)
 
         elif request.query['type'] == 'peers':
-            peers = self.session.network.get_peers_for_service(self.identity_overlay.master_peer.mid)
+            peers = self.session.network.get_peers_for_service(self.identity_overlay.community_id)
             return Response([b64encode(p.mid).decode('utf-8') for p in peers])
 
         elif request.query['type'] == 'attributes':

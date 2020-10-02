@@ -42,7 +42,7 @@ class TestBase(asynctest.TestCase):
                 private_peer = other.my_peer
                 public_peer = Peer(private_peer.public_key, private_peer.address)
                 node.network.add_verified_peer(public_peer)
-                node.network.discover_services(public_peer, [overlay_class.master_peer.mid])
+                node.network.discover_services(public_peer, [overlay_class.community_id])
 
     def setUp(self):
         super(TestBase, self).setUp()
@@ -113,7 +113,7 @@ class TestBase(asynctest.TestCase):
             private_peer = other.my_peer
             public_peer = Peer(private_peer.public_key, private_peer.address)
             node.network.add_verified_peer(public_peer)
-            node.network.discover_services(public_peer, node.overlay.master_peer.mid)
+            node.network.discover_services(public_peer, node.overlay.community_id)
         self.nodes.append(node)
 
     @staticmethod

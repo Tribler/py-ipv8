@@ -1,3 +1,4 @@
+import os
 import sys
 import time
 from asyncio import ensure_future, get_event_loop, sleep
@@ -14,8 +15,6 @@ except ImportError:
 
 
 from ipv8.configuration import get_default_configuration  # pylint: disable=ungrouped-imports
-from ipv8.keyvault.crypto import ECCrypto  # pylint: disable=ungrouped-imports
-from ipv8.peer import Peer  # pylint: disable=ungrouped-imports
 
 from ipv8_service import IPv8, _COMMUNITIES, _WALKERS  # pylint: disable=ungrouped-imports
 
@@ -48,7 +47,7 @@ async def start_communities():
     # Override the Community master peers so we don't interfere with the live network
     # Also hook in our custom logic for introduction responses
     for community_cls in _COMMUNITIES.values():
-        community_cls.master_peer = Peer(ECCrypto().generate_key(u"medium"))
+        community_cls.community_id = os.urandom(20)
         community_cls.introduction_response_callback = custom_intro_response_cb
 
     # Create two peers with separate working directories

@@ -65,12 +65,12 @@ DEFAULT_MAX_PEERS = 30
 class Community(EZPackOverlay):
 
     version = b'\x02'
-    master_peer = ""
+    community_id = b''
 
     def __init__(self, my_peer, endpoint, network, max_peers=DEFAULT_MAX_PEERS, anonymize=False):
-        super(Community, self).__init__(self.master_peer, my_peer, endpoint, network)
+        super().__init__(self.community_id, my_peer, endpoint, network)
 
-        self._prefix = b'\x00' + self.version + self.master_peer.mid
+        self._prefix = b'\x00' + self.version + self.community_id
         self.endpoint.remove_listener(self)
         self.endpoint.add_prefix_listener(self, self._prefix)
         self.logger.debug("Launching %s with prefix %s.", self.__class__.__name__, hexlify(self._prefix))
@@ -84,7 +84,7 @@ class Community(EZPackOverlay):
             else:
                 self.logger.warning('Cannot anonymize community traffic without TunnelEndpoint')
 
-        self.network.register_service_provider(self.master_peer.mid, self)
+        self.network.register_service_provider(self.community_id, self)
         self.network.blacklist_mids.append(my_peer.mid)
         self.network.blacklist.extend(_DEFAULT_ADDRESSES)
 
@@ -274,7 +274,7 @@ class Community(EZPackOverlay):
             return
 
         self.network.add_verified_peer(peer)
-        self.network.discover_services(peer, [self.master_peer.mid, ])
+        self.network.discover_services(peer, [self.community_id, ])
 
         packet = self.create_introduction_response(payload.destination_address, peer.address, payload.identifier)
         self.endpoint.send(peer.address, packet)
@@ -287,20 +287,20 @@ class Community(EZPackOverlay):
             self.my_estimated_wan = payload.destination_address
 
         self.network.add_verified_peer(peer)
-        self.network.discover_services(peer, [self.master_peer.mid, ])
+        self.network.discover_services(peer, [self.community_id, ])
 
         if (payload.wan_introduction_address != ("0.0.0.0", 0)
                 and payload.wan_introduction_address[0] != self.my_estimated_wan[0]):
             if payload.lan_introduction_address != ("0.0.0.0", 0):
-                self.network.discover_address(peer, payload.lan_introduction_address, self.master_peer.mid)
-            self.network.discover_address(peer, payload.wan_introduction_address, self.master_peer.mid)
+                self.network.discover_address(peer, payload.lan_introduction_address, self.community_id)
+            self.network.discover_address(peer, payload.wan_introduction_address, self.community_id)
         elif (payload.lan_introduction_address != ("0.0.0.0", 0)
               and payload.wan_introduction_address[0] == self.my_estimated_wan[0]):
-            self.network.discover_address(peer, payload.lan_introduction_address, self.master_peer.mid)
+            self.network.discover_address(peer, payload.lan_introduction_address, self.community_id)
         elif payload.wan_introduction_address != ("0.0.0.0", 0):
-            self.network.discover_address(peer, payload.wan_introduction_address, self.master_peer.mid)
+            self.network.discover_address(peer, payload.wan_introduction_address, self.community_id)
             self.network.discover_address(peer, (self.my_estimated_lan[0], payload.wan_introduction_address[1]),
-                                          self.master_peer.mid)
+                                          self.community_id)
 
         self.introduction_response_callback(peer, dist, payload)
 
@@ -375,7 +375,7 @@ class Community(EZPackOverlay):
         return choice(available) if available else None
 
     def get_walkable_addresses(self):
-        return self.network.get_walkable_addresses(self.master_peer.mid)
+        return self.network.get_walkable_addresses(self.community_id)
 
     def get_peers(self):
-        return self.network.get_peers_for_service(self.master_peer.mid)
+        return self.network.get_peers_for_service(self.community_id)

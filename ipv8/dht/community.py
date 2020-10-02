@@ -15,7 +15,6 @@ from .storage import Storage
 from ..community import Community, _DEFAULT_ADDRESSES
 from ..lazy_community import lazy_wrapper, lazy_wrapper_wd
 from ..messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
-from ..peer import Peer
 from ..peerdiscovery.network import Network
 from ..requestcache import RandomNumberCache, RequestCache
 from ..taskmanager import task
@@ -146,8 +145,7 @@ class DHTCommunity(Community):
     """
     Community for storing/finding key-value pairs.
     """
-    master_peer = Peer(unhexlify('4c69624e61434c504b3a4c99f04cef9ba4ca645401cd51b8ef634e63e2ad0d3209eca958ce0293d7cf668'
-                                 '2059469c1a253e66191bd3b96a082a8e11cc35962b9b6f8434e21518a0344af'))
+    community_id = unhexlify('40d796da96ef4e58fc34ff6cea856d90d8e642cb')
 
     def __init__(self, *args, **kwargs):
         super(DHTCommunity, self).__init__(*args, **kwargs)

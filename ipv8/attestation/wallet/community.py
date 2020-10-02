@@ -16,7 +16,6 @@ from ..schema.manager import SchemaManager
 from ...community import Community
 from ...lazy_community import lazy_wrapper
 from ...messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
-from ...peer import Peer
 from ...requestcache import RequestCache
 from ...util import maybe_coroutine
 
@@ -38,11 +37,7 @@ class AttestationCommunity(Community):
 
     Note that the logic for giving out Attestations is in the TrustChain.
     """
-    master_peer = Peer(unhexlify("3081a7301006072a8648ce3d020106052b810400270381920004057a009787f66ea54d5082ea2f56a8"
-                                 "42488e319c14c98967c39286433233f769a73e9c894149cf9053a9a0c2548f07171df9c46c3bdb106a"
-                                 "fa9e9a8a06926e0ec35871c91f2ab1a20651d0a7b5fda209a3500a09b630a193b281a266230472ef0c"
-                                 "c0622c793dc18eed6c57d7bcd1eeca33e2e38277ea99c28d4c62f850f81b5eb3eb19fcb601747bd87a"
-                                 "a0b04e360ae9"))
+    community_id = unhexlify('b42c93d167a0fc4a0843f917d4bf1e9ebb340ec4')
 
     def __init__(self, *args, **kwargs):
         working_directory = kwargs.pop('working_directory', '')

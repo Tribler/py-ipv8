@@ -23,7 +23,6 @@ from ipv8.REST.rest_manager import RESTManager
 from ipv8.attestation.trustchain.community import TrustChainCommunity
 from ipv8.attestation.trustchain.database import TrustChainDB
 from ipv8.attestation.trustchain.settings import TrustChainSettings
-from ipv8.peer import Peer
 
 from ipv8_service import IPv8
 
@@ -85,11 +84,7 @@ class TrustChainBackwardsCrawlerCommunity(TrustChainCrawlerCommunity):
     """
     Backwards-compatible TrustChain community.
     """
-    master_peer = Peer(unhexlify("3081a7301006072a8648ce3d020106052b8104002703819200040672297aa47c7bb2648ba0385275bc"
-                                 "8ade5aedc3677a615f5f9ca83b9b28c75e543342875f7f353bbf74baff7e3dae895ee9c9a9f80df023"
-                                 "dbfb72362426b50ce35549e6f0e0a319015a2fd425e2e34c92a3fb33b26929bcabb73e14f63684129b"
-                                 "66f0373ca425015cc9fad75b267de0cfb46ed798796058b23e12fc4c42ce9868f1eb7d59cc2023c039"
-                                 "14175ebb9703"))
+    community_id = unhexlify('223eb544cd6c4814f4db710618b2ad5bc8b9d541')
 
 
 crawler_config = {

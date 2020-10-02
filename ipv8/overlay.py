@@ -12,11 +12,11 @@ class Overlay(EndpointListener, TaskManager, metaclass=abc.ABCMeta):
     Interface for an Internet overlay.
     """
 
-    def __init__(self, master_peer, my_peer, endpoint, network):
+    def __init__(self, community_id, my_peer, endpoint, network):
         """
         Create a new overlay for the Internet.
 
-        :param master_peer: the (public key) peer of the owner of this overlay.
+        :param community_id: the byte-string used to identify this overlay.
         :param my_peer: the (private key) peer of this peer
         :param endpoint: the endpoint to use for messaging
         :param network: the network graph backend
@@ -26,7 +26,7 @@ class Overlay(EndpointListener, TaskManager, metaclass=abc.ABCMeta):
         self.serializer = self.get_serializer()
         self.crypto = default_eccrypto
 
-        self.master_peer = master_peer
+        self.community_id = community_id
         self.my_peer = my_peer
 
         self.endpoint.add_listener(self)

@@ -29,7 +29,7 @@ class PingChurn(DiscoveryStrategy):
                     if node not in self.overlay.get_peers():
                         peer = Peer(node.key, node.address)
                         self.overlay.network.add_verified_peer(peer)
-                        self.overlay.network.discover_services(peer, [self.overlay.master_peer.mid])
+                        self.overlay.network.discover_services(peer, [self.overlay.community_id])
 
             now = time()
             for bucket in self.overlay.routing_table.trie.values():
