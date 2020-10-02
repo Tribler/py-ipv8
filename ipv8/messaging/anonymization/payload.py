@@ -9,7 +9,6 @@ from ...messaging.anonymization.tunnel import (CIRCUIT_TYPE_RP_DOWNLOADER, CIRCU
 from ...messaging.anonymization.tunnelcrypto import CryptoException
 from ...messaging.lazy_payload import VariablePayload, vp_compile
 from ...messaging.payload import Payload
-from ...util import cast_to_chr
 
 ADDRESS_TYPE_IPV4 = 0x01
 ADDRESS_TYPE_DOMAIN_NAME = 0x02
@@ -18,8 +17,6 @@ NO_CRYPTO_PACKETS = [2, 3]
 
 
 def encode_address(host, port):
-    if not isinstance(host, str):
-        host = cast_to_chr(host)
     try:
         ip = socket.inet_aton(host)
         is_ip = True

@@ -1,25 +1,11 @@
-import logging
 import operator
 import struct
 from asyncio import Future, iscoroutine
 
-logger = logging.getLogger(__name__)
 maximum_integer = 2147483647
 
 int2byte = struct.Struct(">B").pack
 byte2int = operator.itemgetter(0)
-
-
-def cast_to_unicode(obj):
-    if isinstance(obj, (bytes, bytearray)):
-        return "".join(chr(c) for c in obj)
-    if isinstance(obj, str):
-        return obj
-    return str(obj)
-
-
-def cast_to_chr(obj):
-    return "".join(chr(c) for c in obj)
 
 
 def succeed(result):
