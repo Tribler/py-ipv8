@@ -48,7 +48,7 @@ class OverlaysEndpoint(BaseEndpoint):
             statistics = self.session.endpoint.get_aggregate_statistics(overlay.get_prefix()) \
                 if isinstance(self.session.endpoint, StatisticsEndpoint) else {}
             overlay_stats.append({
-                "id": hexlify(overlay.master_peer.mid).decode('utf-8'),
+                "id": hexlify(overlay.community_id).decode('utf-8'),
                 "my_peer": hexlify(overlay.my_peer.public_key.key_to_bin()).decode('utf-8'),
                 "global_time": overlay.global_time,
                 "peers": [{'ip': peer.address[0],
@@ -57,9 +57,6 @@ class OverlaysEndpoint(BaseEndpoint):
                 "overlay_name": overlay.__class__.__name__,
                 "statistics": statistics
             })
-
-            if hasattr(overlay.master_peer, 'public_key'):
-                overlay_stats[-1]['master_peer'] = hexlify(overlay.master_peer.public_key.key_to_bin()).decode('utf-8')
         return Response({"overlays": overlay_stats})
 
     @docs(

@@ -41,8 +41,7 @@ class TrustChainCommunity(Community):
     """
     Community for reputation based on TrustChain tamper proof interaction history.
     """
-    master_peer = Peer(unhexlify("4c69624e61434c504b3a5730f52156615ecbcedb36c442992ea8d3c26b418edd8bd00e01dce26028cd"
-                                 "1ebe5f7dce59f4ed59f8fcee268fd7f1c6dc2fa2af8c22e3170e00cdecca487745"))
+    community_id = unhexlify('5ad767b05ae592a02488272ca2a86b847d4562e1')
 
     UNIVERSAL_BLOCK_LISTENER = b'UNIVERSAL_BLOCK_LISTENER'
     DB_CLASS = TrustChainDB
@@ -711,5 +710,4 @@ class TrustChainTestnetCommunity(TrustChainCommunity):
     """
     DB_NAME = 'trustchain_testnet'
 
-    master_peer = Peer(unhexlify("4c69624e61434c504b3aa90c1e65d68e9f0ccac1385b58e4a605add2406aff9952b1b6435ab07e5385"
-                                 "5eb07b062ca33af9ec55b45446dbbefc3752523a4fd3b659ecd1d8e172b7b7f30d"))
+    community_id = unhexlify('5e97ff4ef08998ee2fd2ce6b7a569cc4f7d27c37')

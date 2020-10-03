@@ -106,6 +106,7 @@ To do this, fill your ``main.py`` file with the following code:
 
 .. code-block:: python
 
+    import os
     from asyncio import ensure_future, get_event_loop
 
     from pyipv8.ipv8.community import Community
@@ -116,11 +117,9 @@ To do this, fill your ``main.py`` file with the following code:
 
 
     class MyCommunity(Community):
-       # Register this community with a master peer.
-       # This peer defines the service identifier of this community.
-       # Other peers will connect to this community based on the sha-1
-       # hash of this peer's public key.
-       master_peer = Peer(ECCrypto().generate_key(u"medium"))
+       # Register this community with a randomly generated community ID.
+       # Other peers will connect to this community based on this identifier.
+       community_id = os.urandom(20)
 
 
     async def start_communities():
@@ -157,6 +156,7 @@ We will now modify ``main.py`` again to print the current amount of peers:
 
 .. code-block:: python
 
+    import os
     from asyncio import ensure_future, get_event_loop
 
     from pyipv8.ipv8.community import Community
@@ -167,7 +167,7 @@ We will now modify ``main.py`` again to print the current amount of peers:
 
 
     class MyCommunity(Community):
-       master_peer = Peer(ECCrypto().generate_key(u"medium"))
+       community_id = os.urandom(20)
 
        def started(self):
            async def print_peers():
@@ -213,6 +213,7 @@ Update your ``main.py`` once again to contain the following code:
 
 .. code-block:: python
 
+    import os
     from asyncio import ensure_future, get_event_loop
 
     from pyipv8.ipv8.community import Community
@@ -232,7 +233,7 @@ Update your ``main.py`` once again to contain the following code:
 
 
     class MyCommunity(Community):
-        master_peer = Peer(ECCrypto().generate_key(u"medium"))
+        community_id = os.urandom(20)
 
         def __init__(self, my_peer, endpoint, network):
             super(MyCommunity, self).__init__(my_peer, endpoint, network)

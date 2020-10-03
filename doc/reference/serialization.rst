@@ -228,14 +228,14 @@ Simply supply the payload classes you wish to unserialize to, to the decorator.
 
 As some internal messages and deprecated messages use some of the message range, you have the messages identifiers from 0 through 234 available for your custom message definitions.
 Once you register the message handler and have the appropriate decorator on the specified handler method your overlay can communicate with the Internet.
-In practice, given a ``MASTER_KEY`` and the payload definitions ``MyMessagePayload1`` and ``MyMessagePayload2``, this will look something like this example (see `the overlay tutorial <../../basics/overlay_tutorial>`_ for a complete runnable example):
+In practice, given a ``COMMUNITY_ID`` and the payload definitions ``MyMessagePayload1`` and ``MyMessagePayload2``, this will look something like this example (see `the overlay tutorial <../../basics/overlay_tutorial>`_ for a complete runnable example):
 
 
 .. code-block:: python
 
     class MyCommunity(Community):
 
-        master_peer = Peer(MASTER_KEY)
+        community_id = COMMUNITY_ID
 
         def __init__(*args, **kwargs):
             super(MyCommunity, self).__init__(*args, **kwargs)

@@ -1,11 +1,10 @@
+import os
 from functools import reduce
 
 from ..base import TestBase
 from ..mocking.community import MockCommunity
 from ...community import _DEFAULT_ADDRESSES
-from ...keyvault.crypto import default_eccrypto
 from ...messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
-from ...peer import Peer
 from ...peerdiscovery.payload import DiscoveryIntroductionRequestPayload
 
 
@@ -80,14 +79,14 @@ class TestDiscoveryCommunity(TestBase):
         """
         If we have different peers under our control, don't claim to be the other identity.
         """
-        custom_master_peer = Peer(default_eccrypto.generate_key(u"very-low"))
+        custom_community_id = os.urandom(20)
 
         class OtherMockCommunity(MockCommunity):
-            master_peer = custom_master_peer
+            community_id = custom_community_id
         custom_overlay = OtherMockCommunity()
         custom_overlay.my_peer.address = self.overlays[0].my_peer.address
         self.overlays.append(custom_overlay)
-        self.overlays[0].network.register_service_provider(custom_master_peer.mid, custom_overlay)
+        self.overlays[0].network.register_service_provider(custom_community_id, custom_overlay)
 
         self.overlays[0].walk_to(self.overlays[1].my_peer.address)
         await self.deliver_messages()
@@ -95,4 +94,4 @@ class TestDiscoveryCommunity(TestBase):
         discovered = reduce(lambda a, b: a | b, self.overlays[1].network.services_per_peer.values(), set())
 
         self.assertEqual(len(self.overlays[1].network.services_per_peer), 2)
-        self.assertSetEqual(discovered, {MockCommunity.master_peer.mid, custom_master_peer.mid})
+        self.assertSetEqual(discovered, {MockCommunity.community_id, custom_community_id})

@@ -51,12 +51,7 @@ class PingRequestCache(NumberCache):
 class DiscoveryCommunity(Community):
 
     version = b'\x02'
-    master_peer = Peer(unhexlify("3081a7301006072a8648ce3d020106052b81040027038192000403b3ab059ced"
-                                 "9b20646ab5e01762b3595c5e8855227ae1e424cff38a1e4edee73734ff2e2e82"
-                                 "9eb4f39bab20d7578284fcba7251acd74e7daf96f21d01ea17077faf4d27a655"
-                                 "837d072baeb671287a88554e1191d8904b0dc572d09ff95f10ff092c8a5e2a01"
-                                 "cd500624376aec875a6e3028aab784cfaf0bac6527245db8d93900d904ac2a92"
-                                 "2a02716ccef5a22f7968"))
+    community_id = unhexlify('7e313685c1912a141279f8248fc8db5899c5df5a')
 
     def __init__(self, my_peer, endpoint, network, max_peers=DEFAULT_MAX_PEERS, anonymize=False):
         super(DiscoveryCommunity, self).__init__(my_peer, endpoint, network, max_peers=max_peers, anonymize=anonymize)
@@ -88,7 +83,7 @@ class DiscoveryCommunity(Community):
 
         peer = Peer(auth.public_key_bin, source_address)
         self.network.add_verified_peer(peer)
-        self.network.discover_services(peer, [self.master_peer.mid, ])
+        self.network.discover_services(peer, [self.community_id, ])
 
         introduce_to = getattr(payload, 'introduce_to', None)
         introduction = None

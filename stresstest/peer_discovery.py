@@ -1,3 +1,4 @@
+import os
 import time
 from asyncio import ensure_future, get_event_loop
 from random import randint
@@ -12,8 +13,6 @@ except ImportError:
 
 from ipv8.community import Community
 from ipv8.configuration import get_default_configuration
-from ipv8.keyvault.crypto import ECCrypto
-from ipv8.peer import Peer
 
 from ipv8_service import IPv8, _COMMUNITIES
 
@@ -25,7 +24,7 @@ INSTANCES = []
 
 
 class MyCommunity(Community):
-    master_peer = Peer(ECCrypto().generate_key(u"medium"))
+    community_id = os.urandom(20)
 
     def started(self):
         async def check_peers():

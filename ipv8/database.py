@@ -12,8 +12,6 @@ from abc import ABCMeta, abstractmethod
 from collections import defaultdict
 from threading import RLock
 
-from .util import cast_to_unicode
-
 if sys.platform == "darwin":
     # Workaround for annoying MacOS Sierra bug: https://bugs.python.org/issue27126
     # As fix, we are using pysqlite2 so we can supply our own version of sqlite3.
@@ -158,9 +156,10 @@ class Database(metaclass=ABCMeta):
                      "Database.close() has been called or Database.open() has not been called")
 
         # collect current database configuration
-        page_size = int(next(self._cursor.execute(u"PRAGMA page_size"))[0])
-        journal_mode = cast_to_unicode(next(self._cursor.execute(u"PRAGMA journal_mode"))[0]).upper()
-        synchronous = cast_to_unicode(next(self._cursor.execute(u"PRAGMA synchronous"))[0]).upper()
+        page_size = int(next(self._cursor.execute("PRAGMA page_size"))[0])
+        journal_mode = next(self._cursor.execute("PRAGMA journal_mode"))[0].decode().upper()
+        synchronous = next(self._cursor.execute("PRAGMA synchronous"))[0]
+        synchronous = synchronous.decode().upper() if isinstance(synchronous, bytes) else synchronous
 
         #
         # PRAGMA page_size = bytes;
@@ -173,11 +172,11 @@ class Database(metaclass=ABCMeta):
             self._logger.debug("PRAGMA page_size = 8192 (previously: %s) [%s]", page_size, self._file_path)
 
             # it is not possible to change page_size when WAL is enabled
-            if journal_mode == u"WAL":
-                self._cursor.executescript(u"PRAGMA journal_mode = DELETE")
-                journal_mode = u"DELETE"
-            self._cursor.execute(u"PRAGMA page_size = 8192")
-            execute_or_script(self._cursor, u"VACUUM")
+            if journal_mode == "WAL":
+                self._cursor.executescript("PRAGMA journal_mode = DELETE")
+                journal_mode = "DELETE"
+            self._cursor.execute("PRAGMA page_size = 8192")
+            execute_or_script(self._cursor, "VACUUM")
             page_size = 8192
 
         else:
@@ -187,10 +186,10 @@ class Database(metaclass=ABCMeta):
         # PRAGMA journal_mode = DELETE | TRUNCATE | PERSIST | MEMORY | WAL | OFF
         # http://www.sqlite.org/pragma.html#pragma_page_size
         #
-        if not (journal_mode == u"WAL" or self._file_path == u":memory:"):
+        if not (journal_mode == "WAL" or self._file_path == ":memory:"):
             self._logger.debug("PRAGMA journal_mode = WAL (previously: %s) [%s]", journal_mode, self._file_path)
-            self._cursor.execute(u"PRAGMA locking_mode = EXCLUSIVE")
-            execute_or_script(self._cursor, u"PRAGMA journal_mode = WAL")
+            self._cursor.execute("PRAGMA locking_mode = EXCLUSIVE")
+            execute_or_script(self._cursor, "PRAGMA journal_mode = WAL")
 
         else:
             self._logger.debug("PRAGMA journal_mode = %s (no change) [%s]", journal_mode, self._file_path)
@@ -199,9 +198,9 @@ class Database(metaclass=ABCMeta):
         # PRAGMA synchronous = 0 | OFF | 1 | NORMAL | 2 | FULL;
         # http://www.sqlite.org/pragma.html#pragma_synchronous
         #
-        if synchronous not in (u"NORMAL", u"1"):
+        if synchronous not in ("NORMAL", 1):
             self._logger.debug("PRAGMA synchronous = NORMAL (previously: %s) [%s]", synchronous, self._file_path)
-            execute_or_script(self._cursor, u"PRAGMA synchronous = NORMAL")
+            execute_or_script(self._cursor, "PRAGMA synchronous = NORMAL")
 
         else:
             self._logger.debug("PRAGMA synchronous = %s (no change) [%s]", synchronous, self._file_path)
@@ -214,14 +213,14 @@ class Database(metaclass=ABCMeta):
 
         # check is the database contains an 'option' table
         try:
-            count, = next(self.execute(u"SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'option'"))
+            count, = next(self.execute("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'option'"))
         except StopIteration:
             raise RuntimeError()
 
         if count:
             # get version from required 'option' table
             try:
-                version, = next(self.execute(u"SELECT value FROM option WHERE key == 'database_version' LIMIT 1"))
+                version, = next(self.execute("SELECT value FROM option WHERE key == 'database_version' LIMIT 1"))
             except StopIteration:
                 # the 'database_version' key was not found
                 version = b"0"

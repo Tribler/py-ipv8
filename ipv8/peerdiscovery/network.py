@@ -3,8 +3,6 @@ from socket import inet_aton, inet_ntoa
 from struct import pack, unpack
 from threading import RLock
 
-from ..util import cast_to_chr
-
 
 class Network(object):
 
@@ -258,8 +256,7 @@ class Network(object):
             out = b""
             for peer in self.verified_peers:
                 if peer.address and peer.address != ('0.0.0.0', 0):
-                    out += inet_aton(cast_to_chr(peer.address[0]) if isinstance(peer.address[0], bytes)
-                                     else peer.address[0]) + pack(">H", peer.address[1])
+                    out += inet_aton(peer.address[0]) + pack(">H", peer.address[1])
             return out
 
     def load_snapshot(self, snapshot):

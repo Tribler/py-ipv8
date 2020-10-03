@@ -4,6 +4,7 @@ This script enables to start the tracker.
 Select the port you want to use by setting the `listen_port` command line argument.
 """
 import argparse
+import os
 import random
 import signal
 import sys
@@ -49,7 +50,7 @@ class EndpointServer(Community):
     Make some small modifications to the Community to allow it a dynamic prefix.
     We will also only answer introduction requests.
     """
-    master_peer = Peer(default_eccrypto.generate_key(u"very-low"))
+    community_id = os.urandom(20)
 
     def __init__(self, endpoint):
         my_peer = Peer(default_eccrypto.generate_key(u"very-low"))

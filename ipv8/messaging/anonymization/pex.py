@@ -8,15 +8,10 @@ from ...messaging.deprecated.encoding import decode, encode
 from ...peer import Peer
 
 
-class PexMasterPeer(object):
-    def __init__(self, info_hash):
-        self.mid = info_hash
-
-
 class PexCommunity(Community):
     def __init__(self, *args, **kwargs):
-        self.master_peer = PexMasterPeer(kwargs.pop('info_hash'))
-        self._prefix = b'\x00' + self.version + self.master_peer.mid
+        self.community_id = kwargs.pop('info_hash')
+        self._prefix = b'\x00' + self.version + self.community_id
         super(PexCommunity, self).__init__(*args, **kwargs)
 
         self.intro_points = deque(maxlen=20)
