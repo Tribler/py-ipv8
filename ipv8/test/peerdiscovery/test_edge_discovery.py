@@ -15,6 +15,10 @@ class TestEdgeWalk(TestBase):
         self.overlays = [MockCommunity() for _ in range(node_count)]
         self.strategies = [EdgeWalk(self.overlays[i], neighborhood_size=1) for i in range(node_count)]
 
+        # Prevent LAN IPs from ending up in Network
+        for overlay in self.overlays:
+            overlay.address_is_lan = lambda _: False
+
     async def tearDown(self):
         for overlay in self.overlays:
             await overlay.unload()
