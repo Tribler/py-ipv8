@@ -178,6 +178,7 @@ class Serializer(object):
             'I': DefaultStruct(">I"),
             'l': DefaultStruct(">l"),
             'LL': DefaultStruct(">LL"),
+            'q': DefaultStruct(">q"),
             'Q': DefaultStruct(">Q"),
             'QH': DefaultStruct(">QH"),
             'QL': DefaultStruct(">QL"),
