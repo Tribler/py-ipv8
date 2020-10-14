@@ -5,7 +5,6 @@ Use if you have a IPv8 manager (a "session") that needs fine-grained control ove
 """
 
 import logging
-from abc import ABCMeta, abstractmethod
 
 from .keyvault.crypto import default_eccrypto
 from .peer import Peer
@@ -14,13 +13,236 @@ from .peer import Peer
 # pylint: disable=W0613
 
 
+def name(str_name):
+    """
+    Specify a custom name for this launcher.
+
+    For example:
+
+     .. code-block :: Python
+
+        @name('Community1')
+        class A(CommunityLauncher):
+           ...
+
+    :param str_name: the new name to give this launcher.
+    """
+    def decorator(instance):
+        def new_get_name(_):
+            return str_name
+
+        instance.get_name = new_get_name
+        return instance
+    return decorator
+
+
+def after(*launcher_name):
+    """
+    Specify one or more Community classes which should be loaded before the CommunityLauncher is invoked.
+    You may call this multiple times and/or with multiple arguments.
+
+    For example:
+
+     .. code-block :: Python
+
+        @after('Community1', 'Community2')
+        class A(CommunityLauncher):
+           ...
+
+        @after('Community1')
+        @after('Community2')
+        class A(CommunityLauncher):
+           ...
+
+    :param launcher_name: the launcher name(s) that need to be loaded beforehand.
+    """
+    def decorator(instance):
+        old_not_before = instance.not_before
+
+        def new_not_before(self):
+            return old_not_before(self) + list(launcher_name)
+
+        instance.not_before = new_not_before
+        return instance
+    return decorator
+
+
+def precondition(str_condition):
+    """
+    Specify a string to be evaluated and interpreted as a condition for this CommunityLauncher to start.
+    A ``session`` object is provided to pull a state from.
+    You may call this multiple times.
+
+    For example:
+
+     .. code-block :: Python
+
+        @precondition('session.some_condition')
+        class A(CommunityLauncher):
+           ...
+
+        @precondition('session.some_condition')
+        @precondition('not session.some_condition_method()')
+        class A(CommunityLauncher):
+           ...
+
+    :param str_condition: the string to be evaluated as a launch condition.
+    """
+    def decorator(instance):
+        old_should_launch = instance.should_launch
+
+        def new_should_launch(self, session):
+            return (old_should_launch(self, session)
+                    and eval(str_condition, globals(), locals()))  # pylint: disable=W0123
+
+        instance.should_launch = new_should_launch
+        return instance
+    return decorator
+
+
+def overlay(str_module_or_class, str_definition=None):
+    """
+    Specify, as strings, a module and Community class object defined therein to lazy-load.
+    Otherwise, give an actual Community class to load.
+
+    For example:
+
+     .. code-block :: Python
+
+        @overlay('my_module.some_submodule', 'MyCommunityClass')
+        class A(CommunityLauncher):
+           ...
+
+        from my_module.some_submodule import MyCommunityClass
+        @overlay(MyCommunityClass)
+        class A(CommunityLauncher):
+           ...
+
+    :param str_module_or_class: either the module to load or a Community class.
+    :param str_definition: either the class definition to load or None if str_module_or_class is not a string.
+    """
+    def decorator(instance):
+        if isinstance(str_module_or_class, str):
+            def get_overlay_class(_):
+                return getattr(__import__(str_module_or_class, fromlist=[str_definition]), str_definition)
+        else:
+            def get_overlay_class(_):
+                return str_module_or_class
+
+        instance.get_overlay_class = get_overlay_class
+        return instance
+    return decorator
+
+
+def walk_strategy(str_module_or_class, str_definition=None, target_peers=20, kw_args=None):
+    """
+    Specify, as strings, a module and DiscoveryStrategy class object defined therein to lazy-load.
+    Otherwise, give an actual DiscoveryStrategy class to load.
+
+    For example:
+
+     .. code-block :: Python
+
+        @walk_strategy('my_module.some_submodule', 'MyStrategyClass')
+        class A(CommunityLauncher):
+           ...
+
+        from my_module.some_submodule import MyStrategyClass
+        @walk_strategy(MyStrategyClass)
+        class A(CommunityLauncher):
+           ...
+
+        @walk_strategy('my_module.some_submodule', 'MyStrategyClass', target_peers=-1, kwargs={'a key': 'a value'})
+        class A(CommunityLauncher):
+           ...
+
+    :param str_module_or_class: either the module to load or a DiscoveryStrategy class.
+    :param str_definition: either the class definition to load or None if str_module_or_class is not a string.
+    :param target_peers: the target_peers for the strategy.
+    :param kw_args: the keyword arguments to initialize the DiscoveryStrategy instance with.
+    """
+    def decorator(instance):
+        old_get_walk_strategies = instance.get_walk_strategies
+
+        if isinstance(str_module_or_class, str):
+            strategy_class = getattr(__import__(str_module_or_class, fromlist=[str_definition]), str_definition)
+        else:
+            strategy_class = str_module_or_class
+
+        def new_get_walk_strategies(self):
+            return old_get_walk_strategies(self) + [(strategy_class, kw_args or {}, target_peers)]
+
+        instance.get_walk_strategies = new_get_walk_strategies
+        return instance
+    return decorator
+
+
+def set_in_session(attribute_name):
+    """
+    Specify an attribute to set on the session, once the CommunityLauncher has finished initializing its Community.
+
+    For example, the following sets the ``session.my_community`` to the loaded Community instance:
+
+     .. code-block :: Python
+
+        @set_in_session('my_community')
+        class A(CommunityLauncher):
+           ...
+
+    :param attribute_name: the attribute name (string) to set on the session, once the Community is loaded.
+    """
+    def decorator(instance):
+        old_finalize = instance.finalize
+
+        def new_finalize(self, ipv8, session, community):
+            out = old_finalize(self, ipv8, session, community)
+            setattr(session, attribute_name, community)
+            return out
+
+        instance.finalize = new_finalize
+        return instance
+    return decorator
+
+
+def kwargs(**kw_args):
+    """
+    Specify keyword arguments as evaluated strings, to initialize the Community with.
+    A ``session`` object is provided to pull a state from.
+
+    For example:
+
+     .. code-block :: Python
+
+        @kwargs('working_directory'='session.working_directory')
+        class A(CommunityLauncher):
+           ...
+
+        @kwargs(a_key='"I am a string! :)"')
+        class A(CommunityLauncher):
+           ...
+
+    :param kw_args: the mapping of keyword arguments to statements to be evaluated.
+    """
+    def decorator(instance):
+        old_get_kwargs = instance.get_kwargs
+
+        def new_get_kwargs(self, session):
+            out = old_get_kwargs(self, session)
+            for kwarg in kw_args:
+                out[kwarg] = eval(kw_args[kwarg], globals(), locals())  # pylint: disable=W0123
+            return out
+
+        instance.get_kwargs = new_get_kwargs
+        return instance
+
+    return decorator
+
+
 class CommunityLauncher:
 
     """
     Object in charge of preparing a Community for loading in IPv8.
     """
-
-    __metaclass__ = ABCMeta
 
     def __init__(self):
         super()
@@ -91,13 +313,15 @@ class CommunityLauncher:
         ret.update(self.community_kwargs)
         return ret
 
-    @abstractmethod
     def get_overlay_class(self):
         """
         Get the overlay class this launcher wants to load.
 
+        This raises a RuntimeError if it was not overwritten at runtime, to appease Pylint.
+
         :rtype: ipv8.overlay.Overlay
         """
+        raise RuntimeError("CommunityLaunchers should define an Overlay class to load!")
 
     def get_walk_strategies(self):
         """
