@@ -37,85 +37,15 @@ Each instance will have two fields: ``field1`` and ``field2`` corresponding to t
 
 .. code-block:: python
 
-    class MySerializable(Serializable):
-
-        format_list = ['I', 'H']
-
-        def __init__(self, field1, field2):
-            self.field1 = field1
-            self.field2 = field2
-
-        def to_pack_list(self):
-            return [('I', self.field1),
-                    ('H', self.field2)]
-
-        @classmethod
-        def from_unpack_list(cls, *args):
-            return cls(*args)
-
-
-    class MyPayload(Payload):
-
-        format_list = ['I', 'H']
-
-        def __init__(self, field1, field2):
-            self.field1 = field1
-            self.field2 = field2
-
-        def to_pack_list(self):
-            return [('I', self.field1),
-                    ('H', self.field2)]
-
-        @classmethod
-        def from_unpack_list(cls, *args):
-            return cls(*args)
-
-
-    class MyVariablePayload(VariablePayload):
-
-        format_list = ['I', 'H']
-        names = ['field1', 'field2']
-
-    @vp_compile
-    class MyCVariablePayload(VariablePayload):
-
-        format_list = ['I', 'H']
-        names = ['field1', 'field2']
+.. literalinclude:: serialization_1.py
+   :lines: 8-48
 
 
 To show some of the differences, let's check out the output of the following script using these definitions:
 
 
-.. code-block:: python
-
-    serializable1 = MySerializable(1, 2)
-    serializable2 = MyPayload(1, 2)
-    serializable3 = MyVariablePayload(1, 2)
-    serializable4 = MyCVariablePayload(1, 2)
-
-    print("As string:")
-    print(serializable1)
-    print(serializable2)
-    print(serializable3)
-    print(serializable4)
-
-    print("Field values:")
-    print(serializable1.field1, serializable1.field2)
-    print(serializable2.field1, serializable2.field2)
-    print(serializable3.field1, getattr(serializable3, 'field2', '<undefined>'))
-    print(serializable4.field1, getattr(serializable4, 'field2', '<undefined>'))
-
-    print("Serialization speed:")
-    print(timeit.timeit('serializable1.to_pack_list()', number=1000, globals=locals()))
-    print(timeit.timeit('serializable2.to_pack_list()', number=1000, globals=locals()))
-    print(timeit.timeit('serializable3.to_pack_list()', number=1000, globals=locals()))
-    print(timeit.timeit('serializable4.to_pack_list()', number=1000, globals=locals()))
-
-    print("Unserialization speed:")
-    print(timeit.timeit('serializable1.from_unpack_list(1, 2)', number=1000, globals=locals()))
-    print(timeit.timeit('serializable2.from_unpack_list(1, 2)', number=1000, globals=locals()))
-    print(timeit.timeit('serializable3.from_unpack_list(1, 2)', number=1000, globals=locals()))
-    print(timeit.timeit('serializable4.from_unpack_list(1, 2)', number=1000, globals=locals()))
+.. literalinclude:: serialization_1.py
+   :lines: 51-78
 
 
 .. code-block:: bash
@@ -231,38 +161,13 @@ Once you register the message handler and have the appropriate decorator on the 
 In practice, given a ``COMMUNITY_ID`` and the payload definitions ``MyMessagePayload1`` and ``MyMessagePayload2``, this will look something like this example (see `the overlay tutorial <../../basics/overlay_tutorial>`_ for a complete runnable example):
 
 
-.. code-block:: python
+.. literalinclude:: serialization_2.py
+   :lines: 23-39
 
-    class MyCommunity(Community):
+It is recommended (but not obligatory) to have single payload messages store the message identifier inside the ``Payload.msg_id`` field, as this improves readability:
 
-        community_id = COMMUNITY_ID
-
-        def __init__(*args, **kwargs):
-            super(MyCommunity, self).__init__(*args, **kwargs)
-
-            self.add_message_handler(1, self.on_message)
-
-        @lazy_wrapper(MyMessagePayload1, MyMessagePayload2)
-        def on_message(self, peer, payload1, payload2):
-            print("Got a message from:", peer)
-            print("The message includes the first payload:\n", payload1)
-            print("The message includes the second payload:\n", payload2)
-
-        def send_message(self, peer):
-            packet = self.ezr_pack(1, MyMessagePayload1(), MyMessagePayload2())
-            self.endpoint.send(peer.address, packet)
-
-
-It is recommended (but not obligatory) to have single payload messages store the message identifier inside the ``Payload`` instance, as this improves readability:
-
-.. code-block:: python
-
-    self.add_message_handler(MyMessage1.msg_id, self.on_message)
-    self.add_message_handler(MyMessage2.msg_id, self.on_message)
-
-    self.ezr_pack(MyMessage1.msg_id, MyMessage1(42))
-    self.ezr_pack(MyMessage2.msg_id, MyMessage2(7))
-
+.. literalinclude:: serialization_3.py
+   :lines: 31,32,53,56
+   :dedent: 4
 
 Of course, IPv8 also ships with various ``Community`` subclasses of its own, if you need inspiration.
-

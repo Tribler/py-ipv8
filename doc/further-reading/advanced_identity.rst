@@ -19,24 +19,16 @@ Enabling anonymization
 
 In the basic identity tutorial we created the following configuration:
 
-.. code-block:: python
-
-    for peer_id in [1, 2]:
-        configuration = get_default_configuration()
-        configuration['keys'] = [{'alias': "anonymous id", 'generation': u"curve25519", 'file': f"keyfile_{peer_id}.pem"}]
-        configuration['working_directory'] = f"state_{peer_id}"
-        configuration['overlays'] = []
+.. literalinclude:: ../basics/identity_tutorial_1.py
+   :lines: 10-15
+   :dedent: 4
 
 To enable anonymization of all traffic through the identity layer we need to load the anonymization overlay.
 This is done by editing the loaded overlays through ``configuration['overlays']``, as follows:
 
-.. code-block:: python
-
-    for peer_id in [1, 2]:
-        configuration = get_default_configuration()
-        configuration['keys'] = [{'alias': "anonymous id", 'generation': u"curve25519", 'file': f"keyfile_{peer_id}.pem"}]
-        configuration['working_directory'] = f"state_{peer_id}"
-        configuration['overlays'] = [overlay for overlay in configuration['overlays'] if overlay['class'] == 'HiddenTunnelCommunity']
+.. literalinclude:: advanced_identity_1.py
+   :lines: 10-16
+   :dedent: 4
 
 Inclusion of the ``'HiddenTunnelCommunity'`` overlay automatically enables anonymization of identity traffic.
 Note that this anonymization:
@@ -51,23 +43,15 @@ Setting a REST API key
 
 In the basic identity tutorial we started the REST API as follows:
 
-.. code-block:: python
-
-    for peer_id in [1, 2]:
-        ipv8 = IPv8(configuration)
-        await ipv8.start()
-        rest_manager = RESTManager(ipv8)
-        await rest_manager.start(14410 + peer_id)
+.. literalinclude:: ../basics/identity_tutorial_1.py
+   :lines: 17-21
+   :dedent: 4
 
 To set a REST API key, we will have to pass it to the ``RESTManager`` constructor, as follows (replacing ``"my secret key"`` with your key):
 
-.. code-block:: python
-
-    for peer_id in [1, 2]:
-        ipv8 = IPv8(configuration)
-        await ipv8.start()
-        rest_manager = RESTManager(ipv8, api_key="my secret key")
-        await rest_manager.start(14410 + peer_id)
+.. literalinclude:: advanced_identity_1.py
+   :lines: 18-22
+   :dedent: 4
 
 All requests to the core will then have to use either:
 
@@ -83,25 +67,15 @@ Using a REST API X509 certificate
 
 In the basic identity tutorial we started the REST API as follows:
 
-.. code-block:: python
-
-    for peer_id in [1, 2]:
-        ipv8 = IPv8(configuration)
-        await ipv8.start()
-        rest_manager = RESTManager(ipv8)
-        await rest_manager.start(14410 + peer_id)
+.. literalinclude:: ../basics/identity_tutorial_1.py
+   :lines: 17-21
+   :dedent: 4
 
 To use a certificate file, we will have to pass it to the ``RESTManager`` constructor, as follows (replacing ``cert_fileX`` with the file path of your certificate file for the particular IPv8 instance):
 
-.. code-block:: python
-
-    for peer_id in [1, 2]:
-        ipv8 = IPv8(configuration)
-        await ipv8.start()
-        ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-        ssl_context.load_cert_chain(cert_fileX)
-        rest_manager = RESTManager(ipv8, ssl_context=ssl_context)
-        await rest_manager.start(14410 + peer_id)
+.. literalinclude:: advanced_identity_2.py
+   :lines: 22-28
+   :dedent: 4
 
 This can (and should) be combined with an API key.
 Also note that if you start two IPv8 instances, you would normally want them to have different certificates.
