@@ -38,26 +38,7 @@ Running the IPv8 service
 
 Fill your ``main.py`` file with the following code:
 
-.. code-block:: python
-
-   from asyncio import ensure_future, get_event_loop
-
-   from pyipv8.ipv8_service import IPv8
-   from pyipv8.ipv8.configuration import get_default_configuration
-
-
-   async def start_ipv8():
-       # Create an IPv8 object with the default settings.
-       ipv8 = IPv8(get_default_configuration())
-       await ipv8.start()
-
-   # Create a task that runs an IPv8 instance.
-   # The task will run as soon as the event loop has started.
-   ensure_future(start_ipv8())
-
-   # Start the asyncio event loop: this is the engine scheduling all of the
-   # asynchronous calls.
-   get_event_loop().run_forever()
+.. literalinclude:: overlay_tutorial_1.py
 
 You can now run this file using Python as follows:
 
@@ -78,23 +59,7 @@ Now that we have managed to create an IPv8-service instance, we want to create a
 This way we can start testing the network overlay with multiple instances.
 To try this, fill your ``main.py`` file with the following code:
 
-.. code-block:: python
-
-   from asyncio import ensure_future, get_event_loop
-
-   from pyipv8.ipv8_service import IPv8
-   from pyipv8.ipv8.configuration import get_default_configuration
-
-
-   async def start_ipv8():
-       # The first IPv8 will attempt to claim a port.
-       await IPv8(get_default_configuration()).start()
-       # The second IPv8 will attempt to claim a port.
-       # It cannot claim the same port and will end up claiming a different one.
-       await IPv8(get_default_configuration()).start()
-
-   ensure_future(start_ipv8())
-   get_event_loop().run_forever()
+.. literalinclude:: overlay_tutorial_2.py
 
 If you were successful, you should now see double the debug information being printed to your terminal.
 
@@ -104,46 +69,7 @@ Loading a custom overlay
 Now that we can launch two instances, let's create the actual network overlay.
 To do this, fill your ``main.py`` file with the following code:
 
-.. code-block:: python
-
-    import os
-    from asyncio import ensure_future, get_event_loop
-
-    from pyipv8.ipv8.community import Community
-    from pyipv8.ipv8_service import IPv8
-    from pyipv8.ipv8.configuration import ConfigBuilder, Strategy, WalkerDefinition
-    from pyipv8.ipv8.keyvault.crypto import ECCrypto
-    from pyipv8.ipv8.peer import Peer
-
-
-    class MyCommunity(Community):
-       # Register this community with a randomly generated community ID.
-       # Other peers will connect to this community based on this identifier.
-       community_id = os.urandom(20)
-
-
-    async def start_communities():
-       for i in [1, 2]:
-           builder = ConfigBuilder().clear_keys().clear_overlays()
-           # If we actually want to communicate between two different peers
-           # we need to assign them different keys.
-           # We will generate an EC key called 'my peer' which has 'medium'
-           # security and will be stored in file 'ecI.pem' where 'I' is replaced
-           # by the peer number (1 or 2).
-           builder.add_key("my peer", "medium", f"ec{i}.pem")
-           # Instruct IPv8 to load our custom overlay, registered in _COMMUNITIES.
-           # We use the 'my peer' key, which we registered before.
-           # We will attempt to find other peers in this overlay using the
-           # RandomWalk strategy, until we find 10 peers.
-           # We do not provide additional startup arguments or a function to run
-           # once the overlay has been initialized.
-           builder.add_overlay("MyCommunity", "my peer", [WalkerDefinition(Strategy.RandomWalk, 10, {'timeout': 3.0})], {}, [])
-           ipv8 = IPv8(builder.finalize(), extra_communities={'MyCommunity': MyCommunity})
-           await ipv8.start()
-
-    ensure_future(start_communities())
-    get_event_loop().run_forever()
-
+.. literalinclude:: overlay_tutorial_3.py
 
 As we replaced the default overlays, you should no longer see any debug information being printed to your terminal.
 Our overlay is now loaded twice, but it is still not doing anything.
@@ -154,42 +80,7 @@ Printing the known peers
 Like every DHT-based network overlay framework, IPv8 needs some time to find peers.
 We will now modify ``main.py`` again to print the current amount of peers:
 
-.. code-block:: python
-
-    import os
-    from asyncio import ensure_future, get_event_loop
-
-    from pyipv8.ipv8.community import Community
-    from pyipv8.ipv8_service import IPv8
-    from pyipv8.ipv8.configuration import ConfigBuilder, Strategy, WalkerDefinition
-    from pyipv8.ipv8.keyvault.crypto import ECCrypto
-    from pyipv8.ipv8.peer import Peer
-
-
-    class MyCommunity(Community):
-       community_id = os.urandom(20)
-
-       def started(self):
-           async def print_peers():
-               print("I am:", self.my_peer, "\nI know:", [str(p) for p in self.get_peers()])
-           # We register a asyncio task with this overlay.
-           # This makes sure that the task ends when this overlay is unloaded.
-           # We call the 'print_peers' function every 5.0 seconds, starting now.
-           self.register_task("print_peers", print_peers, interval=5.0, delay=0)
-
-
-    async def start_communities():
-       for i in [1, 2]:
-           builder = ConfigBuilder().clear_keys().clear_overlays()
-           builder.add_key("my peer", "medium", f"ec{i}.pem")
-           # We provide the 'started' function to the 'on_start'.
-           # We will call the overlay's 'started' function without any
-           # arguments once IPv8 is initialized.
-           builder.add_overlay("MyCommunity", "my peer", [WalkerDefinition(Strategy.RandomWalk, 10, {'timeout': 3.0})], {}, [('started', )])
-           await IPv8(builder.finalize(), extra_communities={'MyCommunity': MyCommunity}).start()
-
-    ensure_future(start_communities())
-    get_event_loop().run_forever()
+.. literalinclude:: overlay_tutorial_4.py
 
 Running this should yield something like the following output:
 
@@ -211,67 +102,6 @@ Adding messages
 As an example for adding messages, we will now make a Lamport clock for three peers.
 Update your ``main.py`` once again to contain the following code:
 
-.. code-block:: python
-
-    import os
-    from asyncio import ensure_future, get_event_loop
-
-    from pyipv8.ipv8.community import Community
-    from pyipv8.ipv8.configuration import ConfigBuilder, Strategy, WalkerDefinition
-    from pyipv8.ipv8.keyvault.crypto import ECCrypto
-    from pyipv8.ipv8.lazy_community import lazy_wrapper
-    from pyipv8.ipv8.messaging.lazy_payload import VariablePayload, vp_compile
-    from pyipv8.ipv8.peer import Peer
-    from pyipv8.ipv8_service import IPv8
-
-
-    @vp_compile
-    class MyMessage(VariablePayload):
-        msg_id = 1  # The byte identifying this message, must be unique per community.
-        format_list = ['I']  # When reading data, we unpack an unsigned integer from it.
-        names = ["clock"]  # We will name this unsigned integer "clock"
-
-
-    class MyCommunity(Community):
-        community_id = os.urandom(20)
-
-        def __init__(self, my_peer, endpoint, network):
-            super(MyCommunity, self).__init__(my_peer, endpoint, network)
-            # Register the message handler for messages with the identifier "1".
-            self.add_message_handler(1, self.on_message)
-            # The Lamport clock this peer maintains.
-            # This is for the example of global clock synchronization.
-            self.lamport_clock = 0
-
-        def started(self):
-            async def start_communication():
-                if not self.lamport_clock:
-                    # If we have not started counting, try boostrapping
-                    # communication with our other known peers.
-                    for p in self.get_peers():
-                        self.ez_send(p, MyMessage(self.lamport_clock))
-                else:
-                    self.cancel_pending_task("start_communication")
-            self.register_task("start_communication", start_communication, interval=5.0, delay=0)
-
-        @lazy_wrapper(MyMessage)
-        def on_message(self, peer, payload):
-            # Update our Lamport clock.
-            self.lamport_clock = max(self.lamport_clock, payload.clock) + 1
-            print(self.my_peer, "current clock:", self.lamport_clock)
-            # Then synchronize with the rest of the network again.
-            self.ez_send(peer, MyMessage(self.lamport_clock))
-
-
-    async def start_communities():
-        for i in [1, 2, 3]:
-            builder = ConfigBuilder().clear_keys().clear_overlays()
-            builder.add_key("my peer", "medium", f"ec{i}.pem")
-            builder.add_overlay("MyCommunity", "my peer", [WalkerDefinition(Strategy.RandomWalk, 10, {'timeout': 3.0})], {}, [('started', )])
-            await IPv8(builder.finalize(), extra_communities={'MyCommunity': MyCommunity}).start()
-
-    ensure_future(start_communities())
-    get_event_loop().run_forever()
-
+.. literalinclude:: overlay_tutorial_5.py
 
 If you run this, you should see the three peers actively trying to establish an ever-increasing global clock value.
