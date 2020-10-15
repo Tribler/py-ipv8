@@ -18,8 +18,8 @@ async def start_community():
         # Start the IPv8 service
         ipv8 = IPv8(configuration)
         await ipv8.start()
-        rest_manager = RESTManager(ipv8, api_key="my secret key")
-        await rest_manager.start(14410 + peer_id)
+        rest_manager = RESTManager(ipv8)
+        await rest_manager.start(14410 + peer_id, api_key="my secret key")
 
         # Print the peer for reference
         print("Starting peer", b64encode(ipv8.keys["anonymous id"].mid))

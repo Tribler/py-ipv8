@@ -1,4 +1,6 @@
+import os
 import ssl
+import sys
 from asyncio import ensure_future, get_event_loop
 from base64 import b64encode
 
@@ -7,7 +9,8 @@ from pyipv8.ipv8.configuration import get_default_configuration
 from pyipv8.ipv8_service import IPv8
 
 
-cert_fileX = "certfile.pem"
+cert_fileX = os.path.join(os.path.dirname(sys.modules[IPv8.__module__].__file__),
+                          "doc", "further-reading", "certfile.pem")
 
 
 async def start_community():
@@ -24,8 +27,8 @@ async def start_community():
         await ipv8.start()
         ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         ssl_context.load_cert_chain(cert_fileX)
-        rest_manager = RESTManager(ipv8, ssl_context=ssl_context)
-        await rest_manager.start(14410 + peer_id)
+        rest_manager = RESTManager(ipv8)
+        await rest_manager.start(14410 + peer_id, ssl_context=ssl_context)
 
         # Print the peer for reference
         print("Starting peer", b64encode(ipv8.keys["anonymous id"].mid))
