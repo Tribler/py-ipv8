@@ -146,6 +146,7 @@ class TestCommunityLauncher(TestBase):
             pass
 
         self.assertEqual(self.staged_launcher.get_overlay_class(), DecoratedCommunityLauncher().get_overlay_class())
+        self.assertSetEqual({self.__class__.__module__}, DecoratedCommunityLauncher.hiddenimports)
 
     def test_overlay_class_from_class(self):
         """
@@ -167,6 +168,7 @@ class TestCommunityLauncher(TestBase):
 
         self.assertListEqual(self.staged_launcher.get_walk_strategies(),
                              DecoratedCommunityLauncher().get_walk_strategies())
+        self.assertSetEqual({self.__class__.__module__}, DecoratedCommunityLauncher.hiddenimports)
 
     def test_walk_strategy_from_class(self):
         """
@@ -190,6 +192,7 @@ class TestCommunityLauncher(TestBase):
 
         self.assertListEqual([(MockWalk, {'some_attribute': 4}, 20), (MockWalk2, {}, -1)],
                              DecoratedCommunityLauncher().get_walk_strategies())
+        self.assertSetEqual({self.__class__.__module__}, DecoratedCommunityLauncher.hiddenimports)
 
     def test_set_in_session(self):
         """
