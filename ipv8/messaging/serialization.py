@@ -212,14 +212,14 @@ class Serializer(object):
         """
         return self._packers[name]
 
-    def add_packing_format(self, name, format):
+    def add_packer(self, name, packer):
         """
-        Register a new struct packing format with a certain name.
+        Register a new packer with a certain name.
 
         :param name: the name to register
-        :param format: the format to use for it
+        :param packer: the packer to use for it
         """
-        self._packers.update({name: DefaultStruct(format)})
+        self._packers[name] = packer
 
     def pack_serializable(self, serializable):
         """
