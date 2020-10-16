@@ -123,6 +123,10 @@ def overlay(str_module_or_class, str_definition=None):
     """
     def decorator(instance):
         if isinstance(str_module_or_class, str):
+            if not hasattr(instance, "hiddenimports"):
+                setattr(instance, "hiddenimports", set())
+            instance.hiddenimports.add(str_module_or_class)
+
             def get_overlay_class(_):
                 return getattr(__import__(str_module_or_class, fromlist=[str_definition]), str_definition)
         else:
@@ -165,6 +169,9 @@ def walk_strategy(str_module_or_class, str_definition=None, target_peers=20, kw_
         old_get_walk_strategies = instance.get_walk_strategies
 
         if isinstance(str_module_or_class, str):
+            if not hasattr(instance, "hiddenimports"):
+                setattr(instance, "hiddenimports", set())
+            instance.hiddenimports.add(str_module_or_class)
             strategy_class = getattr(__import__(str_module_or_class, fromlist=[str_definition]), str_definition)
         else:
             strategy_class = str_module_or_class
