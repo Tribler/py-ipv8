@@ -1,7 +1,7 @@
 import struct
 
 from ..base import TestBase
-from ...messaging.serialization import PackError, Serializable, Serializer
+from ...messaging.serialization import DefaultStruct, PackError, Serializable, Serializer
 
 
 class Short(Serializable):
@@ -111,11 +111,11 @@ class TestSerializer(TestBase):
             self.assertTrue(hasattr(packer, 'unpack'), msg='%s has no unpack() method' % pack_name)
             self.assertTrue(callable(getattr(packer, 'unpack')), msg='%s.unpack is not a method' % pack_name)
 
-    def test_add_format(self):
+    def test_add_packer(self):
         """
-        Check if we can add a format on the fly.
+        Check if we can add a packer on the fly.
         """
-        self.serializer.add_packing_format("H_LE", "<H")  # little-endian
+        self.serializer.add_packer("H_LE", DefaultStruct("<H"))  # little-endian
 
         serialized = self.serializer.get_packer_for("H_LE").pack(1)  # Packed as 01 00
 
