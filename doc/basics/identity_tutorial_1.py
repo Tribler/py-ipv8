@@ -6,7 +6,7 @@ from pyipv8.ipv8.configuration import get_default_configuration
 from pyipv8.ipv8_service import IPv8
 
 
-async def start_community():
+async def start_community():  #
     for peer_id in [1, 2]:
         configuration = get_default_configuration()
         configuration['keys'] = [
