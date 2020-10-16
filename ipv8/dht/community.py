@@ -8,12 +8,13 @@ from itertools import zip_longest
 
 from . import DHTError
 from .churn import PingChurn
-from .payload import (FindRequestPayload, FindResponsePayload, PingRequestPayload, PingResponsePayload,
+from .payload import (FindRequestPayload, FindResponsePayload, NodePacker, PingRequestPayload, PingResponsePayload,
                       SignedStrPayload, StoreRequestPayload, StoreResponsePayload, StrPayload)
 from .routing import Node, RoutingTable, calc_node_id, distance
 from .storage import Storage
 from ..community import Community, _DEFAULT_ADDRESSES
 from ..lazy_community import lazy_wrapper, lazy_wrapper_wd
+from ..messaging.serialization import ListOf
 from ..peerdiscovery.network import Network
 from ..requestcache import RandomNumberCache, RequestCache
 from ..taskmanager import task
@@ -171,6 +172,11 @@ class DHTCommunity(Community):
         self.add_message_handler(FindResponsePayload, self.on_find_response)
 
         self.logger.info('DHT community initialized (peer mid %s)', hexlify(self.my_peer.mid))
+
+    def get_serializer(self):
+        serializer = super().get_serializer()
+        serializer.add_packer('node-list', ListOf(NodePacker()))
+        return serializer
 
     def get_available_strategies(self):
         return {'PingChurn': PingChurn}
