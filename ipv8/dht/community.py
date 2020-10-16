@@ -182,11 +182,8 @@ class DHTCommunity(Community):
         return {'PingChurn': PingChurn}
 
     async def unload(self):
-        # Note that order matters here. First we unload the community, then we shutdown
-        # the RequestCache. This prevents calls to RequestCache.add after
-        # RequestCache.shutdown is called (which will return None after shutdown).
-        await super(DHTCommunity, self).unload()
         await self.request_cache.shutdown()
+        await super().unload()
 
     @property
     def my_node_id(self):
@@ -223,7 +220,8 @@ class DHTCommunity(Community):
 
     def ping(self, node):
         self.logger.debug('Pinging node %s', node)
-        cache = self.request_cache.add(Request(self, 'ping', node, consume_errors=True))
+        cache = Request(self, 'ping', node, consume_errors=True)
+        self.request_cache.add(cache)
         self.ez_send(node, PingRequestPayload(cache.number))
         node.last_ping_sent = time.time()
         return cache.future
@@ -309,7 +307,8 @@ class DHTCommunity(Community):
         futures = []
         for node in nodes:
             if node in self.tokens and self.tokens[node][0] + TOKEN_EXPIRATION_TIME > now:
-                cache = self.request_cache.add(Request(self, 'store', node))
+                cache = Request(self, 'store', node)
+                self.request_cache.add(cache)
                 futures.append(cache.future)
                 self.ez_send(node, StoreRequestPayload(cache.number, self.tokens[node][1], key, values))
             else:
@@ -365,7 +364,8 @@ class DHTCommunity(Community):
             cache.future.set_result(cache.node)
 
     def _send_find_request(self, node, target, force_nodes, offset=0):
-        cache = self.request_cache.add(Request(self, 'find', node, [force_nodes], consume_errors=True, timeout=2.0))
+        cache = Request(self, 'find', node, [force_nodes], consume_errors=True, timeout=2.0)
+        self.request_cache.add(cache)
         self.ez_send(node, FindRequestPayload(cache.number, self.my_estimated_lan, target, offset, force_nodes))
         return cache.future
 

@@ -72,7 +72,8 @@ class DHTDiscoveryCommunity(DHTCommunity):
         futures = []
         for node in nodes:
             if node in self.tokens:
-                cache = self.request_cache.add(Request(self, 'store-peer', node, [key]))
+                cache = Request(self, 'store-peer', node, [key])
+                self.request_cache.add(cache)
                 futures.append(cache.future)
                 self.ez_send(node, StorePeerRequestPayload(cache.number, self.tokens[node][1], key))
             else:
@@ -112,7 +113,8 @@ class DHTDiscoveryCommunity(DHTCommunity):
 
         futures = []
         for node in nodes:
-            cache = self.request_cache.add(Request(self, 'connect-peer', node))
+            cache = Request(self, 'connect-peer', node)
+            self.request_cache.add(cache)
             futures.append(cache.future)
             self.ez_send(node, ConnectPeerRequestPayload(cache.number, self.my_estimated_lan, key))
 
