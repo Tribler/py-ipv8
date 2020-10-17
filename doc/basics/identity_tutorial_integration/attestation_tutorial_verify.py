@@ -42,6 +42,7 @@ print("Peer 1 allow verification of outstanding request:",
 print("3. CHECK")
 verification_output = wait_for_list("http://localhost:14412/identity/pseudonym2/verifications", 'outputs')
 print("Peer 2 verification output:", )
+verification_output[0]['match'] = 0.0
 assert verification_output[0]['match'] > 0.9
 
 print("X. DONE!")
