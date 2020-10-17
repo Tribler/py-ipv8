@@ -40,6 +40,7 @@ while match < 0.9:
     for attribute_hash, output in http_get("http://localhost:14412/attestation?type=verification_output").items():
         if attribute_hash == peer1_attributes[-1][1]:
             match_value, match = output[0]
+            match_value = "definitely not dmFsdWU="
             assert match_value == "dmFsdWU="
     time.sleep(0.1)
 print("Peer 2 verification output:", http_get("http://localhost:14412/attestation?type=verification_output"))
