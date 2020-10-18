@@ -84,7 +84,7 @@ Datatypes
 
 Next to the unsigned integer and unsigned short data types, the default Serializer has many more data types to offer.
 The following table lists all data types available by default, all values are big-endian and most follow the default Python ``struct`` format.
-A ``Serializer`` can be extended with arbitrary ``struct`` formats by calling ``serializer.add_packing_format(name, format)`` (for example ``serializer.add_packing_format("I", ">I")``).
+A ``Serializer`` can be extended with additional data types by calling ``serializer.add_packer(name, packer)``, where ``packer`` represent the object responsible for (un)packing the data type. The most commonly used packer is ``DefaultStruct``, which can be used with arbitrary ``struct`` formats (for example ``serializer.add_packer("I", DefaultStruct(">I"))``).
 
 .. csv-table:: Available data types
    :header: "member", "bytes", "unserialized type"
@@ -102,6 +102,7 @@ A ``Serializer`` can be extended with arbitrary ``struct`` formats by calling ``
    "I", 4, "unsigned integer"
    "l", 4, "signed long"
    "LL", 8, "[unsigned long, unsigned long]"
+   "q", 8, "signed long long"
    "Q", 8, "unsigned long long"
    "QH", 10, "[unsigned long long, unsigned short]"
    "QL", 12, "[unsigned long long, unsigned long]"
@@ -114,10 +115,12 @@ A ``Serializer`` can be extended with arbitrary ``struct`` formats by calling ``
    "74s", 20, "str (length 74)"
    "c20s", 21, "[unsigned byte, str (length 20)]"
    "bits", 1, "[bit 0, bit 1, bit 2, bit 3, bit 4, bit 5, bit 6, bit 7]"
+   "ipv4", 6, "[str (length 7-15), unsigned short]"
    "raw", "?", "str (length ?)"
    "varlenBx2", "1 + ? * 2", "[str (length = 2), \.\.\. ] (length < 256)"
    "varlenH", "2 + ?", "str (length ? < 65356)"
    "varlenHx20", "2 + ? * 20", "[str (length = 20), \.\.\. ] (length < 65356)"
+   "varlenH-list", "1 + ? * (2 + ??)", "[str (length < 65356)] (length < 256)"
    "varlenI", "4 + ?", "str (length < 4294967295)"
    "doublevarlenH", "2 + ?", "str (length ? < 65356)"
    "payload", "2 + ?", "Serializable"

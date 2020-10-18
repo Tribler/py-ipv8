@@ -8,13 +8,13 @@ from itertools import zip_longest
 
 from . import DHTError
 from .churn import PingChurn
-from .payload import (FindRequestPayload, FindResponsePayload, PingRequestPayload, PingResponsePayload,
+from .payload import (FindRequestPayload, FindResponsePayload, NodePacker, PingRequestPayload, PingResponsePayload,
                       SignedStrPayload, StoreRequestPayload, StoreResponsePayload, StrPayload)
 from .routing import Node, RoutingTable, calc_node_id, distance
 from .storage import Storage
 from ..community import Community, _DEFAULT_ADDRESSES
 from ..lazy_community import lazy_wrapper, lazy_wrapper_wd
-from ..messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
+from ..messaging.serialization import ListOf
 from ..peerdiscovery.network import Network
 from ..requestcache import RandomNumberCache, RequestCache
 from ..taskmanager import task
@@ -145,7 +145,7 @@ class DHTCommunity(Community):
     """
     Community for storing/finding key-value pairs.
     """
-    community_id = unhexlify('40d796da96ef4e58fc34ff6cea856d90d8e642cb')
+    community_id = unhexlify('8d0be1845d74d175f178197cad001591d04d73ca')
 
     def __init__(self, *args, **kwargs):
         super(DHTCommunity, self).__init__(*args, **kwargs)
@@ -173,27 +173,21 @@ class DHTCommunity(Community):
 
         self.logger.info('DHT community initialized (peer mid %s)', hexlify(self.my_peer.mid))
 
+    def get_serializer(self):
+        serializer = super().get_serializer()
+        serializer.add_packer('node-list', ListOf(NodePacker()))
+        return serializer
+
     def get_available_strategies(self):
         return {'PingChurn': PingChurn}
 
     async def unload(self):
-        # Note that order matters here. First we unload the community, then we shutdown
-        # the RequestCache. This prevents calls to RequestCache.add after
-        # RequestCache.shutdown is called (which will return None after shutdown).
-        await super(DHTCommunity, self).unload()
         await self.request_cache.shutdown()
+        await super().unload()
 
     @property
     def my_node_id(self):
         return calc_node_id(self.my_peer.address[0], self.my_peer.mid)
-
-    def send_message(self, address, message_id, payload_cls, payload_args):
-        global_time = self.claim_global_time()
-        auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin())
-        payload = payload_cls(*payload_args)
-        dist = GlobalTimeDistributionPayload(global_time)
-        packet = self._ez_pack(self._prefix, message_id, [auth, dist, payload])
-        return self.endpoint.send(address, packet)
 
     def get_requesting_node(self, peer):
         node = Node(peer.key, peer.address)
@@ -226,23 +220,24 @@ class DHTCommunity(Community):
 
     def ping(self, node):
         self.logger.debug('Pinging node %s', node)
-        cache = self.request_cache.add(Request(self, 'ping', node, consume_errors=True))
-        self.send_message(node.address, PingRequestPayload.msg_id, PingRequestPayload, (cache.number,))
+        cache = Request(self, 'ping', node, consume_errors=True)
+        self.request_cache.add(cache)
+        self.ez_send(node, PingRequestPayload(cache.number))
         node.last_ping_sent = time.time()
         return cache.future
 
-    @lazy_wrapper_wd(GlobalTimeDistributionPayload, PingRequestPayload)
-    def on_ping_request(self, peer, dist, payload, data):
+    @lazy_wrapper_wd(PingRequestPayload)
+    def on_ping_request(self, peer, payload, data):
         self.logger.debug('Got ping-request from %s', peer.address)
 
         node = self.get_requesting_node(peer)
         if not node:
             return
 
-        self.send_message(peer.address, PingResponsePayload.msg_id, PingResponsePayload, (payload.identifier,))
+        self.ez_send(peer, PingResponsePayload(payload.identifier))
 
-    @lazy_wrapper_wd(GlobalTimeDistributionPayload, PingResponsePayload)
-    def on_ping_response(self, peer, dist, payload, data):
+    @lazy_wrapper_wd(PingResponsePayload)
+    def on_ping_response(self, peer, payload, data):
         if not self.request_cache.has('ping', payload.identifier):
             self.logger.error('Got ping-response with unknown identifier, dropping packet')
             return
@@ -312,10 +307,10 @@ class DHTCommunity(Community):
         futures = []
         for node in nodes:
             if node in self.tokens and self.tokens[node][0] + TOKEN_EXPIRATION_TIME > now:
-                cache = self.request_cache.add(Request(self, 'store', node))
+                cache = Request(self, 'store', node)
+                self.request_cache.add(cache)
                 futures.append(cache.future)
-                self.send_message(node.address, StoreRequestPayload.msg_id, StoreRequestPayload,
-                                  (cache.number, self.tokens[node][1], key, values))
+                self.ez_send(node, StoreRequestPayload(cache.number, self.tokens[node][1], key, values))
             else:
                 self.logger.debug('Not sending store-request to %s (no token available)', node)
 
@@ -323,8 +318,8 @@ class DHTCommunity(Community):
             raise DHTError('Value was not stored')
         return await gather_without_errors(*futures)
 
-    @lazy_wrapper(GlobalTimeDistributionPayload, StoreRequestPayload)
-    def on_store_request(self, peer, dist, payload):
+    @lazy_wrapper(StoreRequestPayload)
+    def on_store_request(self, peer, payload):
         self.logger.debug('Got store-request from %s', peer.address)
 
         node = self.get_requesting_node(peer)
@@ -354,10 +349,10 @@ class DHTCommunity(Community):
         for value in payload.values:
             self.add_value(payload.target, value, max_age)
 
-        self.send_message(peer.address, StoreResponsePayload.msg_id, StoreResponsePayload, (payload.identifier,))
+        self.ez_send(peer, StoreResponsePayload(payload.identifier))
 
-    @lazy_wrapper(GlobalTimeDistributionPayload, StoreResponsePayload)
-    def on_store_response(self, peer, dist, payload):
+    @lazy_wrapper(StoreResponsePayload)
+    def on_store_response(self, peer, payload):
         if not self.request_cache.has('store', payload.identifier):
             self.logger.error('Got store-response with unknown identifier, dropping packet')
             return
@@ -369,9 +364,9 @@ class DHTCommunity(Community):
             cache.future.set_result(cache.node)
 
     def _send_find_request(self, node, target, force_nodes, offset=0):
-        cache = self.request_cache.add(Request(self, 'find', node, [force_nodes], consume_errors=True, timeout=2.0))
-        self.send_message(node.address, FindRequestPayload.msg_id, FindRequestPayload,
-                          (cache.number, self.my_estimated_lan, target, offset, force_nodes))
+        cache = Request(self, 'find', node, [force_nodes], consume_errors=True, timeout=2.0)
+        self.request_cache.add(cache)
+        self.ez_send(node, FindRequestPayload(cache.number, self.my_estimated_lan, target, offset, force_nodes))
         return cache.future
 
     async def _contact_node(self, crawl, node, puncture_node):
@@ -443,8 +438,8 @@ class DHTCommunity(Community):
     def find_nodes(self, target, debug=False):
         return self._find(target, force_nodes=True, debug=debug)
 
-    @lazy_wrapper(GlobalTimeDistributionPayload, FindRequestPayload)
-    def on_find_request(self, peer, dist, payload):
+    @lazy_wrapper(FindRequestPayload)
+    def on_find_request(self, peer, payload):
         self.logger.debug('Got find-request for %s from %s', hexlify(payload.target), peer.address)
 
         node = self.get_requesting_node(peer)
@@ -462,11 +457,10 @@ class DHTCommunity(Community):
                 packet = self.create_puncture_request(payload.lan_address, peer.address, payload.identifier)
                 self.endpoint.send(nodes[0].address, packet)
 
-        self.send_message(peer.address, FindResponsePayload.msg_id, FindResponsePayload,
-                          (payload.identifier, self.generate_token(node), values, nodes))
+        self.ez_send(peer, FindResponsePayload(payload.identifier, self.generate_token(node), values, nodes))
 
-    @lazy_wrapper(GlobalTimeDistributionPayload, FindResponsePayload)
-    def on_find_response(self, peer, dist, payload):
+    @lazy_wrapper(FindResponsePayload)
+    def on_find_response(self, peer, payload):
         if not self.request_cache.has('find', payload.identifier):
             self.logger.error('Got find-response with unknown identifier, dropping packet')
             return

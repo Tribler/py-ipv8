@@ -1,5 +1,6 @@
 import abc
 from binascii import hexlify
+from socket import inet_aton, inet_ntoa
 from struct import Struct, pack, unpack_from
 
 
@@ -129,7 +130,7 @@ class Raw(object):
 
 class VarLen(object):
     """
-    Paste/unpack from an encoded length + data string.
+    Pack/unpack from an encoded length + data string.
     """
 
     def __init__(self, length_format, base=1):
@@ -144,6 +145,41 @@ class VarLen(object):
         str_length = unpack_from(self.length_format, data, offset)[0] * self.base
         unpack_list.append(data[offset + self.length_size: offset + self.length_size + str_length])
         return offset + self.length_size + str_length
+
+
+class IPv4:
+    """
+    Pack/unpack an IPv4 address
+    """
+
+    def pack(self, data):
+        return pack('>4sH', inet_aton(data[0]), data[1])
+
+    def unpack(self, data, offset, unpack_list):
+        host_bytes, port = unpack_from('>4sH', data, offset)
+        unpack_list.append((inet_ntoa(host_bytes), port))
+        return offset + 6
+
+
+class ListOf:
+
+    def __init__(self, packer, length_format='>B'):
+        self.packer = packer
+        self.length_format = length_format
+        self.length_size = Struct(length_format).size
+
+    def pack(self, data):
+        return pack(self.length_format, len(data)) + b''.join([self.packer.pack(item) for item in data])
+
+    def unpack(self, data, offset, unpack_list):
+        length, = unpack_from(self.length_format, data, offset)
+        offset += self.length_size
+
+        result = []
+        unpack_list.append(result)
+        for _ in range(length):
+            offset = self.packer.unpack(data, offset, result)
+        return offset
 
 
 class DefaultStruct:
@@ -191,10 +227,12 @@ class Serializer(object):
             '74s': DefaultStruct(">74s"),
             'c20s': DefaultStruct(">c20s"),
             'bits': Bits(),
+            'ipv4': IPv4(),
             'raw': Raw(),
             'varlenBx2': VarLen('>B', 2),
             'varlenH': VarLen('>H'),
             'varlenHx20': VarLen('>H', 20),
+            'varlenH-list': ListOf(VarLen('>H')),
             'varlenI': VarLen('>I'),
             'doublevarlenH': VarLen('>H'),
             'payload': NestedPayload(self)
@@ -212,14 +250,14 @@ class Serializer(object):
         """
         return self._packers[name]
 
-    def add_packing_format(self, name, format):
+    def add_packer(self, name, packer):
         """
-        Register a new struct packing format with a certain name.
+        Register a new packer with a certain name.
 
         :param name: the name to register
-        :param format: the format to use for it
+        :param packer: the packer to use for it
         """
-        self._packers.update({name: DefaultStruct(format)})
+        self._packers[name] = packer
 
     def pack_serializable(self, serializable):
         """

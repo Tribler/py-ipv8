@@ -49,7 +49,7 @@ def lazy_wrapper_wd(*payloads):
 
     ::
 
-        @lazy_wrapper(IntroductionRequestPayload, IntroductionResponsePayload)
+        @lazy_wrapper_wd(IntroductionRequestPayload, IntroductionResponsePayload)
         def on_message(peer, payload1, payload2, data):
             '''
             :type peer: Peer
