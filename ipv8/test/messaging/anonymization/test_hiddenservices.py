@@ -26,7 +26,7 @@ class TestHiddenServices(TestBase):
 
     async def tearDown(self):
         for node in self.private_nodes:
-            await node.unload()
+            await node.stop()
         return await super(TestHiddenServices, self).tearDown()
 
     def get_e2e_circuit_path(self):

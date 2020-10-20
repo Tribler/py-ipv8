@@ -61,7 +61,7 @@ class TestDHTCommunity(TestBase):
 
     async def test_ping_pong_fail(self):
         await self.introduce_nodes()
-        await self.nodes[1].unload()
+        await self.nodes[1].stop()
         with self.assertRaises(TimeoutError):
             await wait_for(self.nodes[0].overlay.ping(Node(self.nodes[1].my_peer.key,
                                                            self.nodes[1].my_peer.address)), 0.1)

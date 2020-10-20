@@ -65,7 +65,7 @@ class MockIPv8(object):
                            if strategy.overlay != instance]
         return maybe_coroutine(instance.unload)
 
-    async def unload(self):
+    async def stop(self, stop_loop=True):
         self.endpoint.close()
         await self.overlay.unload()
         if self.trustchain:
