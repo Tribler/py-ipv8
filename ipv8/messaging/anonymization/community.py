@@ -14,7 +14,7 @@ from .payload import *
 from .tunnel import *
 from .tunnelcrypto import CryptoException, TunnelCrypto
 from ...community import Community
-from ...lazy_community import lazy_wrapper, lazy_wrapper_unsigned
+from ...lazy_community import lazy_wrapper
 from ...messaging.deprecated.encoding import decode, encode
 from ...messaging.payload_headers import BinMemberAuthenticationPayload
 from ...peer import Peer
@@ -22,15 +22,12 @@ from ...requestcache import RequestCache
 from ...taskmanager import task
 
 
-def unpack_cell(*payloads):
+def unpack_cell(payload_cls):
     """
-    This function wrapper will unpack just the normal payloads for you, and handle a singular circuit_id parameter at
+    This function wrapper will unpack the normal payload for you, and handle a singular circuit_id parameter at
     the end of the parameter list
-
     You can now write your non-authenticated and signed functions as follows:
-
     ::
-
         @unpack_cell(DataPayload)
         def on_message(source_address, payload):
             '''
@@ -41,13 +38,8 @@ def unpack_cell(*payloads):
     """
     def decorator(func):
         def wrapper(self, source_address, data, circuit_id=None):
-
-            @lazy_wrapper_unsigned(*payloads)
-            def inner_wrapper(inner_self, inner_source_address, *pyls):
-                combo = list(pyls) + [circuit_id]
-                return func(inner_self, inner_source_address, *combo)
-
-            return inner_wrapper(self, source_address, data)
+            payload, _ = self.serializer.unpack_serializable(payload_cls, data, offset=23)
+            return func(self, source_address, payload, circuit_id)
         return wrapper
     return decorator
 
