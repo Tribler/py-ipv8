@@ -9,7 +9,7 @@ The authors of this file are not -in any way- affiliated with the original autho
 from binascii import hexlify
 from os import urandom
 
-from cryptography.hazmat.primitives.asymmetric.rsa import _modinv
+from cryptography.hazmat.primitives.asymmetric.rsa import _modinv  # type:ignore
 
 from .. import secure_randint
 from ...primitives.attestation import sha256_as_int

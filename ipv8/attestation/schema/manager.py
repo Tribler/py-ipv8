@@ -1,3 +1,5 @@
+import typing
+
 from ...types import IdentityAlgorithmClass
 
 
@@ -12,8 +14,8 @@ class SchemaManager(object):
         """
         super(SchemaManager, self).__init__()
 
-        self.formats = dict()
-        self.algorithms = dict()
+        self.formats: typing.Dict[str, typing.Dict[str, typing.Any]] = dict()
+        self.algorithms: typing.Dict[str, IdentityAlgorithmClass] = dict()
 
     def get_algorithm_class(self, algorithm_name: str) -> IdentityAlgorithmClass:
         """
@@ -31,7 +33,7 @@ class SchemaManager(object):
         # Lazy load
         if algorithm_name == "bonehexact":
             from ..wallet.bonehexact.algorithm import BonehExactAlgorithm
-            algorithm = BonehExactAlgorithm
+            algorithm: IdentityAlgorithmClass = BonehExactAlgorithm
         elif algorithm_name == "pengbaorange":
             from ..wallet.pengbaorange.algorithm import PengBaoRangeAlgorithm
             algorithm = PengBaoRangeAlgorithm
@@ -72,7 +74,7 @@ class SchemaManager(object):
         """
         from ..default_identity_formats import FORMATS
         for schema in FORMATS:
-            self.register_schema(schema, FORMATS[schema]["algorithm"], FORMATS[schema])
+            self.register_schema(schema, FORMATS[schema]["algorithm"], FORMATS[schema])  # type:ignore
 
     def get_algorithm_instance(self, schema_name: str):
         """

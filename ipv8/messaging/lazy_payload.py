@@ -1,5 +1,6 @@
 import inspect
 import types
+import typing
 
 from .payload import Payload
 
@@ -25,7 +26,7 @@ class VariablePayload(Payload):
     want to apply when actually sending over the wire.
     """
 
-    names = []
+    names: typing.List[str] = []
 
     def __init__(self, *args, **kwargs):
         """

@@ -1,7 +1,7 @@
 import logging
 from collections import OrderedDict
 from hashlib import sha3_256
-from typing import List, Optional, Set
+from typing import Dict, List, Optional, Set
 
 from .token import Token
 from ...types import PrivateKey, PublicKey
@@ -32,8 +32,8 @@ class TokenTree(object):
         super(TokenTree, self).__init__()
         self._logger = logging.getLogger(self.__class__.__name__)
 
-        self.elements = {}
-        self.unchained = OrderedDict()
+        self.elements: Dict[bytes, Token] = {}
+        self.unchained: OrderedDict = OrderedDict()
         self.unchained_max_size = 100
 
         if public_key is not None and private_key is None:

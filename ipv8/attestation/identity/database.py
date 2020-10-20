@@ -187,12 +187,12 @@ class IdentityDatabase(Database):
     def check_database(self, database_version: str) -> int:
         assert database_version.isdigit()
         assert int(database_version) >= 0
-        database_version = int(database_version) or self.LATEST_DB_VERSION
+        database_version_num = int(database_version) or self.LATEST_DB_VERSION
 
         # This is where an existing schema would be upgraded.
         # As no changes have been made, there is nothing to upgrade.
 
-        self.executescript(self.get_schema(database_version))
+        self.executescript(self.get_schema(database_version_num))
         self.commit()
 
         return self.LATEST_DB_VERSION

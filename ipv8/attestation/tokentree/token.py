@@ -38,7 +38,7 @@ class Token(AbstractSignedObject):
         :param signature: the signature for this Token.
         """
         if content is not None and content_hash is None:
-            self.content = content
+            self.content: typing.Optional[bytes] = content
             self.content_hash = hashlib.sha3_256(content).digest()
         elif content is None and content_hash is not None:
             self.content = None
@@ -79,7 +79,7 @@ class Token(AbstractSignedObject):
     def create(cls, previous_token: Token, content: bytes, private_key: PrivateKey) -> Token:
         return Token(previous_token.get_hash(), content, private_key=private_key)
 
-    def to_database_tuple(self) -> typing.Tuple[bytes, bytes, bytes, bytes]:
+    def to_database_tuple(self) -> typing.Tuple[bytes, bytes, bytes, typing.Optional[bytes]]:
         """
         Get a representation of this Token as four byte strings (previous hash, signature, content hash and content).
 

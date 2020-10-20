@@ -8,6 +8,7 @@ This module provides basic database functionalty and simple version control.
 import logging
 import os
 import sys
+import typing
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
 from threading import RLock
@@ -35,13 +36,8 @@ def execute_or_script(cursor, statement):
 
 
 # In Python 3 sqlite expects bytes instead of buffer objects.
-try:
-    database_blob = buffer
-except NameError:
-    database_blob = bytes
-
-
-db_locks = defaultdict(RLock)
+database_blob = bytes
+db_locks: typing.Dict[str, RLock] = defaultdict(RLock)
 
 
 def db_call(f):

@@ -54,9 +54,9 @@ class Peer(object):
         :param intro: is this peer suggested to us (otherwise it contacted us)
         """
         if not isinstance(key, Key):
-            self.key = default_eccrypto.key_from_public_bin(key)
+            self.key: Key = default_eccrypto.key_from_public_bin(key)
         else:
-            self.key = key
+            self.key = key  # type:ignore
         self.mid = self.key.key_to_hash()
         self.public_key = self.key.pub()
         self._addresses = DirtyDict()
@@ -65,7 +65,7 @@ class Peer(object):
         self._address = address
         self.last_response = 0 if intro else time()
         self._lamport_timestamp = 0
-        self.pings = deque(maxlen=5)
+        self.pings: deque = deque(maxlen=5)
 
     @property
     def addresses(self) -> Dict[Type[Address], Address]:

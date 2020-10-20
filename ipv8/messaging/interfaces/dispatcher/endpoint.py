@@ -122,6 +122,7 @@ class DispatcherEndpoint(Endpoint):
             return self.interfaces[interface].get_address()
         elif self._preferred_interface:
             return self._preferred_interface.get_address()
+        return None
 
     def send(self, socket_address, packet, interface=None) -> None:
         if interface is not None:
