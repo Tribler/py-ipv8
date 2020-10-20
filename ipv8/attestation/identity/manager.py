@@ -7,10 +7,10 @@ import typing
 from .attestation import Attestation
 from .database import Credential, IdentityDatabase
 from .metadata import Metadata
-from ..tokentree.token import Token
 from ..tokentree.tree import TokenTree
 from ...keyvault.crypto import ECCrypto
-from ...keyvault.keys import PrivateKey, PublicKey
+from ...keyvault.keys import PrivateKey
+from ...types import PublicKey, Token
 
 
 class PseudonymManager(object):

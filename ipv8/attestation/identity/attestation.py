@@ -1,13 +1,11 @@
+from __future__ import annotations
+
 import binascii
 import struct
 import typing
 
-from .metadata import Metadata
 from ..signed_object import AbstractSignedObject
-from ...keyvault.keys import PrivateKey
-
-
-AttestationType = typing.TypeVar('AttestationType', bound='Attestation')
+from ...types import Metadata, PrivateKey, PublicKey
 
 
 class Attestation(AbstractSignedObject):
@@ -29,13 +27,13 @@ class Attestation(AbstractSignedObject):
         return self.metadata_pointer
 
     @classmethod
-    def unserialize(cls, data, public_key, offset=0) -> AttestationType:
+    def unserialize(cls, data: bytes, public_key: PublicKey, offset: int = 0) -> Attestation:
         sig_len = public_key.get_signature_length()
         metadata_pointer, signature = struct.unpack_from(f">32s{sig_len}s", data, offset=offset)
         return Attestation(metadata_pointer, signature=signature)
 
     @classmethod
-    def create(cls, metadata: Metadata, private_key: PrivateKey) -> AttestationType:
+    def create(cls, metadata: Metadata, private_key: PrivateKey) -> Attestation:
         return Attestation(metadata.get_hash(), private_key=private_key)
 
     def to_database_tuple(self) -> typing.Tuple[bytes, bytes]:
@@ -49,7 +47,7 @@ class Attestation(AbstractSignedObject):
     @classmethod
     def from_database_tuple(cls,
                             metadata_pointer: bytes,
-                            signature: bytes) -> AttestationType:
+                            signature: bytes) -> Attestation:
         """
         Create a Token from a two-byte-string representation (metadata hash and signature).
 

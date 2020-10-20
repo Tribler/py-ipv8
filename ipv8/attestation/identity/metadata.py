@@ -1,13 +1,11 @@
+from __future__ import annotations
+
 import binascii
 import json
 import typing
 
 from ..signed_object import AbstractSignedObject
-from ..tokentree.token import Token
-from ...keyvault.keys import PrivateKey
-
-
-MetadataType = typing.TypeVar('MetadataType', bound='Metadata')
+from ...types import PrivateKey, Token
 
 
 class Metadata(AbstractSignedObject):
@@ -47,14 +45,14 @@ class Metadata(AbstractSignedObject):
         return self.token_pointer + self.serialized_json_dict
 
     @classmethod
-    def unserialize(cls, data, public_key, offset=0) -> MetadataType:
+    def unserialize(cls, data, public_key, offset=0) -> Metadata:
         if offset != 0:
             raise RuntimeError("Offset is not supported for Metadata!")
         sig_len = public_key.get_signature_length()
         return Metadata(data[:32], data[32:-sig_len], signature=data[-sig_len:])
 
     @classmethod
-    def create(cls, token: Token, json_dict: dict, private_key: PrivateKey) -> MetadataType:
+    def create(cls, token: Token, json_dict: dict, private_key: PrivateKey) -> Metadata:
         return Metadata(token.get_hash(), json.dumps(json_dict).encode(), private_key=private_key)
 
     def to_database_tuple(self) -> typing.Tuple[bytes, bytes, bytes]:
@@ -69,7 +67,7 @@ class Metadata(AbstractSignedObject):
     def from_database_tuple(cls,
                             token_pointer: bytes,
                             signature: bytes,
-                            serialized_json_dict: bytes) -> MetadataType:
+                            serialized_json_dict: bytes) -> Metadata:
         """
         Create a Token from a three-byte-string representation (token hash, signature and json dictionary).
 

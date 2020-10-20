@@ -1,13 +1,10 @@
 import logging
 from collections import OrderedDict
 from hashlib import sha3_256
-from typing import List, Optional, Set, TypeVar
+from typing import List, Optional, Set
 
 from .token import Token
-from ...keyvault.keys import PrivateKey, PublicKey
-
-
-TokenTreeType = TypeVar('TokenTreeType', bound='TokenTree')
+from ...types import PrivateKey, PublicKey
 
 
 class TokenTree(object):

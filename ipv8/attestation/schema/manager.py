@@ -1,6 +1,4 @@
-from typing import Type
-
-from ..identity_formats import IdentityAlgorithm
+from ...types import IdentityAlgorithmClass
 
 
 class SchemaManager(object):
@@ -17,7 +15,7 @@ class SchemaManager(object):
         self.formats = dict()
         self.algorithms = dict()
 
-    def get_algorithm_class(self, algorithm_name: str) -> Type[IdentityAlgorithm]:
+    def get_algorithm_class(self, algorithm_name: str) -> IdentityAlgorithmClass:
         """
         Get the implementation belonging to a certain algorithm name.
         These are bound to either:

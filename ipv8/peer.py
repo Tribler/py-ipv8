@@ -2,13 +2,12 @@ from base64 import b64encode
 from collections import deque
 from struct import unpack
 from time import time
-from typing import Any, Dict, Optional, Tuple, Type
+from typing import Any, Dict, Optional, Type
 
 from .keyvault.crypto import default_eccrypto
 from .keyvault.keys import Key
 from .messaging.interfaces.udp.endpoint import UDPv4Address, UDPv6Address
-
-AddressType = Tuple[str, int]
+from .types import Address
 
 
 class DirtyDict(dict):
@@ -46,7 +45,7 @@ class Peer(object):
 
     INTERFACE_ORDER = [UDPv4Address, UDPv6Address, tuple]
 
-    def __init__(self, key, address: Optional[AddressType] = None, intro: bool = True) -> None:
+    def __init__(self, key: Key, address: Optional[Address] = None, intro: bool = True) -> None:
         """
         Create a new Peer.
 
@@ -69,7 +68,7 @@ class Peer(object):
         self.pings = deque(maxlen=5)
 
     @property
-    def addresses(self) -> Dict[Type[AddressType], AddressType]:
+    def addresses(self) -> Dict[Type[Address], Address]:
         """
         Retrieve the addresses belonging to this Peer.
 
@@ -79,7 +78,7 @@ class Peer(object):
         return self._addresses
 
     @property
-    def address(self) -> AddressType:
+    def address(self) -> Address:
         """
         Retrieve the preferred address for this Peer.
 
@@ -90,7 +89,7 @@ class Peer(object):
         return self._address or UDPv4Address("0.0.0.0", 0)
 
     @address.setter
-    def address(self, value: AddressType) -> None:
+    def address(self, value: Address) -> None:
         """
         Alias of ``add_address(value)``.
         """
@@ -109,7 +108,7 @@ class Peer(object):
         self._addresses[value.__class__] = value
         self._update_preferred_address()
 
-    def _update_preferred_address(self):
+    def _update_preferred_address(self) -> None:
         """
         Update the current address to be the most preferred.
         """
@@ -119,7 +118,7 @@ class Peer(object):
                 break
         self._addresses.dirty = False
 
-    def get_median_ping(self):
+    def get_median_ping(self) -> Optional[float]:
         """
         Get the median ping time of this peer.
 
@@ -134,7 +133,7 @@ class Peer(object):
         else:
             return sorted_pings[len(sorted_pings) // 2]
 
-    def get_average_ping(self):
+    def get_average_ping(self) -> Optional[float]:
         """
         Get the average ping time of this peer.
 
@@ -145,7 +144,7 @@ class Peer(object):
             return None
         return sum(self.pings) / len(self.pings)
 
-    def update_clock(self, timestamp):
+    def update_clock(self, timestamp: int) -> None:
         """
         Update the Lamport timestamp for this peer. The Lamport clock dictates that the current timestamp is
         the maximum of the last known and the most recently delivered timestamp. This is useful when messages
@@ -158,22 +157,22 @@ class Peer(object):
         self._lamport_timestamp = max(self._lamport_timestamp, timestamp)
         self.last_response = time()  # This is in seconds since the epoch
 
-    def get_lamport_timestamp(self):
+    def get_lamport_timestamp(self) -> int:
         return self._lamport_timestamp
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         as_long, = unpack(">Q", self.mid[:8])
         return as_long
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, Peer):
             return False
         return self.public_key.key_to_bin() == other.public_key.key_to_bin()
 
-    def __ne__(self, other):
+    def __ne__(self, other: object) -> bool:
         if not isinstance(other, Peer):
             return True
         return self.public_key.key_to_bin() != other.public_key.key_to_bin()
 
-    def __str__(self):
+    def __str__(self) -> str:
         return 'Peer<%s:%d, %s>' % (self.address[0], self.address[1], b64encode(self.mid).decode('utf-8'))

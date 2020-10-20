@@ -4,7 +4,7 @@ from .attestation import Attestation
 from .metadata import Metadata
 from ..tokentree.token import Token
 from ...database import Database
-from ...keyvault.keys import PublicKey
+from ...types import PublicKey
 
 
 class Credential(object):

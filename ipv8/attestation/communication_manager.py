@@ -9,12 +9,13 @@ from .identity.manager import IdentityManager
 from .wallet.community import AttestationCommunity
 from ..keyvault.crypto import ECCrypto
 from ..messaging.anonymization.hidden_services import HiddenTunnelCommunity
+from ..types import IPv8, Peer
 from ..util import succeed
 
 
 class CommunicationChannel(object):
 
-    def __init__(self, attestation_community, identity_community):
+    def __init__(self, attestation_community: AttestationCommunity, identity_community: IdentityCommunity):
         super(CommunicationChannel, self).__init__()
         self.attestation_overlay = attestation_community
         self.identity_overlay = identity_community
@@ -29,18 +30,19 @@ class CommunicationChannel(object):
         self.attestation_overlay.set_verify_request_callback(self.on_verify_request)
 
     @property
-    def public_key_bin(self):
+    def public_key_bin(self) -> bytes:
         return self.identity_overlay.my_peer.public_key.key_to_bin()
 
     @property
-    def peers(self):
+    def peers(self) -> typing.List[Peer]:
         return self.identity_overlay.get_peers()
 
     @property
-    def schemas(self):
+    def schemas(self) -> typing.List[str]:
         return list(self.attestation_overlay.schema_manager.formats.keys())
 
-    def on_request_attestation(self, peer, attribute_name, metadata):
+    def on_request_attestation(self, peer: Peer, attribute_name: str,
+                               metadata: typing.Dict[str, str]) -> asyncio.Future:
         """
         Return the measurement of an attribute for a certain peer.
         """
@@ -49,7 +51,8 @@ class CommunicationChannel(object):
         self.attestation_metadata[(peer, attribute_name)] = metadata
         return future
 
-    def on_attestation_complete(self, for_peer, attribute_name, attribute_hash, id_format, from_peer=None):
+    def on_attestation_complete(self, for_peer: Peer, attribute_name: str, attribute_hash: bytes, id_format: str,
+                                from_peer: Peer = None) -> None:
         """
         Callback for when an attestation has been completed for another peer.
         We can now sign for it.
@@ -65,7 +68,7 @@ class CommunicationChannel(object):
             self.identity_overlay.add_known_hash(attribute_hash, attribute_name, for_peer.public_key.key_to_bin(),
                                                  metadata)
 
-    def on_verify_request(self, peer, attribute_hash):
+    def on_verify_request(self, peer: Peer, attribute_hash: bytes) -> asyncio.Future:
         """
         Return the measurement of an attribute for a certain peer.
         """
@@ -77,7 +80,7 @@ class CommunicationChannel(object):
         self.verify_requests[(peer, attribute_name)] = future
         return future
 
-    def on_verification_results(self, attribute_hash, values):
+    def on_verification_results(self, attribute_hash: bytes, values) -> None:
         """
         Callback for when verification has concluded.
         """
@@ -87,7 +90,7 @@ class CommunicationChannel(object):
             out.append((references[i][0] if isinstance(references[i], tuple) else references[i], values[i]))
         self.verification_output[attribute_hash] = out
 
-    def _drop_identity_table_data(self):
+    def _drop_identity_table_data(self) -> typing.List[bytes]:
         """
         Remove all metadata from the identity community.
 
@@ -107,7 +110,7 @@ class CommunicationChannel(object):
 
         return attestation_hashes
 
-    def _drop_attestation_table_data(self, attestation_hashes):
+    def _drop_attestation_table_data(self, attestation_hashes: typing.List[bytes]) -> None:
         """
         Remove all attestation data (claim based keys and ZKP blobs) by list of attestation hashes.
 
@@ -125,17 +128,22 @@ class CommunicationChannel(object):
                                                   attestation_hashes)
         self.attestation_overlay.database.commit()
 
-    def remove(self):
+    def remove(self) -> None:
         """
         Remove this pseudonym from existence.
         """
         self._drop_attestation_table_data(self._drop_identity_table_data())
         self.attestation_requests.clear()
 
-    def get_my_attributes(self):
+    def get_my_attributes(self) -> typing.Dict[bytes, typing.Tuple[str,
+                                                                   typing.Dict[str, str],
+                                                                   typing.List[bytes]]]:
         return self.get_attributes(self.identity_overlay.my_peer)
 
-    def get_attributes(self, peer):
+    def get_attributes(self, peer: Peer) -> typing.Dict[bytes,
+                                                        typing.Tuple[str,
+                                                                     typing.Dict[str, str],
+                                                                     typing.List[bytes]]]:
         pseudonym = self.identity_overlay.identity_manager.get_pseudonym(peer.public_key)
         out = {}
         for credential in pseudonym.get_credentials():
@@ -148,29 +156,30 @@ class CommunicationChannel(object):
             out[attribute_hash] = (json_metadata["name"], json_metadata, attesters)
         return out
 
-    def request_attestation(self, peer, attribute_name, id_format, metadata):
+    def request_attestation(self, peer: Peer, attribute_name: str, id_format: str,
+                            metadata: typing.Dict[str, str]) -> None:
         key = self.attestation_overlay.get_id_algorithm(id_format).generate_secret_key()
         metadata.update({"id_format": id_format})
         self.attestation_metadata[(self.identity_overlay.my_peer, attribute_name)] = metadata
         self.attestation_overlay.request_attestation(peer, attribute_name, key, metadata)
 
-    def attest(self, peer, attribute_name, value):
+    def attest(self, peer: Peer, attribute_name: str, value: bytes) -> None:
         outstanding = self.attestation_requests.pop((peer, attribute_name))
         outstanding[0].set_result(value)
 
-    def import_blob(self, attribute_name, id_format, metadata, value):
+    def import_blob(self, attribute_name: str, id_format: str, metadata: typing.Dict[str, str], value: bytes) -> None:
         metadata.update({"id_format": id_format})
         self.attestation_overlay.dump_blob(attribute_name, id_format, value, metadata)
 
-    def allow_verification(self, peer, attribute_name):
+    def allow_verification(self, peer: Peer, attribute_name: str) -> None:
         outstanding = self.verify_requests.pop((peer, attribute_name))
         outstanding.set_result(True)
 
-    def disallow_verification(self, peer, attribute_name):
+    def disallow_verification(self, peer: Peer, attribute_name: str) -> None:
         outstanding = self.verify_requests.pop((peer, attribute_name))
         outstanding.set_result(False)
 
-    def verify(self, peer, attribute_hash, reference_values, id_format):
+    def verify(self, peer: Peer, attribute_hash: bytes, reference_values: typing.List[bytes], id_format: str) -> None:
         self.verification_output[attribute_hash] = \
             [(v, None) for v in reference_values]
         self.attestation_overlay.verify_attestation_values(peer.address, attribute_hash, reference_values,
@@ -179,7 +188,7 @@ class CommunicationChannel(object):
 
 class CommunicationManager(object):
 
-    def __init__(self, ipv8_instance, pseudonym_folder: str = "pseudonyms", working_directory=None):
+    def __init__(self, ipv8_instance: IPv8, pseudonym_folder: str = "pseudonyms", working_directory: str = None):
         super(CommunicationManager, self).__init__()
 
         self.ipv8_instance = ipv8_instance

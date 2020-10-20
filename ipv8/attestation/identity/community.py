@@ -5,18 +5,14 @@ from binascii import hexlify, unhexlify
 from time import time
 
 from .attestation import Attestation
-from .database import Credential
-from .manager import IdentityManager, PseudonymManager
-from .metadata import Metadata
+from .manager import IdentityManager
 from .payload import AttestPayload, DiclosePayload, MissingResponsePayload, RequestMissingPayload
 from ...community import Community, DEFAULT_MAX_PEERS
-from ...keyvault.keys import PrivateKey, PublicKey
 from ...lazy_community import lazy_wrapper
-from ...messaging.interfaces.endpoint import Endpoint
 from ...peer import Peer
 from ...peerdiscovery.discovery import RandomWalk
 from ...peerdiscovery.network import Network
-
+from ...types import Credential, Endpoint, Metadata, PrivateKey, PseudonymManager, PublicKey
 
 SAFE_UDP_PACKET_LENGTH = 1296
 
@@ -25,8 +21,8 @@ class IdentityCommunity(Community):
 
     community_id = unhexlify('d5889074c1e4c50423cdb6e9307ee0ca5695ead7')
 
-    def __init__(self, my_peer, endpoint, network=None, max_peers=DEFAULT_MAX_PEERS,
-                 anonymize=True, identity_manager=None, working_directory="."):
+    def __init__(self, my_peer: Peer, endpoint: Endpoint, network: Network = None, max_peers: int = DEFAULT_MAX_PEERS,
+                 anonymize: bool = True, identity_manager: IdentityManager = None, working_directory: str = "."):
         if network is None:
             network = Network()
         super(IdentityCommunity, self).__init__(my_peer, endpoint, network, max_peers, anonymize)
@@ -66,7 +62,7 @@ class IdentityCommunity(Community):
         self.add_message_handler(RequestMissingPayload, self.on_request_missing)
         self.add_message_handler(MissingResponsePayload, self.on_missing_response)
 
-    def pad_hash(self, attribute_hash):
+    def pad_hash(self, attribute_hash: bytes) -> bytes:
         """
         Pad an old-style SHA-1 hash into the new 32 byte SHA3-256 space.
         """
@@ -187,7 +183,7 @@ class IdentityCommunity(Community):
                                           attribute_hash: bytes,
                                           name: str,
                                           block_type: str = "id_metadata",
-                                          metadata: typing.Optional[dict] = None):
+                                          metadata: typing.Optional[dict] = None) -> None:
         """
         Request a peer to sign for our attestation advertisement.
         :param peer: the attestor of our block
