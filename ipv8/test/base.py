@@ -51,7 +51,7 @@ class TestBase(asynctest.TestCase):
     async def tearDown(self):
         try:
             for node in self.nodes:
-                await node.unload()
+                await node.stop()
             internet.clear()
         finally:
             while self._tempdirs:

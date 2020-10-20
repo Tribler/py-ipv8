@@ -61,7 +61,7 @@ class MockRestIPv8(object):
         await self.rest_manager.start(0)
         self.rest_port = self.rest_manager.site._server.sockets[0].getsockname()[1]
 
-    async def unload(self):
+    async def stop(self, stop_loop=True):
         await self.rest_manager.stop()
         self.endpoint.close()
         for overlay in self.overlays:

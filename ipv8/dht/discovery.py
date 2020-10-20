@@ -139,7 +139,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
             self.logger.debug('Storing peer %s (key %s)', node, hexlify(payload.target))
             self.store[payload.target].append(node)
 
-        self.ez_send(node, StorePeerResponsePayload(payload.indentifier))
+        self.ez_send(node, StorePeerResponsePayload(payload.identifier))
 
     @lazy_wrapper(StorePeerResponsePayload)
     def on_store_peer_response(self, peer, payload):
