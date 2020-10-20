@@ -6,6 +6,7 @@ from ...keyvault.crypto import default_eccrypto
 from ...messaging.interfaces.statistics_endpoint import StatisticsEndpoint
 from ...peer import Peer
 from ...peerdiscovery.network import Network
+from ...util import maybe_coroutine
 
 
 class MockIPv8(object):
@@ -57,6 +58,12 @@ class MockIPv8(object):
 
     def get_overlays(self, overlay_cls):
         return (o for o in [self.trustchain, self.dht, self.overlay] if isinstance(o, overlay_cls))
+
+    def unload_overlay(self, instance):
+        self.overlays = [overlay for overlay in self.overlays if overlay != instance]
+        self.strategies = [(strategy, target_peers) for (strategy, target_peers) in self.strategies
+                           if strategy.overlay != instance]
+        return maybe_coroutine(instance.unload)
 
     async def unload(self):
         self.endpoint.close()
