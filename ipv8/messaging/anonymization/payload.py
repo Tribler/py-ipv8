@@ -198,39 +198,18 @@ class CreatedPayload(VariablePayload):
     names = ['circuit_id', 'key', 'auth', 'candidate_list_enc']
 
 
-class ExtendPayload(Payload):
+@vp_compile
+class ExtendPayload(VariablePayload):
     msg_id = 4
-    format_list = ['I', 'varlenH', 'varlenH', 'raw']
-
-    def __init__(self, circuit_id, node_public_key, node_addr, key):
-        super(ExtendPayload, self).__init__()
-        self.circuit_id = circuit_id
-        self.node_public_key = node_public_key
-        self.key = key
-        self.node_addr = node_addr
-
-    def to_pack_list(self):
-        data = [('I', self.circuit_id),
-                ('varlenH', self.node_public_key),
-                ('varlenH', self.key)]
-
-        if self.node_addr:
-            host, port = self.node_addr
-            data.append(('4SH', socket.inet_aton(host), port))
-
-        return data
-
-    @classmethod
-    def from_unpack_list(cls, circuit_id, node_public_key, key, node_addr):
-        if node_addr:
-            host, port = unpack_from('>4sH', node_addr)
-            node_addr = (socket.inet_ntoa(host), port)
-        return ExtendPayload(circuit_id, node_public_key, node_addr or None, key)
+    format_list = ['I', 'varlenH', 'varlenH', 'ipv4']
+    names = ['circuit_id', 'node_public_key', 'key', 'node_addr']
 
 
 @vp_compile
-class ExtendedPayload(CreatedPayload):
+class ExtendedPayload(VariablePayload):
     msg_id = 5
+    format_list = ['I', 'varlenH', '32s', 'raw']
+    names = ['circuit_id', 'key', 'auth', 'candidate_list_enc']
 
 
 @vp_compile
@@ -241,8 +220,10 @@ class PingPayload(VariablePayload):
 
 
 @vp_compile
-class PongPayload(PingPayload):
+class PongPayload(VariablePayload):
     msg_id = 7
+    format_list = ['I', 'H']
+    names = ['circuit_id', 'identifier']
 
 
 @vp_compile
@@ -273,27 +254,11 @@ class EstablishRendezvousPayload(VariablePayload):
     names = ['circuit_id', 'identifier', 'cookie']
 
 
-class RendezvousEstablishedPayload(Payload):
+@vp_compile
+class RendezvousEstablishedPayload(VariablePayload):
     msg_id = 16
-    format_list = ['I', 'H', '4SH']
-
-    def __init__(self, circuit_id, identifier, rendezvous_point_addr):
-        super(RendezvousEstablishedPayload, self).__init__()
-        self.circuit_id = circuit_id
-        self.identifier = identifier
-        self.rendezvous_point_addr = rendezvous_point_addr
-
-    def to_pack_list(self):
-        host, port = self.rendezvous_point_addr
-        data = [('I', self.circuit_id),
-                ('H', self.identifier),
-                ('4SH', socket.inet_aton(host), port)]
-        return data
-
-    @classmethod
-    def from_unpack_list(cls, circuit_id, identifier, address):
-        rendezvous_point_addr = (socket.inet_ntoa(address[0]), address[1])
-        return RendezvousEstablishedPayload(circuit_id, identifier, rendezvous_point_addr)
+    format_list = ['I', 'H', 'ipv4']
+    names = ['circuit_id', 'identifier', 'rendezvous_point_addr']
 
 
 @vp_compile

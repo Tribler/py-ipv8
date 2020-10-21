@@ -530,7 +530,7 @@ class TunnelCommunity(Community):
                     candidate_list.pop(i)
 
             extend_hop_public_bin = next(iter(candidate_list), None)
-            extend_hop_addr = None
+            extend_hop_addr = ('0.0.0.0', 0)
 
         if extend_hop_public_bin:
             extend_hop_public_key = self.crypto.key_from_public_bin(extend_hop_public_bin)
@@ -551,8 +551,8 @@ class TunnelCommunity(Community):
 
             self.send_cell(circuit.peer, ExtendPayload(circuit.circuit_id,
                                                        circuit.unverified_hop.node_public_key,
-                                                       extend_hop_addr,
-                                                       circuit.unverified_hop.dh_first_part))
+                                                       circuit.unverified_hop.dh_first_part,
+                                                       extend_hop_addr))
 
         else:
             self.remove_circuit(circuit.circuit_id, "no candidates to extend")
@@ -717,7 +717,7 @@ class TunnelCommunity(Community):
         circuit_id = payload.circuit_id
         # Leave the RequestCache in case the circuit owner wants to reuse the tunnel for a different next-hop
         request = self.request_cache.get("created", circuit_id)
-        if not (payload.node_addr or payload.node_public_key in request.candidates):
+        if payload.node_addr == ('0.0.0.0', 0) and payload.node_public_key not in request.candidates:
             self.logger.warning("Node public key not in request candidates and no ip specified")
             return
 
