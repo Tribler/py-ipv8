@@ -304,10 +304,12 @@ class TunnelCommunity(Community):
 
         self.logger.info("Adding first hop %s:%d to circuit %d", *(first_hop.address + (circuit.circuit_id,)))
 
-        self.request_cache.add(RetryRequestCache(self, circuit, alt_first_hops, max_tries - 1,
-                                                 self.send_initial_create, self.settings.next_hop_timeout))
+        cache = RetryRequestCache(self, circuit, alt_first_hops, max_tries - 1,
+                                  self.send_initial_create, self.settings.next_hop_timeout)
+        self.request_cache.add(cache)
 
         self.send_cell(first_hop, CreatePayload(circuit.circuit_id,
+                                                cache.number,
                                                 self.my_peer.public_key.key_to_bin(),
                                                 circuit.unverified_hop.dh_first_part))
 
@@ -514,16 +516,13 @@ class TunnelCommunity(Community):
             _, candidate_list = decode(self.crypto.decrypt_str(candidate_list_enc,
                                                                hop.session_keys[EXIT_NODE],
                                                                hop.session_keys[EXIT_NODE_SALT]))
-            cache = self.request_cache.get("retry", payload.circuit_id)
+            cache = self.request_cache.pop("retry", payload.circuit_id)
             self.send_extend(circuit, candidate_list, cache.max_tries if cache else 1)
 
         elif circuit.state == CIRCUIT_STATE_READY:
-            self.request_cache.pop("retry", payload.circuit_id)
+            self.request_cache.pop("retry", payload.identifier)
 
     def send_extend(self, circuit, candidate_list, max_tries):
-        if self.request_cache.has("retry", circuit.circuit_id):
-            self.request_cache.pop("retry", circuit.circuit_id)
-
         ignore_candidates = [hop.node_public_key for hop in circuit.hops] + [self.my_peer.public_key.key_to_bin()]
         if circuit.required_exit:
             ignore_candidates.append(circuit.required_exit.public_key.key_to_bin())
@@ -562,10 +561,13 @@ class TunnelCommunity(Community):
                 alt_candidates = [c for c in candidate_list if c != extend_hop_public_bin]
             else:
                 alt_candidates = []
-            self.request_cache.add(RetryRequestCache(self, circuit, alt_candidates, max_tries - 1,
-                                                     self.send_extend, self.settings.next_hop_timeout))
+
+            cache = RetryRequestCache(self, circuit, alt_candidates, max_tries - 1,
+                                      self.send_extend, self.settings.next_hop_timeout)
+            self.request_cache.add(cache)
 
             self.send_cell(circuit.peer, ExtendPayload(circuit.circuit_id,
+                                                       cache.number,
                                                        circuit.unverified_hop.node_public_key,
                                                        circuit.unverified_hop.dh_first_part,
                                                        extend_hop_addr))
@@ -684,7 +686,7 @@ class TunnelCommunity(Community):
                                                      *self.crypto.get_session_keys(self.relay_session_keys[circuit_id],
                                                                                    EXIT_NODE))
         self.send_cell(Peer(create_payload.node_public_key, previous_node_address),
-                       CreatedPayload(circuit_id, key, auth, candidate_list_enc))
+                       CreatedPayload(circuit_id, create_payload.identifier, key, auth, candidate_list_enc))
 
     @unpack_cell(CreatePayload)
     async def on_create(self, source_address, payload, _):
@@ -706,7 +708,7 @@ class TunnelCommunity(Community):
         circuit_id = payload.circuit_id
         self.directions[circuit_id] = ORIGINATOR
 
-        if self.request_cache.has("create", payload.circuit_id):
+        if self.request_cache.has("create", circuit_id):
             request = self.request_cache.pop("create", circuit_id)
 
             self.logger.info("Got CREATED message forward as EXTENDED to origin.")
@@ -719,8 +721,9 @@ class TunnelCommunity(Community):
             self.remove_exit_socket(request.from_circuit_id)
 
             self.send_cell(relay.peer,
-                           ExtendedPayload(relay.circuit_id, payload.key, payload.auth, payload.candidate_list_enc))
-        elif self.request_cache.has("retry", payload.circuit_id):
+                           ExtendedPayload(relay.circuit_id, payload.identifier,
+                                           payload.key, payload.auth, payload.candidate_list_enc))
+        elif self.request_cache.has("retry", payload.identifier):
             circuit = self.circuits[circuit_id]
             self._ours_on_created_extended(circuit, payload)
         else:
@@ -731,6 +734,7 @@ class TunnelCommunity(Community):
         if PEER_FLAG_RELAY not in self.settings.peer_flags:
             self.logger.warning("Ignoring create for circuit %d", payload.circuit_id)
             return
+
         if not self.request_cache.has("created", payload.circuit_id):
             self.logger.warning("Received unexpected extend for circuit %d", payload.circuit_id)
             return
@@ -773,11 +777,12 @@ class TunnelCommunity(Community):
         self.request_cache.add(CreateRequestCache(self, to_circuit_id, circuit_id, candidate, extend_candidate))
 
         self.send_cell(extend_candidate,
-                       CreatePayload(to_circuit_id, self.my_peer.public_key.key_to_bin(), payload.key))
+                       CreatePayload(to_circuit_id, payload.identifier,
+                                     self.my_peer.public_key.key_to_bin(), payload.key))
 
     @unpack_cell(ExtendedPayload)
     def on_extended(self, source_address, payload, _):
-        if not self.request_cache.has("retry", payload.circuit_id):
+        if not self.request_cache.has("retry", payload.identifier):
             self.logger.warning("Received unexpected extended for circuit %s", payload.circuit_id)
             return
 

@@ -188,29 +188,29 @@ class CellPayload(object):
 @vp_compile
 class CreatePayload(VariablePayload):
     msg_id = 2
-    format_list = ['I', 'varlenH', 'varlenH']
-    names = ['circuit_id', 'node_public_key', 'key']
+    format_list = ['I', 'H', 'varlenH', 'varlenH']
+    names = ['circuit_id', 'identifier', 'node_public_key', 'key']
 
 
 @vp_compile
 class CreatedPayload(VariablePayload):
     msg_id = 3
-    format_list = ['I', 'varlenH', '32s', 'raw']
-    names = ['circuit_id', 'key', 'auth', 'candidate_list_enc']
+    format_list = ['I', 'H', 'varlenH', '32s', 'raw']
+    names = ['circuit_id', 'identifier', 'key', 'auth', 'candidate_list_enc']
 
 
 @vp_compile
 class ExtendPayload(VariablePayload):
     msg_id = 4
-    format_list = ['I', 'varlenH', 'varlenH', 'ipv4']
-    names = ['circuit_id', 'node_public_key', 'key', 'node_addr']
+    format_list = ['I', 'H', 'varlenH', 'varlenH', 'ipv4']
+    names = ['circuit_id', 'identifier', 'node_public_key', 'key', 'node_addr']
 
 
 @vp_compile
 class ExtendedPayload(VariablePayload):
     msg_id = 5
-    format_list = ['I', 'varlenH', '32s', 'raw']
-    names = ['circuit_id', 'key', 'auth', 'candidate_list_enc']
+    format_list = ['I', 'H', 'varlenH', '32s', 'raw']
+    names = ['circuit_id', 'identifier', 'key', 'auth', 'candidate_list_enc']
 
 
 @vp_compile
