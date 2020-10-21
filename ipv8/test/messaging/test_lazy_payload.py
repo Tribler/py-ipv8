@@ -100,6 +100,14 @@ class CompiledNewC(NewC):
     pass
 
 
+class E(VariablePayload):
+    """
+    A VariablePayload with a list of payloads.
+    """
+    format_list = [[A]]
+    names = ["list_of_A"]
+
+
 class TestVariablePayload(TestBase):
 
     def _pack_and_unpack(self, payload, instance):
@@ -304,3 +312,16 @@ class TestVariablePayload(TestBase):
         self.assertEqual(d.a, 0)
         self.assertEqual(deserialized.a, 0)
         self.assertEqual(serialized, b'\x00\x00\x00\x01')
+
+    def test_payload_list(self):
+        """
+        Check if unpacked payload lists works correctly.
+        """
+        e = E([A(1, 2), A(3, 4)])
+
+        deserialized = self._pack_and_unpack(E, e)
+
+        self.assertEqual(e.list_of_A[0].a, deserialized.list_of_A[0].a)
+        self.assertEqual(e.list_of_A[0].b, deserialized.list_of_A[0].b)
+        self.assertEqual(e.list_of_A[1].a, deserialized.list_of_A[1].a)
+        self.assertEqual(e.list_of_A[1].b, deserialized.list_of_A[1].b)
