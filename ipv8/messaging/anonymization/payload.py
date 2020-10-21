@@ -310,6 +310,12 @@ class PeersResponsePayload(VariablePayload):
     names = ['circuit_id', 'identifier', 'info_hash', 'peers']
 
 
+@vp_compile
+class RendezvousInfo(VariablePayload):
+    format_list = ['ipv4', 'varlenH', '20s']
+    names = ['address', 'key', 'cookie']
+
+
 class TestRequestPayload:
     msg_id = 30
 

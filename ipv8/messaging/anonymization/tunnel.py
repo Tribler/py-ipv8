@@ -346,8 +346,8 @@ class RendezvousPoint(object):
     def __init__(self, circuit, cookie):
         self.circuit = circuit
         self.cookie = cookie
+        self.address = None
         self.ready = Future()
-        self.rp_info = None
 
 
 class IntroductionPoint(object):

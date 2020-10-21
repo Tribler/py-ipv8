@@ -18,7 +18,6 @@ from .tunnel import (CIRCUIT_ID_PORT, CIRCUIT_TYPE_IP_SEEDER, CIRCUIT_TYPE_RP_DO
                      TunnelExitSocket)
 from ...keyvault.public.libnaclkey import LibNaCLPK
 from ...messaging.anonymization.pex import PexCommunity
-from ...messaging.deprecated.encoding import decode, encode
 from ...peer import Peer
 from ...peerdiscovery.discovery import RandomWalk
 from ...peerdiscovery.network import Network
@@ -359,17 +358,18 @@ class HiddenTunnelCommunity(TunnelCommunity):
                 if rp and await rp.ready:
                     self.create_created_e2e(rp, source_address, payload, circuit_id)
 
-    def create_created_e2e(self, rendezvous_point, source_address, payload, circuit_id):
+    def create_created_e2e(self, rp, source_address, payload, circuit_id):
         key = self.swarms[payload.info_hash].seeder_sk
         shared_secret, Y, AUTH = self.crypto.generate_diffie_shared_secret(payload.key, key)
-        rendezvous_point.circuit.hs_session_keys = self.crypto.generate_session_keys(shared_secret)
-        rp_info_enc = self.crypto.encrypt_str(
-            encode((rendezvous_point.rp_info, rendezvous_point.cookie)),
-            *self.crypto.get_session_keys(rendezvous_point.circuit.hs_session_keys, EXIT_NODE))
+        rp.circuit.hs_session_keys = self.crypto.generate_session_keys(shared_secret)
+
+        rp_info = RendezvousInfo(rp.address, rp.circuit.hops[-1].public_key.key_to_bin(), rp.cookie)
+        rp_info_bin = self.serializer.pack('payload', rp_info)
+        rp_info_enc = self.crypto.encrypt_str(rp_info_bin,
+                                              *self.crypto.get_session_keys(rp.circuit.hs_session_keys, EXIT_NODE))
 
         circuit = self.circuits[circuit_id]
-        self.tunnel_data(circuit, source_address,
-                         CreatedE2EPayload(payload.identifier, Y, AUTH, rp_info_enc))
+        self.tunnel_data(circuit, source_address, CreatedE2EPayload(payload.identifier, Y, AUTH, rp_info_enc))
 
     @unpack_cell(CreatedE2EPayload)
     async def on_created_e2e(self, source_address, payload, circuit_id):
@@ -384,12 +384,11 @@ class HiddenTunnelCommunity(TunnelCommunity):
                                                                       cache.hop.public_key.key.pk)
         session_keys = self.crypto.generate_session_keys(shared_secret)
 
-        _, decoded = decode(self.crypto.decrypt_str(payload.rp_info_enc,
-                                                    session_keys[EXIT_NODE],
-                                                    session_keys[EXIT_NODE_SALT]))
-        rp_info, cookie = decoded
+        rp_info_enc = payload.rp_info_enc
+        rp_info_bin = self.crypto.decrypt_str(rp_info_enc, session_keys[EXIT_NODE], session_keys[EXIT_NODE_SALT])
+        rp_info = self.serializer.unpack(RendezvousInfo, rp_info_bin)
 
-        required_exit = Peer(rp_info[2], rp_info[:2])
+        required_exit = Peer(rp_info.key, rp_info.address)
         circuit = self.create_circuit_for_infohash(cache.info_hash, CIRCUIT_TYPE_RP_DOWNLOADER,
                                                    required_exit=required_exit)
         if circuit:
@@ -397,7 +396,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
             if await circuit.ready:
                 cache = LinkRequestCache(self, circuit, cache.info_hash, session_keys)
                 self.request_cache.add(cache)
-                self.send_cell(circuit.peer, LinkE2EPayload(circuit.circuit_id, cache.number, cookie))
+                self.send_cell(circuit.peer, LinkE2EPayload(circuit.circuit_id, cache.number, rp_info.cookie))
 
     @unpack_cell(LinkE2EPayload)
     def on_link_e2e(self, source_address, payload, circuit_id):
@@ -528,9 +527,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
             return
 
         rp = self.request_cache.pop("establish-rendezvous", payload.identifier).rp
-
-        sock_addr = payload.rendezvous_point_addr
-        rp.rp_info = (sock_addr[0], sock_addr[1], self.crypto.key_to_bin(rp.circuit.hops[-1].public_key))
+        rp.address = payload.rendezvous_point_addr
         rp.ready.set_result(rp)
 
     async def dht_lookup(self, info_hash):
