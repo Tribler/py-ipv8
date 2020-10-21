@@ -15,7 +15,6 @@ from .tunnel import *
 from .tunnelcrypto import CryptoException, TunnelCrypto
 from ...community import Community
 from ...lazy_community import lazy_wrapper
-from ...messaging.deprecated.encoding import decode, encode
 from ...messaging.payload_headers import BinMemberAuthenticationPayload
 from ...peer import Peer
 from ...requestcache import RequestCache
@@ -513,10 +512,12 @@ class TunnelCommunity(Community):
 
         if circuit.state == CIRCUIT_STATE_EXTENDING:
             candidate_list_enc = payload.candidate_list_enc
-            _, candidate_list = decode(self.crypto.decrypt_str(candidate_list_enc,
-                                                               hop.session_keys[EXIT_NODE],
-                                                               hop.session_keys[EXIT_NODE_SALT]))
-            cache = self.request_cache.pop("retry", payload.circuit_id)
+            candidate_list_bin = self.crypto.decrypt_str(candidate_list_enc,
+                                                         hop.session_keys[EXIT_NODE],
+                                                         hop.session_keys[EXIT_NODE_SALT])
+            candidate_list = self.serializer.unpack('varlenH-list', candidate_list_bin)
+
+            cache = self.request_cache.pop("retry", payload.identifier)
             self.send_extend(circuit, candidate_list, cache.max_tries if cache else 1)
 
         elif circuit.state == CIRCUIT_STATE_READY:
@@ -682,7 +683,8 @@ class TunnelCommunity(Community):
         self.request_cache.add(CreatedRequestCache(self, circuit_id, peer, peers_keys, self.settings.unstable_timeout))
         self.exit_sockets[circuit_id] = TunnelExitSocket(circuit_id, peer, self)
 
-        candidate_list_enc = self.crypto.encrypt_str(encode(list(peers_keys.keys())),
+        candidate_list_bin = self.serializer.pack('varlenH-list', list(peers_keys.keys()))
+        candidate_list_enc = self.crypto.encrypt_str(candidate_list_bin,
                                                      *self.crypto.get_session_keys(self.relay_session_keys[circuit_id],
                                                                                    EXIT_NODE))
         self.send_cell(Peer(create_payload.node_public_key, previous_node_address),
