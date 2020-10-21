@@ -298,9 +298,15 @@ class PeersRequestPayload(VariablePayload):
 
 
 @vp_compile
+class IntroductionInfo(VariablePayload):
+    format_list = ['ipv4', 'varlenH', 'varlenH', 'B']
+    names = ['address', 'key', 'seeder_pk', 'source']
+
+
+@vp_compile
 class PeersResponsePayload(VariablePayload):
     msg_id = 22
-    format_list = ['I', 'H', '20s', 'raw']
+    format_list = ['I', 'H', '20s', [IntroductionInfo]]
     names = ['circuit_id', 'identifier', 'info_hash', 'peers']
 
 

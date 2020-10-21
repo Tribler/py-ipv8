@@ -302,9 +302,9 @@ class HiddenTunnelCommunity(TunnelCommunity):
             self.logger.warning("Received a peers-request over the socket, but unable to do a PEX lookup")
 
     def send_peers_response(self, target_addr, request, intro_points, circuit_id):
-        result = encode([(ip.peer.address, ip.peer.public_key.key_to_bin(),
-                          ip.seeder_pk, ip.source) for ip in intro_points[:7]])
-        payload = PeersResponsePayload(request.circuit_id, request.identifier, request.info_hash, result)
+        peers = [IntroductionInfo(ip.peer.address, ip.peer.public_key.key_to_bin(),
+                                  ip.seeder_pk, ip.source) for ip in intro_points[:7]]
+        payload = PeersResponsePayload(request.circuit_id, request.identifier, request.info_hash, peers)
 
         if circuit_id is not None:
             # Send back to origin
@@ -321,10 +321,9 @@ class HiddenTunnelCommunity(TunnelCommunity):
             return
         cache = self.request_cache.pop("peers-request", payload.identifier)
 
-        _, peers = decode(payload.peers)
-        self.logger.info("Received peers-response containing %d peers", len(peers))
-        ips = [IntroductionPoint(Peer(ip_pk, address=address), seeder_pk, source)
-               for address, ip_pk, seeder_pk, source in peers if address != ('0.0.0.0', 0)]
+        self.logger.info("Received peers-response containing %d peers", len(payload.peers))
+        ips = [IntroductionPoint(Peer(peer.key, address=peer.address), peer.seeder_pk, peer.source)
+               for peer in payload.peers if peer.address != ('0.0.0.0', 0)]
         cache.future.set_result(ips)
 
     def create_e2e(self, info_hash, intro_point):
