@@ -4,7 +4,7 @@ import struct
 import typing
 
 from ..keyvault.crypto import ECCrypto
-from ..keyvault.keys import PrivateKey, PublicKey
+from ..types import PrivateKey, PublicKey
 
 T = typing.TypeVar('T')
 

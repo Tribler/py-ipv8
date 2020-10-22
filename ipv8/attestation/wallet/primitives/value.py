@@ -1,4 +1,4 @@
-from cryptography.hazmat.primitives.asymmetric.rsa import _modinv
+from cryptography.hazmat.primitives.asymmetric.rsa import _modinv  # type:ignore
 
 
 def format_polynomial(a, b, c):

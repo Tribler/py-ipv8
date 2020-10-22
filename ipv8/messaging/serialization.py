@@ -1,4 +1,5 @@
 import abc
+import typing
 from binascii import hexlify
 from socket import inet_aton, inet_ntoa
 from struct import Struct, pack, unpack_from
@@ -340,7 +341,7 @@ class Serializable(metaclass=abc.ABCMeta):
     Interface for serializable objects.
     """
 
-    format_list = []
+    format_list: typing.List[str] = []
 
     @abc.abstractmethod
     def to_pack_list(self):

@@ -5,18 +5,14 @@ from binascii import hexlify, unhexlify
 from time import time
 
 from .attestation import Attestation
-from .database import Credential
-from .manager import IdentityManager, PseudonymManager
-from .metadata import Metadata
+from .manager import IdentityManager
 from .payload import AttestPayload, DiclosePayload, MissingResponsePayload, RequestMissingPayload
 from ...community import Community, DEFAULT_MAX_PEERS
-from ...keyvault.keys import PrivateKey, PublicKey
 from ...lazy_community import lazy_wrapper
-from ...messaging.interfaces.endpoint import Endpoint
 from ...peer import Peer
 from ...peerdiscovery.discovery import RandomWalk
 from ...peerdiscovery.network import Network
-
+from ...types import Credential, Endpoint, Metadata, PrivateKey, PseudonymManager, PublicKey, Token
 
 SAFE_UDP_PACKET_LENGTH = 1296
 
@@ -25,8 +21,8 @@ class IdentityCommunity(Community):
 
     community_id = unhexlify('d5889074c1e4c50423cdb6e9307ee0ca5695ead7')
 
-    def __init__(self, my_peer, endpoint, network=None, max_peers=DEFAULT_MAX_PEERS,
-                 anonymize=True, identity_manager=None, working_directory="."):
+    def __init__(self, my_peer: Peer, endpoint: Endpoint, network: Network = None, max_peers: int = DEFAULT_MAX_PEERS,
+                 anonymize: bool = True, identity_manager: IdentityManager = None, working_directory: str = "."):
         if network is None:
             network = Network()
         super(IdentityCommunity, self).__init__(my_peer, endpoint, network, max_peers, anonymize)
@@ -36,17 +32,18 @@ class IdentityCommunity(Community):
             identity_manager = IdentityManager(database_path=dbpath)
 
         # Dict of hash -> (attribute_name, date, public_key)
-        self.known_attestation_hashes = {}
+        self.known_attestation_hashes: typing.Dict[bytes, typing.Tuple[str, float, PublicKey,
+                                                                       typing.Optional[typing.Dict[str, str]]]] = {}
 
         self.identity_manager = identity_manager
         self.pseudonym_manager = identity_manager.get_pseudonym(self.my_peer.key)
 
         # We assume other people try to cheat us with trees.
         # We don't attack ourselves though and just maintain a chain of attributes per pseudonym.
-        self.token_chain = []
+        self.token_chain: typing.List[Token] = []
         self.metadata_chain = []
         self.attestation_chain = []
-        self.permissions = {}  # Map of peer to highest index
+        self.permissions: typing.Dict[Peer, int] = {}  # Map of peer to highest index
 
         # Pick the longest chain in case of bugs or malicious behavior.. hello Bitcoin.
         for token in self.pseudonym_manager.tree.elements.values():
@@ -66,7 +63,7 @@ class IdentityCommunity(Community):
         self.add_message_handler(RequestMissingPayload, self.on_request_missing)
         self.add_message_handler(MissingResponsePayload, self.on_missing_response)
 
-    def pad_hash(self, attribute_hash):
+    def pad_hash(self, attribute_hash: bytes) -> bytes:
         """
         Pad an old-style SHA-1 hash into the new 32 byte SHA3-256 space.
         """
@@ -77,7 +74,7 @@ class IdentityCommunity(Community):
                        attribute_hash: bytes,
                        name: str,
                        public_key: PublicKey,
-                       metadata: typing.Optional[dict] = None) -> None:
+                       metadata: typing.Optional[typing.Dict[str, str]] = None) -> None:
         """
         We know about this hash+peer combination. Thus we can handle sign requests for it.
         """
@@ -177,17 +174,18 @@ class IdentityCommunity(Community):
                         self.ez_send(peer, AttestPayload(attestation.get_plaintext_signed()))
             for attribute_hash in required_attributes:
                 if attribute_hash not in known_attributes:
-                    self.logger.info(f"Missing information for attestation {attribute_hash}, requesting more!")
+                    self.logger.info("Missing information for attestation %s, requesting more!",
+                                     hexlify(attribute_hash).decode())
                     self.ez_send(peer, RequestMissingPayload(len(pseudonym.tree.elements)))
         else:
-            self.logger.warning(f"Received unsolicited disclosure from {str(peer)}, dropping!")
+            self.logger.warning("Received unsolicited disclosure from %s, dropping!", str(peer))
 
     def request_attestation_advertisement(self,
                                           peer: Peer,
                                           attribute_hash: bytes,
                                           name: str,
                                           block_type: str = "id_metadata",
-                                          metadata: typing.Optional[dict] = None):
+                                          metadata: typing.Optional[dict] = None) -> None:
         """
         Request a peer to sign for our attestation advertisement.
         :param peer: the attestor of our block
@@ -284,23 +282,23 @@ class IdentityCommunity(Community):
 
 
 async def create_community(private_key: PrivateKey, ipv8, identity_manager: IdentityManager,
-                           endpoint: typing.Optional[Endpoint] = None, working_directory: str = None,
+                           endpoint: typing.Optional[Endpoint] = None, working_directory: typing.Optional[str] = None,
                            anonymize: bool = True,
                            rendezvous_token: typing.Optional[bytes] = None) -> IdentityCommunity:
     my_peer = Peer(private_key)
     if endpoint is None:
         endpoint = await ipv8.produce_anonymized_endpoint()
-    if not working_directory:
-        working_directory = ipv8.configuration.get("working_directory")
+    working_directory_str: str = (ipv8.configuration.get("working_directory") if not working_directory
+                                  else working_directory)
     overlay_cls = IdentityCommunity
     if rendezvous_token is not None:
         token_str = hexlify(rendezvous_token).decode()
         rendezvous_id = bytes(b ^ rendezvous_token[i] if i < len(rendezvous_token) else b
                               for i, b in enumerate(IdentityCommunity.community_id))
-        overlay_cls = type(f"IdentityCommunity-{token_str}", (IdentityCommunity, ), {
+        overlay_cls = type(f"IdentityCommunity-{token_str}", (IdentityCommunity, ), {  # type:ignore
             'community_id': rendezvous_id
         })
     community = overlay_cls(my_peer, endpoint, identity_manager=identity_manager,
-                            working_directory=working_directory, anonymize=anonymize)
+                            working_directory=working_directory_str, anonymize=anonymize)
     ipv8.add_strategy(community, RandomWalk(community), -1)
     return community

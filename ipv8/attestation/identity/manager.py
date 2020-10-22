@@ -7,10 +7,10 @@ import typing
 from .attestation import Attestation
 from .database import Credential, IdentityDatabase
 from .metadata import Metadata
-from ..tokentree.token import Token
 from ..tokentree.tree import TokenTree
 from ...keyvault.crypto import ECCrypto
-from ...keyvault.keys import PrivateKey, PublicKey
+from ...keyvault.keys import PrivateKey
+from ...types import PublicKey, Token
 
 
 class PseudonymManager(object):
@@ -63,6 +63,7 @@ class PseudonymManager(object):
                 out = Credential(metadata, valid_attestations)
                 self.credentials.append(out)
                 return out
+        return None
 
     def add_attestation(self, public_key: PublicKey, attestation: Attestation) -> bool:
         """
@@ -104,7 +105,7 @@ class PseudonymManager(object):
         preceding = None if after is None else self.tree.elements.get(after.token_pointer, None)
         token = self.tree.add_by_hash(attestation_hash, preceding)
         metadata = Metadata(token.get_hash(), json.dumps(metadata_json).encode(), self.tree.private_key)
-        return self.add_credential(token, metadata, set())
+        return self.add_credential(token, metadata, set())  # type:ignore
 
     def get_credential(self, metadata: Metadata) -> Credential:
         """

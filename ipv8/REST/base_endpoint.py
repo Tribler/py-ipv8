@@ -1,5 +1,6 @@
 import json
 import logging
+import typing
 
 from aiohttp import web
 
@@ -10,7 +11,7 @@ HTTP_CONFLICT = 409
 HTTP_PRECONDITION_FAILED = 412
 HTTP_INTERNAL_SERVER_ERROR = 500
 
-DEFAULT_HEADERS = {}
+DEFAULT_HEADERS: typing.Dict[str, str] = {}
 
 
 class BaseEndpoint:

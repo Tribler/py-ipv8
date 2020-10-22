@@ -7,7 +7,7 @@ The authors of this file are not -in any way- affiliated with the original autho
 """
 from random import randint
 
-from cryptography.hazmat.primitives.asymmetric.rsa import _modinv
+from cryptography.hazmat.primitives.asymmetric.rsa import _modinv  # type:ignore
 
 from .credential import Credential
 from .keys import CLSignature, DefaultSystemParameters, signMessageBlockAndCommitment

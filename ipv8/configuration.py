@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import copy
 import enum
 import socket
@@ -131,9 +133,6 @@ class WalkerDefinition(typing.NamedTuple):
     init: dict
 
 
-ConfigBuilderType = typing.TypeVar('ConfigBuilderType', bound='ConfigBuilder')
-
-
 class ConfigBuilder(object):
 
     def __init__(self, clean: bool = False):
@@ -184,21 +183,21 @@ class ConfigBuilder(object):
 
         return self.config
 
-    def clear_keys(self) -> ConfigBuilderType:
+    def clear_keys(self) -> ConfigBuilder:
         """
         Remove all keys in the current configuration.
         """
         self.config['keys'] = []
         return self
 
-    def clear_overlays(self) -> ConfigBuilderType:
+    def clear_overlays(self) -> ConfigBuilder:
         """
         Remove all overlays in the current configuration.
         """
         self.config['overlays'] = []
         return self
 
-    def set_address(self, address: str) -> ConfigBuilderType:
+    def set_address(self, address: str) -> ConfigBuilder:
         """
         Set the address IPv8 is to try and bind to.
 
@@ -209,7 +208,7 @@ class ConfigBuilder(object):
         self.config['address'] = address
         return self
 
-    def set_port(self, port: int) -> ConfigBuilderType:
+    def set_port(self, port: int) -> ConfigBuilder:
         """
         Set the port that IPv8 should TRY to bind to.
         If your port is not available, IPv8 will try and find another one.
@@ -217,7 +216,7 @@ class ConfigBuilder(object):
         self.config['port'] = port
         return self
 
-    def set_log_level(self, log_level: str) -> ConfigBuilderType:
+    def set_log_level(self, log_level: str) -> ConfigBuilder:
         """
         Set the log level for all of IPv8's loggers.
         Choose from 'CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG' or 'NOTSET'.
@@ -226,7 +225,7 @@ class ConfigBuilder(object):
         self.config['logger'] = {'level': log_level}
         return self
 
-    def set_working_directory(self, folder_path: str) -> ConfigBuilderType:
+    def set_working_directory(self, folder_path: str) -> ConfigBuilder:
         """
         Set the common working directory for overlays.
 
@@ -235,7 +234,7 @@ class ConfigBuilder(object):
         self.config['working_directory'] = folder_path
         return self
 
-    def set_walker_interval(self, interval: float) -> ConfigBuilderType:
+    def set_walker_interval(self, interval: float) -> ConfigBuilder:
         """
         Set the interval, in seconds, at which IPv8 schedules its strategies.
 
@@ -246,7 +245,7 @@ class ConfigBuilder(object):
         self.config['walker_interval'] = interval
         return self
 
-    def add_key(self, alias: str, generation: str, file_path: str) -> ConfigBuilderType:
+    def add_key(self, alias: str, generation: str, file_path: str) -> ConfigBuilder:
         """
         Add a key by alias and mode of generation, to be stored at a certain file path.
 
@@ -270,7 +269,7 @@ class ConfigBuilder(object):
                     walkers: typing.List[WalkerDefinition],
                     initialize: typing.Dict[str, typing.Any],
                     on_start: typing.List[tuple],
-                    allow_duplicate: bool = False) -> ConfigBuilderType:
+                    allow_duplicate: bool = False) -> ConfigBuilder:
         """
         Add an overlay by its class name. You can choose from the default communities or register your own (see IPv8's
         ``extra_communities`` for the latter). Whatever key alias you choose for this overlay should be registered

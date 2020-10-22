@@ -5,7 +5,7 @@ All rights reserved.
 This source code has been ported from https://github.com/privacybydesign/gabi
 The authors of this file are not -in any way- affiliated with the original authors or organizations.
 """
-from cryptography.hazmat.primitives.asymmetric.rsa import _modinv
+from cryptography.hazmat.primitives.asymmetric.rsa import _modinv  # type:ignore
 
 from pyasn1.codec.ber.encoder import encode
 from pyasn1.type import univ
