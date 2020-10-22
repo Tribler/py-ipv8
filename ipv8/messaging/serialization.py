@@ -261,6 +261,33 @@ class Serializer(object):
         """
         self._packers[name] = packer
 
+    def pack(self, fmt, item):
+        """
+        Pack data without using a Serializable. Using a Serializable is the preferred method.
+        :param fmt: the name of the packer to use while packing
+        :param item: object to pack
+        :return: the packed data
+        :rtype: bytes
+        """
+        return self._packers[fmt].pack(item)
+
+    def unpack(self, fmt, data):
+        """
+        Unpack data without using a Serializable. Using a Serializable is the preferred method.
+        :param fmt: the name of the packer to use while unpacking
+        :param data: bytes to unpack
+        :return: the unpacked object
+        :rtype: object
+        """
+        unpack_list = []
+        if isinstance(fmt, str):
+            self._packers[fmt].unpack(data, 0, unpack_list)
+        elif isinstance(fmt, list):
+            self._packers['payload-list'].unpack(data, 0, unpack_list, fmt[0])
+        else:
+            self._packers['payload'].unpack(data, 0, unpack_list, fmt)
+        return unpack_list[0]
+
     def pack_serializable(self, serializable):
         """
         Serialize a single Serializable instance.
