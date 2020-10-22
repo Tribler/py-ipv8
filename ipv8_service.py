@@ -77,7 +77,7 @@ else:
                                                    UDPIPv4={'port': configuration['port'],
                                                             'ip': configuration['address']})
                 if enable_statistics:
-                    self.endpoint = StatisticsEndpoint(self, self.endpoint)
+                    self.endpoint = StatisticsEndpoint(self.endpoint)
                 if any([overlay.get('initialize', {}).get('anonymize') for overlay in configuration['overlays']]):
                     self.endpoint = TunnelEndpoint(self.endpoint)
 

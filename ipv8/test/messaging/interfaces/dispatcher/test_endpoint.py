@@ -1,6 +1,6 @@
 from ....base import TestBase
 from .....messaging.interfaces.dispatcher.endpoint import (DispatcherEndpoint, FAST_ADDR_TO_INTERFACE, INTERFACES,
-                                                           PREFERENCE_ORDER)
+                                                           PREFERENCE_ORDER, guess_interface)
 from .....messaging.interfaces.endpoint import Endpoint, EndpointListener
 from .....messaging.interfaces.udp.endpoint import UDPv4Address
 
@@ -147,6 +147,7 @@ class TestDispatcherEndpoint(TestBase):
         # The Child Endpoint is closed and the Dispatcher Endpoint propagates the child's status.
         self.assertFalse(child_endpoint.is_open())
         self.assertFalse(endpoint.is_open())
+        self.assertRaises(AssertionError, endpoint.assert_open)
 
     async def test_remove_listener(self):
         """
@@ -222,3 +223,39 @@ class TestDispatcherEndpoint(TestBase):
         # Prefix listener should've ignored "data" and only received "sata".
         self.assertEqual(2, len(listener1.incoming))
         self.assertEqual(1, len(listener2.incoming))
+
+    async def test_guess_interface_ipv4(self):
+        """
+        Check if guess_interface guesses IPv4 interfaces correctly.
+        """
+        self.assertEqual("UDPIPv4", guess_interface(("1.2.3.4", 5)))
+
+    async def test_guess_interface_ipv6(self):
+        """
+        Check if guess_interface guesses IPv6 interfaces correctly.
+        """
+        self.assertEqual("UDPIPv6", guess_interface(("2001:0db8:0000:0000:0000:ff00:0042:8329", 5)))
+
+    async def test_guess_interface_ipv6_short(self):
+        """
+        Check if guess_interface guesses shortened IPv6 interfaces correctly.
+        """
+        self.assertEqual("UDPIPv6", guess_interface(("2001:db8:0:0:0:ff00:42:8329", 5)))
+
+    async def test_guess_interface_ipv6_very_short(self):
+        """
+        Check if guess_interface guesses zero-omitted IPv6 interfaces correctly.
+        """
+        self.assertEqual("UDPIPv6", guess_interface(("2001:db8::ff00:42:8329", 5)))
+
+    async def test_guess_interface_ipv6_ipv4map(self):
+        """
+        Check if guess_interface guesses IPv4 mapped onto IPv6 interfaces correctly.
+        """
+        self.assertEqual("UDPIPv6", guess_interface(("::ffff:192.0.2.128", 5)))
+
+    async def test_guess_interface_unknown(self):
+        """
+        Check if guess_interface guesses None if the interface is invalid.
+        """
+        self.assertIsNone(guess_interface(("2001:db8:::ff00:42:8329", 5)))

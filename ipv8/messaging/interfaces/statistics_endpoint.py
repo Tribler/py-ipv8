@@ -19,10 +19,9 @@ class StatisticsEndpoint(EndpointListener):
     IDS_PUNCTURE = [249, 250]
     IDS_DEPRECATED = [235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 247, 248, 251, 252, 253, 254, 255]
 
-    def __init__(self, ipv8, ipv8_endpoint):
-        EndpointListener.__init__(self, ipv8_endpoint)
-        self.ipv8 = ipv8
-        self.endpoint = ipv8_endpoint
+    def __init__(self, endpoint):
+        EndpointListener.__init__(self, endpoint)
+        self.endpoint = endpoint
         self.endpoint.add_listener(self)
         self.statistics = {}
 
@@ -136,7 +135,7 @@ class StatisticsEndpoint(EndpointListener):
         if prefix in self.statistics:
             for identifier in self.statistics[prefix]:
                 if not self.is_excluded(identifier, include_introduction, include_puncture, include_deprecated):
-                    bytes_received += self.statistics[identifier].bytes_down
+                    bytes_received += self.statistics[prefix][identifier].bytes_down
         return bytes_received
 
     def is_excluded(self, identifier, include_introduction, include_puncture, include_deprecated):
