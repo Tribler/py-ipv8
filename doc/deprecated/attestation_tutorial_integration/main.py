@@ -1,10 +1,27 @@
 from asyncio import ensure_future, get_event_loop
 from base64 import b64encode
+from binascii import unhexlify
+from sys import argv
 
 from ipv8.REST.rest_manager import RESTManager
+from ipv8.attestation.identity.community import IdentityCommunity
+from ipv8.attestation.wallet.community import AttestationCommunity
 from ipv8.configuration import get_default_configuration
+from ipv8.peerdiscovery.community import DiscoveryCommunity
 
 from ipv8_service import IPv8
+
+
+class IsolatedIdentityCommunity(IdentityCommunity):
+    community_id = unhexlify(argv[1])
+
+
+class IsolatedAttestationCommunity(AttestationCommunity):
+    community_id = unhexlify(argv[2])
+
+
+class IsolatedDiscoveryCommunity(DiscoveryCommunity):
+    community_id = unhexlify(argv[3])
 
 
 async def start_communities():
@@ -23,7 +40,7 @@ async def start_communities():
 
         # Only load the basic communities
         configuration['overlays'] = [{
-            'class': 'DiscoveryCommunity',
+            'class': 'IsolatedDiscoveryCommunity',
             'key': "anonymous id",
             'walkers': [
                 {
@@ -55,7 +72,7 @@ async def start_communities():
             ]
         },
             {
-                'class': 'AttestationCommunity',
+                'class': 'IsolatedAttestationCommunity',
                 'key': "anonymous id",
                 'walkers': [{
                     'strategy': "RandomWalk",
@@ -64,11 +81,11 @@ async def start_communities():
                         'timeout': 3.0
                     }
                 }],
-                'initialize': {},
+                'initialize': {'working_directory': 'state_%d' % i},
                 'on_start': []
             },
             {
-                'class': 'IdentityCommunity',
+                'class': 'IsolatedIdentityCommunity',
                 'key': "anonymous id",
                 'walkers': [{
                     'strategy': "RandomWalk",
@@ -77,18 +94,16 @@ async def start_communities():
                         'timeout': 3.0
                     }
                 }],
-                'initialize': {},
+                'initialize': {'working_directory': 'state_%d' % i},
                 'on_start': []
             }]
 
-        # Give each peer a separate working directory
-        working_directory_overlays = ['AttestationCommunity', 'IdentityCommunity']
-        for overlay in configuration['overlays']:
-            if overlay['class'] in working_directory_overlays:
-                overlay['initialize'] = {'working_directory': 'state_%d' % i}
-
         # Start the IPv8 service
-        ipv8 = IPv8(configuration)
+        ipv8 = IPv8(configuration, extra_communities={
+            'IsolatedDiscoveryCommunity': IsolatedDiscoveryCommunity,
+            'IsolatedAttestationCommunity': IsolatedAttestationCommunity,
+            'IsolatedIdentityCommunity': IsolatedIdentityCommunity
+        })
         await ipv8.start()
         rest_manager = RESTManager(ipv8)
         await rest_manager.start(14410 + i)

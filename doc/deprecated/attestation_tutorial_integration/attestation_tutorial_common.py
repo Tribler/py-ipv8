@@ -1,3 +1,4 @@
+import binascii
 import json
 import os
 import signal
@@ -7,6 +8,9 @@ import urllib.parse
 import urllib.request
 
 PROCESS = None
+ID1 = binascii.hexlify(os.urandom(20)).decode()
+ID2 = binascii.hexlify(os.urandom(20)).decode()
+ID3 = binascii.hexlify(os.urandom(20)).decode()
 
 
 def http_get(url):
@@ -46,7 +50,7 @@ def start():
     Run the main.py script and wait for it to finish initializing.
     """
     global PROCESS
-    PROCESS = subprocess.Popen('python3 main.py', shell=True, preexec_fn=os.setsid)
+    PROCESS = subprocess.Popen(f'python3 main.py {ID1} {ID2} {ID3}', shell=True, preexec_fn=os.setsid)
     os.waitpid(PROCESS.pid, os.P_NOWAITO)
     time.sleep(5.0)
 
