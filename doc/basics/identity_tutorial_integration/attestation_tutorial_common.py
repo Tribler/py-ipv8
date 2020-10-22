@@ -1,3 +1,4 @@
+import base64
 import json
 import os
 import signal
@@ -7,6 +8,7 @@ import urllib.parse
 import urllib.request
 
 PROCESS = None
+BASE_HEADERS = {"X-Rendezvous": base64.b64encode(os.urandom(20)).decode()}
 
 
 def http_get(url):
@@ -20,6 +22,8 @@ def http_post(url, headers=None, data=None):
     """
     Perform an HTTP POST request to the given URL.
     """
+    if headers:
+        headers.update(BASE_HEADERS)
     return json.loads(urllib.request.urlopen(urllib.request.Request(url, method="PUT", headers=headers, data=data))
                       .read().decode())
 
