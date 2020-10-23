@@ -8,6 +8,7 @@ from ...mocking.exit_socket import MockTunnelExitSocket
 from ...mocking.ipv8 import MockIPv8
 from ....messaging.anonymization.community import CIRCUIT_TYPE_RP_DOWNLOADER, TunnelSettings
 from ....messaging.anonymization.hidden_services import HiddenTunnelCommunity
+from ....messaging.anonymization.payload import TestRequestPayload
 from ....messaging.anonymization.tunnel import (CIRCUIT_TYPE_DATA, CIRCUIT_TYPE_IP_SEEDER, IntroductionPoint,
                                                 PEER_FLAG_EXIT_BT, PEER_FLAG_SPEED_TEST, PEER_SOURCE_DHT)
 from ....peer import Peer
@@ -312,13 +313,13 @@ class TestHiddenServices(TestBase):
         send_cell = self.overlay(0).send_cell
         self.overlay(0).send_cell = Mock(wraps=send_cell)
         on_test_request = self.overlay(2).on_test_request
-        self.overlay(2).decode_map_private[30] = Mock(wraps=on_test_request)
+        self.overlay(2).decode_map_private[TestRequestPayload.msg_id] = Mock(wraps=on_test_request)
 
         circuit, = self.overlay(0).find_circuits(ctype=CIRCUIT_TYPE_RP_DOWNLOADER)
         data, _ = await self.overlay(0).send_test_request(circuit, 3, 6)
         self.assertEqual(len(self.overlay(0).send_cell.call_args[0][1].data), 3)
         self.assertEqual(len(data), 6)
-        self.overlay(2).decode_map_private[30].assert_called_once()
+        self.overlay(2).decode_map_private[TestRequestPayload.msg_id].assert_called_once()
 
         self.overlay(0).leave_swarm(self.service)
         self.overlay(2).leave_swarm(self.service)

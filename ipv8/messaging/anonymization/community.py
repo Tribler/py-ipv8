@@ -154,6 +154,12 @@ class TunnelCommunity(Community):
 
         await super(TunnelCommunity, self).unload()
 
+    def get_serializer(self):
+        serializer = super().get_serializer()
+        serializer.add_packer('address', Address())
+        serializer.add_packer('flags', Flags())
+        return serializer
+
     def add_cell_handler(self, payload_cls, handler):
         self.decode_map_private[payload_cls.msg_id] = handler
 
@@ -427,10 +433,7 @@ class TunnelCommunity(Community):
 
     def send_cell(self, peer, payload):
         circuit_id = payload.circuit_id
-        if isinstance(payload, (DataPayload, TestRequestPayload, TestResponsePayload)):
-            message = payload.to_bin()
-        else:
-            message = self.serializer.pack_serializable(payload)[4:]
+        message = self.serializer.pack_serializable(payload)[4:]
         cell = CellPayload(circuit_id, pack('!B', payload.msg_id) + message)
 
         cell.plaintext = payload.msg_id in NO_CRYPTO_PACKETS
@@ -463,7 +466,7 @@ class TunnelCommunity(Community):
     def send_destroy(self, peer, circuit_id, reason):
         auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin())
         payload = DestroyPayload(circuit_id, reason)
-        packet = self._ez_pack(self._prefix, 10, [auth, payload])
+        packet = self._ez_pack(self._prefix, DestroyPayload.msg_id, [auth, payload])
         self.send_packet(peer, packet)
 
     def relay_cell(self, cell):
@@ -800,7 +803,7 @@ class TunnelCommunity(Community):
         pass
 
     def on_data(self, sock_addr, data, _):
-        payload = DataPayload.from_bin(data)
+        payload, _ = self.serializer.unpack_serializable(DataPayload, data, offset=23)
 
         # If its our circuit, the messenger is the candidate assigned to that circuit and the DATA's destination
         # is set to the zero-address then the packet is from the outside world and addressed to us from.
@@ -929,7 +932,7 @@ class TunnelCommunity(Community):
             self.logger.warning("Ignoring test-request from circuit %d", circuit_id)
             return
 
-        payload = TestRequestPayload.from_bin(data)
+        payload, _ = self.serializer.unpack_serializable(TestRequestPayload, data, offset=23)
         exit_socket = self.exit_sockets.get(circuit_id)
         circuit = self.circuits.get(circuit_id)
         if not exit_socket and not (circuit and circuit.ctype == CIRCUIT_TYPE_RP_SEEDER):
@@ -942,7 +945,7 @@ class TunnelCommunity(Community):
                        TestResponsePayload(circuit_id, payload.identifier, os.urandom(payload.response_size)))
 
     def on_test_response(self, source_address, data, circuit_id):
-        payload = TestResponsePayload.from_bin(data)
+        payload, _ = self.serializer.unpack_serializable(TestResponsePayload, data, offset=23)
         circuit = self.circuits.get(circuit_id)
         if not circuit:
             self.logger.error("Dropping test-response with unknown circuit_id")
