@@ -26,7 +26,7 @@ class TestCommunity(TestBase):
         Check if the request_attestation callback is correctly called.
         """
         def f(peer, attribute_name, metadata):
-            self.assertEqual(peer.address, self.nodes[1].endpoint.wan_address)
+            self.assertEqual(peer.address, self.address(1))
             self.assertEqual(attribute_name, "MyAttribute")
             self.assertDictEqual(metadata, {})
 
@@ -35,17 +35,15 @@ class TestCommunity(TestBase):
 
         await self.introduce_nodes()
 
-        self.nodes[0].overlay.set_attestation_request_callback(f)
+        self.overlay(0).set_attestation_request_callback(f)
 
-        self.nodes[1].overlay.request_attestation(self.nodes[0].overlay.my_peer,
-                                                  "MyAttribute",
-                                                  TestCommunity.private_key)
+        self.overlay(1).request_attestation(self.my_peer(0), "MyAttribute", TestCommunity.private_key)
 
         await self.deliver_messages()
 
         self.assertTrue(f.called)
         # Request for attribute attestation goes unanswered
-        self.nodes[1].overlay.request_cache.clear()
+        self.overlay(1).request_cache.clear()
 
     async def test_request_attestation_twice_callback(self):
         """
@@ -53,7 +51,7 @@ class TestCommunity(TestBase):
         """
 
         def f(peer, attribute_name, metadata):
-            self.assertEqual(peer.address, self.nodes[1].endpoint.wan_address)
+            self.assertEqual(peer.address, self.address(1))
             self.assertEqual(attribute_name, "MyAttribute")
             self.assertDictEqual(metadata, {})
 
@@ -63,20 +61,16 @@ class TestCommunity(TestBase):
 
         await self.introduce_nodes()
 
-        self.nodes[0].overlay.set_attestation_request_callback(f)
+        self.overlay(0).set_attestation_request_callback(f)
 
-        self.nodes[1].overlay.request_attestation(self.nodes[0].overlay.my_peer,
-                                                  "MyAttribute",
-                                                  TestCommunity.private_key)
-        self.nodes[1].overlay.request_attestation(self.nodes[0].overlay.my_peer,
-                                                  "MyAttribute",
-                                                  TestCommunity.private_key)
+        self.overlay(1).request_attestation(self.my_peer(0), "MyAttribute", TestCommunity.private_key)
+        self.overlay(1).request_attestation(self.my_peer(0), "MyAttribute", TestCommunity.private_key)
 
         await self.deliver_messages()
 
         self.assertListEqual([True, True], f.called)
         # Request for attribute attestation goes unanswered
-        self.nodes[1].overlay.request_cache.clear()
+        self.overlay(1).request_cache.clear()
 
     async def test_request_attestation_callback_metadata(self):
         """
@@ -84,7 +78,7 @@ class TestCommunity(TestBase):
         """
 
         def f(peer, attribute_name, metadata):
-            self.assertEqual(peer.address, self.nodes[1].endpoint.wan_address)
+            self.assertEqual(peer.address, self.address(1))
             self.assertEqual(attribute_name, "MyAttribute")
             self.assertDictEqual(metadata, {u'test': 123})
 
@@ -94,25 +88,22 @@ class TestCommunity(TestBase):
 
         await self.introduce_nodes()
 
-        self.nodes[0].overlay.set_attestation_request_callback(f)
+        self.overlay(0).set_attestation_request_callback(f)
 
-        self.nodes[1].overlay.request_attestation(self.nodes[0].overlay.my_peer,
-                                                  "MyAttribute",
-                                                  TestCommunity.private_key,
-                                                  {'test': 123})
+        self.overlay(1).request_attestation(self.my_peer(0), "MyAttribute", TestCommunity.private_key, {'test': 123})
 
         await self.deliver_messages()
 
         self.assertTrue(f.called)
         # Request for attribute attestation goes unanswered
-        self.nodes[1].overlay.request_cache.clear()
+        self.overlay(1).request_cache.clear()
 
     async def test_request_attestation(self):
         """
         Check if the request_attestation callback is correctly called.
         """
         def f(peer, attribute_name, _, __=None):
-            self.assertEqual(peer.address, self.nodes[1].endpoint.wan_address)
+            self.assertEqual(peer.address, self.address(1))
             self.assertEqual(attribute_name, "MyAttribute")
 
             f.called = True
@@ -120,16 +111,14 @@ class TestCommunity(TestBase):
 
         await self.introduce_nodes()
 
-        self.nodes[0].overlay.set_attestation_request_callback(lambda x, y, z: b"AttributeValue")
-        self.nodes[0].overlay.set_attestation_request_complete_callback(f)
+        self.overlay(0).set_attestation_request_callback(lambda x, y, z: b"AttributeValue")
+        self.overlay(0).set_attestation_request_complete_callback(f)
 
-        self.nodes[1].overlay.request_attestation(self.nodes[0].overlay.my_peer,
-                                                  "MyAttribute",
-                                                  TestCommunity.private_key)
+        self.overlay(1).request_attestation(self.my_peer(0), "MyAttribute", TestCommunity.private_key)
 
         await self.deliver_messages(0.5)
 
-        db_entries = self.nodes[1].overlay.database.get_all()
+        db_entries = self.overlay(1).database.get_all()
         self.assertEqual(1, len(db_entries))
         self.assertTrue(f.called)
 
@@ -139,7 +128,7 @@ class TestCommunity(TestBase):
         """
 
         def f(peer, attribute_name, _, __=None):
-            self.assertEqual(peer.address, self.nodes[1].endpoint.wan_address)
+            self.assertEqual(peer.address, self.address(1))
             self.assertEqual(attribute_name, "MyAttribute")
 
             f.called = True
@@ -148,17 +137,15 @@ class TestCommunity(TestBase):
 
         await self.introduce_nodes()
 
-        self.nodes[0].overlay.set_attestation_request_callback(lambda x, y, z: b"AttributeValue")
-        self.nodes[0].overlay.set_attestation_request_complete_callback(f)
+        self.overlay(0).set_attestation_request_callback(lambda x, y, z: b"AttributeValue")
+        self.overlay(0).set_attestation_request_complete_callback(f)
 
-        self.nodes[1].overlay.request_attestation(self.nodes[0].overlay.my_peer,
-                                                  "MyAttribute",
-                                                  TestCommunity.private_key,
-                                                  metadata={"id_format": "id_metadata_big"})
+        self.overlay(1).request_attestation(self.my_peer(0), "MyAttribute", TestCommunity.private_key,
+                                            metadata={"id_format": "id_metadata_big"})
 
         await self.deliver_messages(1.5)
 
-        db_entries = self.nodes[1].overlay.database.get_all()
+        db_entries = self.overlay(1).database.get_all()
         self.assertEqual(1, len(db_entries))
         self.assertTrue(f.called)
 
@@ -168,7 +155,7 @@ class TestCommunity(TestBase):
         """
 
         def f(peer, attribute_name, _, __=None):
-            self.assertEqual(peer.address, self.nodes[1].endpoint.wan_address)
+            self.assertEqual(peer.address, self.address(1))
             self.assertEqual(attribute_name, "MyAttribute")
 
             f.called = True
@@ -177,17 +164,15 @@ class TestCommunity(TestBase):
 
         await self.introduce_nodes()
 
-        self.nodes[0].overlay.set_attestation_request_callback(lambda x, y, z: b"\x13")
-        self.nodes[0].overlay.set_attestation_request_complete_callback(f)
+        self.overlay(0).set_attestation_request_callback(lambda x, y, z: b"\x13")
+        self.overlay(0).set_attestation_request_complete_callback(f)
 
-        self.nodes[1].overlay.request_attestation(self.nodes[0].overlay.my_peer,
-                                                  "MyAttribute",
-                                                  TestCommunity.private_key,
-                                                  metadata={"id_format": "id_metadata_range_18plus"})
+        self.overlay(1).request_attestation(self.my_peer(0), "MyAttribute", TestCommunity.private_key,
+                                            metadata={"id_format": "id_metadata_range_18plus"})
 
         await self.deliver_messages(2.0)
 
-        db_entries = self.nodes[1].overlay.database.get_all()
+        db_entries = self.overlay(1).database.get_all()
         self.assertEqual(1, len(db_entries))
         self.assertTrue(f.called)
 
@@ -201,9 +186,9 @@ class TestCommunity(TestBase):
             serialized = unhexlify(f.read().strip())
         attestation = BonehAttestation.unserialize(serialized, "id_metadata")
         attestation_hash = unhexlify('9019195eb75c07ec3e86a62c314dcf5ef2bbcc0d')
-        self.nodes[0].overlay.database.insert_attestation(attestation, attestation_hash, TestCommunity.private_key,
-                                                          "id_metadata")
-        self.nodes[0].overlay.attestation_keys[attestation_hash] = (TestCommunity.private_key, "id_metadata")
+        self.overlay(0).database.insert_attestation(attestation, attestation_hash, TestCommunity.private_key,
+                                                    "id_metadata")
+        self.overlay(0).attestation_keys[attestation_hash] = (TestCommunity.private_key, "id_metadata")
 
         def callback(rhash, values):
             self.assertEqual(attestation_hash, rhash)
@@ -211,22 +196,19 @@ class TestCommunity(TestBase):
             self.assertLess(0.99, values[0])
             callback.called = True
         callback.called = False
-        self.nodes[1].overlay.verify_attestation_values(self.nodes[0].endpoint.wan_address,
-                                                        attestation_hash,
-                                                        [b"MyAttribute"],
-                                                        callback,
-                                                        "id_metadata")
+        self.overlay(1).verify_attestation_values(self.address(0), attestation_hash, [b"MyAttribute"], callback,
+                                                  "id_metadata")
 
         await self.deliver_messages(0.5)
 
         self.assertTrue(callback.called)
-        self.nodes[1].overlay.request_cache.clear()
+        self.overlay(1).request_cache.clear()
 
     async def test_reqandverif_attestation(self):
         attribute_value = b"2168897456"
 
         def f(peer, attribute_name, attestation_hash, __=None):
-            self.assertEqual(peer.address, self.nodes[1].endpoint.wan_address)
+            self.assertEqual(peer.address, self.address(1))
             self.assertEqual(attribute_name, "MyAttribute")
 
             f.attestation_hash = attestation_hash
@@ -236,16 +218,14 @@ class TestCommunity(TestBase):
 
         await self.introduce_nodes()
 
-        self.nodes[0].overlay.set_attestation_request_callback(lambda x, y, z: attribute_value)
-        self.nodes[0].overlay.set_attestation_request_complete_callback(f)
+        self.overlay(0).set_attestation_request_callback(lambda x, y, z: attribute_value)
+        self.overlay(0).set_attestation_request_complete_callback(f)
 
-        self.nodes[1].overlay.request_attestation(self.nodes[0].overlay.my_peer,
-                                                  "MyAttribute",
-                                                  TestCommunity.private_key)
+        self.overlay(1).request_attestation(self.my_peer(0), "MyAttribute", TestCommunity.private_key)
 
         await self.deliver_messages(0.5)
 
-        db_entries = self.nodes[1].overlay.database.get_all()
+        db_entries = self.overlay(1).database.get_all()
         self.assertEqual(1, len(db_entries))
         self.assertTrue(f.called)
 
@@ -255,16 +235,13 @@ class TestCommunity(TestBase):
             self.assertLess(0.99, values[0])
             callback.called = True
         callback.called = False
-        self.nodes[0].overlay.verify_attestation_values(self.nodes[1].endpoint.wan_address,
-                                                        f.attestation_hash,
-                                                        [attribute_value],
-                                                        callback,
-                                                        "id_metadata")
+        self.overlay(0).verify_attestation_values(self.address(1), f.attestation_hash, [attribute_value], callback,
+                                                  "id_metadata")
 
         await self.deliver_messages(0.5)
 
         self.assertTrue(callback.called)
-        self.nodes[0].overlay.request_cache.clear()
+        self.overlay(0).request_cache.clear()
 
     async def test_verify_attestation_big(self):
         """
@@ -275,9 +252,9 @@ class TestCommunity(TestBase):
             serialized = unhexlify(f.read().strip())
         attestation = BonehAttestation.unserialize(serialized, "id_metadata_big")
         attestation_hash = unhexlify('113d31c31b626268a16c198cbd58dd5aa8d1d81c')
-        self.nodes[0].overlay.database.insert_attestation(attestation, attestation_hash, TestCommunity.private_key,
-                                                          "id_metadata_big")
-        self.nodes[0].overlay.attestation_keys[attestation_hash] = (TestCommunity.private_key, "id_metadata_big")
+        self.overlay(0).database.insert_attestation(attestation, attestation_hash, TestCommunity.private_key,
+                                                    "id_metadata_big")
+        self.overlay(0).attestation_keys[attestation_hash] = (TestCommunity.private_key, "id_metadata_big")
 
         def callback(rhash, values):
             self.assertEqual(attestation_hash, rhash)
@@ -286,16 +263,13 @@ class TestCommunity(TestBase):
             callback.called = True
 
         callback.called = False
-        self.nodes[1].overlay.verify_attestation_values(self.nodes[0].endpoint.wan_address,
-                                                        attestation_hash,
-                                                        [b"AttributeValue"],
-                                                        callback,
-                                                        "id_metadata_big")
+        self.overlay(1).verify_attestation_values(self.address(0), attestation_hash, [b"AttributeValue"], callback,
+                                                  "id_metadata_big")
 
         await self.deliver_messages(1.5)
 
         self.assertTrue(callback.called)
-        self.nodes[1].overlay.request_cache.clear()
+        self.overlay(1).request_cache.clear()
 
     async def test_verify_attestation_range(self):
         """
@@ -306,10 +280,9 @@ class TestCommunity(TestBase):
             serialized = unhexlify(f.read().strip())
         attestation = PengBaoAttestation.unserialize_private(self.private_key, serialized, "id_metadata_range_18plus")
         attestation_hash = unhexlify('b40c8734ba6c91a49670c1f0152c7f4dac2a8272')
-        self.nodes[0].overlay.database.insert_attestation(attestation, attestation_hash, TestCommunity.private_key,
-                                                          "id_metadata_range_18plus")
-        self.nodes[0].overlay.attestation_keys[attestation_hash] = (TestCommunity.private_key,
-                                                                    "id_metadata_range_18plus")
+        self.overlay(0).database.insert_attestation(attestation, attestation_hash, TestCommunity.private_key,
+                                                    "id_metadata_range_18plus")
+        self.overlay(0).attestation_keys[attestation_hash] = (TestCommunity.private_key, "id_metadata_range_18plus")
 
         def callback(rhash, values):
             self.assertEqual(attestation_hash, rhash)
@@ -318,36 +291,33 @@ class TestCommunity(TestBase):
             callback.called = True
 
         callback.called = False
-        self.nodes[1].overlay.verify_attestation_values(self.nodes[0].endpoint.wan_address,
-                                                        attestation_hash,
-                                                        [b"\x01"],
-                                                        callback,
-                                                        "id_metadata_range_18plus")
+        self.overlay(1).verify_attestation_values(self.address(0), attestation_hash, [b"\x01"], callback,
+                                                  "id_metadata_range_18plus")
 
         await self.deliver_messages(2.5)
 
         self.assertTrue(callback.called)
-        self.nodes[1].overlay.request_cache.clear()
+        self.overlay(1).request_cache.clear()
 
     def test_load_key(self):
         """
         Check if we can load the community correctly after shut down.
         """
         # Write to a temporary folder.
-        overlay = self.nodes[0].overlay
         temp_folder = self.temporary_directory()
-        overlay.database = AttestationsDB(temp_folder, "test")
+        self.overlay(0).database = AttestationsDB(temp_folder, "test")
 
         # Create an attestation and write it to file.
         # Then close the database.
         attestation = BonehAttestation(TestCommunity.private_key.public_key(), [], "id_metadata")
-        overlay.on_attestation_complete(attestation, TestCommunity.private_key, None, "test", b"a" * 20, "id_metadata")
-        overlay.database.close(True)
+        self.overlay(0).on_attestation_complete(attestation, TestCommunity.private_key, None, "test", b"a" * 20,
+                                                "id_metadata")
+        self.overlay(0).database.close(True)
 
         # Reload the community with the same database.
-        self.nodes[0].overlay.__init__(self.nodes[0].my_peer, self.nodes[0].endpoint, self.nodes[0].network,
-                                       working_directory=temp_folder, db_name="test")
+        self.overlay(0).__init__(self.my_peer(0), self.endpoint(0), self.network(0), working_directory=temp_folder,
+                                 db_name="test")
 
         # The attestation should persist
-        db_entries = self.nodes[0].overlay.database.get_all()
+        db_entries = self.overlay(0).database.get_all()
         self.assertEqual(1, len(db_entries))

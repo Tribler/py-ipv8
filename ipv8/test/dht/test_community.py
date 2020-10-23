@@ -18,8 +18,8 @@ class TestDHTCommunity(TestBase):
 
         self.key = b'\x00' * 20
         self.value = b'test'
-        self.value_in_store = self.nodes[0].overlay.serialize_value(self.value, sign=False)
-        self.signed_in_store = self.nodes[0].overlay.serialize_value(self.value, sign=True)
+        self.value_in_store = self.overlay(0).serialize_value(self.value, sign=False)
+        self.signed_in_store = self.overlay(0).serialize_value(self.value, sign=True)
         self.is_called = False
 
         now = time.time()
@@ -41,11 +41,11 @@ class TestDHTCommunity(TestBase):
         await self.introduce_nodes()
         await self.deliver_messages()
 
-        node0_id = self.nodes[0].overlay.my_node_id
-        node1_id = self.nodes[1].overlay.my_node_id
+        node0_id = self.overlay(0).my_node_id
+        node1_id = self.overlay(1).my_node_id
 
-        node0_bucket = self.nodes[0].overlay.routing_table.get_bucket(node1_id)
-        node1_bucket = self.nodes[1].overlay.routing_table.get_bucket(node0_id)
+        node0_bucket = self.overlay(0).routing_table.get_bucket(node1_id)
+        node1_bucket = self.overlay(1).routing_table.get_bucket(node0_id)
 
         self.assertTrue(node0_bucket and node0_bucket.prefix_id == u'')
         self.assertTrue(node1_bucket and node1_bucket.prefix_id == u'')
@@ -55,46 +55,44 @@ class TestDHTCommunity(TestBase):
 
     async def test_ping_pong(self):
         await self.introduce_nodes()
-        node = await self.nodes[0].overlay.ping(Node(self.nodes[1].my_peer.key,
-                                                     self.nodes[1].my_peer.address))
-        self.assertEqual(node, self.nodes[1].my_peer)
+        node = await self.overlay(0).ping(Node(self.private_key(1), self.address(1)))
+        self.assertEqual(node, self.my_peer(1))
 
     async def test_ping_pong_fail(self):
         await self.introduce_nodes()
         await self.nodes[1].stop()
         with self.assertRaises(TimeoutError):
-            await wait_for(self.nodes[0].overlay.ping(Node(self.nodes[1].my_peer.key,
-                                                           self.nodes[1].my_peer.address)), 0.1)
+            await wait_for(self.overlay(0).ping(Node(self.private_key(1), self.address(1))), 0.1)
 
     async def test_store_value(self):
         await self.introduce_nodes()
-        node = await self.nodes[0].overlay.store_value(self.key, self.value)
-        self.assertIn(self.nodes[1].my_peer, node)
-        self.assertEqual(self.nodes[1].overlay.storage.get(self.key), [self.value_in_store])
+        node = await self.overlay(0).store_value(self.key, self.value)
+        self.assertIn(self.my_peer(1), node)
+        self.assertEqual(self.overlay(1).storage.get(self.key), [self.value_in_store])
 
     async def test_store_value_fail(self):
         await self.introduce_nodes()
-        self.nodes[0].overlay.routing_table = RoutingTable(self.nodes[0].overlay.my_node_id)
+        self.overlay(0).routing_table = RoutingTable(self.overlay(0).my_node_id)
         with self.assertRaises(DHTError):
-            await self.nodes[0].overlay.store_value(self.key, self.value)
+            await self.overlay(0).store_value(self.key, self.value)
 
     async def test_find_nodes(self):
         await self.introduce_nodes()
-        nodes = await self.nodes[0].overlay.find_nodes(self.key)
+        nodes = await self.overlay(0).find_nodes(self.key)
         self.assertSetEqual(set(nodes), set([Node(n.my_peer.key.pub().key_to_bin(), n.my_peer.address)
                                              for n in self.nodes[1:]]))
 
     async def test_find_values(self):
         await self.introduce_nodes()
-        self.nodes[1].overlay.storage.put(self.key, self.value_in_store)
-        values = await self.nodes[0].overlay.find_values(self.key)
+        self.overlay(1).storage.put(self.key, self.value_in_store)
+        values = await self.overlay(0).find_values(self.key)
         self.assertIn((self.value, None), values)
 
     async def test_find_values_signed(self):
         await self.introduce_nodes()
-        self.nodes[1].overlay.storage.put(self.key, self.signed_in_store)
-        values = await self.nodes[0].overlay.find_values(self.key)
-        self.assertIn((self.value, self.nodes[0].my_peer.public_key.key_to_bin()), values)
+        self.overlay(1).storage.put(self.key, self.signed_in_store)
+        values = await self.overlay(0).find_values(self.key)
+        self.assertIn((self.value, self.key_bin(0)), values)
 
     async def test_caching(self):
         # Add a third node
@@ -105,56 +103,56 @@ class TestDHTCommunity(TestBase):
         # Sort nodes based on distance to target
         self.nodes.sort(key=lambda n: distance(n.overlay.my_node_id, self.key), reverse=True)
 
-        self.nodes[0].overlay.on_node_discovered(self.nodes[1].my_peer.key, self.nodes[1].my_peer.address)
-        self.nodes[1].overlay.on_node_discovered(self.nodes[2].my_peer.key, self.nodes[2].my_peer.address)
+        self.overlay(0).on_node_discovered(self.private_key(1), self.address(1))
+        self.overlay(1).on_node_discovered(self.private_key(2), self.address(2))
 
-        self.nodes[2].overlay.storage.put(self.key, self.value_in_store)
-        await self.nodes[0].overlay.find_values(self.key)
+        self.overlay(2).storage.put(self.key, self.value_in_store)
+        await self.overlay(0).find_values(self.key)
         await self.deliver_messages(.2)
-        self.assertEqual(self.nodes[1].overlay.storage.get(self.key), [self.value_in_store])
+        self.assertEqual(self.overlay(1).storage.get(self.key), [self.value_in_store])
 
     async def test_refresh(self):
         await self.introduce_nodes()
         await self.deliver_messages()
 
-        bucket = self.nodes[0].overlay.routing_table.get_bucket(self.nodes[1].overlay.my_node_id)
+        bucket = self.overlay(0).routing_table.get_bucket(self.overlay(1).my_node_id)
         bucket.last_changed = 0
 
-        self.nodes[0].overlay.find_values = lambda *args: setattr(self, 'is_called', True) or succeed([])
-        await self.nodes[0].overlay.node_maintenance()
+        self.overlay(0).find_values = lambda *args: setattr(self, 'is_called', True) or succeed([])
+        await self.overlay(0).node_maintenance()
         self.assertNotEqual(bucket.last_changed, 0)
         self.assertTrue(self.is_called)
 
         self.is_called = False
         prev_ts = bucket.last_changed
-        await self.nodes[0].overlay.node_maintenance()
+        await self.overlay(0).node_maintenance()
         self.assertEqual(bucket.last_changed, prev_ts)
         self.assertFalse(self.is_called)
 
     async def test_token(self):
-        dht_node = Node(self.nodes[1].my_peer.key, self.nodes[1].my_peer.address)
+        dht_node = Node(self.private_key(1), self.address(1))
 
         # Since the setup should have already have generated tokens, a direct store should work.
         await self.introduce_nodes()
-        await self.nodes[0].overlay.store_on_nodes(self.key, [self.value_in_store], [dht_node])
+        await self.overlay(0).store_on_nodes(self.key, [self.value_in_store], [dht_node])
         await self.deliver_messages()
-        self.assertEqual(self.nodes[1].overlay.storage.get(self.key), [self.value_in_store])
+        self.assertEqual(self.overlay(1).storage.get(self.key), [self.value_in_store])
 
         # Without tokens..
         for node in self.nodes:
             node.overlay.tokens.clear()
-        self.nodes[1].overlay.storage.items.clear()
+        self.overlay(1).storage.items.clear()
         await self.introduce_nodes()
         with self.assertRaises(DHTError):
-            await self.nodes[0].overlay.store_on_nodes(self.key, [self.value_in_store], [dht_node])
-        self.assertEqual(self.nodes[1].overlay.storage.get(self.key), [])
+            await self.overlay(0).store_on_nodes(self.key, [self.value_in_store], [dht_node])
+        self.assertEqual(self.overlay(1).storage.get(self.key), [])
 
         # With a bad token..
-        self.nodes[0].overlay.tokens[dht_node] = (0, b'faketoken')
+        self.overlay(0).tokens[dht_node] = (0, b'faketoken')
         await self.introduce_nodes()
         with self.assertRaises(DHTError):
-            await self.nodes[0].overlay.store_on_nodes(self.key, [self.value_in_store], [dht_node])
-        self.assertEqual(self.nodes[1].overlay.storage.get(self.key), [])
+            await self.overlay(0).store_on_nodes(self.key, [self.value_in_store], [dht_node])
+        self.assertEqual(self.overlay(1).storage.get(self.key), [])
 
     async def test_provider(self):
         """
@@ -163,11 +161,11 @@ class TestDHTCommunity(TestBase):
         self.add_node_to_experiment(self.create_node())
 
         await self.introduce_nodes()
-        dht_provider_1 = DHTCommunityProvider(self.nodes[0].overlay, 1337)
-        dht_provider_2 = DHTCommunityProvider(self.nodes[1].overlay, 1338)
-        dht_provider_3 = DHTCommunityProvider(self.nodes[2].overlay, 1338)
-        await dht_provider_1.announce(b'a' * 20, IntroductionPoint(self.nodes[0].overlay.my_peer, b'\x01' * 20))
-        await dht_provider_2.announce(b'a' * 20, IntroductionPoint(self.nodes[1].overlay.my_peer, b'\x02' * 20))
+        dht_provider_1 = DHTCommunityProvider(self.overlay(0), 1337)
+        dht_provider_2 = DHTCommunityProvider(self.overlay(1), 1338)
+        dht_provider_3 = DHTCommunityProvider(self.overlay(2), 1338)
+        await dht_provider_1.announce(b'a' * 20, IntroductionPoint(self.my_peer(0), b'\x01' * 20))
+        await dht_provider_2.announce(b'a' * 20, IntroductionPoint(self.my_peer(1), b'\x02' * 20))
 
         await self.deliver_messages(.5)
 
@@ -178,8 +176,8 @@ class TestDHTCommunity(TestBase):
         """
         Test the DHT provider when invalid data arrives
         """
-        self.nodes[0].overlay.find_values = lambda _: succeed([('invalid_data', None)])
-        dht_provider = DHTCommunityProvider(self.nodes[0].overlay, 1337)
+        self.overlay(0).find_values = lambda _: succeed([('invalid_data', None)])
+        dht_provider = DHTCommunityProvider(self.overlay(0), 1337)
         peers = await dht_provider.lookup(b'a' * 20)
         self.assertEqual(len(peers[1]), 0)
 
@@ -187,27 +185,26 @@ class TestDHTCommunity(TestBase):
         await self.introduce_nodes()
         await self.deliver_messages(.5)
 
-        node0 = Node(self.nodes[0].my_peer.key, self.nodes[0].my_peer.address)
-        node1 = Node(self.nodes[1].my_peer.key, self.nodes[1].my_peer.address)
+        node0 = Node(self.private_key(0), self.address(0))
+        node1 = Node(self.private_key(1), self.address(1))
 
         # Send pings from node0 to node1 until blocked
-        num_queries = len(self.nodes[1].overlay.routing_table.get(node0.id).last_queries)
+        num_queries = len(self.overlay(1).routing_table.get(node0.id).last_queries)
         for _ in range(NODE_LIMIT_QUERIES - num_queries):
-            await self.nodes[0].overlay.ping(node1)
+            await self.overlay(0).ping(node1)
 
         # Node1 must have blocked node0
-        self.assertTrue(self.nodes[1].overlay.routing_table.get(node0.id).blocked)
+        self.assertTrue(self.overlay(1).routing_table.get(node0.id).blocked)
         # Additional pings should get dropped (i.e. timeout)
         with self.assertRaises(TimeoutError):
-            await wait_for(self.nodes[0].overlay.ping(node1), 0.1)
+            await wait_for(self.overlay(0).ping(node1), 0.1)
 
     async def test_unload_while_contacting_node(self):
         await self.introduce_nodes()
-        overlay = self.nodes[0].overlay
-        ensure_future(overlay.find_nodes(self.key))
-        await overlay.unload()
-        self.assertTrue(overlay.request_cache._shutdown)
-        self.assertTrue(overlay._shutdown)
+        ensure_future(self.overlay(0).find_nodes(self.key))
+        await self.overlay(0).unload()
+        self.assertTrue(self.overlay(0).request_cache._shutdown)  # pylint: disable=W0212
+        self.assertTrue(self.overlay(0)._shutdown)  # pylint: disable=W0212
 
 
 class TestDHTCommunityXL(TestBase):
@@ -232,16 +229,16 @@ class TestDHTCommunityXL(TestBase):
 
         # Store key value pair
         kv_pair = (b'\x00' * 20, b'test1')
-        await self.nodes[0].overlay.store_value(*kv_pair)
+        await self.overlay(0).store_value(*kv_pair)
 
         # Check if the closest nodes have now stored the key
         for node in self.get_closest_nodes(kv_pair[0]):
             self.assertTrue(node.overlay.storage.get(kv_pair[0]), kv_pair[1])
 
         # Store another value under the same key
-        await self.nodes[1].overlay.store_value(b'\x00' * 20, b'test2', sign=True)
+        await self.overlay(1).store_value(b'\x00' * 20, b'test2', sign=True)
 
         # Check if we get both values
         values = await self.nodes[-1].overlay.find_values(b'\x00' * 20)
         self.assertIn((b'test1', None), values)
-        self.assertIn((b'test2', self.nodes[1].my_peer.public_key.key_to_bin()), values)
+        self.assertIn((b'test2', self.key_bin(1)), values)

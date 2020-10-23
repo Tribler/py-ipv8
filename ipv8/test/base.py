@@ -136,7 +136,7 @@ class TestBase(asynctest.TestCase):
         rtime = 0
         probable_exit = False
 
-        while (rtime < timeout):
+        while rtime < timeout:
             await sleep(.01)
             rtime += .01
             if len([task for task in all_tasks() if not self.is_background_task(task)]) < 2:
@@ -159,3 +159,39 @@ class TestBase(asynctest.TestCase):
         self._tempdirs.append(d)
         os.makedirs(d)
         return d
+
+    def address(self, i):
+        return self.peer(i).address
+
+    def endpoint(self, i):
+        return self.nodes[i].endpoint
+
+    def key_bin(self, i):
+        return self.nodes[i].my_peer.public_key.key_to_bin()
+
+    def key_bin_private(self, i):
+        return self.nodes[i].my_peer.key.key_to_bin()
+
+    def mid(self, i):
+        return self.nodes[i].my_peer.mid
+
+    def my_peer(self, i):
+        return self.nodes[i].overlay.my_peer
+
+    def network(self, i):
+        return self.nodes[i].network
+
+    def node(self, i):
+        return self.nodes[i]
+
+    def overlay(self, i):
+        return self.nodes[i].overlay
+
+    def peer(self, i):
+        return Peer(self.nodes[i].my_peer.public_key.key_to_bin(), self.nodes[i].endpoint.wan_address)
+
+    def private_key(self, i):
+        return self.nodes[i].my_peer.key
+
+    def public_key(self, i):
+        return self.nodes[i].my_peer.public_key

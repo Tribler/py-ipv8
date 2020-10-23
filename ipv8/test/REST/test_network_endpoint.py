@@ -15,7 +15,7 @@ class TestNetworkEndpoint(RESTTestBase):
     async def setUp(self):
         super(TestNetworkEndpoint, self).setUp()
         await self.initialize([], 1)
-        self.ipv8 = self.nodes[0]
+        self.ipv8 = self.node(0)
 
     async def test_no_peers(self):
         """
