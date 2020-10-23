@@ -184,8 +184,8 @@ class TestAttestationEndpoint(RESTTestBase):
         """
 
         await self.introduce_nodes()
-        other_peer_mids = [b64encode(self.nodes[1].my_peer.mid).decode('utf-8')]
-        result = await self.wait_for_peers(self.nodes[0])
+        other_peer_mids = [b64encode(self.mid(1)).decode('utf-8')]
+        result = await self.wait_for_peers(self.node(0))
         self.assertTrue(any(x in other_peer_mids for x in result), "Could not find the second peer.")
 
     async def test_get_outstanding_requests(self):
@@ -194,11 +194,11 @@ class TestAttestationEndpoint(RESTTestBase):
         """
 
         await self.introduce_nodes()
-        await self.create_attestation_request(self.nodes[1], 'QR')
+        await self.create_attestation_request(self.node(1), 'QR')
 
-        result = await self.wait_for_outstanding_requests(self.nodes[0])
+        result = await self.wait_for_outstanding_requests(self.node(0))
 
-        mid = b64encode(self.nodes[1].my_peer.mid)
+        mid = b64encode(self.mid(1))
         self.assertTrue(any((x[0] == mid and x[1] == 'QR' for x in result)),
                         "Could not find the outstanding request forwarded by the second peer")
 
@@ -209,16 +209,16 @@ class TestAttestationEndpoint(RESTTestBase):
 
         # Forward the attestations to the well-known peer
         await self.introduce_nodes()
-        await self.create_attestation_request(self.nodes[1], 'QR')
-        await self.attest_all_outstanding_requests(self.nodes[0], 'QR', b'data')
+        await self.create_attestation_request(self.node(1), 'QR')
+        await self.attest_all_outstanding_requests(self.node(0), 'QR', b'data')
 
         # Get the hash of the attestation to be validated (the one which was just attested)
-        attributes = await self.wait_for_attributes(self.nodes[1])
+        attributes = await self.wait_for_attributes(self.node(1))
         attribute_hash = attributes[0][1]
 
         # Forward the actual verification
-        verification_responses = await self.verify_all_attestations(self.nodes[0],
-                                                                    [self.nodes[1].my_peer.mid],
+        verification_responses = await self.verify_all_attestations(self.node(0),
+                                                                    [self.mid(1)],
                                                                     attribute_hash, 'YXNk,YXNkMg==')
         self.assertTrue(all("success" in x and x["success"] for x in verification_responses),
                         "At least one of the verification responses was non-empty.")
@@ -226,16 +226,16 @@ class TestAttestationEndpoint(RESTTestBase):
         # Unlock the verification
         outstanding_verifications = []
         while not outstanding_verifications:
-            outstanding_verifications = await self.make_outstanding_verify(self.nodes[1])
+            outstanding_verifications = await self.make_outstanding_verify(self.node(1))
             self.assertIsNotNone(outstanding_verifications, "Could not retrieve any outstanding verifications")
             await self.deliver_messages()
 
         mid = outstanding_verifications[0][0]
-        await self.make_allow_verify(self.nodes[1], 'QR', mid)
+        await self.make_allow_verify(self.node(1), 'QR', mid)
         await sleep(.1)
 
         # Get the output
-        verification_output = await self.make_verification_output(self.nodes[0])
+        verification_output = await self.make_verification_output(self.node(0))
         self.assertTrue([["YXNk", 0.0], ["YXNkMg==", 0.0]] in verification_output.values(),
                         "Something went wrong with the verification. Unexpected output values.")
 
@@ -246,16 +246,16 @@ class TestAttestationEndpoint(RESTTestBase):
 
         # Forward the attestations to the well-known peer
         await self.introduce_nodes()
-        await self.create_attestation_request(self.nodes[1], 'QR')
-        await self.attest_all_outstanding_requests(self.nodes[0], 'QR', b'data')
+        await self.create_attestation_request(self.node(1), 'QR')
+        await self.attest_all_outstanding_requests(self.node(0), 'QR', b'data')
 
         # Get the hash of the attestation to be validated (the one which was just attested)
-        attributes = await self.wait_for_attributes(self.nodes[1])
+        attributes = await self.wait_for_attributes(self.node(1))
         attribute_hash = attributes[0][1]
 
         # Forward the actual verification
-        verification_responses = await self.verify_all_attestations(self.nodes[0],
-                                                                    [self.nodes[1].my_peer.mid],
+        verification_responses = await self.verify_all_attestations(self.node(0),
+                                                                    [self.mid(1)],
                                                                     attribute_hash, 'YXNk,YXNkMg==')
         self.assertTrue(all("success" in x and x["success"] for x in verification_responses),
                         "At least one of the verification responses was non-empty.")
@@ -263,13 +263,13 @@ class TestAttestationEndpoint(RESTTestBase):
         # Unlock the verification
         outstanding_verifications = []
         while not outstanding_verifications:
-            outstanding_verifications = await self.make_outstanding_verify(self.nodes[1])
+            outstanding_verifications = await self.make_outstanding_verify(self.node(1))
             self.assertIsNotNone(outstanding_verifications, "Could not retrieve any outstanding verifications")
             await self.deliver_messages()
 
         # Retrieve only the mids
         result = [x[0] for x in outstanding_verifications]
-        self.assertTrue(any(x in result for x in [b64encode(self.nodes[0].my_peer.mid).decode('utf-8')]),
+        self.assertTrue(any(x in result for x in [b64encode(self.mid(0)).decode('utf-8')]),
                         "Something went wrong. Could not find a master peer mid in the "
                         "outstanding verification requests.")
 
@@ -278,11 +278,11 @@ class TestAttestationEndpoint(RESTTestBase):
         Test the (GET: attributes) request type
         """
         await self.introduce_nodes()
-        await self.create_attestation_request(self.nodes[1], 'QR')
-        await self.attest_all_outstanding_requests(self.nodes[0], 'QR', 'data')
+        await self.create_attestation_request(self.node(1), 'QR')
+        await self.attest_all_outstanding_requests(self.node(0), 'QR', 'data')
 
         # Get the hash of the attestation to be validated (the one which was just attested)
-        attributes = await self.wait_for_attributes(self.nodes[1])
+        attributes = await self.wait_for_attributes(self.node(1))
         self.assertTrue(attributes[0][0] == 'QR' and attributes[0][1] != "",
                         "The response was not as expected. This would suggest that something went wrong with "
                         "the attributes request.")
@@ -293,31 +293,31 @@ class TestAttestationEndpoint(RESTTestBase):
         """
 
         await self.introduce_nodes()
-        await self.create_attestation_request(self.nodes[1], 'QR')
-        outstanding_requests = await self.wait_for_outstanding_requests(self.nodes[0])
+        await self.create_attestation_request(self.node(1), 'QR')
+        outstanding_requests = await self.wait_for_outstanding_requests(self.node(0))
         self.assertFalse(outstanding_requests == [], "The attestation requests were not received.")
 
         # Ensure that no block/attestation exists
-        attributes = await self.make_attributes(self.nodes[1])
+        attributes = await self.make_attributes(self.node(1))
         self.assertEqual(attributes, [], "Something's wrong, there shouldn't be any blocks.")
 
         # Attest the outstanding request. This should mean that the attribute DB is non-empty in the well-known peer
-        await self.attest_all_outstanding_requests(self.nodes[0], 'QR', 'data')
+        await self.attest_all_outstanding_requests(self.node(0), 'QR', 'data')
 
         # Ensure that the attestation has been completed
-        attributes = await self.wait_for_attributes(self.nodes[1])
+        attributes = await self.wait_for_attributes(self.node(1))
         self.assertNotEqual(attributes, [], "Something's wrong, the attribute list should be non-empty.")
 
         # Drop the identity
-        result = await self.make_drop_identity(self.nodes[0])
+        result = await self.make_drop_identity(self.node(0))
         self.assertIn("success", result, "The identity could not be dropped. Success parameter not in response.")
         self.assertTrue(result["success"], "The identity could not be dropped, not successful.")
 
         # Make sure the identity was successfully dropped
-        result = await self.make_attributes(self.nodes[0])
+        result = await self.make_attributes(self.node(0))
         self.assertEqual(result, [], 'The identity could not be dropped. Block DB still populated.')
 
-        result = await self.make_outstanding(self.nodes[0])
+        result = await self.make_outstanding(self.node(0))
         self.assertEqual(result, [], 'The identity could not be dropped. Outstanding requests still remaining.')
 
     async def test_post_attestation_request(self):
@@ -326,14 +326,14 @@ class TestAttestationEndpoint(RESTTestBase):
         """
 
         # This should return an empty response
-        outstanding_requests = await self.make_outstanding(self.nodes[0])
+        outstanding_requests = await self.make_outstanding(self.node(0))
         self.assertEqual(outstanding_requests, [], "Something went wrong, there should be no outstanding requests.")
 
         await self.introduce_nodes()
-        await self.create_attestation_request(self.nodes[1], 'QR')
+        await self.create_attestation_request(self.node(1), 'QR')
 
         # This should return a non-empty response
-        outstanding_requests = await self.wait_for_outstanding_requests(self.nodes[0])
+        outstanding_requests = await self.wait_for_outstanding_requests(self.node(0))
         self.assertFalse(outstanding_requests == [], "Something went wrong, no request was received.")
 
     async def test_post_attest(self):
@@ -342,22 +342,22 @@ class TestAttestationEndpoint(RESTTestBase):
         """
 
         await self.introduce_nodes()
-        await self.create_attestation_request(self.nodes[1], 'QR')
+        await self.create_attestation_request(self.node(1), 'QR')
 
-        attributes = await self.make_attributes(self.nodes[1])
+        attributes = await self.make_attributes(self.node(1))
         self.assertTrue(len(attributes) == 0, "There mustn't already be any attestations in the other peer.")
 
-        responses = await self.attest_all_outstanding_requests(self.nodes[0], 'QR', 'data')
+        responses = await self.attest_all_outstanding_requests(self.node(0), 'QR', 'data')
         request_responses = [response for response in responses[1]]
         self.assertTrue(all("success" in x and x["success"] for x in request_responses),
                         "Something went wrong, not all responses were successful.")
 
-        attributes = await self.wait_for_attributes(self.nodes[1])
+        attributes = await self.wait_for_attributes(self.node(1))
         self.assertTrue(len(attributes) == 1, "There should only be one attestation in the DB.")
         self.assertTrue(attributes[0][0] == 'QR', "Expected attestation for %s, got it for "
                                                   "%s" % ('QR', attributes[0][0]))
 
-        attributes = await self.make_attributes(self.nodes[0])
+        attributes = await self.make_attributes(self.node(0))
         self.assertTrue(len(attributes) == 0, "There should be no attribute in the DB of the attester.")
 
     async def test_post_verify(self):
@@ -367,16 +367,16 @@ class TestAttestationEndpoint(RESTTestBase):
 
         # Forward the attestations to the well-known peer
         await self.introduce_nodes()
-        await self.create_attestation_request(self.nodes[1], 'QR')
-        await self.attest_all_outstanding_requests(self.nodes[0], 'QR', 'data')
+        await self.create_attestation_request(self.node(1), 'QR')
+        await self.attest_all_outstanding_requests(self.node(0), 'QR', 'data')
 
         # Get the hash of the attestation to be validated (the one which was just attested)
-        attributes = await self.wait_for_attributes(self.nodes[1])
+        attributes = await self.wait_for_attributes(self.node(1))
         attribute_hash = attributes[0][1]
 
         # Forward the actual verification
-        verification_responses = await self.verify_all_attestations(self.nodes[0],
-                                                                    [self.nodes[1].my_peer.mid],
+        verification_responses = await self.verify_all_attestations(self.node(0),
+                                                                    [self.mid(1)],
                                                                     attribute_hash, 'YXNk,YXNkMg==')
         self.assertTrue(all("success" in x and x["success"] for x in verification_responses),
                         "At least one of the verification responses was non-empty.")
@@ -388,16 +388,16 @@ class TestAttestationEndpoint(RESTTestBase):
 
         # Forward the attestations to the well-known peer
         await self.introduce_nodes()
-        await self.create_attestation_request(self.nodes[1], 'QR')
-        await self.attest_all_outstanding_requests(self.nodes[0], 'QR', 'data')
+        await self.create_attestation_request(self.node(1), 'QR')
+        await self.attest_all_outstanding_requests(self.node(0), 'QR', 'data')
 
         # Get the hash of the attestation to be validated (the one which was just attested)
-        attributes = await self.wait_for_attributes(self.nodes[1])
+        attributes = await self.wait_for_attributes(self.node(1))
         attribute_hash = attributes[0][1]
 
         # Forward the actual verification
-        verification_responses = await self.verify_all_attestations(self.nodes[0],
-                                                                    [self.nodes[1].my_peer.mid],
+        verification_responses = await self.verify_all_attestations(self.node(0),
+                                                                    [self.mid(1)],
                                                                     attribute_hash, 'YXNk,YXNkMg==')
         self.assertTrue(all("success" in x and x["success"] for x in verification_responses),
                         "At least one of the verification responses was non-empty.")
@@ -405,11 +405,11 @@ class TestAttestationEndpoint(RESTTestBase):
         # Unlock the verification
         outstanding_verifications = []
         while not outstanding_verifications:
-            outstanding_verifications = await self.make_outstanding_verify(self.nodes[1])
+            outstanding_verifications = await self.make_outstanding_verify(self.node(1))
             self.assertIsNotNone(outstanding_verifications, "Could not retrieve any outstanding verifications")
             await self.deliver_messages()
 
         mid = outstanding_verifications[0][0]
-        response = await self.make_allow_verify(self.nodes[1], 'QR', mid)
+        response = await self.make_allow_verify(self.node(1), 'QR', mid)
         self.assertIn("success", response, "The attestion could not be unlocked: success not in JSON response")
         self.assertTrue(response["success"], "The attestation could not be unlocked: not successful.")

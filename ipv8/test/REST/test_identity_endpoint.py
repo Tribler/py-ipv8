@@ -62,14 +62,11 @@ class TestIdentityEndpoint(RESTTestBase):
             other_addresses = list(range(len(self.nodes)))
             other_addresses.remove(i)
             for j in other_addresses:
-                for overlay in self.nodes[i].overlays:
+                for overlay in self.node(i).overlays:
                     if isinstance(overlay, IdentityCommunity):
                         for address in all_interfaces[j]:
                             overlay.walk_to(address)
             await self.deliver_messages()
-
-    def node(self, i):
-        return self.nodes[i]
 
     async def wait_for(self, *args, **kwargs):
         output = []

@@ -1,9 +1,9 @@
 import json
+from asyncio import sleep
 
 from ...base import MockIPv8, TestBase
 from ....attestation.identity.community import IdentityCommunity
 from ....attestation.identity.manager import IdentityManager
-from ....peer import Peer
 
 
 class TestIdentityCommunity(TestBase):
@@ -18,15 +18,6 @@ class TestIdentityCommunity(TestBase):
         identity_manager = IdentityManager(u":memory:")
         return MockIPv8(u"curve25519", IdentityCommunity, identity_manager=identity_manager)
 
-    def peer(self, i):
-        return Peer(self.nodes[i].my_peer.public_key.key_to_bin(), self.nodes[i].endpoint.wan_address)
-
-    def key_bin(self, i):
-        return self.nodes[i].my_peer.public_key.key_to_bin()
-
-    def overlay(self, i):
-        return self.nodes[i].overlay
-
     async def test_advertise(self):
         """
         Check if a node can construct an advertisement for his attested attribute.
@@ -39,7 +30,7 @@ class TestIdentityCommunity(TestBase):
         await self.deliver_messages()
 
         for node_nr in [0, 1]:
-            pseudonym = self.overlay(node_nr).identity_manager.get_pseudonym(self.peer(0).public_key)
+            pseudonym = self.overlay(node_nr).identity_manager.get_pseudonym(self.public_key(0))
 
             self.assertEqual(1, len(pseudonym.get_credentials()))
             self.assertEqual(1, len(pseudonym.get_credentials()[0].attestations))
@@ -61,7 +52,7 @@ class TestIdentityCommunity(TestBase):
         await self.deliver_messages()
 
         for node_nr in [0, 1]:
-            pseudonym = self.overlay(node_nr).identity_manager.get_pseudonym(self.peer(0).public_key)
+            pseudonym = self.overlay(node_nr).identity_manager.get_pseudonym(self.public_key(0))
 
             self.assertEqual(2, len(pseudonym.get_credentials()))
             self.assertEqual(1, len(pseudonym.get_credentials()[0].attestations))
@@ -80,11 +71,10 @@ class TestIdentityCommunity(TestBase):
                                                           "attribute" + str(39))
 
         await self.deliver_messages()
-        from asyncio import sleep
         await sleep(.5)
 
         for node_nr in [0, 1]:
-            pseudonym = self.overlay(node_nr).identity_manager.get_pseudonym(self.peer(0).public_key)
+            pseudonym = self.overlay(node_nr).identity_manager.get_pseudonym(self.public_key(0))
 
             self.assertEqual(40, len(pseudonym.tree.elements))
             self.assertEqual(40 if node_nr == 0 else 1, len(pseudonym.get_credentials()))
@@ -102,7 +92,7 @@ class TestIdentityCommunity(TestBase):
         await self.deliver_messages()
 
         for node_nr in [0, 1]:
-            pseudonym = self.overlay(node_nr).identity_manager.get_pseudonym(self.peer(0).public_key)
+            pseudonym = self.overlay(node_nr).identity_manager.get_pseudonym(self.public_key(0))
 
             self.assertEqual(1, len(pseudonym.get_credentials()))
             self.assertEqual(1, len(pseudonym.get_credentials()[0].attestations))
@@ -122,7 +112,7 @@ class TestIdentityCommunity(TestBase):
         await self.deliver_messages()
 
         for node_nr in [0, 1]:
-            pseudonym = self.overlay(node_nr).identity_manager.get_pseudonym(self.peer(0).public_key)
+            pseudonym = self.overlay(node_nr).identity_manager.get_pseudonym(self.public_key(0))
 
             self.assertEqual(1, len(pseudonym.get_credentials()))
             self.assertEqual(0, len(pseudonym.get_credentials()[0].attestations))
@@ -137,11 +127,11 @@ class TestIdentityCommunity(TestBase):
 
         await self.deliver_messages()
 
-        pseudonym = self.overlay(0).identity_manager.get_pseudonym(self.peer(0).public_key)
+        pseudonym = self.overlay(0).identity_manager.get_pseudonym(self.public_key(0))
         self.assertEqual(1, len(pseudonym.get_credentials()))
         self.assertEqual(0, len(pseudonym.get_credentials()[0].attestations))
 
-        pseudonym = self.overlay(1).identity_manager.get_pseudonym(self.peer(0).public_key)
+        pseudonym = self.overlay(1).identity_manager.get_pseudonym(self.public_key(0))
         self.assertEqual(0, len(pseudonym.get_credentials()))
 
     async def test_advertise_reject_public_key(self):
@@ -155,11 +145,11 @@ class TestIdentityCommunity(TestBase):
 
         await self.deliver_messages()
 
-        pseudonym = self.overlay(0).identity_manager.get_pseudonym(self.peer(0).public_key)
+        pseudonym = self.overlay(0).identity_manager.get_pseudonym(self.public_key(0))
         self.assertEqual(1, len(pseudonym.get_credentials()))
         self.assertEqual(0, len(pseudonym.get_credentials()[0].attestations))
 
-        pseudonym = self.overlay(1).identity_manager.get_pseudonym(self.peer(0).public_key)
+        pseudonym = self.overlay(1).identity_manager.get_pseudonym(self.public_key(0))
         self.assertEqual(0, len(pseudonym.get_credentials()))
 
     async def test_advertise_reject_old(self):
@@ -174,7 +164,7 @@ class TestIdentityCommunity(TestBase):
         await self.deliver_messages()
 
         for node_nr in [0, 1]:
-            pseudonym = self.overlay(node_nr).identity_manager.get_pseudonym(self.peer(0).public_key)
+            pseudonym = self.overlay(node_nr).identity_manager.get_pseudonym(self.public_key(0))
 
             self.assertEqual(1, len(pseudonym.get_credentials()))
             self.assertEqual(0, len(pseudonym.get_credentials()[0].attestations))
@@ -191,7 +181,7 @@ class TestIdentityCommunity(TestBase):
         await self.deliver_messages()
 
         for node_nr in [0, 1]:
-            pseudonym = self.overlay(node_nr).identity_manager.get_pseudonym(self.peer(0).public_key)
+            pseudonym = self.overlay(node_nr).identity_manager.get_pseudonym(self.public_key(0))
 
             self.assertEqual(1, len(pseudonym.get_credentials()))
             self.assertEqual(0, len(pseudonym.get_credentials()[0].attestations))
