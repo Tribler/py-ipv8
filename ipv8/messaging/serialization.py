@@ -1,8 +1,12 @@
+from __future__ import annotations
+
 import abc
 import typing
 from binascii import hexlify
 from socket import inet_aton, inet_ntoa
 from struct import Struct, pack, unpack_from
+
+FormatListType = typing.Union[str, "Serializable", typing.List["FormatListType"]]  # type:ignore
 
 
 class PackError(RuntimeError):
@@ -373,7 +377,7 @@ class Serializable(metaclass=abc.ABCMeta):
     Interface for serializable objects.
     """
 
-    format_list: typing.List[str] = []
+    format_list: typing.List[FormatListType] = []
 
     @abc.abstractmethod
     def to_pack_list(self):
