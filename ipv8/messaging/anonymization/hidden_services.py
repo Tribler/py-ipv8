@@ -293,8 +293,10 @@ class HiddenTunnelCommunity(TunnelCommunity):
             self.send_peers_response(source_address, payload, intro_points, circuit_id)
         elif circuit_id in self.exit_sockets:
             # Get peers from DHT community
-            _, intro_points = await self.dht_lookup(info_hash)
-            self.send_peers_response(source_address, payload, intro_points, circuit_id)
+            results = await self.dht_lookup(info_hash)
+            if results:
+                _, intro_points = results
+                self.send_peers_response(source_address, payload, intro_points, circuit_id)
         elif circuit_id is not None:
             self.logger.warning("Received a peers-request over circuit %d, but unable to do a DHT lookup", circuit_id)
         else:
