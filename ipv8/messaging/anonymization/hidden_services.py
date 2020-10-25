@@ -260,7 +260,9 @@ class HiddenTunnelCommunity(TunnelCommunity):
             if circuit and circuit.state == CIRCUIT_STATE_READY and \
                circuit.ctype == CIRCUIT_TYPE_RP_DOWNLOADER:
                 return circuit
-        return super(HiddenTunnelCommunity, self).select_circuit(destination, hops)
+
+        circuits = self.find_circuits(hops=hops)
+        return random.choice(circuits) if circuits else None
 
     def send_peers_request(self, info_hash, target, hops):
         circuit = self.select_circuit(None, hops)
