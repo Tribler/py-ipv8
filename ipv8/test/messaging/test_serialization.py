@@ -32,6 +32,20 @@ class Byte(Serializable):
         return Byte(*args)
 
 
+class Nested(Serializable):
+    format_list = [[Byte]]
+
+    def __init__(self, byte_list):
+        self.byte_list = byte_list
+
+    def to_pack_list(self):
+        return [('payload-list', self.byte_list)]
+
+    @classmethod
+    def from_unpack_list(cls, *args):
+        return Nested(*args)
+
+
 class TestSerializer(TestBase):
 
     def setUp(self):
@@ -173,3 +187,10 @@ class TestSerializer(TestBase):
 
         data = self.serializer.pack_serializable_list([instance1, instance2])
         self.assertRaises(PackError, self.serializer.unpack_serializable_list, [Short, Short], data + b"Nope.avi")
+
+    def test_nested_payload_list(self):
+        serializable = Nested([Byte(1), Byte(2)])
+        data = self.serializer.pack_serializable(serializable)
+        decoded, _ = self.serializer.unpack_serializable(Nested, data)
+        self.assertEqual(serializable.byte_list[0].byte, decoded.byte_list[0].byte)
+        self.assertEqual(serializable.byte_list[1].byte, decoded.byte_list[1].byte)

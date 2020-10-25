@@ -2,10 +2,10 @@ import struct
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDFExpand
 
 import libnacl
+from libnacl.aead import AEAD
 
 from ...keyvault.crypto import ECCrypto, LibNaCLPK
 
@@ -48,13 +48,13 @@ class TunnelCrypto(ECCrypto):
         return shared_secret
 
     def generate_session_keys(self, shared_secret):
-        hkdf = HKDFExpand(algorithm=hashes.SHA256(), backend=default_backend(), length=40, info=b"key_generation")
+        hkdf = HKDFExpand(algorithm=hashes.SHA256(), backend=default_backend(), length=72, info=b"key_generation")
         key = hkdf.derive(shared_secret)
 
-        kf = key[:16]
-        kb = key[16:32]
-        sf = key[32:36]
-        sb = key[36:40]
+        kf = key[:32]
+        kb = key[32:64]
+        sf = key[64:68]
+        sb = key[68:72]
         return [kf, kb, sf, sb, 1, 1]
 
     def _build_iv(self, salt, salt_explicit):
@@ -64,7 +64,7 @@ class TunnelCrypto(ECCrypto):
         if salt_explicit == 0:
             raise CryptoException("salt_explicit wrapped")
 
-        return salt + str(salt_explicit).encode()
+        return salt + struct.pack('!H', salt_explicit)
 
     def get_session_keys(self, keys, direction):
         # increment salt_explicit
@@ -73,8 +73,9 @@ class TunnelCrypto(ECCrypto):
 
     def encrypt_str(self, content, key, salt, salt_explicit):
         # return the encrypted content prepended with salt_explicit
-        aesgcm = AESGCM(key)
-        ciphertext = aesgcm.encrypt(self._build_iv(salt, salt_explicit), content, None)
+        aesgcm = AEAD(key)
+        _, _, ciphertext = aesgcm.encrypt(content, b'', nonce=salt + struct.pack('!q', salt_explicit),
+                                          pack_nonce_aad=False)
         return struct.pack('!q', salt_explicit) + ciphertext
 
     def decrypt_str(self, content, key, salt):
@@ -82,6 +83,5 @@ class TunnelCrypto(ECCrypto):
         if len(content) < 24:
             raise CryptoException("truncated content")
 
-        salt_explicit, = struct.unpack_from('!q', content)
-        aesgcm = AESGCM(key)
-        return aesgcm.decrypt(self._build_iv(salt, salt_explicit), content[8:], None)
+        aesgcm = AEAD(key)
+        return aesgcm.decrypt(salt + content, 0)

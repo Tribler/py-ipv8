@@ -229,6 +229,7 @@ class Circuit(Tunnel):
         self.unverified_hop = None
         self.hs_session_keys = None
         self.e2e = False
+        self.relay_early_count = 0
 
     @property
     def peer(self):
@@ -335,6 +336,9 @@ class RelayRoute(Tunnel):
         """
         super(RelayRoute, self).__init__(circuit_id, peer)
         self.rendezvous_relay = rendezvous_relay
+        # Since the creation of a RelayRoute object is triggered by an extend (which was wrapped in a cell
+        # that had the early_relay flag set) we start the count at 1.
+        self.relay_early_count = 1
 
 
 class RendezvousPoint(object):
@@ -342,8 +346,8 @@ class RendezvousPoint(object):
     def __init__(self, circuit, cookie):
         self.circuit = circuit
         self.cookie = cookie
+        self.address = None
         self.ready = Future()
-        self.rp_info = None
 
 
 class IntroductionPoint(object):

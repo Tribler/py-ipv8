@@ -78,7 +78,11 @@ class VariablePayload(Payload):
 
     @staticmethod
     def _to_packlist_fmt(fmt):
-        return fmt if isinstance(fmt, str) else 'payload'
+        if isinstance(fmt, str):
+            return fmt
+        if isinstance(fmt, list):
+            return 'payload-list'
+        return 'payload'
 
     def _fix_pack(self, name):
         """
@@ -202,10 +206,12 @@ def _compile_to_pack_list(src_cls, format_list, names):
     f_code = """
 def to_pack_list(self):
     return [%s]
-        """ % ', '.join(('("%s", self.fix_pack_%s(self.%s))' % (fmt if isinstance(fmt, str) else "payload",
-                                                                names[i], names[i]))
+        """ % ', '.join(('("%s", self.fix_pack_%s(self.%s))' % (fmt if isinstance(fmt, str) else
+                                                                ("payload-list" if isinstance(fmt, list)
+                                                                 else "payload"), names[i], names[i]))
                         if hasattr(src_cls, "fix_pack_" + names[i]) else
-                        ('("%s", self.%s)' % (fmt if isinstance(fmt, str) else "payload", names[i]))
+                        ('("%s", self.%s)' % (fmt if isinstance(fmt, str) else
+                                              ("payload-list" if isinstance(fmt, list) else "payload"), names[i]))
                         for i, fmt in enumerate(format_list))
     return compile(f_code, f_code, 'exec')
 

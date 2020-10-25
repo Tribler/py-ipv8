@@ -1,8 +1,12 @@
+from __future__ import annotations
+
 import abc
 import typing
 from binascii import hexlify
 from socket import inet_aton, inet_ntoa
 from struct import Struct, pack, unpack_from
+
+FormatListType = typing.Union[str, "Serializable", typing.List["FormatListType"]]  # type:ignore
 
 
 class PackError(RuntimeError):
@@ -56,19 +60,19 @@ class NestedPayload(object):
         data = pack('>H', len(data)) + data
         return data
 
-    def unpack(self, serializable_class, data, offset, unpack_list):
+    def unpack(self, data, offset, unpack_list, serializable_class):
         """
         Unpack a Serializable using a class definition for some given data and offset.
         This is a special unpack_from which also takes a payload class.
 
-        :param serializable_class: the Serializable class to unpack to
-        :type serializable_class: type(Serializable)
         :param data: the data to unpack from
         :type data: str
         :param offset: the offset in the list of data to unpack from
         :type offset: int
         :param unpack_list: the list to which to append the Serializable
         :type unpack_list: list
+        :param serializable_class: the Serializable class to unpack to
+        :type serializable_class: type(Serializable)
         :return: the new offset
         :rtype: int
         """
@@ -172,14 +176,14 @@ class ListOf:
     def pack(self, data):
         return pack(self.length_format, len(data)) + b''.join([self.packer.pack(item) for item in data])
 
-    def unpack(self, data, offset, unpack_list):
+    def unpack(self, data, offset, unpack_list, *args):
         length, = unpack_from(self.length_format, data, offset)
         offset += self.length_size
 
         result = []
         unpack_list.append(result)
         for _ in range(length):
-            offset = self.packer.unpack(data, offset, result)
+            offset = self.packer.unpack(data, offset, result, *args)
         return offset
 
 
@@ -236,7 +240,8 @@ class Serializer(object):
             'varlenH-list': ListOf(VarLen('>H')),
             'varlenI': VarLen('>I'),
             'doublevarlenH': VarLen('>H'),
-            'payload': NestedPayload(self)
+            'payload': NestedPayload(self),
+            'payload-list': ListOf(NestedPayload(self))
         }
 
     def get_available_formats(self):
@@ -259,6 +264,33 @@ class Serializer(object):
         :param packer: the packer to use for it
         """
         self._packers[name] = packer
+
+    def pack(self, fmt, item):
+        """
+        Pack data without using a Serializable. Using a Serializable is the preferred method.
+        :param fmt: the name of the packer to use while packing
+        :param item: object to pack
+        :return: the packed data
+        :rtype: bytes
+        """
+        return self._packers[fmt].pack(item)
+
+    def unpack(self, fmt, data):
+        """
+        Unpack data without using a Serializable. Using a Serializable is the preferred method.
+        :param fmt: the name of the packer to use while unpacking
+        :param data: bytes to unpack
+        :return: the unpacked object
+        :rtype: object
+        """
+        unpack_list = []
+        if isinstance(fmt, str):
+            self._packers[fmt].unpack(data, 0, unpack_list)
+        elif isinstance(fmt, list):
+            self._packers['payload-list'].unpack(data, 0, unpack_list, fmt[0])
+        else:
+            self._packers['payload'].unpack(data, 0, unpack_list, fmt)
+        return unpack_list[0]
 
     def pack_serializable(self, serializable):
         """
@@ -303,7 +335,11 @@ class Serializer(object):
             except KeyError:
                 if not issubclass(fmt, Serializable):
                     raise
-                offset = self._packers['payload'].unpack(fmt, data, offset, unpack_list)
+                offset = self._packers['payload'].unpack(data, offset, unpack_list, fmt)
+            except TypeError:
+                if not isinstance(fmt, list):
+                    raise
+                offset = self._packers['payload-list'].unpack(data, offset, unpack_list, fmt[0])
             except Exception as e:
                 raise PackError("Could not unpack item: %s\n%s: %s" % (fmt, type(e).__name__, str(e))) from e
         return serializable.from_unpack_list(*unpack_list), offset
@@ -341,7 +377,7 @@ class Serializable(metaclass=abc.ABCMeta):
     Interface for serializable objects.
     """
 
-    format_list: typing.List[str] = []
+    format_list: typing.List[FormatListType] = []
 
     @abc.abstractmethod
     def to_pack_list(self):
