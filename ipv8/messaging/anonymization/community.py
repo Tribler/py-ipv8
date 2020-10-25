@@ -298,9 +298,6 @@ class TunnelCommunity(Community):
         return circuit
 
     def send_initial_create(self, circuit, candidate_list, max_tries):
-        if self.request_cache.has("retry", circuit.circuit_id):
-            self.request_cache.pop("retry", circuit.circuit_id)
-
         first_hop = random.choice(candidate_list)
         alt_first_hops = [c for c in candidate_list if c != first_hop]
 
@@ -713,8 +710,8 @@ class TunnelCommunity(Community):
         circuit_id = payload.circuit_id
         self.directions[circuit_id] = ORIGINATOR
 
-        if self.request_cache.has("create", circuit_id):
-            request = self.request_cache.pop("create", circuit_id)
+        if self.request_cache.has("create", payload.identifier):
+            request = self.request_cache.pop("create", payload.identifier)
 
             self.logger.info("Got CREATED message forward as EXTENDED to origin.")
 
@@ -779,7 +776,8 @@ class TunnelCommunity(Community):
 
         self.logger.info("Extending circuit, got candidate with IP %s:%d from cache", *extend_candidate.address)
 
-        self.request_cache.add(CreateRequestCache(self, to_circuit_id, circuit_id, candidate, extend_candidate))
+        cache = CreateRequestCache(self, payload.identifier, to_circuit_id, circuit_id, candidate, extend_candidate)
+        self.request_cache.add(cache)
 
         self.send_cell(extend_candidate,
                        CreatePayload(to_circuit_id, payload.identifier,
