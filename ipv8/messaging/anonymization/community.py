@@ -116,7 +116,6 @@ class TunnelCommunity(Community):
         self.add_cell_handler(TestRequestPayload, self.on_test_request)
         self.add_cell_handler(TestResponsePayload, self.on_test_response)
 
-        self.select_index = -1
         self.circuits = {}
         self.directions = {}
         self.relay_from_to = {}
@@ -240,14 +239,6 @@ class TunnelCommunity(Community):
                 and (exit_flags is None or set(exit_flags) <= set(c.exit_flags))
                 and (hops is None or hops == c.goal_hops)]
 
-    def select_circuit(self, destination, hops):
-        circuits = sorted(self.find_circuits(hops=hops), key=lambda c: c.circuit_id)
-        if not circuits:
-            return None
-
-        self.select_index = (self.select_index + 1) % len(circuits)
-        return circuits[self.select_index]
-
     def create_circuit(self, goal_hops, ctype=CIRCUIT_TYPE_DATA, exit_flags=None, required_exit=None, info_hash=None):
         self.logger.info("Creating a new circuit of length %d (type: %s)", goal_hops, ctype)
 
@@ -298,9 +289,6 @@ class TunnelCommunity(Community):
         return circuit
 
     def send_initial_create(self, circuit, candidate_list, max_tries):
-        if self.request_cache.has("retry", circuit.circuit_id):
-            self.request_cache.pop("retry", circuit.circuit_id)
-
         first_hop = random.choice(candidate_list)
         alt_first_hops = [c for c in candidate_list if c != first_hop]
 
@@ -713,8 +701,8 @@ class TunnelCommunity(Community):
         circuit_id = payload.circuit_id
         self.directions[circuit_id] = ORIGINATOR
 
-        if self.request_cache.has("create", circuit_id):
-            request = self.request_cache.pop("create", circuit_id)
+        if self.request_cache.has("create", payload.identifier):
+            request = self.request_cache.pop("create", payload.identifier)
 
             self.logger.info("Got CREATED message forward as EXTENDED to origin.")
 
@@ -779,7 +767,8 @@ class TunnelCommunity(Community):
 
         self.logger.info("Extending circuit, got candidate with IP %s:%d from cache", *extend_candidate.address)
 
-        self.request_cache.add(CreateRequestCache(self, to_circuit_id, circuit_id, candidate, extend_candidate))
+        cache = CreateRequestCache(self, payload.identifier, to_circuit_id, circuit_id, candidate, extend_candidate)
+        self.request_cache.add(cache)
 
         self.send_cell(extend_candidate,
                        CreatePayload(to_circuit_id, payload.identifier,

@@ -10,8 +10,8 @@ class CreateRequestCache(NumberCache):
     """
     Used to track outstanding create messages
     """
-    def __init__(self, community, to_circuit_id, from_circuit_id, peer, to_peer):
-        super().__init__(community.request_cache, "create", to_circuit_id)
+    def __init__(self, community, identifier, to_circuit_id, from_circuit_id, peer, to_peer):
+        super().__init__(community.request_cache, "create", identifier)
         self.community = community
         self.to_circuit_id = to_circuit_id
         self.from_circuit_id = from_circuit_id
