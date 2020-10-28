@@ -72,8 +72,8 @@ class DiscoveryCommunity(Community):
 
     def on_introduction_request(self, source_address, data):
         if self.max_peers >= 0 and len(self.get_peers()) > self.max_peers:
-            self.logger.info("Dropping introduction request from (%s, %d): too many peers!",
-                             source_address[0], source_address[1])
+            self.logger.debug("Dropping introduction request from (%s, %d): too many peers!",
+                              source_address[0], source_address[1])
             return
 
         try:
@@ -116,8 +116,8 @@ class DiscoveryCommunity(Community):
     @lazy_wrapper(GlobalTimeDistributionPayload, SimilarityResponsePayload)
     def on_similarity_response(self, node, dist, payload):
         if self.max_peers >= 0 and len(self.get_peers()) > self.max_peers and node not in self.network.verified_peers:
-            self.logger.info("Dropping similarity response from (%s, %d): too many peers!",
-                             node.address[0], node.address[1])
+            self.logger.debug("Dropping similarity response from (%s, %d): too many peers!",
+                              node.address[0], node.address[1])
             return
 
         self.network.add_verified_peer(node)
