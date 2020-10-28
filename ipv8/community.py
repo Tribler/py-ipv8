@@ -7,11 +7,13 @@ Community instance.
 @organization: Technical University Delft
 @contact: dispersy@frayja.com
 """
+import logging
 import sys
 from asyncio import ensure_future, iscoroutine
 from binascii import hexlify
 from random import choice, random
 from socket import error, gethostbyname
+from threading import Thread
 from time import time
 from traceback import format_exception
 
@@ -173,11 +175,26 @@ class Community(EZPackOverlay):
             self.walk_to(socket_address)
 
     def resolve_dns_bootstrap_addresses(self):
-        for (address, port) in _DNS_ADDRESSES:
-            try:
-                _DEFAULT_ADDRESSES.append((gethostbyname(address), port))
-            except error:
-                self.logger.info("Unable to resolve (%s, %d)", address, port)
+        """
+        Resolve the bootstrap server DNS names defined in ``_DNS_ADDRESSES`` and insert them into
+        ``_DEFAULT_ADDRESSES``.
+        """
+        def resolve_addresses(dns_names):
+            current_addresses = _DEFAULT_ADDRESSES[:]  # Copy the existing addresses (don't loop through our additions)
+            for (address, port) in dns_names:
+                try:
+                    resolved_address = (gethostbyname(address), port)
+                    if resolved_address not in current_addresses:
+                        # NOTE: append() is thread-safe. Don't call remove() here!
+                        _DEFAULT_ADDRESSES.append(resolved_address)
+                except error:
+                    logging.info("Unable to resolve bootstrap DNS address (%s, %d)", address, port)
+
+        resolution_thread = Thread(name="resolve_dns_bootstrap_addresses",
+                                   target=resolve_addresses,
+                                   args=(_DNS_ADDRESSES, ),
+                                   daemon=True)
+        resolution_thread.start()
 
     def create_introduction_request(self, socket_address, extra_bytes=b''):
         global_time = self.claim_global_time()
