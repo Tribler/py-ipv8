@@ -286,8 +286,8 @@ class Community(EZPackOverlay):
     @lazy_wrapper(GlobalTimeDistributionPayload, IntroductionRequestPayload)
     def on_introduction_request(self, peer, dist, payload):
         if self.max_peers >= 0 and len(self.get_peers()) > self.max_peers:
-            self.logger.info("Dropping introduction request from (%s, %d): too many peers!",
-                             peer.address[0], peer.address[1])
+            self.logger.debug("Dropping introduction request from (%s, %d): too many peers!",
+                              peer.address[0], peer.address[1])
             return
 
         self.network.add_verified_peer(peer)
