@@ -4,7 +4,8 @@ import sys
 import threading
 import time
 import uuid
-from asyncio import all_tasks, get_event_loop, sleep
+from asyncio import all_tasks, ensure_future, get_event_loop, iscoroutine, sleep
+from functools import partial
 
 import asynctest
 
@@ -13,6 +14,20 @@ from .mocking.ipv8 import MockIPv8
 from ..peer import Peer
 
 get_event_loop().set_debug(True)
+
+
+def _on_packet_fragile_cb(self, packet, warn_unknown=True):
+    """
+    A fragile version of on_packet that crashes on message handling failures.
+
+    These failures won't actually cause IPv8 to crash in production, but you should probably handle these.
+
+    Add overlay classes to use in production mode to the ``production_overlay_classes`` list.
+    Filter nodes to run in production mode by overwriting ``TestBase.patch_overlays``.
+    """
+    result = self.decode_map[packet[1][22]](*packet)
+    if iscoroutine(result):
+        self.register_anonymous_task('on_packet', ensure_future(result))
 
 
 class TestBase(asynctest.TestCase):
@@ -29,12 +44,14 @@ class TestBase(asynctest.TestCase):
         self.overlay_class = object
         internet.clear()
         self._tempdirs = []
+        self.production_overlay_classes = []
+        self._uncaught_async_failure = None
 
     def initialize(self, overlay_class, node_count, *args, **kwargs):
         self.overlay_class = overlay_class
         self.nodes = [self.create_node(*args, **kwargs) for _ in range(node_count)]
 
-        # Add nodes to each other
+        # Add nodes to each other.
         for node in self.nodes:
             for other in self.nodes:
                 if other == node:
@@ -44,7 +61,42 @@ class TestBase(asynctest.TestCase):
                 node.network.add_verified_peer(public_peer)
                 node.network.discover_services(public_peer, [overlay_class.community_id])
 
+        # Make packet handling fragile.
+        for i in range(len(self.nodes)):
+            self.patch_overlays(i)
+
+    def _patch_overlay(self, overlay):
+        if overlay and overlay.__class__ not in self.production_overlay_classes:
+            overlay.on_packet = partial(_on_packet_fragile_cb, overlay)
+
+    def patch_overlays(self, i):
+        """
+        Method to make the packet handlers of a particular node fragile.
+
+        If you want to disable fragile packet handling for an entire class over overlays, add the class to the
+        production_overlay_classes list.
+
+        If you want to disable fragile packet handling for a particular node, overwrite this method.
+        """
+        self._patch_overlay(self.node(i).overlay)
+        self._patch_overlay(self.node(i).dht)
+        self._patch_overlay(self.node(i).trustchain)
+        for overlay in self.node(i).overlays:
+            self._patch_overlay(overlay)
+
+    def _cb_exception(self, loop, context):
+        """
+        Callback for asyncio exceptions.
+
+        Do not call `self.fail` or `pytest.fail` or any other failure mechanism in here.
+        These methods work by raising an Exception, which will silently fail as this is not the main loop.
+        """
+        # Only fail on the first failure, to not cause exception shadowing on compound errors.
+        if self._uncaught_async_failure is None:
+            self._uncaught_async_failure = context
+
     def setUp(self):
+        self.loop.set_exception_handler(self._cb_exception)
         super(TestBase, self).setUp()
         TestBase.__lockup_timestamp__ = time.time()
 
@@ -56,6 +108,11 @@ class TestBase(asynctest.TestCase):
         finally:
             while self._tempdirs:
                 shutil.rmtree(self._tempdirs.pop(), ignore_errors=True)
+        # Now that everyone has calmed down, sweep up the remaining callbacks and check if they failed.
+        asynctest.helpers.exhaust_callbacks(self.loop)
+        if self._uncaught_async_failure is not None:
+            raise self._uncaught_async_failure["exception"]
+        self.loop.set_exception_handler(None)  # None is equivalent to the default handler
         super(TestBase, self).tearDown()
 
     @classmethod
