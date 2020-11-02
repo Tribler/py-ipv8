@@ -1,8 +1,6 @@
 from functools import reduce
 from struct import calcsize, pack, unpack_from
 
-from libnacl import CryptError
-
 from ...messaging.anonymization.tunnel import (CIRCUIT_TYPE_RP_DOWNLOADER, CIRCUIT_TYPE_RP_SEEDER, EXIT_NODE,
                                                EXIT_NODE_SALT, ORIGINATOR, ORIGINATOR_SALT)
 from ...messaging.anonymization.tunnelcrypto import CryptoException
@@ -229,7 +227,7 @@ class CellPayload:
                     self.message = crypto.decrypt_str(self.message,
                                                       hop.session_keys[ORIGINATOR],
                                                       hop.session_keys[ORIGINATOR_SALT])
-                except CryptError as e:
+                except ValueError as e:
                     raise CryptoException("Got exception %r when trying to remove encryption layer %s "
                                           "for message: %r received for circuit_id: %s, circuit_hops: %r" %
                                           (e, layer, self.message, self.circuit_id, circuit.hops)) from e
@@ -246,7 +244,7 @@ class CellPayload:
                 self.message = crypto.decrypt_str(self.message,
                                                   relay_session_keys[EXIT_NODE],
                                                   relay_session_keys[EXIT_NODE_SALT])
-            except CryptError as e:
+            except ValueError as e:
                 raise CryptoException("Got exception %r when trying to decrypt relay message: "
                                       "cell received for circuit_id: %s" % (e, self.circuit_id)) from e
 
