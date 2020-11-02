@@ -1,4 +1,3 @@
-import socket
 from functools import reduce
 from struct import calcsize, pack, unpack_from
 
@@ -186,41 +185,6 @@ class Flags:
         number, = unpack_from(self.format, data, offset)
         unpack_list.append(list(filter(None, [number & (2 ** i) for i in range(self.size * 8)])))
         return self.size
-
-
-class Address:
-
-    def pack(self, address):
-        host, port = address
-        try:
-            ip = socket.inet_aton(host)
-            is_ip = True
-        except (ValueError, OSError):
-            is_ip = False
-
-        if is_ip:
-            return pack('>B4sH', ADDRESS_TYPE_IPV4, ip, port)
-        else:
-            host_bytes = host.encode('utf-8')
-            return pack('>BH', ADDRESS_TYPE_DOMAIN_NAME, len(host_bytes)) + host_bytes + pack('>H', port)
-
-    def unpack(self, data, offset, unpack_list):
-        addr_type, = unpack_from('>B', data, offset)
-
-        if addr_type == ADDRESS_TYPE_IPV4:
-            host, port = unpack_from('>4sH', data, offset + 1)
-            address = socket.inet_ntoa(host), port
-            unpack_list.append(address)
-            return offset + 7
-
-        elif addr_type == ADDRESS_TYPE_DOMAIN_NAME:
-            length, = unpack_from('>H', data, offset + 1)
-            host = data[offset + 3:offset + 3 + length].decode('utf-8')
-            port, = unpack_from('>H', data, offset + 3 + length)
-            unpack_list.append((host, port))
-            return offset + 5 + length
-
-        raise ValueError('Cannot unpack unknown address type')
 
 
 class CellPayload:

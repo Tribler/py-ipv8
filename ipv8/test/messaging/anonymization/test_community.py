@@ -10,7 +10,7 @@ from ....messaging.anonymization.community import TunnelCommunity, TunnelSetting
 from ....messaging.anonymization.endpoint import TunnelEndpoint
 from ....messaging.anonymization.tunnel import (CIRCUIT_STATE_EXTENDING, PEER_FLAG_EXIT_BT,
                                                 PEER_FLAG_EXIT_IPV8, PEER_FLAG_SPEED_TEST)
-from ....messaging.interfaces.udp.endpoint import UDPEndpoint
+from ....messaging.interfaces.udp.endpoint import DomainAddress, UDPEndpoint
 from ....util import succeed
 
 # Map of info_hash -> peer list
@@ -304,7 +304,8 @@ class TestTunnelCommunity(TestBase):
         # Tunnel the data to the endpoint
         circuit = list(self.overlay(0).circuits.values())[0]
         self.overlay(0).send_data(circuit.peer, circuit.circuit_id,
-                                  ('localhost', self.public_endpoint.get_address()[1]), ('0.0.0.0', 0), data)
+                                  DomainAddress('localhost', self.public_endpoint.get_address()[1]),
+                                  ('0.0.0.0', 0), data)
 
         future = Future()
         ep_listener.on_packet = lambda packet: ep_listener.received_packets.append(packet) or future.set_result(None)
@@ -502,7 +503,7 @@ class TestTunnelCommunity(TestBase):
         mock_exit = self.overlay(1).exit_sockets[exit_socket.circuit_id] = MockTunnelExitSocket(exit_socket)
         mock_exit.sendto = Mock()
 
-        unicode_destination = ('JP納豆.例.jp', 1234)
+        unicode_destination = DomainAddress('JP納豆.例.jp', 1234)
         self.overlay(0).send_data(circuit.peer, circuit.circuit_id, unicode_destination, ('0.0.0.0', 0), b'')
         await self.deliver_messages()
 

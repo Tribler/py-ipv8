@@ -6,6 +6,7 @@ Author(s): Egbert Bouman
 import binascii
 import os
 import random
+import socket
 import struct
 from asyncio import gather, iscoroutine
 

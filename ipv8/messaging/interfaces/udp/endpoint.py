@@ -8,6 +8,7 @@ from ..endpoint import Endpoint, EndpointClosedException
 
 UDPv4Address = collections.namedtuple("UDPv4Address", ["ip", "port"])
 UDPv6Address = collections.namedtuple("UDPv6Address", ["ip", "port"])
+DomainAddress = collections.namedtuple("DomainAddress", ["host", "port"])
 
 
 class UDPEndpoint(Endpoint, asyncio.DatagramProtocol):
