@@ -155,7 +155,6 @@ class TunnelCommunity(Community):
 
     def get_serializer(self):
         serializer = super().get_serializer()
-        serializer.add_packer('address', Address())
         serializer.add_packer('flags', Flags())
         return serializer
 

@@ -1,10 +1,17 @@
 from __future__ import annotations
 
 import abc
+import socket
 import typing
 from binascii import hexlify
-from socket import inet_aton, inet_ntoa
 from struct import Struct, pack, unpack_from
+
+from .interfaces.udp.endpoint import DomainAddress, UDPv4Address, UDPv6Address
+
+ADDRESS_TYPE_IPV4 = 0x01
+ADDRESS_TYPE_DOMAIN_NAME = 0x02
+ADDRESS_TYPE_IPV6 = 0x03
+
 
 FormatListType = typing.Union[str, "Serializable", typing.List["FormatListType"]]  # type:ignore
 
@@ -158,12 +165,46 @@ class IPv4:
     """
 
     def pack(self, data):
-        return pack('>4sH', inet_aton(data[0]), data[1])
+        return pack('>4sH', socket.inet_aton(data[0]), data[1])
 
     def unpack(self, data, offset, unpack_list):
         host_bytes, port = unpack_from('>4sH', data, offset)
-        unpack_list.append((inet_ntoa(host_bytes), port))
+        unpack_list.append((socket.inet_ntoa(host_bytes), port))
         return offset + 6
+
+
+class Address:
+
+    def __init__(self, ip_only=False):
+        self.ip_only = ip_only
+
+    def pack(self, address):
+        if isinstance(address, UDPv6Address):
+            return pack('>B16sH', ADDRESS_TYPE_IPV6, socket.inet_pton(socket.AF_INET6, address.ip), address.port)
+        if not self.ip_only and isinstance(address, DomainAddress):
+            host_bytes = address.host.encode()
+            return pack(f'>BH{len(host_bytes)}sH', ADDRESS_TYPE_DOMAIN_NAME, len(host_bytes), host_bytes, address.port)
+        if isinstance(address, tuple):
+            return pack('>B4sH', ADDRESS_TYPE_IPV4, socket.inet_pton(socket.AF_INET, address[0]), address[1])
+        raise PackError(f'Unexpected address type {address}')
+
+    def unpack(self, data, offset, unpack_list):
+        address_type, = unpack_from('>B', data, offset)
+        if address_type == ADDRESS_TYPE_IPV4:
+            ip_bytes, port = unpack_from('>4sH', data, offset + 1)
+            unpack_list.append(UDPv4Address(socket.inet_ntop(socket.AF_INET, ip_bytes), port))
+            return offset + 7
+        elif address_type == ADDRESS_TYPE_IPV6:
+            ip_bytes, port = unpack_from('>16sH', data, offset + 1)
+            unpack_list.append(UDPv6Address(socket.inet_ntop(socket.AF_INET6, ip_bytes), port))
+            return offset + 19
+        elif not self.ip_only and address_type == ADDRESS_TYPE_DOMAIN_NAME:
+            length, = unpack_from('>H', data, offset + 1)
+            host = data[offset + 3: offset + 3 + length].decode()
+            unpack_list.append(DomainAddress(host, unpack_from('>H', data, offset + 3 + length)[0]))
+            return offset + 5 + length
+        else:
+            raise PackError(f'Cannot unpack address type {address_type}')
 
 
 class ListOf:
@@ -233,6 +274,8 @@ class Serializer(object):
             'c20s': DefaultStruct(">c20s"),
             'bits': Bits(),
             'ipv4': IPv4(),
+            'ip_address': Address(ip_only=True),
+            'address': Address(),
             'raw': Raw(),
             'varlenBx2': VarLen('>B', 2),
             'varlenH': VarLen('>H'),

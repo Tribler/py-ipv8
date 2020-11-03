@@ -1,8 +1,5 @@
-import socket
 from functools import reduce
 from struct import calcsize, pack, unpack_from
-
-from libnacl import CryptError
 
 from ...messaging.anonymization.tunnel import (CIRCUIT_TYPE_RP_DOWNLOADER, CIRCUIT_TYPE_RP_SEEDER, EXIT_NODE,
                                                EXIT_NODE_SALT, ORIGINATOR, ORIGINATOR_SALT)
@@ -188,41 +185,6 @@ class Flags:
         return self.size
 
 
-class Address:
-
-    def pack(self, address):
-        host, port = address
-        try:
-            ip = socket.inet_aton(host)
-            is_ip = True
-        except (ValueError, OSError):
-            is_ip = False
-
-        if is_ip:
-            return pack('>B4sH', ADDRESS_TYPE_IPV4, ip, port)
-        else:
-            host_bytes = host.encode('utf-8')
-            return pack('>BH', ADDRESS_TYPE_DOMAIN_NAME, len(host_bytes)) + host_bytes + pack('>H', port)
-
-    def unpack(self, data, offset, unpack_list):
-        addr_type, = unpack_from('>B', data, offset)
-
-        if addr_type == ADDRESS_TYPE_IPV4:
-            host, port = unpack_from('>4sH', data, offset + 1)
-            address = socket.inet_ntoa(host), port
-            unpack_list.append(address)
-            return offset + 7
-
-        elif addr_type == ADDRESS_TYPE_DOMAIN_NAME:
-            length, = unpack_from('>H', data, offset + 1)
-            host = data[offset + 3:offset + 3 + length].decode('utf-8')
-            port, = unpack_from('>H', data, offset + 3 + length)
-            unpack_list.append((host, port))
-            return offset + 5 + length
-
-        raise ValueError('Cannot unpack unknown address type')
-
-
 class CellPayload:
     msg_id = 0
 
@@ -265,7 +227,7 @@ class CellPayload:
                     self.message = crypto.decrypt_str(self.message,
                                                       hop.session_keys[ORIGINATOR],
                                                       hop.session_keys[ORIGINATOR_SALT])
-                except CryptError as e:
+                except ValueError as e:
                     raise CryptoException("Got exception %r when trying to remove encryption layer %s "
                                           "for message: %r received for circuit_id: %s, circuit_hops: %r" %
                                           (e, layer, self.message, self.circuit_id, circuit.hops)) from e
@@ -282,7 +244,7 @@ class CellPayload:
                 self.message = crypto.decrypt_str(self.message,
                                                   relay_session_keys[EXIT_NODE],
                                                   relay_session_keys[EXIT_NODE_SALT])
-            except CryptError as e:
+            except ValueError as e:
                 raise CryptoException("Got exception %r when trying to decrypt relay message: "
                                       "cell received for circuit_id: %s" % (e, self.circuit_id)) from e
 
