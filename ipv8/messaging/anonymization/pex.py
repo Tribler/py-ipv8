@@ -4,15 +4,17 @@ from collections import deque
 
 from ...community import Community
 from ...messaging.anonymization.tunnel import IntroductionPoint, PEER_SOURCE_PEX
-from ...messaging.deprecated.encoding import decode, encode
 from ...peer import Peer
+
+PEX_VERSION = 1
 
 
 class PexCommunity(Community):
     def __init__(self, *args, **kwargs):
-        self.community_id = kwargs.pop('info_hash')
+        infohash = kwargs.pop('info_hash')
+        self.community_id = (int.from_bytes(infohash, 'big') + PEX_VERSION).to_bytes(20, 'big')
         self._prefix = b'\x00' + self.version + self.community_id
-        super(PexCommunity, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.intro_points = deque(maxlen=20)
         self.intro_points_for = []
@@ -56,7 +58,7 @@ class PexCommunity(Community):
         if not extra_bytes:
             return
 
-        for seeder_pk in decode(extra_bytes)[1]:
+        for seeder_pk in self.serializer.unpack('varlenH-list', extra_bytes):
             ip = IntroductionPoint(peer, seeder_pk, PEER_SOURCE_PEX)
             if ip in self.intro_points:
                 # Remove first to put introduction point at front of the deque.
@@ -71,11 +73,13 @@ class PexCommunity(Community):
         self.process_extra_bytes(peer, payload.extra_bytes)
 
     def create_introduction_request(self, socket_address, extra_bytes=b''):
-        extra_bytes = encode(random.sample(self.intro_points_for, min(len(self.intro_points_for), 10)))
-        return super(PexCommunity, self).create_introduction_request(socket_address, extra_bytes)
+        return super().create_introduction_request(socket_address, self.get_seeder_pks())
 
     def create_introduction_response(self, lan_socket_address, socket_address, identifier,
                                      introduction=None, extra_bytes=b''):
-        extra_bytes = encode(random.sample(self.intro_points_for, min(len(self.intro_points_for), 10)))
-        return super(PexCommunity, self).create_introduction_response(lan_socket_address, socket_address,
-                                                                      identifier, introduction, extra_bytes)
+        return super().create_introduction_response(lan_socket_address, socket_address,
+                                                    identifier, introduction, self.get_seeder_pks())
+
+    def get_seeder_pks(self):
+        pks = random.sample(self.intro_points_for, min(len(self.intro_points_for), 10))
+        return self.serializer.pack('varlenH-list', pks)
