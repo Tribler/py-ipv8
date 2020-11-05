@@ -17,6 +17,19 @@ class CompiledA(A):
     pass
 
 
+class BitsPayload(VariablePayload):
+    """
+    An unbalanced VariablePayload.
+    """
+    format_list = ['bits']
+    names = ['flag0', 'flag1', 'flag2', 'flag3', 'flag4', 'flag5', 'flag6', 'flag7']
+
+
+@vp_compile
+class CompiledBitsPayload(BitsPayload):
+    pass
+
+
 class B(VariablePayload):
     """
     A VariablePayload with a nested Payload.
@@ -174,6 +187,40 @@ class TestVariablePayload(TestBase):
         self.assertEqual(a.b, 1337)
         self.assertEqual(deserialized.a, 42)
         self.assertEqual(deserialized.b, 1337)
+
+    def test_bits_payload(self):
+        """
+        Check if unpacked BitPayload works correctly.
+        """
+        bpl = BitsPayload(False, True, False, True, False, True, False, True)
+
+        deserialized = self._pack_and_unpack(BitsPayload, bpl)
+
+        self.assertEqual(deserialized.flag0, False)
+        self.assertEqual(deserialized.flag1, True)
+        self.assertEqual(deserialized.flag2, False)
+        self.assertEqual(deserialized.flag3, True)
+        self.assertEqual(deserialized.flag4, False)
+        self.assertEqual(deserialized.flag5, True)
+        self.assertEqual(deserialized.flag6, False)
+        self.assertEqual(deserialized.flag7, True)
+
+    def test_bits_payload_compiled(self):
+        """
+        Check if unpacked compiled BitPayload works correctly.
+        """
+        bpl = CompiledBitsPayload(False, True, False, True, False, True, False, True)
+
+        deserialized = self._pack_and_unpack(BitsPayload, bpl)
+
+        self.assertEqual(deserialized.flag0, False)
+        self.assertEqual(deserialized.flag1, True)
+        self.assertEqual(deserialized.flag2, False)
+        self.assertEqual(deserialized.flag3, True)
+        self.assertEqual(deserialized.flag4, False)
+        self.assertEqual(deserialized.flag5, True)
+        self.assertEqual(deserialized.flag6, False)
+        self.assertEqual(deserialized.flag7, True)
 
     def test_inheritance(self):
         """

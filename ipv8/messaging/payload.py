@@ -1,6 +1,6 @@
 from socket import inet_aton, inet_ntoa
 
-from ..messaging.serialization import Serializable
+from ..messaging.serialization import Payload
 
 
 def encode_connection_type(type):
@@ -19,17 +19,6 @@ def decode_connection_type(bit_0, bit_1):
         return u"public"
     if bits == (1, 1):
         return u"symmetric-NAT"
-
-
-class Payload(Serializable):
-
-    def __str__(self):
-        out = self.__class__.__name__
-        for attribute in dir(self):
-            if not (attribute.startswith('_') or callable(getattr(self, attribute))) \
-                    and attribute not in ['format_list', 'names']:
-                out += '\n| %s: %s' % (attribute, repr(getattr(self, attribute)))
-        return out
 
 
 class IntroductionRequestPayload(Payload):
