@@ -1,6 +1,5 @@
-from socket import inet_aton, inet_ntoa
-
-from ..messaging.serialization import Serializable
+from ..messaging.lazy_payload import VariablePayload, vp_compile
+from ..messaging.serialization import Payload
 
 
 def encode_connection_type(type):
@@ -21,24 +20,13 @@ def decode_connection_type(bit_0, bit_1):
         return u"symmetric-NAT"
 
 
-class Payload(Serializable):
-
-    def __str__(self):
-        out = self.__class__.__name__
-        for attribute in dir(self):
-            if not (attribute.startswith('_') or callable(getattr(self, attribute))) \
-                    and attribute not in ['format_list', 'names']:
-                out += '\n| %s: %s' % (attribute, repr(getattr(self, attribute)))
-        return out
-
-
 class IntroductionRequestPayload(Payload):
 
     msg_id = 246
-    format_list = ['4SH', '4SH', '4SH', 'bits', 'H', 'raw']
+    format_list = ['ipv4', 'ipv4', 'ipv4', 'bits', 'H', 'raw']
 
     def __init__(self, destination_address, source_lan_address, source_wan_address, advice, connection_type,
-                 identifier, extra_bytes):
+                 identifier, extra_bytes, supports_new_style=True):
         """
         Create the payload for an introduction-request message.
 
@@ -69,42 +57,55 @@ class IntroductionRequestPayload(Payload):
         self.source_lan_address = source_lan_address
         self.source_wan_address = source_wan_address
         self.advice = advice
+        self.supports_new_style = supports_new_style
         self.connection_type = connection_type
         self.identifier = identifier % 65536
         self.extra_bytes = extra_bytes
 
     def to_pack_list(self):
         encoded_connection_type = encode_connection_type(self.connection_type)
-        data = [('4SH', inet_aton(self.destination_address[0]), self.destination_address[1]),
-                ('4SH', inet_aton(self.source_lan_address[0]), self.source_lan_address[1]),
-                ('4SH', inet_aton(self.source_wan_address[0]), self.source_wan_address[1]),
-                ('bits', encoded_connection_type[0], encoded_connection_type[1], 0, 0, 0, 0, 0, self.advice),
+        data = [('ipv4', self.destination_address),
+                ('ipv4', self.source_lan_address),
+                ('ipv4', self.source_wan_address),
+                ('bits', encoded_connection_type[0], encoded_connection_type[1], self.supports_new_style, 0, 0, 0, 0,
+                 self.advice),
                 ('H', self.identifier),
                 ('raw', self.extra_bytes)]
         return data
 
     @classmethod
     def from_unpack_list(cls, destination_address, source_lan_address, source_wan_address,
-                         connection_type_0, connection_type_1, dflag0, dflag1, dflag2, tunnel, sync, advice,
+                         connection_type_0, connection_type_1, supports_new_style, dflag1, dflag2, tunnel, sync, advice,
                          identifier, extra_bytes):
-        args = [(inet_ntoa(destination_address[0]), destination_address[1]),
-                (inet_ntoa(source_lan_address[0]), source_lan_address[1]),
-                (inet_ntoa(source_wan_address[0]), source_wan_address[1]),
+        args = [destination_address,
+                source_lan_address[1],
+                source_wan_address[1],
                 [True, False][advice],
                 decode_connection_type(connection_type_0, connection_type_1),
                 identifier,
-                extra_bytes]
+                extra_bytes,
+                supports_new_style]
 
         return IntroductionRequestPayload(*args)
+
+
+@vp_compile
+class NewIntroductionRequestPayload(VariablePayload):
+
+    msg_id = 234
+    format_list = ['ip_address', 'ip_address', 'ip_address', 'H', 'bits', 'raw']
+    names = ["destination_address", "source_lan_address", "source_wan_address", "identifier", "flag0", "flag1",
+             "flag2", "flag3", "flag4", "flag5", "flag6", "flag7", "extra_bytes"]
 
 
 class IntroductionResponsePayload(Payload):
 
     msg_id = 245
-    format_list = ['4SH', '4SH', '4SH', '4SH', '4SH', 'bits', 'H', 'raw']
+    format_list = ['ipv4', 'ipv4', 'ipv4', 'ipv4', 'ipv4', 'bits', 'H', 'raw']
 
     def __init__(self, destination_address, source_lan_address, source_wan_address, lan_introduction_address,
-                 wan_introduction_address, connection_type, tunnel, identifier, extra_bytes):
+                 wan_introduction_address, connection_type, tunnel, identifier, extra_bytes, supports_new_style=True,
+                 intro_supports_new_style=False):
         """
         Create the payload for an introduction-response message.
 
@@ -150,17 +151,20 @@ class IntroductionResponsePayload(Payload):
         self.wan_introduction_address = wan_introduction_address
         self.connection_type = connection_type
         self.tunnel = tunnel
+        self.supports_new_style = supports_new_style
+        self.intro_supports_new_style = intro_supports_new_style
         self.identifier = identifier % 65536
         self.extra_bytes = extra_bytes
 
     def to_pack_list(self):
         encoded_connection_type = encode_connection_type(self.connection_type)
-        data = [('4SH', inet_aton(self.destination_address[0]), self.destination_address[1]),
-                ('4SH', inet_aton(self.source_lan_address[0]), self.source_lan_address[1]),
-                ('4SH', inet_aton(self.source_wan_address[0]), self.source_wan_address[1]),
-                ('4SH', inet_aton(self.lan_introduction_address[0]), self.lan_introduction_address[1]),
-                ('4SH', inet_aton(self.wan_introduction_address[0]), self.wan_introduction_address[1]),
-                ('bits', encoded_connection_type[0], encoded_connection_type[1], 0, 0, 0, 0, 0, 0),
+        data = [('ipv4', self.destination_address),
+                ('ipv4', self.source_lan_address),
+                ('ipv4', self.source_wan_address),
+                ('ipv4', self.lan_introduction_address),
+                ('ipv4', self.wan_introduction_address),
+                ('bits', encoded_connection_type[0], encoded_connection_type[1], 0, self.supports_new_style,
+                 self.intro_supports_new_style, 0, 0, 0),
                 ('H', self.identifier),
                 ('raw', self.extra_bytes)]
         return data
@@ -168,25 +172,37 @@ class IntroductionResponsePayload(Payload):
     @classmethod
     def from_unpack_list(cls, destination_address, source_lan_address, source_wan_address,
                          introduction_lan_address, introduction_wan_address,
-                         connection_type_0, connection_type_1, dflag0, dflag1, dflag2, dflag3, dflag4, dflag5,
-                         identifier, extra_bytes):
-        args = [(inet_ntoa(destination_address[0]), destination_address[1]),
-                (inet_ntoa(source_lan_address[0]), source_lan_address[1]),
-                (inet_ntoa(source_wan_address[0]), source_wan_address[1]),
-                (inet_ntoa(introduction_lan_address[0]), introduction_lan_address[1]),
-                (inet_ntoa(introduction_wan_address[0]), introduction_wan_address[1]),
+                         connection_type_0, connection_type_1, dflag0, supports_new_style, intro_supports_new_style,
+                         dflag3, dflag4, dflag5, identifier, extra_bytes):
+        args = [destination_address,
+                source_lan_address,
+                source_wan_address,
+                introduction_lan_address,
+                introduction_wan_address,
                 decode_connection_type(connection_type_0, connection_type_1),
                 False,
                 identifier,
-                extra_bytes]
+                extra_bytes,
+                supports_new_style,
+                intro_supports_new_style]
 
         return IntroductionResponsePayload(*args)
+
+
+@vp_compile
+class NewIntroductionResponsePayload(VariablePayload):
+
+    msg_id = 233
+    format_list = ['ip_address', 'ip_address', 'ip_address', 'ip_address', 'ip_address', 'H', 'bits', 'raw']
+    names = ["destination_address", "source_lan_address", "source_wan_address", "lan_introduction_address",
+             "wan_introduction_address", "identifier", "intro_supports_new_style", "flag1", "flag2", "flag3",
+             "flag4", "flag5", "flag6", "flag7", "extra_bytes"]
 
 
 class PunctureRequestPayload(Payload):
 
     msg_id = 250
-    format_list = ['4SH', '4SH', 'H']
+    format_list = ['ipv4', 'ipv4', 'H']
 
     def __init__(self, lan_walker_address, wan_walker_address, identifier):
         """
@@ -212,25 +228,33 @@ class PunctureRequestPayload(Payload):
         self.identifier = identifier % 65536
 
     def to_pack_list(self):
-        data = [('4SH', inet_aton(self.lan_walker_address[0]), self.lan_walker_address[1]),
-                ('4SH', inet_aton(self.wan_walker_address[0]), self.wan_walker_address[1]),
+        data = [('ipv4', self.lan_walker_address),
+                ('ipv4', self.wan_walker_address),
                 ('H', self.identifier)]
 
         return data
 
     @classmethod
     def from_unpack_list(cls, lan_walker_address, wan_walker_address, identifier):
-        args = [(inet_ntoa(lan_walker_address[0]), lan_walker_address[1]),
-                (inet_ntoa(wan_walker_address[0]), wan_walker_address[1]),
+        args = [lan_walker_address,
+                wan_walker_address,
                 identifier]
 
         return PunctureRequestPayload(*args)
 
 
+@vp_compile
+class NewPunctureRequestPayload(VariablePayload):
+
+    msg_id = 232
+    format_list = ['ip_address', 'ip_address', 'H']
+    names = ["lan_walker_address", "wan_walker_address", "identifier"]
+
+
 class PuncturePayload(Payload):
 
     msg_id = 249
-    format_list = ['4SH', '4SH', 'H']
+    format_list = ['ipv4', 'ipv4', 'H']
 
     def __init__(self, source_lan_address, source_wan_address, identifier):
         """
@@ -251,16 +275,24 @@ class PuncturePayload(Payload):
         self.identifier = identifier % 65536
 
     def to_pack_list(self):
-        data = [('4SH', inet_aton(self.source_lan_address[0]), self.source_lan_address[1]),
-                ('4SH', inet_aton(self.source_wan_address[0]), self.source_wan_address[1]),
+        data = [('ipv4', self.source_lan_address),
+                ('ipv4', self.source_wan_address),
                 ('H', self.identifier)]
 
         return data
 
     @classmethod
     def from_unpack_list(cls, lan_walker_address, wan_walker_address, identifier):
-        args = [(inet_ntoa(lan_walker_address[0]), lan_walker_address[1]),
-                (inet_ntoa(wan_walker_address[0]), wan_walker_address[1]),
+        args = [lan_walker_address,
+                wan_walker_address,
                 identifier]
 
         return PuncturePayload(*args)
+
+
+@vp_compile
+class NewPuncturePayload(VariablePayload):
+
+    msg_id = 231
+    format_list = ['ip_address', 'ip_address', 'H']
+    names = ["source_lan_address", "source_wan_address", "identifier"]

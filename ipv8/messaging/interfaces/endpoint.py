@@ -281,6 +281,22 @@ class EndpointListener(metaclass=abc.ABCMeta):
         except socket.error:
             return "0.0.0.0"
 
+    def get_ipv6_address(self):
+        for interface in netifaces.interfaces():
+            try:
+                addresses = netifaces.ifaddresses(interface)
+                for option in addresses.get(netifaces.AF_INET6, []):
+                    try:
+                        if option.get("addr") == "::1":
+                            continue
+                        unicode_to_str = lambda s: s.encode('utf-8') if s and not isinstance(s, str) else s
+                        return unicode_to_str(option.get("addr").split('%')[0])  # Platform-specific may have "%eth0"
+                    except TypeError:
+                        pass
+            except OSError as e:
+                logger = logging.getLogger("dispersy")
+                logger.warning("failed to check network interfaces, error was: %r", e)
+
     def _get_lan_address(self, bootstrap=False):
         """
         Attempt to get the newest lan ip of this machine, preferably with netifaces, but use the fallback if it fails

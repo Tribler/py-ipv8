@@ -579,17 +579,18 @@ class TunnelCommunity(Community):
     def introduction_response_callback(self, peer, dist, payload):
         self.candidates[peer] = self.extract_peer_flags(payload.extra_bytes)
 
-    def create_introduction_request(self, socket_address, extra_bytes=b''):
+    def create_introduction_request(self, socket_address, extra_bytes=b'', new_style=False):
         extra_payload = ExtraIntroductionPayload(self.settings.peer_flags)
         extra_bytes = self.serializer.pack_serializable(extra_payload)
-        return super(TunnelCommunity, self).create_introduction_request(socket_address, extra_bytes)
+        return super().create_introduction_request(socket_address, extra_bytes, new_style)
 
     def create_introduction_response(self, lan_socket_address, socket_address, identifier,
-                                     introduction=None, extra_bytes=b''):
+                                     introduction=None, extra_bytes=b'', prefix=None, new_style=False):
         extra_payload = ExtraIntroductionPayload(self.settings.peer_flags)
         extra_bytes = self.serializer.pack_serializable(extra_payload)
         return super(TunnelCommunity, self).create_introduction_response(lan_socket_address, socket_address,
-                                                                         identifier, introduction, extra_bytes)
+                                                                         identifier, introduction, extra_bytes,
+                                                                         prefix, new_style)
 
     def on_cell(self, source_address, data):
         cell = CellPayload.from_bin(data)

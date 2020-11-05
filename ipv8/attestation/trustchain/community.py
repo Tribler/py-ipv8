@@ -657,16 +657,17 @@ class TrustChainCommunity(Community):
         return 0 if not latest_block else latest_block.sequence_number
 
     @synchronized
-    def create_introduction_request(self, socket_address, extra_bytes=b''):
+    def create_introduction_request(self, socket_address, extra_bytes=b'', new_style=False):
         extra_bytes = struct.pack('>l', self.get_chain_length())
-        return super(TrustChainCommunity, self).create_introduction_request(socket_address, extra_bytes)
+        return super().create_introduction_request(socket_address, extra_bytes, new_style)
 
     @synchronized
     def create_introduction_response(self, lan_socket_address, socket_address, identifier,
-                                     introduction=None, extra_bytes=b''):
+                                     introduction=None, extra_bytes=b'', prefix=None, new_style=False):
         extra_bytes = struct.pack('>l', self.get_chain_length())
         return super(TrustChainCommunity, self).create_introduction_response(lan_socket_address, socket_address,
-                                                                             identifier, introduction, extra_bytes)
+                                                                             identifier, introduction, extra_bytes,
+                                                                             prefix, new_style)
 
     @synchronized
     def introduction_response_callback(self, peer, dist, payload):

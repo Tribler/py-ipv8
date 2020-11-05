@@ -19,26 +19,31 @@ from traceback import format_exception
 
 from .lazy_community import EZPackOverlay, lazy_wrapper, lazy_wrapper_unsigned
 from .messaging.anonymization.endpoint import TunnelEndpoint
-from .messaging.payload import (IntroductionRequestPayload, IntroductionResponsePayload, PuncturePayload,
-                                PunctureRequestPayload)
+from .messaging.interfaces.dispatcher.endpoint import FAST_ADDR_TO_INTERFACE, INTERFACES
+from .messaging.interfaces.udp.endpoint import UDPv4Address, UDPv6Address
+from .messaging.payload import (IntroductionRequestPayload, IntroductionResponsePayload,
+                                NewIntroductionRequestPayload, NewIntroductionResponsePayload,
+                                NewPuncturePayload, NewPunctureRequestPayload,
+                                PuncturePayload, PunctureRequestPayload)
 from .messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
+from .peer import Peer
 
 _DEFAULT_ADDRESSES = [
     # Dispersy
-    ("130.161.119.206", 6421),
-    ("130.161.119.206", 6422),
-    ("131.180.27.155", 6423),
-    ("131.180.27.156", 6424),
-    ("131.180.27.161", 6427),
+    UDPv4Address("130.161.119.206", 6421),
+    UDPv4Address("130.161.119.206", 6422),
+    UDPv4Address("131.180.27.155", 6423),
+    UDPv4Address("131.180.27.156", 6424),
+    UDPv4Address("131.180.27.161", 6427),
     # IPv8
-    ("131.180.27.161", 6521),
-    ("131.180.27.161", 6522),
-    ("131.180.27.162", 6523),
-    ("131.180.27.162", 6524),
-    ("130.161.119.215", 6525),
-    ("130.161.119.215", 6526),
-    ("81.171.27.194", 6527),
-    ("81.171.27.194", 6528)
+    UDPv4Address("131.180.27.161", 6521),
+    UDPv4Address("131.180.27.161", 6522),
+    UDPv4Address("131.180.27.162", 6523),
+    UDPv4Address("131.180.27.162", 6524),
+    UDPv4Address("130.161.119.215", 6525),
+    UDPv4Address("130.161.119.215", 6526),
+    UDPv4Address("81.171.27.194", 6527),
+    UDPv4Address("81.171.27.194", 6528)
 ]
 
 
@@ -58,6 +63,10 @@ _DNS_ADDRESSES = [
     (u"tracker7.ip-v8.org", 6527),
     (u"tracker8.ip-v8.org", 6528)
 ]
+
+
+_UNUSED_FLAGS_REQ = {'flag0': 0, 'flag1': 0, 'flag2': 0, 'flag3': 0, 'flag4': 0, 'flag5': 0, 'flag6': 0, 'flag7': 0}
+_UNUSED_FLAGS_RESP = {'flag1': 0, 'flag2': 0, 'flag3': 0, 'flag4': 0, 'flag5': 0, 'flag6': 0, 'flag7': 0}
 
 
 BOOTSTRAP_TIMEOUT = 30.0  # Timeout before we bootstrap again (bootstrap kills performance)
@@ -93,10 +102,14 @@ class Community(EZPackOverlay):
         self.last_bootstrap = 0
         self.decode_map = [None] * 256
 
-        self.add_message_handler(PunctureRequestPayload, self.on_puncture_request)
+        self.add_message_handler(PunctureRequestPayload, self.on_old_puncture_request)
         self.add_message_handler(PuncturePayload, self.on_puncture)
-        self.add_message_handler(IntroductionRequestPayload, self.on_introduction_request)
-        self.add_message_handler(IntroductionResponsePayload, self.on_introduction_response)
+        self.add_message_handler(NewPunctureRequestPayload, self.on_new_puncture_request)
+        self.add_message_handler(NewPuncturePayload, self.on_new_puncture)
+        self.add_message_handler(IntroductionRequestPayload, self.on_old_introduction_request)
+        self.add_message_handler(IntroductionResponsePayload, self.on_old_introduction_response)
+        self.add_message_handler(NewIntroductionRequestPayload, self.on_new_introduction_request)
+        self.add_message_handler(NewIntroductionResponsePayload, self.on_new_introduction_response)
 
         self.add_message_handler(255, self.on_deprecated_message)
         self.add_message_handler(254, self.on_deprecated_message)
@@ -196,68 +209,104 @@ class Community(EZPackOverlay):
                                    daemon=True)
         resolution_thread.start()
 
-    def create_introduction_request(self, socket_address, extra_bytes=b''):
-        global_time = self.claim_global_time()
-        payload = IntroductionRequestPayload(socket_address,
-                                             self.my_estimated_lan,
-                                             self.my_estimated_wan,
-                                             True,
-                                             u"unknown",
-                                             global_time,
-                                             extra_bytes)
+    def guess_address(self, interface):
+        if interface == "UDPIPv4":
+            return UDPv4Address(*self._get_lan_address())
+        elif interface == "UDPIPv6":
+            return UDPv6Address(self.get_ipv6_address(), self.endpoint.get_address(interface)[1])
+        else:
+            return None
+
+    def my_preferred_address(self):
+        interfaces = getattr(self.endpoint, "interfaces", [])
+        if not interfaces:
+            return self.my_estimated_wan
+        for interface in interfaces:
+            if INTERFACES[interface] not in self.my_peer.addresses:
+                self.my_peer.address = self.guess_address(interface)
+        return self.my_peer.address
+
+    def create_introduction_request(self, socket_address, extra_bytes=b'', new_style=False):
+        global_time = self.claim_global_time() % 65536
+        if new_style or not isinstance(socket_address, UDPv4Address):
+            payload = NewIntroductionRequestPayload(socket_address, self.my_estimated_lan, self.my_preferred_address(),
+                                                    global_time, **_UNUSED_FLAGS_REQ, extra_bytes=extra_bytes)
+        else:
+            payload = IntroductionRequestPayload(socket_address,
+                                                 self.my_estimated_lan,
+                                                 self.my_estimated_wan,
+                                                 True,
+                                                 u"unknown",
+                                                 global_time,
+                                                 extra_bytes,
+                                                 supports_new_style=new_style)
         auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin())
         dist = GlobalTimeDistributionPayload(global_time)
 
-        return self._ez_pack(self._prefix, 246, [auth, dist, payload])
+        return self._ez_pack(self._prefix, payload.msg_id, [auth, dist, payload])
 
     def create_introduction_response(self, lan_socket_address, socket_address, identifier,
-                                     introduction=None, extra_bytes=b'', prefix=None):
-        global_time = self.claim_global_time()
+                                     introduction=None, extra_bytes=b'', prefix=None, new_style=False):
+        global_time = self.claim_global_time() % 65536
         introduction_lan = ("0.0.0.0", 0)
         introduction_wan = ("0.0.0.0", 0)
         introduced = False
         other = self.network.get_verified_by_address(socket_address)
         if not introduction:
-            introduction = self.get_peer_for_introduction(exclude=other)
+            introduction = self.get_peer_for_introduction(exclude=other, new_style=new_style)
         if introduction:
-            if self.address_is_lan(introduction.address[0]):
+            if isinstance(introduction.address, UDPv4Address) and self.address_is_lan(introduction.address[0]):
                 introduction_lan = introduction.address
                 introduction_wan = (self.my_estimated_wan[0], introduction_lan[1])
             else:
                 introduction_wan = introduction.address
             introduced = True
-        payload = IntroductionResponsePayload(socket_address,
-                                              self.my_estimated_lan,
-                                              self.my_estimated_wan,
-                                              introduction_lan,
-                                              introduction_wan,
-                                              u"unknown",
-                                              False,
-                                              identifier,
-                                              extra_bytes)
+        new_style_intro = introduction.new_style_intro if introduction else False
+        if new_style:
+            payload = NewIntroductionResponsePayload(socket_address, self.my_estimated_lan, self.my_preferred_address(),
+                                                     introduction_lan, introduction_wan, identifier,
+                                                     new_style_intro, **_UNUSED_FLAGS_RESP, extra_bytes=extra_bytes)
+        else:
+            payload = IntroductionResponsePayload(socket_address,
+                                                  self.my_estimated_lan,
+                                                  self.my_estimated_wan,
+                                                  introduction_lan,
+                                                  introduction_wan,
+                                                  u"unknown",
+                                                  False,
+                                                  identifier,
+                                                  extra_bytes,
+                                                  intro_supports_new_style=new_style_intro)
         auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin())
         dist = GlobalTimeDistributionPayload(global_time)
 
         if introduced:
-            packet = self.create_puncture_request(lan_socket_address, socket_address, identifier, prefix=prefix)
+            packet = self.create_puncture_request(lan_socket_address, socket_address, identifier, prefix=prefix,
+                                                  new_style=new_style_intro)
             self.endpoint.send(introduction_wan if introduction_lan == ("0.0.0.0", 0) else introduction_lan, packet)
 
-        return self._ez_pack(prefix or self._prefix, 245, [auth, dist, payload])
+        return self._ez_pack(prefix or self._prefix, payload.msg_id, [auth, dist, payload])
 
-    def create_puncture(self, lan_walker, wan_walker, identifier):
+    def create_puncture(self, lan_walker, wan_walker, identifier, new_style=False):
         global_time = self.claim_global_time()
-        payload = PuncturePayload(lan_walker, wan_walker, identifier)
+        if new_style:
+            payload = NewPuncturePayload(lan_walker, wan_walker, identifier)
+        else:
+            payload = PuncturePayload(lan_walker, wan_walker, identifier)
         auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin())
         dist = GlobalTimeDistributionPayload(global_time)
 
-        return self._ez_pack(self._prefix, 249, [auth, dist, payload])
+        return self._ez_pack(self._prefix, payload.msg_id, [auth, dist, payload])
 
-    def create_puncture_request(self, lan_walker, wan_walker, identifier, prefix=None):
+    def create_puncture_request(self, lan_walker, wan_walker, identifier, prefix=None, new_style=False):
         global_time = self.claim_global_time()
-        payload = PunctureRequestPayload(lan_walker, wan_walker, identifier)
+        if new_style or not isinstance(lan_walker, UDPv4Address) or not isinstance(wan_walker, UDPv4Address):
+            payload = NewPunctureRequestPayload(lan_walker, wan_walker, identifier)
+        else:
+            payload = PunctureRequestPayload(lan_walker, wan_walker, identifier)
         dist = GlobalTimeDistributionPayload(global_time)
 
-        return self._ez_pack(prefix or self._prefix, 250, [dist, payload], False)
+        return self._ez_pack(prefix or self._prefix, payload.msg_id, [dist, payload], False)
 
     def introduction_request_callback(self, peer, dist, payload):
         """
@@ -284,6 +333,16 @@ class Community(EZPackOverlay):
         pass
 
     @lazy_wrapper(GlobalTimeDistributionPayload, IntroductionRequestPayload)
+    def on_old_introduction_request(self, peer, dist, payload):
+        if payload.supports_new_style:
+            peer.new_style_intro = True
+        self.on_introduction_request(peer, dist, payload)
+
+    @lazy_wrapper(GlobalTimeDistributionPayload, NewIntroductionRequestPayload)
+    def on_new_introduction_request(self, peer, dist, payload):
+        peer.new_style_intro = True
+        self.on_introduction_request(peer, dist, payload)
+
     def on_introduction_request(self, peer, dist, payload):
         if self.max_peers >= 0 and len(self.get_peers()) > self.max_peers:
             self.logger.debug("Dropping introduction request from (%s, %d): too many peers!",
@@ -293,31 +352,64 @@ class Community(EZPackOverlay):
         self.network.add_verified_peer(peer)
         self.network.discover_services(peer, [self.community_id, ])
 
-        packet = self.create_introduction_response(payload.destination_address, peer.address, payload.identifier)
+        packet = self.create_introduction_response(payload.destination_address, peer.address, payload.identifier,
+                                                   new_style=peer.new_style_intro)
         self.endpoint.send(peer.address, packet)
 
         self.introduction_request_callback(peer, dist, payload)
 
     @lazy_wrapper(GlobalTimeDistributionPayload, IntroductionResponsePayload)
+    def on_old_introduction_response(self, peer, dist, payload):
+        if payload.supports_new_style:
+            peer.new_style_intro = True
+        self.on_introduction_response(peer, dist, payload)
+
+    @lazy_wrapper(GlobalTimeDistributionPayload, NewIntroductionResponsePayload)
+    def on_new_introduction_response(self, peer, dist, payload):
+        peer.new_style_intro = True
+        self.on_introduction_response(peer, dist, payload)
+
     def on_introduction_response(self, peer, dist, payload):
-        if not self.address_is_lan(payload.destination_address[0]):
+        if (isinstance(payload.destination_address, UDPv4Address)
+                and not self.address_is_lan(payload.destination_address[0])):
             self.my_estimated_wan = payload.destination_address
+        self.my_peer.address = payload.destination_address
+
+        if peer.new_style_intro:
+            # Peer wants to use a different interface which we support, so let's try to switch interfaces.
+            requested_interface = payload.source_wan_address.__class__
+            used_interface = peer.address.__class__
+            if (requested_interface != used_interface
+                    and payload.source_wan_address != peer.address
+                    and FAST_ADDR_TO_INTERFACE[requested_interface] in self.endpoint.interfaces):
+                self.network.discover_address(peer, payload.source_wan_address, self.community_id, True)
+
+                my_address = self.my_peer.addresses.get(requested_interface,
+                                                        self.guess_address(FAST_ADDR_TO_INTERFACE[requested_interface]))
+                if my_address:
+                    packet = self.create_puncture_request(("0.0.0.0", 0), my_address, payload.identifier,
+                                                          new_style=True)
+                    self.endpoint.send(peer.address, packet)
 
         self.network.add_verified_peer(peer)
         self.network.discover_services(peer, [self.community_id, ])
 
+        introductions = []
+
         if (payload.wan_introduction_address != ("0.0.0.0", 0)
                 and payload.wan_introduction_address[0] != self.my_estimated_wan[0]):
             if payload.lan_introduction_address != ("0.0.0.0", 0):
-                self.network.discover_address(peer, payload.lan_introduction_address, self.community_id)
-            self.network.discover_address(peer, payload.wan_introduction_address, self.community_id)
+                introductions.append(payload.lan_introduction_address)
+            introductions.append(payload.wan_introduction_address)
         elif (payload.lan_introduction_address != ("0.0.0.0", 0)
               and payload.wan_introduction_address[0] == self.my_estimated_wan[0]):
-            self.network.discover_address(peer, payload.lan_introduction_address, self.community_id)
+            introductions.append(payload.lan_introduction_address)
         elif payload.wan_introduction_address != ("0.0.0.0", 0):
-            self.network.discover_address(peer, payload.wan_introduction_address, self.community_id)
-            self.network.discover_address(peer, (self.my_estimated_lan[0], payload.wan_introduction_address[1]),
-                                          self.community_id)
+            introductions.append(payload.wan_introduction_address)
+            introductions.append(UDPv4Address(self.my_estimated_lan[0], payload.wan_introduction_address[1]))
+
+        for introduction in introductions:
+            self.network.discover_address(peer, introduction, self.community_id, payload.intro_supports_new_style)
 
         self.introduction_response_callback(peer, dist, payload)
 
@@ -325,13 +417,25 @@ class Community(EZPackOverlay):
     def on_puncture(self, peer, dist, payload):
         pass
 
+    @lazy_wrapper(GlobalTimeDistributionPayload, NewPuncturePayload)
+    def on_new_puncture(self, peer, dist, payload):
+        pass
+
     @lazy_wrapper_unsigned(GlobalTimeDistributionPayload, PunctureRequestPayload)
-    def on_puncture_request(self, source_address, dist, payload):
+    def on_old_puncture_request(self, source_address, dist, payload):
+        self.on_puncture_request(source_address, dist, payload)
+
+    @lazy_wrapper_unsigned(GlobalTimeDistributionPayload, NewPunctureRequestPayload)
+    def on_new_puncture_request(self, source_address, dist, payload):
+        self.on_puncture_request(source_address, dist, payload, True)
+
+    def on_puncture_request(self, source_address, dist, payload, new_style=False):
         target = payload.wan_walker_address
         if payload.wan_walker_address[0] == self.my_estimated_wan[0]:
             target = payload.lan_walker_address
 
-        packet = self.create_puncture(self.my_estimated_lan, payload.wan_walker_address, payload.identifier)
+        packet = self.create_puncture(self.my_estimated_lan, payload.wan_walker_address, payload.identifier,
+                                      new_style)
         self.endpoint.send(target, packet)
 
     def on_packet(self, packet, warn_unknown=True):
@@ -355,17 +459,17 @@ class Community(EZPackOverlay):
             self.logger.warning("Received unknown message: %d from (%s, %d)", msg_id, *source_address)
 
     def walk_to(self, address):
-        packet = self.create_introduction_request(address)
+        packet = self.create_introduction_request(address, new_style=self.network.is_new_style(address))
         self.endpoint.send(address, packet)
 
     def send_introduction_request(self, peer):
         """
         Send an introduction request to a specific peer.
         """
-        packet = self.create_introduction_request(peer.address)
+        packet = self.create_introduction_request(peer.address, new_style=peer.new_style_intro)
         self.endpoint.send(peer.address, packet)
 
-    def get_new_introduction(self, from_peer=None):
+    def get_new_introduction(self, from_peer: Peer = None):
         """
         Get a new introduction, or bootstrap if there are no available peers.
         """
@@ -374,21 +478,23 @@ class Community(EZPackOverlay):
             if available:
                 # With a small chance, try to remedy any disconnected network phenomena.
                 if _DEFAULT_ADDRESSES and random() < 0.05:
-                    from_peer = choice(_DEFAULT_ADDRESSES)
+                    address = choice(_DEFAULT_ADDRESSES)
+                    packet = self.create_introduction_request(address)
+                    self.endpoint.send(address, packet)
+                    return
                 else:
-                    from_peer = choice(available).address
+                    from_peer = choice(available)
             else:
                 self.bootstrap()
                 return
+        self.send_introduction_request(from_peer)
 
-        packet = self.create_introduction_request(from_peer)
-        self.endpoint.send(from_peer, packet)
-
-    def get_peer_for_introduction(self, exclude=None):
+    def get_peer_for_introduction(self, exclude=None, new_style=False):
         """
         Return a random peer to send an introduction request to.
         """
-        available = [p for p in self.get_peers() if p != exclude]
+        available = [p for p in self.get_peers() if p != exclude and not
+                     (not new_style and not isinstance(p.address, UDPv4Address))]
         return choice(available) if available else None
 
     def get_walkable_addresses(self):

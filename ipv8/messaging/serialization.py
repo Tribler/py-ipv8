@@ -98,14 +98,14 @@ class Bits(object):
         :type *data: list of 8 True or False values (or anything that maps to it in an if-statement)
         """
         byte = 0
-        byte |= 0x80 if data[7] else 0x00
-        byte |= 0x40 if data[6] else 0x00
-        byte |= 0x20 if data[5] else 0x00
-        byte |= 0x10 if data[4] else 0x00
-        byte |= 0x08 if data[3] else 0x00
-        byte |= 0x04 if data[2] else 0x00
-        byte |= 0x02 if data[1] else 0x00
-        byte |= 0x01 if data[0] else 0x00
+        byte |= 0x80 if data[0] else 0x00
+        byte |= 0x40 if data[1] else 0x00
+        byte |= 0x20 if data[2] else 0x00
+        byte |= 0x10 if data[3] else 0x00
+        byte |= 0x08 if data[4] else 0x00
+        byte |= 0x04 if data[5] else 0x00
+        byte |= 0x02 if data[6] else 0x00
+        byte |= 0x01 if data[7] else 0x00
         return pack('>B', byte)
 
     def unpack(self, data, offset, unpack_list):
@@ -169,7 +169,7 @@ class IPv4:
 
     def unpack(self, data, offset, unpack_list):
         host_bytes, port = unpack_from('>4sH', data, offset)
-        unpack_list.append((socket.inet_ntoa(host_bytes), port))
+        unpack_list.append(UDPv4Address(socket.inet_ntoa(host_bytes), port))
         return offset + 6
 
 
@@ -438,6 +438,17 @@ class Serializable(metaclass=abc.ABCMeta):
         Create a new Serializable object from a list of unpacked variables.
         """
         pass
+
+
+class Payload(Serializable, abc.ABC):
+
+    def __str__(self):
+        out = self.__class__.__name__
+        for attribute in dir(self):
+            if not (attribute.startswith('_') or callable(getattr(self, attribute))) \
+                    and attribute not in ['format_list', 'names']:
+                out += '\n| %s: %s' % (attribute, repr(getattr(self, attribute)))
+        return out
 
 
 # Serializers should be stateless.

@@ -43,7 +43,7 @@ class DirtyDict(dict):
 
 class Peer(object):
 
-    INTERFACE_ORDER = [UDPv4Address, UDPv6Address, tuple]
+    INTERFACE_ORDER = [UDPv6Address, UDPv4Address, tuple]
 
     def __init__(self, key: Key, address: Optional[Address] = None, intro: bool = True) -> None:
         """
@@ -66,6 +66,7 @@ class Peer(object):
         self.last_response = 0 if intro else time()
         self._lamport_timestamp = 0
         self.pings: deque = deque(maxlen=5)
+        self.new_style_intro = False
 
     @property
     def addresses(self) -> Dict[Type[Address], Address]:

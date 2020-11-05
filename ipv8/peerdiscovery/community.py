@@ -70,7 +70,7 @@ class DiscoveryCommunity(Community):
         await self.request_cache.shutdown()
         await super(DiscoveryCommunity, self).unload()
 
-    def on_introduction_request(self, source_address, data):
+    def on_old_introduction_request(self, source_address, data):
         if self.max_peers >= 0 and len(self.get_peers()) > self.max_peers:
             self.logger.debug("Dropping introduction request from (%s, %d): too many peers!",
                               source_address[0], source_address[1])
@@ -92,7 +92,7 @@ class DiscoveryCommunity(Community):
             matches = [p for p in peers if p.mid == introduce_to]
             introduction = matches[0] if matches else None
         packet = self.create_introduction_response(payload.destination_address, source_address, payload.identifier,
-                                                   introduction=introduction)
+                                                   introduction=introduction, new_style=False)
         self.endpoint.send(source_address, packet)
 
     def introduction_response_callback(self, peer, dist, payload):

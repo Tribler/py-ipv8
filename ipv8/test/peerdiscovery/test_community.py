@@ -48,7 +48,7 @@ class TestDiscoveryCommunity(TestBase):
         dist = GlobalTimeDistributionPayload(global_time)
 
         packet = self.overlays[0]._ez_pack(self.overlays[0]._prefix, 246, [auth, dist, payload])
-        self.overlays[1].on_introduction_request(self.overlays[0].endpoint.wan_address, packet)
+        self.overlays[1].on_old_introduction_request(self.overlays[0].endpoint.wan_address, packet)
 
         await self.deliver_messages()
 

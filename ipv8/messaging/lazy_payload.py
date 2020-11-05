@@ -2,7 +2,7 @@ import inspect
 import types
 import typing
 
-from .payload import Payload
+from .serialization import Payload
 
 
 class VariablePayload(Payload):
@@ -51,13 +51,15 @@ class VariablePayload(Payload):
             super(VariablePayload, self).__init__(**fwd_args)
         Payload.__init__(self)
         # Try to fill the required format specification.
-        for _ in range(len(self.format_list) - index):
+        base = index
+        for i in range(len(self.format_list) - index):
             # Run out all anonymous arguments, then start popping from the keyword arguments.
             # This will raise a KeyError if we provide more arguments than we can handle.
-            value = args[index] if index < len(args) else kwargs.pop(self.names[index])
-            setattr(self, self.names[index], value)
-            index += 1
-        if index != len(self.format_list):
+            for _ in range(8 if self.format_list[i + base] == 'bits' else 1):
+                value = args[index] if index < len(args) else kwargs.pop(self.names[index])
+                setattr(self, self.names[index], value)
+                index += 1
+        if len(args) - index > 0:
             raise KeyError("%s missing %d arguments!" % (self.__class__.__name__, len(args) - index))
         if kwargs:
             raise KeyError("%s has leftover keyword arguments: %s!" % (self.__class__.__name__, str(kwargs)))
@@ -103,9 +105,12 @@ class VariablePayload(Payload):
         """
         out = []
         index = 0
-        for _ in range(len(self.format_list)):
-            out.append((self._to_packlist_fmt(self.format_list[index]), self._fix_pack(self.names[index])))
-            index += 1
+        for i in range(len(self.format_list)):
+            args = []
+            for _ in range(8 if self.format_list[i] == 'bits' else 1):
+                args.append(self._fix_pack(self.names[index]))
+                index += 1
+            out.append((self._to_packlist_fmt(self.format_list[i]), *args))
         return out
 
 
@@ -206,13 +211,21 @@ def _compile_to_pack_list(src_cls, format_list, names):
     f_code = """
 def to_pack_list(self):
     return [%s]
-        """ % ', '.join(('("%s", self.fix_pack_%s(self.%s))' % (fmt if isinstance(fmt, str) else
-                                                                ("payload-list" if isinstance(fmt, list)
-                                                                 else "payload"), names[i], names[i]))
-                        if hasattr(src_cls, "fix_pack_" + names[i]) else
-                        ('("%s", self.%s)' % (fmt if isinstance(fmt, str) else
-                                              ("payload-list" if isinstance(fmt, list) else "payload"), names[i]))
-                        for i, fmt in enumerate(format_list))
+        """
+    fmts = []
+    index = 0
+    for fmt in format_list:
+        args = []
+        for _ in range(8 if fmt == 'bits' else 1):
+            name = names[index]
+            if hasattr(src_cls, "fix_pack_" + name):
+                args.append(f"self.fix_pack_{name}(self.{name})")
+            else:
+                args.append(f"self.{name}")
+            index += 1
+        derived_fmt = fmt if isinstance(fmt, str) else ("payload-list" if isinstance(fmt, list) else "payload")
+        fmts.append('("%s", %s)' % (derived_fmt, ", ".join(args)))
+    f_code %= ', '.join(fmts)
     return compile(f_code, f_code, 'exec')
 
 

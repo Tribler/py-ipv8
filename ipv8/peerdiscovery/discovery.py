@@ -124,7 +124,7 @@ class EdgeWalk(DiscoveryStrategy):
                 if waiting_root:
                     self.under_construction[waiting_root] = [waiting_root]
                     self.last_edge_responses[waiting_root] = time()
-                    self.overlay.get_new_introduction(waiting_root.address)
+                    self.overlay.get_new_introduction(waiting_root)
                 else:
                     # Check if our introduced peer has answered yet
                     completed = []

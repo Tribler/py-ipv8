@@ -73,9 +73,12 @@ else:
             if endpoint_override:
                 self.endpoint = endpoint_override
             else:
-                self.endpoint = DispatcherEndpoint(["UDPIPv4"],
+                self.endpoint = DispatcherEndpoint(["UDPIPv6", "UDPIPv4"],
                                                    UDPIPv4={'port': configuration['port'],
-                                                            'ip': configuration['address']})
+                                                            'ip': configuration['address']},
+                                                   UDPIPv6={'port': configuration['port'],
+                                                            'ip': "::"}
+                                                   )
                 if enable_statistics:
                     self.endpoint = StatisticsEndpoint(self.endpoint)
                 if any([overlay.get('initialize', {}).get('anonymize') for overlay in configuration['overlays']]):

@@ -72,13 +72,13 @@ class PexCommunity(Community):
     def introduction_response_callback(self, peer, dist, payload):
         self.process_extra_bytes(peer, payload.extra_bytes)
 
-    def create_introduction_request(self, socket_address, extra_bytes=b''):
-        return super().create_introduction_request(socket_address, self.get_seeder_pks())
+    def create_introduction_request(self, socket_address, extra_bytes=b'', new_style=False):
+        return super().create_introduction_request(socket_address, self.get_seeder_pks(), new_style)
 
     def create_introduction_response(self, lan_socket_address, socket_address, identifier,
-                                     introduction=None, extra_bytes=b''):
-        return super().create_introduction_response(lan_socket_address, socket_address,
-                                                    identifier, introduction, self.get_seeder_pks())
+                                     introduction=None, extra_bytes=b'', prefix=None, new_style=False):
+        return super().create_introduction_response(lan_socket_address, socket_address, identifier, introduction,
+                                                    self.get_seeder_pks(), new_style=new_style)
 
     def get_seeder_pks(self):
         pks = random.sample(self.intro_points_for, min(len(self.intro_points_for), 10))

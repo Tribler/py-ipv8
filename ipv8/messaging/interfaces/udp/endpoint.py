@@ -134,4 +134,4 @@ class UDPv6Endpoint(UDPEndpoint):
         # If the endpoint is still running, accept incoming requests, otherwise drop them
         if self._running:
             self.bytes_down += len(datagram)
-            self.notify_listeners((UDPv6Address(*addr), datagram))
+            self.notify_listeners((UDPv6Address(*addr[:2]), datagram))

@@ -43,12 +43,13 @@ class MyCommunity(Community):
                     LOW_EDGE_PEER = self.my_peer
         self.register_task("check_peers", check_peers, interval=0.1, delay=0)
 
-    def create_introduction_response(self, lan_socket_address, socket_address, identifier, introduction=None):
+    def create_introduction_response(self, lan_socket_address, socket_address, identifier, introduction=None,
+                                     extra_bytes=b'', prefix=None, new_style=False):
         return super(MyCommunity, self).create_introduction_response(lan_socket_address, socket_address,
-                                                                     identifier, introduction, b'1')
+                                                                     identifier, introduction, b'1', prefix, new_style)
 
-    def create_introduction_request(self, socket_address):
-        return super(MyCommunity, self).create_introduction_request(socket_address, b'2')
+    def create_introduction_request(self, socket_address, extra_bytes=b'', new_style=False):
+        return super().create_introduction_request(socket_address, b'2', new_style)
 
 
 _COMMUNITIES['MyCommunity'] = MyCommunity
