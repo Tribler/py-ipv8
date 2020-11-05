@@ -2,6 +2,7 @@ import random
 from asyncio import get_event_loop
 
 from ...messaging.interfaces.endpoint import Endpoint, EndpointListener
+from ...messaging.interfaces.udp.endpoint import UDPv4Address, UDPv6Address
 
 internet = {}
 
@@ -54,10 +55,14 @@ class AddressTester(EndpointListener):
         pass
 
     def is_lan(self, address):
-        return self._address_is_lan_without_netifaces(address)
+        if isinstance(address, UDPv4Address):
+            return self._address_is_lan_without_netifaces(address)
+        return False
 
 
 class AutoMockEndpoint(MockEndpoint):
+
+    ADDRESS_TYPE = "UDPv4Address"
 
     def __init__(self):
         self._open = False
@@ -65,13 +70,28 @@ class AutoMockEndpoint(MockEndpoint):
         self._port = 0
 
     def _generate_address(self):
-        b0 = random.randint(0, 255)
-        b1 = random.randint(0, 255)
-        b2 = random.randint(0, 255)
-        b3 = random.randint(0, 255)
-        port = random.randint(0, 65535)
+        if self.ADDRESS_TYPE == "UDPv4Address":
+            b0 = random.randint(0, 255)
+            b1 = random.randint(0, 255)
+            b2 = random.randint(0, 255)
+            b3 = random.randint(0, 255)
+            port = random.randint(0, 65535)
 
-        return ('%d.%d.%d.%d' % (b0, b1, b2, b3), port)
+            return UDPv4Address('%d.%d.%d.%d' % (b0, b1, b2, b3), port)
+        elif self.ADDRESS_TYPE == "UDPv6Address":
+            b0 = random.randint(0, 65535)
+            b1 = random.randint(0, 65535)
+            b2 = random.randint(0, 65535)
+            b3 = random.randint(0, 65535)
+            b4 = random.randint(0, 65535)
+            b5 = random.randint(0, 65535)
+            b6 = random.randint(0, 65535)
+            b7 = random.randint(0, 65535)
+            port = random.randint(0, 65535)
+
+            return UDPv6Address('%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x' % (b0, b1, b2, b3, b4, b5, b6, b7), port)
+        else:
+            raise RuntimeError("Illegal address type specified: " + repr(self.ADDRESS_TYPE))
 
     def _is_lan(self, address):
         """
