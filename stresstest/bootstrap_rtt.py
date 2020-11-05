@@ -15,6 +15,7 @@ except ImportError:
 
 from ipv8.community import Community, _DEFAULT_ADDRESSES, _DNS_ADDRESSES
 from ipv8.configuration import get_default_configuration
+from ipv8.messaging.interfaces.udp.endpoint import UDPv4Address
 from ipv8.requestcache import NumberCache, RequestCache
 
 from ipv8_service import IPv8, _COMMUNITIES
@@ -72,7 +73,7 @@ class MyCommunity(Community):
         global CHECK_QUEUE
         if CHECK_QUEUE:
             hostname, address = CHECK_QUEUE.pop()
-            packet = self.create_introduction_request(address)
+            packet = self.create_introduction_request(UDPv4Address(*address))
             self.request_cache.add(PingCache(self, hostname, address, time.time()))
             self.endpoint.send(address, packet)
         else:
