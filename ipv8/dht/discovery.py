@@ -16,7 +16,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
     """
 
     def __init__(self, *args, **kwargs):
-        super(DHTDiscoveryCommunity, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.store = defaultdict(list)
         self.store_for_me = defaultdict(list)
@@ -71,11 +71,11 @@ class DHTDiscoveryCommunity(DHTCommunity):
 
         futures = []
         for node in nodes:
-            if node in self.tokens:
+            if node.id in self.tokens:
                 cache = Request(self, 'store-peer', node, [key])
                 self.request_cache.add(cache)
                 futures.append(cache.future)
-                self.ez_send(node, StorePeerRequestPayload(cache.number, self.tokens[node][1], key))
+                self.ez_send(node, StorePeerRequestPayload(cache.number, self.tokens[node.id][1], key))
             else:
                 self.logger.debug('Not sending store-peer-request to %s (no token available)', node)
 

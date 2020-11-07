@@ -1,6 +1,6 @@
 import time
 
-from ..base import TestBase
+from .base import TestDHTBase
 from ..mocking.ipv8 import MockIPv8
 from ...dht import DHTError
 from ...dht.discovery import DHTDiscoveryCommunity
@@ -8,25 +8,17 @@ from ...dht.routing import Node, RoutingTable
 from ...util import succeed
 
 
-class TestDHTDiscoveryCommunity(TestBase):
+class TestDHTDiscoveryCommunity(TestDHTBase):
 
     def setUp(self):
-        super(TestDHTDiscoveryCommunity, self).setUp()
+        super().setUp()
         self.initialize(DHTDiscoveryCommunity, 2)
         self.pinged = None
         self.puncture_to = None
 
-        now = time.time()
         for node in self.nodes:
             node.overlay.cancel_pending_task('store_peer')
             node.overlay.token_maintenance()
-        for node1 in self.nodes:
-            for node2 in self.nodes:
-                if node1 == node2:
-                    continue
-                dht_node1 = Node(node1.my_peer.key, node1.my_peer.address)
-                dht_node2 = Node(node2.my_peer.key, node2.my_peer.address)
-                node1.overlay.tokens[dht_node2] = (now, node2.overlay.generate_token(dht_node1))
 
     def create_node(self, *args, **kwargs):
         return MockIPv8(u"curve25519", DHTDiscoveryCommunity)
@@ -39,7 +31,7 @@ class TestDHTDiscoveryCommunity(TestBase):
 
     async def test_store_peer_fail(self):
         await self.introduce_nodes()
-        self.overlay(0).routing_table = RoutingTable(self.overlay(0).my_node_id)
+        self.overlay(0).routing_tables[self.address(0).__class__] = RoutingTable(self.my_node_id(0))
         self.assertFalse(await self.overlay(0).store_peer())
 
     async def test_connect_peer(self):
@@ -67,7 +59,7 @@ class TestDHTDiscoveryCommunity(TestBase):
 
     async def test_connect_peer_fail(self):
         await self.introduce_nodes()
-        self.overlay(0).routing_table = RoutingTable(self.overlay(0).my_node_id)
+        self.overlay(0).routing_tables[self.address(0).__class__] = RoutingTable(self.my_node_id(0))
         with self.assertRaises(DHTError):
             await self.overlay(0).connect_peer(self.mid(1))
 

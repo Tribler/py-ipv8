@@ -13,6 +13,8 @@ from .schema import DHTValueSchema, DefaultResponseSchema, schema
 from ..dht import DHTError
 from ..dht.community import DHTCommunity
 from ..dht.discovery import DHTDiscoveryCommunity
+from ..dht.routing import calc_node_id
+from ..messaging.interfaces.dispatcher.endpoint import FAST_ADDR_TO_INTERFACE
 
 
 class DHTEndpoint(BaseEndpoint):
@@ -65,13 +67,23 @@ class DHTEndpoint(BaseEndpoint):
         if not self.dht:
             return Response({"success": False, "error": "DHT community not found"}, status=HTTP_NOT_FOUND)
 
-        buckets = self.dht.routing_table.trie.values()
-        stats = {"node_id": hexlify(self.dht.my_node_id).decode('utf-8'),
-                 "peer_id": hexlify(self.dht.my_peer.mid).decode('utf-8'),
-                 "routing_table_size": sum([len(bucket.nodes) for bucket in buckets]),
-                 "routing_table_buckets": len(buckets),
-                 "num_keys_in_store": len(self.dht.storage.items),
-                 "num_tokens": len(self.dht.tokens)}
+        stats = {
+            "peer_id": hexlify(self.dht.my_peer.mid).decode('utf-8'),
+            "num_tokens": len(self.dht.tokens),
+            "endpoints": []
+        }
+
+        for address_cls, routing_table in self.dht.routing_tables.items():
+            buckets = routing_table.trie.values()
+            address = self.dht.my_peer.addresses.get(address_cls, self.dht.my_estimated_wan)
+            stats["endpoints"].append({
+                "endpoint": FAST_ADDR_TO_INTERFACE[address_cls],
+                "node_id": hexlify(calc_node_id(address, self.dht.my_peer.mid)).decode('utf-8'),
+                "routing_table_size": sum([len(bucket.nodes) for bucket in buckets]),
+                "routing_table_buckets": len(buckets),
+                "num_keys_in_store":
+                    len(self.dht.storages.get(address_cls).items) if self.dht.storages.get(address_cls) else 0,
+            })
 
         if isinstance(self.dht, DHTDiscoveryCommunity):
             stats.update({
@@ -130,17 +142,19 @@ class DHTEndpoint(BaseEndpoint):
             return Response({"success": False, "error": "DHT community not found"}, status=HTTP_NOT_FOUND)
 
         results = {}
-        for key, raw_values in self.dht.storage.items.items():
-            values = self.dht.post_process_values([v.data for v in raw_values])
-            dicts = []
-            for value in values:
-                data, public_key = value
-                dicts.append({
-                    'public_key': b64encode(public_key).decode('utf-8') if public_key else None,
-                    'key': hexlify(key).decode('utf-8'),
-                    'value': hexlify(data).decode('utf-8')
-                })
-            results[hexlify(key)] = dicts
+        for address_cls, storage in self.dht.storages.items():
+            for key, raw_values in storage.items.items():
+                values = self.dht.post_process_values([v.data for v in raw_values])
+                dicts = []
+                for value in values:
+                    data, public_key = value
+                    dicts.append({
+                        'endpoint': FAST_ADDR_TO_INTERFACE[address_cls],
+                        'public_key': b64encode(public_key).decode('utf-8') if public_key else None,
+                        'key': hexlify(key).decode('utf-8'),
+                        'value': hexlify(data).decode('utf-8')
+                    })
+                results[hexlify(key).decode()] = dicts
         return Response(results)
 
     @docs(
@@ -165,7 +179,9 @@ class DHTEndpoint(BaseEndpoint):
         key = unhexlify(request.match_info['key'])
 
         start = default_timer()
-        values, crawl = await self.dht.find_values(key, debug=True)
+        values, crawls = await self.dht.find_values(key, debug=True)
+        nodes_tried = set().union(*[crawl.nodes_tried for crawl in crawls])
+        responses = sum([crawl.responses for crawl in crawls], [])
         stop = default_timer()
 
         return Response({
@@ -173,10 +189,10 @@ class DHTEndpoint(BaseEndpoint):
                         'key': hexlify(key).decode('utf-8'),
                         'value': hexlify(data).decode('utf-8')} for data, public_key in values],
             "debug": {
-                "requests": len(crawl.nodes_tried),
-                "responses": len(crawl.responses),
-                "responses_with_nodes": len([r for s, r in crawl.responses if 'nodes' in r]),
-                "responses_with_values": len([r for s, r in crawl.responses if 'values' in r]),
+                "requests": len(nodes_tried),
+                "responses": len(responses),
+                "responses_with_nodes": len([r for s, r in responses if 'nodes' in r]),
+                "responses_with_values": len([r for s, r in responses if 'values' in r]),
                 "time": stop - start
             }
         })
@@ -241,6 +257,7 @@ class DHTEndpoint(BaseEndpoint):
         return Response({"buckets": [{
             "prefix": bucket.prefix_id,
             "last_changed": bucket.last_changed,
+            "endpoint": FAST_ADDR_TO_INTERFACE[address_cls],
             "peers": [{
                 "ip": peer.address[0],
                 "port": peer.address[1],
@@ -248,9 +265,9 @@ class DHTEndpoint(BaseEndpoint):
                 "id": hexlify(peer.id).decode('utf-8'),
                 "failed": peer.failed,
                 "last_contact": peer.last_contact,
-                "distance": peer.distance(self.dht.my_node_id),
+                "distance": peer.distance(self.dht.get_my_node_id(peer)),
             } for peer in bucket.nodes.values()]
-        } for bucket in self.dht.routing_table.trie.values()]})
+        } for address_cls, routing_table in self.dht.routing_tables.items() for bucket in routing_table.trie.values()]})
 
     @docs(
         tags=["DHT"],
@@ -275,15 +292,19 @@ class DHTEndpoint(BaseEndpoint):
     )
     async def refresh_bucket(self, request):
         prefix = request.match_info['prefix']
+        success = False
+        error = None
+        for routing_table in list(self.dht.routing_tables.values()):
+            try:
+                await self.dht.find_values(routing_table.trie[prefix].generate_id())
+                success = True
+            except KeyError:
+                pass
+            except DHTError as e:
+                error = e
 
-        try:
-            bucket = self.dht.routing_table.trie[prefix]
-        except KeyError:
+        if not error and not success:
             return Response({"success": False, "error": "no such bucket"}, status=HTTP_BAD_REQUEST)
-
-        try:
-            await self.dht.find_values(bucket.generate_id())
-        except DHTError as e:
-            return Response({"success": False, "error": str(e)})
-        else:
-            return Response({"success": True})
+        if error and not success:
+            return Response({"success": False, "error": str(error)})
+        return Response({"success": True})

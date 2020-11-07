@@ -98,13 +98,20 @@ default = {
         {
             'class': 'DHTDiscoveryCommunity',
             'key': "anonymous id",
-            'walkers': [{
-                'strategy': "RandomWalk",
-                'peers': 20,
-                'init': {
-                    'timeout': 3.0
+            'walkers': [
+                {
+                    'strategy': "RandomWalk",
+                    'peers': 20,
+                    'init': {
+                        'timeout': 3.0
+                    }
+                },
+                {
+                    'strategy': "PingChurn",
+                    'peers': -1,
+                    'init': {}
                 }
-            }],
+            ],
             'initialize': {},
             'on_start': []
         }
@@ -121,6 +128,7 @@ class Strategy(enum.Enum):
     RandomChurn = "RandomChurn"
     PeriodicSimilarity = "PeriodicSimilarity"
     EdgeWalk = "EdgeWalk"
+    PingChurn = "PingChurn"
 
     @classmethod
     def values(cls):

@@ -391,7 +391,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
 
         rp_info_enc = payload.rp_info_enc
         rp_info_bin = self.crypto.decrypt_str(rp_info_enc, session_keys[EXIT_NODE], session_keys[EXIT_NODE_SALT])
-        rp_info = self.serializer.unpack(RendezvousInfo, rp_info_bin)
+        rp_info, _ = self.serializer.unpack(RendezvousInfo, rp_info_bin)
 
         required_exit = Peer(rp_info.key, rp_info.address)
         circuit = self.create_circuit_for_infohash(cache.info_hash, CIRCUIT_TYPE_RP_DOWNLOADER,
