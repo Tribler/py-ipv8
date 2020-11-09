@@ -185,7 +185,12 @@ class Community(EZPackOverlay):
         self.logger.debug("Bootstrapping %s, current peers %d", self.__class__.__name__, len(self.get_peers()))
         self.last_bootstrap = time()
         for socket_address in _DEFAULT_ADDRESSES:
+            self._ensure_blacklisted(socket_address)
             self.walk_to(socket_address)
+
+    def _ensure_blacklisted(self, address):
+        if address not in self.network.blacklist:
+            self.network.blacklist.append(address)
 
     def resolve_dns_bootstrap_addresses(self):
         """
@@ -196,7 +201,7 @@ class Community(EZPackOverlay):
             current_addresses = _DEFAULT_ADDRESSES[:]  # Copy the existing addresses (don't loop through our additions)
             for (address, port) in dns_names:
                 try:
-                    resolved_address = (gethostbyname(address), port)
+                    resolved_address = UDPv4Address(gethostbyname(address), port)
                     if resolved_address not in current_addresses:
                         # NOTE: append() is thread-safe. Don't call remove() here!
                         _DEFAULT_ADDRESSES.append(resolved_address)
@@ -228,10 +233,11 @@ class Community(EZPackOverlay):
 
     def create_introduction_request(self, socket_address, extra_bytes=b'', new_style=False):
         global_time = self.claim_global_time() % 65536
-        if new_style or not isinstance(socket_address, UDPv4Address):
+        if new_style or isinstance(socket_address, UDPv6Address):
             payload = NewIntroductionRequestPayload(socket_address, self.my_estimated_lan, self.my_preferred_address(),
                                                     global_time, **_UNUSED_FLAGS_REQ, extra_bytes=extra_bytes)
         else:
+            # Only supports IPv4 addresses as tuple or UDPv4Address instances.
             payload = IntroductionRequestPayload(socket_address,
                                                  self.my_estimated_lan,
                                                  self.my_estimated_wan,
@@ -479,6 +485,7 @@ class Community(EZPackOverlay):
                 # With a small chance, try to remedy any disconnected network phenomena.
                 if _DEFAULT_ADDRESSES and random() < 0.05:
                     address = choice(_DEFAULT_ADDRESSES)
+                    self._ensure_blacklisted(address)
                     packet = self.create_introduction_request(address)
                     self.endpoint.send(address, packet)
                     return
