@@ -54,7 +54,7 @@ class NumberCache(object):
         return 10.0
 
     def on_timeout(self):
-        raise NotImplementedError()
+        pass
 
     def __str__(self):
         return "<%s %s-%d>" % (self.__class__.__name__, self.prefix, self.number)
