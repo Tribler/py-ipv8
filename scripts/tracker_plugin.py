@@ -56,6 +56,7 @@ class EndpointServer(Community):
         my_peer = Peer(default_eccrypto.generate_key(u"very-low"))
         self.signature_length = default_eccrypto.get_signature_length(my_peer.public_key)
         super(EndpointServer, self).__init__(my_peer, endpoint, Network())
+        self.endpoint.add_listener(self)  # Listen to all incoming packets (not just the fake community_id).
         self.churn_strategy = SimpleChurn(self)
         self.churn_task = self.register_task("churn", self.churn_strategy.take_step, interval=30)
 
