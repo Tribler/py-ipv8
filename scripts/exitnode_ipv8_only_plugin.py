@@ -1,5 +1,22 @@
 """
 This script enables to start IPv8 headless.
+
+For error reporting Sentry is used.
+If sentry-sdk is not installed or SENTRY_URL is not defined, then no reports
+will be sent.
+
+Prerequisites:
+    python -m pip install sentry-sdk
+
+Configuring Sentry:
+    nix:
+    ```
+        EXPORT SENTRY_URL=<sentry_url>
+    ```
+    windows:
+    ```
+        SETX SENTRY_URL <sentry_url>
+    ```
 """
 import argparse
 import os
@@ -14,7 +31,6 @@ try:
     del ipv8
 except ImportError:
     import __scriptpath__  # noqa: F401
-
 
 from ipv8.REST.rest_manager import RESTManager
 from ipv8.attestation.trustchain.database import TrustChainDB
@@ -116,4 +132,11 @@ def main(argv):
 
 
 if __name__ == "__main__":
+    try:
+        import sentry_sdk
+        # If no SENTRY_URL is defined, then no reports are sent
+        sentry_sdk.init(os.environ.get('SENTRY_URL'), traces_sample_rate=1.0)
+    except ImportError:
+        print('sentry-sdk is not installed. To install sentry-sdk run `pip install sentry-sdk`')
+
     main(sys.argv[1:])
