@@ -92,7 +92,7 @@ class EndpointServer(Community):
                                                    introduction=intro_peer, prefix=prefix)
         self.endpoint.send(peer.address, packet)
 
-    def get_peer_for_introduction(self, exclude=None):
+    def get_peer_for_introduction(self, exclude=None, new_style=False):
         """
         We explicitly provide create_introduction_response with a peer.
         If on_generic_introduction_request provides None, this method should not suggest a peer.
