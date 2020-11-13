@@ -42,8 +42,8 @@ _DEFAULT_ADDRESSES = [
     UDPv4Address("131.180.27.162", 6524),
     UDPv4Address("130.161.119.215", 6525),
     UDPv4Address("130.161.119.215", 6526),
-    UDPv4Address("81.171.27.194", 6527),
-    UDPv4Address("81.171.27.194", 6528)
+    UDPv4Address("130.161.119.201", 6527),
+    UDPv4Address("130.161.119.201", 6528)
 ]
 
 
