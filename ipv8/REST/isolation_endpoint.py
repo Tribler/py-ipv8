@@ -24,9 +24,12 @@ class IsolationEndpoint(BaseEndpoint):
                 overlay.walk_to(address)
 
     def add_bootstrap_server(self, address):
-        _DEFAULT_ADDRESSES.append(address)
+        if hasattr(self.session, "network"):
+            self.session.network.blacklist.append(address)
         for overlay in self.session.overlays:
+            overlay.network.blacklist.append(address)
             overlay.walk_to(address)
+        _DEFAULT_ADDRESSES.append(address)
 
     @docs(
         tags=["Isolation"],
