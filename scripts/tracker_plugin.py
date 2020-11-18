@@ -22,7 +22,7 @@ except ImportError:
 
 from ipv8.community import Community
 from ipv8.keyvault.crypto import default_eccrypto
-from ipv8.messaging.interfaces.udp.endpoint import UDPEndpoint
+from ipv8.messaging.interfaces.udp.endpoint import UDPEndpoint, UDPv4LANAddress
 from ipv8.messaging.payload import IntroductionRequestPayload
 from ipv8.peer import Peer
 from ipv8.peerdiscovery.churn import DiscoveryStrategy
@@ -77,6 +77,7 @@ class EndpointServer(Community):
     def on_generic_introduction_request(self, source_address, data, prefix):
         auth, dist, payload = self._ez_unpack_auth(IntroductionRequestPayload, data)
         peer = Peer(auth.public_key_bin, source_address)
+        peer.address = UDPv4LANAddress(*payload.source_lan_address)
         peer.last_response = time.time()
 
         self.network.add_verified_peer(peer)

@@ -20,7 +20,7 @@ from traceback import format_exception
 from .lazy_community import EZPackOverlay, lazy_wrapper, lazy_wrapper_unsigned
 from .messaging.anonymization.endpoint import TunnelEndpoint
 from .messaging.interfaces.dispatcher.endpoint import FAST_ADDR_TO_INTERFACE, INTERFACES
-from .messaging.interfaces.udp.endpoint import UDPv4Address, UDPv6Address
+from .messaging.interfaces.udp.endpoint import UDPv4Address, UDPv4LANAddress, UDPv6Address
 from .messaging.payload import (IntroductionRequestPayload, IntroductionResponsePayload,
                                 NewIntroductionRequestPayload, NewIntroductionResponsePayload,
                                 NewPuncturePayload, NewPunctureRequestPayload,
@@ -265,6 +265,7 @@ class Community(EZPackOverlay):
                 introduction_lan = introduction.address
                 introduction_wan = (self.my_estimated_wan[0], introduction_lan[1])
             else:
+                introduction_lan = introduction.addresses.get(UDPv4LANAddress, introduction_lan)
                 introduction_wan = introduction.address
             introduced = True
         new_style_intro = introduction.new_style_intro if introduction else False
@@ -355,6 +356,8 @@ class Community(EZPackOverlay):
                               peer.address[0], peer.address[1])
             return
 
+        if isinstance(payload.source_lan_address, UDPv4Address):
+            peer.address = UDPv4LANAddress(*payload.source_lan_address)
         self.network.add_verified_peer(peer)
         self.network.discover_services(peer, [self.community_id, ])
 
