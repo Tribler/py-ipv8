@@ -78,8 +78,8 @@ class IntroductionRequestPayload(Payload):
                          connection_type_0, connection_type_1, supports_new_style, dflag1, dflag2, tunnel, sync, advice,
                          identifier, extra_bytes):
         args = [destination_address,
-                source_lan_address[1],
-                source_wan_address[1],
+                source_lan_address,
+                source_wan_address,
                 [True, False][advice],
                 decode_connection_type(connection_type_0, connection_type_1),
                 identifier,

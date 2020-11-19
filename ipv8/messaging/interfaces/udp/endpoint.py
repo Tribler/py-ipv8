@@ -7,6 +7,7 @@ from ..endpoint import Endpoint, EndpointClosedException
 
 
 UDPv4Address = collections.namedtuple("UDPv4Address", ["ip", "port"])
+UDPv4LANAddress = collections.namedtuple("UDPv4LANAddress", ["ip", "port"])
 UDPv6Address = collections.namedtuple("UDPv6Address", ["ip", "port"])
 DomainAddress = collections.namedtuple("DomainAddress", ["host", "port"])
 
