@@ -423,7 +423,7 @@ class Serializable(metaclass=abc.ABCMeta):
     format_list: typing.List[FormatListType] = []
 
     @abc.abstractmethod
-    def to_pack_list(self):
+    def to_pack_list(self) -> typing.List[tuple]:
         """
         Serialize this object to a Serializer pack list.
 
@@ -433,7 +433,7 @@ class Serializable(metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def from_unpack_list(cls, *args):
+    def from_unpack_list(cls, *args) -> Serializable:  # pylint: disable=E0213
         """
         Create a new Serializable object from a list of unpacked variables.
         """
