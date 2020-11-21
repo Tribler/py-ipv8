@@ -76,7 +76,11 @@ class Network(object):
                 self.services_per_peer[peer.mid] |= set(services)
             for service in services:
                 service_cache = self.reverse_service_lookup.get(service, [])
-                self.reverse_service_lookup[service] = list(set(service_cache + [peer]))
+                # Ensure that the peer instance in the cache is the same one as in verified_peers.
+                if peer in service_cache:
+                    service_cache.remove(peer)
+                service_cache.append(self.get_verified_by_public_key_bin(peer.public_key.key_to_bin()) or peer)
+                self.reverse_service_lookup[service] = service_cache
 
     def add_verified_peer(self, peer):
         """

@@ -184,6 +184,33 @@ class TestNetwork(TestBase):
         self.assertIn(self.peers[0], self.network.get_peers_for_service(service1))
         self.assertIn(self.peers[0], self.network.get_peers_for_service(service2))
 
+    def test_discover_services_address_update(self):
+        """
+        Check if an address update gets processed correctly.
+        """
+        service1 = "".join([chr(i) for i in range(20)])
+        service2 = "".join([chr(i) for i in range(20, 40)])
+
+        pk = self.peers[0].public_key
+        peer = Peer(pk, ('1.1.1.1', 1))
+        self.network.add_verified_peer(peer)
+        self.network.discover_services(peer, [service1])
+
+        peer = Peer(pk, ('1.1.1.1', 1))
+        self.network.add_verified_peer(peer)
+        self.network.discover_services(peer, [service2])
+
+        peer = Peer(pk, ('1.1.1.1', 2))
+        self.network.add_verified_peer(peer)
+        self.network.discover_services(peer, [service1])
+
+        peer = Peer(pk, ('1.1.1.1', 2))
+        self.network.add_verified_peer(peer)
+        self.network.discover_services(peer, [service2])
+
+        self.assertEqual(self.network.get_peers_for_service(service1)[0].address, peer.address)
+        self.assertEqual(self.network.get_peers_for_service(service2)[0].address, peer.address)
+
     def test_discover_services_cache(self):
         """
         Check if services cache updates properly.
