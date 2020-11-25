@@ -58,7 +58,7 @@ class PexCommunity(Community):
         if not extra_bytes:
             return
 
-        for seeder_pk in self.serializer.unpack('varlenH-list', extra_bytes):
+        for seeder_pk in self.serializer.unpack('varlenH-list', extra_bytes)[0]:
             ip = IntroductionPoint(peer, seeder_pk, PEER_SOURCE_PEX)
             if ip in self.intro_points:
                 # Remove first to put introduction point at front of the deque.

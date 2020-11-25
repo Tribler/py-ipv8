@@ -1,10 +1,10 @@
 import logging
 from binascii import hexlify
-from socket import inet_aton, inet_ntoa
 from struct import pack, unpack_from
 
 from . import DHTError
 from ..messaging.anonymization.tunnel import IntroductionPoint, PEER_SOURCE_DHT
+from ..messaging.serialization import default_serializer
 from ..peer import Peer
 
 
@@ -36,12 +36,12 @@ class DHTCommunityProvider(object):
         results = []
         for value, _ in values:
             try:
-                ip_bin, port, last_seen, intro_key_len = unpack_from('!4sHIH', value)
-                ip = inet_ntoa(ip_bin)
+                address, offset = default_serializer.unpack('ip_address', value)
+                last_seen, intro_key_len = unpack_from('>IH', value, offset)
                 intro_pk = b'LibNaCLPK:' + value[12:12 + intro_key_len]
-                intro_peer = Peer(intro_pk, address=(ip, port))
+                intro_peer = Peer(intro_pk, address)
 
-                seeder_key_len, = unpack_from('!H', value, 12 + intro_key_len)
+                seeder_key_len, = unpack_from('>H', value, 12 + intro_key_len)
                 seeder_pk = b'LibNaCLPK:' + value[14 + intro_key_len:14 + intro_key_len + seeder_key_len]
 
                 results.append(IntroductionPoint(intro_peer, seeder_pk, PEER_SOURCE_DHT, last_seen))
@@ -55,10 +55,10 @@ class DHTCommunityProvider(object):
         intro_pk = intro_point.peer.public_key.key_to_bin()[10:]
         seeder_pk = intro_point.seeder_pk[10:]
 
-        value = inet_aton(intro_point.peer.address[0]) + pack("!H", intro_point.peer.address[1])
-        value += pack('!I', intro_point.last_seen)
-        value += pack('!H', len(intro_pk)) + intro_pk
-        value += pack('!H', len(seeder_pk)) + seeder_pk
+        value = default_serializer.pack('ip_address', intro_point.peer.address)
+        value += pack('>I', intro_point.last_seen)
+        value += pack('>H', len(intro_pk)) + intro_pk
+        value += pack('>H', len(seeder_pk)) + seeder_pk
 
         try:
             await self.dht_community.store_value(info_hash, value)

@@ -318,7 +318,7 @@ class Serializer(object):
         """
         return self._packers[fmt].pack(item)
 
-    def unpack(self, fmt, data):
+    def unpack(self, fmt, data, offset=0):
         """
         Unpack data without using a Serializable. Using a Serializable is the preferred method.
         :param fmt: the name of the packer to use while unpacking
@@ -328,12 +328,12 @@ class Serializer(object):
         """
         unpack_list = []
         if isinstance(fmt, str):
-            self._packers[fmt].unpack(data, 0, unpack_list)
+            offset = self._packers[fmt].unpack(data, offset, unpack_list)
         elif isinstance(fmt, list):
-            self._packers['payload-list'].unpack(data, 0, unpack_list, fmt[0])
+            offset = self._packers['payload-list'].unpack(data, offset, unpack_list, fmt[0])
         else:
-            self._packers['payload'].unpack(data, 0, unpack_list, fmt)
-        return unpack_list[0]
+            offset = self._packers['payload'].unpack(data, offset, unpack_list, fmt)
+        return unpack_list[0], offset
 
     def pack_serializable(self, serializable):
         """

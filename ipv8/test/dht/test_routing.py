@@ -31,7 +31,7 @@ class TestNode(TestBase):
         self.assertEqual(self.node.last_response, 0)
         self.assertEqual(self.node.last_query, 0)
         self.assertEqual(self.node.failed, 0)
-        self.assertEqual(self.node.id, unhexlify('8121e35b16b30807cdcb11f8214a5eb762c0dc19'))
+        self.assertEqual(self.node.id, unhexlify('f626d35b16b30807cdcb11f8214a5eb762c0dc19'))
 
     def test_status(self):
         self.node.last_response = time.time()

@@ -505,7 +505,7 @@ class TunnelCommunity(Community):
             candidate_list_bin = self.crypto.decrypt_str(candidate_list_enc,
                                                          hop.session_keys[EXIT_NODE],
                                                          hop.session_keys[EXIT_NODE_SALT])
-            candidate_list = self.serializer.unpack('varlenH-list', candidate_list_bin)
+            candidate_list, _ = self.serializer.unpack('varlenH-list', candidate_list_bin)
 
             cache = self.request_cache.pop("retry", payload.identifier)
             self.send_extend(circuit, candidate_list, cache.max_tries if cache else 1)

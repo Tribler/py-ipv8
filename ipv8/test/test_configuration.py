@@ -299,7 +299,8 @@ class TestConfiguration(TestBase):
                                                   []) \
                                      .add_overlay("DHTDiscoveryCommunity",
                                                   "anonymous id",
-                                                  [WalkerDefinition(Strategy.RandomWalk, 20, {'timeout': 3.0})],
+                                                  [WalkerDefinition(Strategy.RandomWalk, 20, {'timeout': 3.0}),
+                                                   WalkerDefinition(Strategy.PingChurn, -1, {})],
                                                   {},
                                                   [])
 

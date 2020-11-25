@@ -1,11 +1,11 @@
 import time
 
-from ..base import TestBase
+from .base import TestDHTBase
 from ...dht.churn import PingChurn
 from ...dht.community import DHTCommunity
 
 
-class TestPingChurn(TestBase):
+class TestPingChurn(TestDHTBase):
 
     def setUp(self):
         super(TestPingChurn, self).setUp()
@@ -17,9 +17,9 @@ class TestPingChurn(TestBase):
 
     async def test_ping_all(self):
         await self.introduce_nodes()
-        bucket = self.overlay(0).routing_table.trie[u'']
+        bucket = self.routing_table(0).trie[u'']
 
-        node1 = bucket.get(self.overlay(1).my_node_id)
+        node1 = bucket.get(self.my_node_id(1))
         node1.failed = 1
         node1.last_response = 0
 
@@ -31,8 +31,8 @@ class TestPingChurn(TestBase):
 
     async def test_ping_all_skip(self):
         await self.introduce_nodes()
-        bucket = self.overlay(0).routing_table.trie[u'']
-        node1 = bucket.get(self.overlay(1).my_node_id)
+        bucket = self.routing_table(0).trie[u'']
+        node1 = bucket.get(self.my_node_id(1))
         node1.failed = 1
         node1.last_response = time.time() + 5
 

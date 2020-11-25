@@ -1,11 +1,12 @@
 import binascii
 import random
+import socket
 import time
 from collections import deque
-from socket import inet_aton
 from threading import RLock
 
 from .trie import Trie
+from ..messaging.interfaces.udp.endpoint import UDPv6Address
 from ..peer import Peer
 
 # By default we allow a maximum number of 10 queries during a 5s interval.
@@ -28,12 +29,17 @@ def distance(a, b):
     return int(binascii.hexlify(a), 16) ^ int(binascii.hexlify(b), 16)
 
 
-def calc_node_id(ip, mid):
-    # Loosely based on the Bittorrent DHT (https://libtorrent.org/dht_sec.html), the node id is calculated as follows:
-    # first 3 bytes of crc32c(ip & 0x030f3fff) + first 17 bytes of sha1(public_key)
-    ip_bin = inet_aton(ip)
-    ip_mask = b'\x03\x0f\x3f\0xff'
-    ip_masked = bytes([ip_bin[i] & ip_mask[i] for i in range(4)])
+def calc_node_id(address, mid):
+    # Loosely based on the Bittorrent DHT (https://libtorrent.org/dht_sec.html), the node id is calculated as
+    # follows for IPv4: first 3 bytes of crc32c(ip & 0x030f3fff) + first 17 bytes of sha1(public_key)
+    if isinstance(address, UDPv6Address):
+        ip_bin = socket.inet_pton(socket.AF_INET6, address.ip)
+        ip_mask = b'\x01\x03\x07\x0f\x1f\x3f\x7f\xff'
+        ip_masked = bytes([ip_bin[i] & ip_mask[i] for i in range(8)])
+    else:
+        ip_bin = socket.inet_aton(address[0])
+        ip_mask = b'\x03\x0f\x3f\xff'
+        ip_masked = bytes([ip_bin[i] & ip_mask[i] for i in range(4)])
 
     crc32_unsigned = binascii.crc32(ip_masked) % (2 ** 32)
     crc32_bin = binascii.unhexlify('%08x' % crc32_unsigned)
@@ -57,7 +63,7 @@ class Node(Peer):
 
     @property
     def id(self):
-        return calc_node_id(self.address[0], self.mid)
+        return calc_node_id(self.address, self.mid)
 
     @property
     def last_contact(self):

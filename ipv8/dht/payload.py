@@ -1,6 +1,3 @@
-from socket import inet_aton, inet_ntoa
-from struct import pack, unpack_from
-
 from .routing import Node
 from ..messaging.lazy_payload import VariablePayload, vp_compile
 
@@ -37,7 +34,7 @@ class StoreResponsePayload(VariablePayload):
 class FindRequestPayload(VariablePayload):
     msg_id = 5
     names = ['identifier', 'lan_address', 'target', 'offset', 'force_nodes']
-    format_list = ['I', 'ipv4', '20s', 'I', '?']
+    format_list = ['I', 'ip_address', '20s', 'I', '?']
 
 
 @vp_compile
@@ -65,7 +62,7 @@ class StorePeerResponsePayload(VariablePayload):
 class ConnectPeerRequestPayload(VariablePayload):
     msg_id = 9
     names = ['identifier', 'lan_address', 'target']
-    format_list = ['I', 'ipv4', '20s']
+    format_list = ['I', 'ip_address', '20s']
 
 
 @vp_compile
@@ -88,13 +85,15 @@ class SignedStrPayload(VariablePayload):
 
 
 class NodePacker:
+    def __init__(self, serializer):
+        self.serializer = serializer
 
     def pack(self, node):
-        key = node.public_key.key_to_bin()
-        return pack('>4sHH', inet_aton(node.address[0]), node.address[1], len(key)) + key
+        return self.serializer.pack('ip_address', node.address) + \
+            self.serializer.pack('varlenH', node.public_key.key_to_bin())
 
     def unpack(self, data, offset, unpack_list):
-        ip, port, key_length = unpack_from('>4sHH', data, offset)
-        offset += 8
-        unpack_list.append(Node(data[offset:offset + key_length], address=(inet_ntoa(ip), port)))
-        return offset + key_length
+        address, offset = self.serializer.unpack('ip_address', data, offset)
+        key, offset = self.serializer.unpack('varlenH', data, offset)
+        unpack_list.append(Node(key, address=address))
+        return offset
