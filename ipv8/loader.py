@@ -5,6 +5,7 @@ Use if you have a IPv8 manager (a "session") that needs fine-grained control ove
 """
 
 import logging
+import types
 
 from .keyvault.crypto import default_eccrypto
 from .peer import Peer
@@ -100,6 +101,17 @@ def precondition(str_condition):
     return decorator
 
 
+def _get_class(class_or_function):
+    """
+    Return the class by processing incoming argument either as a function or as
+    a class.
+
+    :param class_or_function: the class, or the function that represents this class.
+    """
+    return class_or_function() if isinstance(class_or_function, types.FunctionType) \
+        else class_or_function
+
+
 def overlay(str_module_or_class, str_definition=None):
     """
     Specify, as strings, a module and Community class object defined therein to lazy-load.
@@ -118,6 +130,14 @@ def overlay(str_module_or_class, str_definition=None):
         class A(CommunityLauncher):
            ...
 
+        def my_community_class():
+            from my_module.some_submodule import MyCommunityClass
+            return MyCommunityClass
+
+        @overlay(my_community_class)
+        class A(CommunityLauncher):
+           ...
+
     :param str_module_or_class: either the module to load or a Community class.
     :param str_definition: either the class definition to load or None if str_module_or_class is not a string.
     """
@@ -131,7 +151,7 @@ def overlay(str_module_or_class, str_definition=None):
                 return getattr(__import__(str_module_or_class, fromlist=[str_definition]), str_definition)
         else:
             def get_overlay_class(_):
-                return str_module_or_class
+                return _get_class(str_module_or_class)
 
         instance.get_overlay_class = get_overlay_class
         return instance
@@ -160,6 +180,14 @@ def walk_strategy(str_module_or_class, str_definition=None, target_peers=20, kw_
         class A(CommunityLauncher):
            ...
 
+       def my_strategy_class():
+            from my_module.some_submodule import MyStrategyClass
+            return MyStrategyClass
+
+        @walk_strategy(my_strategy_class)
+        class A(CommunityLauncher):
+            ...
+
     :param str_module_or_class: either the module to load or a DiscoveryStrategy class.
     :param str_definition: either the class definition to load or None if str_module_or_class is not a string.
     :param target_peers: the target_peers for the strategy.
@@ -174,7 +202,7 @@ def walk_strategy(str_module_or_class, str_definition=None, target_peers=20, kw_
             instance.hiddenimports.add(str_module_or_class)
             strategy_class = getattr(__import__(str_module_or_class, fromlist=[str_definition]), str_definition)
         else:
-            strategy_class = str_module_or_class
+            strategy_class = _get_class(str_module_or_class)
 
         def new_get_walk_strategies(self):
             return old_get_walk_strategies(self) + [(strategy_class, kw_args or {}, target_peers)]
