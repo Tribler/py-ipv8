@@ -158,6 +158,22 @@ class TestCommunityLauncher(TestBase):
 
         self.assertEqual(self.staged_launcher.get_overlay_class(), DecoratedCommunityLauncher().get_overlay_class())
 
+    def test_overlay_class_from_function(self):
+        """
+        Check if a Community class (functional representation) can be lazy-loaded
+        through the overlay_class decorator.
+        """
+
+        def MockCommunityFunction():
+            return MockCommunity
+
+        @overlay(MockCommunityFunction)
+        class DecoratedCommunityLauncher(CommunityLauncher):
+            pass
+
+        self.assertEqual(self.staged_launcher.get_overlay_class(),
+                         DecoratedCommunityLauncher().get_overlay_class())
+
     def test_walk_strategy_from_str(self):
         """
         Check if adding a walk strategy string specification is successful.
@@ -175,6 +191,21 @@ class TestCommunityLauncher(TestBase):
         Check if adding a walk strategy from a DiscoveryStrategy class is successful.
         """
         @walk_strategy(MockWalk, kw_args={'some_attribute': 4})
+        class DecoratedCommunityLauncher(CommunityLauncher):
+            pass
+
+        self.assertListEqual(self.staged_launcher.get_walk_strategies(),
+                             DecoratedCommunityLauncher().get_walk_strategies())
+
+    def test_walk_strategy_from_function(self):
+        """
+        Check if adding a walk strategy from a function is successful.
+        """
+
+        def MockWalkFunction():
+            return MockWalk
+
+        @walk_strategy(MockWalkFunction, kw_args={'some_attribute': 4})
         class DecoratedCommunityLauncher(CommunityLauncher):
             pass
 
