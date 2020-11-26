@@ -79,10 +79,10 @@ else:
                                                    UDPIPv6={'port': configuration['port'],
                                                             'ip': "::"}
                                                    )
-                if enable_statistics:
-                    self.endpoint = StatisticsEndpoint(self.endpoint)
-                if any([overlay.get('initialize', {}).get('anonymize') for overlay in configuration['overlays']]):
-                    self.endpoint = TunnelEndpoint(self.endpoint)
+            if enable_statistics:
+                self.endpoint = StatisticsEndpoint(self.endpoint)
+            if any([overlay.get('initialize', {}).get('anonymize') for overlay in configuration['overlays']]):
+                self.endpoint = TunnelEndpoint(self.endpoint)
 
             self.network = Network()
 
