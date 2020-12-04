@@ -110,6 +110,8 @@ class RequestCache(TaskManager):
         with self.lock:
             if self._shutdown:
                 self._logger.warning("Dropping %s due to shutdown!", str(cache))
+                for f, _ in cache.managed_futures:
+                    f.cancel()
                 return None
 
             identifier = self._create_identifier(cache.number, cache.prefix)

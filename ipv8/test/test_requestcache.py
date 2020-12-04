@@ -108,6 +108,16 @@ class TestRequestCache(TestBase):
 
         await request_cache.shutdown()
 
+    async def test_cancel_future_after_shutdown(self):
+        """
+        Test if a registered future is cancelled when the RequestCache has shutdown.
+        """
+        request_cache = RequestCache()
+        await request_cache.shutdown()
+        cache = MockRegisteredCache(request_cache)
+        request_cache.add(cache)
+        assert cache.managed_futures[0][0].done()
+
     async def test_cancel_future(self):
         """
         Test if a registered future gets canceled at shutdown.

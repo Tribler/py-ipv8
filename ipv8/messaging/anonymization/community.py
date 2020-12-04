@@ -860,7 +860,7 @@ class TunnelCommunity(Community):
             if circuit.state in [CIRCUIT_STATE_READY, CIRCUIT_STATE_EXTENDING] \
                     and circuit.circuit_id not in exclude \
                     and circuit.hops:
-                cache = PingRequestCache(self, circuit)
+                cache = PingRequestCache(self)
                 self.request_cache.add(cache)
                 self.send_cell(circuit.peer, PingPayload(circuit.circuit_id, cache.number))
 
