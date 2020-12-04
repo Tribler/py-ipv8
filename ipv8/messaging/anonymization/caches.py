@@ -39,9 +39,6 @@ class CreatedRequestCache(NumberCache):
     def timeout_delay(self):
         return float(self.timeout)
 
-    def on_timeout(self):
-        pass
-
 
 class RetryRequestCache(RandomNumberCache):
     """
@@ -79,11 +76,8 @@ class RetryRequestCache(RandomNumberCache):
 
 class PingRequestCache(RandomNumberCache):
 
-    def __init__(self, community, circuit):
+    def __init__(self, community):
         super().__init__(community.request_cache, "ping")
-
-    def on_timeout(self):
-        pass
 
 
 class IPRequestCache(RandomNumberCache):
@@ -121,9 +115,7 @@ class PeersRequestCache(RandomNumberCache):
         self.circuit = circuit
         self.info_hash = info_hash
         self.future = Future()
-
-    def on_timeout(self):
-        self.future.set_exception(RuntimeError("Peers request timeout"))
+        self.register_future(self.future, RuntimeError("Peers request timeout"))
 
 
 class E2ERequestCache(RandomNumberCache):
@@ -150,9 +142,6 @@ class LinkRequestCache(RandomNumberCache):
         self.info_hash = info_hash
         self.hs_session_keys = hs_session_keys
 
-    def on_timeout(self):
-        pass
-
 
 class TestRequestCache(RandomNumberCache):
 
@@ -162,6 +151,3 @@ class TestRequestCache(RandomNumberCache):
         self.ts = time.time()
         self.future = Future()
         self.register_future(self.future)
-
-    def on_timeout(self):
-        pass
