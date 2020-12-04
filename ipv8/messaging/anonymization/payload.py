@@ -6,9 +6,6 @@ from ...messaging.anonymization.tunnel import (CIRCUIT_TYPE_RP_DOWNLOADER, CIRCU
 from ...messaging.anonymization.tunnelcrypto import CryptoException
 from ...messaging.lazy_payload import VariablePayload, vp_compile
 
-ADDRESS_TYPE_IPV4 = 0x01
-ADDRESS_TYPE_DOMAIN_NAME = 0x02
-
 NO_CRYPTO_PACKETS = [2, 3]
 
 

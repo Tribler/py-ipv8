@@ -57,15 +57,6 @@ class TunnelCrypto(ECCrypto):
         sb = key[68:72]
         return [kf, kb, sf, sb, 1, 1]
 
-    def _build_iv(self, salt, salt_explicit):
-        assert isinstance(salt, (bytes, str)), type(salt)
-        assert isinstance(salt_explicit, int), type(salt_explicit)
-
-        if salt_explicit == 0:
-            raise CryptoException("salt_explicit wrapped")
-
-        return salt + struct.pack('!H', salt_explicit)
-
     def get_session_keys(self, keys, direction):
         # increment salt_explicit
         keys[direction + 4] += 1
@@ -73,15 +64,16 @@ class TunnelCrypto(ECCrypto):
 
     def encrypt_str(self, content, key, salt, salt_explicit):
         # return the encrypted content prepended with salt_explicit
-        aesgcm = AEAD(key)
-        _, _, ciphertext = aesgcm.encrypt(content, b'', nonce=salt + struct.pack('!q', salt_explicit),
-                                          pack_nonce_aad=False)
+        aead = AEAD(key)
+        _, _, ciphertext = aead.encrypt(content, b'',
+                                        nonce=salt + struct.pack('!q', salt_explicit),
+                                        pack_nonce_aad=False)
         return struct.pack('!q', salt_explicit) + ciphertext
 
     def decrypt_str(self, content, key, salt):
-        # content contains the gcm tag and salt_explicit in plaintext
+        # content contains the tag and salt_explicit in plaintext
         if len(content) < 24:
             raise CryptoException("truncated content")
 
-        aesgcm = AEAD(key)
-        return aesgcm.decrypt(salt + content, 0)
+        aead = AEAD(key)
+        return aead.decrypt(salt + content, 0)
