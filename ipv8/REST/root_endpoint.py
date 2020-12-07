@@ -7,7 +7,6 @@ from .isolation_endpoint import IsolationEndpoint
 from .network_endpoint import NetworkEndpoint
 from .noblock_dht_endpoint import NoBlockDHTEndpoint
 from .overlays_endpoint import OverlaysEndpoint
-from .trustchain_endpoint import TrustchainEndpoint
 from .tunnel_endpoint import TunnelEndpoint
 
 
@@ -26,7 +25,6 @@ class RootEndpoint(BaseEndpoint):
                      '/network': NetworkEndpoint,
                      '/noblockdht': NoBlockDHTEndpoint,
                      '/overlays': OverlaysEndpoint,
-                     '/trustchain': TrustchainEndpoint,
                      '/tunnel': TunnelEndpoint}
         for path, ep_cls in endpoints.items():
             self.add_endpoint(path, ep_cls())

@@ -80,7 +80,6 @@ class TestBase(asynctest.TestCase):
         """
         self._patch_overlay(self.node(i).overlay)
         self._patch_overlay(self.node(i).dht)
-        self._patch_overlay(self.node(i).trustchain)
         for overlay in self.node(i).overlays:
             self._patch_overlay(overlay)
 

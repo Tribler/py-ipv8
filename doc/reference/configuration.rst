@@ -65,8 +65,5 @@ By default, IPv8 loads the following overlays:
 - DiscoveryCommunity
 - HiddenTunnelCommunity
 - IdentityCommunity
-- TrustChainCommunity
 - TunnelCommunity
 - DHTDiscoveryCommunity
-- TrustChainTestnetCommunity
-   

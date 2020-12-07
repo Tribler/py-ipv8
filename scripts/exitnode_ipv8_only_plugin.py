@@ -33,7 +33,6 @@ except ImportError:
     import __scriptpath__  # noqa: F401
 
 from ipv8.REST.rest_manager import RESTManager
-from ipv8.attestation.trustchain.database import TrustChainDB
 from ipv8.configuration import get_default_configuration
 from ipv8.messaging.anonymization.tunnel import PEER_FLAG_EXIT_IPV8
 
@@ -58,20 +57,12 @@ class ExitnodeIPv8Service(object):
         configuration = get_default_configuration()
         configuration['port'] = listen_port
 
-        # Open the database
-        self.tc_persistence = TrustChainDB(statedir, 'trustchain')
-
         if statedir:
             # If we use a custom state directory, update various variables
             for key in configuration["keys"]:
                 key["file"] = os.path.join(statedir, key["file"])
 
-            for community in configuration["overlays"]:
-                if community["class"] == "TrustChainCommunity":
-                    community["initialize"]["persistence"] = self.tc_persistence
-
-        allowed_overlays = ['DHTDiscoveryCommunity', 'DiscoveryCommunity', 'HiddenTunnelCommunity',
-                            'TrustChainCommunity']
+        allowed_overlays = ['DHTDiscoveryCommunity', 'DiscoveryCommunity', 'HiddenTunnelCommunity']
         configuration['overlays'] = [overlay for overlay in configuration['overlays']
                                      if overlay['class'] in allowed_overlays]
 

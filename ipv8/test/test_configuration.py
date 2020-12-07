@@ -290,13 +290,6 @@ class TestConfiguration(TestBase):
                                                       'dht_lookup_interval': 30
                                                   }},
                                                   [('build_tunnels', 1)]) \
-                                     .add_overlay("TrustChainCommunity",
-                                                  "anonymous id",
-                                                  [WalkerDefinition(Strategy.EdgeWalk, 20, {'edge_length': 4,
-                                                                                            'neighborhood_size': 6,
-                                                                                            'edge_timeout': 3.0})],
-                                                  {},
-                                                  []) \
                                      .add_overlay("DHTDiscoveryCommunity",
                                                   "anonymous id",
                                                   [WalkerDefinition(Strategy.RandomWalk, 20, {'timeout': 3.0}),
