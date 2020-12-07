@@ -1,6 +1,5 @@
 from .discovery import MockWalk
 from .endpoint import AutoMockEndpoint
-from ...attestation.trustchain.community import TrustChainCommunity
 from ...dht.discovery import DHTDiscoveryCommunity
 from ...keyvault.crypto import default_eccrypto
 from ...messaging.interfaces.statistics_endpoint import StatisticsEndpoint
@@ -11,7 +10,7 @@ from ...util import maybe_coroutine
 
 class MockIPv8(object):
 
-    def __init__(self, crypto_curve, overlay_class, create_trustchain=False, create_dht=False, enable_statistics=False,
+    def __init__(self, crypto_curve, overlay_class, create_dht=False, enable_statistics=False,
                  *args, **kwargs):
         self.endpoint = AutoMockEndpoint()
         self.endpoint.open()
@@ -22,13 +21,6 @@ class MockIPv8(object):
 
         self.network = Network()
         self.my_peer = Peer(default_eccrypto.generate_key(crypto_curve), self.endpoint.wan_address)
-
-        # Load a TrustChain community if specified
-        self.trustchain = None
-        if create_trustchain:
-            self.trustchain = TrustChainCommunity(self.my_peer, self.endpoint, self.network,
-                                                  working_directory=u":memory:")
-            kwargs.update({'trustchain': self.trustchain})
 
         # Load a DHT community if specified
         self.dht = None
@@ -57,7 +49,7 @@ class MockIPv8(object):
         return next(self.get_overlays(overlay_cls), None)
 
     def get_overlays(self, overlay_cls):
-        return (o for o in [self.trustchain, self.dht, self.overlay] if isinstance(o, overlay_cls))
+        return (o for o in [self.dht, self.overlay] if isinstance(o, overlay_cls))
 
     def unload_overlay(self, instance):
         self.overlays = [overlay for overlay in self.overlays if overlay != instance]
@@ -68,7 +60,5 @@ class MockIPv8(object):
     async def stop(self, stop_loop=True):
         self.endpoint.close()
         await self.overlay.unload()
-        if self.trustchain:
-            await self.trustchain.unload()
         if self.dht:
             await self.dht.unload()

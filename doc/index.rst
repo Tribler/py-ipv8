@@ -16,7 +16,7 @@ IPv8 aims to help restore the original Internet; for free; owned by nobody; for 
 IPv8 Features
 =============
 
-IPv8 is a networking layer which offers identities, communication with some robustness, and provides hooks for higher layers. For instance, our Internet-deployed reputation functions and ledger-based storage of reputation data. In combination with our Trustchain, IPv8 is designed as a mechanism to build trust.  Each network overlay offers network connections to known digital identities through public keys. Overlays are robust against several network problems and security issues. Using a custom NAT-traversing DHT to find the current IPv4 network address, IPv8 keeps the network connectivity going, even as the IPv4 addresses change.  Each network overlay keeps track of a number of neighbors and occasionally checks if they are still responsive.
+IPv8 is a networking layer which offers identities, communication with some robustness, and provides hooks for higher layers. For instance, our Internet-deployed reputation functions and ledger-based storage of reputation data. IPv8 is designed as a mechanism to build trust.  Each network overlay offers network connections to known digital identities through public keys. Overlays are robust against several network problems and security issues. Using a custom NAT-traversing DHT to find the current IPv4 network address, IPv8 keeps the network connectivity going, even as the IPv4 addresses change.  Each network overlay keeps track of a number of neighbors and occasionally checks if they are still responsive.
 
 IPv8 offers global connectivity through integrated UDP NAT puncturing, announcement of your identity claim and a web-of-trust. IPv8 has an integrated attestation service. You can use IPv8 for official verification that something is true or authentic, according to a trustworthy attestor. By using zero-knowledge proofs we attempt to minimize privacy leakage.
 
@@ -74,7 +74,6 @@ Table of contents
    :caption: Further reading:
 
    further-reading/advanced_identity.rst
-   further-reading/trustchain.rst
    further-reading/anonymization.rst
 
 .. toctree::

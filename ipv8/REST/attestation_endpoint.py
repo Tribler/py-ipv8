@@ -103,7 +103,7 @@ class AttestationEndpoint(BaseEndpoint):
 
     def _drop_identity_table_data(self, keys_to_keep):
         """
-        Remove all metadata (TrustChain blocks) from the identity community.
+        Remove all metadata  from the identity community.
 
         :param keys_to_keep: list of keys to not remove for
         :type keys_to_keep: [str]

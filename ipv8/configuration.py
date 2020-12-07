@@ -81,21 +81,6 @@ default = {
             ]
         },
         {
-            'class': 'TrustChainCommunity',
-            'key': "anonymous id",
-            'walkers': [{
-                'strategy': "EdgeWalk",
-                'peers': 20,
-                'init': {
-                    'edge_length': 4,
-                    'neighborhood_size': 6,
-                    'edge_timeout': 3.0
-                }
-            }],
-            'initialize': {},
-            'on_start': []
-        },
-        {
             'class': 'DHTDiscoveryCommunity',
             'key': "anonymous id",
             'walkers': [
@@ -289,10 +274,8 @@ class ConfigBuilder(object):
          - 'DiscoveryCommunity'
          - 'HiddenTunnelCommunity'
          - 'IdentityCommunity'
-         - 'TrustChainCommunity'
          - 'TunnelCommunity'
          - 'DHTDiscoveryCommunity'
-         - 'TrustChainTestnetCommunity'
 
         The initialize argument is a key-value mapping passed to the constructor (__init__) of the overlay.
 

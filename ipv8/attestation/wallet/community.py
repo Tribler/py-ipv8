@@ -35,7 +35,7 @@ class AttestationCommunity(Community):
     """
     Community for sharing Attestations.
 
-    Note that the logic for giving out Attestations is in the TrustChain.
+    Note that the logic for giving out Attestations is in the identity chain.
     """
     community_id = unhexlify('b42c93d167a0fc4a0843f917d4bf1e9ebb340ec4')
 
