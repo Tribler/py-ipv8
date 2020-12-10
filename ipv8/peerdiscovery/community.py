@@ -7,7 +7,7 @@ from .payload import (DiscoveryIntroductionRequestPayload, PingPayload, PongPayl
                       SimilarityResponsePayload)
 from ..community import Community, DEFAULT_MAX_PEERS
 from ..keyvault.crypto import default_eccrypto
-from ..lazy_community import PacketDecodingError, lazy_wrapper, lazy_wrapper_unsigned
+from ..lazy_community import PacketDecodingError, lazy_wrapper, lazy_wrapper_unsigned, retrieve_cache
 from ..messaging.payload import IntroductionRequestPayload
 from ..messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from ..messaging.serialization import PackError
@@ -32,8 +32,10 @@ class PeriodicSimilarity(DiscoveryStrategy):
 
 class PingRequestCache(NumberCache):
 
+    name = "discoverypingcache"
+
     def __init__(self, request_cache, identifier, peer, start_time):
-        super(PingRequestCache, self).__init__(request_cache, u"discoverypingcache", identifier)
+        super().__init__(request_cache, PingRequestCache.name, identifier)
         self.peer = peer
         self.start_time = start_time
 
@@ -129,12 +131,9 @@ class DiscoveryCommunity(Community):
         self.endpoint.send(source_address, packet)
 
     @lazy_wrapper_unsigned(GlobalTimeDistributionPayload, PongPayload)
-    def on_pong(self, source_address, dist, payload):
-        try:
-            cache = self.request_cache.pop(u"discoverypingcache", payload.identifier)
-            cache.finish()
-        except KeyError:
-            self.logger.debug("PingCache was answered late.")
+    @retrieve_cache(PingRequestCache)
+    def on_pong(self, source_address, dist, payload, cache):
+        cache.finish()
 
     def get_my_overlays(self, peer):
         return [service_id for service_id, overlay in self.network.service_overlays.items()

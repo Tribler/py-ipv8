@@ -1,12 +1,63 @@
+from abc import ABC, abstractmethod
 from functools import wraps
+from typing import Iterable, List, Tuple, Type, Union
 
 from .keyvault.crypto import default_eccrypto
 from .messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from .overlay import Overlay
 from .peer import Peer
+from .types import Address, NumberCache, Payload
 
 
-def lazy_wrapper(*payloads):
+def cache_retrieval_failed(overlay: Overlay, cache_class: Type[NumberCache]) -> None:
+    """
+    Handler for messages which failed to match to an existing overlay cache.
+    """
+    overlay.logger.debug("Failed to match %s: was answered late or did not exist.", repr(cache_class))
+
+
+def retrieve_cache(cache_class: Type[NumberCache]):
+    """
+    This function wrapper match a payload to a registered cache for you.
+
+    For this wrapper to function, you will need to comply with three standards:
+
+     - The last specified payload must include an ``identifier`` attribute.
+     - The ``cache_class`` must specify a ``name`` attribute.
+     - The overlay this method belongs to has a ``request_cache`` attribute.
+
+    You can now message handlers as follows:
+
+    ::
+
+        @lazy_wrapper(MyPayload1, MyPayload2)  # MyPayload2.identifier must exist!
+        @retrieve_cache(MyCache)  # MyCache.name must exist!
+        def on_message(peer: Peer,
+                       payload1: MyPayload1,
+                       payload2: MyPayload2,
+                       cache: NumberCache):
+            pass
+
+    :param cache_class: the cache to fetch.
+    """
+
+    def decorator(func):
+        @wraps(func)
+        def wrapper(self, peer_or_addr, *payloads):
+            try:
+                # For the ``_wd`` decorators, the last argument is the data and not the Payload.
+                payload = payloads[-2 if isinstance(payloads[-1], bytes) else -1]
+                cache = self.request_cache.pop(cache_class.name, payload.identifier)
+                return func(self, peer_or_addr, *payloads, cache=cache)
+            except KeyError:
+                return cache_retrieval_failed(self, cache_class)
+
+        return wrapper
+
+    return decorator
+
+
+def lazy_wrapper(*payloads: Type[Payload]):
     """
     This function wrapper will unpack the BinMemberAuthenticationPayload for you.
 
@@ -15,12 +66,9 @@ def lazy_wrapper(*payloads):
     ::
 
         @lazy_wrapper(IntroductionRequestPayload, IntroductionResponsePayload)
-        def on_message(peer, payload1, payload2):
-            '''
-            :type peer: Peer
-            :type payload1: IntroductionRequestPayload
-            :type payload2: IntroductionResponsePayload
-            '''
+        def on_message(peer: Peer,
+                       payload1: IntroductionRequestPayload,
+                       payload2: IntroductionResponsePayload):
             pass
     """
     def decorator(func):
@@ -40,7 +88,7 @@ def lazy_wrapper(*payloads):
     return decorator
 
 
-def lazy_wrapper_wd(*payloads):
+def lazy_wrapper_wd(*payloads: Type[Payload]):
     """
     This function wrapper will unpack the BinMemberAuthenticationPayload for you, as well as pass the raw data to the
     decorated function
@@ -50,12 +98,10 @@ def lazy_wrapper_wd(*payloads):
     ::
 
         @lazy_wrapper_wd(IntroductionRequestPayload, IntroductionResponsePayload)
-        def on_message(peer, payload1, payload2, data):
-            '''
-            :type peer: Peer
-            :type payload1: IntroductionRequestPayload
-            :type payload2: IntroductionResponsePayload
-            '''
+        def on_message(peer: Peer,
+                       payload1: IntroductionRequestPayload,
+                       payload2: IntroductionResponsePayload,
+                       data: bytes):
             pass
     """
     def decorator(func):
@@ -76,7 +122,7 @@ def lazy_wrapper_wd(*payloads):
     return decorator
 
 
-def lazy_wrapper_unsigned(*payloads):
+def lazy_wrapper_unsigned(*payloads: Type[Payload]):
     """
     This function wrapper will unpack just the normal payloads for you.
 
@@ -85,12 +131,9 @@ def lazy_wrapper_unsigned(*payloads):
     ::
 
         @lazy_wrapper_unsigned(IntroductionRequestPayload, IntroductionResponsePayload)
-        def on_message(source_address, payload1, payload2):
-            '''
-            :type source_address: str
-            :type payload1: IntroductionRequestPayload
-            :type payload2: IntroductionResponsePayload
-            '''
+        def on_message(source_address: Address,
+                       payload1: IntroductionRequestPayload,
+                       payload2: IntroductionResponsePayload):
             pass
     """
     def decorator(func):
@@ -103,7 +146,7 @@ def lazy_wrapper_unsigned(*payloads):
     return decorator
 
 
-def lazy_wrapper_unsigned_wd(*payloads):
+def lazy_wrapper_unsigned_wd(*payloads: Type[Payload]):
     """
     This function wrapper will unpack just the normal payloads for you, as well as pass the raw data to the decorated
     function
@@ -113,12 +156,10 @@ def lazy_wrapper_unsigned_wd(*payloads):
     ::
 
         @lazy_wrapper_unsigned_wd(IntroductionRequestPayload, IntroductionResponsePayload)
-        def on_message(source_address, payload1, payload2, data):
-            '''
-            :type source_address: str
-            :type payload1: IntroductionRequestPayload
-            :type payload2: IntroductionResponsePayload
-            '''
+        def on_message(source_address: Address,
+                       payload1: IntroductionRequestPayload,
+                       payload2: IntroductionResponsePayload,
+                       data: bytes):
             pass
     """
     def decorator(func):
@@ -135,65 +176,63 @@ def lazy_wrapper_unsigned_wd(*payloads):
     return decorator
 
 
-class EZPackOverlay(Overlay):
+class EZPackOverlay(Overlay, ABC):
 
-    def ez_send(self, peer, *payloads, **kwargs):
+    @abstractmethod
+    def get_prefix(self) -> bytes:
+        pass
+
+    def ez_send(self, peer: Peer, *payloads: Payload, **kwargs) -> None:
         """
         Send a Payload instance (with a defined `msg_id` field) to a peer.
         If you supply more than one Payload instance, the `msg_id` of the LAST instance will be used.
 
         :param peer: the peer to send to
-        :type peer: Peer
         :param sig: whether or not to sign this message
         :type sig: bool
         :param payloads: the list of Payload instances to serialize
-        :type payloads: [Payload]
-        :returns: None
         """
         self._ez_senda(peer.address, *payloads, **kwargs)
 
-    def _ez_senda(self, address, *payloads, **kwargs):
+    def _ez_senda(self, address: Address, *payloads: Payload, **kwargs) -> None:
         """
         Send a Payload instance to an address.
 
         You will probably not need this, try to use `ez_send` instead.
 
         :param address: the address to send to
-        :type address: (str, int)
         :param sig: whether or not to sign this message
         :type sig: bool
         :param payloads: the list of Payload instances to serialize
-        :type payloads: [Payload]
-        :returns: None
         """
-        self.endpoint.send(address, self.ezr_pack(payloads[-1].msg_id, *payloads, **kwargs))
 
-    def ezr_pack(self, msg_num, *payloads, **kwargs):
+        # We promise the typing system that the ``msg_id`` is defined for the last payload.
+        # Strictly speaking we should introduce a ``LastPayloadWithMessageID`` type, but this is annoying to work with.
+        self.endpoint.send(address, self.ezr_pack(payloads[-1].msg_id, *payloads, **kwargs))  # type:ignore
+
+    def ezr_pack(self, msg_num: int, *payloads: Payload, **kwargs) -> bytes:
         """
         The easier way to pack your messages. Supply with the message number and the Payloads you want to serialize.
         Optionally you can choose to sign the message.
 
         :param msg_num: the message number to claim for this message
-        :type msg_num: int
         :param sig: whether or not to sign this message
         :type sig: bool
         :param payloads: the list of Payload instances to serialize
-        :type payloads: [Payload]
         :return: the serialized message
-        :rtype: bytes or str
         """
         sig = kwargs.get('sig', True)
         if sig:
             payloads = (BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin()),) + payloads
-        return self._ez_pack(self._prefix, msg_num, payloads, sig)
+        return self._ez_pack(self.get_prefix(), msg_num, payloads, sig)
 
-    def _ez_pack(self, prefix, msg_num, payloads, sig=True):
+    def _ez_pack(self, prefix: bytes, msg_num: int, payloads: Iterable[Payload], sig: bool = True) -> bytes:
         packet = prefix + bytes([msg_num]) + self.serializer.pack_serializable_list(payloads)
         if sig:
             packet += default_eccrypto.create_signature(self.my_peer.key, packet)
         return packet
 
-    def _verify_signature(self, auth, data):
+    def _verify_signature(self, auth: BinMemberAuthenticationPayload, data: bytes) -> Tuple[bool, bytes]:
         ec = default_eccrypto
         public_key = ec.key_from_public_bin(auth.public_key_bin)
         signature_length = ec.get_signature_length(public_key)
@@ -201,7 +240,9 @@ class EZPackOverlay(Overlay):
         signature = data[-signature_length:]
         return ec.is_valid_signature(public_key, data[:-signature_length], signature), remainder
 
-    def _ez_unpack_auth(self, payload_class, data):
+    def _ez_unpack_auth(self,
+                        payload_class: Type[Payload],
+                        data: bytes) -> Tuple[BinMemberAuthenticationPayload, List[Payload], bytes]:
         # UNPACK
         auth, _ = self.serializer.unpack_serializable(BinMemberAuthenticationPayload, data, offset=23)
         signature_valid, remainder = self._verify_signature(auth, data)
@@ -213,7 +254,10 @@ class EZPackOverlay(Overlay):
         # PRODUCE
         return auth, unpacked[0], unpacked[1]
 
-    def _ez_unpack_noauth(self, payload_class, data, global_time=True):
+    def _ez_unpack_noauth(self,
+                          payload_class: Type[Payload],
+                          data: bytes,
+                          global_time: bool = True) -> Union[List[Payload], Payload]:
         # UNPACK
         format = [GlobalTimeDistributionPayload, payload_class] if global_time else [payload_class]
         unpacked = self.serializer.unpack_serializable_list(format, data, offset=23)
