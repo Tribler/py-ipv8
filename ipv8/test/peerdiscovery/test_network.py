@@ -138,7 +138,7 @@ class TestNetwork(TestBase):
         """
         Check if services are properly registered for a peer.
         """
-        service = "".join([chr(i) for i in range(20)])
+        service = bytes(range(20))
         self.network.discover_services(self.peers[0], [service])
         self.network.add_verified_peer(self.peers[0])
 
@@ -149,7 +149,7 @@ class TestNetwork(TestBase):
         """
         Check if services are properly registered for an unverified peer.
         """
-        service = "".join([chr(i) for i in range(20)])
+        service = bytes(range(20))
         self.network.discover_services(self.peers[0], [service])
 
         self.assertIn(service, self.network.get_services_for_peer(self.peers[0]))
@@ -159,8 +159,8 @@ class TestNetwork(TestBase):
         """
         Check if services are properly combined for a peer.
         """
-        service1 = "".join([chr(i) for i in range(20)])
-        service2 = "".join([chr(i) for i in range(20, 40)])
+        service1 = bytes(range(20))
+        service2 = bytes(range(20, 40))
         self.network.discover_services(self.peers[0], [service1])
         self.network.discover_services(self.peers[0], [service2])
         self.network.add_verified_peer(self.peers[0])
@@ -174,8 +174,8 @@ class TestNetwork(TestBase):
         """
         Check if services are properly combined when discovered services overlap.
         """
-        service1 = "".join([chr(i) for i in range(20)])
-        service2 = "".join([chr(i) for i in range(20, 40)])
+        service1 = bytes(range(20))
+        service2 = bytes(range(20, 40))
         self.network.discover_services(self.peers[0], [service1])
         self.network.discover_services(self.peers[0], [service1, service2])
         self.network.add_verified_peer(self.peers[0])
@@ -189,8 +189,8 @@ class TestNetwork(TestBase):
         """
         Check if an address update gets processed correctly.
         """
-        service1 = "".join([chr(i) for i in range(20)])
-        service2 = "".join([chr(i) for i in range(20, 40)])
+        service1 = bytes(range(20))
+        service2 = bytes(range(20, 40))
 
         pk = self.peers[0].public_key
         peer = Peer(pk, ('1.1.1.1', 1))
@@ -216,8 +216,8 @@ class TestNetwork(TestBase):
         """
         Check if services cache updates properly.
         """
-        service1 = "".join([chr(i) for i in range(20)])
-        service2 = "".join([chr(i) for i in range(20, 40)])
+        service1 = bytes(range(20))
+        service2 = bytes(range(20, 40))
         self.network.reverse_service_cache_size = 1
         self.network.discover_services(self.peers[0], [service1])
         self.network.add_verified_peer(self.peers[0])
@@ -402,7 +402,7 @@ class TestNetwork(TestBase):
         """
         Check if we can retrieve walkable addresses by parent service id.
         """
-        service = "".join([chr(i) for i in range(20)])
+        service = bytes(range(20))
         self.network.discover_address(self.peers[2], self.peers[3].address)
         self.network.discover_address(self.peers[0], self.peers[1].address)
         self.network.discover_services(self.peers[0], [service])
@@ -435,7 +435,7 @@ class TestNetwork(TestBase):
         """
         self.network.blacklist_mids.append(self.peers[0].mid)
         for peer in self.peers[1:]:
-            self.network.discover_address(self.peers[0], peer)
+            self.network.discover_address(self.peers[0], peer.address)
         snapshot = self.network.snapshot()
 
         self.assertEqual(len(snapshot), 0)

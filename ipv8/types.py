@@ -18,6 +18,7 @@ if typing.TYPE_CHECKING:
     from ipv8.keyvault.keys import Key, PrivateKey, PublicKey
     from ipv8.messaging.interfaces.endpoint import Endpoint
     from ipv8.messaging.serialization import Payload
+    from ipv8.overlay import Overlay
     from ipv8.peer import Peer
     from ipv8.requestcache import NumberCache
     from ipv8_service import IPv8
@@ -37,6 +38,7 @@ else:
     Key = 'ipv8.keyvault.keys.Key'
     Metadata = 'ipv8.attestation.identity.metadata.Metadata'
     NumberCache = 'ipv8.requestcache.NumberCache'
+    Overlay = 'ipv8.overlay.Overlay'
     Payload = 'ipv8.messaging.serialization.Payload'
     Peer = 'ipv8.peer.Peer'
     PrivateKey = 'ipv8.keyvault.keys.PrivateKey'

@@ -83,7 +83,9 @@ def lazy_wrapper(*payloads: Type[Payload]):
                 raise PacketDecodingError("Incoming packet %s has an invalid signature" %
                                           str([payload_class.__name__ for payload_class in payloads]))
             # PRODUCE
-            return func(self, Peer(auth.public_key_bin, source_address), *unpacked)
+            peer = (self.network.verified_by_public_key_bin.get(auth.public_key_bin)
+                    or Peer(auth.public_key_bin, source_address))
+            return func(self, peer, *unpacked)
         return wrapper
     return decorator
 
@@ -117,7 +119,9 @@ def lazy_wrapper_wd(*payloads: Type[Payload]):
                                           str([payload_class.__name__ for payload_class in payloads]))
             # PRODUCE
             output = unpacked + [data]
-            return func(self, Peer(auth.public_key_bin, source_address), *output)
+            peer = (self.network.verified_by_public_key_bin.get(auth.public_key_bin)
+                    or Peer(auth.public_key_bin, source_address))
+            return func(self, peer, *output)
         return wrapper
     return decorator
 
