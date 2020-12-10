@@ -16,6 +16,7 @@ def _generate_peer():
 class TestNetwork(TestBase):
 
     peers = [_generate_peer() for _ in range(4)]
+    serialized_ipv4_len = 7
 
     def setUp(self):
         super(TestNetwork, self).setUp()
@@ -416,7 +417,7 @@ class TestNetwork(TestBase):
             self.network.add_verified_peer(peer)
         snapshot = self.network.snapshot()
 
-        self.assertEqual(len(snapshot), 6 * len(self.peers))
+        self.assertEqual(len(snapshot), TestNetwork.serialized_ipv4_len * len(self.peers))
 
     def test_snapshot_verified_and_unverified(self):
         """
@@ -426,7 +427,7 @@ class TestNetwork(TestBase):
         self.network.discover_address(self.peers[0], self.peers[1].address)
         snapshot = self.network.snapshot()
 
-        self.assertEqual(len(snapshot), 6)
+        self.assertEqual(len(snapshot), TestNetwork.serialized_ipv4_len)
 
     def test_snapshot_only_unverified(self):
         """
@@ -457,7 +458,10 @@ class TestNetwork(TestBase):
             ('194.116.42.174', 21882),
             ('143.93.254.175', 41862)
         }
-        snapshot = unhexlify("36e23871e14a8f5dfeafa386c2742aae557a46c8b71ded8f")
+        snapshot = unhexlify("01" "36e23871" "e14a"
+                             "01" "46c8b71d" "ed8f"
+                             "01" "c2742aae" "557a"
+                             "01" "8f5dfeaf" "a386")
 
         self.network.load_snapshot(snapshot)
         peers = set(self.network.get_walkable_addresses())
@@ -477,9 +481,20 @@ class TestNetwork(TestBase):
         """
         Check if no peers are loaded from a malformed snapshot.
         """
-        snapshot = unhexlify("36e23871e14a8f5dfeafa386c2742aae557a46c8b71ded8f")
+        snapshot = unhexlify("0136e23871e14a0146c8b71ded8f01c2742aae557a018f5dfeafa386")
+
+        self.network.load_snapshot(snapshot[1:])
+        peers = set(self.network.get_walkable_addresses())
+
+        self.assertSetEqual(peers, set())
+
+    def test_load_snapshot_truncated(self):
+        """
+        Check if as many peers as possible are loaded from a truncated snapshot.
+        """
+        snapshot = unhexlify("0136e23871e14a0146c8b71ded8f01c2742aae557a018f5dfeafa386")
 
         self.network.load_snapshot(snapshot[:-1])
         peers = set(self.network.get_walkable_addresses())
 
-        self.assertSetEqual(peers, set())
+        self.assertEqual(3, len(peers))
