@@ -1,7 +1,8 @@
+import logging
 from collections import OrderedDict
-from socket import inet_aton, inet_ntoa
-from struct import pack, unpack
 from threading import RLock
+
+from ..messaging.serialization import default_serializer
 
 
 class Network(object):
@@ -254,35 +255,38 @@ class Network(object):
                 self.verified_peers.remove(peer)
             self.services_per_peer.pop(peer.mid, None)
 
-    def snapshot(self):
+    def snapshot(self) -> bytes:
         """
-        Get a snapshot of all IPv4 verified peers.
+        Get a snapshot of all verified peers.
 
-        Deprecated, only supports IPv4 addresses!
-
-        :return: the serialization (str) of all verified peers
+        :return: the serialization (bytes) of all verified peers
         """
         with self.graph_lock:
             out = b""
             for peer in self.verified_peers:
                 if peer.address and peer.address != ('0.0.0.0', 0):
-                    out += inet_aton(peer.address[0]) + pack(">H", peer.address[1])
+                    out += default_serializer.pack('address', peer.address)
             return out
 
-    def load_snapshot(self, snapshot):
+    def load_snapshot(self, snapshot: bytes) -> None:
         """
         Load a snapshot into the walkable addresses.
+
+        This method will prefer returning no peers over throwing an Exception.
 
         :param snapshot: the snapshot (created by snapshot())
         """
         snaplen = len(snapshot)
-        if (snaplen % 6) != 0:
-            import logging
-            logging.error("Snapshot has invalid length! Aborting snapshot load.")
-            return
+        offset = 0
         with self.graph_lock:
-            for i in range(0, snaplen, 6):
-                sub = snapshot[i:i + 6]
-                ip = inet_ntoa(sub[0:4])
-                port = unpack(">H", sub[4:])[0]
-                self._all_addresses[(ip, port)] = ('', None, False)
+            while offset < snaplen:
+                previous_offset = offset
+                try:
+                    address, offset = default_serializer.unpack('address', snapshot, offset)
+                    self._all_addresses[address] = ('', None, False)
+                except Exception:  # pylint: disable=W0703
+                    if offset <= previous_offset:
+                        # We got stuck, or even went back in time.
+                        logging.error("Snapshot loading got stuck! Aborting snapshot load.")
+                        break
+                    logging.warning("Snapshot failed on entry, skipping %s!", repr(address))
