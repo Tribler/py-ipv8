@@ -246,7 +246,7 @@ class EZPackOverlay(Overlay, ABC):
 
     def _ez_unpack_auth(self,
                         payload_class: Type[Payload],
-                        data: bytes) -> Tuple[BinMemberAuthenticationPayload, List[Payload], bytes]:
+                        data: bytes) -> Tuple[BinMemberAuthenticationPayload, GlobalTimeDistributionPayload, Payload]:
         # UNPACK
         auth, _ = self.serializer.unpack_serializable(BinMemberAuthenticationPayload, data, offset=23)
         signature_valid, remainder = self._verify_signature(auth, data)
