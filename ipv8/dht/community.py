@@ -152,7 +152,7 @@ class DHTCommunity(Community):
     """
     Community for storing/finding key-value pairs.
     """
-    community_id = unhexlify('8d0be1845d74d175f178197cad001591d04d73cb')
+    community_id = unhexlify('8d0be1845d74d175f178197cad001591d04d73cc')
 
     def __init__(self, *args, **kwargs):
         super(DHTCommunity, self).__init__(*args, **kwargs)

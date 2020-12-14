@@ -1,11 +1,17 @@
 import logging
 from binascii import hexlify
-from struct import pack, unpack_from
 
 from . import DHTError
 from ..messaging.anonymization.tunnel import IntroductionPoint, PEER_SOURCE_DHT
+from ..messaging.lazy_payload import VariablePayload, vp_compile
 from ..messaging.serialization import default_serializer
 from ..peer import Peer
+
+
+@vp_compile
+class DHTIntroPointPayload(VariablePayload):
+    names = ['address', 'last_seen', 'intro_pk', 'seeder_pk']
+    format_list = ['ip_address', 'I', 'varlenH', 'varlenH']
 
 
 class DHTCommunityProvider(object):
@@ -36,29 +42,21 @@ class DHTCommunityProvider(object):
         results = []
         for value, _ in values:
             try:
-                address, offset = default_serializer.unpack('ip_address', value)
-                last_seen, intro_key_len = unpack_from('>IH', value, offset)
-                intro_pk = b'LibNaCLPK:' + value[12:12 + intro_key_len]
-                intro_peer = Peer(intro_pk, address)
-
-                seeder_key_len, = unpack_from('>H', value, 12 + intro_key_len)
-                seeder_pk = b'LibNaCLPK:' + value[14 + intro_key_len:14 + intro_key_len + seeder_key_len]
-
-                results.append(IntroductionPoint(intro_peer, seeder_pk, PEER_SOURCE_DHT, last_seen))
+                payload, _ = default_serializer.unpack_serializable(DHTIntroPointPayload, value)
+                intro_peer = Peer(b'LibNaCLPK:' + payload.intro_pk, payload.address)
+                results.append(IntroductionPoint(intro_peer, b'LibNaCLPK:' + payload.seeder_pk,
+                                                 PEER_SOURCE_DHT, payload.last_seen))
             except Exception as e:
-                self.logger.info("Error encountered during lookup %s on the DHTCommunity (error: %s)", hexlify(info_hash), e)
+                self.logger.info("Error during lookup %s on the DHTCommunity (error: %s)", hexlify(info_hash), e)
         self.logger.info("Looked up %s in the DHTCommunity, got %d results", hexlify(info_hash), len(results))
         return info_hash, results
 
     async def announce(self, info_hash, intro_point):
         # We strip away the LibNaCLPK part of the public key to avoid going over the DHT size limit.
-        intro_pk = intro_point.peer.public_key.key_to_bin()[10:]
-        seeder_pk = intro_point.seeder_pk[10:]
-
-        value = default_serializer.pack('ip_address', intro_point.peer.address)
-        value += pack('>I', intro_point.last_seen)
-        value += pack('>H', len(intro_pk)) + intro_pk
-        value += pack('>H', len(seeder_pk)) + seeder_pk
+        value = default_serializer.pack_serializable(DHTIntroPointPayload(intro_point.peer.address,
+                                                                          intro_point.last_seen,
+                                                                          intro_point.peer.public_key.key_to_bin()[10:],
+                                                                          intro_point.seeder_pk[10:]))
 
         try:
             await self.dht_community.store_value(info_hash, value)
