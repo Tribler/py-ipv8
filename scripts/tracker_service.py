@@ -73,18 +73,29 @@ class EndpointServer(Community):
         peer.address = UDPv4LANAddress(*payload.source_lan_address)
         peer.last_response = time.time()
 
-        self.network.add_verified_peer(peer)
-        self.network.discover_services(peer, [prefix[2:], ])
+        service_id = prefix[2:]
+        self.on_peer_introduction_request(peer, source_address, service_id)
 
-        intro_peers = [p for p in self.network.get_peers_for_service(prefix[2:]) if not(p == peer)]
+        self.network.add_verified_peer(peer)
+        self.network.discover_services(peer, [service_id, ])
+
+        intro_peers = [p for p in self.network.get_peers_for_service(service_id)
+                       if not(p == peer)]
         if intro_peers:
             intro_peer = random.choice(intro_peers)
         else:
             intro_peer = None
 
-        packet = self.create_introduction_response(payload.destination_address, peer.address, payload.identifier,
-                                                   introduction=intro_peer, prefix=prefix)
+        packet = self.create_introduction_response(
+            payload.destination_address, peer.address, payload.identifier,
+            introduction=intro_peer, prefix=prefix)
         self.endpoint.send(peer.address, packet)
+
+    def on_peer_introduction_request(self, peer, source_address, service_id):
+        """
+        A hook to collect anonymized statistics about total peer count
+        """
+        pass
 
     def get_peer_for_introduction(self, exclude=None, new_style=False):
         """
@@ -105,13 +116,17 @@ class TrackerService(object):
         self.stopping = False
         self.overlay = None
 
+    def create_endpoint_server(self):
+        return EndpointServer(self.endpoint)
+
     async def start_tracker(self, listen_port):
         """
         Main method to startup the tracker.
         """
+        self.listen_port = listen_port
         self.endpoint = UDPEndpoint(listen_port)
         await self.endpoint.open()
-        self.overlay = EndpointServer(self.endpoint)
+        self.overlay = self.create_endpoint_server()
 
         async def signal_handler(sig):
             print("Received shut down signal %s" % sig)
