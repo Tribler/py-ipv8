@@ -1,3 +1,6 @@
+"""
+Common classes for tracker_plugin.py and tracker_reporter_plugin.py scripts
+"""
 import os
 import random
 import signal
