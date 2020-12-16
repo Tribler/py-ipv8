@@ -11,10 +11,14 @@ from asyncio import ensure_future, get_event_loop, sleep
 from tracker_service import TrackerService
 
 
-def main(argv):
-    parser = argparse.ArgumentParser(add_help=False, description=('IPv8 tracker plugin'))
-    parser.add_argument('--help', '-h', action='help', default=argparse.SUPPRESS, help='Show this help message and exit')
-    parser.add_argument('--listen_port', '-p', default=8090, type=int, help='Use an alternative port')
+def main():
+    parser = argparse.ArgumentParser(add_help=False,
+                                     description='IPv8 tracker plugin')
+    parser.add_argument('--help', '-h', action='help',
+                        default=argparse.SUPPRESS,
+                        help='Show this help message and exit')
+    parser.add_argument('--listen_port', '-p', default=8090, type=int,
+                        help='Use an alternative port')
 
     args = parser.parse_args(sys.argv[1:])
     service = TrackerService()
@@ -35,4 +39,4 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    main()

@@ -5,6 +5,7 @@ import os
 import random
 import signal
 import time
+import traceback
 from asyncio import ensure_future, get_event_loop
 
 # Check if we are running from the root directory
@@ -51,7 +52,7 @@ class EndpointServer(Community):
     def __init__(self, endpoint):
         my_peer = Peer(default_eccrypto.generate_key(u"very-low"))
         self.signature_length = default_eccrypto.get_signature_length(my_peer.public_key)
-        super(EndpointServer, self).__init__(my_peer, endpoint, Network())
+        super().__init__(my_peer, endpoint, Network())
         self.endpoint.add_listener(self)  # Listen to all incoming packets (not just the fake community_id).
         self.churn_strategy = SimpleChurn(self)
         self.churn_task = self.register_task("churn", self.churn_strategy.take_step, interval=30)
@@ -67,7 +68,6 @@ class EndpointServer(Community):
             elif warn_unknown:
                 self.logger.warning("Tracker received unknown message %s", str(data[22]))
         except Exception:
-            import traceback
             traceback.print_exc()
 
     def on_generic_introduction_request(self, source_address, data, prefix):
@@ -83,7 +83,7 @@ class EndpointServer(Community):
         self.network.discover_services(peer, [service_id, ])
 
         intro_peers = [p for p in self.network.get_peers_for_service(service_id)
-                       if not(p == peer)]
+                       if not p == peer]
         if intro_peers:
             intro_peer = random.choice(intro_peers)
         else:
@@ -98,7 +98,6 @@ class EndpointServer(Community):
         """
         A hook to collect anonymized statistics about total peer count
         """
-        pass
 
     def get_peer_for_introduction(self, exclude=None, new_style=False):
         """
@@ -109,7 +108,7 @@ class EndpointServer(Community):
         return None
 
 
-class TrackerService(object):
+class TrackerService:
 
     def __init__(self):
         """
@@ -126,7 +125,6 @@ class TrackerService(object):
         """
         Main method to startup the tracker.
         """
-        self.listen_port = listen_port
         self.endpoint = UDPEndpoint(listen_port)
         await self.endpoint.open()
         self.overlay = self.create_endpoint_server()
