@@ -108,7 +108,7 @@ class TestBase(asynctest.TestCase):
             while self._tempdirs:
                 shutil.rmtree(self._tempdirs.pop(), ignore_errors=True)
         # Now that everyone has calmed down, sweep up the remaining callbacks and check if they failed.
-        asynctest.helpers.exhaust_callbacks(self.loop)
+        await asynctest.helpers.exhaust_callbacks(self.loop)
         if self._uncaught_async_failure is not None:
             raise self._uncaught_async_failure["exception"]
         self.loop.set_exception_handler(None)  # None is equivalent to the default handler
