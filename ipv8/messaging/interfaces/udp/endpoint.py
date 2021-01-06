@@ -45,7 +45,7 @@ class UDPEndpoint(Endpoint, asyncio.DatagramProtocol):
         try:
             self._transport.sendto(packet, socket_address)
             self.bytes_up += len(packet)
-        except (TypeError, ValueError) as exc:
+        except (TypeError, ValueError, AttributeError) as exc:
             self._logger.warning("Dropping packet due to message formatting error: %s", exc)
 
     def log_error(self, message, level=logging.WARNING):
