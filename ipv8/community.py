@@ -195,7 +195,7 @@ class Community(EZPackOverlay):
                 self.my_peer.address = self.guess_address(interface)
         return self.my_peer.address
 
-    def create_introduction_request(self, socket_address, extra_bytes=b'', new_style=False):
+    def create_introduction_request(self, socket_address, extra_bytes=b'', new_style=False, prefix=None):
         global_time = self.claim_global_time() % 65536
         if new_style or isinstance(socket_address, UDPv6Address):
             payload = NewIntroductionRequestPayload(socket_address, self.my_estimated_lan, self.my_preferred_address(),
@@ -213,7 +213,7 @@ class Community(EZPackOverlay):
         auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin())
         dist = GlobalTimeDistributionPayload(global_time)
 
-        return self._ez_pack(self._prefix, payload.msg_id, [auth, dist, payload])
+        return self._ez_pack(prefix or self._prefix, payload.msg_id, [auth, dist, payload])
 
     def create_introduction_response(self, lan_socket_address, socket_address, identifier,
                                      introduction=None, extra_bytes=b'', prefix=None, new_style=False):
@@ -243,11 +243,11 @@ class Community(EZPackOverlay):
                                                   self.my_estimated_wan,
                                                   introduction_lan,
                                                   introduction_wan,
-                                                  u"unknown",
-                                                  False,
+                                                  "unknown",
                                                   identifier,
                                                   extra_bytes,
-                                                  intro_supports_new_style=new_style_intro)
+                                                  intro_supports_new_style=new_style_intro,
+                                                  peer_limit_reached=0 <= self.max_peers <= len(self.get_peers()))
         auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin())
         dist = GlobalTimeDistributionPayload(global_time)
 

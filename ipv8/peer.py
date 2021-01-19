@@ -63,6 +63,7 @@ class Peer(object):
         if address is not None:
             self._addresses[address.__class__] = address
         self._address = address
+        self.creation_time = time()
         self.last_response = 0 if intro else time()
         self._lamport_timestamp = 0
         self.pings: deque = deque(maxlen=5)
