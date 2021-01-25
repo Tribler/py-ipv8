@@ -249,7 +249,9 @@ class TunnelCommunity(Community):
                 exit_candidates = self.get_candidates(PEER_FLAG_EXIT_BT)
             elif ctype == CIRCUIT_TYPE_IP_SEEDER:
                 # For introduction points we prefer exit nodes, but perhaps a relay peer would also suffice..
-                exit_candidates = self.get_candidates(PEER_FLAG_EXIT_BT) or self.get_candidates(PEER_FLAG_RELAY)
+                exit_candidates = self.get_candidates(PEER_FLAG_EXIT_BT) \
+                    or self.get_candidates(PEER_FLAG_EXIT_IPV8) \
+                    or self.get_candidates(PEER_FLAG_RELAY)
             else:
                 # For exit nodes that don't exit actual data, we prefer relay candidates,
                 # but we also consider exit candidates.
