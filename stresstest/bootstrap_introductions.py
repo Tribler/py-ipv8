@@ -40,8 +40,10 @@ class MyCommunity(Community):
         return cache.future
 
     def introduction_response_callback(self, peer, dist, payload):
-        cache = self.request_cache.get('intro-req', payload.identifier)
-        cache.future.set_result(payload)
+        if self.request_cache.has('intro-req', payload.identifier):
+            cache = self.request_cache.pop('intro-req', payload.identifier)
+            if not cache.future.done():
+                cache.future.set_result(payload)
 
 
 async def main():
@@ -74,16 +76,30 @@ async def main():
             except AsyncTimeoutError:
                 continue
 
+            reachable = False
+            try:
+                if response.wan_introduction_address != ('0.0.0.0', 0):
+                    # Wait some time for puncture to be send
+                    await sleep(.1)
+                    await wait_for(overlay.send_intro_request(response.wan_introduction_address), timeout=5)
+                    reachable = True
+            except AsyncTimeoutError:
+                pass
+
             introductions[dns_addr] = introductions.get(dns_addr, [])
-            introductions[dns_addr].append((response.wan_introduction_address, response.lan_introduction_address))
+            introductions[dns_addr].append([response.wan_introduction_address,
+                                            response.lan_introduction_address,
+                                            reachable])
+
         await sleep(delay)
 
     with open('bootstrap_introductions.txt', 'w') as f:
         f.write('Address Peers Type')
         for dns_addr, responses in introductions.items():
-            f.write(f"\n{dns_addr[0]}:{dns_addr[1]} {len([wan for wan, _ in responses if wan != ('0.0.0.0', 0)])} 0")
-            f.write(f"\n{dns_addr[0]}:{dns_addr[1]} {len({wan for wan, _ in responses if wan != ('0.0.0.0', 0)})} 1")
-            f.write(f"\n{dns_addr[0]}:{dns_addr[1]} {len({lan for _, lan in responses if lan != ('0.0.0.0', 0)})} 2")
+            f.write(f"\n{dns_addr[0]}:{dns_addr[1]} {len([wan for wan, _, _ in responses if wan != ('0.0.0.0', 0)])} 0")
+            f.write(f"\n{dns_addr[0]}:{dns_addr[1]} {len({wan for wan, _, _ in responses if wan != ('0.0.0.0', 0)})} 1")
+            f.write(f"\n{dns_addr[0]}:{dns_addr[1]} {len({lan for _, lan, _ in responses if lan != ('0.0.0.0', 0)})} 3")
+            f.write(f"\n{dns_addr[0]}:{dns_addr[1]} {len({wan for wan, _, reachable in responses if reachable})} 2")
 
 
 if __name__ == "__main__":
