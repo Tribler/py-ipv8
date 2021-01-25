@@ -273,6 +273,7 @@ class Network(object):
         """
         with self.graph_lock:
             self._all_addresses.pop(address, None)
+            self.reverse_service_lookup.pop(address, None)
             # Note that the services_per_peer will never be 0, we abuse the lazy `or` to pop the peers from
             # the services_per_peer mapping if they are no longer included. This is fast.
             self.verified_peers = {peer for peer in self.verified_peers
@@ -288,6 +289,7 @@ class Network(object):
         with self.graph_lock:
             for address in peer.addresses.values():
                 self._all_addresses.pop(address, None)
+                self.reverse_service_lookup.pop(address, None)
             if peer in self.verified_peers:
                 self.verified_peers.remove(peer)
             self.verified_by_public_key_bin.pop(peer.public_key.key_to_bin(), None)
