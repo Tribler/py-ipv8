@@ -527,8 +527,8 @@ class IPv8CommunityLoader(CommunityLoader):
         bootstrappers = launcher.get_bootstrappers(session)
 
         ipv8.overlays.append(overlay)
-        for strategy_class, strategy_kwargs, max_peers in walk_strategies:
-            ipv8.strategies.append((strategy_class(overlay, **strategy_kwargs), max_peers))
+        for strategy_class, strategy_kwargs, target_peers in walk_strategies:
+            ipv8.strategies.append((strategy_class(overlay, **strategy_kwargs), target_peers))
         for bootstrapper_class, bootstrapper_kwargs in bootstrappers:
             overlay.bootstrappers.append(bootstrapper_class(**bootstrapper_kwargs))
 
