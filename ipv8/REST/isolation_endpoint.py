@@ -6,7 +6,7 @@ from marshmallow.fields import Boolean, Integer, String
 
 from .base_endpoint import BaseEndpoint, HTTP_BAD_REQUEST, Response
 from .schema import DefaultResponseSchema, schema
-from ..community import _DEFAULT_ADDRESSES
+from ..bootstrapping.dispersy.bootstrapper import DispersyBootstrapper
 from ..messaging.anonymization.community import TunnelCommunity
 
 
@@ -29,7 +29,9 @@ class IsolationEndpoint(BaseEndpoint):
         for overlay in self.session.overlays:
             overlay.network.blacklist.append(address)
             overlay.walk_to(address)
-        _DEFAULT_ADDRESSES.append(address)
+            for bootstrapper in overlay.bootstrappers:
+                if isinstance(bootstrapper, DispersyBootstrapper):
+                    bootstrapper.ip_addresses.append(address)
 
     @docs(
         tags=["Isolation"],

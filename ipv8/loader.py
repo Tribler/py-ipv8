@@ -212,6 +212,59 @@ def walk_strategy(str_module_or_class, str_definition=None, target_peers=20, kw_
     return decorator
 
 
+def bootstrapper(str_module_or_class, str_definition=None, kw_args=None):
+    """
+    Specify, as strings, a module and Bootstrapper class object defined therein to lazy-load.
+    Otherwise, give an actual Bootstrapper class to load.
+
+    For example:
+
+     .. code-block :: Python
+
+        @bootstrapper('my_module.some_submodule', 'MyBootstrapper')
+        class A(CommunityLauncher):
+           ...
+
+        from my_module.some_submodule import MyBootstrapper
+        @walk_strategy(MyBootstrapper)
+        class A(CommunityLauncher):
+           ...
+
+        @walk_strategy('my_module.some_submodule', 'MyBootstrapper', kwargs={'a key': 'a value'})
+        class A(CommunityLauncher):
+           ...
+
+       def my_bootstrapper_class():
+            from my_module.some_submodule import MyBootstrapper
+            return MyBootstrapper
+
+        @walk_strategy(my_bootstrapper_class)
+        class A(CommunityLauncher):
+            ...
+
+    :param str_module_or_class: either the module to load or a Bootstrapper class.
+    :param str_definition: either the class definition to load or None if str_module_or_class is not a string.
+    :param kw_args: the keyword arguments to initialize the Bootstrapper instance with.
+    """
+    def decorator(instance):
+        old_get_bootstrappers = instance.get_bootstrappers
+
+        if isinstance(str_module_or_class, str):
+            if not hasattr(instance, "hiddenimports"):
+                setattr(instance, "hiddenimports", set())
+            instance.hiddenimports.add(str_module_or_class)
+            bootstrapper_class = getattr(__import__(str_module_or_class, fromlist=[str_definition]), str_definition)
+        else:
+            bootstrapper_class = _get_class(str_module_or_class)
+
+        def new_get_bootstrappers(self, session):
+            return old_get_bootstrappers(self, session) + [(bootstrapper_class, kw_args or {})]
+
+        instance.get_bootstrappers = new_get_bootstrappers
+        return instance
+    return decorator
+
+
 def set_in_session(attribute_name):
     """
     Specify an attribute to set on the session, once the CommunityLauncher has finished initializing its Community.
@@ -365,6 +418,13 @@ class CommunityLauncher:
         """
         return []
 
+    def get_bootstrappers(self, session):
+        """
+        Get the bootstrappers for this class.
+        It should be provided as a list of tuples with the class and kwargs.
+        """
+        return []
+
     def get_my_peer(self, ipv8, session):
         return Peer(default_eccrypto.generate_key("curve25519"))
 
@@ -464,10 +524,13 @@ class IPv8CommunityLoader(CommunityLoader):
         args = launcher.get_args(session)
         kwargs = launcher.get_kwargs(session)
         overlay = overlay_class(peer, ipv8.endpoint, ipv8.network, *args, **kwargs)
+        bootstrappers = launcher.get_bootstrappers(session)
 
         ipv8.overlays.append(overlay)
         for strategy_class, strategy_kwargs, max_peers in walk_strategies:
             ipv8.strategies.append((strategy_class(overlay, **strategy_kwargs), max_peers))
+        for bootstrapper_class, bootstrapper_kwargs in bootstrappers:
+            overlay.bootstrappers.append(bootstrapper_class(**bootstrapper_kwargs))
 
         # Cleanup
         launcher.finalize(ipv8, session, overlay)

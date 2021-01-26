@@ -1,6 +1,5 @@
 from ..base import TestBase
 from ..mocking.community import MockCommunity
-from ...community import _DEFAULT_ADDRESSES
 from ...peerdiscovery.discovery import RandomWalk
 
 
@@ -8,8 +7,6 @@ class TestRandomWalk(TestBase):
 
     def setUp(self):
         super(TestRandomWalk, self).setUp()
-        while _DEFAULT_ADDRESSES:
-            _DEFAULT_ADDRESSES.pop()
 
         node_count = 3
         self.overlays = [MockCommunity() for _ in range(node_count)]

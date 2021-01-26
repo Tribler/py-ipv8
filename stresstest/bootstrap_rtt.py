@@ -13,13 +13,12 @@ except ImportError:
     import __scriptpath__  # noqa: F401
 
 
-from ipv8.community import Community, _DEFAULT_ADDRESSES, _DNS_ADDRESSES
-from ipv8.configuration import get_default_configuration
+from ipv8.community import Community
+from ipv8.configuration import DISPERSY_BOOTSTRAPPER, get_default_configuration
 from ipv8.messaging.interfaces.udp.endpoint import UDPv4Address
 from ipv8.requestcache import NumberCache, RequestCache
 
 from ipv8_service import IPv8, _COMMUNITIES
-
 
 INSTANCES = []
 CHECK_QUEUE = []
@@ -58,7 +57,7 @@ class MyCommunity(Community):
 
     def finish_ping(self, cache, include=True):
         global RESULTS
-        print(cache.hostname, cache.address, time.time() - cache.starttime)
+        print(cache.hostname, cache.address, time.time() - cache.starttime)  # noqa: T001
         if include:
             if (cache.hostname, cache.address) in RESULTS:
                 RESULTS[(cache.hostname, cache.address)].append(time.time() - cache.starttime)
@@ -88,20 +87,20 @@ class MyCommunity(Community):
         global CHECK_QUEUE
 
         dnsmap = {}
-        for (address, port) in _DNS_ADDRESSES:
+        for (address, port) in DISPERSY_BOOTSTRAPPER['init']['dns_addresses']:
             try:
                 ip = gethostbyname(address)
                 dnsmap[(ip, port)] = address
             except OSError:
                 pass
 
-        UNKNOWN_NAME = '*'
+        unknown_name = '*'
 
-        for (ip, port) in _DEFAULT_ADDRESSES:
+        for (ip, port) in DISPERSY_BOOTSTRAPPER['init']['ip_addresses']:
             hostname = dnsmap.get((ip, port), None)
             if not hostname:
-                hostname = UNKNOWN_NAME
-                UNKNOWN_NAME = UNKNOWN_NAME + '*'
+                hostname = unknown_name
+                unknown_name = unknown_name + '*'
             CHECK_QUEUE.append((hostname, (ip, port)))
 
         CHECK_QUEUE = CHECK_QUEUE * CONST_REQUESTS
@@ -124,12 +123,13 @@ async def start_communities():
         'class': 'MyCommunity',
         'key': "my peer",
         'walkers': [],
+        'bootstrappers': [DISPERSY_BOOTSTRAPPER],
         'initialize': {},
         'on_start': [('started', )]
     }]
-    ipv8 = IPv8(configuration)
-    await ipv8.start()
-    INSTANCES.append(ipv8)
+    ipv8_instance = IPv8(configuration)
+    await ipv8_instance.start()
+    INSTANCES.append(ipv8_instance)
 
 
 ensure_future(start_communities())
@@ -138,12 +138,12 @@ get_event_loop().run_forever()
 with open('summary.txt', 'w') as f:
     f.write('HOST_NAME ADDRESS REQUESTS RESPONSES')
     for key in RESULTS:
-        hostname, address = key
-        f.write('\n%s %s:%d %d %d' % (hostname, address[0], address[1], CONST_REQUESTS, len(RESULTS[key])))
+        r_hostname, r_address = key
+        f.write('\n%s %s:%d %d %d' % (r_hostname, r_address[0], r_address[1], CONST_REQUESTS, len(RESULTS[key])))
 
 with open('walk_rtts.txt', 'w') as f:
     f.write('HOST_NAME ADDRESS RTT')
     for key in RESULTS:
-        hostname, address = key
+        r_hostname, r_address = key
         for rtt in RESULTS[key]:
-            f.write('\n%s %s:%d %f' % (hostname, address[0], address[1], rtt))
+            f.write('\n%s %s:%d %f' % (r_hostname, r_address[0], r_address[1], rtt))

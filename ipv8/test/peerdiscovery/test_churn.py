@@ -3,7 +3,6 @@ import time
 from ..base import TestBase
 from ..mocking.community import MockCommunity
 from ..mocking.endpoint import MockEndpointListener
-from ...community import _DEFAULT_ADDRESSES
 from ...peerdiscovery.churn import RandomChurn
 
 
@@ -11,8 +10,6 @@ class TestChurn(TestBase):
 
     def setUp(self):
         super(TestChurn, self).setUp()
-        while _DEFAULT_ADDRESSES:
-            _DEFAULT_ADDRESSES.pop()
 
         node_count = 2
         self.overlays = [MockCommunity() for _ in range(node_count)]

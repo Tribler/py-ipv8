@@ -1,5 +1,5 @@
 from .base import TestBase
-from ..loader import (CommunityLauncher, IPv8CommunityLoader, after, kwargs, name, overlay, precondition,
+from ..loader import (CommunityLauncher, IPv8CommunityLoader, after, bootstrapper, kwargs, name, overlay, precondition,
                       set_in_session, walk_strategy)
 
 
@@ -11,6 +11,7 @@ class MockCommunity:
         self.network = network
         self.args = args
         self.kwargs = kw_args
+        self.bootstrappers = []
 
 
 class MockWalk:
@@ -21,6 +22,16 @@ class MockWalk:
 
 
 class MockWalk2:
+    pass
+
+
+class MockBootstrapper:
+
+    def __init__(self, some_attribute):
+        self.some_attribute = some_attribute
+
+
+class MockBootstrapper2:
     pass
 
 
@@ -61,6 +72,9 @@ class StagedCommunityLauncher(CommunityLauncher):
 
     def get_walk_strategies(self):
         return [(MockWalk, {'some_attribute': 4}, 20)]
+
+    def get_bootstrappers(self, session):
+        return [(MockBootstrapper, {'some_attribute': 4})]
 
     def finalize(self, ipv8, session: MockSession, community: MockCommunity):
         session.community = community
@@ -223,6 +237,57 @@ class TestCommunityLauncher(TestBase):
 
         self.assertListEqual([(MockWalk, {'some_attribute': 4}, 20), (MockWalk2, {}, -1)],
                              DecoratedCommunityLauncher().get_walk_strategies())
+        self.assertSetEqual({self.__class__.__module__}, DecoratedCommunityLauncher.hiddenimports)
+
+    def test_bootstrapper_from_str(self):
+        """
+        Check if adding a bootstrapper string specification is successful.
+        """
+        @bootstrapper(self.__class__.__module__, 'MockBootstrapper', kw_args={'some_attribute': 4})
+        class DecoratedCommunityLauncher(CommunityLauncher):
+            pass
+
+        self.assertListEqual(self.staged_launcher.get_bootstrappers(MockSession()),
+                             DecoratedCommunityLauncher().get_bootstrappers(MockSession()))
+        self.assertSetEqual({self.__class__.__module__}, DecoratedCommunityLauncher.hiddenimports)
+
+    def test_bootstrapper_from_class(self):
+        """
+        Check if adding a bootstrapper from a Bootstrapper class is successful.
+        """
+        @bootstrapper(MockBootstrapper, kw_args={'some_attribute': 4})
+        class DecoratedCommunityLauncher(CommunityLauncher):
+            pass
+
+        self.assertListEqual(self.staged_launcher.get_bootstrappers(MockSession()),
+                             DecoratedCommunityLauncher().get_bootstrappers(MockSession()))
+
+    def test_bootstrapper_from_function(self):
+        """
+        Check if adding a bootstrapper from a function is successful.
+        """
+
+        def mock_bootstrapper():
+            return MockBootstrapper
+
+        @bootstrapper(mock_bootstrapper, kw_args={'some_attribute': 4})
+        class DecoratedCommunityLauncher(CommunityLauncher):
+            pass
+
+        self.assertListEqual(self.staged_launcher.get_bootstrappers(MockSession()),
+                             DecoratedCommunityLauncher().get_bootstrappers(MockSession()))
+
+    def test_bootstrapper_multiple(self):
+        """
+        Check if adding multiple bootstrappers is successful.
+        """
+        @bootstrapper(MockBootstrapper2)
+        @bootstrapper(self.__class__.__module__, 'MockBootstrapper', kw_args={'some_attribute': 4})
+        class DecoratedCommunityLauncher(CommunityLauncher):
+            pass
+
+        self.assertListEqual([(MockBootstrapper, {'some_attribute': 4}), (MockBootstrapper2, {})],
+                             DecoratedCommunityLauncher().get_bootstrappers(MockSession()))
         self.assertSetEqual({self.__class__.__module__}, DecoratedCommunityLauncher.hiddenimports)
 
     def test_set_in_session(self):
