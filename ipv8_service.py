@@ -15,6 +15,7 @@ else:
         from ipv8.messaging.interfaces.statistics_endpoint import StatisticsEndpoint
         from ipv8.attestation.identity.community import IdentityCommunity
         from ipv8.attestation.wallet.community import AttestationCommunity
+        from ipv8.bootstrapping.dispersy.bootstrapper import DispersyBootstrapper
         from ipv8.keyvault.crypto import default_eccrypto
         from ipv8.keyvault.private.m2crypto import M2CryptoSK
         from ipv8.messaging.anonymization.community import TunnelCommunity
@@ -32,6 +33,7 @@ else:
         from .ipv8.messaging.interfaces.statistics_endpoint import StatisticsEndpoint
         from .ipv8.attestation.identity.community import IdentityCommunity
         from .ipv8.attestation.wallet.community import AttestationCommunity
+        from .ipv8.bootstrapping.dispersy.bootstrapper import DispersyBootstrapper
         from .ipv8.keyvault.crypto import default_eccrypto
         from .ipv8.keyvault.private.m2crypto import M2CryptoSK
         from .ipv8.messaging.anonymization.community import TunnelCommunity
@@ -58,6 +60,10 @@ else:
     _WALKERS = {
         'EdgeWalk': EdgeWalk,
         'RandomWalk': RandomWalk
+    }
+
+    _BOOTSTRAPPERS = {
+        'DispersyBootstrapper': DispersyBootstrapper
     }
 
     class IPv8(object):
@@ -126,7 +132,10 @@ else:
                     self.strategies.append((strategy_class(overlay_instance, **args), target_peers))
                 for config in overlay['on_start']:
                     self.on_start.append((getattr(overlay_instance, config[0]), config[1:]))
-
+                for bootstrapper in overlay['bootstrappers']:
+                    bootstrapper_class = _BOOTSTRAPPERS.get(bootstrapper['class'])
+                    if bootstrapper_class:
+                        overlay_instance.bootstrappers.append(bootstrapper_class(**bootstrapper['init']))
             self.walk_interval = configuration['walker_interval']
             self.state_machine_task = None
 

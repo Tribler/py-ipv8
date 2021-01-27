@@ -1,5 +1,6 @@
 from .base import TestBase
-from ..configuration import ConfigBuilder, Strategy, WalkerDefinition, get_default_configuration
+from ..configuration import (Bootstrapper, BootstrapperDefinition, ConfigBuilder, DISPERSY_BOOTSTRAPPER, Strategy,
+                             WalkerDefinition, get_default_configuration)
 
 
 class TestConfiguration(TestBase):
@@ -125,12 +126,14 @@ class TestConfiguration(TestBase):
         """
         Check if the allow duplicate flag does not introduce duplicates.
         """
-        builder = ConfigBuilder().add_overlay("DiscoveryCommunity", "anonymous id", [], {}, [], allow_duplicate=False)
+        builder = ConfigBuilder().add_overlay("DiscoveryCommunity", "anonymous id", [], [], {}, [],
+                                              allow_duplicate=False)
 
         expected = {
             'class': "DiscoveryCommunity",
             'key': "anonymous id",
             'walkers': [],
+            'bootstrappers': [],
             'initialize': {},
             'on_start': []
         }
@@ -142,12 +145,14 @@ class TestConfiguration(TestBase):
         """
         Check if the duplicate overlays are simply appended.
         """
-        builder = ConfigBuilder().add_overlay("DiscoveryCommunity", "anonymous id", [], {}, [], allow_duplicate=True)
+        builder = ConfigBuilder().add_overlay("DiscoveryCommunity", "anonymous id", [], [], {}, [],
+                                              allow_duplicate=True)
 
         expected = {
             'class': "DiscoveryCommunity",
             'key': "anonymous id",
             'walkers': [],
+            'bootstrappers': [],
             'initialize': {},
             'on_start': []
         }
@@ -162,6 +167,9 @@ class TestConfiguration(TestBase):
         builder = ConfigBuilder().add_overlay("MyCommunity",
                                               "anonymous id",
                                               [WalkerDefinition(Strategy.RandomWalk, 42, {'timeout': 3.0})],
+                                              [BootstrapperDefinition(Bootstrapper.DispersyBootstrapper,
+                                                                      {'ip_addresses': [('1.2.3.4', 5)],
+                                                                       'dns_addresses': [('tribler.org', 5)]})],
                                               {'settings': {"my_key": "my_value"}},
                                               [('do_a_thing', 42), ('do_another_thing', )])
 
@@ -173,6 +181,13 @@ class TestConfiguration(TestBase):
                 'peers': 42,
                 'init': {
                     'timeout': 3.0
+                }
+            }],
+            'bootstrappers': [{
+                'class': "DispersyBootstrapper",
+                'init': {
+                    'ip_addresses': [('1.2.3.4', 5)],
+                    'dns_addresses': [('tribler.org', 5)]
                 }
             }],
             'initialize': {'settings': {"my_key": "my_value"}},
@@ -188,6 +203,7 @@ class TestConfiguration(TestBase):
         builder = ConfigBuilder().add_overlay("MyCommunity",
                                               "anonymous id",
                                               [WalkerDefinition(Strategy.RandomChurn, 20, {})],
+                                              [],
                                               {},
                                               [])
 
@@ -200,6 +216,7 @@ class TestConfiguration(TestBase):
         builder = ConfigBuilder().add_overlay("MyCommunity",
                                               "anonymous id",
                                               [WalkerDefinition(Strategy.PeriodicSimilarity, 20, {})],
+                                              [],
                                               {},
                                               [])
 
@@ -212,6 +229,7 @@ class TestConfiguration(TestBase):
         builder = ConfigBuilder().add_overlay("DiscoveryCommunity",
                                               "anonymous id",
                                               [WalkerDefinition(Strategy.RandomChurn, 20, {})],
+                                              [],
                                               {},
                                               [])
 
@@ -223,6 +241,7 @@ class TestConfiguration(TestBase):
                 'peers': 20,
                 'init': {}
             }],
+            'bootstrappers': [],
             'initialize': {},
             'on_start': []
         }
@@ -237,6 +256,7 @@ class TestConfiguration(TestBase):
         builder = ConfigBuilder().add_overlay("DiscoveryCommunity",
                                               "anonymous id",
                                               [WalkerDefinition(Strategy.PeriodicSimilarity, 20, {})],
+                                              [],
                                               {},
                                               [])
 
@@ -248,6 +268,7 @@ class TestConfiguration(TestBase):
                 'peers': 20,
                 'init': {}
             }],
+            'bootstrappers': [],
             'initialize': {},
             'on_start': []
         }
@@ -275,11 +296,15 @@ class TestConfiguration(TestBase):
                                                        'drop_time': 57.5
                                                    }),
                                                    WalkerDefinition(Strategy.PeriodicSimilarity, -1, {})],
+                                                  [BootstrapperDefinition(Bootstrapper.DispersyBootstrapper,
+                                                                          DISPERSY_BOOTSTRAPPER['init'])],
                                                   {},
-                                                  [('resolve_dns_bootstrap_addresses', )]) \
+                                                  []) \
                                      .add_overlay("HiddenTunnelCommunity",
                                                   "anonymous id",
                                                   [WalkerDefinition(Strategy.RandomWalk, 20, {'timeout': 3.0})],
+                                                  [BootstrapperDefinition(Bootstrapper.DispersyBootstrapper,
+                                                                          DISPERSY_BOOTSTRAPPER['init'])],
                                                   {'settings': {
                                                       'min_circuits': 1,
                                                       'max_circuits': 1,
@@ -294,6 +319,8 @@ class TestConfiguration(TestBase):
                                                   "anonymous id",
                                                   [WalkerDefinition(Strategy.RandomWalk, 20, {'timeout': 3.0}),
                                                    WalkerDefinition(Strategy.PingChurn, -1, {})],
+                                                  [BootstrapperDefinition(Bootstrapper.DispersyBootstrapper,
+                                                                          DISPERSY_BOOTSTRAPPER['init'])],
                                                   {},
                                                   [])
 

@@ -12,7 +12,7 @@ from .payload import (FindRequestPayload, FindResponsePayload, NodePacker, PingR
                       SignedStrPayload, StoreRequestPayload, StoreResponsePayload, StrPayload)
 from .routing import Node, RoutingTable, calc_node_id, distance
 from .storage import Storage
-from ..community import Community, _DEFAULT_ADDRESSES
+from ..community import Community
 from ..lazy_community import lazy_wrapper, lazy_wrapper_wd
 from ..messaging.interfaces.udp.endpoint import UDPv4Address, UDPv6Address
 from ..messaging.serialization import ListOf
@@ -154,11 +154,11 @@ class DHTCommunity(Community):
     """
     community_id = unhexlify('8d0be1845d74d175f178197cad001591d04d73cc')
 
-    def __init__(self, *args, **kwargs):
-        super(DHTCommunity, self).__init__(*args, **kwargs)
+    def __init__(self, my_peer, endpoint, network, *args, **kwargs):
+        super().__init__(my_peer, endpoint, network, *args, **kwargs)
         self.network = Network()
         self.network.blacklist_mids.append(self.my_peer.mid)
-        self.network.blacklist.extend(_DEFAULT_ADDRESSES)
+        self.network.blacklist.extend(network.blacklist)
 
         self.storages = {}
         self.routing_tables = {}

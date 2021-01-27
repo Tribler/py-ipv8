@@ -1,7 +1,8 @@
 from ..REST.rest_base import RESTTestBase
 from ..mocking.community import MockCommunity
 from ..mocking.endpoint import MockEndpoint, MockEndpointListener
-from ...community import _DEFAULT_ADDRESSES
+from ...bootstrapping.dispersy.bootstrapper import DispersyBootstrapper
+from ...configuration import DISPERSY_BOOTSTRAPPER
 from ...messaging.anonymization.community import TunnelCommunity
 
 
@@ -20,6 +21,9 @@ class MockTunnelCommunity(TunnelCommunity, MockCommunity):  # pylint: disable=R0
         self.circuits = {}
         self.relay_from_to = {}
         self.exit_sockets = {}
+
+        bootstrapper = DispersyBootstrapper(DISPERSY_BOOTSTRAPPER['init']['ip_addresses'], [])
+        self.bootstrappers = [bootstrapper]
 
 
 class TestOverlaysEndpoint(RESTTestBase):
@@ -40,10 +44,8 @@ class TestOverlaysEndpoint(RESTTestBase):
         self.ipv8.overlay.network = self.ipv8.network
         self.ipv8.overlays.append(self.ipv8.overlay)
 
-    async def tearDown(self):
-        if TestOverlaysEndpoint.FAKE_BOOTSTRAP_ADDRESS in _DEFAULT_ADDRESSES:
-            _DEFAULT_ADDRESSES.remove(TestOverlaysEndpoint.FAKE_BOOTSTRAP_ADDRESS)
-        await super().tearDown()
+    def bootstrap_addresses(self):
+        return self.ipv8.overlay.bootstrappers[0].ip_addresses
 
     async def test_no_ip(self):
         """
@@ -84,27 +86,9 @@ class TestOverlaysEndpoint(RESTTestBase):
                                            json={"ip": ip, "port": port, "bootstrapnode": 1})
 
         self.assertTrue(response["success"])
-        self.assertIn(TestOverlaysEndpoint.FAKE_BOOTSTRAP_ADDRESS, _DEFAULT_ADDRESSES)
+        self.assertIn(TestOverlaysEndpoint.FAKE_BOOTSTRAP_ADDRESS, self.bootstrap_addresses())
         self.assertIn(TestOverlaysEndpoint.FAKE_BOOTSTRAP_ADDRESS, self.ipv8.network.blacklist)
         self.assertLessEqual(1, len(self.fake_endpoint_listener.received_packets))
-
-    async def test_add_bootstrap_no_overlays(self):
-        """
-        Check if bootstrap nodes are correctly added, without loaded overlays.
-
-        A successfully added bootstrap node is walked to.
-        """
-        self.ipv8.overlays.clear()
-        self.ipv8.overlay = None
-        ip, port = TestOverlaysEndpoint.FAKE_BOOTSTRAP_ADDRESS
-
-        response = await self.make_request(self.ipv8, "isolation", "POST",
-                                           json={"ip": ip, "port": port, "bootstrapnode": 1})
-
-        self.assertTrue(response["success"])
-        self.assertIn(TestOverlaysEndpoint.FAKE_BOOTSTRAP_ADDRESS, _DEFAULT_ADDRESSES)
-        self.assertIn(TestOverlaysEndpoint.FAKE_BOOTSTRAP_ADDRESS, self.ipv8.network.blacklist)
-        self.assertLessEqual(0, len(self.fake_endpoint_listener.received_packets))
 
     async def test_add_exit(self):
         """

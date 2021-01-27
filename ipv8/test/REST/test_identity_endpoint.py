@@ -9,7 +9,6 @@ from ...attestation.default_identity_formats import FORMATS
 from ...attestation.identity.community import IdentityCommunity
 from ...attestation.identity.manager import IdentityManager
 from ...attestation.wallet.community import AttestationCommunity
-from ...community import _DEFAULT_ADDRESSES
 from ...keyvault.crypto import ECCrypto
 
 
@@ -20,9 +19,6 @@ class TestIdentityEndpoint(RESTTestBase):
 
     async def setUp(self):
         super(TestIdentityEndpoint, self).setUp()
-
-        while _DEFAULT_ADDRESSES:
-            _DEFAULT_ADDRESSES.pop()
 
         self.pseudonym_directories = []
         identity_manager = IdentityManager(u":memory:")

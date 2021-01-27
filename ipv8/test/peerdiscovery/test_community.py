@@ -1,10 +1,9 @@
-import asyncio
 import os
 from functools import reduce
 
 from ..base import TestBase
 from ..mocking.community import MockCommunity
-from ...community import _DEFAULT_ADDRESSES, _DNS_ADDRESSES
+from ...bootstrapping.dispersy.bootstrapper import DispersyBootstrapper
 from ...messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from ...peerdiscovery.payload import DiscoveryIntroductionRequestPayload
 
@@ -13,17 +12,14 @@ class TestDiscoveryCommunity(TestBase):
 
     def setUp(self):
         super(TestDiscoveryCommunity, self).setUp()
-        while _DEFAULT_ADDRESSES:
-            _DEFAULT_ADDRESSES.pop()
-        while _DNS_ADDRESSES:
-            _DNS_ADDRESSES.pop()
         self.tracker = MockCommunity()
-        _DEFAULT_ADDRESSES.append(self.tracker.endpoint.wan_address)
 
         node_count = 2
         self.overlays = [MockCommunity() for _ in range(node_count)]
         for overlay in self.overlays:
             overlay.network.blacklist.append(self.tracker.endpoint.wan_address)
+            bootstrapper = DispersyBootstrapper([self.tracker.endpoint.wan_address], [], bootstrap_timeout=0.0)
+            overlay.bootstrappers = [bootstrapper]
 
     async def tearDown(self):
         await self.tracker.unload()
@@ -98,26 +94,3 @@ class TestDiscoveryCommunity(TestBase):
 
         self.assertEqual(len(self.overlays[1].network.services_per_peer), 2)
         self.assertSetEqual(discovered, {MockCommunity.community_id, custom_community_id})
-
-    async def test_deferred_resolution_dns(self):
-        """
-        Check if resolution of DNS bootstrapping is atomic and deferred.
-        """
-        _DEFAULT_ADDRESSES.append(self.overlays[0].endpoint.wan_address)
-        _DNS_ADDRESSES.append(self.tracker.endpoint.wan_address)
-        _DNS_ADDRESSES.append(self.overlays[0].endpoint.wan_address)
-        _DNS_ADDRESSES.append(self.overlays[1].endpoint.wan_address)
-
-        self.assertEqual(2, len(_DEFAULT_ADDRESSES))
-
-        i = 0
-        for _ in _DEFAULT_ADDRESSES:  # Use the list iterator, don't fetch on-demand: tests thread-safety.
-            if i == 0:
-                self.overlays[0].resolve_dns_bootstrap_addresses()
-                # If the list update were not thread-safe, the next loop would cause a concurrent modification
-                # exception. The list should grow from 2 -> 3 items during the following sleep.
-                await asyncio.sleep(0.1)
-            i += 1
-
-        self.assertEqual(3, i)
-        self.assertEqual(3, len(_DEFAULT_ADDRESSES))

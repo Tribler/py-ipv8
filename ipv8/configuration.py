@@ -5,6 +5,42 @@ import enum
 import socket
 import typing
 
+DISPERSY_BOOTSTRAPPER = {
+    'class': "DispersyBootstrapper",
+    'init': {
+        'ip_addresses': [
+            ("130.161.119.206", 6421),
+            ("130.161.119.206", 6422),
+            ("131.180.27.155", 6423),
+            ("131.180.27.156", 6424),
+            ("131.180.27.161", 6427),
+            ("131.180.27.161", 6521),
+            ("131.180.27.161", 6522),
+            ("131.180.27.162", 6523),
+            ("131.180.27.162", 6524),
+            ("130.161.119.215", 6525),
+            ("130.161.119.215", 6526),
+            ("130.161.119.201", 6527),
+            ("130.161.119.201", 6528)
+        ],
+        'dns_addresses': [
+            (u"dispersy1.tribler.org", 6421), (u"dispersy1.st.tudelft.nl", 6421),
+            (u"dispersy2.tribler.org", 6422), (u"dispersy2.st.tudelft.nl", 6422),
+            (u"dispersy3.tribler.org", 6423), (u"dispersy3.st.tudelft.nl", 6423),
+            (u"dispersy4.tribler.org", 6424),
+            (u"tracker1.ip-v8.org", 6521),
+            (u"tracker2.ip-v8.org", 6522),
+            (u"tracker3.ip-v8.org", 6523),
+            (u"tracker4.ip-v8.org", 6524),
+            (u"tracker5.ip-v8.org", 6525),
+            (u"tracker6.ip-v8.org", 6526),
+            (u"tracker7.ip-v8.org", 6527),
+            (u"tracker8.ip-v8.org", 6528)
+        ],
+        'bootstrap_timeout': 30.0
+    }
+}
+
 default = {
     'address': '0.0.0.0',
     'port': 8090,
@@ -48,10 +84,9 @@ default = {
                     'init': {}
                 }
             ],
+            'bootstrappers': [DISPERSY_BOOTSTRAPPER.copy()],
             'initialize': {},
-            'on_start': [
-                ('resolve_dns_bootstrap_addresses', )
-            ]
+            'on_start': []
         },
         {
             'class': 'HiddenTunnelCommunity',
@@ -65,6 +100,7 @@ default = {
                     }
                 }
             ],
+            'bootstrappers': [DISPERSY_BOOTSTRAPPER.copy()],
             'initialize': {
                 'settings': {
                     'min_circuits': 1,
@@ -97,6 +133,7 @@ default = {
                     'init': {}
                 }
             ],
+            'bootstrappers': [DISPERSY_BOOTSTRAPPER.copy()],
             'initialize': {},
             'on_start': []
         }
@@ -123,6 +160,19 @@ class Strategy(enum.Enum):
 class WalkerDefinition(typing.NamedTuple):
     strategy: Strategy
     peers: int
+    init: dict
+
+
+class Bootstrapper(enum.Enum):
+    DispersyBootstrapper = "DispersyBootstrapper"
+
+    @classmethod
+    def values(cls):
+        return [name for name, _ in cls.__members__.items()]
+
+
+class BootstrapperDefinition(typing.NamedTuple):
+    bootstrapper: Bootstrapper
     init: dict
 
 
@@ -154,7 +204,10 @@ class ConfigBuilder(object):
             assert overlay.get('class') is not None, "Missing class in overlay config!"
             assert overlay.get('key') is not None, f"Missing key in overlay config of {overlay['class']}!"
             assert overlay.get('walkers') is not None, f"Missing walkers in overlay config of {overlay['class']}!"
-            assert overlay.get('initialize') is not None, f"Missing initialize in overlay config of {overlay['class']}!"
+            assert overlay.get('bootstrappers') is not None,\
+                f"Missing bootstrappers in overlay config of {overlay['class']}!"
+            assert overlay.get('initialize') is not None,\
+                f"Missing initialize in overlay config of {overlay['class']}!"
             assert overlay.get('on_start') is not None, f"Missing on_start in overlay config of {overlay['class']}!"
             assert any(key['alias'] == overlay['key'] for key in self.config['keys']),\
                 f"Unknown key alias {overlay['key']} in overlay config of {overlay['class']}!"
@@ -173,6 +226,12 @@ class ConfigBuilder(object):
                 if (walker['strategy'] == Strategy.RandomChurn.value
                         or walker['strategy'] == Strategy.PeriodicSimilarity.value):
                     assert overlay['class'] == 'DiscoveryCommunity'
+            for bootstrapper in overlay['bootstrappers']:
+                assert bootstrapper.get('class') is not None,\
+                    f"Missing bootstrapper class in bootstrapper config of {overlay['class']}!"
+                assert bootstrapper.get('init') is not None,\
+                    f"Missing init in {bootstrapper['class']} config of {overlay['class']}!"
+                assert bootstrapper['class'] in Bootstrapper.values()
 
         return self.config
 
@@ -260,6 +319,7 @@ class ConfigBuilder(object):
                     overlay_class: str,
                     key_alias: str,
                     walkers: typing.List[WalkerDefinition],
+                    bootstrappers: typing.List[BootstrapperDefinition],
                     initialize: typing.Dict[str, typing.Any],
                     on_start: typing.List[tuple],
                     allow_duplicate: bool = False) -> ConfigBuilder:
@@ -301,10 +361,15 @@ class ConfigBuilder(object):
                 'peers': walker.peers,
                 'init': walker.init
             } for walker in walkers],
+            'bootstrappers': [{
+                'class': bootstrapper.bootstrapper.value,
+                'init': bootstrapper.init
+            } for bootstrapper in bootstrappers],
             'initialize': initialize,
             'on_start': on_start
         })
         return self
 
 
-__all__ = ['ConfigBuilder', 'Strategy', 'WalkerDefinition', 'get_default_configuration']
+__all__ = ['Bootstrapper', 'BootstrapperDefinition', 'ConfigBuilder', 'DISPERSY_BOOTSTRAPPER', 'Strategy',
+           'WalkerDefinition', 'get_default_configuration']

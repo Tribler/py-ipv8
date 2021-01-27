@@ -7,13 +7,11 @@ Community instance.
 @organization: Technical University Delft
 @contact: dispersy@frayja.com
 """
-import logging
 import sys
 from asyncio import ensure_future, iscoroutine
 from binascii import hexlify
+from functools import partial
 from random import choice, random
-from socket import error, gethostbyname
-from threading import Thread
 from time import time
 from traceback import format_exception
 
@@ -28,48 +26,9 @@ from .messaging.payload import (IntroductionRequestPayload, IntroductionResponse
 from .messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from .peer import Peer
 
-_DEFAULT_ADDRESSES = [
-    # Dispersy
-    UDPv4Address("130.161.119.206", 6421),
-    UDPv4Address("130.161.119.206", 6422),
-    UDPv4Address("131.180.27.155", 6423),
-    UDPv4Address("131.180.27.156", 6424),
-    UDPv4Address("131.180.27.161", 6427),
-    # IPv8
-    UDPv4Address("131.180.27.161", 6521),
-    UDPv4Address("131.180.27.161", 6522),
-    UDPv4Address("131.180.27.162", 6523),
-    UDPv4Address("131.180.27.162", 6524),
-    UDPv4Address("130.161.119.215", 6525),
-    UDPv4Address("130.161.119.215", 6526),
-    UDPv4Address("130.161.119.201", 6527),
-    UDPv4Address("130.161.119.201", 6528)
-]
-
-
-_DNS_ADDRESSES = [
-    # Dispersy
-    (u"dispersy1.tribler.org", 6421), (u"dispersy1.st.tudelft.nl", 6421),
-    (u"dispersy2.tribler.org", 6422), (u"dispersy2.st.tudelft.nl", 6422),
-    (u"dispersy3.tribler.org", 6423), (u"dispersy3.st.tudelft.nl", 6423),
-    (u"dispersy4.tribler.org", 6424),
-    # IPv8
-    (u"tracker1.ip-v8.org", 6521),
-    (u"tracker2.ip-v8.org", 6522),
-    (u"tracker3.ip-v8.org", 6523),
-    (u"tracker4.ip-v8.org", 6524),
-    (u"tracker5.ip-v8.org", 6525),
-    (u"tracker6.ip-v8.org", 6526),
-    (u"tracker7.ip-v8.org", 6527),
-    (u"tracker8.ip-v8.org", 6528)
-]
-
-
 _UNUSED_FLAGS_REQ = {'flag0': 0, 'flag1': 0, 'flag2': 0, 'flag3': 0, 'flag4': 0, 'flag5': 0, 'flag6': 0, 'flag7': 0}
 _UNUSED_FLAGS_RESP = {'flag1': 0, 'flag2': 0, 'flag3': 0, 'flag4': 0, 'flag5': 0, 'flag6': 0, 'flag7': 0}
 
-
-BOOTSTRAP_TIMEOUT = 30.0  # Timeout before we bootstrap again (bootstrap kills performance)
 DEFAULT_MAX_PEERS = 30
 
 
@@ -97,9 +56,10 @@ class Community(EZPackOverlay):
 
         self.network.register_service_provider(self.community_id, self)
         self.network.blacklist_mids.append(my_peer.mid)
-        self.network.blacklist.extend(_DEFAULT_ADDRESSES)
 
-        self.last_bootstrap = 0
+        self.bootstrappers = []
+        self._bootstrappers_initialized = False
+
         self.decode_map = [None] * 256
 
         self.add_message_handler(PunctureRequestPayload, self.on_old_puncture_request)
@@ -179,40 +139,44 @@ class Community(EZPackOverlay):
         self.logger.warning("Received deprecated message: %s from (%s, %d)",
                             self.deprecated_message_names[data[22]], *source_address)
 
-    def bootstrap(self):
-        if time() - self.last_bootstrap < BOOTSTRAP_TIMEOUT:
-            return
-        self.logger.debug("Bootstrapping %s, current peers %d", self.__class__.__name__, len(self.get_peers()))
-        self.last_bootstrap = time()
-        for socket_address in _DEFAULT_ADDRESSES:
-            self._ensure_blacklisted(socket_address)
-            self.walk_to(socket_address)
+    def _append_bootstrapper_later(self, bootstrapper, future):
+        if future.result():
+            self.bootstrappers.append(bootstrapper)
 
-    def _ensure_blacklisted(self, address):
+    def _initialize_bootstrappers(self):
+        """
+        Wipes all Bootstrapper instances in self.bootstrappers.
+        Adds all of the aforementioned instances back into self.bootstrappers if/when ``initialize()`` succeeded.
+        """
+        to_initialize = self.bootstrappers[:]
+        self.bootstrappers = []
+        for bootstrapper in to_initialize:
+            future = ensure_future(bootstrapper.initialize(self))
+            # If the bootstrapper.initialize() is not async, we would like to add the bootstrapper immediately.
+            # Note that add_done_callback() will also add the bootstrapper, but in the next asyncio event (slow!).
+            if future.done():
+                self._append_bootstrapper_later(bootstrapper, future)
+            else:
+                task = self.register_anonymous_task(f"wait for bootstrap init {repr(bootstrapper)}", future)
+                task.add_done_callback(partial(self._append_bootstrapper_later, bootstrapper))
+        self._bootstrappers_initialized = True
+
+    def bootstrap(self):
+        if not self._bootstrappers_initialized:
+            self._initialize_bootstrappers()
+        for bootstrapper in self.bootstrappers:
+            task = self.register_anonymous_task(f"bootstrap {repr(bootstrapper)}", bootstrapper.get_addresses,
+                                                self, 60.0)
+            task.add_done_callback(self.received_bootstrapped_addresses)
+
+    def received_bootstrapped_addresses(self, addresses):
+        if addresses and addresses.result():
+            for address in list(addresses.result())[:self.max_peers]:
+                self.walk_to(address)
+
+    def ensure_blacklisted(self, address):
         if address not in self.network.blacklist:
             self.network.blacklist.append(address)
-
-    def resolve_dns_bootstrap_addresses(self):
-        """
-        Resolve the bootstrap server DNS names defined in ``_DNS_ADDRESSES`` and insert them into
-        ``_DEFAULT_ADDRESSES``.
-        """
-        def resolve_addresses(dns_names):
-            current_addresses = _DEFAULT_ADDRESSES[:]  # Copy the existing addresses (don't loop through our additions)
-            for (address, port) in dns_names:
-                try:
-                    resolved_address = UDPv4Address(gethostbyname(address), port)
-                    if resolved_address not in current_addresses:
-                        # NOTE: append() is thread-safe. Don't call remove() here!
-                        _DEFAULT_ADDRESSES.append(resolved_address)
-                except error:
-                    logging.info("Unable to resolve bootstrap DNS address (%s, %d)", address, port)
-
-        resolution_thread = Thread(name="resolve_dns_bootstrap_addresses",
-                                   target=resolve_addresses,
-                                   args=(_DNS_ADDRESSES, ),
-                                   daemon=True)
-        resolution_thread.start()
 
     def guess_address(self, interface):
         if interface == "UDPIPv4":
@@ -486,11 +450,9 @@ class Community(EZPackOverlay):
             available = self.get_peers()
             if available:
                 # With a small chance, try to remedy any disconnected network phenomena.
-                if _DEFAULT_ADDRESSES and random() < 0.05:
-                    address = choice(_DEFAULT_ADDRESSES)
-                    self._ensure_blacklisted(address)
-                    packet = self.create_introduction_request(address)
-                    self.endpoint.send(address, packet)
+                if self._bootstrappers_initialized and random() < 0.05:
+                    for bootstrapper in self.bootstrappers:
+                        bootstrapper.keep_alive(self)
                     return
                 else:
                     from_peer = choice(available)
