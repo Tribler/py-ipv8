@@ -4,8 +4,9 @@ import copy
 import enum
 import socket
 import typing
+from typing import Any, Dict
 
-DISPERSY_BOOTSTRAPPER = {
+DISPERSY_BOOTSTRAPPER: Dict[Any, Any] = {
     'class': "DispersyBootstrapper",
     'init': {
         'ip_addresses': [
@@ -174,6 +175,9 @@ class Bootstrapper(enum.Enum):
 class BootstrapperDefinition(typing.NamedTuple):
     bootstrapper: Bootstrapper
     init: dict
+
+
+default_bootstrap_defs = [BootstrapperDefinition(Bootstrapper.DispersyBootstrapper, DISPERSY_BOOTSTRAPPER['init'])]
 
 
 class ConfigBuilder(object):
@@ -372,4 +376,4 @@ class ConfigBuilder(object):
 
 
 __all__ = ['Bootstrapper', 'BootstrapperDefinition', 'ConfigBuilder', 'DISPERSY_BOOTSTRAPPER', 'Strategy',
-           'WalkerDefinition', 'get_default_configuration']
+           'WalkerDefinition', 'default_bootstrap_defs', 'get_default_configuration']

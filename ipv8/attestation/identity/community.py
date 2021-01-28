@@ -7,7 +7,9 @@ from time import time
 from .attestation import Attestation
 from .manager import IdentityManager
 from .payload import AttestPayload, DiclosePayload, MissingResponsePayload, RequestMissingPayload
+from ...bootstrapping.dispersy.bootstrapper import DispersyBootstrapper
 from ...community import Community, DEFAULT_MAX_PEERS
+from ...configuration import DISPERSY_BOOTSTRAPPER
 from ...lazy_community import lazy_wrapper
 from ...peer import Peer
 from ...peerdiscovery.discovery import RandomWalk
@@ -300,5 +302,6 @@ async def create_community(private_key: PrivateKey, ipv8, identity_manager: Iden
         })
     community = overlay_cls(my_peer, endpoint, identity_manager=identity_manager,
                             working_directory=working_directory_str, anonymize=anonymize)
+    community.bootstrappers = [DispersyBootstrapper(**DISPERSY_BOOTSTRAPPER['init'])]
     ipv8.add_strategy(community, RandomWalk(community), -1)
     return community

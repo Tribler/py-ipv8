@@ -6,7 +6,7 @@ from sys import argv
 from ipv8.REST.rest_manager import RESTManager
 from ipv8.attestation.identity.community import IdentityCommunity
 from ipv8.attestation.wallet.community import AttestationCommunity
-from ipv8.configuration import get_default_configuration
+from ipv8.configuration import DISPERSY_BOOTSTRAPPER, get_default_configuration
 from ipv8.peerdiscovery.community import DiscoveryCommunity
 
 from ipv8_service import IPv8
@@ -66,10 +66,9 @@ async def start_communities():
                     'init': {}
                 }
             ],
+            'bootstrappers': [DISPERSY_BOOTSTRAPPER],
             'initialize': {},
-            'on_start': [
-                ('resolve_dns_bootstrap_addresses',)
-            ]
+            'on_start': []
         },
             {
                 'class': 'IsolatedAttestationCommunity',
@@ -81,6 +80,7 @@ async def start_communities():
                         'timeout': 3.0
                     }
                 }],
+                'bootstrappers': [DISPERSY_BOOTSTRAPPER],
                 'initialize': {'working_directory': 'state_%d' % i},
                 'on_start': []
             },
@@ -94,6 +94,7 @@ async def start_communities():
                         'timeout': 3.0
                     }
                 }],
+                'bootstrappers': [DISPERSY_BOOTSTRAPPER],
                 'initialize': {'working_directory': 'state_%d' % i},
                 'on_start': []
             }]
