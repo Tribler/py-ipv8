@@ -2,7 +2,7 @@ import os
 from asyncio import ensure_future, get_event_loop
 
 from pyipv8.ipv8.community import Community
-from pyipv8.ipv8.configuration import ConfigBuilder, Strategy, WalkerDefinition
+from pyipv8.ipv8.configuration import ConfigBuilder, Strategy, WalkerDefinition, default_bootstrap_defs
 from pyipv8.ipv8.lazy_community import lazy_wrapper
 from pyipv8.ipv8.messaging.lazy_payload import VariablePayload, vp_compile
 from pyipv8.ipv8_service import IPv8
@@ -51,8 +51,8 @@ async def start_communities():
     for i in [1, 2, 3]:
         builder = ConfigBuilder().clear_keys().clear_overlays()
         builder.add_key("my peer", "medium", f"ec{i}.pem")
-        builder.add_overlay("MyCommunity", "my peer", [WalkerDefinition(Strategy.RandomWalk, 10, {'timeout': 3.0})], {},
-                            [('started',)])
+        builder.add_overlay("MyCommunity", "my peer", [WalkerDefinition(Strategy.RandomWalk, 10, {'timeout': 3.0})],
+                            default_bootstrap_defs, {}, [('started',)])
         await IPv8(builder.finalize(), extra_communities={'MyCommunity': MyCommunity}).start()
 
 
