@@ -79,7 +79,7 @@ async def main():
             reachable = False
             try:
                 if response.wan_introduction_address != ('0.0.0.0', 0):
-                    # Wait some time for puncture to be send
+                    # Wait some time for puncture to be sent
                     await sleep(.1)
                     await wait_for(overlay.send_intro_request(response.wan_introduction_address), timeout=5)
                     reachable = True

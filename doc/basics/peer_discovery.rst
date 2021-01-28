@@ -4,6 +4,7 @@ Peer discovery basics
 All IPv8 overlays have 4 messages in common: introduction-request, introduction-response, puncture-request, and puncture. These 4 messages are used for peer discovery and NAT puncturing.
 
 The peer discovery protocol runs the following steps in a loop until enough peers have been found:
+
 1. Peer A sends an introduction-request to peer B. Peer B is chosen from an existing pool of neighboring peers.
 2. Peer B sends an introduction-response to peer A containing the address of peer C.
 3. Peer B sends a puncture-request to peer C containing the address of peer A.
