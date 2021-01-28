@@ -55,7 +55,11 @@ class OverlaysEndpoint(BaseEndpoint):
                            'port': peer.address[1],
                            'public_key': hexlify(peer.public_key.key_to_bin()).decode('utf-8')} for peer in peers],
                 "overlay_name": overlay.__class__.__name__,
-                "statistics": statistics
+                "statistics": statistics,
+                "max_peers": overlay.max_peers,
+                "strategies": [{'name': strategy.__class__.__name__,
+                                'target_peers': target_peers}
+                               for strategy, target_peers in self.session.strategies if strategy.overlay == overlay]
             })
         return Response({"overlays": overlay_stats})
 

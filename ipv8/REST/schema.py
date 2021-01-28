@@ -39,12 +39,19 @@ class OverlayStatisticsSchema(Schema):
     diff_time = Integer()
 
 
+class OverlayStrategySchema(Schema):
+    name = String()
+    target_peers = Integer()
+
+
 class OverlaySchema(Schema):
     id = String()
     my_peer = String()
     global_time = Integer()
     peers = List(String)
     overlay_name = String()
+    max_peers = Integer()
+    strategies = List(Nested(OverlayStrategySchema))
     statistics = Nested(OverlayStatisticsSchema)
 
 
