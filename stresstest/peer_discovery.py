@@ -12,7 +12,7 @@ except ImportError:
     import __scriptpath__  # noqa: F401
 
 from ipv8.community import Community
-from ipv8.configuration import get_default_configuration
+from ipv8.configuration import DISPERSY_BOOTSTRAPPER, get_default_configuration
 
 from ipv8_service import IPv8, _COMMUNITIES
 
@@ -74,6 +74,7 @@ async def start_communities():
                     'timeout': 3.0
                 }
             }],
+            'bootstrappers': [DISPERSY_BOOTSTRAPPER],
             'initialize': {},
             'on_start': [('started', )]
         }]
