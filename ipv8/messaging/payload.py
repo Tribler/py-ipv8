@@ -104,8 +104,8 @@ class IntroductionResponsePayload(Payload):
     format_list = ['ipv4', 'ipv4', 'ipv4', 'ipv4', 'ipv4', 'bits', 'H', 'raw']
 
     def __init__(self, destination_address, source_lan_address, source_wan_address, lan_introduction_address,
-                 wan_introduction_address, connection_type, tunnel, identifier, extra_bytes, supports_new_style=True,
-                 intro_supports_new_style=False):
+                 wan_introduction_address, connection_type, identifier, extra_bytes, supports_new_style=True,
+                 intro_supports_new_style=False, peer_limit_reached=False):
         """
         Create the payload for an introduction-response message.
 
@@ -130,9 +130,6 @@ class IntroductionResponsePayload(Payload):
         creator has.  Currently the following values are supported: u"unknown", u"public", and
         u"symmetric-NAT".
 
-        TUNNEL is a boolean indicating that the connection is tunneled and all messages send to
-        the introduced candidate require a ffffffff prefix.
-
         IDENTIFIER is a number that was given in the associated introduction-request.  This
         number allows to distinguish between multiple introduction-response messages.
 
@@ -150,9 +147,9 @@ class IntroductionResponsePayload(Payload):
         self.lan_introduction_address = lan_introduction_address
         self.wan_introduction_address = wan_introduction_address
         self.connection_type = connection_type
-        self.tunnel = tunnel
         self.supports_new_style = supports_new_style
         self.intro_supports_new_style = intro_supports_new_style
+        self.peer_limit_reached = peer_limit_reached
         self.identifier = identifier % 65536
         self.extra_bytes = extra_bytes
 
@@ -164,7 +161,7 @@ class IntroductionResponsePayload(Payload):
                 ('ipv4', self.lan_introduction_address),
                 ('ipv4', self.wan_introduction_address),
                 ('bits', encoded_connection_type[0], encoded_connection_type[1], 0, self.supports_new_style,
-                 self.intro_supports_new_style, 0, 0, 0),
+                 self.intro_supports_new_style, self.peer_limit_reached, 0, 0),
                 ('H', self.identifier),
                 ('raw', self.extra_bytes)]
         return data
@@ -173,18 +170,18 @@ class IntroductionResponsePayload(Payload):
     def from_unpack_list(cls, destination_address, source_lan_address, source_wan_address,
                          introduction_lan_address, introduction_wan_address,
                          connection_type_0, connection_type_1, dflag0, supports_new_style, intro_supports_new_style,
-                         dflag3, dflag4, dflag5, identifier, extra_bytes):
+                         peer_limit_reached, dflag4, dflag5, identifier, extra_bytes):
         args = [destination_address,
                 source_lan_address,
                 source_wan_address,
                 introduction_lan_address,
                 introduction_wan_address,
                 decode_connection_type(connection_type_0, connection_type_1),
-                False,
                 identifier,
                 extra_bytes,
                 supports_new_style,
-                intro_supports_new_style]
+                intro_supports_new_style,
+                peer_limit_reached]
 
         return IntroductionResponsePayload(*args)
 
