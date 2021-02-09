@@ -333,7 +333,7 @@ class TestCommunityLauncher(TestBase):
         class DecoratedCommunityLauncher(CommunityLauncher):
             pass
 
-        self.assertEqual('MockCommunity', DecoratedCommunityLauncher().get_name())
+        self.assertEqual('DecoratedCommunityLauncher', DecoratedCommunityLauncher().get_name())
 
 
 class TestCommunityLoader(TestBase):
