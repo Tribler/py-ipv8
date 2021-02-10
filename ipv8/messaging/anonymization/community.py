@@ -81,6 +81,13 @@ class TunnelSettings(object):
         # Maximum number of relay_early cells that are allowed to pass a relay.
         self.max_relay_early = 8
 
+    @classmethod
+    def from_dict(cls, d):
+        result = cls()
+        for k, v in d.items():
+            setattr(result, k, v)
+        return result
+
 
 class TunnelCommunity(Community):
 
@@ -88,13 +95,11 @@ class TunnelCommunity(Community):
     community_id = unhexlify('81ded07332bdc775aa5a46f96de9f8f390bbc9f3')
 
     def __init__(self, *args, **kwargs):
-        self.settings = kwargs.pop('settings', TunnelSettings())
+        settings = kwargs.pop('settings', TunnelSettings())
+        if isinstance(settings, dict):
+            settings = TunnelSettings.from_dict(settings)
+        self.settings = settings
         self.dht_provider = kwargs.pop('dht_provider', None)
-        if isinstance(self.settings, dict):
-            settings = TunnelSettings()
-            for k, v in self.settings.items():
-                setattr(settings, k, v)
-            self.settings = settings
 
         super(TunnelCommunity, self).__init__(*args, **kwargs)
 
