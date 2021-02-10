@@ -343,7 +343,7 @@ class CommunityLauncher:
 
         :rtype: str
         """
-        return self.get_overlay_class().__name__
+        return self.__class__.__name__
 
     def not_before(self):
         """
