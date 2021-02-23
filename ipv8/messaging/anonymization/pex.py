@@ -80,6 +80,9 @@ class PexCommunity(Community):
         return super().create_introduction_response(lan_socket_address, socket_address, identifier, introduction,
                                                     self.get_seeder_pks(), new_style=new_style)
 
+    def send_ping(self, peer):
+        self.send_introduction_request(peer)
+
     def get_seeder_pks(self):
         pks = random.sample(self.intro_points_for, min(len(self.intro_points_for), 10))
         return self.serializer.pack('varlenH-list', pks)
