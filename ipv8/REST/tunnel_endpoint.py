@@ -1,7 +1,4 @@
-from asyncio import FIRST_COMPLETED, wait
 from binascii import hexlify, unhexlify
-from statistics import mean, median
-from timeit import default_timer
 
 from aiohttp import web
 
@@ -11,9 +8,9 @@ from marshmallow.fields import Boolean, Float, Integer, List, String
 
 from .base_endpoint import BaseEndpoint, HTTP_BAD_REQUEST, HTTP_INTERNAL_SERVER_ERROR, HTTP_NOT_FOUND, Response
 from .schema import schema
-from ..messaging.anonymization.community import (CIRCUIT_STATE_READY, CIRCUIT_TYPE_DATA,
+from ..messaging.anonymization.community import (CIRCUIT_STATE_READY, CIRCUIT_TYPE_DATA, EXIT_NODE, ORIGINATOR,
                                                  PEER_FLAG_SPEED_TEST, TunnelCommunity)
-
+from ..messaging.anonymization.utils import run_speed_test
 
 SpeedTestResponseSchema = schema(SpeedTestResponse={
     "speed": (Float, 'Speed in MiB/s'),
@@ -155,41 +152,12 @@ class TunnelEndpoint(BaseEndpoint):
         direction = request.query.get('direction', 'download')
         if direction not in ['upload', 'download']:
             return Response({"error": "invalid direction specified"}, status=HTTP_BAD_REQUEST)
+        direction = EXIT_NODE if direction == 'upload' else ORIGINATOR
 
-        request_size = 0 if direction == 'download' else 1024
-        response_size = 1024 if direction == 'download' else 0
         # Transfer 30 * 1024 * 1024 = 30MB for download a download test, and 15MB for
         # a upload test (excluding protocol overhead).
-        num_packets = 30 * 1024 if direction == 'download' else 15 * 1024
-        num_sent = 0
-        num_ack = 0
-        window = 50
-        outstanding = set()
-        start = default_timer()
-        rtts = []
-
-        while True:
-            while num_sent < num_packets and len(outstanding) < window:
-                outstanding.add(self.tunnels.send_test_request(circuit, request_size, response_size))
-                num_sent += 1
-            if not outstanding:
-                break
-            done, outstanding = await wait(outstanding, return_when=FIRST_COMPLETED, timeout=3)
-            if not done and num_ack > 0.95 * num_packets:
-                # We have received nothing for the past 3s and did get an acknowledgement for 95%
-                # of our requests. To avoid waiting for packets that may never arrive we stop the
-                # test. Any pending messages are considered lost.
-                break
-            # Make sure to only count futures that haven't been set by on_timeout.
-            results = [f.result() for f in done if f.result() is not None]
-            num_ack += len(results)
-            rtts.extend([rtt for _, rtt in results])
-
-        return Response({'speed': (num_ack / 1024) / (default_timer() - start),
-                         'messages_sent': num_ack + len(outstanding),
-                         'messages_received': num_ack,
-                         'rtt_mean': mean(rtts),
-                         'rtt_median': median(rtts)})
+        return Response(await run_speed_test(self.tunnels, direction, circuit,
+                                             size=30 if direction == ORIGINATOR else 15))
 
     @docs(
         tags=["Tunnels"],
