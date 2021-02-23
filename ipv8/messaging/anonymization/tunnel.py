@@ -1,9 +1,8 @@
 import logging
-import random
 import socket
 import sys
 import time
-from asyncio import CancelledError, DatagramProtocol, Future, ensure_future, get_event_loop
+from asyncio import CancelledError, DatagramProtocol, Future, ensure_future, gather, get_event_loop
 from binascii import hexlify
 from collections import deque
 from struct import unpack_from
@@ -457,10 +456,15 @@ class Swarm(object):
             self.logger.info("Performing DHT lookup for swarm %s", hexlify(self.info_hash))
             return on_success(await self.lookup_func(self.info_hash, None, self.hops))
         elif self.intro_points:
-            target = random.choice(self.intro_points)
-            self.logger.info("Performing PEX lookup for swarm %s (target %s)",
-                             hexlify(self.info_hash), target.peer)
-            return on_success(await self.lookup_func(self.info_hash, target, self.hops))
+            self.logger.info("Performing PEX lookup for swarm %s (targeting %d peer(s))",
+                             hexlify(self.info_hash), len(self.intro_points))
+            results = []
+            tasks = [self.lookup_func(self.info_hash, ip, self.hops) for ip in self.intro_points]
+            if tasks:
+                results = [result for result in (await gather(*tasks, return_exceptions=True))
+                           if not isinstance(result, Exception)]
+                results = sum(results, [])
+            return on_success(results)
         self.logger.info("Skipping lookup for swarm %s", hexlify(self.info_hash))
 
     def get_num_seeders(self):
