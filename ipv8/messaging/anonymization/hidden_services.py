@@ -187,7 +187,8 @@ class HiddenTunnelCommunity(TunnelCommunity):
                                  len([ip for ip in ips if ip.source == PEER_SOURCE_PEX]),
                                  binascii.hexlify(info_hash))
                 for ip in set(ips):
-                    ip = swarm.add_intro_point(ip)
+                    swarm.add_intro_point(ip)
+                for ip in swarm.intro_points:
                     if not swarm.has_connection(ip.seeder_pk):
                         self.create_e2e(info_hash, ip)
 
