@@ -274,7 +274,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
             return fail(RuntimeError("No circuit for peers-request"))
 
         # Send a peers-request message over this circuit
-        cache = PeersRequestCache(self, circuit, info_hash)
+        cache = PeersRequestCache(self, circuit, info_hash, target)
         self.request_cache.add(cache)
         payload = PeersRequestPayload(circuit.circuit_id, cache.number, info_hash)
 

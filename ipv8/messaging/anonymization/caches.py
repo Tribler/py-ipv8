@@ -110,28 +110,29 @@ class RPRequestCache(RandomNumberCache):
 
 class PeersRequestCache(RandomNumberCache):
 
-    def __init__(self, community, circuit, info_hash):
+    def __init__(self, community, circuit, info_hash, target):
         super().__init__(community.request_cache, "peers-request")
+        self.community = community
         self.circuit = circuit
         self.info_hash = info_hash
+        self.target = target
         self.future = Future()
         self.register_future(self.future, RuntimeError("Peers request timeout"))
+
+    def on_timeout(self):
+        swarm = self.community.swarms.get(self.info_hash)
+        if swarm and self.target:
+            # This introduction point did not respond in time, so drop it.
+            swarm.remove_intro_point(self.target)
 
 
 class E2ERequestCache(RandomNumberCache):
 
     def __init__(self, community, info_hash, hop, intro_point):
         super().__init__(community.request_cache, "e2e-request")
-        self.community = community
         self.info_hash = info_hash
         self.hop = hop
         self.intro_point = intro_point
-
-    def on_timeout(self):
-        swarm = self.community.swarms.get(self.info_hash)
-        if swarm:
-            # This introduction point did not respond in time, so drop it.
-            swarm.remove_intro_point(self.intro_point)
 
 
 class LinkRequestCache(RandomNumberCache):
