@@ -70,13 +70,12 @@ class TunnelSettings(object):
         self.next_hop_timeout = 10
 
         self.swarm_lookup_interval = 30
-        self.swarm_connection_limit = 5
+        self.swarm_connection_limit = 15
 
         # We have a small delay when removing circuits/relays/exit nodes. This is to allow some post-mortem data
         # to flow over the circuit (i.e. bandwidth payouts to intermediate nodes in a circuit).
         self.remove_tunnel_delay = 5
 
-        self.num_ip_circuits = 3
         self.peer_flags = {PEER_FLAG_RELAY, PEER_FLAG_SPEED_TEST}
 
         # Maximum number of relay_early cells that are allowed to pass a relay.
