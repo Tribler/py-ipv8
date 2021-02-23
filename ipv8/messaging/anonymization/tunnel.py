@@ -363,6 +363,13 @@ class IntroductionPoint(object):
     def __hash__(self):
         return hash((self.peer, self.seeder_pk))
 
+    def to_dict(self):
+        return{'address': {'ip': self.peer.address[0],
+                           'port': self.peer.address[1],
+                           'public_key': hexlify(self.peer.public_key.key_to_bin()).decode()},
+               'seeder_pk': hexlify(self.seeder_pk).decode(),
+               'source': self.source}
+
 
 class Swarm(object):
 
