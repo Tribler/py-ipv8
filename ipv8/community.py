@@ -254,7 +254,7 @@ class Community(EZPackOverlay):
         if introduced:
             packet = self.create_puncture_request(lan_socket_address, socket_address, identifier, prefix=prefix,
                                                   new_style=new_style)
-            self.endpoint.send(introduction_wan if introduction_lan == ("0.0.0.0", 0) else introduction_lan, packet)
+            self.endpoint.send(introduction.address, packet)
 
         return self._ez_pack(prefix or self._prefix, payload.msg_id, [auth, dist, payload])
 
