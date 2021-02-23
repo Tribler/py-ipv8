@@ -57,6 +57,9 @@ class OverlaysEndpoint(BaseEndpoint):
                 "overlay_name": overlay.__class__.__name__,
                 "statistics": statistics,
                 "max_peers": overlay.max_peers,
+                "is_isolated": self.session.network != overlay.network,
+                "my_estimated_wan": {"ip": overlay.my_estimated_wan[0], "port": overlay.my_estimated_wan[1]},
+                "my_estimated_lan": {"ip": overlay.my_estimated_lan[0], "port": overlay.my_estimated_lan[1]},
                 "strategies": [{'name': strategy.__class__.__name__,
                                 'target_peers': target_peers}
                                for strategy, target_peers in self.session.strategies if strategy.overlay == overlay]

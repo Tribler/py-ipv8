@@ -31,6 +31,15 @@ class BlockSchema(Schema):
     block_hash = String()
 
 
+class Address(Schema):
+    ip = String()
+    port = Integer()
+
+
+class AddressWithPK(Address):
+    public_key = String()
+
+
 class OverlayStatisticsSchema(Schema):
     num_up = Integer()
     num_down = Integer()
@@ -48,9 +57,12 @@ class OverlaySchema(Schema):
     id = String()
     my_peer = String()
     global_time = Integer()
-    peers = List(String)
+    peers = List(Nested(AddressWithPK))
     overlay_name = String()
     max_peers = Integer()
+    is_isolated = Boolean()
+    my_estimated_wan = Nested(Address)
+    my_estimated_lan = Nested(Address)
     strategies = List(Nested(OverlayStrategySchema))
     statistics = Nested(OverlayStatisticsSchema)
 
