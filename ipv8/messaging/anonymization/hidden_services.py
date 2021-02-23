@@ -310,8 +310,8 @@ class HiddenTunnelCommunity(TunnelCommunity):
             self.logger.warning("Received a peers-request over the socket, but unable to do a PEX lookup")
 
     def send_peers_response(self, target_addr, request, intro_points, circuit_id):
-        peers = [IntroductionInfo(ip.peer.address, ip.peer.public_key.key_to_bin(),
-                                  ip.seeder_pk, ip.source) for ip in intro_points[:7]]
+        peers = [IntroductionInfo(ip.peer.address, ip.peer.public_key.key_to_bin(), ip.seeder_pk, ip.source)
+                 for ip in random.sample(intro_points, min(len(intro_points), 7))]
         payload = PeersResponsePayload(request.circuit_id, request.identifier, request.info_hash, peers)
 
         if circuit_id is not None:
