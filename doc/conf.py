@@ -6,6 +6,8 @@
 # full list see the documentation:
 # http://www.sphinx-doc.org/en/master/config
 
+# pylint: disable=W0622
+
 # -- Path setup --------------------------------------------------------------
 
 # If extensions (or modules to document with autodoc) are in another directory,
@@ -20,13 +22,13 @@
 # -- Project information -----------------------------------------------------
 
 project = u'IPv8'
-copyright = '2017-2020, Tribler'  # Do not change manually! Handled by github_increment_version.py
+copyright = '2017-2021, Tribler'  # Do not change manually! Handled by github_increment_version.py
 author = u'Tribler'
 
 # The short X.Y version
-version = '2.5'  # Do not change manually! Handled by github_increment_version.py
+version = '2.6'  # Do not change manually! Handled by github_increment_version.py
 # The full version, including alpha/beta/rc tags
-release = '2.5.0'  # Do not change manually! Handled by github_increment_version.py
+release = '2.6.0'  # Do not change manually! Handled by github_increment_version.py
 
 
 # -- General configuration ---------------------------------------------------
