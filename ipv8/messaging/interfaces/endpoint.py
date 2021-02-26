@@ -251,15 +251,17 @@ class EndpointListener(metaclass=abc.ABCMeta):
         """
         Checks if the given ip address is either our own address or in one of the subnet defined for local network usage
         :param address: ip v4 address to be checked
-        :return: True if the adrress is a lan address, False otherwise
+        :return: True if the address is a lan address, False otherwise
         """
         if address == self.get_lan_address_without_netifaces():
             return True
-        else:
-            lan_subnets = (("192.168.0.0", 16),
-                           ("172.16.0.0", 12),
-                           ("10.0.0.0", 8))
-            return any(self._address_in_subnet(address, subnet) for subnet in lan_subnets)
+        return self.address_in_lan_subnets(address)
+
+    def address_in_lan_subnets(self, address):
+        lan_subnets = (("192.168.0.0", 16),
+                       ("172.16.0.0", 12),
+                       ("10.0.0.0", 8))
+        return any(self._address_in_subnet(address, subnet) for subnet in lan_subnets)
 
     def address_is_lan(self, address):
         if self._netifaces_failed:
