@@ -1,9 +1,8 @@
 import logging
-import random
 import socket
 import sys
 import time
-from asyncio import CancelledError, DatagramProtocol, Future, ensure_future, get_event_loop
+from asyncio import CancelledError, DatagramProtocol, Future, ensure_future, gather, get_event_loop
 from binascii import hexlify
 from collections import deque
 from struct import unpack_from
@@ -352,17 +351,24 @@ class RendezvousPoint(object):
 
 class IntroductionPoint(object):
 
-    def __init__(self, peer, seeder_pk, source=PEER_SOURCE_UNKNOWN, last_seen=int(time.time())):
+    def __init__(self, peer, seeder_pk, source=PEER_SOURCE_UNKNOWN, last_seen=None):
         self.peer = peer
         self.seeder_pk = seeder_pk
         self.source = source
-        self.last_seen = last_seen
+        self.last_seen = int(time.time()) if last_seen is None else last_seen
 
     def __eq__(self, other):
         return self.peer == other.peer and self.seeder_pk == other.seeder_pk
 
     def __hash__(self):
         return hash((self.peer, self.seeder_pk))
+
+    def to_dict(self):
+        return{'address': {'ip': self.peer.address[0],
+                           'port': self.peer.address[1],
+                           'public_key': hexlify(self.peer.public_key.key_to_bin()).decode()},
+               'seeder_pk': hexlify(self.seeder_pk).decode(),
+               'source': self.source}
 
 
 class Swarm(object):
@@ -457,10 +463,15 @@ class Swarm(object):
             self.logger.info("Performing DHT lookup for swarm %s", hexlify(self.info_hash))
             return on_success(await self.lookup_func(self.info_hash, None, self.hops))
         elif self.intro_points:
-            target = random.choice(self.intro_points)
-            self.logger.info("Performing PEX lookup for swarm %s (target %s)",
-                             hexlify(self.info_hash), target.peer)
-            return on_success(await self.lookup_func(self.info_hash, target, self.hops))
+            self.logger.info("Performing PEX lookup for swarm %s (targeting %d peer(s))",
+                             hexlify(self.info_hash), len(self.intro_points))
+            results = []
+            tasks = [self.lookup_func(self.info_hash, ip, self.hops) for ip in self.intro_points]
+            if tasks:
+                results = [result for result in (await gather(*tasks, return_exceptions=True))
+                           if not isinstance(result, Exception)]
+                results = sum(results, [])
+            return on_success(results)
         self.logger.info("Skipping lookup for swarm %s", hexlify(self.info_hash))
 
     def get_num_seeders(self):

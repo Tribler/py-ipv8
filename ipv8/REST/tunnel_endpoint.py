@@ -1,7 +1,4 @@
-from asyncio import FIRST_COMPLETED, wait
 from binascii import hexlify, unhexlify
-from statistics import mean, median
-from timeit import default_timer
 
 from aiohttp import web
 
@@ -10,10 +7,14 @@ from aiohttp_apispec import docs
 from marshmallow.fields import Boolean, Float, Integer, List, String
 
 from .base_endpoint import BaseEndpoint, HTTP_BAD_REQUEST, HTTP_INTERNAL_SERVER_ERROR, HTTP_NOT_FOUND, Response
-from .schema import schema
-from ..messaging.anonymization.community import (CIRCUIT_STATE_READY, CIRCUIT_TYPE_DATA,
-                                                 PEER_FLAG_SPEED_TEST, TunnelCommunity)
-
+from .schema import AddressWithPK, schema
+from ..dht.provider import DHTIntroPointPayload
+from ..messaging.anonymization.community import (CIRCUIT_STATE_READY, CIRCUIT_TYPE_DATA, EXIT_NODE,
+                                                 IntroductionPoint, ORIGINATOR, PEER_FLAG_SPEED_TEST,
+                                                 PEER_SOURCE_DHT, PEER_SOURCE_PEX, TunnelCommunity)
+from ..messaging.anonymization.utils import run_speed_test
+from ..messaging.serialization import PackError
+from ..peer import Peer
 
 SpeedTestResponseSchema = schema(SpeedTestResponse={
     "speed": (Float, 'Speed in MiB/s'),
@@ -34,18 +35,36 @@ class TunnelEndpoint(BaseEndpoint):
         self.tunnels = None
 
     def setup_routes(self):
-        self.app.add_routes([web.get('/circuits', self.get_circuits),
+        self.app.add_routes([web.get('/settings', self.get_settings),
+                             web.get('/circuits', self.get_circuits),
                              web.get('/circuits/test', self.speed_test_new_circuit),
                              web.get('/circuits/{circuit_id}/test', self.speed_test_existing_circuit),
                              web.get('/relays', self.get_relays),
                              web.get('/exits', self.get_exits),
                              web.get('/swarms', self.get_swarms),
                              web.get('/swarms/{infohash}/size', self.get_swarm_size),
-                             web.get('/peers', self.get_peers)])
+                             web.get('/peers', self.get_peers),
+                             web.get('/peers/dht', self.get_dht_peers),
+                             web.get('/peers/pex', self.get_pex_peers)])
 
     def initialize(self, session):
         super(TunnelEndpoint, self).initialize(session)
         self.tunnels = session.get_overlay(TunnelCommunity)
+
+    @docs(
+        tags=["Tunnels"],
+        summary="Return a dictionary of all tunnel settings.",
+        responses={
+            200: {
+                "schema": schema(TunnelSettingsResponse={
+                    "settings": [schema(TunnelSettings={})]
+                })
+            }
+        }
+    )
+    def get_settings(self, _):
+        return Response({'settings': {k: list(v) if isinstance(v, set) else v
+                                      for k, v in self.tunnels.settings.__dict__.items() if k != 'crypto'}})
 
     @docs(
         tags=["Tunnels"],
@@ -155,41 +174,11 @@ class TunnelEndpoint(BaseEndpoint):
         direction = request.query.get('direction', 'download')
         if direction not in ['upload', 'download']:
             return Response({"error": "invalid direction specified"}, status=HTTP_BAD_REQUEST)
+        direction = EXIT_NODE if direction == 'upload' else ORIGINATOR
 
-        request_size = 0 if direction == 'download' else 1024
-        response_size = 1024 if direction == 'download' else 0
-        # Transfer 30 * 1024 * 1024 = 30MB for download a download test, and 15MB for
-        # a upload test (excluding protocol overhead).
-        num_packets = 30 * 1024 if direction == 'download' else 15 * 1024
-        num_sent = 0
-        num_ack = 0
-        window = 50
-        outstanding = set()
-        start = default_timer()
-        rtts = []
-
-        while True:
-            while num_sent < num_packets and len(outstanding) < window:
-                outstanding.add(self.tunnels.send_test_request(circuit, request_size, response_size))
-                num_sent += 1
-            if not outstanding:
-                break
-            done, outstanding = await wait(outstanding, return_when=FIRST_COMPLETED, timeout=3)
-            if not done and num_ack > 0.95 * num_packets:
-                # We have received nothing for the past 3s and did get an acknowledgement for 95%
-                # of our requests. To avoid waiting for packets that may never arrive we stop the
-                # test. Any pending messages are considered lost.
-                break
-            # Make sure to only count futures that haven't been set by on_timeout.
-            results = [f.result() for f in done if f.result() is not None]
-            num_ack += len(results)
-            rtts.extend([rtt for _, rtt in results])
-
-        return Response({'speed': (num_ack / 1024) / (default_timer() - start),
-                         'messages_sent': num_ack + len(outstanding),
-                         'messages_received': num_ack,
-                         'rtt_mean': mean(rtts),
-                         'rtt_median': median(rtts)})
+        # Transfer 30MB for download a download test, and 15MB for a upload test (excluding protocol overhead).
+        return Response(await run_speed_test(self.tunnels, direction, circuit,
+                                             size=30 if direction == ORIGINATOR else 15))
 
     @docs(
         tags=["Tunnels"],
@@ -239,11 +228,14 @@ class TunnelEndpoint(BaseEndpoint):
     async def get_exits(self, _):
         return Response({"exits": [{
             "circuit_from": circuit_from,
-            "enabled": exit_socket.enabled,
-            "bytes_up": exit_socket.bytes_up,
-            "bytes_down": exit_socket.bytes_down,
-            "creation_time": exit_socket.creation_time
-        } for circuit_from, exit_socket in self.tunnels.exit_sockets.items()]})
+            "enabled": exit_sock.enabled,
+            "bytes_up": exit_sock.bytes_up,
+            "bytes_down": exit_sock.bytes_down,
+            "creation_time": exit_sock.creation_time,
+            "is_introduction": exit_sock.circuit_id in [c.circuit_id for c, _ in self.tunnels.intro_point_for.values()],
+            "is_rendezvous": exit_sock.circuit_id in [c.circuit_id for c in self.tunnels.rendezvous_point_for.values()],
+            "pex_peers":self.get_pex_peers(exit_sock)
+        } for circuit_from, exit_sock in self.tunnels.exit_sockets.items()]})
 
     @docs(
         tags=["Tunnels"],
@@ -271,6 +263,8 @@ class TunnelEndpoint(BaseEndpoint):
             "num_seeders": swarm.get_num_seeders(),
             "num_connections": swarm.get_num_connections(),
             "num_connections_incomplete": swarm.get_num_connections_incomplete(),
+            "num_ips_from_dht": len([ip for ip in swarm.intro_points if ip.source == PEER_SOURCE_DHT]),
+            "num_ips_from_pex": len([ip for ip in swarm.intro_points if ip.source == PEER_SOURCE_PEX]),
             "seeding": swarm.seeding,
             "last_lookup": swarm.last_lookup,
             "bytes_up": swarm.get_total_up(),
@@ -325,3 +319,47 @@ class TunnelEndpoint(BaseEndpoint):
             "is_key_compatible": self.tunnels.crypto.is_key_compatible(peer.public_key),
             "flags": flags
         } for peer, flags in self.tunnels.candidates.items()]})
+
+    @docs(
+        tags=["Tunnels"],
+        summary="Return a list of all hidden services peers that are in the local DHT store.",
+        responses={
+            200: {
+                "schema": schema(TunnelDHTPeersResponse={
+                    "peers": [AddressWithPK]
+                })
+            }
+        }
+    )
+    async def get_dht_peers(self, _):
+        dht = self.tunnels.dht_provider.dht_community
+        ips_by_infohash = {}
+        for storage in dht.storages.values():
+            for key, raw_values in storage.items.items():
+                ips_by_infohash[key] = []
+                for value in dht.post_process_values([v.data for v in raw_values]):
+                    try:
+                        payload, _ = dht.serializer.unpack_serializable(DHTIntroPointPayload, value[0])
+                    except PackError:
+                        continue
+                    peer = Peer(b'LibNaCLPK:' + payload.intro_pk, payload.address)
+                    ip = IntroductionPoint(peer, b'LibNaCLPK:' + payload.seeder_pk, PEER_SOURCE_DHT, payload.last_seen)
+                    ips_by_infohash[key].append(ip)
+
+        return Response([{'info_hash': hexlify(h).decode(),
+                          'peers': [i.to_dict() for i in ips]} for h, ips in ips_by_infohash.items()])
+
+    @docs(
+        tags=["Tunnels"],
+        summary="Return a list of all hidden services peers that are in the local PEX store.",
+        responses={
+            200: {
+                "schema": schema(TunnelPEXPeersResponse={
+                    "peers": [AddressWithPK]
+                })
+            }
+        }
+    )
+    async def get_pex_peers(self, _):
+        return Response([{'info_hash': hexlify(h).decode(),
+                          'peers': [i.to_dict() for i in c.get_intro_points()]} for h, c in self.tunnels.pex.items()])

@@ -56,7 +56,7 @@ class MockOverlayProvider:
 class StagedCommunityLauncher(CommunityLauncher):
 
     def not_before(self):
-        return ['Community1', 'Community2']
+        return ['CommunityLauncher1', 'CommunityLauncher2']
 
     def should_launch(self, session: MockSession):
         return session.launch_condition1 and not session.launch_condition2
@@ -91,7 +91,7 @@ class TestCommunityLauncher(TestBase):
         """
         Check that the not_before decorator with multiple arguments equals the not_before() definition.
         """
-        @after('Community1', 'Community2')
+        @after('CommunityLauncher1', 'CommunityLauncher2')
         class DecoratedCommunityLauncher(CommunityLauncher):
             pass
 
@@ -101,8 +101,8 @@ class TestCommunityLauncher(TestBase):
         """
         Check that multiple not_before decorators with an argument equals the not_before() definition.
         """
-        @after('Community2')
-        @after('Community1')
+        @after('CommunityLauncher2')
+        @after('CommunityLauncher1')
         class DecoratedCommunityLauncher(CommunityLauncher):
             pass
 

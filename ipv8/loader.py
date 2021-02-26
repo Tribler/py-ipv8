@@ -46,12 +46,12 @@ def after(*launcher_name):
 
      .. code-block :: Python
 
-        @after('Community1', 'Community2')
+        @after('CommunityLauncher1', 'CommunityLauncher2')
         class A(CommunityLauncher):
            ...
 
-        @after('Community1')
-        @after('Community2')
+        @after('CommunityLauncher1')
+        @after('CommunityLauncher2')
         class A(CommunityLauncher):
            ...
 

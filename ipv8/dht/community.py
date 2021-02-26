@@ -29,7 +29,7 @@ DHT_ENTRY_STR = 0
 DHT_ENTRY_STR_SIGNED = 1
 
 MAX_ENTRY_SIZE = 170
-MAX_ENTRY_AGE = 86400
+MAX_ENTRY_AGE = 3600
 
 # Maximum number of nodes to start a crawl with
 MAX_CRAWL_NODES = 8

@@ -57,6 +57,9 @@ class OverlaysEndpoint(BaseEndpoint):
                 "overlay_name": overlay.__class__.__name__,
                 "statistics": statistics,
                 "max_peers": overlay.max_peers,
+                "is_isolated": self.session.network != overlay.network,
+                "my_estimated_wan": {"ip": overlay.my_estimated_wan[0], "port": overlay.my_estimated_wan[1]},
+                "my_estimated_lan": {"ip": overlay.my_estimated_lan[0], "port": overlay.my_estimated_lan[1]},
                 "strategies": [{'name': strategy.__class__.__name__,
                                 'target_peers': target_peers}
                                for strategy, target_peers in self.session.strategies if strategy.overlay == overlay]
@@ -125,23 +128,16 @@ class OverlaysEndpoint(BaseEndpoint):
             return Response({"success": False, "error": "StatisticsEndpoint is not enabled."},
                             status=HTTP_PRECONDITION_FAILED)
 
-        all_overlays = False
-        overlay_name = None
-
         args = await request.json()
-        if 'enable' not in args or not args['enable']:
+        if 'enable' not in args:
             return Response({"success": False, "error": "Parameter 'enable' is required"}, status=HTTP_BAD_REQUEST)
-        enable = args['enable'].lower() == 'true'
-
-        if 'all' in args and args['all']:
-            all_overlays = args['all'].lower() == 'true'
-        elif 'overlay_name' in args and args['overlay_name']:
-            overlay_name = args['overlay_name']
-        else:
+        if 'all' not in args and 'overlay_name' not in args:
             return Response({"success": False, "error": "Parameter 'all' or 'overlay_name' is required"},
                             status=HTTP_PRECONDITION_FAILED)
 
-        self.enable_overlay_statistics(enable=enable, class_name=overlay_name, all_overlays=all_overlays)
+        self.enable_overlay_statistics(enable=args['enable'],
+                                       class_name=args.get('overlay_name', None),
+                                       all_overlays=args.get('all', False))
         return Response({"success": True})
 
     def enable_overlay_statistics(self, enable=False, class_name=None, all_overlays=False):

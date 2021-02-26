@@ -22,6 +22,7 @@ from ...configuration import DISPERSY_BOOTSTRAPPER
 from ...keyvault.public.libnaclkey import LibNaCLPK
 from ...messaging.anonymization.pex import PexCommunity
 from ...peer import Peer
+from ...peerdiscovery.churn import RandomChurn
 from ...peerdiscovery.discovery import RandomWalk
 from ...peerdiscovery.network import Network
 from ...taskmanager import task
@@ -186,7 +187,8 @@ class HiddenTunnelCommunity(TunnelCommunity):
                                  len([ip for ip in ips if ip.source == PEER_SOURCE_PEX]),
                                  binascii.hexlify(info_hash))
                 for ip in set(ips):
-                    ip = swarm.add_intro_point(ip)
+                    swarm.add_intro_point(ip)
+                for ip in swarm.intro_points:
                     if not swarm.has_connection(ip.seeder_pk):
                         self.create_e2e(info_hash, ip)
 
@@ -274,7 +276,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
             return fail(RuntimeError("No circuit for peers-request"))
 
         # Send a peers-request message over this circuit
-        cache = PeersRequestCache(self, circuit, info_hash)
+        cache = PeersRequestCache(self, circuit, info_hash, target)
         self.request_cache.add(cache)
         payload = PeersRequestPayload(circuit.circuit_id, cache.number, info_hash)
 
@@ -308,8 +310,8 @@ class HiddenTunnelCommunity(TunnelCommunity):
             self.logger.warning("Received a peers-request over the socket, but unable to do a PEX lookup")
 
     def send_peers_response(self, target_addr, request, intro_points, circuit_id):
-        peers = [IntroductionInfo(ip.peer.address, ip.peer.public_key.key_to_bin(),
-                                  ip.seeder_pk, ip.source) for ip in intro_points[:7]]
+        peers = [IntroductionInfo(ip.peer.address, ip.peer.public_key.key_to_bin(), ip.seeder_pk, ip.source)
+                 for ip in random.sample(intro_points, min(len(intro_points), 7))]
         payload = PeersResponsePayload(request.circuit_id, request.identifier, request.info_hash, peers)
 
         if circuit_id is not None:
@@ -487,6 +489,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
             # Since IPv8 takes a step every .5s until we have 10 peers, the PexCommunity will generate
             # a lot of traffic in case there are <10 peers in existence. Therefore, we slow the walk down to a 5s/step.
             self.ipv8.add_strategy(community, RandomWalk(community, target_interval=5), 10)
+            self.ipv8.add_strategy(community, RandomChurn(community), -1)
             self.pex[payload.info_hash] = community
 
         # PEX announce
