@@ -344,7 +344,7 @@ class Community(EZPackOverlay):
 
     def on_introduction_response(self, peer, dist, payload):
         if (isinstance(payload.destination_address, UDPv4Address)
-                and not self.address_is_lan(payload.destination_address[0])):
+                and not self.address_in_lan_subnets(payload.destination_address[0])):
             self.my_estimated_wan = payload.destination_address
         self.my_peer.address = payload.destination_address
 
