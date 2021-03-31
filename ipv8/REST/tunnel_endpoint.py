@@ -233,8 +233,7 @@ class TunnelEndpoint(BaseEndpoint):
             "bytes_down": exit_sock.bytes_down,
             "creation_time": exit_sock.creation_time,
             "is_introduction": exit_sock.circuit_id in [c.circuit_id for c, _ in self.tunnels.intro_point_for.values()],
-            "is_rendezvous": exit_sock.circuit_id in [c.circuit_id for c in self.tunnels.rendezvous_point_for.values()],
-            "pex_peers":self.get_pex_peers(exit_sock)
+            "is_rendezvous": exit_sock.circuit_id in [c.circuit_id for c in self.tunnels.rendezvous_point_for.values()]
         } for circuit_from, exit_sock in self.tunnels.exit_sockets.items()]})
 
     @docs(
