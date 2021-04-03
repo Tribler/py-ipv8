@@ -16,6 +16,7 @@ else:
         from ipv8.attestation.identity.community import IdentityCommunity
         from ipv8.attestation.wallet.community import AttestationCommunity
         from ipv8.bootstrapping.dispersy.bootstrapper import DispersyBootstrapper
+        from ipv8.bootstrapping.udpbroadcast.bootstrapper import UDPBroadcastBootstrapper
         from ipv8.keyvault.crypto import default_eccrypto
         from ipv8.keyvault.private.m2crypto import M2CryptoSK
         from ipv8.messaging.anonymization.community import TunnelCommunity
@@ -34,6 +35,7 @@ else:
         from .ipv8.attestation.identity.community import IdentityCommunity
         from .ipv8.attestation.wallet.community import AttestationCommunity
         from .ipv8.bootstrapping.dispersy.bootstrapper import DispersyBootstrapper
+        from .ipv8.bootstrapping.udpbroadcast.bootstrapper import UDPBroadcastBootstrapper
         from .ipv8.keyvault.crypto import default_eccrypto
         from .ipv8.keyvault.private.m2crypto import M2CryptoSK
         from .ipv8.messaging.anonymization.community import TunnelCommunity
@@ -63,7 +65,8 @@ else:
     }
 
     _BOOTSTRAPPERS = {
-        'DispersyBootstrapper': DispersyBootstrapper
+        'DispersyBootstrapper': DispersyBootstrapper,
+        'UDPBroadcastBootstrapper': UDPBroadcastBootstrapper
     }
 
     class IPv8(object):

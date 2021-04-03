@@ -166,6 +166,7 @@ class WalkerDefinition(typing.NamedTuple):
 
 class Bootstrapper(enum.Enum):
     DispersyBootstrapper = "DispersyBootstrapper"
+    UDPBroadcastBootstrapper = "UDPBroadcastBootstrapper"
 
     @classmethod
     def values(cls):
