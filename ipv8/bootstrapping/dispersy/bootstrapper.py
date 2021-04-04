@@ -67,3 +67,6 @@ class DispersyBootstrapper(Bootstrapper):
 
     def blacklist(self) -> Iterable[Address]:
         return self.ip_addresses
+
+    def unload(self) -> None:
+        pass

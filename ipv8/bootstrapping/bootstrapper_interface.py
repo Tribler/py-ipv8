@@ -53,3 +53,9 @@ class Bootstrapper(ABC):
         """
         Returns the blacklisted addresses for this Bootstrapper.
         """
+
+    @abstractmethod
+    def unload(self) -> None:
+        """
+        Stop and unload all the resources used by this Bootstrapper.
+        """
