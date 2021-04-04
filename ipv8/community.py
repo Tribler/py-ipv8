@@ -112,6 +112,12 @@ class Community(EZPackOverlay):
     def get_prefix(self):
         return self._prefix
 
+    async def unload(self):
+        while self.bootstrappers:
+            bootstrapper = self.bootstrappers.pop()
+            bootstrapper.unload()
+        await super().unload()
+
     def add_message_handler(self, msg_num, callback):
         """
         Add a handler for a message identifier. Any messages coming in with this identifier will be delivered to
