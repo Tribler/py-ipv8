@@ -721,7 +721,7 @@ class TunnelCommunity(Community):
             self.remove_exit_socket(request.from_circuit_id)
 
             self.send_cell(relay.peer,
-                           ExtendedPayload(relay.circuit_id, payload.identifier,
+                           ExtendedPayload(relay.circuit_id, request.extend_identifier,
                                            payload.key, payload.auth, payload.candidate_list_enc))
         elif self.request_cache.has("retry", payload.identifier):
             circuit = self.circuits[circuit_id]
@@ -778,8 +778,7 @@ class TunnelCommunity(Community):
         self.request_cache.add(cache)
 
         self.send_cell(extend_candidate,
-                       CreatePayload(to_circuit_id, payload.identifier,
-                                     self.my_peer.public_key.key_to_bin(), payload.key))
+                       CreatePayload(to_circuit_id, cache.number, self.my_peer.public_key.key_to_bin(), payload.key))
 
     @unpack_cell(ExtendedPayload)
     def on_extended(self, source_address, payload, _):
