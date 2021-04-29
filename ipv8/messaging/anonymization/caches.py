@@ -6,13 +6,14 @@ from .tunnel import CIRCUIT_STATE_CLOSING, CIRCUIT_STATE_READY
 from ...requestcache import NumberCache, RandomNumberCache
 
 
-class CreateRequestCache(NumberCache):
+class CreateRequestCache(RandomNumberCache):
     """
     Used to track outstanding create messages
     """
     def __init__(self, community, identifier, to_circuit_id, from_circuit_id, peer, to_peer):
-        super().__init__(community.request_cache, "create", identifier)
+        super().__init__(community.request_cache, "create")
         self.community = community
+        self.extend_identifier = identifier
         self.to_circuit_id = to_circuit_id
         self.from_circuit_id = from_circuit_id
         self.peer = peer
