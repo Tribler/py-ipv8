@@ -469,7 +469,7 @@ class Swarm(object):
             tasks = [self.lookup_func(self.info_hash, ip, self.hops) for ip in self.intro_points]
             if tasks:
                 results = [result for result in (await gather(*tasks, return_exceptions=True))
-                           if not isinstance(result, Exception)]
+                           if not isinstance(result, (CancelledError, Exception))]
                 results = sum(results, [])
             return on_success(results)
         self.logger.info("Skipping lookup for swarm %s", hexlify(self.info_hash))

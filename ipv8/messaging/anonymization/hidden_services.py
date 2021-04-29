@@ -8,7 +8,7 @@ import os
 import random
 import socket
 import struct
-from asyncio import gather, iscoroutine
+from asyncio import CancelledError, gather, iscoroutine
 
 from .caches import *
 from .community import TunnelCommunity, unpack_cell
@@ -135,7 +135,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
             responses = await gather(*[swarm.lookup(ip) for ip in ips], return_exceptions=True)
 
             # Collect responses
-            all_ += sum([result for result in responses if not isinstance(result, Exception)], [])
+            all_ += sum([result for result in responses if not isinstance(result, (CancelledError, Exception))], [])
             tried |= set(ips)
 
         return len({ip.seeder_pk for ip in all_ if ip and ip.source == PEER_SOURCE_PEX})
