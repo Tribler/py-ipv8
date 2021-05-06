@@ -1,8 +1,9 @@
 import logging
 from asyncio import CancelledError, gather
-from contextlib import suppress
+from contextlib import contextmanager, suppress
 from random import random
 from threading import Lock
+from typing import Generator, Iterable, Optional, Type
 
 from .taskmanager import TaskManager
 
@@ -95,6 +96,20 @@ class RequestCache(TaskManager):
         self.lock = Lock()
         self._shutdown = False
 
+        self._timeout_override: Optional[float] = None
+        """
+        If not None, this specifies the timeout to use instead of the one defined in
+        the ``timeout_delay`` of a ``NumberCache``.
+        This is used internally for ``passthrough()``, don't modify this directly!
+        """
+
+        self._timeout_filters: Optional[Iterable[Type[NumberCache]]] = None
+        """
+        If not None, this specifies the ``NumberCache`` (sub)classes to apply the
+        timeout override for.
+        This is used internally for ``passthrough()``, don't modify this directly!
+        """
+
     def add(self, cache):
         """
         Add CACHE into this RequestCache instance.
@@ -122,7 +137,17 @@ class RequestCache(TaskManager):
             else:
                 self._logger.debug("add %s", cache)
                 self._identifiers[identifier] = cache
-                self.register_task(cache, self._on_timeout, cache, delay=cache.timeout_delay)
+
+                timeout_delay = cache.timeout_delay
+                if self._timeout_override is not None:
+                    # Only overwrite the timeout if an overwrite is set.
+                    if (self._timeout_filters is None
+                            or any(issubclass(cache.__class__, f) for f in self._timeout_filters)):
+                        # Only overwrite the timeout if no class filters are set.
+                        # Otherwise, only overwrite the timeout if the cache class is in the filter.
+                        timeout_delay = self._timeout_override
+
+                self.register_task(cache, self._on_timeout, cache, delay=timeout_delay)
                 return cache
 
     def has(self, prefix, number):
@@ -153,6 +178,59 @@ class RequestCache(TaskManager):
         cache = self._identifiers.pop(identifier)
         self.cancel_pending_task(cache)
         return cache
+
+    @contextmanager
+    def passthrough(self,  # pylint: disable=W1113
+                    cls_filter: Optional[Type[NumberCache]] = None, *filters: Type[NumberCache],
+                    timeout: float = 0.0) -> Generator:
+        """
+        A contextmanager that overwrites the timeout_delay of added NumberCaches in its scope.
+        This can be used to shorten or eliminate timeouts of external code.
+
+        ---
+        Example 1: Eliminating timeouts, regardless of ``cache.timeout_delay``
+        ---
+
+         .. code-block :: Python
+
+            with request_cache.passthrough():
+                request_cache.add(cache)  # This will instantly timeout (once the main thread is yielded).
+
+            with request_cache.passthrough():
+                # Any internal call to request_cache.add() will also be instantly timed out.
+                await some_function_that_uses_request_cache()
+
+        ---
+        Example 2: Modifying timeouts, regardless of ``cache.timeout_delay``
+        ---
+
+         .. code-block :: Python
+
+            with request_cache.passthrough(timeout=0.1):
+                request_cache.add(cache)  # This will timeout after 0.1 seconds.
+
+        ---
+        Example 3: Filtering for specific classes
+        ---
+
+         .. code-block :: Python
+
+            # Only MyCacheClass, MyOtherCacheClass, YetAnotherCacheClass will have their timeout changed to 4 seconds.
+            with request_cache.passthrough(MyCacheClass, MyOtherCacheClass, YetAnotherCacheClass, timeout=4.0):
+                request_cache.add(cache)
+
+        :param cls_filter: An optional class filter to specify which classes the timeout override needs to apply to.
+        :param filters: Additional class filters to specify which classes the timeout override needs to apply to.
+        :param timeout: The timeout in seconds to use for the ``NumberCache`` instances this applies to.
+        :returns: A context manager (compatible with ``with``).
+        """
+        self._timeout_override = timeout
+        self._timeout_filters = None if cls_filter is None else [cls_filter] + list(filters)
+        try:
+            yield
+        finally:
+            self._timeout_override = None
+            self._timeout_filters = None
 
     def _on_timeout(self, cache):
         """
