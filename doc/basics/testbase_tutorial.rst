@@ -32,7 +32,7 @@ At the end of this setup step you should have the following files in your workin
    (file) community.py
    (file) test_community.py
 
-We will use the following ``community.py`` in this file:
+We will use the following ``community.py`` in this tutorial:
 
 .. code-block:: python
 
