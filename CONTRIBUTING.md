@@ -15,7 +15,7 @@ It's great that you want to contribute to IPv8. We would like you to take heed o
 ### I want to open a Pull Request
 
  1. Make a feature branch on your own fork of IPv8 to work on your feature.
- 2. We accept Pull Requests that are tied to issues or change a very small amount of lines. If you forget to open an issue with your Pull Request, the discussion will take place in the Pull Request - often leading to a very unstructured discussion. Contributions to the documentation are exempt from this rule, as they are quite literally self-documenting.
+ 2. We accept Pull Requests that are tied to issues or change a very small number of lines. If you forget to open an issue with your Pull Request, the discussion will take place in the Pull Request - often leading to a very unstructured discussion. Contributions to the documentation are exempt from this rule, as they are quite literally self-documenting.
  3. It is better to make small changes than large ones, as smaller changes usually have less bugs.
  4. Make sure the automatic Pull Request tests pass or rationalize why it is O.K. that they do not.
  5. To your best ability, reflect your Pull Request's changes in your PR title (details go into the PR message). Follow this format: `Added|Fixed|Removed|Updated` `your feature` (for example, "Added PR instruction step 5").
