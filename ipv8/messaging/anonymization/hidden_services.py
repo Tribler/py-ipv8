@@ -91,20 +91,19 @@ class HiddenTunnelCommunity(TunnelCommunity):
         :param info_hash: the swarm identifier
         :type info_hash: bytes
         """
-        self.e2e_callbacks.pop(info_hash, None)
+        # Remove all introduction points and e2e circuits for this swarm
+        for circuit in self.circuits.values():
+            if circuit.info_hash == info_hash and circuit.ctype in [CIRCUIT_TYPE_IP_SEEDER,
+                                                                    CIRCUIT_TYPE_RP_SEEDER,
+                                                                    CIRCUIT_TYPE_RP_DOWNLOADER]:
+                self.remove_circuit(circuit.circuit_id, 'leaving hidden swarm', destroy=DESTROY_REASON_LEAVE_SWARM)
+        # Remove swarm and callback
         swarm = self.swarms.pop(info_hash, None)
-        if swarm:
-            # If there are no other swarms with the same hop count, remove the data circuits
-            if not [s for s in self.swarms.values() if s != swarm and s.hops == swarm.hops]:
-                for circuit in self.find_circuits(hops=swarm.hops, state=None):
-                    self.remove_circuit(circuit.circuit_id, 'not needed', destroy=DESTROY_REASON_UNNEEDED)
-            # Remove e2e circuits
-            for rp_circuit, _ in swarm.connections.values():
-                self.remove_circuit(rp_circuit.circuit_id, 'leaving hidden swarm', destroy=DESTROY_REASON_LEAVE_SWARM)
-        # Remove introduction points
-        for ip_circuit in self.circuits.values():
-            if ip_circuit.info_hash == info_hash and ip_circuit.ctype == CIRCUIT_TYPE_IP_SEEDER:
-                self.remove_circuit(ip_circuit.circuit_id, 'leaving hidden swarm', destroy=DESTROY_REASON_LEAVE_SWARM)
+        self.e2e_callbacks.pop(info_hash, None)
+        # If there are no other swarms with the same hop count, remove the data circuits
+        if swarm and not [s for s in self.swarms.values() if s != swarm and s.hops == swarm.hops]:
+            for circuit in self.find_circuits(hops=swarm.hops, state=None):
+                self.remove_circuit(circuit.circuit_id, 'not needed', destroy=DESTROY_REASON_UNNEEDED)
 
     async def estimate_swarm_size(self, info_hash, hops=1, max_requests=10):
         """
@@ -117,7 +116,6 @@ class HiddenTunnelCommunity(TunnelCommunity):
         :param max_requests: the number of introduction points we should send a get-peers message to
         :type max_requests: int
         :return: number of unique seeders
-        :rtype: Deferred
         """
         swarm = Swarm(info_hash, hops, self.send_peers_request)
 
@@ -420,6 +418,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         relay_circuit = self.rendezvous_point_for[payload.cookie]
         if self.exit_sockets[relay_circuit.circuit_id].enabled:
             self.logger.warning("Exit socket for relay_circuit is enabled, cannot link")
+            return
 
         circuit = self.exit_sockets[circuit_id]
 
