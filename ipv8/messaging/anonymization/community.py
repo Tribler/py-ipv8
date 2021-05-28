@@ -813,7 +813,8 @@ class TunnelCommunity(Community):
         if circuit and origin and sock_addr == circuit.peer.address:
             circuit.beat_heart()
 
-            if DataChecker.could_be_ipv8(data):
+            e2e_data = circuit.ctype in [CIRCUIT_TYPE_RP_DOWNLOADER, CIRCUIT_TYPE_RP_SEEDER]
+            if DataChecker.could_be_ipv8(data) and not e2e_data:
                 if self._prefix == data[:22]:
                     self.logger.debug("Incoming packet meant for us")
                     self.on_packet_from_circuit(origin, data, circuit_id)
@@ -930,12 +931,13 @@ class TunnelCommunity(Community):
         payload, _ = self.serializer.unpack_serializable(TestRequestPayload, data, offset=23)
         exit_socket = self.exit_sockets.get(circuit_id)
         circuit = self.circuits.get(circuit_id)
-        if not exit_socket and not (circuit and circuit.ctype == CIRCUIT_TYPE_RP_SEEDER):
+        if not exit_socket and not (circuit and circuit.ctype in [CIRCUIT_TYPE_RP_SEEDER, CIRCUIT_TYPE_RP_DOWNLOADER]):
             self.logger.error("Dropping test-request with unknown circuit_id")
             return
 
         self.logger.debug("Got test-request (%d) from %s, replying with response", circuit_id, source_address)
-        (exit_socket or circuit).beat_heart()
+        if exit_socket:
+            exit_socket.beat_heart()
         self.send_cell(source_address,
                        TestResponsePayload(circuit_id, payload.identifier, os.urandom(payload.response_size)))
 
