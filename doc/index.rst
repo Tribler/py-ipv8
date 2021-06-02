@@ -73,6 +73,12 @@ Table of contents
 
 .. toctree::
    :maxdepth: 2
+   :caption: Simulations:
+
+   simulation/simulation_tutorial.rst
+
+.. toctree::
+   :maxdepth: 2
    :caption: Further reading:
 
    further-reading/advanced_identity.rst
