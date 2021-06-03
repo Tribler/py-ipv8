@@ -2,7 +2,7 @@ from base64 import b64encode
 from collections import deque
 from struct import unpack
 from time import time
-from typing import Any, Dict, Optional, Type
+from typing import Any, Dict, Optional, Type, Union
 
 from .keyvault.crypto import default_eccrypto
 from .keyvault.keys import Key
@@ -45,7 +45,7 @@ class Peer(object):
 
     INTERFACE_ORDER = [UDPv6Address, UDPv4Address, tuple]
 
-    def __init__(self, key: Key, address: Optional[Address] = None, intro: bool = True) -> None:
+    def __init__(self, key: Union[Key, bytes], address: Optional[Address] = None, intro: bool = True) -> None:
         """
         Create a new Peer.
 
