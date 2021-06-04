@@ -11,3 +11,5 @@ Code Example
 Below we provide a Python snippet that runs a simple simulation. In this example, we start two IPv8 instances with a `SimulatedEndpoint` as endpoint. Like the unit tests, the LAN/WAN addresses are randomly generated. Each instance loads a single `PingPongCommunity` overlay and peers are introduced to each other after IPv8 has started. Each peer sends a ping message to the other peer every two seconds. The sending and reception of ping and pong message are printed to standard output, together with the current time of the event loop. The simulation ends after ten seconds.
 
 .. literalinclude:: simulation_tutorial_1.py
+
+The endpoint used in the above code assumes that packets arrive immediately at the recipient. This is unrealistic in deployed peer-to-peer networks where link latency can be considerable, especially when considering communication between peers in different continents. Developers can simulate link latencies by modifying the `latencies` class variable, or by overriding the `get_link_latency` method. Link latencies can, for example, be set to random values or be determined by a latency matrix.
