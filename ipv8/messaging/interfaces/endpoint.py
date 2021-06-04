@@ -129,6 +129,7 @@ class EndpointListener(metaclass=abc.ABCMeta):
         self.endpoint = endpoint
 
         self._netifaces_failed = netifaces is None
+        self._local_interfaces = []
         self._my_estimated_lan = None
         self.my_estimated_wan = self.my_estimated_lan
 
