@@ -1,3 +1,4 @@
+import logging
 import os
 import shutil
 import sys
@@ -13,7 +14,11 @@ from .mocking.endpoint import internet
 from .mocking.ipv8 import MockIPv8
 from ..peer import Peer
 
-get_event_loop().set_debug(True)
+try:
+    get_event_loop().set_debug(True)
+except RuntimeError:
+    logging.warning("Failed to set debug mode on the main event loop! "
+                    "You may be missing out on asyncio output!")
 
 
 def _on_packet_fragile_cb(self, packet, warn_unknown=True):
@@ -95,6 +100,7 @@ class TestBase(asynctest.TestCase):
             self._uncaught_async_failure = context
 
     def setUp(self):
+        self.loop.set_debug(True)
         self.loop.set_exception_handler(self._cb_exception)
         super(TestBase, self).setUp()
         TestBase.__lockup_timestamp__ = time.time()
@@ -129,18 +135,18 @@ class TestBase(asynctest.TestCase):
                 # If we made it here, there is a serious issue which we cannot recover from.
                 # Most likely the threadpool got into a deadlock while shutting down.
                 import traceback
-                print("The test-suite locked up! Force quitting! Thread dump:", file=sys.stderr)
+                print("The test-suite locked up! Force quitting! Thread dump:", file=sys.stderr)  # noqa: T001
                 for tid, stack in sys._current_frames().items():
                     if tid != threading.currentThread().ident:
-                        print("THREAD#%d" % tid, file=sys.stderr)
+                        print("THREAD#%d" % tid, file=sys.stderr)  # noqa: T001
                         for line in traceback.format_list(traceback.extract_stack(stack)):
-                            print("|", line[:-1].replace('\n', '\n|   '), file=sys.stderr)
+                            print("|", line[:-1].replace('\n', '\n|   '), file=sys.stderr)  # noqa: T001
 
                 tasks = all_tasks(get_event_loop())
                 if tasks:
-                    print("Pending tasks:")
+                    print("Pending tasks:")  # noqa: T001
                     for task in tasks:
-                        print(">     %s" % task)
+                        print(">     %s" % task)  # noqa: T001
 
                 # Our test suite catches the SIGINT signal, this allows it to print information before force exiting.
                 # If we were to hard exit here (through os._exit) we would lose this additional information.
