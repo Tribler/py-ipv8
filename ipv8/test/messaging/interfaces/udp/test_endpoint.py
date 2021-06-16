@@ -61,7 +61,8 @@ class TestUDPEndpoint(TestBase):
         # range must be in [1, 51), since Asyncio transports discard empty datagrams
         for ind in range(1, 51):
             self.endpoint1.send(self.ep2_address, b'a' * ind)
-        await sleep(.05)
+        while len(self.endpoint2_listener.incoming) < 50:
+            await sleep(.02)
         self.assertEqual(len(self.endpoint2_listener.incoming), 50)
 
     async def test_send_too_big_message(self):
