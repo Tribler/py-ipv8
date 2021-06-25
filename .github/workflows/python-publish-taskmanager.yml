@@ -24,7 +24,7 @@ jobs:
     - name: Build and publish
       env:
         TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
-        TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+        TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD_TASKMANAGER }}
       run: |
         python create_setup_taskmanager.py
         pushd ipv8_taskmanager
