@@ -108,7 +108,7 @@ class AttestationEndpoint(BaseEndpoint):
         :param keys_to_keep: list of keys to not remove for
         :type keys_to_keep: [str]
         :return: the list of attestation hashes which have been removed
-        :rtype: [database_blob]
+        :rtype: [bytes]
         """
         database = self.identity_overlay.identity_manager.database
         all_identities = database.get_known_identities()
@@ -136,7 +136,7 @@ class AttestationEndpoint(BaseEndpoint):
         Remove all attestation data (claim based keys and ZKP blobs) by list of attestation hashes.
 
         :param attestation_hashes: hashes to remove
-        :type attestation_hashes: [database_blob]
+        :type attestation_hashes: [bytes]
         :returns: None
         """
         if not attestation_hashes:
