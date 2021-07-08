@@ -1,6 +1,6 @@
 import os
 
-from ...database import Database, database_blob
+from ...database import Database
 
 DATABASE_DIRECTORY = os.path.join(u"sqlite")
 
@@ -28,17 +28,17 @@ class AttestationsDB(Database):
         return list(self.execute(query, params, fetch_all=False))
 
     def get_attestation_by_hash(self, attestation_hash):
-        return self._get(u"SELECT blob FROM %s WHERE hash = ?" % self.db_name, (database_blob(attestation_hash),))
+        return self._get(u"SELECT blob FROM %s WHERE hash = ?" % self.db_name, (attestation_hash,))
 
     def get_all(self):
         return list(self.execute(u"SELECT * FROM %s" % self.db_name, (), fetch_all=True))
 
     def insert_attestation(self, attestation, attestation_hash, secret_key, id_format):
-        blob = database_blob(attestation.serialize_private(secret_key.public_key()))
+        blob = attestation.serialize_private(secret_key.public_key())
         self.execute(
             u"INSERT INTO %s (hash, blob, key, id_format) VALUES(?,?,?,?)" % self.db_name,
-            (database_blob(attestation_hash), blob, database_blob(secret_key.serialize()),
-             database_blob(id_format.encode('utf-8'))))
+            (attestation_hash, blob, secret_key.serialize(),
+             id_format.encode('utf-8')))
         self.commit()
 
     def get_schema(self, version):

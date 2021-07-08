@@ -99,7 +99,7 @@ class CommunicationChannel(object):
         Remove all metadata from the identity community.
 
         :return: the list of attestation hashes which have been removed
-        :rtype: [database_blob]
+        :rtype: [bytes]
         """
         database = self.identity_overlay.identity_manager.database
         attestation_hashes = [t.content_hash for t in database.get_tokens_for(self.identity_overlay.my_peer.public_key)]
@@ -119,7 +119,7 @@ class CommunicationChannel(object):
         Remove all attestation data (claim based keys and ZKP blobs) by list of attestation hashes.
 
         :param attestation_hashes: hashes to remove
-        :type attestation_hashes: [database_blob]
+        :type attestation_hashes: [bytes]
         :returns: None
         """
         if not attestation_hashes:

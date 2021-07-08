@@ -7,36 +7,13 @@ This module provides basic database functionalty and simple version control.
 """
 import logging
 import os
-import sys
+import sqlite3
 import typing
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
 from threading import RLock
 
-if sys.platform == "darwin":
-    # Workaround for annoying MacOS Sierra bug: https://bugs.python.org/issue27126
-    # As fix, we are using pysqlite2 so we can supply our own version of sqlite3.
-    try:
-        import pysqlite2.dbapi2 as sqlite3
-    except ImportError:
-        # For newer installations, we can just import it
-        from sqlite3 import dbapi2 as sqlite3
-else:
-    import sqlite3
 
-
-def execute_or_script(cursor, statement):
-    """
-    This workaround is part of the MacOS Sierra bug described at the top of this file.
-    """
-    if sys.platform == "darwin":
-        cursor.executescript(statement)
-    else:
-        cursor.execute(statement)
-
-
-# In Python 3 sqlite expects bytes instead of buffer objects.
-database_blob = bytes
 db_locks: typing.Dict[str, RLock] = defaultdict(RLock)
 
 
@@ -172,7 +149,7 @@ class Database(metaclass=ABCMeta):
                 self._cursor.executescript("PRAGMA journal_mode = DELETE")
                 journal_mode = "DELETE"
             self._cursor.execute("PRAGMA page_size = 8192")
-            execute_or_script(self._cursor, "VACUUM")
+            self._cursor.execute("VACUUM")
             page_size = 8192
 
         else:
@@ -185,8 +162,7 @@ class Database(metaclass=ABCMeta):
         if not (journal_mode == "WAL" or self._file_path == ":memory:"):
             self._logger.debug("PRAGMA journal_mode = WAL (previously: %s) [%s]", journal_mode, self._file_path)
             self._cursor.execute("PRAGMA locking_mode = EXCLUSIVE")
-            execute_or_script(self._cursor, "PRAGMA journal_mode = WAL")
-
+            self._cursor.execute("PRAGMA journal_mode = WAL")
         else:
             self._logger.debug("PRAGMA journal_mode = %s (no change) [%s]", journal_mode, self._file_path)
 
@@ -196,8 +172,7 @@ class Database(metaclass=ABCMeta):
         #
         if synchronous not in ("NORMAL", 1):
             self._logger.debug("PRAGMA synchronous = NORMAL (previously: %s) [%s]", synchronous, self._file_path)
-            execute_or_script(self._cursor, "PRAGMA synchronous = NORMAL")
-
+            self._cursor.execute("PRAGMA synchronous = NORMAL")
         else:
             self._logger.debug("PRAGMA synchronous = %s (no change) [%s]", synchronous, self._file_path)
 
