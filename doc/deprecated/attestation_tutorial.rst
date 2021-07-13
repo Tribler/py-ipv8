@@ -30,7 +30,7 @@ In this tutorial all of the files are placed in the ``~/Documents/ipv8_tutorial`
 
 At the end of this setup step you should have the following files in your working directory:
 
-.. code-block:: none
+.. code-block:: console
 
    (folder) pyipv8
    (file) __init__.py
@@ -90,7 +90,7 @@ For convenience we will refer to our first peer as *Peer 1* and our second peer 
 As a last note, beware of URL encoding: when passing these identifiers they need to be properly formatted (\ ``+`` and ``=`` are illegal characters).
 In our case we need to use the following formatting of the peer identifiers in URLs (for Peer 1 and Peer 2 respectively):
 
-.. code-block:: none
+.. code-block:: console
 
    aQVwz9aRMRypGwBkaxGRSdQs80c%3D
    bPyWPyswqXMhbW8%2B0RS6xUtNJrs%3D

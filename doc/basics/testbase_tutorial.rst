@@ -25,7 +25,7 @@ You are free to choose whatever directory you want, to place your files in.
 
 At the end of this setup step you should have the following files in your working directory:
 
-.. code-block::
+.. code-block:: console
 
    (folder) pyipv8
    (file) __init__.py
@@ -61,7 +61,7 @@ This also means that ``TestBase`` can be used with just about any test runner ou
 
 The way we will run our unit tests in this tutorial is with:
 
-.. code-block::
+.. code-block:: console
 
     python3 -m unittest test_community.py
 

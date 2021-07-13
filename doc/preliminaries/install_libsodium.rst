@@ -10,7 +10,7 @@ Windows
 
 #. Libsodium can be downloaded from https://download.libsodium.org/libsodium/releases/  
 
-   .. code-block:: none
+   .. code-block:: console
 
         For eg. https://download.libsodium.org/libsodium/releases/libsodium-1.0.17-msvc.zip
 
