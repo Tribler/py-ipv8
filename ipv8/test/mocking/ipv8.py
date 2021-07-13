@@ -1,3 +1,5 @@
+from typing import Type, Union
+
 from .discovery import MockWalk
 from .endpoint import AutoMockEndpoint
 from ...dht.discovery import DHTDiscoveryCommunity
@@ -5,13 +7,18 @@ from ...keyvault.crypto import default_eccrypto
 from ...messaging.interfaces.statistics_endpoint import StatisticsEndpoint
 from ...peer import Peer
 from ...peerdiscovery.network import Network
+from ...types import Community
 from ...util import maybe_coroutine
 
 
 class MockIPv8(object):
 
-    def __init__(self, crypto_curve, overlay_class, create_dht=False, enable_statistics=False,
-                 *args, **kwargs):
+    def __init__(self,
+                 crypto_curve_or_peer: Union[str, Peer],
+                 overlay_class: Type[Community],
+                 create_dht: bool = False,
+                 enable_statistics: bool = False,
+                 **kwargs) -> None:
         self.endpoint = AutoMockEndpoint()
         self.endpoint.open()
 
@@ -20,7 +27,11 @@ class MockIPv8(object):
             self.endpoint = StatisticsEndpoint(self, self.endpoint)
 
         self.network = Network()
-        self.my_peer = Peer(default_eccrypto.generate_key(crypto_curve), self.endpoint.wan_address)
+        if isinstance(crypto_curve_or_peer, Peer):
+            self.my_peer = crypto_curve_or_peer
+            self.my_peer.address = self.endpoint.wan_address
+        else:
+            self.my_peer = Peer(default_eccrypto.generate_key(crypto_curve_or_peer), self.endpoint.wan_address)
 
         # Load a DHT community if specified
         self.dht = None
@@ -28,7 +39,7 @@ class MockIPv8(object):
             self.dht = DHTDiscoveryCommunity(self.my_peer, self.endpoint, self.network)
             kwargs.update({'dht': self.dht})
 
-        self.overlay = overlay_class(self.my_peer, self.endpoint, self.network, *args, **kwargs)
+        self.overlay = overlay_class(self.my_peer, self.endpoint, self.network, **kwargs)
         self.overlay._use_main_thread = False
         self.discovery = MockWalk(self.overlay)
 
