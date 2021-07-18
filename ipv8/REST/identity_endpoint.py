@@ -603,4 +603,5 @@ class IdentityEndpoint(BaseEndpoint):
         return Response({"outputs": formatted})
 
     async def on_shutdown(self, _):
-        await self.communication_manager.shutdown()
+        if self.communication_manager:
+            await self.communication_manager.shutdown()
