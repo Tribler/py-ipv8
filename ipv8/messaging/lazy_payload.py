@@ -65,6 +65,7 @@ class VariablePayload(Payload):
             raise KeyError("%s missing %d arguments!" % (self.__class__.__name__, len(args) - index))
         if kwargs:
             raise KeyError("%s has leftover keyword arguments: %s!" % (self.__class__.__name__, str(kwargs)))
+        self.__class__.__match_args__ = tuple(self.names)
 
     @classmethod
     def from_unpack_list(cls, *args) -> VariablePayload:
@@ -229,6 +230,7 @@ def vp_compile(vp_definition: typing.Type[VariablePayload]) -> typing.Type[Varia
     # Rewrite the class methods from the locally loaded overwrites.
     # from_unpack_list is a classmethod, so we need to scope it properly.
     setattr(vp_definition, '__init__', locals()['__init__'])
+    setattr(vp_definition, '__match_args__', tuple(vp_definition.names))
     setattr(vp_definition, 'from_unpack_list', types.MethodType(locals()['from_unpack_list'], vp_definition))
     setattr(vp_definition, 'to_pack_list', locals()['to_pack_list'])
     return vp_definition
