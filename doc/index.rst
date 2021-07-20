@@ -68,6 +68,7 @@ Table of contents
    :caption: References:
 
    reference/configuration.rst
+   reference/bootstrapping.rst
    reference/keys.rst
    reference/serialization.rst
 
