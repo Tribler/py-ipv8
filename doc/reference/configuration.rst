@@ -52,6 +52,7 @@ Each of the overlay specifications is a dictionary following the following stand
    "class", "The overlay class to load. Do note that any external overlay definitions will have to be registered in IPv8, see also the overlay creation tutorial."
    "key", "The alias of the key to use for the particular overlay."
    "walkers", "The walker to employ."
+   "bootstrappers", "The bootstrappers to use."
    "initialize", "The additional arguments to pass to the constructor of the overlay."
    "on_start", "A list of tuples containing method names and their arguments. These methods are invoked when IPv8 has started."
 
@@ -59,11 +60,10 @@ Each of the overlay specifications is a dictionary following the following stand
 By default, the ``RandomWalk`` and ``EdgeWalk`` strategies are known to IPv8.
 Respectively these will take care of performing random walks and random walks with reset probability for peer discovery.
 Each overlay may also specify further custom strategies.
+Check out the `the bootstrapping documentation <../../reference/bootstrapping>`_ for more information on configuring bootstrappers per overlay.
+
 By default, IPv8 loads the following overlays:
 
-- AttestationCommunity
 - DiscoveryCommunity
 - HiddenTunnelCommunity
-- IdentityCommunity
-- TunnelCommunity
 - DHTDiscoveryCommunity

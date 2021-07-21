@@ -226,11 +226,11 @@ def bootstrapper(str_module_or_class, str_definition=None, kw_args=None):
            ...
 
         from my_module.some_submodule import MyBootstrapper
-        @walk_strategy(MyBootstrapper)
+        @bootstrapper(MyBootstrapper)
         class A(CommunityLauncher):
            ...
 
-        @walk_strategy('my_module.some_submodule', 'MyBootstrapper', kwargs={'a key': 'a value'})
+        @bootstrapper('my_module.some_submodule', 'MyBootstrapper', kw_args={'a key': 'a value'})
         class A(CommunityLauncher):
            ...
 
@@ -238,7 +238,7 @@ def bootstrapper(str_module_or_class, str_definition=None, kw_args=None):
             from my_module.some_submodule import MyBootstrapper
             return MyBootstrapper
 
-        @walk_strategy(my_bootstrapper_class)
+        @bootstrapper(my_bootstrapper_class)
         class A(CommunityLauncher):
             ...
 
