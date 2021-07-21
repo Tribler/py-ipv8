@@ -1,7 +1,14 @@
+from sys import version_info
+from unittest import skipIf
+
 from ..base import TestBase
 from ...messaging.lazy_payload import VariablePayload, vp_compile
 from ...messaging.payload import Payload
 from ...messaging.serialization import default_serializer
+
+
+skipUnlessPython310 = skipIf(version_info[0] < 4 and not (version_info[0] == 3 and version_info[1] >= 10),
+                             reason="Test only available for Python 3.10 and later.")
 
 
 class A(VariablePayload):
@@ -372,3 +379,85 @@ class TestVariablePayload(TestBase):
         self.assertEqual(e.list_of_A[0].b, deserialized.list_of_A[0].b)
         self.assertEqual(e.list_of_A[1].a, deserialized.list_of_A[1].a)
         self.assertEqual(e.list_of_A[1].b, deserialized.list_of_A[1].b)
+
+    @skipUnlessPython310
+    def test_plain_mismatch_list(self):
+        """
+        Check if a VariablePayload instance does not match anything but its own pattern.
+
+        We intentionally check here for a list of values equal to the __init__ arguments, which is the default.
+        If this test fails, you probably screwed up the class-level sub-pattern.
+        """
+        # pylint: disable=W0122, W0641
+        payload = BitsPayload(False, True, False, True, False, True, False, True)
+
+        # The following will crash all interpreters < 3.10 if not contained in a string.
+        exec(compile('''
+match payload:
+    case [False, True, False, True, False, True, False, True]:
+        matched = True
+    case _:
+        matched = False
+''', '<string>', 'exec'), globals(), locals())
+
+        self.assertFalse(locals()["matched"])
+
+    @skipUnlessPython310
+    def test_compiled_mismatch_list(self):
+        """
+        Check if a compiled VariablePayload instance does not match anything but its own pattern.
+
+        We intentionally check here for a list of values equal to the __init__ arguments, which is the default.
+        If this test fails, you probably screwed up the class-level sub-pattern.
+        """
+        # pylint: disable=W0122, W0641
+        payload = CompiledBitsPayload(False, True, False, True, False, True, False, True)
+
+        # The following will crash all interpreters < 3.10 if not contained in a string.
+        exec(compile('''
+match payload:
+    case [False, True, False, True, False, True, False, True]:
+        matched = True
+    case _:
+        matched = False
+''', '<string>', 'exec'), globals(), locals())
+
+        self.assertFalse(locals()["matched"])
+
+    @skipUnlessPython310
+    def test_plain_match_pattern(self):
+        """
+        Check if a VariablePayload instance matches its own pattern.
+        """
+        # pylint: disable=W0122, W0641
+        payload = BitsPayload(False, True, False, True, False, True, False, True)
+
+        # The following will crash all interpreters < 3.10 if not contained in a string.
+        exec(compile('''
+match payload:
+    case BitsPayload(False, True, False, True, False, True, False, True):
+        matched = True
+    case _:
+        matched = False
+''', '<string>', 'exec'), globals(), locals())
+
+        self.assertTrue(locals()["matched"])
+
+    @skipUnlessPython310
+    def test_compiled_match_pattern(self):
+        """
+        Check if a compiled VariablePayload instance matches its own pattern.
+        """
+        # pylint: disable=W0122, W0641
+        payload = CompiledBitsPayload(False, True, False, True, False, True, False, True)
+
+        # The following will crash all interpreters < 3.10 if not contained in a string.
+        exec(compile('''
+match payload:
+    case CompiledBitsPayload(False, True, False, True, False, True, False, True):
+        matched = True
+    case _:
+        matched = False
+''', '<string>', 'exec'), globals(), locals())
+
+        self.assertTrue(locals()["matched"])

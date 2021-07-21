@@ -114,7 +114,10 @@ class TestBase(asynctest.TestCase):
             while self._tempdirs:
                 shutil.rmtree(self._tempdirs.pop(), ignore_errors=True)
         # Now that everyone has calmed down, sweep up the remaining callbacks and check if they failed.
-        await asynctest.helpers.exhaust_callbacks(self.loop)
+        # [port] ``asynctest.helpers.exhaust_callbacks`` no longer works in Python 3.10
+        while self.loop._ready:  # pylint: disable=W0212
+            await sleep(0)
+        # [end of ``asynctest.helpers.exhaust_callbacks`` port]
         if self._uncaught_async_failure is not None:
             raise self._uncaught_async_failure["exception"]
         self.loop.set_exception_handler(None)  # None is equivalent to the default handler
