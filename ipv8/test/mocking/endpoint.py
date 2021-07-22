@@ -51,13 +51,24 @@ class MockEndpoint(Endpoint):
 
 class AddressTester(EndpointListener):
 
+    singleton = None
+
+    def __init__(self, endpoint):
+        super().__init__(endpoint, True)
+        self._get_lan_address(True)
+        AddressTester.singleton = self
+
+    @classmethod
+    def get_singleton(cls, endpoint):
+        if cls.singleton is not None:
+            return cls.singleton
+        return AddressTester(endpoint)
+
     def on_packet(self, packet):
         pass
 
-    def is_lan(self, address):
-        if isinstance(address, UDPv4Address):
-            return self._address_is_lan_without_netifaces(address)
-        return False
+    def is_lan(self, address: str):
+        return self.address_is_lan(address)
 
 
 class AutoMockEndpoint(MockEndpoint):
@@ -98,7 +109,7 @@ class AutoMockEndpoint(MockEndpoint):
         Avoid false positives for the actual machine's lan.
         """
         self._port = address[1]
-        address_tester = AddressTester(self)
+        address_tester = AddressTester.get_singleton(self)
         return address_tester.is_lan(address[0])
 
     def _generate_unique_address(self):
