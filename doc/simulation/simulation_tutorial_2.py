@@ -35,6 +35,7 @@ async def start_communities():
 
         # We assume all peers in our simulation have a public WAN IP (to avoid conflicts with our SimulationEndpoint)
         bootstrap_overlay.my_estimated_lan = ("0.0.0.0", 0)
+        bootstrap_overlay.my_estimated_wan = bootstrap_endpoint.wan_address
         bootstrap_ips.append(bootstrap_endpoint.wan_address)
 
     instances = []
@@ -51,6 +52,7 @@ async def start_communities():
                         extra_communities={'SimpleCommunity': SimpleCommunity})
         # We assume all peers in our simulation have a public WAN IP (to avoid conflicts with our SimulationEndpoint)
         instance.overlays[0].my_estimated_lan = ("0.0.0.0", 0)
+        instance.overlays[0].my_estimated_wan = endpoint.wan_address
         await instance.start()
         instances.append(instance)
 
