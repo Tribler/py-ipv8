@@ -67,6 +67,7 @@ Table of contents
    :maxdepth: 2
    :caption: References:
 
+   reference/community_best_practices.rst
    reference/configuration.rst
    reference/bootstrapping.rst
    reference/keys.rst
