@@ -61,6 +61,8 @@ Table of contents
    basics/overlay_tutorial.rst
    basics/requestcache_tutorial.rst
    basics/testbase_tutorial.rst
+   basics/tasks_tutorial.rst
+   basics/discoverystrategy_tutorial.rst
    basics/identity_tutorial.rst
 
 .. toctree::
