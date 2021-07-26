@@ -2,7 +2,7 @@ Task Management
 ===============
 
 This document assumes you have a basic understanding of network overlays in IPv8, as documented in `the overlay tutorial <../../basics/overlay_tutorial>`_.
-You will learn how to use the IPv8's ``TaskManager`` class to manage ``asyncio`` tasks, when to use ``DiscoveryStrategy`` and how to use ``NumberCache`` to manage ``Future`` instances.
+You will learn how to use the IPv8's ``TaskManager`` class to manage ``asyncio`` tasks and how to use ``NumberCache`` to manage ``Future`` instances.
 
 What is a task?
 ---------------
