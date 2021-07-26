@@ -56,8 +56,7 @@ Table of contents
 .. toctree::
    :maxdepth: 2
    :caption: Basics:
-   
-   basics/peer_discovery.rst
+
    basics/overlay_tutorial.rst
    basics/requestcache_tutorial.rst
    basics/testbase_tutorial.rst
@@ -69,6 +68,7 @@ Table of contents
    :maxdepth: 2
    :caption: References:
 
+   reference/peer_discovery.rst
    reference/community_best_practices.rst
    reference/configuration.rst
    reference/bootstrapping.rst
