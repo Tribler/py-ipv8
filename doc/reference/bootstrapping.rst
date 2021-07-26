@@ -1,7 +1,7 @@
 IPv8 bootstrapping
 ==================
 
-Peers discover each other through other Peers, as specified in the `the Peer discovery basics <../../basics/peer_discovery>`_.
+Peers discover each other through other Peers, as specified in the `the Peer discovery basics <../../reference/peer_discovery>`_.
 We call this type of Peer discovery *introduction*.
 However, you cannot be introduced to a new Peer if you don't know anyone to introduce you in the first place.
 This document discusses how IPv8 provides you your first contact.
