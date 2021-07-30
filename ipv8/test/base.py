@@ -2,11 +2,13 @@ import logging
 import os
 import shutil
 import sys
+import tempfile
 import threading
 import time
 import uuid
 from asyncio import all_tasks, ensure_future, get_event_loop, iscoroutine, sleep
 from functools import partial
+from pathlib import Path
 
 import asynctest
 
@@ -220,7 +222,8 @@ class TestBase(asynctest.TestCase):
 
     def temporary_directory(self):
         rndstr = '_temp_' + uuid.uuid4().hex
-        d = os.path.abspath(self.__class__.__name__ + rndstr)
+        temproot = Path(tempfile.gettempdir()).resolve()
+        d = os.path.abspath(temproot / self.__class__.__name__ / rndstr)
         self._tempdirs.append(d)
         os.makedirs(d)
         return d
