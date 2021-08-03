@@ -96,6 +96,12 @@ Running this should yield something like the following output:
    I am: Peer<0.0.0.0:0, VVsH+LxamOUVUkV/5rjemqYMO8w=> 
    I know: ['Peer<10.0.2.15:8090, /zWXEA/4wFeGEKTZ8fckwUwLk3Y=>']
 
+.. warning::
+   You should never use the ``address`` of a ``Peer`` as its identifier.
+   A ``Peer``'s ``address`` can change over time!
+   Instead, use the ``mid`` of a Peer (which is the ``SHA-1`` hash of its public key) or its ``public_key.key_to_bin()`` (the serialized form of the public key).
+   The public key of a ``Peer`` never changes.
+
 Adding messages
 ---------------
 
