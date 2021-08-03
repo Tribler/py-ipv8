@@ -1,0 +1,16 @@
+version: 2
+
+formats: all
+
+# Check https://docs.readthedocs.io/en/stable/config-file/v2.html#build-image
+# Current highest stable version is 3.7 (update as needed)
+python:
+  version: "3.7"
+  install:
+    - requirements: doc/requirements.txt
+    - requirements: requirements.txt
+
+sphinx:
+  builder: html
+  configuration: doc/conf.py
+  fail_on_warning: false
