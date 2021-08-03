@@ -100,5 +100,6 @@ Search
 ======
 
 * :ref:`genindex`
+* :ref:`modindex`
 * :ref:`search`
 
