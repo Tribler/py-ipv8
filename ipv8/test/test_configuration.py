@@ -122,6 +122,41 @@ class TestConfiguration(TestBase):
         self.assertEqual(1 + len(get_default_configuration()['keys']), len(keys))
         self.assertTrue(any(set(entry.items()) == set(expected.items()) for entry in keys))
 
+    def test_add_key_from_bin(self):
+        """
+        Check if changes to the keys are finalized in bin mode.
+        """
+        key_material = ("MG0CAQEEHUkphrkiuNhcofjWfaplwoAk0i7tBIDq93ATwaTKoAcGBSuBBAAaoUADPgAEANBoqp"
+                        "ZtJ3z0fbt2knDEBC6nLk2P0AHEWKHoCOzRAAloM3NgRObfmRlkuiQANY0VWRMn1TAjIZqogwBD")
+        builder = ConfigBuilder().add_key_from_bin("my new key", key_material)
+
+        expected = {
+            'alias': "my new key",
+            'bin': key_material
+        }
+        keys = builder.finalize()['keys']
+
+        self.assertEqual(1 + len(get_default_configuration()['keys']), len(keys))
+        self.assertTrue(any(set(entry.items()) == set(expected.items()) for entry in keys))
+
+    def test_add_key_from_bin_file(self):
+        """
+        Check if changes to the keys are finalized in bin mode with a file.
+        """
+        key_material = ("MG0CAQEEHUkphrkiuNhcofjWfaplwoAk0i7tBIDq93ATwaTKoAcGBSuBBAAaoUADPgAEANBoqp"
+                        "ZtJ3z0fbt2knDEBC6nLk2P0AHEWKHoCOzRAAloM3NgRObfmRlkuiQANY0VWRMn1TAjIZqogwBD")
+        builder = ConfigBuilder().add_key_from_bin("my new key", key_material, "some file")
+
+        expected = {
+            'alias': "my new key",
+            'bin': key_material,
+            'file': "some file"
+        }
+        keys = builder.finalize()['keys']
+
+        self.assertEqual(1 + len(get_default_configuration()['keys']), len(keys))
+        self.assertTrue(any(set(entry.items()) == set(expected.items()) for entry in keys))
+
     def test_add_overlay_overwrite(self):
         """
         Check if the allow duplicate flag does not introduce duplicates.

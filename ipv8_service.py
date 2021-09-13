@@ -17,8 +17,7 @@ else:
         from ipv8.attestation.wallet.community import AttestationCommunity
         from ipv8.bootstrapping.dispersy.bootstrapper import DispersyBootstrapper
         from ipv8.bootstrapping.udpbroadcast.bootstrapper import UDPBroadcastBootstrapper
-        from ipv8.keyvault.crypto import default_eccrypto
-        from ipv8.keyvault.private.m2crypto import M2CryptoSK
+        from ipv8.keyvault.crypto import default_eccrypto as crypto
         from ipv8.messaging.anonymization.community import TunnelCommunity
         from ipv8.messaging.anonymization.endpoint import TunnelEndpoint
         from ipv8.messaging.anonymization.hidden_services import HiddenTunnelCommunity
@@ -36,8 +35,7 @@ else:
         from .ipv8.attestation.wallet.community import AttestationCommunity
         from .ipv8.bootstrapping.dispersy.bootstrapper import DispersyBootstrapper
         from .ipv8.bootstrapping.udpbroadcast.bootstrapper import UDPBroadcastBootstrapper
-        from .ipv8.keyvault.crypto import default_eccrypto
-        from .ipv8.keyvault.private.m2crypto import M2CryptoSK
+        from .ipv8.keyvault.crypto import default_eccrypto as crypto
         from .ipv8.messaging.anonymization.community import TunnelCommunity
         from .ipv8.messaging.anonymization.endpoint import TunnelEndpoint
         from .ipv8.messaging.anonymization.hidden_services import HiddenTunnelCommunity
@@ -93,23 +91,11 @@ else:
             for key_block in configuration['keys']:
                 if key_block['file'] and isfile(key_block['file']):
                     with open(key_block['file'], 'rb') as f:
-                        content = f.read()
-                        try:
-                            # IPv8 Standardized bin format
-                            self.keys[key_block['alias']] = Peer(default_eccrypto.key_from_private_bin(content))
-                        except ValueError:
-                            try:
-                                # Try old Tribler M2Crypto PEM format
-                                content = b64decode(content[31:-30].replace('\n', ''))
-                                peer = Peer(M2CryptoSK(keystring=content))
-                                peer.mid  # This will error out if the keystring is not M2Crypto
-                                self.keys[key_block['alias']] = peer
-                            except Exception:
-                                # Try old LibNacl format
-                                content = "LibNaCLSK:" + content
-                                self.keys[key_block['alias']] = Peer(default_eccrypto.key_from_private_bin(content))
+                        self.keys[key_block['alias']] = Peer(crypto.key_from_private_bin(f.read()))
                 else:
-                    self.keys[key_block['alias']] = Peer(default_eccrypto.generate_key(key_block['generation']))
+                    self.keys[key_block['alias']] = Peer(crypto.key_from_private_bin(b64decode(key_block['bin']))
+                                                         if 'bin' in key_block else
+                                                         crypto.generate_key(key_block['generation']))
                     if key_block['file']:
                         with open(key_block['file'], 'wb') as f:
                             f.write(self.keys[key_block['alias']].key.key_to_bin())

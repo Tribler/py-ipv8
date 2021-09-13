@@ -42,6 +42,8 @@ By invoking ``get_default_configuration()``, you can get a dictionary copy of th
    "walker_interval", 0.5, "The time interval between IPv8 updates. Each update will trigger all registered strategies to update, mostly this concerns peer discovery."
    "overlays", [ .\.\. ], "The list of overlay definitions and their respective walking strategies. See the overlay definition section for further details."
 
+Overlay Specifications
+----------------------
 
 Each of the overlay specifications is a dictionary following the following standard:
 
@@ -67,3 +69,24 @@ By default, IPv8 loads the following overlays:
 - DiscoveryCommunity
 - HiddenTunnelCommunity
 - DHTDiscoveryCommunity
+
+Key Specifications
+------------------
+
+Each of the key specifications is a dictionary following the following standard:
+
+.. csv-table:: Key definitions
+   :header: "key", "description"
+   :widths: 20, 80
+
+   "alias", "The name by which this key can be referenced in overlay configuration."
+   "file", "The optional file to store the key in."
+   "generation", "The curve to use if this key needs to be generated."
+   "bin", "The b64 encoded raw key material to use."
+
+It is always required to specify a key ``alias``.
+If you specify a ``file`` IPv8 will attempt to load your key from this file.
+Only if the file does not exist, will the ``generation`` or ``bin`` be referenced.
+If a ``file`` has been specified, once a key has been loaded it will be written to the specified ``file``.
+If you specify a ``bin``, IPv8 will prefer to use this raw key material over generating a new key from the key curve specified by ``generation``.
+You must provide IPv8 with at least one of the key source material options (a ``file``, a ``bin`` or a ``generation``) to have a valid key configuration.

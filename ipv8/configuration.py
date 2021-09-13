@@ -320,6 +320,29 @@ class ConfigBuilder(object):
         })
         return self
 
+    def add_key_from_bin(self, alias: str, key_bin_b64: str, file_path: typing.Optional[str] = None):
+        """
+        Add a key by alias and  its raw key material, possibly stored at a certain file path.
+
+        If a key already exists at the given file path, that will be loaded instead of the given key material.
+
+        :param alias: the alias used to reference this key
+        :param key_bin_b64: the base64 encoded private key material
+        :param file_path: the optional file path to save the key to
+        """
+        if 'keys' in self.config:
+            self.config['keys'] = [key for key in self.config['keys'] if key['alias'] != alias]
+        else:
+            self.config['keys'] = []
+        key_config = {
+            'alias': alias,
+            'bin': key_bin_b64
+        }
+        if file_path is not None:
+            key_config['file'] = file_path
+        self.config['keys'].append(key_config)
+        return self
+
     def add_overlay(self,
                     overlay_class: str,
                     key_alias: str,
