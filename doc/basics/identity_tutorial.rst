@@ -2,17 +2,17 @@
 Using the IPv8 attestation service
 ==================================
 
-This document assumes you have a basic understanding of network overlays in IPv8, as documented in `the overlay tutorial <../../basics/overlay_tutorial>`_.
+This document assumes you have a basic understanding of network overlays in IPv8, as documented in `the overlay tutorial <../basics/overlay_tutorial.html>`_.
 You will learn how to use the IPv8 attestation *HTTP REST API*.
 This tutorial will use ``curl`` to perform HTTP ``GET`` and ``POST`` requests.
 
 This document will cover the basic flows of identification.
-If you plan on using real identity data, you will need to familiarize yourself with the `the advanced identity controls <../../further-reading/advanced_identity>`_.
+If you plan on using real identity data, you will need to familiarize yourself with the `the advanced identity controls <../further-reading/advanced_identity.html>`_.
 
 Files
 -----
 
-This tutorial will follow the same file structure as `the overlay tutorial <../../basics/overlay_tutorial>`_.
+This tutorial will follow the same file structure as `the overlay tutorial <../basics/overlay_tutorial.html>`_.
 In this tutorial all of the files are placed in the ``~/Documents/ipv8_tutorial`` directory.
 
 

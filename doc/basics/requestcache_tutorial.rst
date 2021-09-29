@@ -1,7 +1,7 @@
 Storing states in IPv8
 ======================
 
-This document assumes you have a basic understanding of network overlays in IPv8, as documented in `the overlay tutorial <../../basics/overlay_tutorial>`_.
+This document assumes you have a basic understanding of network overlays in IPv8, as documented in `the overlay tutorial <../basics/overlay_tutorial.html>`_.
 You will learn how to use the IPv8's ``RequestCache`` class to store the state of message flows.
 
 When you need a state

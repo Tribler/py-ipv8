@@ -1,7 +1,7 @@
 Task Management
 ===============
 
-This document assumes you have a basic understanding of network overlays in IPv8, as documented in `the overlay tutorial <../../basics/overlay_tutorial>`_.
+This document assumes you have a basic understanding of network overlays in IPv8, as documented in `the overlay tutorial <../basics/overlay_tutorial.html>`_.
 You will learn how to use the IPv8's ``TaskManager`` class to manage ``asyncio`` tasks and how to use ``NumberCache`` to manage ``Future`` instances.
 
 What is a task?
@@ -99,7 +99,7 @@ Futures and caches
 ^^^^^^^^^^^^^^^^^^
 
 Sometimes you may find that certain tasks belong to a message context.
-In other words, you may have a task that belongs to a *cache* (see `the storing states tutorial <../../basics/overlay_tutorial>`_).
+In other words, you may have a task that belongs to a *cache* (see `the storing states tutorial <../basics/overlay_tutorial.html>`_).
 By registering a ``Future`` instance in your ``NumberCache`` subclass it will automatically be canceled when the ``NumberCache`` gets canceled or times out.
 You can do so using the ``register_future()`` method.
 This is a complete example:

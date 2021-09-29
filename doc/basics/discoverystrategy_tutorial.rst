@@ -1,7 +1,7 @@
 Network IO and the DiscoveryStrategy
 ====================================
 
-This document assumes you have a basic understanding of asyncio tasks, as documented in `the tasks tutorial <../../basics/tasks_tutorial>`_.
+This document assumes you have a basic understanding of asyncio tasks, as documented in `the tasks tutorial <../basics/tasks_tutorial.html>`_.
 You will learn how to use the IPv8's ``DiscoveryStrategy`` class to avoid network congestion.
 
 The DiscoveryStrategy
