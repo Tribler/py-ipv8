@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import copy
 import enum
-import socket
 import typing
 from typing import Any, Dict
 
@@ -43,8 +42,13 @@ DISPERSY_BOOTSTRAPPER: Dict[Any, Any] = {
 }
 
 default = {
-    'address': '0.0.0.0',
-    'port': 8090,
+    'interfaces': [
+        {
+            'interface': "UDPIPv4",
+            'ip': "0.0.0.0",
+            'port': 8090
+        }
+    ],
     'keys': [
         {
             'alias': "anonymous id",
@@ -193,16 +197,12 @@ class ConfigBuilder(object):
         Essentially this only checks the `config` variable for errors, use that instead if you're confident you never
         make any errors.
         """
-        assert self.config.get('address') is not None, "Missing address in config!"
-        assert self.config.get('port') is not None, "Missing port in config!"
         assert self.config.get('keys') is not None, "Missing keys in config!"
         assert self.config.get('logger') is not None, "Missing logger in config!"
         assert self.config.get('walker_interval') is not None, "Missing walker_interval in config!"
         assert self.config.get('overlays') is not None, "Missing overlays in config!"
         assert self.config.get('working_directory') is not None, "Missing working_directory in config!"
 
-        socket.inet_aton(self.config.get('address'))  # Errors out if the address is illegal
-        assert 0 <= self.config['port'] <= 65535
         assert self.config['walker_interval'] >= 0
 
         for overlay in self.config['overlays']:
@@ -227,10 +227,6 @@ class ConfigBuilder(object):
                     f"Missing peers in {walker['strategy']} config of {overlay['class']}!"
                 assert walker.get('init') is not None,\
                     f"Missing init in {walker['strategy']} config of {overlay['class']}!"
-                assert walker['strategy'] in Strategy.values()
-                if (walker['strategy'] == Strategy.RandomChurn.value
-                        or walker['strategy'] == Strategy.PeriodicSimilarity.value):
-                    assert overlay['class'] == 'DiscoveryCommunity'
             for bootstrapper in overlay['bootstrappers']:
                 assert bootstrapper.get('class') is not None,\
                     f"Missing bootstrapper class in bootstrapper config of {overlay['class']}!"
@@ -254,23 +250,46 @@ class ConfigBuilder(object):
         self.config['overlays'] = []
         return self
 
-    def set_address(self, address: str) -> ConfigBuilder:
+    def set_address(self, address: str, interface: str = "UDPIPv4") -> ConfigBuilder:
         """
         Set the address IPv8 is to try and bind to.
 
-        For localhost only use: 127.0.0.1
-        For Internet communication use: 0.0.0.0
+        | For IPv4 localhost only use ``127.0.0.1``
+        | For IPv4 Internet communication use ``0.0.0.0``
+        | For IPv6 localhost only use ``::1``
+        | For IPv6 Internet communication use ``::``
+
+        :param address: the address to attempt to bind to.
+        :param interface: the interface to use (currently "UDPIPv4" or "UDPIPv6").
         """
-        assert address.count('.') == 3
-        self.config['address'] = address
+        existing = ([spec for spec in self.config['interfaces'] if spec['interface'] == interface]
+                    if 'interfaces' in self.config else [])
+        destination = existing[0] if existing else {'interface': interface}
+        destination['ip'] = address
+        if not existing:
+            if 'interfaces' in self.config:
+                self.config['interfaces'].append(destination)
+            else:
+                self.config['interfaces'] = [destination]
         return self
 
-    def set_port(self, port: int) -> ConfigBuilder:
+    def set_port(self, port: int, interface: str = "UDPIPv4") -> ConfigBuilder:
         """
         Set the port that IPv8 should TRY to bind to.
         If your port is not available, IPv8 will try and find another one.
+
+        :param port: the port to attempt to bind to.
+        :param interface: the interface to use (currently "UDPIPv4" or "UDPIPv6").
         """
-        self.config['port'] = port
+        existing = ([spec for spec in self.config['interfaces'] if spec['interface'] == interface]
+                    if 'interfaces' in self.config else [])
+        destination = existing[0] if existing else {'interface': interface}
+        destination['port'] = port
+        if not existing:
+            if 'interfaces' in self.config:
+                self.config['interfaces'].append(destination)
+            else:
+                self.config['interfaces'] = [destination]
         return self
 
     def set_log_level(self, log_level: str) -> ConfigBuilder:

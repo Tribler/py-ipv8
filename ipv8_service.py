@@ -67,18 +67,31 @@ else:
         'UDPBroadcastBootstrapper': UDPBroadcastBootstrapper
     }
 
-    class IPv8(object):
+    class IPv8:
 
         def __init__(self, configuration, endpoint_override=None, enable_statistics=False, extra_communities=None):
             super(IPv8, self).__init__()
             self.configuration = configuration
 
+            # Setup logging
+            logging.basicConfig(**configuration['logger'])
+
             if endpoint_override:
                 self.endpoint = endpoint_override
             else:
-                self.endpoint = DispatcherEndpoint(["UDPIPv4"],
-                                                   UDPIPv4={'port': configuration['port'],
-                                                            'ip': configuration['address']})
+                if 'address' in configuration or 'port' in configuration:
+                    logging.warning("Using deprecated 'address' and 'port' configuration! "
+                                    "Auto-porting your config to \"UDPIPv4\" interface configuration. "
+                                    "Switch your code to IPv8 configuration using 'interfaces' instead.")
+                    if 'interfaces' not in configuration:
+                        configuration['interfaces'] = []
+                    configuration['interfaces'].append({'interface': "UDPIPv4",
+                                                        'ip': configuration['address'],
+                                                        'port': configuration['port']})
+                endpoint_specs = (spec.copy() for spec in configuration['interfaces'])
+                endpoint_args = {spec.pop('interface'): spec for spec in endpoint_specs}
+                self.endpoint = DispatcherEndpoint(list(endpoint_args.keys()), **endpoint_args)
+
             if enable_statistics:
                 self.endpoint = StatisticsEndpoint(self.endpoint)
             if any([overlay.get('initialize', {}).get('anonymize') for overlay in configuration['overlays']]):
@@ -99,9 +112,6 @@ else:
                     if key_block['file']:
                         with open(key_block['file'], 'wb') as f:
                             f.write(self.keys[key_block['alias']].key.key_to_bin())
-
-            # Setup logging
-            logging.basicConfig(**configuration['logger'])
 
             self.overlay_lock = RLock()
             self.strategies = []
@@ -185,7 +195,11 @@ else:
             return (o for o in self.overlays if isinstance(o, overlay_cls))
 
         async def produce_anonymized_endpoint(self):
-            base_endpoint = UDPEndpoint(port=0, ip=self.configuration['address'])
+            address = self.configuration.get('address', "0.0.0.0")
+            for spec in self.configuration.get('interfaces', []):
+                if spec['interface'] == "UDPIPv4":
+                    address = spec['ip']
+            base_endpoint = UDPEndpoint(port=0, ip=address)
             await base_endpoint.open()
             return TunnelEndpoint(base_endpoint)
 
