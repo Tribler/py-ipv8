@@ -86,8 +86,8 @@ else:
                     if 'interfaces' not in configuration:
                         configuration['interfaces'] = []
                     configuration['interfaces'].append({'interface': "UDPIPv4",
-                                                        'ip': configuration['address'],
-                                                        'port': configuration['port']})
+                                                        'ip': configuration.get('address', "0.0.0.0"),
+                                                        'port': configuration.get('port', 8090)})
                 endpoint_specs = (spec.copy() for spec in configuration['interfaces'])
                 endpoint_args = {spec.pop('interface'): spec for spec in endpoint_specs}
                 self.endpoint = DispatcherEndpoint(list(endpoint_args.keys()), **endpoint_args)
