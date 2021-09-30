@@ -7,7 +7,11 @@ By invoking ``get_default_configuration()``, you can get a dictionary copy of th
 
 .. |snip1| raw:: html
 
-  "0.0.0.0"
+  <small>[{<br />
+  &emsp;<nobr>'interface':<nobr>"UDPIPv4",<br />
+  &emsp;<nobr>'ip':<nobr>"0.0.0.0",<br />
+  &emsp;<nobr>'port':<nobr>8090<br />
+  }]</small>
 
 
 .. |nl| raw:: html
@@ -35,8 +39,7 @@ By invoking ``get_default_configuration()``, you can get a dictionary copy of th
    :header: "key", "default", "description"
    :widths: 20, 40, 80
 
-   "address", |snip1|, "The IPv4-address to bind to."
-   "port", 8090, "The (UDP) port to try and open. If blocked, IPv8 will attempt the next free port (up to 10,000 ports over the specified port)."
+   "interfaces", |snip1|, "The interfaces to bind to (``UDPIPv4`` or ``UDPIPv6``) using an IP address and port. If the specified port is blocked, IPv8 will attempt the next free port (up to 10,000 ports over the specified port)."
    "keys", |snip2|, "Specify a list of keys, by alias, for IPv8 to use. The curve should be picked from those available in the ECCrypto class. IPv8 will generate a new key if the key file does not exist."
    "logger", |snip3|, "The logger intialization arguments, also see the default Python logger facilities."
    "walker_interval", 0.5, "The time interval between IPv8 updates. Each update will trigger all registered strategies to update, mostly this concerns peer discovery."

@@ -26,37 +26,13 @@ class TestConfiguration(TestBase):
 
         self.assertEqual(0, len(builder.finalize()['overlays']))
 
-    def test_add_illegal_port_negative(self):
-        """
-        Check if negative ports raise an error on finalization.
-        """
-        builder = ConfigBuilder().set_port(-1)
-
-        self.assertRaises(AssertionError, builder.finalize)
-
-    def test_add_illegal_port_big(self):
-        """
-        Check if ports over 65535 raise an error on finalization.
-        """
-        builder = ConfigBuilder().set_port(100000)
-
-        self.assertRaises(AssertionError, builder.finalize)
-
     def test_change_port(self):
         """
         Check if changes to the port are finalized.
         """
         builder = ConfigBuilder().set_port(1000)
 
-        self.assertEqual(1000, builder.finalize()['port'])
-
-    def test_add_illegal_address(self):
-        """
-        Check if wrong IP addresses raise an error immediately.
-        """
-        builder = ConfigBuilder()
-
-        self.assertRaises(AssertionError, builder.set_address, "1.1.1")
+        self.assertEqual(1000, builder.finalize()['interfaces'][0]['port'])
 
     def test_change_address(self):
         """
@@ -64,7 +40,7 @@ class TestConfiguration(TestBase):
         """
         builder = ConfigBuilder().set_address("1.1.1.1")
 
-        self.assertEqual("1.1.1.1", builder.finalize()['address'])
+        self.assertEqual("1.1.1.1", builder.finalize()['interfaces'][0]['ip'])
 
     def test_set_illegal_log_level(self):
         """
@@ -230,32 +206,6 @@ class TestConfiguration(TestBase):
         }
 
         self.assertDictInDict(expected, builder.finalize()['overlays'])
-
-    def test_illegal_random_churn_strategy(self):
-        """
-        Only the DiscoveryCommunity may use the RandomChurn strategy.
-        """
-        builder = ConfigBuilder().add_overlay("MyCommunity",
-                                              "anonymous id",
-                                              [WalkerDefinition(Strategy.RandomChurn, 20, {})],
-                                              [],
-                                              {},
-                                              [])
-
-        self.assertRaises(AssertionError, builder.finalize)
-
-    def test_illegal_periodic_similarity_strategy(self):
-        """
-        Only the DiscoveryCommunity may use the PeriodicSimilarity strategy.
-        """
-        builder = ConfigBuilder().add_overlay("MyCommunity",
-                                              "anonymous id",
-                                              [WalkerDefinition(Strategy.PeriodicSimilarity, 20, {})],
-                                              [],
-                                              {},
-                                              [])
-
-        self.assertRaises(AssertionError, builder.finalize)
 
     def test_correct_random_churn_strategy(self):
         """
