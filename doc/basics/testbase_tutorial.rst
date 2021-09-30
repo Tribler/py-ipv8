@@ -1,7 +1,7 @@
 Unit Testing Overlays
 =====================
 
-This document assumes you have a basic understanding of network overlays in IPv8, as documented in `the overlay tutorial <../../basics/overlay_tutorial>`_.
+This document assumes you have a basic understanding of network overlays in IPv8, as documented in `the overlay tutorial <../basics/overlay_tutorial.html>`_.
 You will learn how to use the IPv8's ``TestBase`` class to unit test your overlays.
 
 Files

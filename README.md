@@ -49,6 +49,6 @@ python3 create_test_coverage_report.py
 ```
 
 ### Getting started
-You can start creating your first network overlay by following [the overlay creation tutorial](https://py-ipv8.readthedocs.io/en/latest/basics/overlay_tutorial/).
+You can start creating your first network overlay by following [the overlay creation tutorial](https://py-ipv8.readthedocs.io/en/latest/basics/overlay_tutorial.html).
 
-We provide additional documentation on [configuration](https://py-ipv8.readthedocs.io/en/latest/reference/configuration/), [key generation](https://py-ipv8.readthedocs.io/en/latest/reference/keys/) and [message serialization formats](https://py-ipv8.readthedocs.io/en/latest/reference/serialization/) on [our ReadTheDocs page](https://py-ipv8.readthedocs.io/en/latest/).
+We provide additional documentation on [configuration](https://py-ipv8.readthedocs.io/en/latest/reference/configuration.html), [key generation](https://py-ipv8.readthedocs.io/en/latest/reference/keys.html) and [message serialization formats](https://py-ipv8.readthedocs.io/en/latest/reference/serialization.html) on [our ReadTheDocs page](https://py-ipv8.readthedocs.io/en/latest/).

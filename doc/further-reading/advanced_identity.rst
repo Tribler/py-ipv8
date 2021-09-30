@@ -2,7 +2,7 @@
 Advanced attestation service usage
 ==================================
 
-This document assumes you have a basic understanding of identification flows in IPv8, as documented in `the overlay tutorial <../../basics/identity_tutorial>`_.
+This document assumes you have a basic understanding of identification flows in IPv8, as documented in `the overlay tutorial <../basics/identity_tutorial.html>`_.
 This document addresses the following three topics:
 
 - Enabling anonymization.

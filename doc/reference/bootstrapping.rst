@@ -1,7 +1,7 @@
 IPv8 bootstrapping
 ==================
 
-Peers discover each other through other Peers, as specified in the `the Peer discovery basics <../../reference/peer_discovery>`_.
+Peers discover each other through other Peers, as specified in the `the Peer discovery basics <../reference/peer_discovery.html>`_.
 We call this type of Peer discovery *introduction*.
 However, you cannot be introduced to a new Peer if you don't know anyone to introduce you in the first place.
 This document discusses how IPv8 provides you your first contact.
@@ -24,7 +24,7 @@ Using bootstrap servers
 
 To have IPv8 load a bootstrapper for your overlay, you can simply add it to your ``ConfigBuilder.add_overlay()`` step.
 This is the easiest way to load a bootstrapper.
-For most intents and purposes you can simply use ``default_bootstrap_defs`` provided by ``ipv8.configuration`` (see `the overlay tutorial <../../basics/overlay_tutorial>`_).
+For most intents and purposes you can simply use ``default_bootstrap_defs`` provided by ``ipv8.configuration`` (see `the overlay tutorial <../basics/overlay_tutorial.html>`_).
 However, you can also completely change the bootstrap servers you use.
 For example, this code sets two bootstrap addresses (the IP address 1.2.3.4 with port 5 and the DNS address tribler.org with port 5):
 

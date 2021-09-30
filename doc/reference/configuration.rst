@@ -62,7 +62,7 @@ Each of the overlay specifications is a dictionary following the following stand
 By default, the ``RandomWalk`` and ``EdgeWalk`` strategies are known to IPv8.
 Respectively these will take care of performing random walks and random walks with reset probability for peer discovery.
 Each overlay may also specify further custom strategies.
-Check out the `the bootstrapping documentation <../../reference/bootstrapping>`_ for more information on configuring bootstrappers per overlay.
+Check out the `the bootstrapping documentation <../reference/bootstrapping.html>`_ for more information on configuring bootstrappers per overlay.
 
 By default, IPv8 loads the following overlays:
 
