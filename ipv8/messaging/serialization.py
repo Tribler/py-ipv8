@@ -140,7 +140,7 @@ class Raw(object):
         return len(data)
 
 
-class VarLen(object):
+class VarLen:
     """
     Pack/unpack from an encoded length + data string.
     """
@@ -157,6 +157,20 @@ class VarLen(object):
         str_length = unpack_from(self.length_format, data, offset)[0] * self.base
         unpack_list.append(data[offset + self.length_size: offset + self.length_size + str_length])
         return offset + self.length_size + str_length
+
+
+class VarLenUtf8(VarLen):
+    """
+    Pack/unpack from an unencoded utf8 length + data string.
+    """
+    def pack(self, data):
+        return super().pack(data.encode())
+
+    def unpack(self, data, offset, unpack_list):
+        encoded_data = []
+        out = super().unpack(data, offset, encoded_data)
+        unpack_list.append(encoded_data[0].decode())
+        return out
 
 
 class IPv4:
@@ -279,6 +293,7 @@ class Serializer(object):
             'raw': Raw(),
             'varlenBx2': VarLen('>B', 2),
             'varlenH': VarLen('>H'),
+            'varlenHutf8': VarLenUtf8('>H'),
             'varlenHx20': VarLen('>H', 20),
             'varlenH-list': ListOf(VarLen('>H')),
             'varlenI': VarLen('>I'),

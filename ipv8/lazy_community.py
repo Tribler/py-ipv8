@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from functools import wraps
-from typing import Iterable, List, Tuple, Type, Union
+from typing import Any, Iterable, List, Tuple, Type, Union
 
 from .keyvault.crypto import default_eccrypto
 from .messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
@@ -57,7 +57,7 @@ def retrieve_cache(cache_class: Type[NumberCache]):
     return decorator
 
 
-def lazy_wrapper(*payloads: Type[Payload]):
+def lazy_wrapper(*payloads: Union[Type[Payload], Type[Any]]):
     """
     This function wrapper will unpack the BinMemberAuthenticationPayload for you.
 
@@ -90,7 +90,7 @@ def lazy_wrapper(*payloads: Type[Payload]):
     return decorator
 
 
-def lazy_wrapper_wd(*payloads: Type[Payload]):
+def lazy_wrapper_wd(*payloads: Union[Type[Payload], Type[Any]]):
     """
     This function wrapper will unpack the BinMemberAuthenticationPayload for you, as well as pass the raw data to the
     decorated function
@@ -126,7 +126,7 @@ def lazy_wrapper_wd(*payloads: Type[Payload]):
     return decorator
 
 
-def lazy_wrapper_unsigned(*payloads: Type[Payload]):
+def lazy_wrapper_unsigned(*payloads: Union[Type[Payload], Type[Any]]):
     """
     This function wrapper will unpack just the normal payloads for you.
 
@@ -150,7 +150,7 @@ def lazy_wrapper_unsigned(*payloads: Type[Payload]):
     return decorator
 
 
-def lazy_wrapper_unsigned_wd(*payloads: Type[Payload]):
+def lazy_wrapper_unsigned_wd(*payloads: Union[Type[Payload], Type[Any]]):
     """
     This function wrapper will unpack just the normal payloads for you, as well as pass the raw data to the decorated
     function
@@ -245,7 +245,7 @@ class EZPackOverlay(Overlay, ABC):
         return ec.is_valid_signature(public_key, data[:-signature_length], signature), remainder
 
     def _ez_unpack_auth(self,
-                        payload_class: Type[Payload],
+                        payload_class: Union[Type[Payload], Type[Any]],
                         data: bytes) -> Tuple[BinMemberAuthenticationPayload, GlobalTimeDistributionPayload, Payload]:
         # UNPACK
         auth, _ = self.serializer.unpack_serializable(BinMemberAuthenticationPayload, data, offset=23)
@@ -259,7 +259,7 @@ class EZPackOverlay(Overlay, ABC):
         return auth, unpacked[0], unpacked[1]
 
     def _ez_unpack_noauth(self,
-                          payload_class: Type[Payload],
+                          payload_class: Union[Type[Payload], Type[Any]],
                           data: bytes,
                           global_time: bool = True) -> Union[List[Payload], Payload]:
         # UNPACK

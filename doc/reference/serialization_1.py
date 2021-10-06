@@ -1,8 +1,11 @@
-import timeit
+from dataclasses import dataclass
 
 from pyipv8.ipv8.messaging.lazy_payload import VariablePayload, vp_compile
 from pyipv8.ipv8.messaging.payload import Payload
+from pyipv8.ipv8.messaging.payload_dataclass import overwrite_dataclass, type_from_format
 from pyipv8.ipv8.messaging.serialization import Serializable
+
+dataclass = overwrite_dataclass(dataclass)
 
 
 class MySerializable(Serializable):
@@ -48,31 +51,25 @@ class MyCVariablePayload(VariablePayload):
     names = ['field1', 'field2']
 
 
+I = type_from_format('I')
+H = type_from_format('H')
+
+
+@dataclass
+class MyDataclassPayload:
+    field1: I
+    field2: H
+
+
 serializable1 = MySerializable(1, 2)
 serializable2 = MyPayload(1, 2)
 serializable3 = MyVariablePayload(1, 2)
 serializable4 = MyCVariablePayload(1, 2)
+serializable5 = MyDataclassPayload(1, 2)
 
 print("As string:")
 print(serializable1)
 print(serializable2)
 print(serializable3)
 print(serializable4)
-
-print("Field values:")
-print(serializable1.field1, serializable1.field2)
-print(serializable2.field1, serializable2.field2)
-print(serializable3.field1, getattr(serializable3, 'field2', '<undefined>'))
-print(serializable4.field1, getattr(serializable4, 'field2', '<undefined>'))
-
-print("Serialization speed:")
-print(timeit.timeit('serializable1.to_pack_list()', number=1000, globals=locals()))
-print(timeit.timeit('serializable2.to_pack_list()', number=1000, globals=locals()))
-print(timeit.timeit('serializable3.to_pack_list()', number=1000, globals=locals()))
-print(timeit.timeit('serializable4.to_pack_list()', number=1000, globals=locals()))
-
-print("Unserialization speed:")
-print(timeit.timeit('serializable1.from_unpack_list(1, 2)', number=1000, globals=locals()))
-print(timeit.timeit('serializable2.from_unpack_list(1, 2)', number=1000, globals=locals()))
-print(timeit.timeit('serializable3.from_unpack_list(1, 2)', number=1000, globals=locals()))
-print(timeit.timeit('serializable4.from_unpack_list(1, 2)', number=1000, globals=locals()))
+print(serializable5)
