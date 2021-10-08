@@ -17,11 +17,12 @@ You can use the ``Serializer`` with classes of the following types:
    "Serializable", "ipv8/messaging/serialization.py", "Base class for all things serializable. Should support the instance method to_pack_list() and the class method from_unpack_list()."
    "Payload", "ipv8/messaging/payload.py", "Extension of the Serializable class with logic for pretty printing."
    "VariablePayload", "ipv8/messaging/lazy_payload.py", "Less verbose way to specify Payloads, at the cost of performance."
+   "dataclass", "ipv8/messaging/payload_dataclass.py", "Use dataclasses to send messages, at the cost of control and performance."
 
 
-Each of these serializable classes specifies a list of primitive data types it will serialize to and from.
+Other than the ``dataclass``, each of these serializable classes specifies a list of primitive data types it will serialize to and from.
 The primitive data types are specified in the :ref:`data types<Datatypes Section>` Section.
-Each serializable class has to specify the following class members:
+Each serializable class has to specify the following class members (``dataclass`` does this automatically):
 
 .. csv-table:: Serializable class members
    :header: "member", "description"
@@ -31,27 +32,26 @@ Each serializable class has to specify the following class members:
    "names", "Only for VariablePayload classes, the instance fields to bind the data types to."
 
 
-As an example, we will now define three completely wire-format compatible messages using the three classes.
+As an example, we will now define four completely wire-format compatible messages using the four classes.
 Each of the messages will serialize to a (four byte) unsigned integer followed by an (two byte) unsigned short.
+If the ``dataclass`` had used normal ``int`` types, these would have been two signed 8-byte integers instead.
 Each instance will have two fields: ``field1`` and ``field2`` corresponding to the integer and short.
 
-.. code-block:: python
-
 .. literalinclude:: serialization_1.py
-   :lines: 8-48
+   :lines: 11-61
 
 
 To show some of the differences, let's check out the output of the following script using these definitions:
 
 
 .. literalinclude:: serialization_1.py
-   :lines: 51-78
+   :lines: 64-75
 
 
 .. code-block:: bash
 
     As string:
-    <__main__.MySerializable object at 0x00000127F1B91F70>
+    <__main__.MySerializable object at 0x7f732a23c1f0>
     MyPayload
     | field1: 1
     | field2: 2
@@ -61,21 +61,10 @@ To show some of the differences, let's check out the output of the following scr
     MyCVariablePayload
     | field1: 1
     | field2: 2
-    Field values:
-    1 2
-    1 2
-    1 2
-    1 2
-    Serialization speed:
-    0.00020690000000000985
-    0.00020630000000000648
-    0.0015785999999999994
-    0.0002122999999999986
-    Unserialization speed:
-    0.0003621000000000041
-    0.00036540000000000183
-    0.0036703999999999903
-    0.00045059999999999545
+    MyDataclassPayload
+    | field1: 1
+    | field2: 2
+
 
 .. _Datatypes Section:
 
@@ -119,6 +108,7 @@ A ``Serializer`` can be extended with additional data types by calling ``seriali
    "raw", "?", "str (length ?)"
    "varlenBx2", "1 + ? * 2", "[str (length = 2), \.\.\. ] (length < 256)"
    "varlenH", "2 + ?", "str (length ? < 65356)"
+   "varlenHutf8", "2 + ?", "str (encoded length ? < 65356)"
    "varlenHx20", "2 + ? * 20", "[str (length = 20), \.\.\. ] (length < 65356)"
    "varlenH-list", "1 + ? * (2 + ??)", "[str (length < 65356)] (length < 256)"
    "varlenI", "4 + ?", "str (length < 4294967295)"
@@ -172,5 +162,8 @@ It is recommended (but not obligatory) to have single payload messages store the
 .. literalinclude:: serialization_3.py
    :lines: 31,32,53,56
    :dedent: 4
+
+If you are using the ``@dataclass`` wrapper you can specify the message identifier through an argument instead.
+For example, ``@dataclass(msg_id=42)`` would set the message identifier to ``42``.
 
 Of course, IPv8 also ships with various ``Community`` subclasses of its own, if you need inspiration.
