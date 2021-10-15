@@ -1,6 +1,7 @@
 import typing
 
 Address = typing.Tuple[str, int]
+DataclassPayload = typing.TypeVar('DataclassPayload')
 
 # pylint: disable=unused-import
 
@@ -45,3 +46,6 @@ else:
     PseudonymManager = 'ipv8.attestation.identity.manager.PseudonymManager'
     PublicKey = 'ipv8.keyvault.keys.PublicKey'
     Token = 'ipv8.attestation.tokentree.token.Token'
+
+AnyPayload = typing.Union[Payload, DataclassPayload]
+AnyPayloadType = typing.Union[typing.Type[Payload], typing.Type[DataclassPayload]]
