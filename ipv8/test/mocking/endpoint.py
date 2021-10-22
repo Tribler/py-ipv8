@@ -37,7 +37,7 @@ class MockEndpoint(Endpoint):
             ep = internet[socket_address]
             get_event_loop().call_soon(ep.notify_listeners, (self.wan_address, packet))
         else:
-            raise AssertionError("Received data from unregistered address %s" % repr(socket_address))
+            raise AssertionError("Attempted to send data to unregistered address %s" % repr(socket_address))
 
     def open(self):
         self._open = True
