@@ -7,7 +7,22 @@ from ...messaging.interfaces.udp.endpoint import UDPv4Address, UDPv6Address
 internet = {}
 
 
+async def crash_event_loop(forwarded_exception: Exception):
+    """
+    Raise an exception on the event loop.
+
+    :param forwarded_exception: the exception instance to raise.
+    """
+    raise forwarded_exception
+
+
 class MockEndpoint(Endpoint):
+
+    SEND_INET_EXCEPTION_TO_LOOP = True
+    """
+    Raise an uncaught AssertionError on the ``asyncio`` event loop if attempting to send to an unknown address.
+    Useful for use in defensively-programmed code: bypasses most exception handling.
+    """
 
     def __init__(self, lan_address, wan_address):
         super(MockEndpoint, self).__init__()
@@ -37,7 +52,10 @@ class MockEndpoint(Endpoint):
             ep = internet[socket_address]
             get_event_loop().call_soon(ep.notify_listeners, (self.wan_address, packet))
         else:
-            raise AssertionError("Received data from unregistered address %s" % repr(socket_address))
+            e = AssertionError("Attempted to send data to unregistered address %s" % repr(socket_address))
+            if self.SEND_INET_EXCEPTION_TO_LOOP:
+                get_event_loop().create_task(crash_event_loop(e))
+            raise e
 
     def open(self):
         self._open = True
