@@ -2,6 +2,7 @@ import time
 from asyncio import Future, sleep
 from unittest.mock import Mock
 
+from .mock import global_dht_services
 from .test_community import MockDHTProvider
 from ...base import TestBase
 from ...mocking.exit_socket import MockTunnelExitSocket
@@ -19,6 +20,8 @@ class TestHiddenServices(TestBase):
 
     def setUp(self):
         super(TestHiddenServices, self).setUp()
+        global_dht_services.clear()
+
         self.initialize(HiddenTunnelCommunity, 3)
 
         self.private_nodes = []
