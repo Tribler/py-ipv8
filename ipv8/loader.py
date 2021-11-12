@@ -333,7 +333,7 @@ class CommunityLauncher:
     """
 
     def __init__(self):
-        super()
+        super().__init__()
         self.community_args = []
         self.community_kwargs = {}
 

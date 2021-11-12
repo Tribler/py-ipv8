@@ -78,14 +78,14 @@ class StagedCommunityLauncher(CommunityLauncher):
 
     def finalize(self, ipv8, session: MockSession, community: MockCommunity):
         session.community = community
-        return super()
+        super().finalize(ipv8, session, community)
 
 
 class TestCommunityLauncher(TestBase):
 
     def setUp(self):
         self.staged_launcher = StagedCommunityLauncher()
-        return super()
+        super().setUp()
 
     def test_not_before_list(self):
         """
