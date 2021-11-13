@@ -59,14 +59,13 @@ class TestRequestCache(TestBase):
         """
         Test if RequestCache does not allow new Caches after shutdown().
         """
-        num_tasks = len(all_tasks())
-        request_cache = RequestCache()  # This adds a task, don't use ``self.request_cache`` here!
-        request_cache.add(MockCache(request_cache))
-        self.assertEqual(len(all_tasks()), num_tasks + 2)
-        await request_cache.shutdown()
-        self.assertEqual(len(all_tasks()), num_tasks)
-        request_cache.add(MockCache(request_cache))
-        self.assertEqual(len(all_tasks()), num_tasks)
+        num_tasks = len(all_tasks())  # [Background tasks (depends on test runner) + RequestCache]
+        self.request_cache.add(MockCache(self.request_cache))
+        self.assertEqual(len(all_tasks()), num_tasks + 1)  # [Background + RequestCache + Cache]
+        await self.request_cache.shutdown()
+        self.assertEqual(len(all_tasks()), num_tasks - 1)  # [Background]
+        self.request_cache.add(MockCache(self.request_cache))  # No tasks should have been added
+        self.assertEqual(len(all_tasks()), num_tasks - 1)  # [Background]
 
     async def test_timeout(self):
         """
@@ -75,6 +74,7 @@ class TestRequestCache(TestBase):
         cache = MockCache(self.request_cache)
         self.request_cache.add(cache)
         await cache.timed_out
+        await self.request_cache.shutdown()
 
     async def test_add_duplicate(self):
         """
@@ -151,6 +151,8 @@ class TestRequestCache(TestBase):
 
         self.assertTrue(cache.timed_out)
 
+        await self.request_cache.shutdown()
+
     async def test_passthrough_timeout(self):
         """
         Test if passthrough respects the timeout value.
@@ -162,6 +164,8 @@ class TestRequestCache(TestBase):
             await sleep(0.0)
 
         self.assertFalse(cache.timed_out)
+
+        await self.request_cache.shutdown()
 
     async def test_passthrough_filter_one_match(self):
         """
@@ -175,6 +179,8 @@ class TestRequestCache(TestBase):
 
         self.assertTrue(cache.timed_out)
 
+        await self.request_cache.shutdown()
+
     async def test_passthrough_filter_one_mismatch(self):
         """
         Test if passthrough filters correctly with one filter, that doesn't match
@@ -186,6 +192,8 @@ class TestRequestCache(TestBase):
             await sleep(0.0)
 
         self.assertFalse(cache.timed_out)
+
+        await self.request_cache.shutdown()
 
     async def test_passthrough_filter_many_match(self):
         """
@@ -199,6 +207,8 @@ class TestRequestCache(TestBase):
 
         self.assertTrue(cache.timed_out)
 
+        await self.request_cache.shutdown()
+
     async def test_passthrough_filter_some_match(self):
         """
         Test if passthrough filters correctly with many filters, for which some match
@@ -211,6 +221,8 @@ class TestRequestCache(TestBase):
 
         self.assertTrue(cache.timed_out)
 
+        await self.request_cache.shutdown()
+
     async def test_passthrough_filter_no_match(self):
         """
         Test if passthrough filters correctly with many filters, for which none match
@@ -222,3 +234,5 @@ class TestRequestCache(TestBase):
             await sleep(0.0)
 
         self.assertFalse(cache.timed_out)
+
+        await self.request_cache.shutdown()
