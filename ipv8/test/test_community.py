@@ -1,7 +1,9 @@
 from .base import TestBase
-from .mocking.endpoint import MockEndpointListener
+from .mocking.endpoint import AutoMockEndpoint, MockEndpointListener
 from .mocking.ipv8 import MockIPv8
 from ..community import Community
+from ..peer import Peer
+from ..peerdiscovery.network import Network
 
 
 class OldCommunity(Community):
@@ -66,3 +68,32 @@ class TestCommunityCompatibility(TestBase):
         self.assertNotIn(232, received_messages_old_peer)
         self.assertNotIn(233, received_messages_old_peer)
         self.assertNotIn(234, received_messages_old_peer)
+
+
+class NoIDCommunity(Community):
+    pass
+
+
+class StrangeIDCommunity(Community):
+    community_id = '\x00' * 20  # This is not ``bytes`` but ``str``: error!
+
+
+class TestCommunityInit(TestBase):
+    """
+    Tests for initializing new Communities.
+
+    - A test for a Community with a valid id is omitted as this is already covered by other tests.
+    """
+
+    async def test_init_no_id(self):
+        """
+        Check that attempting to create a Community without an id raises an error.
+        """
+        self.assertRaises(RuntimeError, NoIDCommunity, Peer(b'LibNaCLPK:' + b'0' * 32), AutoMockEndpoint(), Network())
+
+    async def test_init_strange_id(self):
+        """
+        Check that attempting to create a Community with an id that is not ```bytes`` raises an error.
+        """
+        self.assertRaises(RuntimeError, StrangeIDCommunity, Peer(b'LibNaCLPK:' + b'0' * 32), AutoMockEndpoint(),
+                          Network())
