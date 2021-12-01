@@ -116,7 +116,7 @@ class TunnelEndpoint(BaseEndpoint):
             200: {"schema": SpeedTestResponseSchema}
         }
     )
-    @json_schema(schema(SpeedTestRequest={
+    @json_schema(schema(SpeedTestExistingCircuitRequest={
         'request_size*': (Integer, 'Size of the requests to send (0..1500)'),
         'response_size*': (Integer, 'Size of the responses to send (0..1500)'),
         'num_packets*': (Integer, 'Number of packets to send'),
@@ -150,7 +150,7 @@ class TunnelEndpoint(BaseEndpoint):
             200: {"schema": SpeedTestResponseSchema}
         }
     )
-    @json_schema(schema(SpeedTestRequest={
+    @json_schema(schema(SpeedTestNewCircuitRequest={
         'goals_hops': (Integer, 'Number of hops that the newly created circuit should have'),
         'request_size*': (Integer, 'Size of the requests to send (0..1500)'),
         'response_size*': (Integer, 'Size of the responses to send (0..1500)'),
