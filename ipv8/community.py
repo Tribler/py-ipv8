@@ -14,6 +14,7 @@ from functools import partial
 from random import choice, random
 from time import time
 from traceback import format_exception
+from typing import Optional
 
 from .lazy_community import EZPackOverlay, lazy_wrapper, lazy_wrapper_unsigned
 from .messaging.anonymization.endpoint import TunnelEndpoint
@@ -35,10 +36,16 @@ DEFAULT_MAX_PEERS = 30
 class Community(EZPackOverlay):
 
     version = b'\x02'
-    community_id = b''
+    community_id: Optional[bytes] = None
 
     def __init__(self, my_peer, endpoint, network, max_peers=DEFAULT_MAX_PEERS, anonymize=False):
         super().__init__(self.community_id, my_peer, endpoint, network)
+
+        if self.community_id is None:
+            raise RuntimeError(f"Attempted to launch {self.__class__.__name__} without a community_id!")
+        if not isinstance(self.community_id, bytes):
+            raise RuntimeError(f"Attempted to launch {self.__class__.__name__} with a community_id that is not bytes!"
+                               f"\n{repr(self.community_id)}")
 
         self._prefix = b'\x00' + self.version + self.community_id
         self.endpoint.remove_listener(self)
