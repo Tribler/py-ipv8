@@ -236,3 +236,20 @@ Note that we need to do our own signature checks now.
 
 .. literalinclude:: serialization_6.py
    :lines: 11-37
+
+
+Nested Payloads
+---------------
+
+It is possible to put a ``Payload`` inside another ``Payload``.
+We call these nested payloads.
+You can specify them by using the ``"payload"`` datatype and setting the ``Payload`` class in the format list.
+For a ``VariablePayload`` this looks like the following example.
+
+.. literalinclude:: serialization_7.py
+   :lines: 9-16
+
+For dataclass payloads this nesting is supported by simply specifying nested classes as follows.
+
+.. literalinclude:: serialization_7.py
+   :lines: 19-28
