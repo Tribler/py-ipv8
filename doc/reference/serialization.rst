@@ -167,3 +167,89 @@ If you are using the ``@dataclass`` wrapper you can specify the message identifi
 For example, ``@dataclass(msg_id=42)`` would set the message identifier to ``42``.
 
 Of course, IPv8 also ships with various ``Community`` subclasses of its own, if you need inspiration.
+
+
+Using external serialization options
+------------------------------------
+
+IPv8 is compatible with pretty much all third-party message serialization packages.
+However, before hooking one of these packages into IPv8 you may want to ask yourself whether you have fallen victim to marketing hype.
+After all, ``XML`` is the one unifying standard we will never switch away from, right?
+Oh wait, no, it's ``JSON``.
+My bad, it's ``Protobuf``.
+Or was it ``ASN.1``?
+You get the point.
+In this world, only the core ``IPv8`` serialization format remains constant.
+
+There are three main ways to hook in external serialization: *per message*, *per Serializer* and *per Community*.
+The three methods can be freely mixed.
+
+Custom serialization per message
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If you only want to use custom seralization for (part of) a single overlay message, you can use ``VariablePayload`` field modification (this also works for dataclass payloads).
+This method involves implementing the methods ``fix_pack_<your field name>`` and ``fix_unpack_<your field name>`` for the fields of your message that use custom serialization.
+Check out the following example:
+
+.. literalinclude:: serialization_4.py
+   :lines: 11-34
+
+In both classes we create a message with a single field ``dictionary``.
+To pack this field, we use ``json.dumps()`` to create a string representation of the dictionary.
+When loading a message, ``json.loads()`` is used to create a dictionary from the serialized data.
+Instead of ``json`` you could also use any serialization of your liking.
+
+Using the same transformations for all fields makes your payloads very lengthy.
+In this case, you may want to look into specifying a custom serialization format.
+
+Custom serialization formats
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+It is possible to specify new formats by adding packing formats to a ``Serializer`` instance.
+You can easily do so by overwriting your ``Community.get_serializer()`` method.
+This ``Serializer`` is sandboxed per ``Community`` instance, so you don't have to worry about breaking other instances.
+Check out the following example and note that the message is now much smaller at the expense of having to define a custom (complicated) packing format.
+
+.. literalinclude:: serialization_5.py
+   :lines: 13-44
+
+The line ``serializer.add_packer('json', PackerJSON())`` adds the new format ``json`` that is used in ``Message``.
+In fact, any further message added to this ``Community`` can now use the ``json`` format.
+However, you may also note some additional complexity in the ``PackerJSON`` class.
+
+Our custom packer ``PackerJSON`` implements two required methods: ``pack()`` and ``unpack()``.
+The former serializes data using custom serialization (``json.dumps()`` in this case).
+We use a big-endian unsigned short (``">H"``) to determine the length of the serialized JSON data.
+The ``unpack()`` method creates JSON objects from the serialized data, returning the new offset in the ``data`` stream and adding the object ot the ``unpack_list`` list.
+
+Custom Community data handling
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+It is possible to circumvent IPv8 message formats altogether.
+In its most extreme form, you can overwrite ``Community.on_packet(packet)`` to inspect all raw data sent to your ``Community`` instance.
+The ``packet`` is a tuple of ``(source_address, data)``.
+You can write raw data back to an address using ``self.endpoint.send(address, data)``.
+
+If you want to mix with other messages, you should use the message byte.
+The following example shows how to use JSON serialization without any IPv8 serialization.
+Note that we need to do our own signature checks now.
+
+.. literalinclude:: serialization_6.py
+   :lines: 11-37
+
+
+Nested Payloads
+---------------
+
+It is possible to put a ``Payload`` inside another ``Payload``.
+We call these nested payloads.
+You can specify them by using the ``"payload"`` datatype and setting the ``Payload`` class in the format list.
+For a ``VariablePayload`` this looks like the following example.
+
+.. literalinclude:: serialization_7.py
+   :lines: 9-16
+
+For dataclass payloads this nesting is supported by simply specifying nested classes as follows.
+
+.. literalinclude:: serialization_7.py
+   :lines: 19-28
