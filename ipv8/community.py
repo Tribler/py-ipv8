@@ -183,7 +183,7 @@ class Community(EZPackOverlay):
             task.add_done_callback(self.received_bootstrapped_addresses)
 
     def received_bootstrapped_addresses(self, addresses):
-        if addresses and addresses.result():
+        if addresses and not addresses.cancelled() and addresses.result():
             for address in list(addresses.result())[:self.max_peers]:
                 self.walk_to(address)
 
