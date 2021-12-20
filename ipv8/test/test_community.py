@@ -1,6 +1,7 @@
 from .base import TestBase
 from .mocking.endpoint import AutoMockEndpoint, MockEndpointListener
 from .mocking.ipv8 import MockIPv8
+from ..bootstrapping.dispersy.bootstrapper import DispersyBootstrapper
 from ..community import Community
 from ..peer import Peer
 from ..peerdiscovery.network import Network
@@ -97,3 +98,44 @@ class TestCommunityInit(TestBase):
         """
         self.assertRaises(RuntimeError, StrangeIDCommunity, Peer(b'LibNaCLPK:' + b'0' * 32), AutoMockEndpoint(),
                           Network())
+
+
+class TestCommunityBootstrapping(TestBase):
+    """
+    Tests for the Community to Bootstrapper interface.
+
+    Note: don't put tests for the Bootstrapper implementations here.
+    """
+
+    async def test_empty_bootstrap(self):
+        """
+        Check if unloading a Community after waiting for bootstrapping results exits cleanly.
+        """
+        community = NewCommunity(Peer(b'LibNaCLPK:' + b'0' * 32), AutoMockEndpoint(), Network())
+        community.bootstrappers = [DispersyBootstrapper([], [])]
+
+        # Initialize bootstrapper and get the bootstrapping task
+        community.bootstrap()
+        tasks = community.get_tasks()
+        # Unload the Community after the bootstrapping task has completed.
+        await tasks[0]
+        await community.unload()
+
+        self.assertEqual(1, len(tasks), msg="Precondition failed. Only the bootstrap task should be running!")
+        self.assertFalse(tasks[0].cancelled())
+
+    async def test_cancel_bootstrap(self):
+        """
+        Check if unloading a Community while waiting for bootstrapping results exits cleanly.
+        """
+        community = NewCommunity(Peer(b'LibNaCLPK:' + b'0' * 32), AutoMockEndpoint(), Network())
+        community.bootstrappers = [DispersyBootstrapper([], [])]
+
+        # Initialize bootstrapper and get the bootstrapping task
+        community.bootstrap()
+        tasks = community.get_tasks()
+        # Cancel the bootstrapping task before it can complete.
+        await community.unload()
+
+        self.assertEqual(1, len(tasks), msg="Precondition failed. Only the bootstrap task should be running!")
+        self.assertTrue(tasks[0].cancelled())
