@@ -1,18 +1,19 @@
 import os
 from asyncio import ensure_future, get_event_loop
+from dataclasses import dataclass
 
 from pyipv8.ipv8.community import Community
 from pyipv8.ipv8.configuration import ConfigBuilder, Strategy, WalkerDefinition, default_bootstrap_defs
 from pyipv8.ipv8.lazy_community import lazy_wrapper
-from pyipv8.ipv8.messaging.lazy_payload import VariablePayload, vp_compile
+from pyipv8.ipv8.messaging.payload_dataclass import overwrite_dataclass
 from pyipv8.ipv8_service import IPv8
 
+dataclass = overwrite_dataclass(dataclass)  # Enhance normal dataclasses for IPv8 (see the serialization documentation)
 
-@vp_compile
-class MyMessage(VariablePayload):
-    msg_id = 1  # The byte identifying this message, must be unique per community.
-    format_list = ['I']  # When reading data, we unpack an unsigned integer from it.
-    names = ["clock"]  # We will name this unsigned integer "clock"
+
+@dataclass(msg_id=1)  # The (byte) value 1 identifies this message and must be unique per community
+class MyMessage:
+    clock: int  # We add an integer (technically a "long long") field "clock" to this message
 
 
 class MyCommunity(Community):
@@ -20,8 +21,8 @@ class MyCommunity(Community):
 
     def __init__(self, my_peer, endpoint, network):
         super().__init__(my_peer, endpoint, network)
-        # Register the message handler for messages with the identifier "1".
-        self.add_message_handler(1, self.on_message)
+        # Register the message handler for messages (with the identifier "1").
+        self.add_message_handler(MyMessage, self.on_message)
         # The Lamport clock this peer maintains.
         # This is for the example of global clock synchronization.
         self.lamport_clock = 0
