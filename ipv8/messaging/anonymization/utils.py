@@ -2,7 +2,7 @@ from asyncio import FIRST_COMPLETED, wait
 from statistics import mean, median
 from timeit import default_timer
 
-from ipv8.messaging.anonymization.tunnel import CIRCUIT_STATE_CLOSING
+from .tunnel import CIRCUIT_STATE_CLOSING
 
 
 async def run_speed_test(tc, circuit, request_size, response_size, num_requests, window=50):
