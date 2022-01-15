@@ -211,7 +211,7 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
         if not (is_bt and PEER_FLAG_EXIT_BT in self.overlay.settings.peer_flags) \
            and not (is_ipv8 and PEER_FLAG_EXIT_IPV8 in self.overlay.settings.peer_flags) \
            and not (is_ipv8 and self.overlay._prefix == data[:22]):
-            self.logger.error("Dropping data packets, refusing to be an exit node (BT=%s, IPv8=%s)", is_bt, is_ipv8)
+            self.logger.warning("Dropping data packets, refusing to be an exit node (BT=%s, IPv8=%s)", is_bt, is_ipv8)
             return False
         return True
 
