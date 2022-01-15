@@ -56,14 +56,34 @@ class DataChecker(object):
 
     @staticmethod
     def could_be_utp(data):
+        """
+        Check if this data could be uTP (see also https://www.bittorrent.org/beps/bep_0029.html).
+
+        Packets should be 20 bytes or larger.
+
+        The type should be 0..4:
+         - 0: ST_DATA
+         - 1: ST_FIN
+         - 2: ST_STATE
+         - 3: ST_RESET
+         - 4: ST_SYN
+
+        The version should be 1.
+
+        The extension should be 0..3:
+         - 0: No extension
+         - 1: Selective ACK
+         - 2: Deprecated
+         - 3: Close reason
+        """
         if len(data) < 20:
             return False
         byte1, byte2 = unpack_from('!BB', data)
-        # Type should be 0..4, Ver should be 1
+        # Type and version
         if not (0 <= (byte1 >> 4) <= 4 and (byte1 & 15) == 1):
             return False
-        # Extension should be 0..2
-        if not (0 <= byte2 <= 2):
+        # Extension
+        if not (0 <= byte2 <= 3):
             return False
         return True
 
