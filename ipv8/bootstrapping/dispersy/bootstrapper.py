@@ -12,14 +12,7 @@ from ...messaging.interfaces.udp.endpoint import UDPv4Address
 from ...types import Address
 from ...util import succeed
 
-# The idna encoding is used by gethostbyname when dealing with unicode hostnames,
-# and in some cases, gethostbyname() raises LookupError saying the encoding does not exist.
-# Using the idna encoding before using the function ensures that the encodings.idna is
-# imported and registered in the codecs registry, which will stop the LookupErrors
-# from happening. The Lookup Error is more prominient in the frozen environment built
-# with PyInstaller.
-# See: https://bugs.python.org/issue29288
-# See also: https://github.com/pyinstaller/pyinstaller/issues/1113
+# Workaround for unnecessarily failing gethostbyname from a worker thread (https://bugs.python.org/issue29288)
 u''.encode('idna')
 
 
