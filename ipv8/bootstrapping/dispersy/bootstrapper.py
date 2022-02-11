@@ -12,6 +12,9 @@ from ...messaging.interfaces.udp.endpoint import UDPv4Address
 from ...types import Address
 from ...util import succeed
 
+# Workaround for unnecessarily failing gethostbyname from a worker thread (https://bugs.python.org/issue29288)
+u''.encode('idna')
+
 
 class DispersyBootstrapper(Bootstrapper):
 
