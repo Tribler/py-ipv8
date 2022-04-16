@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import base64
 import copy
 import enum
 import typing
 from typing import Any, Dict
+
+from .keyvault.crypto import default_eccrypto
 
 DISPERSY_BOOTSTRAPPER: Dict[Any, Any] = {
     'class': "DispersyBootstrapper",
@@ -339,7 +342,7 @@ class ConfigBuilder(object):
         })
         return self
 
-    def add_key_from_bin(self, alias: str, key_bin_b64: str, file_path: typing.Optional[str] = None):
+    def add_key_from_bin(self, alias: str, key_bin_b64: str, file_path: typing.Optional[str] = None) -> ConfigBuilder:
         """
         Add a key by alias and  its raw key material, possibly stored at a certain file path.
 
@@ -361,6 +364,15 @@ class ConfigBuilder(object):
             key_config['file'] = file_path
         self.config['keys'].append(key_config)
         return self
+
+    def add_ephemeral_key(self, alias: str) -> ConfigBuilder:
+        """
+        Add an ephemeral key, which is only stored in memory (i.e., not associated with a file).
+
+        :param alias: the alias used to reference this key
+        """
+        eph_key = default_eccrypto.generate_key("curve25519").key_to_bin()
+        return self.add_key_from_bin(alias, base64.b64encode(eph_key).decode(), "")
 
     def add_overlay(self,
                     overlay_class: str,
