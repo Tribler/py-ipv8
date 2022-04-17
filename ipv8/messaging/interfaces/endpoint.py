@@ -214,17 +214,13 @@ class EndpointListener(metaclass=abc.ABCMeta):
 
                 else:
                     for option in addresses.get(netifaces.AF_INET, []):
-                        try:
-                            # On Windows netifaces currently returns IP addresses as unicode,
-                            # and on *nix it returns str. So, we convert any unicode objects to str.
-                            # Python 3 port update: In Python 3 everything is unicode and we should do nothing.
-                            # On Python 2 the above can happen: instead of checking for unicode, we check for `not str`.
-                            unicode_to_str = lambda s: s.encode('utf-8') if s and not isinstance(s, str) else s
-                            yield Interface(interface,
-                                            unicode_to_str(option.get("addr")),
-                                            unicode_to_str(option.get("netmask")),
-                                            unicode_to_str(option.get("broadcast")))
+                        addr, netmask, broadcast = [option.get(field) for field in ("addr", "netmask", "broadcast")]
 
+                        if netmask == "0.0.0.0":
+                            continue  # The network interface isn't bound to any network, so we skip it
+
+                        try:
+                            yield Interface(interface, addr, netmask, broadcast)
                         except TypeError:
                             # some interfaces have no netmask configured, causing a TypeError when
                             # trying to unpack _l_netmask
