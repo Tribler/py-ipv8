@@ -117,6 +117,10 @@ class VariablePayload(Payload):
         return out
 
 
+V = typing.TypeVar('V', bound=VariablePayload)
+VT = typing.Type[V]
+
+
 def _compile_init(names: typing.List[str]) -> types.CodeType:
     """
     Compile the init function.
@@ -143,7 +147,7 @@ def __init__(self, %s):
     return compile(f_code, f_code, 'exec')
 
 
-def _compile_from_unpack_list(src_cls: typing.Type[VariablePayload], names: typing.List[str]) -> types.CodeType:
+def _compile_from_unpack_list(src_cls: VT, names: typing.List[str]) -> types.CodeType:
     """
     Compile the unpacking code.
 
@@ -171,7 +175,7 @@ def from_unpack_list(cls, %s):
     return compile(f_code, f_code, 'exec')
 
 
-def _compile_to_pack_list(src_cls: typing.Type[VariablePayload],
+def _compile_to_pack_list(src_cls: VT,
                           format_list: typing.List[FormatListType],
                           names: typing.List[str]) -> types.CodeType:
     """
@@ -214,7 +218,7 @@ def to_pack_list(self):
     return compile(f_code, f_code, 'exec')
 
 
-def vp_compile(vp_definition: typing.Type[VariablePayload]) -> typing.Type[VariablePayload]:
+def vp_compile(vp_definition: VT) -> VT:
     """
     JIT Compilation of a VariablePayload definition.
     """
