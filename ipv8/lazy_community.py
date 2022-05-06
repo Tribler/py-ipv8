@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from functools import wraps
-from typing import Iterable, List, Tuple, Type, Union
+from typing import Iterable, List, Tuple, Type, TypeVar, Union
 
 from .keyvault.crypto import default_eccrypto
 from .messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
@@ -180,6 +180,10 @@ def lazy_wrapper_unsigned_wd(*payloads: AnyPayloadType):
     return decorator
 
 
+P = TypeVar('P', bound=AnyPayload)
+PT = Type[P]
+
+
 class EZPackOverlay(Overlay, ABC):
 
     @abstractmethod
@@ -244,10 +248,8 @@ class EZPackOverlay(Overlay, ABC):
         signature = data[-signature_length:]
         return ec.is_valid_signature(public_key, data[:-signature_length], signature), remainder
 
-    def _ez_unpack_auth(self,
-                        payload_class: AnyPayloadType,
-                        data: bytes) -> Tuple[BinMemberAuthenticationPayload, GlobalTimeDistributionPayload,
-                                              AnyPayload]:
+    def _ez_unpack_auth(self, payload_class: PT, data: bytes) -> Tuple[
+            BinMemberAuthenticationPayload, GlobalTimeDistributionPayload, P]:
         # UNPACK
         auth, _ = self.serializer.unpack_serializable(BinMemberAuthenticationPayload, data, offset=23)
         signature_valid, remainder = self._verify_signature(auth, data)
@@ -259,10 +261,7 @@ class EZPackOverlay(Overlay, ABC):
         # PRODUCE
         return auth, unpacked[0], unpacked[1]
 
-    def _ez_unpack_noauth(self,
-                          payload_class: AnyPayloadType,
-                          data: bytes,
-                          global_time: bool = True) -> Union[List[AnyPayload], AnyPayload]:
+    def _ez_unpack_noauth(self, payload_class: PT, data: bytes, global_time: bool = True) -> Union[List[AnyPayload], P]:
         # UNPACK
         format = [GlobalTimeDistributionPayload, payload_class] if global_time else [payload_class]
         unpacked = self.serializer.unpack_serializable_list(format, data, offset=23)
