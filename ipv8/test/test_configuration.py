@@ -1,6 +1,10 @@
+import base64
+
 from .base import TestBase
 from ..configuration import (Bootstrapper, BootstrapperDefinition, ConfigBuilder, DISPERSY_BOOTSTRAPPER, Strategy,
                              WalkerDefinition, get_default_configuration)
+from ..keyvault.crypto import default_eccrypto
+from ..keyvault.private.libnaclkey import LibNaCLSK
 
 
 class TestConfiguration(TestBase):
@@ -132,6 +136,21 @@ class TestConfiguration(TestBase):
 
         self.assertEqual(1 + len(get_default_configuration()['keys']), len(keys))
         self.assertTrue(any(set(entry.items()) == set(expected.items()) for entry in keys))
+
+    def test_add_ephemeral_key(self):
+        """
+        Check if ephemeral keys are created correctly.
+        """
+        builder = ConfigBuilder().add_ephemeral_key("my new key")
+
+        expected_keys = {'alias', 'bin', 'file'}
+        keys = builder.finalize()['keys']
+
+        self.assertEqual(1 + len(get_default_configuration()['keys']), len(keys))
+        self.assertTrue(any(entry.keys() == expected_keys for entry in keys))
+        self.assertEqual("my new key", keys[-1]["alias"])
+        self.assertEqual("", keys[-1]["file"])
+        self.assertIsInstance(default_eccrypto.key_from_private_bin(base64.b64decode(keys[-1]["bin"])), LibNaCLSK)
 
     def test_add_overlay_overwrite(self):
         """
