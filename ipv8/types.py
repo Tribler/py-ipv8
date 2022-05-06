@@ -1,7 +1,17 @@
+import sys
 import typing
 
 Address = typing.Tuple[str, int]
-DataclassPayload = typing.TypeVar('DataclassPayload')
+
+
+if sys.version_info >= (3, 8):
+    class DataclassPayload(typing.Protocol):
+        # Checking for this attribute is currently the most reliable way to ascertain that something is a dataclass.
+        # See https://stackoverflow.com/questions/54668000/type-hint-for-an-instance-of-a-non-specific-dataclass
+        __dataclass_fields__: dict
+else:
+    DataclassPayload = type
+
 
 # pylint: disable=unused-import
 
