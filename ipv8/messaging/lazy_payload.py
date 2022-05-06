@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import inspect
 import types
-import typing
+from typing import Any, List, Type, TypeVar
 
 from .serialization import FormatListType, Payload
 
@@ -28,7 +28,7 @@ class VariablePayload(Payload):
     want to apply when actually sending over the wire.
     """
 
-    names: typing.List[str] = []
+    names: List[str] = []
 
     def __init__(self, *args, **kwargs):
         """
@@ -89,7 +89,7 @@ class VariablePayload(Payload):
             return 'payload-list'
         return 'payload'
 
-    def _fix_pack(self, name: str) -> typing.Any:
+    def _fix_pack(self, name: str) -> Any:
         """
         Check if there are custom rules for sending this field.
         """
@@ -99,7 +99,7 @@ class VariablePayload(Payload):
             return getattr(self, custom_rule)(raw_value)
         return raw_value
 
-    def to_pack_list(self) -> typing.List[tuple]:
+    def to_pack_list(self) -> List[tuple]:
         """
         Convert the VariablePayload to a Serializable pack list.
         This method will automatically pull from the available format names and set instance fields.
@@ -117,11 +117,11 @@ class VariablePayload(Payload):
         return out
 
 
-V = typing.TypeVar('V', bound=VariablePayload)
-VT = typing.Type[V]
+V = TypeVar('V', bound=VariablePayload)
+VT = Type[V]
 
 
-def _compile_init(names: typing.List[str]) -> types.CodeType:
+def _compile_init(names: List[str]) -> types.CodeType:
     """
     Compile the init function.
 
@@ -147,7 +147,7 @@ def __init__(self, %s):
     return compile(f_code, f_code, 'exec')
 
 
-def _compile_from_unpack_list(src_cls: VT, names: typing.List[str]) -> types.CodeType:
+def _compile_from_unpack_list(src_cls: VT, names: List[str]) -> types.CodeType:
     """
     Compile the unpacking code.
 
@@ -175,9 +175,7 @@ def from_unpack_list(cls, %s):
     return compile(f_code, f_code, 'exec')
 
 
-def _compile_to_pack_list(src_cls: VT,
-                          format_list: typing.List[FormatListType],
-                          names: typing.List[str]) -> types.CodeType:
+def _compile_to_pack_list(src_cls: VT, format_list: List[FormatListType], names: List[str]) -> types.CodeType:
     """
     Compile the packing code.
 
