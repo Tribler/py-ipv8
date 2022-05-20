@@ -1,6 +1,8 @@
 import logging
+import os
 import time
 from asyncio import Future
+from functools import reduce
 
 from .tunnel import CIRCUIT_STATE_CLOSING, CIRCUIT_STATE_READY
 from ...requestcache import NumberCache, RandomNumberCache
@@ -41,14 +43,15 @@ class CreatedRequestCache(NumberCache):
         return float(self.timeout)
 
 
-class RetryRequestCache(RandomNumberCache):
+class RetryRequestCache(NumberCache):
     """
     Used to track adding additional hops to the circuit.
     """
     def __init__(self, community, circuit, candidates, max_tries, retry_func, timeout):
-        super().__init__(community.request_cache, "retry")
+        super().__init__(community.request_cache, "retry", circuit.circuit_id)
         self.community = community
         self.circuit = circuit
+        self.packet_identifier = reduce(lambda v, e: (v << 8) + e, os.urandom(2), 0)
         self.candidates = candidates
         self.max_tries = max_tries
         self.retry_func = retry_func
