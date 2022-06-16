@@ -1,4 +1,5 @@
-from asyncio import Future
+from asyncio import Future, ensure_future, iscoroutine
+from functools import partial
 from unittest.mock import Mock
 
 from .mock import MockDHTProvider
@@ -12,6 +13,20 @@ from ....messaging.anonymization.tunnel import (CIRCUIT_STATE_EXTENDING, PEER_FL
                                                 PEER_FLAG_EXIT_IPV8, PEER_FLAG_SPEED_TEST)
 from ....messaging.interfaces.udp.endpoint import DomainAddress, UDPEndpoint
 from ....util import succeed
+
+
+def _on_packet_fragile_cb(self, source_address, data, circuit_id):
+    """
+    A fragile version of on_packet that crashes on message handling failures.
+
+    These failures won't actually cause IPv8 to crash in production, but you should probably handle these.
+
+    Add overlay classes to use in production mode to the ``production_overlay_classes`` list.
+    Filter nodes to run in production mode by overwriting ``TestBase.patch_overlays``.
+    """
+    result = self.decode_map_private[data[22]](source_address, data, circuit_id)
+    if iscoroutine(result):
+        self.register_anonymous_task('on_packet_from_circuit', ensure_future(result))
 
 
 class TestTunnelCommunity(TestBase):
@@ -44,6 +59,11 @@ class TestTunnelCommunity(TestBase):
         ipv8.overlay.settings.max_circuits = 1
         ipv8.overlay.dht_provider = MockDHTProvider(ipv8.overlay.my_peer)
         return ipv8
+
+    def _patch_overlay(self, overlay):
+        super()._patch_overlay(overlay)
+        if overlay and overlay.__class__ not in self.production_overlay_classes:
+            overlay.on_packet_from_circuit = partial(_on_packet_fragile_cb, overlay)
 
     def assert_no_more_tunnels(self):
         """
@@ -105,6 +125,28 @@ class TestTunnelCommunity(TestBase):
 
         # Node 0 should now have all of its required 1 hop circuits (1.0/100%)
         self.assertEqual(self.overlay(0).tunnels_ready(1), 1.0)
+        # Node 1 has an exit socket open
+        self.assertEqual(len(self.overlay(1).exit_sockets), 1)
+
+    async def test_create_circuit_destruct_initializing(self):
+        """
+        Check if a circuit is destructed and cleaned correctly while still initializing.
+        """
+        self.settings(1).peer_flags.add(PEER_FLAG_EXIT_BT)
+        await self.introduce_nodes()
+
+        # Let node 0 build a circuit of 1 hop with node 1
+        # We immediately remove it, before a response can be received
+        initializing_circuit = self.overlay(0).create_circuit(1).circuit_id
+        self.overlay(0).remove_circuit(initializing_circuit, remove_now=True)
+
+        # Let the circuit "creation" commence
+        await self.deliver_messages()
+
+        # Node 0 should have removed its initializing circuit
+        self.assertNotIn(initializing_circuit, self.overlay(0).circuits)
+        # Node 0 should not have any outstanding caches
+        self.assertListEqual(self.overlay(0).request_cache.get_tasks(), [])
         # Node 1 has an exit socket open
         self.assertEqual(len(self.overlay(1).exit_sockets), 1)
 

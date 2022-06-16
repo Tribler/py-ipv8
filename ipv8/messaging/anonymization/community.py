@@ -303,12 +303,18 @@ class TunnelCommunity(Community):
 
         self.logger.info("Adding first hop %s:%d to circuit %d", *(first_hop.address + (circuit.circuit_id,)))
 
+        try:
+            self.request_cache.pop("retry", circuit.circuit_id)
+        except KeyError:
+            self.logger.info("Overwriting existing retry attempt for initial creation of circuit %d",
+                             circuit.circuit_id)
+
         cache = RetryRequestCache(self, circuit, alt_first_hops, max_tries - 1,
                                   self.send_initial_create, self.settings.next_hop_timeout)
         self.request_cache.add(cache)
 
         self.send_cell(first_hop, CreatePayload(circuit.circuit_id,
-                                                cache.number,
+                                                cache.packet_identifier,
                                                 self.my_peer.public_key.key_to_bin(),
                                                 circuit.unverified_hop.dh_first_part))
 
@@ -318,6 +324,11 @@ class TunnelCommunity(Community):
         Remove a circuit and return a deferred that fires when all data associated with the circuit is destroyed.
         Optionally send a destroy message.
         """
+        try:
+            self.request_cache.pop("retry", circuit_id)
+        except KeyError:
+            pass  # All is good if there was no pending retry cache for this circuit: continue.
+
         circuit_to_remove = self.circuits.get(circuit_id, None)
         if circuit_to_remove is None:
             self.logger.warning('Cannot remove unknown circuit %d', circuit_id)
@@ -514,11 +525,11 @@ class TunnelCommunity(Community):
                                                          hop.session_keys[EXIT_NODE_SALT])
             candidate_list, _ = self.serializer.unpack('varlenH-list', candidate_list_bin)
 
-            cache = self.request_cache.pop("retry", payload.identifier)
+            cache = self.request_cache.pop("retry", circuit.circuit_id)
             self.send_extend(circuit, candidate_list, cache.max_tries if cache else 1)
 
         elif circuit.state == CIRCUIT_STATE_READY:
-            self.request_cache.pop("retry", payload.identifier)
+            self.request_cache.pop("retry", circuit.circuit_id)
 
     def send_extend(self, circuit, candidate_list, max_tries):
         ignore_candidates = [hop.node_public_key for hop in circuit.hops] + [self.my_peer.public_key.key_to_bin()]
@@ -560,12 +571,17 @@ class TunnelCommunity(Community):
             else:
                 alt_candidates = []
 
+            try:
+                self.request_cache.pop("retry", circuit.circuit_id)
+            except KeyError:
+                self.logger.info("Overwriting existing retry attempt for circuit %d", circuit.circuit_id)
+
             cache = RetryRequestCache(self, circuit, alt_candidates, max_tries - 1,
                                       self.send_extend, self.settings.next_hop_timeout)
             self.request_cache.add(cache)
 
             self.send_cell(circuit.peer, ExtendPayload(circuit.circuit_id,
-                                                       cache.number,
+                                                       cache.packet_identifier,
                                                        circuit.unverified_hop.node_public_key,
                                                        circuit.unverified_hop.dh_first_part,
                                                        extend_hop_addr))
@@ -723,7 +739,7 @@ class TunnelCommunity(Community):
             self.send_cell(relay.peer,
                            ExtendedPayload(relay.circuit_id, request.extend_identifier,
                                            payload.key, payload.auth, payload.candidate_list_enc))
-        elif self.request_cache.has("retry", payload.identifier):
+        elif self.request_cache.has("retry", payload.circuit_id):
             circuit = self.circuits[circuit_id]
             self._ours_on_created_extended(circuit, payload)
         else:
@@ -782,7 +798,7 @@ class TunnelCommunity(Community):
 
     @unpack_cell(ExtendedPayload)
     def on_extended(self, source_address, payload, _):
-        if not self.request_cache.has("retry", payload.identifier):
+        if not self.request_cache.has("retry", payload.circuit_id):
             self.logger.warning("Received unexpected extended for circuit %s", payload.circuit_id)
             return
 
