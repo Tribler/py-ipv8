@@ -3,6 +3,7 @@ from asyncio import BaseTransport, DatagramProtocol, get_event_loop
 from asyncio.futures import Future
 from binascii import hexlify
 from socket import AF_INET, SOCK_DGRAM, SOL_SOCKET, SO_BROADCAST, SO_REUSEADDR, socket
+from time import time
 from typing import Coroutine, Iterable, Optional, Union
 
 from ..bootstrapper_interface import Bootstrapper
@@ -66,9 +67,13 @@ class BroadcastBootstrapEndpoint(DatagramProtocol):
 
 class UDPBroadcastBootstrapper(Bootstrapper):
 
-    def __init__(self):
+    def __init__(self, bootstrap_timeout=30.0):
         self.endpoint = None
         self.overlay = None
+
+        self.bootstrap_timeout = bootstrap_timeout
+
+        self.last_bootstrap = 0
 
     async def initialize(self, overlay: Community) -> Union[Future, Coroutine]:  # pylint: disable=W0236
         self.overlay = overlay
@@ -94,6 +99,10 @@ class UDPBroadcastBootstrapper(Bootstrapper):
                 self.endpoint.send(('255.255.255.255', p), HDR_ANNOUNCE + service_prefix)
 
     async def get_addresses(self, overlay: Community, timeout: float) -> Iterable[Address]:
+        if time() - self.last_bootstrap < self.bootstrap_timeout:
+            return []
+        logging.debug("Bootstrapping %s, current peers %d", overlay.__class__.__name__, len(overlay.get_peers()))
+        self.last_bootstrap = time()
         self.beacon(overlay.get_prefix())
         return []
 
