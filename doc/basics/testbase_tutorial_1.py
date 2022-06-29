@@ -134,4 +134,5 @@ class MyTests(TestBase):
         self.assertTrue(self.overlay(0).timed_out)
 
 
-unittest.main()
+if __name__ == '__main__':
+    unittest.main()
