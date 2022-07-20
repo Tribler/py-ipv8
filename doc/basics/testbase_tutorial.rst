@@ -217,6 +217,48 @@ The temporary directory names are prefixed with ``_temp_`` and use a ``uuid`` as
 The temporary directories will be created in the current working directory
 for the mechanism to work on all supported platforms (Windows, Mac and Linux) even with limited permissions.
 
+Asserting Message Delivery
+--------------------------
+
+You may want to assert that an overlay receives certain messages after a function.
+The ``TestBase`` exposes the ``assertReceivedBy()`` function to do just that.
+We'll run through its functionality by example.
+
+Most of the time, you will want to check if a peer received certain messages.
+In the following example peer 0 first sends message 1 and then sends message 2 to peer 1.
+The following construction asserts this:
+
+.. literalinclude:: testbase_tutorial_2.py
+   :lines: 67-70
+   :dedent: 4
+
+Sometimes, you can't be sure in what order messages are sent.
+In these cases you can use ``ordered=False``:
+
+.. literalinclude:: testbase_tutorial_2.py
+   :lines: 73-79
+   :dedent: 4
+
+In other cases, your overlay may be sending messages which you cannot control and/or which you don't care about.
+In these cases you can set a filter to only include the messages you want:
+
+.. literalinclude:: testbase_tutorial_2.py
+   :lines: 82-87
+   :dedent: 4
+
+It may also be helpful to inspect the contents of each payload.
+You can simply use the return value of the assert function to perform further inspection:
+
+.. literalinclude:: testbase_tutorial_2.py
+   :lines: 90-97
+   :dedent: 4
+
+If you want to use ``assertReceivedBy()``, make sure that:
+
+ 1. Your overlay message handlers only handle a single payload.
+ 2. Your messages specify a ``msg_id``.
+ 3. Your messages are compatible with ``ez_send()`` and ``lazy_wrapper_*()``.
+
 Shortcut Reference
 ------------------
 

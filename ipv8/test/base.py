@@ -6,13 +6,18 @@ import threading
 import time
 import uuid
 from asyncio import all_tasks, ensure_future, get_event_loop, iscoroutine, sleep
+from contextlib import contextmanager
 from functools import partial
+from typing import List, Optional
 
 import asynctest
 
-from .mocking.endpoint import internet
+from .mocking.endpoint import internet, MockEndpointListener
 from .mocking.ipv8 import MockIPv8
+from ..lazy_community import lazy_wrapper, lazy_wrapper_unsigned, PacketDecodingError
+from ..messaging.serialization import PackError
 from ..peer import Peer
+from ..types import Endpoint, AnyPayloadType, Community, AnyPayload
 
 try:
     get_event_loop().set_debug(True)
@@ -33,6 +38,71 @@ def _on_packet_fragile_cb(self, packet, warn_unknown=True):
     result = self.decode_map[packet[1][22]](*packet)
     if iscoroutine(result):
         self.register_anonymous_task('on_packet', ensure_future(result))
+
+
+class TranslatedMockEndpointListener(MockEndpointListener):
+    """
+    Automagically translate received packets into messages.
+
+    The magic depends on three assumptions:
+     - The requested overlay messages have a ``msg_id`` specified.
+     - The requested overlay messages can be decoded using a single ``Payload``.
+     - The requested overlay messages follow the ``lazy_wrapper_*`` standard.
+    """
+
+    def __init__(self, overlay: Community, message_classes: List[AnyPayloadType],
+                 message_filter: Optional[List[AnyPayloadType]], main_thread=False):
+        super().__init__(overlay.endpoint, main_thread)
+
+        self.overlay = overlay
+        self.message_class_map = {}
+        self.message_filter_set = set()
+
+        for message_class in message_classes:
+            assert hasattr(message_class, "msg_id"), "assertReceivedBy only works with Payloads that have a msg_id!"
+            self.message_class_map[message_class.msg_id] = message_class
+
+        for message_class in (message_filter or []):
+            assert hasattr(message_class, "msg_id"), "assertReceivedBy can only filter Payloads that have a msg_id!"
+            self.message_filter_set.add(message_class.msg_id)
+
+        self.received_messages = []
+
+    def on_packet(self, packet):
+        super().on_packet(packet)
+
+        msg_id = packet[1][len(self.overlay.get_prefix()):][0]
+
+        # If we have a filter: ignore messages that are not part of the filter.
+        if self.message_filter_set and (msg_id not in self.message_filter_set):
+            return
+
+        # Fetch the Payload class we are decoding into.
+        requested_class = self.message_class_map.get(msg_id)
+        assert requested_class is not None, f"assertReceivedBy received message with unknown id {msg_id}!"
+
+        # Create a fake message handler.
+        def trap(_, sender, *payloads):
+            trap.sender = sender
+            trap.payloads = payloads
+        trap.sender = None
+        trap.payloads = []
+
+        # Feed messages into the overlay's decoding map. We don't know if it's supposed to be signed or unsigned.
+        # We are assuming these messages are lazy_wrapper_* compatible.
+        try:
+            # Try signed first, as this is a stricter subset.
+            lazy_wrapper(requested_class)(trap)(self.overlay, *packet)
+        except Exception:  # Not limited to PackError, PacketDecodingError but can also be random crypto errors.
+            try:
+                lazy_wrapper_unsigned(requested_class)(trap)(self.overlay, *packet)
+            except (PackError, PacketDecodingError):
+                raise AssertionError(f"Failed to decode message with id {msg_id}! "
+                                     "Check if TranslatedMockEndpointListener's assumptions fit your messages, doc:\n"
+                                     f"\"\"\"{TranslatedMockEndpointListener.__doc__}\"\"\"")
+
+        # Finally, we have a decoded payload :-)
+        self.received_messages += list(trap.payloads)
 
 
 class TestBase(asynctest.TestCase):
@@ -228,7 +298,7 @@ class TestBase(asynctest.TestCase):
     def address(self, i):
         return self.peer(i).address
 
-    def endpoint(self, i):
+    def endpoint(self, i: int) -> Endpoint:
         return self.nodes[i].endpoint
 
     def key_bin(self, i):
@@ -260,3 +330,46 @@ class TestBase(asynctest.TestCase):
 
     def public_key(self, i):
         return self.nodes[i].my_peer.public_key
+
+    @contextmanager
+    def assertReceivedBy(self, i: int, message_classes: List[AnyPayloadType], ordered: bool = True,
+                         message_filter: Optional[List[AnyPayloadType]] = None) -> List[AnyPayload]:
+        """
+        Assert that a node i receives messages of a given type, potentially unordered or while ignoring other messages.
+
+        :param i: the node id that needs to receive messages
+        :param message_classes: the messages classes that you expect the node to receive
+        :param ordered: whether the message classes are received ordered or unordered
+        :param message_filter: what message classes to store (others are silently ignored)
+        """
+        requested_overlay = self.overlay(i)
+        requested_endpoint = self.endpoint(i)
+
+        endpoint_listener = TranslatedMockEndpointListener(requested_overlay, message_classes, message_filter)
+        try:
+            # Give a reference to the list, allows:
+            #  1. Access to the received messages as they are coming in (within the ``with`` block).
+            #  2. Access to the final list of received messages (after the ``with`` block).
+            yield endpoint_listener.received_messages
+        finally:
+            received_messages = endpoint_listener.received_messages
+            # Cleanup
+            requested_endpoint.remove_listener(endpoint_listener)
+            del endpoint_listener
+            # Assertions
+            if ordered:
+                self.assertListEqual(message_classes, [message.__class__ for message in received_messages])
+            else:
+                # Count the occurrences of certain message types
+                requested_classes = {}
+                for message in message_classes:
+                    requested_classes[message.__name__] = requested_classes.get(message.__name__, 0) + 1
+                received_classes = {}
+                for message in received_messages:
+                    received_classes[message.__class__.__name__] = received_classes.get(message.__class__.__name__,
+                                                                                        0) + 1
+                # Can happen if received classes are a subset of the requested classes:
+                self.assertSetEqual(set(requested_classes.keys()), set(received_classes.keys()),
+                                    f"Not all classes received: requested {requested_classes}, got {received_classes}")
+                # Check the counts for each class:
+                self.assertSetEqual(set(requested_classes.items()), set(received_classes.items()))
