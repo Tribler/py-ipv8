@@ -82,7 +82,7 @@ class DiscreteLoop(asyncio.AbstractEventLoop):
     def create_task(self, coro):
         async def wrapper():
             try:
-                await coro
+                return await coro
             except asyncio.CancelledError:
                 pass
             except Exception as e:
