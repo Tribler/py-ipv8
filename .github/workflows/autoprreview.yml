@@ -1,18 +1,20 @@
 name: autoprreview
 on:
-  pull_request_review:
-    types: [submitted]
+  pull_request_target:
+    types:
+      - reviewed
 jobs:
   build:
-  if: github.event.review.state == 'approved'
-  runs-on: ubuntu-latest
-  permissions:
-    pull-requests: write
-  steps:
-    - uses: tspascoal/get-user-teams-membership@v1
-      id: checkUserMember
-      with:
-         username: ${{ github.event.review.user.login }}
-         team: 'Tribler/core'
-    - uses: hmarr/auto-approve-action@v2
-      if: github.actor != 'github-actions' && ${{ steps.checkUserMember.outputs.isTeamMember == 'true' }}
+    if: github.event.review.state == 'approved'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: tspascoal/get-user-teams-membership@39b5264024b7c3bd7480de2f2c8d3076eed49ec5
+        id: checkUserMember
+        with:
+          GITHUB_TOKEN: ${{ secrets.TRIBLER_CI_ORG_READ }}
+          username: ${{ github.event.review.user.login }}
+          team: 'Tribler/core'
+      - uses: hmarr/auto-approve-action@b40d6c9ed2fa10c9a2749eca7eb004418a705501
+        if: github.actor != 'tribler-ci' && ${{ steps.checkUserMember.outputs.isTeamMember == 'true' }}
