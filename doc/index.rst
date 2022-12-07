@@ -86,6 +86,7 @@ Table of contents
    :caption: Further reading:
 
    further-reading/advanced_identity.rst
+   further-reading/advanced_peer_discovery.rst
    further-reading/anonymization.rst
 
 .. toctree::
