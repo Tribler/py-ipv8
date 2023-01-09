@@ -1,16 +1,16 @@
+import inspect
 import logging
 import os
 import shutil
 import sys
 import threading
 import time
+import unittest
 import uuid
 from asyncio import all_tasks, ensure_future, get_event_loop, iscoroutine, sleep
 from contextlib import contextmanager
 from functools import partial
 from typing import List, Optional
-
-import asynctest
 
 from .mocking.endpoint import internet, MockEndpointListener
 from .mocking.ipv8 import MockIPv8
@@ -105,10 +105,21 @@ class TranslatedMockEndpointListener(MockEndpointListener):
         self.received_messages += list(trap.payloads)
 
 
-class TestBase(asynctest.TestCase):
+if sys.version_info[0] == 3 and sys.version_info[1] <= 7:
+    # unittest.IsolatedAsyncioTestCase does not exist below Python 3.8, use asynctest instead
+    import asynctest
+    TestCaseClass = asynctest.TestCase
+    USE_ASYNC_TEST = True
+else:
+    TestCaseClass = unittest.IsolatedAsyncioTestCase
+    USE_ASYNC_TEST = False
+
+
+class TestBase(TestCaseClass):
 
     __testing__ = True
     __lockup_timestamp__ = 0
+    __asynctest_compatibility_mode__ = USE_ASYNC_TEST
 
     # The time after which the whole test suite is os.exited
     MAX_TEST_TIME = 10
@@ -121,6 +132,46 @@ class TestBase(asynctest.TestCase):
         self._tempdirs = []
         self.production_overlay_classes = []
         self._uncaught_async_failure = None
+
+    @property
+    def __loop(self):
+        """
+        Return the asyncio event loop used for the test case.
+        """
+        if hasattr(self, "_asyncioTestLoop"):
+            # Python 3.8, 3.9, and 3.10.
+            return self._asyncioTestLoop
+        else:
+            # Python 3.11 (and up?).
+            return self._asyncioRunner.get_loop()
+
+    loop = getattr(TestCaseClass, "loop", __loop)
+
+    def __call_internal_in_context(self, func):
+        """
+        Call setUp or tearDown within the unittest.IsolatedAsyncioTestCase context.
+
+        This is not used for asynctest compatibility mode.
+        """
+        if hasattr(self, "_asyncioTestContext"):
+            # Python 3.11 (and up?).
+            self._asyncioTestContext.run(func)
+        else:
+            # Python 3.8, 3.9, and 3.10.
+            self._callTestMethod(func)
+
+    def _callSetUp(self):
+        self.loop  # In Python 3.11+ this function has side-effects.
+        if inspect.iscoroutinefunction(self.setUp):
+            self._callAsync(self.setUp)
+        else:
+            self.__call_internal_in_context(self.setUp)
+
+    def _callTearDown(self):
+        if inspect.iscoroutinefunction(self.tearDown):
+            self._callAsync(self.tearDown)
+        else:
+            self.__call_internal_in_context(self.tearDown)
 
     def initialize(self, overlay_class, node_count, *args, **kwargs):
         self.overlay_class = overlay_class
@@ -191,7 +242,10 @@ class TestBase(asynctest.TestCase):
         if self._uncaught_async_failure is not None:
             raise self._uncaught_async_failure["exception"]
         self.loop.set_exception_handler(None)  # None is equivalent to the default handler
-        super(TestBase, self).tearDown()
+        if self.__asynctest_compatibility_mode__:
+            super(TestBase, self).tearDown()
+        else:
+            await super(TestBase, self).asyncTearDown()
 
     @classmethod
     def setUpClass(cls):
@@ -373,3 +427,6 @@ class TestBase(asynctest.TestCase):
                                     f"Not all classes received: requested {requested_classes}, got {received_classes}")
                 # Check the counts for each class:
                 self.assertSetEqual(set(requested_classes.items()), set(received_classes.items()))
+
+
+__all__ = ["TestBase", "TranslatedMockEndpointListener"]

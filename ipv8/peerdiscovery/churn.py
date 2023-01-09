@@ -50,7 +50,7 @@ class RandomChurn(DiscoveryStrategy):
             # Find an inactive or droppable peer
             sample_size = min(len(self.overlay.network.verified_peers), self.sample_size)
             if sample_size:
-                window = sample(self.overlay.network.verified_peers, sample_size)
+                window = sample(list(self.overlay.network.verified_peers), sample_size)
 
                 for peer in window:
                     if self.should_drop(peer) and peer.address in self._pinged:
