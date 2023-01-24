@@ -305,9 +305,10 @@ class TunnelCommunity(Community):
 
         try:
             self.request_cache.pop("retry", circuit.circuit_id)
-        except KeyError:
             self.logger.info("Overwriting existing retry attempt for initial creation of circuit %d",
                              circuit.circuit_id)
+        except KeyError:
+            pass  # All is good if there was no pending retry cache for this circuit: continue.
 
         cache = RetryRequestCache(self, circuit, alt_first_hops, max_tries - 1,
                                   self.send_initial_create, self.settings.next_hop_timeout)
