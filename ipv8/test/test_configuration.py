@@ -329,3 +329,10 @@ class TestConfiguration(TestBase):
                                                   [])
 
         self.assertDictEqual(get_default_configuration(), builder.finalize())
+
+    def test_dict_cast(self):
+        """
+        Check if casting to ``dict`` is equal to ``finalize()``.
+        """
+        builder = ConfigBuilder()
+        self.assertDictEqual(dict(builder), builder.finalize())

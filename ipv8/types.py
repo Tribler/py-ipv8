@@ -15,6 +15,7 @@ if typing.TYPE_CHECKING:
     from ipv8.attestation.wallet.community import AttestationCommunity
     from ipv8.community import Community
     from ipv8.configuration import ConfigBuilder
+    from ipv8.configuration_pydantic import IPv8Configuration
     from ipv8.database import Database
     from ipv8.keyvault.keys import Key, PrivateKey, PublicKey
     from ipv8.messaging.interfaces.endpoint import Endpoint
@@ -36,6 +37,7 @@ else:
     IdentityAlgorithm = 'ipv8.attestation.identity_formats.IdentityAlgorithm'
     IdentityAlgorithmClass = 'ipv8.attestation.identity_formats.IdentityAlgorithm.__class__'
     IPv8 = 'ipv8_service.IPv8'
+    IPv8Configuration = 'ipv8.configuration_pydantic.IPv8Configuration'
     Key = 'ipv8.keyvault.keys.Key'
     Metadata = 'ipv8.attestation.identity.metadata.Metadata'
     NumberCache = 'ipv8.requestcache.NumberCache'
@@ -49,3 +51,18 @@ else:
 
 AnyPayload = typing.Union[Payload, DataclassPayload]
 AnyPayloadType = typing.Union[typing.Type[Payload], typing.Type[DataclassPayload]]
+
+# The Python 3.7 runtime does not have Protocol. However, we type-check with newer Python versions.
+# This workaround can be dropped when Python 3.7 is no longer supported.
+if typing.TYPE_CHECKING:
+    from typing import Protocol
+else:
+    Protocol = object
+
+
+class DictCastable(Protocol):
+    """
+    Classes that support ``dict(o)`` for its instances ``o``.
+    """
+    def __iter__(self):
+        ...

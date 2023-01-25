@@ -44,7 +44,7 @@ DISPERSY_BOOTSTRAPPER: Dict[Any, Any] = {
     }
 }
 
-default = {
+default: Dict[str, Any] = {
     'interfaces': [
         {
             'interface': "UDPIPv4",
@@ -238,6 +238,12 @@ class ConfigBuilder(object):
                 assert bootstrapper['class'] in Bootstrapper.values()
 
         return self.config
+
+    def __iter__(self):
+        """
+        Iterate through the result of ``finalize()``. Used for ``dict()`` casts.
+        """
+        return iter(self.finalize().items())
 
     def clear_keys(self) -> ConfigBuilder:
         """

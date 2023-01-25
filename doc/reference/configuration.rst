@@ -45,6 +45,8 @@ By invoking ``get_default_configuration()``, you can get a dictionary copy of th
    "walker_interval", 0.5, "The time interval between IPv8 updates. Each update will trigger all registered strategies to update, mostly this concerns peer discovery."
    "overlays", [ .\.\. ], "The list of overlay definitions and their respective walking strategies. See the overlay definition section for further details."
 
+Optionally, if you have ``pydantic`` installed, you can also use the ``IPv8Configuration`` model defined in ``ipv8/configuration_pydantic.py``.
+
 Overlay Specifications
 ----------------------
 

@@ -7,6 +7,7 @@ from contextlib import suppress
 from os.path import isfile
 from threading import RLock
 from traceback import format_exception
+from typing import Dict, Type, Union
 
 if hasattr(sys.modules['__main__'], "IPv8"):
     sys.modules[__name__] = sys.modules['__main__']
@@ -28,6 +29,7 @@ else:
         from ipv8.peerdiscovery.discovery import EdgeWalk, RandomWalk
         from ipv8.peerdiscovery.network import Network
         from ipv8.dht.discovery import DHTDiscoveryCommunity
+        from ipv8.types import ConfigBuilder, DictCastable, Endpoint, IPv8Configuration, Overlay
         from ipv8.util import maybe_coroutine
     else:
         from .ipv8.messaging.interfaces.statistics_endpoint import StatisticsEndpoint
@@ -46,6 +48,7 @@ else:
         from .ipv8.peerdiscovery.discovery import EdgeWalk, RandomWalk
         from .ipv8.peerdiscovery.network import Network
         from .ipv8.dht.discovery import DHTDiscoveryCommunity
+        from .ipv8.types import ConfigBuilder, DictCastable, Endpoint, IPv8Configuration, Overlay
         from .ipv8.util import maybe_coroutine
 
     _COMMUNITIES = {
@@ -69,39 +72,43 @@ else:
 
     class IPv8:
 
-        def __init__(self, configuration, endpoint_override=None, enable_statistics=False, extra_communities=None):
+        def __init__(self,
+                     configuration: Union[ConfigBuilder, DictCastable, IPv8Configuration, dict],
+                     endpoint_override: Endpoint = None,
+                     enable_statistics: bool = False,
+                     extra_communities: Dict[str, Type[Overlay]] = None):
             super(IPv8, self).__init__()
-            self.configuration = configuration
+            self.configuration = configuration if isinstance(configuration, dict) else dict(configuration)
 
             # Setup logging
-            logging.basicConfig(**configuration['logger'])
+            logging.basicConfig(**self.configuration['logger'])
 
             if endpoint_override:
                 self.endpoint = endpoint_override
             else:
-                if 'address' in configuration or 'port' in configuration:
+                if 'address' in self.configuration or 'port' in self.configuration:
                     logging.warning("Using deprecated 'address' and 'port' configuration! "
                                     "Auto-porting your config to \"UDPIPv4\" interface configuration. "
                                     "Switch your code to IPv8 configuration using 'interfaces' instead.")
-                    if 'interfaces' not in configuration:
-                        configuration['interfaces'] = []
-                    configuration['interfaces'].append({'interface': "UDPIPv4",
-                                                        'ip': configuration.get('address', "0.0.0.0"),
-                                                        'port': configuration.get('port', 8090)})
-                endpoint_specs = (spec.copy() for spec in configuration['interfaces'])
+                    if 'interfaces' not in self.configuration:
+                        self.configuration['interfaces'] = []
+                    self.configuration['interfaces'].append({'interface': "UDPIPv4",
+                                                             'ip': self.configuration.get('address', "0.0.0.0"),
+                                                             'port': self.configuration.get('port', 8090)})
+                endpoint_specs = (spec.copy() for spec in self.configuration['interfaces'])
                 endpoint_args = {spec.pop('interface'): spec for spec in endpoint_specs}
                 self.endpoint = DispatcherEndpoint(list(endpoint_args.keys()), **endpoint_args)
 
             if enable_statistics:
                 self.endpoint = StatisticsEndpoint(self.endpoint)
-            if any([overlay.get('initialize', {}).get('anonymize') for overlay in configuration['overlays']]):
+            if any([overlay.get('initialize', {}).get('anonymize') for overlay in self.configuration['overlays']]):
                 self.endpoint = TunnelEndpoint(self.endpoint)
 
             self.network = Network()
 
             # Load/generate keys
             self.keys = {}
-            for key_block in configuration['keys']:
+            for key_block in self.configuration['keys']:
                 if key_block['file'] and isfile(key_block['file']):
                     with open(key_block['file'], 'rb') as f:
                         self.keys[key_block['alias']] = Peer(crypto.key_from_private_bin(f.read()))
@@ -118,7 +125,7 @@ else:
             self.overlays = []
             self.on_start = []
 
-            for overlay in configuration['overlays']:
+            for overlay in self.configuration['overlays']:
                 overlay_class = _COMMUNITIES.get(overlay['class'], (extra_communities or {}).get(overlay['class']))
                 my_peer = self.keys[overlay['key']]
                 overlay_instance = overlay_class(my_peer, self.endpoint, self.network, **overlay['initialize'])
@@ -135,7 +142,7 @@ else:
                     bootstrapper_class = _BOOTSTRAPPERS.get(bootstrapper['class'])
                     if bootstrapper_class:
                         overlay_instance.bootstrappers.append(bootstrapper_class(**bootstrapper['init']))
-            self.walk_interval = configuration['walker_interval']
+            self.walk_interval = self.configuration['walker_interval']
             self.state_machine_task = None
 
         async def start(self):
