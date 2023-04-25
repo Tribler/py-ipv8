@@ -4,10 +4,20 @@ import inspect
 import io
 import multiprocessing
 import pathlib
+import platform
 import sys
 import threading
 import time
 import unittest
+
+DEFAULT_PROCESS_COUNT = multiprocessing.cpu_count() * 2
+if platform.system() == 'Windows':
+    # Workaround for https://github.com/Tribler/py-ipv8/issues/1120
+    DEFAULT_PROCESS_COUNT = min(60, DEFAULT_PROCESS_COUNT)
+
+    # Workaround to enable ANSI codes in Windows, taken from https://stackoverflow.com/a/60194390
+    from ctypes import windll
+    windll.kernel32.SetConsoleMode(windll.kernel32.GetStdHandle(-11), 7)
 
 
 def programmer_distractor():
@@ -152,7 +162,7 @@ def make_buckets(path_list, groups):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run the IPv8 tests.')
-    parser.add_argument('-p', '--processes', type=int, default=multiprocessing.cpu_count() * 2, required=False,
+    parser.add_argument('-p', '--processes', type=int, default=DEFAULT_PROCESS_COUNT, required=False,
                         help="The amount of processes to spawn.")
     parser.add_argument('-q', '--quiet', action='store_true', required=False,
                         help="Don't show succeeded tests.")
@@ -170,7 +180,7 @@ if __name__ == "__main__":
         total_end_time = 0
         total_start_time = time.time()
         result = process_pool.starmap_async(task_test, buckets)
-        print(f"awaiting results ... \033[s", end="", flush=True)
+        print("awaiting results ... \033[s", end="", flush=True)
 
         if not args.noanimation:
             programmer_distractor.starttime = time.time()
@@ -201,7 +211,7 @@ if __name__ == "__main__":
     if not args.noanimation:
         programmer_distractor.t.cancel()
 
-    print(f"\033[u\033[Kdone!", end="\r\n\r\n", flush=True)
+    print("\033[u\033[Kdone!", end="\r\n\r\n", flush=True)
 
     if total_fail or not args.quiet:
         print(unittest.TextTestResult.separator1)
