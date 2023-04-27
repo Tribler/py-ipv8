@@ -1,9 +1,9 @@
-cryptography>=2.3dev1
-libnacl>=1.6.1
+cryptography
+libnacl
 netifaces
 aiohttp
 aiohttp_apispec
 pyOpenSSL
 pyasn1
-asynctest
+asynctest; python_version=='3.7'
 marshmallow
