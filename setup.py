@@ -24,9 +24,8 @@ setup(
         "marshmallow"
     ],
     extras_require={
-        "all": ["asynctest; python_version=='3.7'", "coverage", "netifaces"],
-        "tests": ["asynctest; python_version=='3.7'", "coverage"],
-        "ifdiscovery": ["netifaces"]
+        "all": ["asynctest; python_version=='3.7'", "coverage"],
+        "tests": ["asynctest; python_version=='3.7'", "coverage"]
     },
     classifiers=[
         "Development Status :: 5 - Production/Stable",

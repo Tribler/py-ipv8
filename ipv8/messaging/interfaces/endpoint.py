@@ -1,15 +1,11 @@
 import abc
+import ipaddress
 import logging
 import socket
 import struct
 import threading
 
-try:
-    # Especially on Android netifaces may fail.
-    # Generally, we also allow users not to have netifaces installed.
-    import netifaces
-except ImportError:
-    netifaces = None
+from .lan_addresses.interfaces import get_lan_addresses
 
 
 class Endpoint(metaclass=abc.ABCMeta):
@@ -128,7 +124,6 @@ class EndpointListener(metaclass=abc.ABCMeta):
 
         self.endpoint = endpoint
 
-        self._netifaces_failed = netifaces is None
         self._local_interfaces = []
         self._my_estimated_lan = None
         self.my_estimated_wan = self.my_estimated_lan
@@ -136,14 +131,17 @@ class EndpointListener(metaclass=abc.ABCMeta):
     @property
     def my_estimated_lan(self):
         """
-        Estimate our LAN IPv4 address and port.
+        Estimate our LAN address and port.
 
-        If the endpoint is closed this returns ("0.0.0.0", 0).
+        If the endpoint is closed this returns ("::1", 0) for IPv6 and ("0.0.0.0", 0) otherwise.
         If the endpoint is open and we have no idea what our address is, attempt to estimate it.
         Otherwise, return the current value of the estimated LAN address and port.
         """
         if not self.endpoint.is_open():
-            return "0.0.0.0", 0
+            if self.is_ipv6_listener:
+                return "::1", 0
+            else:
+                return "0.0.0.0", 0
         if self._my_estimated_lan is None:
             self._my_estimated_lan = (self._get_lan_address(True)[0], self.endpoint.get_address()[1])
         return self._my_estimated_lan
@@ -168,66 +166,24 @@ class EndpointListener(metaclass=abc.ABCMeta):
         """
         pass
 
-    @staticmethod
-    def _get_interface_addresses():
+    def _is_ipv6_address(self, address):
         """
-        Yields Interface instances for each available AF_INET interface found.
-
-        An Interface instance has the following properties:
-        - name          (i.e. "eth0")
-        - address       (i.e. "10.148.3.254")
-        - netmask       (i.e. "255.255.255.0")
-        - broadcast     (i.e. "10.148.3.255")
+        Whether the supplied address is IPv6.
         """
-
-        class Interface(object):
-
-            def __init__(self, name, address, netmask, broadcast):
-                self.name = name
-                self.address = address
-                self.netmask = netmask
-                self.broadcast = broadcast
-                self._l_address, = struct.unpack_from(">L", socket.inet_aton(address))
-                self._l_netmask, = struct.unpack_from(">L", socket.inet_aton(netmask))
-
-            def __contains__(self, address):
-                assert isinstance(address, str), type(address)
-                l_address, = struct.unpack_from(">L", socket.inet_aton(address))
-                return (l_address & self._l_netmask) == (self._l_address & self._l_netmask)
-
-            def __str__(self):
-                return "<{self.__class__.__name__} \"{self.name}\" addr:{self.address} mask:{self.netmask}>".format(
-                    self=self)
-
-            def __repr__(self):
-                return "<{self.__class__.__name__} \"{self.name}\" addr:{self.address} mask:{self.netmask}>".format(
-                    self=self)
-
         try:
-            for interface in netifaces.interfaces():
-                try:
-                    addresses = netifaces.ifaddresses(interface)
+            return isinstance(ipaddress.ip_address(address), ipaddress.IPv6Address)
+        except ValueError:
+            return False
 
-                except ValueError:
-                    # some interfaces are given that are invalid, we encountered one called ppp0
-                    pass
-
-                else:
-                    for option in addresses.get(netifaces.AF_INET, []):
-                        addr, netmask, broadcast = [option.get(field) for field in ("addr", "netmask", "broadcast")]
-
-                        if netmask == "0.0.0.0":
-                            continue  # The network interface isn't bound to any network, so we skip it
-
-                        try:
-                            yield Interface(interface, addr, netmask, broadcast)
-                        except TypeError:
-                            # some interfaces have no netmask configured, causing a TypeError when
-                            # trying to unpack _l_netmask
-                            pass
-        except OSError as e:
-            logger = logging.getLogger("dispersy")
-            logger.warning("failed to check network interfaces, error was: %r", e)
+    @property
+    def is_ipv6_listener(self):
+        """
+        Whether we are on an IPv6 address.
+        """
+        if self.endpoint.is_open():
+            return self._is_ipv6_address(self.endpoint.get_address()[0])
+        else:
+            return getattr(self.endpoint, "SOCKET_FAMILY", socket.AF_INET) == socket.AF_INET6
 
     def _address_in_subnet(self, address, subnet):
         """
@@ -244,16 +200,6 @@ class EndpointListener(metaclass=abc.ABCMeta):
         subnet_main >>= 32 - netmask
         return address == subnet_main
 
-    def _address_is_lan_without_netifaces(self, address):
-        """
-        Checks if the given ip address is either our own address or in one of the subnet defined for local network usage
-        :param address: ip v4 address to be checked
-        :return: True if the address is a lan address, False otherwise
-        """
-        if address == self.get_lan_address_without_netifaces():
-            return True
-        return self.address_in_lan_subnets(address)
-
     def address_in_lan_subnets(self, address):
         lan_subnets = (("192.168.0.0", 16),
                        ("172.16.0.0", 12),
@@ -261,76 +207,29 @@ class EndpointListener(metaclass=abc.ABCMeta):
         return any(self._address_in_subnet(address, subnet) for subnet in lan_subnets)
 
     def address_is_lan(self, address):
-        if self._netifaces_failed:
-            return self._address_is_lan_without_netifaces(address)
-        else:
-            return any(address in interface for interface in self._local_interfaces)
-
-    def get_lan_address_without_netifaces(self):
-        """
-        # Get the local ip address by creating a socket for a (random) internet ip
-        :return: the local ip address
-        """
-        try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            s.connect(("192.0.2.0", 80))  # TEST-NET-1, guaranteed to not be connected => no callbacks
-            local_ip = s.getsockname()[0]
-            s.close()
-            return local_ip
-        except socket.error:
-            return "0.0.0.0"
+        return address in get_lan_addresses()
 
     def get_ipv6_address(self):
-        for interface in netifaces.interfaces():
-            try:
-                addresses = netifaces.ifaddresses(interface)
-                for option in addresses.get(netifaces.AF_INET6, []):
-                    try:
-                        if option.get("addr") == "::1":
-                            continue
-                        unicode_to_str = lambda s: s.encode('utf-8') if s and not isinstance(s, str) else s
-                        return unicode_to_str(option.get("addr").split('%')[0])  # Platform-specific may have "%eth0"
-                    except TypeError:
-                        pass
-            except OSError as e:
-                logger = logging.getLogger("dispersy")
-                logger.warning("failed to check network interfaces, error was: %r", e)
+        return self.endpoint.get_address()
 
     def _get_lan_address(self, bootstrap=False):
         """
-        Attempt to get the newest lan ip of this machine, preferably with netifaces, but use the fallback if it fails
+        Attempt to get the newest lan ip of this machine.
+
         :return: lan address
         """
-        if self._netifaces_failed:
-            return self.get_lan_address_without_netifaces(), self.endpoint.get_address()[1]
-        else:
-            self._local_interfaces = list(self._get_interface_addresses())
-            interface = self._guess_lan_address(self._local_interfaces)
-            return (interface.address if interface else self.get_lan_address_without_netifaces()), \
-                   (0 if bootstrap else self.endpoint.get_address()[1])
+        return self._guess_lan_address(get_lan_addresses()), (0 if bootstrap else self.endpoint.get_address()[1])
 
-    def _guess_lan_address(self, interfaces, default=None):
+    def _guess_lan_address(self, addresses):
         """
         Chooses the most likely Interface instance out of INTERFACES to use as our LAN address.
-
-        INTERFACES can be obtained from _get_interface_addresses()
-        DEFAULT is used when no appropriate Interface can be found
         """
-        assert isinstance(interfaces, list), type(interfaces)
-        blacklist = ["127.0.0.1", "0.0.0.0", "255.255.255.255"]
+        for address in addresses:
+            if (not (self.is_ipv6_listener and not self._is_ipv6_address(address))
+                    and not (not self.is_ipv6_listener and self._is_ipv6_address(address))):
+                return address
 
-        # prefer interfaces where we have a broadcast address
-        for interface in interfaces:
-            if interface.broadcast and interface.address and interface.address not in blacklist:
-                return interface
-
-        # Exception for virtual machines/containers
-        for interface in interfaces:
-            if interface.address and interface.address not in blacklist:
-                return interface
-
-        self._netifaces_failed = True
-        return default
+        return "127.0.0.1"
 
 
 class IllegalEndpointListenerError(RuntimeError):

@@ -1,6 +1,5 @@
 cryptography
 libnacl
-netifaces
 aiohttp
 aiohttp_apispec
 pyOpenSSL
