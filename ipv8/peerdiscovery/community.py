@@ -27,7 +27,7 @@ class PeriodicSimilarity(DiscoveryStrategy):
             return
         self.last_step = now
         with self.walk_lock:
-            self.overlay.send_similarity_request(sample(self.overlay.network.verified_peers, 1)[0].address)
+            self.overlay.send_similarity_request(sample(list(self.overlay.network.verified_peers), 1)[0].address)
 
 
 class PingRequestCache(NumberCache):
