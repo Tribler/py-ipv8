@@ -110,12 +110,13 @@ class Network(object):
             else:
                 self.services_per_peer[key_material] |= set(services)
             for service in services:
-                service_cache = self.reverse_service_lookup.get(service, [])
-                # Ensure that the peer instance in the cache is the same one as in verified_peers.
-                if peer in service_cache:
-                    service_cache.remove(peer)
-                service_cache.append(self.verified_by_public_key_bin.get(key_material, peer))
-                self.reverse_service_lookup[service] = service_cache
+                service_cache = self.reverse_service_lookup.get(service, None)
+                if service_cache is not None:
+                    # Ensure that the peer instance in the cache is the same one as in verified_peers.
+                    if peer in service_cache:
+                        service_cache.remove(peer)
+                    service_cache.append(self.verified_by_public_key_bin.get(key_material, peer))
+                    self.reverse_service_lookup[service] = service_cache
 
     def add_verified_peer(self, peer: Peer) -> None:
         """

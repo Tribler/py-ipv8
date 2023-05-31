@@ -498,3 +498,29 @@ class TestNetwork(TestBase):
         peers = set(self.network.get_walkable_addresses())
 
         self.assertEqual(3, len(peers))
+
+    def test_cache_reconstruct(self):
+        """
+        Check if services caches are reconstructed properly.
+
+        This test is based on https://github.com/Tribler/py-ipv8/issues/1131
+        """
+        service1 = bytes(range(20))
+        service2 = bytes(range(20, 40))
+        self.network.reverse_service_cache_size = 1
+        self.network.add_verified_peer(self.peers[0])
+        self.network.add_verified_peer(self.peers[1])
+        self.network.discover_services(self.peers[0], [service1, service2])
+        self.network.get_peers_for_service(service1)
+
+        # Setup:
+        # 1. self.peers[0] supports service1 and service2
+        # 2. The reverse_service_lookup only includes service1
+        # Act:
+        # 1. Discover that self.peers[1] supports service2
+        self.network.discover_services(self.peers[1], [service2])
+
+        # Both peers should be returned as part of service2
+        peers_for_s2_two = [p for p in self.network.get_peers_for_service(service2)]
+        self.assertIn(self.peers[1], peers_for_s2_two)
+        self.assertIn(self.peers[0], peers_for_s2_two)
