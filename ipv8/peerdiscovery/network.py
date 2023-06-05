@@ -16,7 +16,7 @@ WalkableAddress = namedtuple('WalkableAddress', ['introduced_by', 'services', 'n
 
 class Network(object):
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._all_addresses: Dict[Address, WalkableAddress] = {}
         '''All known IP:port addresses, mapped to (introduction peer, services, new_style).'''
 
@@ -42,18 +42,18 @@ class Network(object):
         '''Map of service identifiers to local overlays.'''
 
         self.reverse_ip_cache_size = 500
-        self.reverse_ip_lookup = OrderedDict()
+        self.reverse_ip_lookup: OrderedDict[Address, Peer] = OrderedDict()
         '''Cache of IP:port -> Peer. This is a cache rather than a normal dictionary (the addresses of a peer are
         temporal and can grow infinitely): we rotate out old information to avoid a memory leak.'''
 
         self.reverse_intro_cache_size = 500
-        self.reverse_intro_lookup = OrderedDict()
+        self.reverse_intro_lookup: OrderedDict[Peer, List[Address]] = OrderedDict()
         '''Map of Peer -> [IP:port], reversing the information from _all_addresses. This is a cache rather than a
         normal dictionary (the addresses of a peer are temporal and can grow infinitely): we rotate out old
         information to avoid a memory leak.'''
 
         self.reverse_service_cache_size = 500
-        self.reverse_service_lookup = OrderedDict()
+        self.reverse_service_lookup: OrderedDict[Service, List[Peer]] = OrderedDict()
         '''Cache of service_id -> [Peer]. This is a cache rather than a normal dictionary (the services of a peer may
         be temporal and can grow infinitely): we rotate out old information to avoid a memory leak.'''
 
@@ -217,7 +217,7 @@ class Network(object):
                 out = new_out
             return out
 
-    def get_verified_by_address(self, address: Address) -> Peer:
+    def get_verified_by_address(self, address: Address) -> Optional[Peer]:
         """
         Get a verified Peer by its IP address.
 

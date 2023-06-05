@@ -191,7 +191,8 @@ class CommunicationChannel(object):
 
 class CommunicationManager(object):
 
-    def __init__(self, ipv8_instance: IPv8, pseudonym_folder: str = "pseudonyms", working_directory: str = None):
+    def __init__(self, ipv8_instance: IPv8, pseudonym_folder: str = "pseudonyms",
+                 working_directory: typing.Optional[str] = None):
         super(CommunicationManager, self).__init__()
 
         self.ipv8_instance = ipv8_instance

@@ -3,7 +3,7 @@ from asyncio import CancelledError, gather
 from contextlib import contextmanager, suppress
 from random import random
 from threading import Lock
-from typing import Generator, Iterable, Optional, Type
+from typing import Dict, Generator, Iterable, Optional, Type
 
 from .taskmanager import TaskManager
 
@@ -84,7 +84,7 @@ class RandomNumberCache(NumberCache):
 
 class RequestCache(TaskManager):
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Creates a new RequestCache instance.
         """
@@ -92,7 +92,7 @@ class RequestCache(TaskManager):
 
         self._logger = logging.getLogger(self.__class__.__name__)
 
-        self._identifiers = dict()
+        self._identifiers: Dict[str, NumberCache] = dict()
         self.lock = Lock()
         self._shutdown = False
 
@@ -110,7 +110,7 @@ class RequestCache(TaskManager):
         This is used internally for ``passthrough()``, don't modify this directly!
         """
 
-    def add(self, cache):
+    def add(self, cache: NumberCache):
         """
         Add CACHE into this RequestCache instance.
 

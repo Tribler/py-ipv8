@@ -23,8 +23,9 @@ class IdentityCommunity(Community):
 
     community_id = unhexlify('d5889074c1e4c50423cdb6e9307ee0ca5695ead7')
 
-    def __init__(self, my_peer: Peer, endpoint: Endpoint, network: Network = None, max_peers: int = DEFAULT_MAX_PEERS,
-                 anonymize: bool = True, identity_manager: IdentityManager = None, working_directory: str = "."):
+    def __init__(self, my_peer: Peer, endpoint: Endpoint, network: typing.Optional[Network] = None,
+                 max_peers: int = DEFAULT_MAX_PEERS, anonymize: bool = True,
+                 identity_manager: typing.Optional[IdentityManager] = None, working_directory: str = "."):
         if network is None:
             network = Network()
         super(IdentityCommunity, self).__init__(my_peer, endpoint, network, max_peers, anonymize)
