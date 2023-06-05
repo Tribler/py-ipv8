@@ -455,7 +455,7 @@ class Community(EZPackOverlay):
         packet = self.create_introduction_request(peer.address, new_style=peer.new_style_intro)
         self.endpoint.send(peer.address, packet)
 
-    def get_new_introduction(self, from_peer: Peer = None):
+    def get_new_introduction(self, from_peer: Optional[Peer] = None):
         """
         Get a new introduction, or bootstrap if there are no available peers.
         """

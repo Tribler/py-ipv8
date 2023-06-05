@@ -13,7 +13,7 @@ ADDRESS_TYPE_DOMAIN_NAME = 0x02
 ADDRESS_TYPE_IPV6 = 0x03
 
 
-FormatListType = typing.Union[str, "Serializable", typing.List["FormatListType"]]  # type:ignore
+FormatListType = typing.Union[str, typing.Type["Serializable"], typing.List["FormatListType"]]  # type:ignore
 
 
 class PackError(RuntimeError):

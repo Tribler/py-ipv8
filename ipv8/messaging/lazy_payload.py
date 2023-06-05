@@ -65,7 +65,7 @@ class VariablePayload(Payload):
             raise KeyError("%s missing %d arguments!" % (self.__class__.__name__, len(args) - index))
         if kwargs:
             raise KeyError("%s has leftover keyword arguments: %s!" % (self.__class__.__name__, str(kwargs)))
-        self.__class__.__match_args__ = tuple(self.names)
+        setattr(self.__class__, "__match_args__", tuple(self.names))
 
     @classmethod
     def from_unpack_list(cls, *args) -> VariablePayload:
