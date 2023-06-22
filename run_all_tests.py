@@ -1,4 +1,5 @@
 import argparse
+import contextlib
 import importlib
 import inspect
 import io
@@ -8,7 +9,10 @@ import platform
 import sys
 import threading
 import time
+import types
+import typing
 import unittest
+from concurrent.futures import ProcessPoolExecutor
 
 DEFAULT_PROCESS_COUNT = multiprocessing.cpu_count() * 2
 if platform.system() == 'Windows':
@@ -20,12 +24,37 @@ if platform.system() == 'Windows':
     windll.kernel32.SetConsoleMode(windll.kernel32.GetStdHandle(-11), 7)
 
 
-def programmer_distractor():
-    distraction = str(int(time.time() - programmer_distractor.starttime))
-    print('\033[u\033[K' + distraction + " seconds and counting "
-          + ("x" if int(time.time() * 10) % 2 else "+"), end="", flush=True)
-    programmer_distractor.t = threading.Timer(0.1, programmer_distractor)
-    programmer_distractor.t.start()
+class ProgrammerDistractor(contextlib.AbstractContextManager):
+
+    def __init__(self, enabled: bool):
+        self.enabled = enabled
+        self.starttime = time.time()
+        self.timer = None
+        self.crashed = False
+
+    def programmer_distractor(self):
+        distraction = str(int(time.time() - self.starttime))
+        print('\033[u\033[K' + distraction + " seconds and counting "
+              + ("x" if int(time.time() * 10) % 2 else "+"), end="", flush=True)
+        self.timer = threading.Timer(0.1, self.programmer_distractor)
+        self.timer.start()
+
+    def __enter__(self):
+        if self.enabled:
+            self.timer = threading.Timer(0.1, self.programmer_distractor)
+            self.timer.start()
+        return self
+
+    def __exit__(self,
+                 exc_type: typing.Optional[typing.Type[BaseException]],
+                 exc: typing.Optional[BaseException],
+                 exc_tb: typing.Optional[types.TracebackType]) -> bool:
+        if self.timer:
+            self.timer.cancel()
+        if exc_type is not None or exc is not None:
+            self.crashed = True
+            return True  # Consume the exception: we'll tell the user later.
+        return False
 
 
 class CustomTestResult(unittest.TextTestResult):
@@ -150,16 +179,6 @@ def find_all_test_class_names(directory=pathlib.Path('./ipv8/test')):
     return test_class_names
 
 
-def make_buckets(path_list, groups):
-    bucket_size = len(path_list) // groups
-    bucket_rem = len(path_list) - bucket_size * groups
-    buckets = []
-    for i in range(groups):
-        buckets.append(tuple(path_list[(i * bucket_size + min(i, bucket_rem)):
-                                       ((i + 1) * bucket_size) + min(i + 1, bucket_rem)]))
-    return buckets
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run the IPv8 tests.')
     parser.add_argument('-p', '--processes', type=int, default=DEFAULT_PROCESS_COUNT, required=False,
@@ -171,47 +190,37 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     process_count = args.processes
+    test_class_names = find_all_test_class_names()
 
-    with multiprocessing.get_context("spawn").Pool(process_count) as process_pool:
-        test_class_names = find_all_test_class_names()
-        buckets = make_buckets(test_class_names, process_count)
+    total_start_time = time.time()
+    global_event_log = []
+    total_time_taken = 0
+    total_tests_run = 0
+    total_fail = False
+    print_output = ''
 
-        print(f"Launching in {process_count} processes ... ", end="")
-        total_end_time = 0
-        total_start_time = time.time()
-        result = process_pool.starmap_async(task_test, buckets)
-        print("awaiting results ... \033[s", end="", flush=True)
+    print(f"Launching in {process_count} processes ... awaiting results ... \033[s", end="", flush=True)
 
-        if not args.noanimation:
-            programmer_distractor.starttime = time.time()
-            timer = threading.Timer(0.1, programmer_distractor)
-            programmer_distractor.t = timer
-            timer.start()
+    with ProgrammerDistractor(not args.noanimation) as programmer_distractor:
+        with ProcessPoolExecutor(max_workers=process_count) as executor:
+            result = executor.map(task_test, test_class_names, chunksize=len(test_class_names) // process_count + 1)
+            for process_output_handle in result:
+                failed, tests_run, time_taken, event_log, print_output = process_output_handle
+                total_fail |= failed
+                total_tests_run += tests_run
+                total_time_taken += time_taken
+                if failed:
+                    global_event_log = event_log
+                    break
+                global_event_log.extend(event_log)
+        total_end_time = time.time()
+    total_fail |= programmer_distractor.crashed  # This is not a unit test failure but we still fail the test suite.
 
-        global_event_log = []
-        total_time_taken = 0
-        total_tests_run = 0
-        total_fail = False
-        print_output = ''
-
-        for process_output_handle in result.get():
-            if total_end_time == 0:
-                total_end_time = time.time()
-            failed, tests_run, time_taken, event_log, print_output = process_output_handle
-            total_fail |= failed
-            total_tests_run += tests_run
-            total_time_taken += time_taken
-            if failed:
-                global_event_log = event_log
-                break
-            global_event_log.extend(event_log)
-
-        process_pool.close()
-        process_pool.join()
-    if not args.noanimation:
-        programmer_distractor.t.cancel()
-
-    print("\033[u\033[Kdone!", end="\r\n\r\n", flush=True)
+    if programmer_distractor.crashed:
+        # The printed test results won't show any errors. We need to give some more info.
+        print("\033[u\033[Ktest suite process crash! Segfault?", end="\r\n\r\n", flush=True)
+    else:
+        print("\033[u\033[Kdone!", end="\r\n\r\n", flush=True)
 
     if total_fail or not args.quiet:
         print(unittest.TextTestResult.separator1)
