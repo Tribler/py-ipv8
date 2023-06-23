@@ -155,15 +155,16 @@ else:
                     smooth = self.walk_interval // len(self.strategies) if self.strategies else 0
                     ticker = len(self.strategies)
                     for strategy, target_peers in self.strategies:
-                        peer_count = len(strategy.overlay.get_peers())
                         start_time = time.time()
-                        if (target_peers == -1) or (peer_count < target_peers):
+                        try:
                             # We wrap the take_step into a general except as it is prone to programmer error.
-                            try:
+                            # Even ``get_peers()`` may fail (https://github.com/Tribler/py-ipv8/issues/1136).
+                            peer_count = len(strategy.overlay.get_peers())
+                            if (target_peers == -1) or (peer_count < target_peers):
                                 strategy.take_step()
-                            except Exception:
-                                logging.error("Exception occurred while trying to walk!\n"
-                                              + ''.join(format_exception(*sys.exc_info())))
+                        except Exception:
+                            logging.error("Exception occurred while trying to walk!\n"
+                                          + ''.join(format_exception(*sys.exc_info())))
                         ticker -= 1 if ticker else 0
                         sleep_time = smooth - (time.time() - start_time)
                         if ticker and sleep_time > 0.01:
