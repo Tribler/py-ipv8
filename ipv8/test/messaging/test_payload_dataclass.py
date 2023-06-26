@@ -64,6 +64,12 @@ class A:
     b: int
 
 
+@dataclass
+class B:
+    a: int
+    b: int = 3
+
+
 @dataclass(eq=False)
 class FwdDataclass:
     a: int
@@ -137,6 +143,24 @@ class TestDataclassPayload(TestBase):  # pylint: disable=R0904
         self.assertEqual(payload.b, 1337)
         self.assertEqual(deserialized.a, 42)
         self.assertEqual(deserialized.b, 1337)
+
+    def test_pass_default(self):
+        """
+        Check if the wrapper forwards default values.
+        """
+        payload = B(5)
+
+        self.assertEqual(payload.a, 5)
+        self.assertEqual(payload.b, 3)
+
+    def test_pass_default_overwrite(self):
+        """
+        Check if the wrapper correctly overwrites default values.
+        """
+        payload = B(5, 7)
+
+        self.assertEqual(payload.a, 5)
+        self.assertEqual(payload.b, 7)
 
     def test_nativebool_t_payload(self):
         """

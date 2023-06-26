@@ -128,6 +128,29 @@ class E(VariablePayload):
     names = ["list_of_A"]
 
 
+class F(VariablePayload):
+    """
+    A VariablePayload with a default value.
+    """
+    format_list = ['I', 'H']
+    names = ["a", "b"]
+
+    def __init__(self, a, b=3, **kwargs):
+        super().__init__(a, b, **kwargs)
+
+
+@vp_compile
+class CompiledF(VariablePayload):
+    """
+    A compiled VariablePayload with a default value.
+    """
+    format_list = ['I', 'H']
+    names = ["a", "b"]
+
+    def __init__(self, a, b=3, **kwargs):
+        super().__init__(a, b, **kwargs)
+
+
 class TestVariablePayload(TestBase):
 
     def _pack_and_unpack(self, payload, instance):
@@ -379,6 +402,42 @@ class TestVariablePayload(TestBase):
         self.assertEqual(e.list_of_A[0].b, deserialized.list_of_A[0].b)
         self.assertEqual(e.list_of_A[1].a, deserialized.list_of_A[1].a)
         self.assertEqual(e.list_of_A[1].b, deserialized.list_of_A[1].b)
+
+    def test_pass_default(self):
+        """
+        Check if default values are forwarded.
+        """
+        payload = F(1)
+
+        self.assertEqual(1, payload.a)
+        self.assertEqual(3, payload.b)
+
+    def test_pass_default_compiled(self):
+        """
+        Check if default values are forwarded, compiled.
+        """
+        payload = CompiledF(1)
+
+        self.assertEqual(1, payload.a)
+        self.assertEqual(3, payload.b)
+
+    def test_pass_default_overwrite(self):
+        """
+        Check if default values are correctly overwritten.
+        """
+        payload = F(1, 7)
+
+        self.assertEqual(1, payload.a)
+        self.assertEqual(7, payload.b)
+
+    def test_pass_default_overwrite_compiled(self):
+        """
+        Check if default values are correctly overwritten, compiled.
+        """
+        payload = CompiledF(1, 7)
+
+        self.assertEqual(1, payload.a)
+        self.assertEqual(7, payload.b)
 
     @skipUnlessPython310
     def test_plain_mismatch_list(self):
