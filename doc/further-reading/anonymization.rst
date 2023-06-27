@@ -59,7 +59,7 @@ The community can be initialized using the ``TunnelSettings`` class. This class 
 
 * *min_circuits*\ : the minimum amount of circuits to create before ``tunnels_ready()`` gives a value larger than 1.0
 * *max_circuits*\ : the maximum amount of circuits to create
-* *max_relays_or_exits*\ : the maximum amount of circuits, which are not our own, we will partake in
+* *max_joined_circuits*\ : the maximum amount of circuits, which are not our own, we will partake in
 * *max_time*\ : the time after which a circuit will be removed (for security reasons)
 * *max_time_inactive*\ : the time after which an idle circuit is removed
 * *max_traffic*\ : the amount of traffic after which a circuit will be removed (for security reasons)
