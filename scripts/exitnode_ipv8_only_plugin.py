@@ -50,7 +50,7 @@ class ExitnodeIPv8Service(object):
         self._stopping = False
         self.tc_persistence = None
 
-    async def start_ipv8(self, statedir, listen_port, statistics, no_rest_api):
+    async def start_ipv8(self, statedir, listen_port, statistics, no_rest_api, max_bps):
         """
         Main method to startup IPv8.
         """
@@ -70,8 +70,9 @@ class ExitnodeIPv8Service(object):
             if overlay['class'] == 'HiddenTunnelCommunity':
                 overlay['initialize']['settings']['min_circuits'] = 0
                 overlay['initialize']['settings']['max_circuits'] = 0
-                overlay['initialize']['settings']['max_relays_or_exits'] = 1000
+                overlay['initialize']['settings']['max_joined_circuits'] = 1000
                 overlay['initialize']['settings']['peer_flags'] = {PEER_FLAG_EXIT_IPV8}
+                overlay['initialize']['settings']['max_exit_bps'] = max_bps
 
         self.ipv8 = IPv8(configuration, enable_statistics=statistics)
         await self.ipv8.start()
@@ -103,12 +104,13 @@ def main(argv):
     parser.add_argument('--no_rest_api', '-a', action='store_const', default=False, const=True, help='Autonomous: disable the REST api')
     parser.add_argument('--statedir', default='.', type=str, help='Use an alternate statedir')
     parser.add_argument('--statistics', '-s', action='store_const', default=False, const=True, help='Enable IPv8 overlay statistics')
+    parser.add_argument('--max_bps', '-b', default=0, type=int, help='Maximum bytes per second for exiting traffic.')
 
     args = parser.parse_args(sys.argv[1:])
     service = ExitnodeIPv8Service()
 
     loop = get_event_loop()
-    coro = service.start_ipv8(args.statedir, args.listen_port, args.statistics, args.no_rest_api)
+    coro = service.start_ipv8(args.statedir, args.listen_port, args.statistics, args.no_rest_api, args.max_bps)
     ensure_future(coro)
 
     if sys.platform == 'win32':

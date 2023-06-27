@@ -13,6 +13,42 @@ tunnel_pkt = unhexlify('000281ded07332bdc775aa5a46f96de9f8f390bbc9f300000001')
 
 class TestDataChecker(TestBase):
 
+    def test_unlimited_bandwidth(self):
+        """
+        Check if bandwidth is not restricted when the magic value for unlimited data is passed.
+        """
+        data_checker = DataChecker(0)
+        packet = b"x" * 10
+
+        self.assertTrue(data_checker.within_speed_limit(packet))
+
+    def test_limit_bandwidth(self):
+        """
+        Check if bandwidth is correctly limited.
+        """
+        data_checker = DataChecker(100)  # 100 bytes per second
+        packet = b"x" * 26  # 26 bytes (should fit 3 per second)
+
+        self.assertTrue(data_checker.within_speed_limit(packet))  # 1/3
+        self.assertTrue(data_checker.within_speed_limit(packet))  # 2/3
+        self.assertTrue(data_checker.within_speed_limit(packet))  # 3/3
+        self.assertFalse(data_checker.within_speed_limit(packet))  # 4/3 -> DROP!
+
+    def test_limit_bandwidth_buffer_clear(self):
+        """
+        Check if bandwidth is correctly limited when the buffer is stale.
+        """
+        data_checker = DataChecker(100)  # 100 bytes per second
+        packet = b"x" * 26  # 26 bytes (should fit 3 per second)
+        data_checker.simulated_packet_buffer.append(DataChecker.SimulatedPacket(26, 0))  # 1/3 (timestamp 0 is very old)
+
+        self.assertTrue(data_checker.within_speed_limit(packet))  # 1/3
+        self.assertEqual(1, len(data_checker.simulated_packet_buffer))  # Old data has been removed
+
+        self.assertTrue(data_checker.within_speed_limit(packet))  # 2/3
+        self.assertTrue(data_checker.within_speed_limit(packet))  # 3/3
+        self.assertFalse(data_checker.within_speed_limit(packet))  # 4/3 -> DROP!
+
     def test_could_be_dht(self):
         """
         Check if a DHT packet is correctly identified.

@@ -4,9 +4,10 @@ import sys
 import time
 from asyncio import CancelledError, DatagramProtocol, Future, ensure_future, gather, get_event_loop
 from binascii import hexlify
-from collections import deque
+from collections import deque, namedtuple
 from struct import unpack_from
 from traceback import format_exception
+from typing import List
 
 from ...taskmanager import TaskManager
 from ...util import succeed
@@ -52,10 +53,52 @@ DESTROY_REASON_LEAVE_SWARM = 5
 DESTROY_REASON_FORBIDDEN = 6
 
 
-class DataChecker(object):
+class DataChecker:
+    SimulatedPacket = namedtuple("SimulatedPacket", ["size", "timestamp"])
+
+    class MutableSummer:
+
+        def __init__(self):
+            self.value: int = 0
+
+        def add(self, value: int) -> bool:
+            self.value += value
+            return True
+
+        def __int__(self) -> int:
+            return self.value
+
+    def __init__(self, allowed_bps: int):
+        """
+        Create a new DataChecker instance, for when state-dependent data checks need to be performed.
+        """
+        self.simulated_packet_buffer: List[DataChecker.SimulatedPacket] = []  # Not a set: packets may not be unique!
+        self.allowed_bps = allowed_bps
+
+    def within_speed_limit(self, data: bytes) -> bool:
+        """
+        Check if the given data falls within our requested speed limit, in bytes per second.
+        """
+        if self.allowed_bps <= 0:
+            return True
+
+        current_time = time.time()
+        data_size = len(data)
+
+        # Cleanup old data and calculate the new sum in one single step (for efficiency, this is executed a lot).
+        current_size = DataChecker.MutableSummer()
+        self.simulated_packet_buffer = [packet for packet in self.simulated_packet_buffer
+                                        if packet.timestamp > current_time - 1  # Track the past 1 second
+                                        and current_size.add(packet.size)]  # Only add if preceding is True
+        requested_bps = data_size + int(current_size)  # Bytes over the last 1 second.
+
+        if requested_bps <= self.allowed_bps:
+            self.simulated_packet_buffer.append(DataChecker.SimulatedPacket(data_size, current_time))
+            return True
+        return False
 
     @staticmethod
-    def could_be_utp(data):
+    def could_be_utp(data: bytes) -> bool:
         """
         Check if this data could be uTP (see also https://www.bittorrent.org/beps/bep_0029.html).
 
@@ -88,7 +131,7 @@ class DataChecker(object):
         return True
 
     @staticmethod
-    def could_be_udp_tracker(data):
+    def could_be_udp_tracker(data: bytes) -> bool:
         # For the UDP tracker protocol the action field is either at position 0 or 8, and should be 0..3
         if len(data) >= 8 and (0 <= unpack_from('!I', data, 0)[0] <= 3)\
                 or len(data) >= 12 and (0 <= unpack_from('!I', data, 8)[0] <= 3):
@@ -96,7 +139,7 @@ class DataChecker(object):
         return False
 
     @staticmethod
-    def could_be_dht(data):
+    def could_be_dht(data: bytes) -> bool:
         try:
             if len(data) > 1 and data[0:1] == b'd' and data[-1:] == b'e':
                 return True
@@ -105,13 +148,13 @@ class DataChecker(object):
         return False
 
     @staticmethod
-    def could_be_bt(data):
+    def could_be_bt(data: bytes) -> bool:
         return (DataChecker.could_be_utp(data)
                 or DataChecker.could_be_udp_tracker(data)
                 or DataChecker.could_be_dht(data))
 
     @staticmethod
-    def could_be_ipv8(data):
+    def could_be_ipv8(data: bytes) -> bool:
         return len(data) >= 23 and data[0:1] == b'\x00' and data[1:2] in [b'\x01', b'\x02']
 
 
@@ -135,13 +178,15 @@ class Tunnel(object):
 
 class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
 
-    def __init__(self, circuit_id, peer, overlay):
+    def __init__(self, circuit_id, peer, overlay, max_bps=0):
         Tunnel.__init__(self, circuit_id, peer)
         TaskManager.__init__(self)
+        self.data_checker = DataChecker(max_bps)
         self.overlay = overlay
         self.transport = None
         self.queue = deque(maxlen=10)
         self.enabled = False
+        self.max_bps = max_bps
 
     def enable(self):
         if not self.enabled:
@@ -161,7 +206,7 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
             return
 
         self.beat_heart()
-        if self.is_allowed(data):
+        if self.is_allowed(data) and self.data_checker.within_speed_limit(data):  # Only check speed limit on upload
             def on_ip_address(future):
                 try:
                     ip_address = future.result()
@@ -205,8 +250,8 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
             self.logger.warning("Dropping forbidden packets to exit socket with circuit_id %d", self.circuit_id)
 
     def is_allowed(self, data):
-        is_bt = DataChecker.could_be_bt(data)
-        is_ipv8 = DataChecker.could_be_ipv8(data)
+        is_bt = self.data_checker.could_be_bt(data)
+        is_ipv8 = self.data_checker.could_be_ipv8(data)
 
         if not (is_bt and PEER_FLAG_EXIT_BT in self.overlay.settings.peer_flags) \
            and not (is_ipv8 and PEER_FLAG_EXIT_IPV8 in self.overlay.settings.peer_flags) \

@@ -81,6 +81,10 @@ class TunnelSettings(object):
         # Maximum number of relay_early cells that are allowed to pass a relay.
         self.max_relay_early = 8
 
+        # Maximum uploaded bytes per second for exit traffic, per exit socket (see max_joined_circuits).
+        # This value is only used when running as an exit node and ignored if this value is <=0 (i.e., unlimited).
+        self.max_exit_bps = 0
+
     @classmethod
     def from_dict(cls, d):
         result = cls()
@@ -696,7 +700,7 @@ class TunnelCommunity(Community):
 
         peer = Peer(create_payload.node_public_key, previous_node_address)
         self.request_cache.add(CreatedRequestCache(self, circuit_id, peer, peers_keys, self.settings.unstable_timeout))
-        self.exit_sockets[circuit_id] = TunnelExitSocket(circuit_id, peer, self)
+        self.exit_sockets[circuit_id] = TunnelExitSocket(circuit_id, peer, self, self.settings.max_exit_bps)
 
         candidate_list_bin = self.serializer.pack('varlenH-list', list(peers_keys.keys()))
         candidate_list_enc = self.crypto.encrypt_str(candidate_list_bin,

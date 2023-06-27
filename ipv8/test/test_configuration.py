@@ -356,7 +356,7 @@ class TestConfiguration(TestBase):
                                                   {'settings': {
                                                       'min_circuits': 1,
                                                       'max_circuits': 1,
-                                                      'max_relays_or_exits': 100,
+                                                      'max_joined_circuits': 100,
                                                       'max_time': 10 * 60,
                                                       'max_time_inactive': 20,
                                                       'max_traffic': 250 * 1024 * 1024,
