@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import inspect
 import types
-from typing import Any, List, Type, TypeVar
+from typing import Any, Dict, List, Type, TypeVar
 
 from .serialization import FormatListType, Payload
 
@@ -121,15 +121,15 @@ V = TypeVar('V', bound=VariablePayload)
 VT = Type[V]
 
 
-def _compile_init(names: List[str]) -> types.CodeType:
+def _compile_init(names: List[str], defaults: Dict[str, Any]) -> types.CodeType:
     """
     Compile the init function.
 
-    Takes the form of:
+    For (["a", "b"], {"b": 3}) this takes the form of:
 
      .. code-block :: Python
 
-        def __init__(self, a, b):
+        def __init__(self, a, b=3):
             self.a = a
             self.b = b
 
@@ -142,7 +142,7 @@ def _compile_init(names: List[str]) -> types.CodeType:
 def __init__(self, %s):
     Payload.__init__(self)
     %s
-    """ % (', '.join(names),
+    """ % (', '.join((f"{name}={defaults.get(name)}" if name in defaults else name) for name in names),
            '\n    '.join(['self.%s = %s' % (name, name) for name in names]))
     return compile(f_code, f_code, 'exec')
 
@@ -225,7 +225,11 @@ def vp_compile(vp_definition: VT) -> VT:
     # pylint: disable=W0122
 
     # Load the function definitions into the local scope.
-    exec(_compile_init(vp_definition.names), globals(), locals())
+    exec(_compile_init(vp_definition.names, {
+        k: v.default
+        for k, v in inspect.signature(vp_definition.__init__).parameters.items()
+        if v.default is not inspect.Parameter.empty
+    }), globals(), locals())
     exec(_compile_from_unpack_list(vp_definition, vp_definition.names), globals(), locals())
     exec(_compile_to_pack_list(vp_definition, vp_definition.format_list, vp_definition.names), globals(), locals())
 
