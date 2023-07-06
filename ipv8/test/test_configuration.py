@@ -1,10 +1,54 @@
 import base64
+import json
+
+import marshmallow
 
 from .base import TestBase
 from ..configuration import (Bootstrapper, BootstrapperDefinition, ConfigBuilder, DISPERSY_BOOTSTRAPPER, Strategy,
                              WalkerDefinition, get_default_configuration)
 from ..keyvault.crypto import default_eccrypto
 from ..keyvault.private.libnaclkey import LibNaCLSK
+
+
+class IPv8ConfigurationSchema(marshmallow.Schema):
+    """
+    Schema to check the structure (NOT the defaults!) of the IPv8 configuration dict.
+    """
+
+    class LoggerSchema(marshmallow.Schema):
+        level = marshmallow.fields.Str()
+
+    class InterfaceSchema(marshmallow.Schema):
+        interface = marshmallow.fields.Str()
+        ip = marshmallow.fields.Str()
+        port = marshmallow.fields.Int()
+
+    class KeySchema(marshmallow.Schema):
+        alias = marshmallow.fields.Str()
+        generation = marshmallow.fields.Str()
+        file = marshmallow.fields.Str()
+
+    class OverlaySchema(marshmallow.Schema):
+
+        class WalkerSchema(marshmallow.Schema):
+            strategy = marshmallow.fields.Str()
+            peers = marshmallow.fields.Int()
+            init = marshmallow.fields.Dict()
+
+        klass = marshmallow.fields.Str(data_key="class")
+        key = marshmallow.fields.Str()
+        walkers = marshmallow.fields.List(marshmallow.fields.Nested(WalkerSchema()))
+        # The following fields contain UNSTRUCTURED user input (i.e., only check if they serialize to JSON)
+        bootstrappers = marshmallow.fields.List(marshmallow.fields.Dict())
+        initialize = marshmallow.fields.Dict()
+        on_start = marshmallow.fields.List(marshmallow.fields.List(marshmallow.fields.Raw()))
+
+    working_directory = marshmallow.fields.Str()
+    logger = marshmallow.fields.Nested(LoggerSchema())
+    interfaces = marshmallow.fields.List(marshmallow.fields.Nested(InterfaceSchema()))
+    keys = marshmallow.fields.List(marshmallow.fields.Nested(KeySchema()))
+    overlays = marshmallow.fields.List(marshmallow.fields.Nested(OverlaySchema()))
+    walker_interval = marshmallow.fields.Int()
 
 
 class TestConfiguration(TestBase):
@@ -329,3 +373,13 @@ class TestConfiguration(TestBase):
                                                   [])
 
         self.assertDictEqual(get_default_configuration(), builder.finalize())
+
+    def test_default_schema(self):
+        """
+        Check if the default configuration is JSON-serializable and follows the expected schema.
+        """
+        dumped_config = json.dumps(get_default_configuration())
+
+        deserialized = IPv8ConfigurationSchema().loads(dumped_config)  # Throws ValidationError if invalid
+
+        self.assertEqual(6, len(deserialized.keys()))
