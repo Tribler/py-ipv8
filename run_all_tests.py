@@ -143,7 +143,8 @@ def task_test(*test_names):
         tests_failed = True
         end_time = time.time()
     finally:
-        combined_event_log.extend(output_stream.raw_lines if tests_failed else output_stream.raw_lines[:-9])
+        combined_event_log.extend(output_stream.raw_lines if tests_failed
+                                  else output_stream.raw_lines[:tests_run_count])
         combined_event_log.extend(stdio_replacement.raw_lines)
         combined_event_log.extend(stderr_replacement.raw_lines)
         if tests_failed and logging_replacement.raw_lines:
