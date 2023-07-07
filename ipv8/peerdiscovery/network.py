@@ -1,5 +1,7 @@
+import abc
 import logging
 from collections import OrderedDict, namedtuple
+from operator import methodcaller
 from threading import RLock
 from typing import Dict, Iterable, List, Optional, Set
 
@@ -12,6 +14,17 @@ PublicKeyMat = bytes
 Service = bytes
 ServiceSet = Set[Service]
 WalkableAddress = namedtuple('WalkableAddress', ['introduced_by', 'services', 'new_style'])
+
+
+class PeerObserver(metaclass=abc.ABCMeta):
+
+    @abc.abstractmethod
+    def on_peer_added(self, peer: Peer) -> None:
+        pass
+
+    @abc.abstractmethod
+    def on_peer_removed(self, peer: Peer) -> None:
+        pass
 
 
 class Network(object):
@@ -56,6 +69,11 @@ class Network(object):
         self.reverse_service_lookup: OrderedDict[Service, List[Peer]] = OrderedDict()
         '''Cache of service_id -> [Peer]. This is a cache rather than a normal dictionary (the services of a peer may
         be temporal and can grow infinitely): we rotate out old information to avoid a memory leak.'''
+
+        self.peer_observers: Set[PeerObserver] = set()
+        '''
+        Set of observers for peer addition and removal.
+        '''
 
     def is_new_style(self, address: Address) -> bool:
         """
@@ -138,6 +156,7 @@ class Network(object):
                     # This would be a programmer 'error', but we will allow it.
                     self.verified_peers.add(peer)
                     self.verified_by_public_key_bin[peer.public_key.key_to_bin()] = peer
+                    list(map(methodcaller("on_peer_added", peer), self.peer_observers))
             elif all(address not in self.blacklist for address in peer.addresses.values()):
                 for address in peer.addresses.values():
                     if address not in self._all_addresses:
@@ -145,6 +164,7 @@ class Network(object):
                 if peer not in self.verified_peers:
                     self.verified_peers.add(peer)
                     self.verified_by_public_key_bin[peer.public_key.key_to_bin()] = peer
+                    list(map(methodcaller("on_peer_added", peer), self.peer_observers))
 
     def register_service_provider(self, service_id: Service, overlay: Overlay) -> None:
         """
@@ -276,9 +296,13 @@ class Network(object):
             self._all_addresses.pop(address, None)
             # Note that the services_per_peer will never be 0, we abuse the lazy `or` to pop the peers from
             # the services_per_peer mapping if they are no longer included. This is fast.
-            self.verified_peers = {peer for peer in self.verified_peers
-                                   if address not in peer.addresses.values()
-                                   or self.services_per_peer.pop(peer.public_key.key_to_bin(), None) == 0}
+            new_verified_peers = {peer for peer in self.verified_peers
+                                  if address not in peer.addresses.values()
+                                  or self.services_per_peer.pop(peer.public_key.key_to_bin(), None) == 0}
+            removed_peers = self.verified_peers - new_verified_peers
+            self.verified_peers = new_verified_peers
+            for peer in removed_peers:
+                list(map(methodcaller("on_peer_removed", peer), self.peer_observers))
 
     def remove_peer(self, peer: Peer) -> None:
         """
@@ -291,6 +315,7 @@ class Network(object):
                 self._all_addresses.pop(address, None)
             if peer in self.verified_peers:
                 self.verified_peers.remove(peer)
+                list(map(methodcaller("on_peer_removed", peer), self.peer_observers))
             self.verified_by_public_key_bin.pop(peer.public_key.key_to_bin(), None)
             self.services_per_peer.pop(peer.public_key.key_to_bin(), None)
 
@@ -329,3 +354,24 @@ class Network(object):
                         logging.error("Snapshot loading got stuck! Aborting snapshot load.")
                         break
                     logging.warning("Snapshot failed on entry, skipping %s!", repr(address))
+
+    def add_peer_observer(self, observer: PeerObserver) -> None:
+        """
+        Add a peer observer to notify about peer addition and removal.
+
+        :param observer: the observer to register.
+        :returns: None
+        """
+        self.peer_observers.add(observer)
+
+    def remove_peer_observer(self, observer: PeerObserver) -> None:
+        """
+        Remove a registered peer observer. It will no longer receive notifications.
+
+        :param observer: the observer to unregister.
+        :returns: None
+        """
+        try:
+            self.peer_observers.remove(observer)
+        except KeyError:
+            pass
