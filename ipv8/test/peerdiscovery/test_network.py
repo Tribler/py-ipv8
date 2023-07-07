@@ -4,13 +4,27 @@ from binascii import unhexlify
 from ..base import TestBase
 from ...keyvault.crypto import default_eccrypto
 from ...peer import Peer
-from ...peerdiscovery.network import Network
+from ...peerdiscovery.network import Network, PeerObserver
 
 
 def _generate_peer():
     key = default_eccrypto.generate_key(u'very-low')
     address = (".".join([str(random.randint(0, 255)) for _ in range(4)]), random.randint(0, 65535))
     return Peer(key, address)
+
+
+class MockPeerObserver(PeerObserver):
+
+    def __init__(self):
+        super().__init__()
+        self.observed_additions = []
+        self.observed_removals = []
+
+    def on_peer_added(self, peer: Peer) -> None:
+        self.observed_additions.append(peer)
+
+    def on_peer_removed(self, peer: Peer) -> None:
+        self.observed_removals.append(peer)
 
 
 class TestNetwork(TestBase):
@@ -524,3 +538,105 @@ class TestNetwork(TestBase):
         peers_for_s2_two = [p for p in self.network.get_peers_for_service(service2)]
         self.assertIn(self.peers[1], peers_for_s2_two)
         self.assertIn(self.peers[0], peers_for_s2_two)
+
+    def test_add_peer_observer(self):
+        """
+        Check if an added observer becomes part of the registered observers.
+        """
+        observer = MockPeerObserver()
+
+        self.network.add_peer_observer(observer)
+
+        self.assertIn(observer, self.network.peer_observers)
+
+    def test_remove_peer_observer(self):
+        """
+        Check if an added observer can be removed.
+        """
+        observer = MockPeerObserver()
+        self.network.add_peer_observer(observer)
+
+        self.network.remove_peer_observer(observer)
+
+        self.assertNotIn(observer, self.network.peer_observers)
+
+    def test_notify_peer_addition(self):
+        """
+        Check if peer observers are notified of newly added peers, when adding verified peers normally.
+        """
+        observer = MockPeerObserver()
+        self.network.add_peer_observer(observer)
+
+        self.network.add_verified_peer(self.peers[0])
+
+        self.assertEqual(1, len(observer.observed_additions))
+
+    def test_notify_peer_addition_discover(self):
+        """
+        Check if peer observers are notified of newly added peers, when they aid in address discovery.
+        """
+        observer = MockPeerObserver()
+        self.network.add_peer_observer(observer)
+
+        self.network.discover_address(self.peers[0], self.peers[1].address)
+
+        self.assertEqual(1, len(observer.observed_additions))
+
+    def test_notify_peer_addition_known_address(self):
+        """
+        Check if peer observers are notified of newly added peers, with known addresses.
+        """
+        observer = MockPeerObserver()
+        self.network.add_peer_observer(observer)
+
+        self.network.discover_address(self.peers[0], self.peers[1].address)
+        self.network.add_verified_peer(self.peers[1])
+
+        self.assertEqual(2, len(observer.observed_additions))
+
+    def test_notify_peer_removal(self):
+        """
+        Check if peer observers are notified of removed peers, when removing verified peers normally.
+        """
+        observer = MockPeerObserver()
+        self.network.add_peer_observer(observer)
+        self.network.add_verified_peer(self.peers[0])
+
+        self.network.remove_peer(self.peers[0])
+
+        self.assertEqual(1, len(observer.observed_removals))
+
+    def test_notify_peer_removal_by_address(self):
+        """
+        Check if peer observers are notified of removed peers, when removing a peer by its address.
+        """
+        observer = MockPeerObserver()
+        self.network.add_peer_observer(observer)
+        self.network.add_verified_peer(self.peers[0])
+
+        self.network.remove_by_address(self.peers[0].address)
+
+        self.assertEqual(1, len(observer.observed_removals))
+
+    def test_notify_peer_removal_by_address_many(self):
+        """
+        Check if peer observers are notified of multiple removed peers, when removing them by their address.
+
+        Because peers may share addresses, multiple peers could be removed with the removal of one address.
+        """
+        observer = MockPeerObserver()
+        fake_address = ("abc", 0)
+
+        self.network.add_peer_observer(observer)
+        self.network.add_verified_peer(self.peers[0])
+        addr_share_p1 = _generate_peer()
+        addr_share_p2 = _generate_peer()
+        addr_share_p1.address = fake_address
+        addr_share_p2.address = fake_address
+        self.network.add_verified_peer(addr_share_p1)
+        self.network.add_verified_peer(addr_share_p2)
+        self.network.add_verified_peer(self.peers[1])
+
+        self.network.remove_by_address(fake_address)
+
+        self.assertEqual(2, len(observer.observed_removals))
