@@ -180,7 +180,7 @@ print("[3/8] Requesting GitHub username and password")
 username = input('Username: ')
 token = getpass.getpass(prompt='Token (needs public_repo access, no token? visit https://github.com/settings/tokens): ', stream=None)
 
-github = Github(token, client_id=username, client_secret=token)
+github = Github(token)
 
 # GET REPOSITORY REFERENCES
 print("[4/8] Retrieving Tribler:py-ipv8 and %s:py-ipv8" % username)
