@@ -1,18 +1,23 @@
 import functools
+from asyncio import Transport
 from threading import RLock
 
-from aiohttp import ClientSession
+from aiohttp import ClientSession, web, BaseConnector
+from aiohttp.client_proto import ResponseHandler
+from aiohttp.web_protocol import RequestHandler
 
 from ..base import TestBase
 from ...REST.rest_manager import RESTManager
 from ...configuration import get_default_configuration
 from ...keyvault.crypto import ECCrypto
 from ...messaging.anonymization.endpoint import TunnelEndpoint
+from ...messaging.interfaces.endpoint import EndpointListener
+from ...messaging.interfaces.udp.endpoint import UDPv4Address
 from ...peer import Peer
 from ...peerdiscovery.network import Network
 from ...test.mocking.discovery import MockWalk
-from ...test.mocking.endpoint import AutoMockEndpoint
-from ...util import maybe_coroutine
+from ...test.mocking.endpoint import AutoMockEndpoint, MockEndpoint
+from ...util import maybe_coroutine, succeed
 
 
 def partial_cls(cls, *args, **kwargs):
@@ -20,6 +25,76 @@ def partial_cls(cls, *args, **kwargs):
         __init__ = functools.partialmethod(cls.__init__, *args, **kwargs)
     PartialCls.__name__ = cls.__name__
     return PartialCls
+
+
+class IPv8Transport(Transport, EndpointListener):
+
+    def __init__(self, callback, host=None, port=None, server_port=80):
+        self.callback = callback
+        Transport.__init__(self)
+        if host is not None:
+            self.endpoint = MockEndpoint(UDPv4Address(host, port), UDPv4Address(host, port))
+            self.remote = None
+        else:
+            self.endpoint = AutoMockEndpoint()
+            self.remote = UDPv4Address("127.0.0.1", server_port)
+        EndpointListener.__init__(self, self.endpoint)
+        self.endpoint.add_listener(self)
+        self.endpoint.prefixlen = 0
+        self.endpoint.open()
+
+    def is_closing(self) -> bool:
+        return not self.endpoint.is_open()
+
+    def is_reading(self) -> bool:
+        return self.endpoint.is_open()
+
+    def close(self) -> None:
+        self.endpoint.close()
+
+    def on_packet(self, packet):
+        address, data = packet
+        self.remote = address
+        self.callback(data)
+
+    def write(self, data) -> None:
+        self.endpoint.send(self.remote, data)
+
+
+class MockServer:
+
+    START_PORT = 80
+
+    def __init__(self, server):
+        super().__init__()
+        self.port, MockServer.START_PORT = MockServer.START_PORT, MockServer.START_PORT + 1
+        self.transport = IPv8Transport(self.received_data, "127.0.0.1", self.port)
+        self.handler = RequestHandler(server, loop=server._loop)
+        self.handler.connection_made(self.transport)
+
+    def close(self):
+        pass
+
+    def shutdown(self, timeout):
+        return succeed(True)
+
+    def received_data(self, data):
+        self.handler.data_received(data)
+
+
+class MockedSite(web.TCPSite):
+
+    async def start(self) -> None:
+        self._server = self._runner.server
+        await web.BaseSite.start(self)
+
+
+class MockedRESTManager(RESTManager):
+
+    async def start_site(self, runner, host, port, ssl_context):
+        runner._server = MockServer(runner.server)
+        self.site = MockedSite(runner, host, port, ssl_context=ssl_context)
+        await self.site.start()
 
 
 class MockRestIPv8(object):
@@ -57,15 +132,23 @@ class MockRestIPv8(object):
         return endpoint
 
     async def start_api(self):
-        self.rest_manager = RESTManager(self)
+        self.rest_manager = MockedRESTManager(self)
         await self.rest_manager.start(0)
-        self.rest_port = self.rest_manager.site._server.sockets[0].getsockname()[1]
+        self.rest_port = self.rest_manager.site._server.port
 
     async def stop(self, stop_loop=True):
         await self.rest_manager.stop()
         self.endpoint.close()
         for overlay in self.overlays:
             await overlay.unload()
+
+
+class MockConnector(BaseConnector):
+
+    async def _create_connection(self, req, traces, timeout) -> ResponseHandler:
+        handler = ResponseHandler(self._loop)
+        handler.connection_made(IPv8Transport(handler.data_received, server_port=req.port))
+        return handler
 
 
 class RESTTestBase(TestBase):
@@ -118,7 +201,7 @@ class RESTTestBase(TestBase):
         url = 'http://127.0.0.1:%d/%s' % (node.rest_port, endpoint)
         headers = {'User-Agent': 'aiohttp'}
 
-        async with ClientSession() as session:
+        async with ClientSession(connector=MockConnector()) as session:
             async with session.request(request_type, url, json=json, params=arguments, headers=headers) as response:
                 self.assertEqual(response.status, expected_status,
                                  "Expected HTTP status code %d, got %d" % (expected_status, response.status))
