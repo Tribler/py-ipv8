@@ -5,7 +5,17 @@ Select the port you want to use by setting the `listen_port` command line argume
 """
 import argparse
 import sys
-from asyncio import ensure_future, get_event_loop, sleep
+from asyncio import run
+
+# Check if we are running from the root directory
+# If not, modify our path so that we can import IPv8
+try:
+    import ipv8
+    del ipv8
+except ImportError:
+    import __scriptpath__  # noqa: F401
+
+from ipv8.util import run_forever
 
 from trackermetricsreporter import MetricsReporter
 
@@ -31,7 +41,7 @@ class ReportingTrackerService(TrackerService):
         return ReportingEndpointServer(self.endpoint, self.reporter)
 
 
-def main():
+async def main():
     parser = argparse.ArgumentParser(
         add_help=False,
         description='IPv8 tracker plugin which reports anonymized stats')
@@ -43,28 +53,18 @@ def main():
 
     args = parser.parse_args(sys.argv[1:])
     listen_port = args.listen_port
+
     reporter = MetricsReporter(listen_port)
     service = ReportingTrackerService(reporter)
 
-    loop = get_event_loop()
-
-    coro = service.start_tracker(listen_port)
-    ensure_future(coro)
-
-    if sys.platform == 'win32':
-        # Unfortunately, this is needed on Windows for Ctrl+C to work consistently.
-        # Should no longer be needed in Python 3.8.
-        async def wakeup():
-            while True:
-                await sleep(1)
-        ensure_future(wakeup())
-
+    await service.start_tracker(listen_port)
     reporter.start()
-    try:
-        loop.run_forever()
-    finally:
-        reporter.shutdown()
+
+    await run_forever()
+
+    await service.shutdown()
+    reporter.shutdown()
 
 
 if __name__ == "__main__":
-    main()
+    run(main())

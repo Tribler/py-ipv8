@@ -2,10 +2,9 @@
 This script enables to start IPv8 headless.
 """
 import argparse
-import signal
 import ssl
 import sys
-from asyncio import all_tasks, ensure_future, gather, get_event_loop, sleep
+from asyncio import run
 
 # Check if we are running from the root directory
 # If not, modify our path so that we can import IPv8
@@ -18,6 +17,7 @@ except ImportError:
 
 from ipv8.REST.rest_manager import RESTManager
 from ipv8.configuration import get_default_configuration
+from ipv8.util import run_forever
 
 from ipv8_service import IPv8
 
@@ -30,29 +30,15 @@ class IPV8Service:
         """
         self.ipv8 = None
         self.restapi = None
-        self._stopping = False
 
     async def start_ipv8(self, statistics, no_rest_api, api_key, cert_file):
         """
         Main method to startup IPv8.
         """
+        print("Starting IPv8")
+
         self.ipv8 = IPv8(get_default_configuration(), enable_statistics=statistics)
         await self.ipv8.start()
-
-        async def signal_handler(sig):
-            print("Received shut down signal %s" % sig)
-            if not self._stopping:
-                self._stopping = True
-                if self.restapi:
-                    await self.restapi.stop()
-                await self.ipv8.stop()
-                await gather(*all_tasks())
-                get_event_loop().stop()
-
-        signal.signal(signal.SIGINT, lambda sig, _: ensure_future(signal_handler(sig)))
-        signal.signal(signal.SIGTERM, lambda sig, _: ensure_future(signal_handler(sig)))
-
-        print("Starting IPv8")
 
         if not no_rest_api:
             # Load the certificate/key file. A new one can be generated as follows:
@@ -69,8 +55,16 @@ class IPV8Service:
             self.restapi = RESTManager(self.ipv8)
             await self.restapi.start(api_key=api_key, ssl_context=ssl_context)
 
+    async def stop_ipv8(self):
+        print("Stopping IPv8")
 
-def main(argv):
+        if self.restapi:
+            await self.restapi.stop()
+        if self.ipv8:
+            await self.ipv8.stop()
+
+
+async def main(argv):
     parser = argparse.ArgumentParser(description='Starts IPv8 as a service')
     parser.add_argument('--statistics', '-s', action='store_true', help='Enable IPv8 overlay statistics')
     parser.add_argument('--no-rest-api', '-a', action='store_true', help='Autonomous: disable the REST api')
@@ -80,20 +74,10 @@ def main(argv):
     args = parser.parse_args(sys.argv[1:])
     service = IPV8Service()
 
-    loop = get_event_loop()
-    coro = service.start_ipv8(args.statistics, args.no_rest_api, args.api_key, args.cert_file)
-    ensure_future(coro)
-
-    if sys.platform == 'win32':
-        # Unfortunately, this is needed on Windows for Ctrl+C to work consistently.
-        # Should no longer be needed in Python 3.8.
-        async def wakeup():
-            while True:
-                await sleep(1)
-        ensure_future(wakeup())
-
-    loop.run_forever()
+    await service.start_ipv8(args.statistics, args.no_rest_api, args.api_key, args.cert_file)
+    await run_forever()
+    await service.stop_ipv8()
 
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    run(main(sys.argv[1:]))

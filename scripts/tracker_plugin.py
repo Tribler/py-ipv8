@@ -5,13 +5,22 @@ Select the port you want to use by setting the `listen_port` command line argume
 """
 import argparse
 import sys
-from asyncio import ensure_future, get_event_loop, sleep
+from asyncio import run
 
+# Check if we are running from the root directory
+# If not, modify our path so that we can import IPv8
+try:
+    import ipv8
+    del ipv8
+except ImportError:
+    import __scriptpath__  # noqa: F401
+
+from ipv8.util import run_forever
 
 from tracker_service import TrackerService
 
 
-def main():
+async def main():
     parser = argparse.ArgumentParser(add_help=False,
                                      description='IPv8 tracker plugin')
     parser.add_argument('--help', '-h', action='help',
@@ -27,23 +36,14 @@ def main():
                         help='Path to combined certificate/key file. If not given HTTP is used.')
 
     args = parser.parse_args(sys.argv[1:])
+
     service = TrackerService()
-
-    loop = get_event_loop()
-    ensure_future(service.start_tracker(args.listen_port))
+    await service.start_tracker(args.listen_port)
     if args.listen_port_api >= 0:
-        ensure_future(service.start_api(args.listen_port_api, args.api_key, args.cert_file))
-
-    if sys.platform == 'win32':
-        # Unfortunately, this is needed on Windows for Ctrl+C to work consistently.
-        # Should no longer be needed in Python 3.8.
-        async def wakeup():
-            while True:
-                await sleep(1)
-        ensure_future(wakeup())
-
-    loop.run_forever()
+        await service.start_api(args.listen_port_api, args.api_key, args.cert_file)
+    await run_forever()
+    await service.shutdown()
 
 
 if __name__ == "__main__":
-    main()
+    run(main())
