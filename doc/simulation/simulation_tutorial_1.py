@@ -1,5 +1,5 @@
 import os
-from asyncio import ensure_future, get_event_loop, set_event_loop, sleep
+from asyncio import get_running_loop, run, set_event_loop, sleep
 
 from pyipv8.ipv8.community import Community
 from pyipv8.ipv8.configuration import ConfigBuilder
@@ -35,19 +35,19 @@ class PingPongCommunity(Community):
         self.register_task("send_ping", self.send_ping, interval=2.0, delay=0)
 
     def send_ping(self):
-        self.logger.info("🔥 <t=%.1f> peer %s sending ping", get_event_loop().time(), self.my_peer.address)
+        self.logger.info("🔥 <t=%.1f> peer %s sending ping", get_running_loop().time(), self.my_peer.address)
         for peer in self.network.verified_peers:
             self.ez_send(peer, PingMessage())
 
     @lazy_wrapper(PingMessage)
     def on_ping_message(self, peer, payload):
-        self.logger.info("🔥 <t=%.1f> peer %s received ping", get_event_loop().time(), self.my_peer.address)
-        self.logger.info("🧊 <t=%.1f> peer %s sending pong", get_event_loop().time(), self.my_peer.address)
+        self.logger.info("🔥 <t=%.1f> peer %s received ping", get_running_loop().time(), self.my_peer.address)
+        self.logger.info("🧊 <t=%.1f> peer %s sending pong", get_running_loop().time(), self.my_peer.address)
         self.ez_send(peer, PongMesage())
 
     @lazy_wrapper(PongMesage)
     def on_pong_message(self, peer, payload):
-        self.logger.info("🧊 <t=%.1f> peer %s received pong", get_event_loop().time(), self.my_peer.address)
+        self.logger.info("🧊 <t=%.1f> peer %s received pong", get_running_loop().time(), self.my_peer.address)
 
 
 async def start_communities():
@@ -70,16 +70,11 @@ async def start_communities():
                 continue
             from_instance.overlays[0].walk_to(to_instance.endpoint.wan_address)
 
-
-async def run_simulation():
-    await start_communities()
     await sleep(10)
-    get_event_loop().stop()
+
 
 # We use a discrete event loop to enable quick simulations.
 loop = DiscreteLoop()
 set_event_loop(loop)
 
-ensure_future(run_simulation())
-
-loop.run_forever()
+run(start_communities())

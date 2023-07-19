@@ -1,5 +1,5 @@
 import os
-from asyncio import ensure_future, get_event_loop, sleep
+from asyncio import run, sleep
 
 from pyipv8.ipv8.community import Community
 from pyipv8.ipv8.configuration import ConfigBuilder, Strategy, WalkerDefinition, default_bootstrap_defs
@@ -79,8 +79,6 @@ class MyCommunity(Community):
         # Stop the experiment if both peers reach a value of 10.
         if payload.value == 10:
             DONE.append(True)
-            if len(DONE) == 2:
-                get_event_loop().stop()
             return
 
         # Otherwise, do the same thing over again and ask for another increment.
@@ -101,6 +99,8 @@ async def start_communities():
                             default_bootstrap_defs, {}, [('started',)])
         await IPv8(builder.finalize(), extra_communities={'MyCommunity': MyCommunity}).start()
 
+    while len(DONE) < 2:
+        await sleep(1)
 
-ensure_future(start_communities())
-get_event_loop().run_forever()
+
+run(start_communities())

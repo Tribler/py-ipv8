@@ -1,4 +1,4 @@
-from asyncio import ensure_future, get_event_loop
+from asyncio import run
 from base64 import b64encode
 from binascii import unhexlify
 from sys import argv
@@ -8,6 +8,7 @@ from ipv8.attestation.identity.community import IdentityCommunity
 from ipv8.attestation.wallet.community import AttestationCommunity
 from ipv8.configuration import DISPERSY_BOOTSTRAPPER, get_default_configuration
 from ipv8.peerdiscovery.community import DiscoveryCommunity
+from ipv8.util import run_forever
 
 from ipv8_service import IPv8
 
@@ -114,6 +115,7 @@ async def start_communities():
         # Print the peer for reference
         print("Starting peer", b64encode(ipv8.keys["anonymous id"].mid))
 
+    await run_forever()
 
-ensure_future(start_communities())
-get_event_loop().run_forever()
+
+run(start_communities())

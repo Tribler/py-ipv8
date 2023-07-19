@@ -1,5 +1,5 @@
 import os
-from asyncio import ensure_future, get_event_loop, set_event_loop, sleep
+from asyncio import run, set_event_loop, sleep
 
 from pyipv8.ipv8.community import Community
 from pyipv8.ipv8.configuration import Bootstrapper, BootstrapperDefinition, ConfigBuilder, Strategy, WalkerDefinition
@@ -56,16 +56,11 @@ async def start_communities():
         await instance.start()
         instances.append(instance)
 
-
-async def run_simulation():
-    await start_communities()
     await sleep(120)
-    get_event_loop().stop()
+
 
 # We use a discrete event loop to enable quick simulations.
 loop = DiscreteLoop()
 set_event_loop(loop)
 
-ensure_future(run_simulation())
-
-loop.run_forever()
+run(start_communities())

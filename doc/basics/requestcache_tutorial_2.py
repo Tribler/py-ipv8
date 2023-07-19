@@ -1,8 +1,6 @@
-from asyncio import ensure_future, get_event_loop
+from asyncio import run, sleep
 
 from pyipv8.ipv8.requestcache import NumberCache, RequestCache
-
-REQUEST_CACHE = RequestCache()
 
 
 class MyState(NumberCache):
@@ -13,7 +11,6 @@ class MyState(NumberCache):
 
     def on_timeout(self):
         print("Oh no! I never received a response!")
-        get_event_loop().stop()
 
     @property
     def timeout_delay(self):
@@ -22,9 +19,10 @@ class MyState(NumberCache):
 
 
 async def foo():
-    cache = MyState(REQUEST_CACHE, 0, 42)
-    REQUEST_CACHE.add(cache)
+    request_cache = RequestCache()
+    cache = MyState(request_cache, 0, 42)
+    request_cache.add(cache)
+    await sleep(4)
 
 
-ensure_future(foo())
-get_event_loop().run_forever()
+run(foo())
