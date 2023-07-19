@@ -101,6 +101,9 @@ class RESTManager:
 
         runner = web.AppRunner(self.root_endpoint.app, access_log=None)
         await runner.setup()
+        await self.start_site(runner, host, port, ssl_context)
+
+    async def start_site(self, runner, host, port, ssl_context):
         # If localhost is used as hostname, it will randomly either use 127.0.0.1 or ::1
         self.site = web.TCPSite(runner, host, port, ssl_context=ssl_context)
         await self.site.start()
