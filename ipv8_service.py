@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import sys
 import time
-from asyncio import CancelledError, Future, ensure_future, gather, get_event_loop, sleep
+from asyncio import CancelledError, Future, ensure_future, gather, sleep
 from base64 import b64decode
 from contextlib import suppress
 from os.path import isfile
@@ -242,7 +242,7 @@ else:
             await base_endpoint.open()
             return TunnelEndpoint(base_endpoint)
 
-        async def stop(self, stop_loop: bool = True) -> None:
+        async def stop(self) -> None:
             """
             Stop all registered IPv8 strategies, unload all registered overlays and close the endpoint.
             """
@@ -254,9 +254,6 @@ else:
                 unload_list = [self.unload_overlay(overlay) for overlay in self.overlays[:]]
                 await gather(*unload_list)
                 self.endpoint.close()
-            if stop_loop:
-                loop = get_event_loop()
-                loop.call_later(0, loop.stop)
 
 
 if __name__ == '__main__':
