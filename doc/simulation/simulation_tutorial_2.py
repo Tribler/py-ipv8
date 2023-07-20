@@ -1,11 +1,11 @@
 import os
-from asyncio import run, set_event_loop, sleep
+from asyncio import run, set_event_loop_policy, sleep
 
 from pyipv8.ipv8.community import Community
 from pyipv8.ipv8.configuration import Bootstrapper, BootstrapperDefinition, ConfigBuilder, Strategy, WalkerDefinition
 from pyipv8.ipv8_service import IPv8
 from pyipv8.scripts.tracker_service import EndpointServer
-from pyipv8.simulation.discrete_loop import DiscreteLoop
+from pyipv8.simulation.discrete_loop import DiscreteEventLoopPolicy
 from pyipv8.simulation.simulation_endpoint import SimulationEndpoint
 
 
@@ -60,7 +60,5 @@ async def start_communities():
 
 
 # We use a discrete event loop to enable quick simulations.
-loop = DiscreteLoop()
-set_event_loop(loop)
-
+set_event_loop_policy(DiscreteEventLoopPolicy())
 run(start_communities())
