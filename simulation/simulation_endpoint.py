@@ -1,4 +1,4 @@
-from asyncio import get_event_loop
+from asyncio import get_running_loop
 from collections import defaultdict
 
 from ipv8.test.mocking.endpoint import AutoMockEndpoint
@@ -26,5 +26,5 @@ class SimulationEndpoint(AutoMockEndpoint):
         return self.latencies[to_address]
 
     def send(self, socket_address, packet):
-        get_event_loop().call_later(self.get_link_latency(socket_address), super().send,
-                                    socket_address, packet)
+        get_running_loop().call_later(self.get_link_latency(socket_address), super().send,
+                                      socket_address, packet)

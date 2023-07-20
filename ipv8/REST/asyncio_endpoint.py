@@ -3,7 +3,7 @@ from __future__ import annotations
 import collections
 import logging
 import time
-from asyncio import all_tasks, current_task, get_event_loop
+from asyncio import all_tasks, current_task, get_running_loop
 from typing import TYPE_CHECKING, Iterable, cast
 
 from aiohttp import web
@@ -237,7 +237,7 @@ class AsyncioEndpoint(BaseEndpoint[IPv8]):
         if 'enable' not in parameters and 'slow_callback_duration' not in parameters:
             return Response({"success": False, "error": "incorrect parameters"}, status=HTTP_BAD_REQUEST)
 
-        loop = get_event_loop()
+        loop = get_running_loop()
         loop.slow_callback_duration = parameters.get('slow_callback_duration', loop.slow_callback_duration)
 
         if 'enable' in parameters:
@@ -275,7 +275,7 @@ class AsyncioEndpoint(BaseEndpoint[IPv8]):
         """
         Return Asyncio log messages.
         """
-        loop = get_event_loop()
+        loop = get_running_loop()
         messages = cast(Iterable, self.asyncio_log_handler.deque) if self.asyncio_log_handler is not None else []
         return Response({'messages': [{'message': r} for r in messages],
                          'enable': loop.get_debug(),

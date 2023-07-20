@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import inspect
-import logging
 import os
 import shutil
 import sys
@@ -9,7 +8,7 @@ import threading
 import time
 import unittest
 import uuid
-from asyncio import AbstractEventLoop, Task, all_tasks, ensure_future, get_event_loop, iscoroutine, sleep
+from asyncio import AbstractEventLoop, Task, all_tasks, ensure_future, get_running_loop, iscoroutine, sleep
 from contextlib import contextmanager
 from functools import partial
 from typing import TYPE_CHECKING, Callable, Coroutine, Type, cast
@@ -24,12 +23,6 @@ from .mocking.ipv8 import MockIPv8
 if TYPE_CHECKING:
     from ..peerdiscovery.network import Network
     from ..types import Address, Endpoint, Overlay, PrivateKey, PublicKey
-
-try:
-    get_event_loop().set_debug(True)
-except RuntimeError:
-    logging.warning("Failed to set debug mode on the main event loop! "
-                    "You may be missing out on asyncio output!")
 
 
 def _on_packet_fragile_cb(self: Community, packet: tuple[Address, bytes], warn_unknown: bool = True) -> None:
@@ -313,7 +306,7 @@ class TestBase(TestCaseClass):
                             print("|", line[:-1].replace('\n', '\n|   '), file=sys.stderr)  # noqa: T201
 
                 try:
-                    tasks = all_tasks(get_event_loop())
+                    tasks = all_tasks(get_running_loop())
                     if tasks:
                         print("Pending tasks:")  # noqa: T201
                         for task in tasks:

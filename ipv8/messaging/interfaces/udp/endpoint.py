@@ -113,7 +113,7 @@ class UDPEndpoint(Endpoint, asyncio.DatagramProtocol):
         if self._running:
             return True
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         for _ in range(10000):
             try:
