@@ -264,16 +264,19 @@ class TestBase(TestCaseClass):
                 import traceback
                 print("The test-suite locked up! Force quitting! Thread dump:", file=sys.stderr)  # noqa: T001
                 for tid, stack in sys._current_frames().items():
-                    if tid != threading.currentThread().ident:
+                    if tid != threading.current_thread().ident:
                         print("THREAD#%d" % tid, file=sys.stderr)  # noqa: T001
                         for line in traceback.format_list(traceback.extract_stack(stack)):
                             print("|", line[:-1].replace('\n', '\n|   '), file=sys.stderr)  # noqa: T001
 
-                tasks = all_tasks(get_event_loop())
-                if tasks:
-                    print("Pending tasks:")  # noqa: T001
-                    for task in tasks:
-                        print(">     %s" % task)  # noqa: T001
+                try:
+                    tasks = all_tasks(get_event_loop())
+                    if tasks:
+                        print("Pending tasks:")  # noqa: T001
+                        for task in tasks:
+                            print(">     %s" % task)  # noqa: T001
+                except RuntimeError:
+                    print("Failed to acquire the pending tasks. Your event loop may already be closed!")  # noqa: T001
 
                 # Our test suite catches the SIGINT signal, this allows it to print information before force exiting.
                 # If we were to hard exit here (through os._exit) we would lose this additional information.
