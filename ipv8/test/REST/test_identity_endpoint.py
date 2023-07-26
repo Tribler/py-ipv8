@@ -1,15 +1,39 @@
 import base64
 import json
-import os
+import typing
 import urllib.parse
+from typing import Dict
 
 from ..REST.rest_base import RESTTestBase, partial_cls
-from ...attestation.communication_manager import CommunicationChannel
+from ...attestation.communication_manager import CommunicationChannel, PseudonymFolderManager, CommunicationManager
 from ...attestation.default_identity_formats import FORMATS
 from ...attestation.identity.community import IdentityCommunity
 from ...attestation.identity.manager import IdentityManager
 from ...attestation.wallet.community import AttestationCommunity
-from ...keyvault.crypto import ECCrypto
+from ...types import PrivateKey
+
+
+class MockPseudonymFolderManager(PseudonymFolderManager):
+    """
+    Mock the OS file system using a dictionary as to mock files in a folder.
+    """
+
+    def __init__(self):
+        super().__init__(".")
+        self.folder_contents: Dict[str, bytes] = {}
+
+    def get_or_create_private_key(self, name: str) -> PrivateKey:
+        if name in self.folder_contents:
+            return self.crypto.key_from_private_bin(self.folder_contents[name])
+        private_key = self.crypto.generate_key("curve25519")
+        self.folder_contents[name] = private_key
+        return private_key
+
+    def remove_pseudonym_file(self, name: str):
+        self.folder_contents.pop(name, None)
+
+    def list_pseudonym_files(self) -> typing.List[str]:
+        return [key for key in self.folder_contents]
 
 
 class TestIdentityEndpoint(RESTTestBase):
@@ -20,7 +44,7 @@ class TestIdentityEndpoint(RESTTestBase):
     async def setUp(self):
         super(TestIdentityEndpoint, self).setUp()
 
-        self.pseudonym_directories = []
+        self.pseudonym_directories: Dict[str, bytes] = {}  # Pseudonym to key-bytes mapping
         identity_manager = IdentityManager(u":memory:")
 
         await self.initialize([partial_cls(IdentityCommunity, identity_manager=identity_manager,
@@ -31,13 +55,11 @@ class TestIdentityEndpoint(RESTTestBase):
         We load each node i with a pseudonym `my_peer{i}`, which is the default IPv8 `my_peer` key.
         """
         ipv8 = await super(TestIdentityEndpoint, self).create_node(*args, **kwargs)
-        temp_dir = self.temporary_directory()
         key_file_name = 'my_peer' + str(len(self.pseudonym_directories))
-        with open(os.path.join(temp_dir, key_file_name), 'wb') as f:
-            f.write(ipv8.my_peer.key.key_to_bin())
         communication_manager = ipv8.rest_manager.root_endpoint.endpoints['/identity'].communication_manager
         communication_manager.working_directory = ':memory:'
-        communication_manager.pseudonym_folder = temp_dir
+        communication_manager.pseudonym_folder_manager = MockPseudonymFolderManager()
+        communication_manager.pseudonym_folder_manager.get_or_create_private_key(key_file_name)
 
         identity_overlay = ipv8.get_overlay(IdentityCommunity)
         attestation_overlay = AttestationCommunity(identity_overlay.my_peer, identity_overlay.endpoint,
@@ -46,8 +68,11 @@ class TestIdentityEndpoint(RESTTestBase):
 
         communication_manager.channels[ipv8.my_peer.public_key.key_to_bin()] = channel
         communication_manager.name_to_channel[key_file_name] = channel
-        self.pseudonym_directories.append(temp_dir)
+        self.pseudonym_directories[key_file_name] = ipv8.my_peer.key.key_to_bin()
         return ipv8
+
+    def communication_manager(self, i: int) -> CommunicationManager:
+        return self.node(i).rest_manager.root_endpoint.endpoints['/identity'].communication_manager
 
     async def introduce_pseudonyms(self):
         all_interfaces = []
@@ -126,9 +151,7 @@ class TestIdentityEndpoint(RESTTestBase):
         decoded_public_key = base64.b64decode(result['public_key'])
 
         # This should have made the `test_pseudonym` private key file (corresponding to the reported public key).
-        key_file = os.path.join(self.pseudonym_directories[0], 'test_pseudonym')
-        with open(key_file, 'rb') as key_file_handle:
-            private_key = ECCrypto().key_from_private_bin(key_file_handle.read())
+        private_key = self.communication_manager(0).pseudonym_folder_manager.folder_contents['test_pseudonym']
 
         self.assertEqual(private_key.pub().key_to_bin(), decoded_public_key)
 
@@ -145,9 +168,7 @@ class TestIdentityEndpoint(RESTTestBase):
             result = await self.make_request(self.node(0), f'identity/{pseudonym}/public_key', 'get')
             decoded_public_key = base64.b64decode(result['public_key'])
 
-            key_file = os.path.join(self.pseudonym_directories[0], pseudonym)
-            with open(key_file, 'rb') as key_file_handle:
-                private_key = ECCrypto().key_from_private_bin(key_file_handle.read())
+            private_key = self.communication_manager(0).pseudonym_folder_manager.folder_contents[pseudonym]
 
             self.assertEqual(private_key.pub().key_to_bin(), decoded_public_key)
 
@@ -307,7 +328,7 @@ class TestIdentityEndpoint(RESTTestBase):
         self.assertTrue(result['success'])
 
         verification_requests = await self.wait_for_requests(self.node(0),
-                                                             f'identity/my_peer0/outstanding/verifications',
+                                                             'identity/my_peer0/outstanding/verifications',
                                                              'get')
         self.assertEqual(b64_verifier_key, verification_requests[0]['peer'])
         self.assertEqual("My attribute", verification_requests[0]['attribute_name'])
@@ -357,7 +378,7 @@ class TestIdentityEndpoint(RESTTestBase):
         self.assertTrue(result['success'])
 
         verification_requests = await self.wait_for_requests(self.node(0),
-                                                             f'identity/my_peer0/outstanding/verifications',
+                                                             'identity/my_peer0/outstanding/verifications',
                                                              'get')
         self.assertEqual(b64_verifier_key, verification_requests[0]['peer'])
         self.assertEqual("My attribute", verification_requests[0]['attribute_name'])

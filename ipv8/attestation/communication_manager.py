@@ -9,7 +9,7 @@ from .identity.manager import IdentityManager
 from .wallet.community import AttestationCommunity
 from ..keyvault.crypto import ECCrypto
 from ..messaging.anonymization.hidden_services import HiddenTunnelCommunity
-from ..types import IPv8, Peer
+from ..types import IPv8, Peer, PrivateKey
 from ..util import succeed
 
 AttributePointer = typing.Tuple[Peer, str]
@@ -189,7 +189,62 @@ class CommunicationChannel(object):
                                                            self.on_verification_results, id_format)
 
 
-class CommunicationManager(object):
+class PseudonymFolderManager:
+    """
+    Perform file management of pseudonyms.
+    """
+
+    def __init__(self, directory: str) -> None:
+        """
+        Manage/store pseudonyms in a given directory.
+
+        :param directory: the directory to store pseudonyms
+        :returns: None
+        """
+        self.pseudonym_folder = directory
+        self.crypto = ECCrypto()
+
+    def get_or_create_private_key(self, name: str) -> PrivateKey:
+        """
+        Get the private key for a pseudonym by either reading it or generating it. In the latter case, write to a file.
+
+        :param name: the name of the pseudonym to load or generate a private key for.
+        :return: the private key for the given pseudonym.
+        """
+        os.makedirs(self.pseudonym_folder, exist_ok=True)
+        pseudonym_file = os.path.join(self.pseudonym_folder, name)
+        if os.path.exists(pseudonym_file):
+            with open(pseudonym_file, 'rb') as file_handle:
+                private_key = self.crypto.key_from_private_bin(file_handle.read())
+        else:
+            private_key = self.crypto.generate_key("curve25519")
+            with open(pseudonym_file, 'wb') as file_handle:
+                file_handle.write(private_key.key_to_bin())
+        return private_key
+
+    def remove_pseudonym_file(self, name: str) -> None:
+        """
+        Remove a pseudonym file by its name.
+
+        :param name: the name of the pseudonym file to remove.
+        :returns: None
+        """
+        pseudonym_file = os.path.join(self.pseudonym_folder, name)
+        if os.path.exists(pseudonym_file):
+            os.remove(pseudonym_file)
+
+    def list_pseudonym_files(self) -> typing.List[str]:
+        """
+        List all the pseudonym files in our pseudonym directory.
+
+        :return: the list of pseudonym names.
+        """
+        if not os.path.exists(self.pseudonym_folder):
+            return []
+        return os.listdir(self.pseudonym_folder)
+
+
+class CommunicationManager:
 
     def __init__(self, ipv8_instance: IPv8, pseudonym_folder: str = "pseudonyms",
                  working_directory: typing.Optional[str] = None):
@@ -209,7 +264,7 @@ class CommunicationManager(object):
             working_directory = ipv8_instance.configuration.get("working_directory", ".")
 
         self.working_directory = working_directory
-        self.pseudonym_folder = os.path.join(self.working_directory, pseudonym_folder)
+        self.pseudonym_folder_manager = PseudonymFolderManager(os.path.join(self.working_directory, pseudonym_folder))
 
     def lazy_identity_manager(self) -> IdentityManager:
         """
@@ -227,15 +282,7 @@ class CommunicationManager(object):
         if name in self.name_to_channel:
             return self.name_to_channel[name]
 
-        os.makedirs(self.pseudonym_folder, exist_ok=True)
-        pseudonym_file = os.path.join(self.pseudonym_folder, name)
-        if os.path.exists(pseudonym_file):
-            with open(pseudonym_file, 'rb') as file_handle:
-                private_key = self.crypto.key_from_private_bin(file_handle.read())
-        else:
-            private_key = self.crypto.generate_key("curve25519")
-            with open(pseudonym_file, 'wb') as file_handle:
-                file_handle.write(private_key.key_to_bin())
+        private_key = self.pseudonym_folder_manager.get_or_create_private_key(name)
 
         public_key = private_key.pub().key_to_bin()
         if public_key not in self.channels:
@@ -274,9 +321,7 @@ class CommunicationManager(object):
         if name in self.name_to_channel:
             self.name_to_channel.pop(name).remove()
             await self.unload(name)
-            pseudonym_file = os.path.join(self.pseudonym_folder, name)
-            if os.path.exists(pseudonym_file):
-                os.remove(pseudonym_file)
+            self.pseudonym_folder_manager.remove_pseudonym_file(name)
 
     async def shutdown(self) -> None:
         for name in list(self.name_to_channel):
@@ -286,9 +331,7 @@ class CommunicationManager(object):
         """
         List all known pseudonyms.
         """
-        if not os.path.exists(self.pseudonym_folder):
-            return []
-        return os.listdir(self.pseudonym_folder)
+        return self.pseudonym_folder_manager.list_pseudonym_files()
 
     def list_loaded(self) -> typing.List[str]:
         """
