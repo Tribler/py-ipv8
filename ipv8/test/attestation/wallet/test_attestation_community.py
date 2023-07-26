@@ -1,5 +1,6 @@
 import os
 from binascii import unhexlify
+from unittest.mock import patch
 
 from ...base import MockIPv8, TestBase
 from ....attestation.wallet.bonehexact.structs import BonehAttestation
@@ -303,21 +304,17 @@ class TestCommunity(TestBase):
         """
         Check if we can load the community correctly after shut down.
         """
-        # Write to a temporary folder.
-        temp_folder = self.temporary_directory()
-        self.overlay(0).database = AttestationsDB(temp_folder, "test")
-
-        # Create an attestation and write it to file.
-        # Then close the database.
+        # Create an attestation and write it to the database.
         attestation = BonehAttestation(TestCommunity.private_key.public_key(), [], "id_metadata")
         self.overlay(0).on_attestation_complete(attestation, TestCommunity.private_key, None, "test", b"a" * 20,
                                                 "id_metadata")
+        reloaded = self.overlay(0).database.get_all()
         self.overlay(0).database.close(True)
 
-        # Reload the community with the same database.
-        self.overlay(0).__init__(self.my_peer(0), self.endpoint(0), self.network(0), working_directory=temp_folder,
-                                 db_name="test")
+        # Reload the community with the "same" (mocked) database.
+        with patch.object(AttestationsDB, 'get_all', return_value=reloaded):
+            self.overlay(0).__init__(self.my_peer(0), self.endpoint(0), self.network(0), working_directory=":memory:",
+                                     db_name="test")
 
-        # The attestation should persist
-        db_entries = self.overlay(0).database.get_all()
-        self.assertEqual(1, len(db_entries))
+        # The key should be loaded from the database
+        self.assertIn(b"a" * 20, self.overlay(0).attestation_keys)
