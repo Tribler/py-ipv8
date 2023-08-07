@@ -78,7 +78,7 @@ Printing the known peers
 ------------------------
 
 Like every DHT-based network overlay framework, IPv8 needs some time to find peers.
-We will now modify ``main.py`` again to print the current amount of peers:
+We will now modify ``main.py`` again to print the current number of peers:
 
 .. literalinclude:: overlay_tutorial_4.py
 
@@ -87,14 +87,8 @@ Running this should yield something like the following output:
 .. code-block:: bash
 
    $ python main.py 
-   I am: Peer<0.0.0.0:0, /zWXEA/4wFeGEKTZ8fckwUwLk3Y=> 
-   I know: []
-   I am: Peer<0.0.0.0:0, VVsH+LxamOUVUkV/5rjemqYMO8w=> 
-   I know: []
-   I am: Peer<0.0.0.0:0, /zWXEA/4wFeGEKTZ8fckwUwLk3Y=> 
-   I know: ['Peer<10.0.2.15:8091, VVsH+LxamOUVUkV/5rjemqYMO8w=>']
-   I am: Peer<0.0.0.0:0, VVsH+LxamOUVUkV/5rjemqYMO8w=> 
-   I know: ['Peer<10.0.2.15:8090, /zWXEA/4wFeGEKTZ8fckwUwLk3Y=>']
+   I am: Peer<0.0.0.0:0:8090, dxGFpQ4awTMz826HOVCB5OoiPPI=> I found: Peer<0.0.0.0:0:8091, YfHrKJR4O72/k/FBYYxMIQwOb1U=>
+   I am: Peer<0.0.0.0:0:8091, YfHrKJR4O72/k/FBYYxMIQwOb1U=> I found: Peer<0.0.0.0:0:8090, dxGFpQ4awTMz826HOVCB5OoiPPI=>
 
 .. warning::
    You should never use the ``address`` of a ``Peer`` as its identifier.

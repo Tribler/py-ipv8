@@ -3,15 +3,17 @@ from asyncio import ensure_future, get_event_loop
 from dataclasses import dataclass
 
 from pyipv8.ipv8.community import Community
-from pyipv8.ipv8.configuration import ConfigBuilder, Strategy, WalkerDefinition, default_bootstrap_defs
+from pyipv8.ipv8.configuration import (ConfigBuilder, Strategy, WalkerDefinition,
+                                       default_bootstrap_defs)
 from pyipv8.ipv8.lazy_community import lazy_wrapper
 from pyipv8.ipv8.messaging.payload_dataclass import overwrite_dataclass
 from pyipv8.ipv8_service import IPv8
 
-dataclass = overwrite_dataclass(dataclass)  # Enhance normal dataclasses for IPv8 (see the serialization documentation)
+# Enhance normal dataclasses for IPv8 (see the serialization documentation)
+dataclass = overwrite_dataclass(dataclass)
 
 
-@dataclass(msg_id=1)  # The (byte) value 1 identifies this message and must be unique per community
+@dataclass(msg_id=1)  # The value 1 identifies this message and must be unique per community
 class MyMessage:
     clock: int  # We add an integer (technically a "long long") field "clock" to this message
 
@@ -37,6 +39,9 @@ class MyCommunity(Community):
             else:
                 self.cancel_pending_task("start_communication")
 
+        # We register an asyncio task with this overlay.
+        # This makes sure that the task ends when this overlay is unloaded.
+        # We call the 'start_communication' function every 5.0 seconds, starting now.
         self.register_task("start_communication", start_communication, interval=5.0, delay=0)
 
     @lazy_wrapper(MyMessage)
@@ -52,9 +57,12 @@ async def start_communities():
     for i in [1, 2, 3]:
         builder = ConfigBuilder().clear_keys().clear_overlays()
         builder.add_key("my peer", "medium", f"ec{i}.pem")
-        builder.add_overlay("MyCommunity", "my peer", [WalkerDefinition(Strategy.RandomWalk, 10, {'timeout': 3.0})],
+        builder.add_overlay("MyCommunity", "my peer",
+                            [WalkerDefinition(Strategy.RandomWalk,
+                                              10, {'timeout': 3.0})],
                             default_bootstrap_defs, {}, [('started',)])
-        await IPv8(builder.finalize(), extra_communities={'MyCommunity': MyCommunity}).start()
+        await IPv8(builder.finalize(),
+                   extra_communities={'MyCommunity': MyCommunity}).start()
 
 
 ensure_future(start_communities())

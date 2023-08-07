@@ -2,7 +2,8 @@ import os
 from asyncio import ensure_future, get_event_loop
 
 from pyipv8.ipv8.community import Community
-from pyipv8.ipv8.configuration import ConfigBuilder, Strategy, WalkerDefinition, default_bootstrap_defs
+from pyipv8.ipv8.configuration import (ConfigBuilder, Strategy, WalkerDefinition,
+                                       default_bootstrap_defs)
 from pyipv8.ipv8_service import IPv8
 
 
@@ -27,10 +28,12 @@ async def start_communities():
         # RandomWalk strategy, until we find 10 peers.
         # We do not provide additional startup arguments or a function to run
         # once the overlay has been initialized.
-        builder.add_overlay("MyCommunity", "my peer", [WalkerDefinition(Strategy.RandomWalk, 10, {'timeout': 3.0})],
+        builder.add_overlay("MyCommunity", "my peer",
+                            [WalkerDefinition(Strategy.RandomWalk,
+                                              10, {'timeout': 3.0})],
                             default_bootstrap_defs, {}, [])
-        ipv8 = IPv8(builder.finalize(), extra_communities={'MyCommunity': MyCommunity})
-        await ipv8.start()
+        await IPv8(builder.finalize(),
+                   extra_communities={'MyCommunity': MyCommunity}).start()
 
 
 ensure_future(start_communities())
