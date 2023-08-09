@@ -3,7 +3,7 @@ from collections import deque
 from .tunnel import CIRCUIT_STATE_READY, PEER_FLAG_EXIT_IPV8
 
 
-class TunnelEndpoint(object):
+class TunnelEndpoint:
 
     def __init__(self, endpoint):
         self.endpoint = endpoint

@@ -6,7 +6,7 @@ from .....attestation.wallet.irmaexact.algorithm import IRMAExactAlgorithm
 class TestAlgorithm(TestBase):
 
     def setUp(self):
-        super(TestAlgorithm, self).setUp()
+        super().setUp()
         self.blob = """
         {
             "sign_date": 2586,

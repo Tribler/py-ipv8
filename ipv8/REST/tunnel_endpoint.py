@@ -31,7 +31,7 @@ class TunnelEndpoint(BaseEndpoint):
     """
 
     def __init__(self):
-        super(TunnelEndpoint, self).__init__()
+        super().__init__()
         self.tunnels = None
 
     def setup_routes(self):
@@ -48,7 +48,7 @@ class TunnelEndpoint(BaseEndpoint):
                              web.get('/peers/pex', self.get_pex_peers)])
 
     def initialize(self, session):
-        super(TunnelEndpoint, self).initialize(session)
+        super().initialize(session)
         self.tunnels = session.get_overlay(TunnelCommunity)
 
     @docs(

@@ -18,7 +18,7 @@ class TestToken(TestBase):
                               b'\xf8\x0f')
 
     def setUp(self) -> None:
-        super(TestToken, self).setUp()
+        super().setUp()
 
         self.private_key = ECCrypto().generate_key("curve25519")
 

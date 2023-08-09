@@ -44,7 +44,7 @@ def unpack_cell(payload_cls):
     return decorator
 
 
-class TunnelSettings(object):
+class TunnelSettings:
 
     def __init__(self):
         self.crypto = TunnelCrypto()
@@ -101,7 +101,7 @@ class TunnelCommunity(Community):
         self.settings = settings
         self.dht_provider = kwargs.pop('dht_provider', None)
 
-        super(TunnelCommunity, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.request_cache = RequestCache()
         self.decode_map_private = {}
@@ -156,7 +156,7 @@ class TunnelCommunity(Community):
 
         await self.request_cache.shutdown()
 
-        await super(TunnelCommunity, self).unload()
+        await super().unload()
 
     def get_serializer(self):
         serializer = super().get_serializer()
@@ -612,9 +612,9 @@ class TunnelCommunity(Community):
                                      introduction=None, extra_bytes=b'', prefix=None, new_style=False):
         extra_payload = ExtraIntroductionPayload(self.settings.peer_flags)
         extra_bytes = self.serializer.pack_serializable(extra_payload)
-        return super(TunnelCommunity, self).create_introduction_response(lan_socket_address, socket_address,
-                                                                         identifier, introduction, extra_bytes,
-                                                                         prefix, new_style)
+        return super().create_introduction_response(lan_socket_address, socket_address,
+                                                    identifier, introduction, extra_bytes,
+                                                    prefix, new_style)
 
     def on_cell(self, source_address, data):
         cell = CellPayload.from_bin(data)

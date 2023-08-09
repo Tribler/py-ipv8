@@ -13,8 +13,8 @@ class TestAttestationEndpoint(RESTTestBase):
     """
 
     async def setUp(self):
-        super(TestAttestationEndpoint, self).setUp()
-        identity_manager = IdentityManager(u":memory:")
+        super().setUp()
+        identity_manager = IdentityManager(":memory:")
         await self.initialize([partial_cls(AttestationCommunity, working_directory=':memory:'),
                                partial_cls(IdentityCommunity, identity_manager=identity_manager)], 2)
 
@@ -199,7 +199,7 @@ class TestAttestationEndpoint(RESTTestBase):
         result = await self.wait_for_outstanding_requests(self.node(0))
 
         mid = b64encode(self.mid(1))
-        self.assertTrue(any((x[0] == mid and x[1] == 'QR' for x in result)),
+        self.assertTrue(any(x[0] == mid and x[1] == 'QR' for x in result),
                         "Could not find the outstanding request forwarded by the second peer")
 
     async def test_get_verification_output(self):
@@ -354,8 +354,7 @@ class TestAttestationEndpoint(RESTTestBase):
 
         attributes = await self.wait_for_attributes(self.node(1))
         self.assertTrue(len(attributes) == 1, "There should only be one attestation in the DB.")
-        self.assertTrue(attributes[0][0] == 'QR', "Expected attestation for %s, got it for "
-                                                  "%s" % ('QR', attributes[0][0]))
+        self.assertTrue(attributes[0][0] == 'QR', f"Expected attestation for QR, got it for {attributes[0][0]}")
 
         attributes = await self.make_attributes(self.node(0))
         self.assertTrue(len(attributes) == 0, "There should be no attribute in the DB of the attester.")

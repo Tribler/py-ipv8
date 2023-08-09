@@ -8,10 +8,10 @@ from ..peer import Peer
 
 class TestPeer(TestBase):
 
-    test_key = default_eccrypto.generate_key(u"very-low")
+    test_key = default_eccrypto.generate_key("very-low")
 
     def setUp(self):
-        super(TestPeer, self).setUp()
+        super().setUp()
         self.peer = Peer(TestPeer.test_key, ("1.2.3.4", 5))
 
     def test_default_timestamp(self):
@@ -57,7 +57,7 @@ class TestPeer(TestBase):
         """
         Check if peers with a different key and same address are not equal.
         """
-        other = Peer(default_eccrypto.generate_key(u"very-low"), self.peer.address)
+        other = Peer(default_eccrypto.generate_key("very-low"), self.peer.address)
 
         self.assertNotEqual(self.peer, other)
 

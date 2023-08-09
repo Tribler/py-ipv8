@@ -11,13 +11,13 @@ class MockCommunity(DiscoveryCommunity):
         endpoint = AutoMockEndpoint()
         endpoint.open()
         network = Network()
-        peer = Peer(default_eccrypto.generate_key(u"very-low"), endpoint.wan_address)
-        super(MockCommunity, self).__init__(peer, endpoint, network)
+        peer = Peer(default_eccrypto.generate_key("very-low"), endpoint.wan_address)
+        super().__init__(peer, endpoint, network)
         # workaround for race conditions in deliver_messages
         self._use_main_thread = False
         self.my_estimated_lan = endpoint.lan_address
         self.my_estimated_wan = endpoint.wan_address
 
     def bootstrap(self):
-        super(MockCommunity, self).bootstrap()
+        super().bootstrap()
         self.last_bootstrap = 0

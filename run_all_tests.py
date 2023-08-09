@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import argparse
 import contextlib
 import importlib
@@ -10,7 +12,6 @@ import sys
 import threading
 import time
 import types
-import typing
 import unittest
 from concurrent.futures import ProcessPoolExecutor
 
@@ -46,9 +47,9 @@ class ProgrammerDistractor(contextlib.AbstractContextManager):
         return self
 
     def __exit__(self,
-                 exc_type: typing.Optional[typing.Type[BaseException]],
-                 exc: typing.Optional[BaseException],
-                 exc_tb: typing.Optional[types.TracebackType]) -> bool:
+                 exc_type: type[BaseException] | None,
+                 exc: BaseException | None,
+                 exc_tb: types.TracebackType | None) -> bool:
         if self.timer:
             self.timer.cancel()
         if exc_type is not None or exc is not None:
@@ -60,7 +61,7 @@ class ProgrammerDistractor(contextlib.AbstractContextManager):
 class CustomTestResult(unittest.TextTestResult):
 
     def __init__(self, stream, descriptions, verbosity):
-        super(CustomTestResult, self).__init__(stream, descriptions, verbosity)
+        super().__init__(stream, descriptions, verbosity)
         self.start_time = 0
         self.end_time = 0
         self.last_test = 0
@@ -69,12 +70,12 @@ class CustomTestResult(unittest.TextTestResult):
         return str(test)
 
     def startTestRun(self) -> None:
-        super(CustomTestResult, self).startTestRun()
+        super().startTestRun()
         self.start_time = time.time()
         self.end_time = self.start_time
 
     def startTest(self, test: unittest.case.TestCase) -> None:
-        super(CustomTestResult, self).startTest(test)
+        super().startTest(test)
         self.last_test = time.time()
 
     def addSuccess(self, test):
@@ -86,14 +87,14 @@ class CustomTestResult(unittest.TextTestResult):
             self.stream.flush()
 
     def stopTestRun(self) -> None:
-        super(CustomTestResult, self).stopTestRun()
+        super().stopTestRun()
         self.end_time = time.time()
 
 
 class CustomLinePrint(io.StringIO):
 
     def __init__(self, delegated, prefix):
-        super(CustomLinePrint, self).__init__()
+        super().__init__()
         self.prefix = prefix
         self.delegated = delegated
         self.raw_lines = []

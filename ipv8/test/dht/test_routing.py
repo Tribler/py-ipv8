@@ -6,7 +6,7 @@ from ...dht.routing import Bucket, NODE_STATUS_BAD, NODE_STATUS_GOOD, NODE_STATU
 from ...keyvault.private.libnaclkey import LibNaCLSK
 
 
-class FakeNode(object):
+class FakeNode:
     def __init__(self, binary_prefix):
         id_binary = int(binary_prefix + '0' * (160 - len(binary_prefix)), 2)
         id_hex = '%x' % id_binary
@@ -22,7 +22,7 @@ class FakeNode(object):
 class TestNode(TestBase):
 
     def setUp(self):
-        super(TestNode, self).setUp()
+        super().setUp()
         self.key = LibNaCLSK(b'\x01' * 64)
         self.node = Node(self.key, ('1.1.1.1', 1))
 
@@ -58,7 +58,7 @@ class TestNode(TestBase):
 class TestBucket(TestBase):
 
     def setUp(self):
-        super(TestBucket, self).setUp()
+        super().setUp()
         self.bucket = Bucket('01', max_size=8)
 
     def test_owns(self):
@@ -133,7 +133,7 @@ class TestBucket(TestBase):
 class TestRoutingTable(TestBase):
 
     def setUp(self):
-        super(TestRoutingTable, self).setUp()
+        super().setUp()
         self.my_node = FakeNode('11' * 20)
         self.routing_table = RoutingTable(self.my_node.id)
         self.trie = self.routing_table.trie
@@ -142,7 +142,7 @@ class TestRoutingTable(TestBase):
         node = FakeNode('0')
         self.routing_table.add(node)
 
-        self.assertTrue(self.trie[u''].get(node.id))
+        self.assertTrue(self.trie[''].get(node.id))
 
     def test_add_multiple_nodes(self):
         node1 = FakeNode('00')
@@ -151,11 +151,11 @@ class TestRoutingTable(TestBase):
         self.routing_table.add(node1)
         self.routing_table.add(node2)
 
-        self.assertTrue(self.trie[u''].get(node1.id))
-        self.assertTrue(self.trie[u''].get(node2.id))
+        self.assertTrue(self.trie[''].get(node1.id))
+        self.assertTrue(self.trie[''].get(node2.id))
 
     def test_add_node_with_bucket_split(self):
-        self.trie[u''].max_size = 1
+        self.trie[''].max_size = 1
 
         node1 = FakeNode('0')
         node2 = FakeNode('1')
@@ -163,11 +163,11 @@ class TestRoutingTable(TestBase):
         self.routing_table.add(node1)
         self.routing_table.add(node2)
 
-        self.assertTrue(self.trie[u'0'].get(node1.id))
-        self.assertTrue(self.trie[u'1'].get(node2.id))
+        self.assertTrue(self.trie['0'].get(node1.id))
+        self.assertTrue(self.trie['1'].get(node2.id))
 
     def test_add_node_full(self):
-        self.trie[u''].max_size = 1
+        self.trie[''].max_size = 1
 
         node1 = FakeNode('1')
         node2 = FakeNode('00')
@@ -178,9 +178,9 @@ class TestRoutingTable(TestBase):
         # This time the bucket should not be split. Instead the node should be dropped.
         self.routing_table.add(node3)
 
-        self.assertTrue(self.trie[u'1'].get(node1.id))
-        self.assertTrue(self.trie[u'0'].get(node2.id))
-        self.assertFalse(self.trie[u'0'].get(node3.id))
+        self.assertTrue(self.trie['1'].get(node1.id))
+        self.assertTrue(self.trie['0'].get(node2.id))
+        self.assertFalse(self.trie['0'].get(node3.id))
 
     def test_closest_nodes_single_bucket(self):
         node1 = FakeNode('00')
@@ -197,7 +197,7 @@ class TestRoutingTable(TestBase):
         self.assertEqual(closest_nodes[2], node2)
 
     def test_closest_nodes_multiple_buckets(self):
-        self.trie[u''].max_size = 1
+        self.trie[''].max_size = 1
 
         node1 = FakeNode('11')
         node2 = FakeNode('10')

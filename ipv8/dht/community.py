@@ -56,7 +56,7 @@ class Request(RandomNumberCache):
     This request cache keeps track of all outstanding requests within the DHTCommunity.
     """
     def __init__(self, community, msg_type, node, params=None, consume_errors=False, timeout=5.0):
-        super(Request, self).__init__(community.request_cache, msg_type)
+        super().__init__(community.request_cache, msg_type)
         self.msg_type = msg_type
         self.node = node
         self.params = params
@@ -74,7 +74,7 @@ class Request(RandomNumberCache):
             self._logger.debug('Timeout for %s to %s', self.msg_type, self.node)
             self.node.failed += 1
             if not self.consume_errors:
-                self.future.set_exception(DHTError('Timeout for {} to {}'.format(self.msg_type, self.node)))
+                self.future.set_exception(DHTError(f'Timeout for {self.msg_type} to {self.node}'))
             else:
                 self.future.set_result(None)
 

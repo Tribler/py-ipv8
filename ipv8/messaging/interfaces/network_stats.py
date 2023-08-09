@@ -1,4 +1,4 @@
-class NetworkStat(object):
+class NetworkStat:
     """
     Represents an individual network statistic. This is used to compose the overall community statistics.
     Includes the following properties for the given statistic:
@@ -53,5 +53,5 @@ class NetworkStat(object):
         }
 
     def __str__(self):
-        return 'NetworkStat{num_up:%s, num_down:%s, bytes_up:%s, bytes_down:%s, ...}' % \
-               (self.num_up, self.num_down, self.bytes_up, self.bytes_down)
+        return (f"NetworkStat{{num_up:{self.num_up}, num_down:{self.num_down}, "
+                f"bytes_up:{self.bytes_up}, bytes_down:{self.bytes_down}, ...}}")

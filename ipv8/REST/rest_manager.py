@@ -9,7 +9,7 @@ from .root_endpoint import RootEndpoint
 
 
 @web.middleware
-class ApiKeyMiddleware(object):
+class ApiKeyMiddleware:
     def __init__(self, api_key):
         self.api_key = api_key
 

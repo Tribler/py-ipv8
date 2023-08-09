@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass, is_dataclass
 from typing import List
 
@@ -42,12 +44,7 @@ class NestedType:
 
 @dataclass
 class NestedListType:
-    a: [NativeInt]
-
-
-@dataclass
-class NestedListTypeType:
-    a: List[NativeInt]
+    a: List[NativeInt]  # Backward compatibility: Python >= 3.9 can use ``list[NativeInt]``
 
 
 @ogdataclass
@@ -87,19 +84,19 @@ class FwdMsgId:
 
 
 @dataclass
+class EverythingItem:
+    a: bool
+
+
+@dataclass
 @ogdataclass
 class Everything:
-    @dataclass
-    class Item:
-        a: bool
-
     a: int
     b: bytes
     c: varlenH
-    d: Item
-    e: [Item]
+    d: EverythingItem
+    e: List[EverythingItem]  # Backward compatibility: Python >= 3.9 can use ``list[EverythingItem]``
     f: str
-    g: List[Item]
 
 
 class TestDataclassPayload(TestBase):  # pylint: disable=R0904
@@ -305,33 +302,11 @@ class TestDataclassPayload(TestBase):  # pylint: disable=R0904
         self.assertListEqual(payload.a, [NativeInt(42), NativeInt(1337)])
         self.assertListEqual(deserialized.a, [NativeInt(42), NativeInt(1337)])
 
-    def test_nestedlisttype_empty_payload(self):
-        """
-        Check if an empty list type of nested payloads works correctly.
-        """
-        payload = NestedListTypeType([])
-
-        deserialized = self._pack_and_unpack(NestedListTypeType, payload)
-
-        self.assertListEqual(payload.a, [])
-        self.assertListEqual(deserialized.a, [])
-
     def test_unknown_payload(self):
         """
         Check if an unknown type raises an error.
         """
         self.assertRaises(NotImplementedError, dataclass, Unknown)
-
-    def test_nestedlisttype_filled_payload(self):
-        """
-        Check if a list type of nested payloads works correctly.
-        """
-        payload = NestedListTypeType([NativeInt(42), NativeInt(1337)])
-
-        deserialized = self._pack_and_unpack(NestedListTypeType, payload)
-
-        self.assertListEqual(payload.a, [NativeInt(42), NativeInt(1337)])
-        self.assertListEqual(deserialized.a, [NativeInt(42), NativeInt(1337)])
 
     def test_fwd_args(self):
         """
@@ -371,10 +346,9 @@ class TestDataclassPayload(TestBase):  # pylint: disable=R0904
         a = Everything(42,
                        b'1337',
                        b'1337',
-                       Everything.Item(True),
-                       [Everything.Item(False), Everything.Item(True)],
-                       "hi",
-                       [Everything.Item(True), Everything.Item(False)])
+                       EverythingItem(True),
+                       [EverythingItem(False), EverythingItem(True)],
+                       "hi")
 
         self.assertTrue(is_dataclass(a))
 
@@ -389,14 +363,11 @@ class TestDataclassPayload(TestBase):  # pylint: disable=R0904
         self.assertEqual(a.c, b'1337')
         self.assertEqual(r.c, b'1337')
 
-        self.assertEqual(a.d, Everything.Item(True))
-        self.assertEqual(r.d, Everything.Item(True))
+        self.assertEqual(a.d, EverythingItem(True))
+        self.assertEqual(r.d, EverythingItem(True))
 
-        self.assertListEqual(a.e, [Everything.Item(False), Everything.Item(True)])
-        self.assertListEqual(r.e, [Everything.Item(False), Everything.Item(True)])
+        self.assertListEqual(a.e, [EverythingItem(False), EverythingItem(True)])
+        self.assertListEqual(r.e, [EverythingItem(False), EverythingItem(True)])
 
         self.assertEqual(a.f, "hi")
         self.assertEqual(r.f, "hi")
-
-        self.assertListEqual(a.g, [Everything.Item(True), Everything.Item(False)])
-        self.assertListEqual(r.g, [Everything.Item(True), Everything.Item(False)])

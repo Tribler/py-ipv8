@@ -23,7 +23,7 @@ def validate_run(stdout: multiprocessing.Pipe, stderr: multiprocessing.Pipe, mod
 
     sys.path.insert(0, TOP_DIRECTORY)
 
-    with open(module_path, 'r') as module_file_h:
+    with open(module_path) as module_file_h:
         module_contents = ""
         line = module_file_h.readline()
         while line:

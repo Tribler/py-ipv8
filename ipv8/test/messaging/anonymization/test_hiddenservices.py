@@ -19,7 +19,7 @@ from ....util import fail, succeed
 class TestHiddenServices(TestBase):
 
     def setUp(self):
-        super(TestHiddenServices, self).setUp()
+        super().setUp()
         global_dht_services.clear()
 
         self.initialize(HiddenTunnelCommunity, 3)
@@ -31,7 +31,7 @@ class TestHiddenServices(TestBase):
     async def tearDown(self):
         for node in self.private_nodes:
             await node.stop()
-        return await super(TestHiddenServices, self).tearDown()
+        return await super().tearDown()
 
     def get_e2e_circuit_path(self):
         """
@@ -82,7 +82,7 @@ class TestHiddenServices(TestBase):
         settings.min_circuits = 0
         settings.max_circuits = 0
         settings.remove_tunnel_delay = 0
-        ipv8 = MockIPv8(u"curve25519", HiddenTunnelCommunity, settings=settings)
+        ipv8 = MockIPv8("curve25519", HiddenTunnelCommunity, settings=settings)
         ipv8.overlay.ipv8 = ipv8
 
         # Then kill all automated circuit creation
@@ -225,7 +225,7 @@ class TestHiddenServices(TestBase):
         await self.overlay(0).do_peer_discovery()
         self.assertEqual(swarm.last_dht_response, 0)
 
-        class FakeIP(object):
+        class FakeIP:
             def __init__(self):
                 self.source = PEER_SOURCE_DHT
                 self.seeder_pk = 'seeder_pk'

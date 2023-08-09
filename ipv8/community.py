@@ -7,6 +7,8 @@ Community instance.
 @organization: Technical University Delft
 @contact: dispersy@frayja.com
 """
+from __future__ import annotations
+
 import sys
 from asyncio import ensure_future, iscoroutine
 from binascii import hexlify
@@ -14,7 +16,6 @@ from functools import partial
 from random import choice, random
 from time import time
 from traceback import format_exception
-from typing import Optional
 
 from .lazy_community import EZPackOverlay, lazy_wrapper, lazy_wrapper_unsigned
 from .messaging.anonymization.endpoint import TunnelEndpoint
@@ -36,7 +37,7 @@ DEFAULT_MAX_PEERS = 30
 class Community(EZPackOverlay):
 
     version = b'\x02'
-    community_id: Optional[bytes] = None
+    community_id: bytes | None = None
 
     def __init__(self, my_peer, endpoint, network, max_peers=DEFAULT_MAX_PEERS, anonymize=False):
         super().__init__(self.community_id, my_peer, endpoint, network)
@@ -219,7 +220,7 @@ class Community(EZPackOverlay):
                                                  self.my_estimated_lan,
                                                  self.my_estimated_wan,
                                                  True,
-                                                 u"unknown",
+                                                 "unknown",
                                                  global_time,
                                                  extra_bytes,
                                                  supports_new_style=new_style)
@@ -455,7 +456,7 @@ class Community(EZPackOverlay):
         packet = self.create_introduction_request(peer.address, new_style=peer.new_style_intro)
         self.endpoint.send(peer.address, packet)
 
-    def get_new_introduction(self, from_peer: Optional[Peer] = None):
+    def get_new_introduction(self, from_peer: Peer | None = None):
         """
         Get a new introduction, or bootstrap if there are no available peers.
         """

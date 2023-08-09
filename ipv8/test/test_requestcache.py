@@ -9,7 +9,7 @@ CACHE_TIMEOUT = 0.01
 class MockCache(RandomNumberCache):
 
     def __init__(self, request_cache):
-        super(MockCache, self).__init__(request_cache, u"mock")
+        super().__init__(request_cache, "mock")
         self.timed_out = Future()
 
     @property
@@ -23,7 +23,7 @@ class MockCache(RandomNumberCache):
 class MockRegisteredCache(RandomNumberCache):
 
     def __init__(self, request_cache):
-        super(MockRegisteredCache, self).__init__(request_cache, u"mock")
+        super().__init__(request_cache, "mock")
         self.timed_out = Future()
         self.register_future(self.timed_out)
 
@@ -38,7 +38,7 @@ class MockRegisteredCache(RandomNumberCache):
 class MockInfiniteCache(RandomNumberCache):
 
     def __init__(self, request_cache):
-        super().__init__(request_cache, u"mock")
+        super().__init__(request_cache, "mock")
         self.timed_out = False
 
     @property

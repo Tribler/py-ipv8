@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import binascii
 import json
-import typing
 
 from ..signed_object import AbstractSignedObject
 from ...types import PrivateKey, Token
@@ -19,8 +18,8 @@ class Metadata(AbstractSignedObject):
     def __init__(self,
                  token_pointer: bytes,
                  serialized_json_dict: bytes,
-                 private_key: typing.Optional[PrivateKey] = None,
-                 signature: typing.Optional[bytes] = None):
+                 private_key: PrivateKey | None = None,
+                 signature: bytes | None = None):
         """
         Create a new Metadata object, always specify the token it belongs to and its contents as a JSON dictionary.
 
@@ -36,7 +35,7 @@ class Metadata(AbstractSignedObject):
         """
         self.token_pointer = token_pointer
         self.serialized_json_dict = serialized_json_dict
-        super(Metadata, self).__init__(private_key, signature)
+        super().__init__(private_key, signature)
 
     def get_plaintext(self) -> bytes:
         """
@@ -55,7 +54,7 @@ class Metadata(AbstractSignedObject):
     def create(cls, token: Token, json_dict: dict, private_key: PrivateKey) -> Metadata:
         return Metadata(token.get_hash(), json.dumps(json_dict).encode(), private_key=private_key)
 
-    def to_database_tuple(self) -> typing.Tuple[bytes, bytes, bytes]:
+    def to_database_tuple(self) -> tuple[bytes, bytes, bytes]:
         """
         Get a representation of this Metadata as three byte strings (token hash, signature and json dictionary).
 

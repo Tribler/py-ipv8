@@ -20,7 +20,7 @@ class PackError(RuntimeError):
     pass
 
 
-class NestedPayload(object):
+class NestedPayload:
     """
     This is a special type of format. Allowing for nested packing.
 
@@ -51,7 +51,7 @@ class NestedPayload(object):
         :param serializer: the Serializer to inherit
         :type serializer: Serializer
         """
-        super(NestedPayload, self).__init__()
+        super().__init__()
         self.serializer = serializer
 
     def pack(self, serializable):
@@ -88,7 +88,7 @@ class NestedPayload(object):
         return offset
 
 
-class Bits(object):
+class Bits:
 
     def pack(self, *data):
         """
@@ -127,7 +127,7 @@ class Bits(object):
         return offset + 1
 
 
-class Raw(object):
+class Raw:
     """
     Paste/unpack the remaining input without (un)packing.
     """
@@ -257,10 +257,10 @@ class DefaultStruct:
         return offset + self.size
 
 
-class Serializer(object):
+class Serializer:
 
     def __init__(self):
-        super(Serializer, self).__init__()
+        super().__init__()
         self._packers = {
             '?': DefaultStruct(">?"),
             'B': DefaultStruct(">B"),
@@ -364,7 +364,7 @@ class Serializer(object):
             try:
                 packed += self._packers[packable[0]].pack(*packable[1:])
             except Exception as e:
-                raise PackError("Could not pack item: %s\n%s: %s" % (packable, type(e).__name__, str(e))) from e
+                raise PackError(f"Could not pack item: {packable}\n{type(e).__name__}: {e}") from e
         return packed
 
     def pack_serializable_list(self, serializables):
@@ -399,7 +399,7 @@ class Serializer(object):
                     raise
                 offset = self._packers['payload-list'].unpack(data, offset, unpack_list, fmt[0])
             except Exception as e:
-                raise PackError("Could not unpack item: %s\n%s: %s" % (fmt, type(e).__name__, str(e))) from e
+                raise PackError(f"Could not unpack item: {fmt}\n{type(e).__name__}: {e}") from e
         return serializable.from_unpack_list(*unpack_list), offset
 
     def unpack_serializable_list(self, serializables, data, offset=0, consume_all=True):
@@ -423,10 +423,8 @@ class Serializer(object):
         if not consume_all:
             unpacked.append(remainder)
         elif remainder:
-            raise PackError("Incoming packet %s (%s) has extra data: (%s)" %
-                            (str([serializable_class.__name__ for serializable_class in serializables]),
-                             hexlify(data),
-                             hexlify(remainder)))
+            raise PackError(f"Incoming packet {[serializable_class.__name__ for serializable_class in serializables]} "
+                            f"({hexlify(data)}) has extra data: ({hexlify(remainder)})")
         return unpacked
 
 
@@ -435,10 +433,10 @@ class Serializable(metaclass=abc.ABCMeta):
     Interface for serializable objects.
     """
 
-    format_list: typing.List[FormatListType] = []
+    format_list: list[FormatListType] = []
 
     @abc.abstractmethod
-    def to_pack_list(self) -> typing.List[tuple]:
+    def to_pack_list(self) -> list[tuple]:
         """
         Serialize this object to a Serializer pack list.
 
@@ -462,7 +460,7 @@ class Payload(Serializable, abc.ABC):
         for attribute in dir(self):
             if not (attribute.startswith('_') or callable(getattr(self, attribute))) \
                     and attribute not in ['format_list', 'names']:
-                out += '\n| %s: %s' % (attribute, repr(getattr(self, attribute)))
+                out += f"\n| {attribute}: {getattr(self, attribute)!r}"
         return out
 
 

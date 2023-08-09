@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 from base64 import b64encode
 from collections import deque
 from struct import unpack
 from time import time
-from typing import Any, Dict, Optional, Type, Union
+from typing import Any
 
 from .keyvault.crypto import default_eccrypto
 from .keyvault.keys import Key
@@ -15,37 +17,37 @@ class DirtyDict(dict):
     Dictionary that becomes dirty when elements are changed.
     """
     def __init__(self, **kwargs):
-        super(DirtyDict, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.dirty = True
 
     def __setitem__(self, key, value):
-        super(DirtyDict, self).__setitem__(key, value)
+        super().__setitem__(key, value)
         self.dirty = True
 
     def update(self, mapping, **kwargs):
-        super(DirtyDict, self).update(mapping, **kwargs)
+        super().update(mapping, **kwargs)
         self.dirty = True
 
     def clear(self):
-        super(DirtyDict, self).clear()
+        super().clear()
         self.dirty = True
 
     def pop(self, key):
-        out = super(DirtyDict, self).pop(key)
+        out = super().pop(key)
         self.dirty = True
         return out
 
     def popitem(self):
-        out = super(DirtyDict, self).popitem()
+        out = super().popitem()
         self.dirty = True
         return out
 
 
-class Peer(object):
+class Peer:
 
     INTERFACE_ORDER = [UDPv6Address, UDPv4Address, tuple]
 
-    def __init__(self, key: Union[Key, bytes], address: Optional[Address] = None, intro: bool = True) -> None:
+    def __init__(self, key: Key | bytes, address: Address | None = None, intro: bool = True) -> None:
         """
         Create a new Peer.
 
@@ -70,7 +72,7 @@ class Peer(object):
         self.new_style_intro = False
 
     @property
-    def addresses(self) -> Dict[Type[Address], Address]:
+    def addresses(self) -> dict[type[Address], Address]:
         """
         Retrieve the addresses belonging to this Peer.
 
@@ -120,7 +122,7 @@ class Peer(object):
                 break
         self._addresses.dirty = False
 
-    def get_median_ping(self) -> Optional[float]:
+    def get_median_ping(self) -> float | None:
         """
         Get the median ping time of this peer.
 
@@ -135,7 +137,7 @@ class Peer(object):
         else:
             return sorted_pings[len(sorted_pings) // 2]
 
-    def get_average_ping(self) -> Optional[float]:
+    def get_average_ping(self) -> float | None:
         """
         Get the average ping time of this peer.
 

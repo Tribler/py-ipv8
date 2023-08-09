@@ -7,7 +7,6 @@ import traceback
 from contextlib import AbstractContextManager
 from enum import Enum
 from types import TracebackType
-from typing import Optional, Type
 
 
 class Platform(Enum):
@@ -56,8 +55,8 @@ class conditional_import_shield(AbstractContextManager):
         sys.modules[self.module_name].__package__ = ""
         return self
 
-    def __exit__(self, exctype: Optional[Type[BaseException]], excinst: Optional[BaseException],
-                 exctb: Optional[TracebackType]) -> bool:
+    def __exit__(self, exctype: type[BaseException] | None, excinst: BaseException | None,
+                 exctb: TracebackType | None) -> bool:
         """
         When we exit the context, unsabotage the import system and log any exceptions.
         """

@@ -33,7 +33,7 @@ class Ioctl(AddressProvider):
                 family, = struct.unpack(FMT_FAMILY, ifreq[16:18])
                 if family == socket.AF_INET:
                     out_addresses.append(socket.inet_ntop(socket.AF_INET, ifreq[20:24]))
-        except (socket.error, OSError):
+        except OSError:
             self.on_exception()
 
         return set(out_addresses)

@@ -3,6 +3,7 @@ Extract and rewrite ``ipv8.taskmanager`` to be a standalone package (``ipv8_task
 
 Install your newly created package using `cd ipv8_taskmanager && pip install .`
 """
+from __future__ import annotations
 
 import ast
 import importlib
@@ -38,7 +39,7 @@ def prepare_folder() -> None:
         raise e
 
 
-def find_missing_imports(tree: ast.AST) -> typing.List[MissingImport]:
+def find_missing_imports(tree: ast.AST) -> list[MissingImport]:
     """
     Try to find any imports that the tree requires.
 
@@ -68,7 +69,7 @@ def find_missing_imports(tree: ast.AST) -> typing.List[MissingImport]:
     return missing
 
 
-def copy_node_as_src(node: ast.AST, lines: typing.Dict[int, str]) -> str:
+def copy_node_as_src(node: ast.AST, lines: dict[int, str]) -> str:
     """
     Get the source code an AST node is defined on.
 
@@ -80,7 +81,7 @@ def copy_node_as_src(node: ast.AST, lines: typing.Dict[int, str]) -> str:
     return output
 
 
-def fetch(missing: MissingImport) -> typing.Tuple[str, typing.Set[str], typing.Set[str]]:
+def fetch(missing: MissingImport) -> tuple[str, typing.Set[str], typing.Set[str]]:
     """
     Get the code required to satisfy a missing import.
 
@@ -101,7 +102,7 @@ def fetch(missing: MissingImport) -> typing.Tuple[str, typing.Set[str], typing.S
     """
     missing_module = importlib.import_module("." * missing.node.level + missing.node.module, "ipv8")
 
-    with open(missing_module.__file__, 'r') as source_file:
+    with open(missing_module.__file__) as source_file:
         source = source_file.read()
     tree = ast.parse(source, filename=missing_module.__file__)
     lines = {i + 1: line for i, line in enumerate(source.split(LINESEP))}
@@ -121,13 +122,13 @@ def fetch(missing: MissingImport) -> typing.Tuple[str, typing.Set[str], typing.S
     return output, imports, toplevel_vars
 
 
-def read_tskmngr_source() -> typing.Tuple[ast.AST, str, typing.Dict[int, str]]:
+def read_tskmngr_source() -> tuple[ast.AST, str, dict[int, str]]:
     """
     Parse the ``ipv8.taskmanager`` code and return an AST node and the source code as both str and list-of-lines form.
 
     :return: the ast node, the full source code, the source code as a list of lines
     """
-    with open(TASKMNGR_FILE, 'r') as source_file:
+    with open(TASKMNGR_FILE) as source_file:
         source = source_file.read()
     tree = ast.parse(source, filename=TASKMNGR_FILE)
 
@@ -148,7 +149,7 @@ def extract_taskmanager() -> None:
     tree, source, lines = read_tskmngr_source()
     missing_imports = find_missing_imports(tree)
 
-    for replaced in set(missing.node.lineno for missing in missing_imports):
+    for replaced in {missing.node.lineno for missing in missing_imports}:
         lines.pop(replaced)
 
     new_toplevel_imports = set()

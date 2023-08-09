@@ -10,16 +10,16 @@ from ..keyvault.keys import Key
 
 # We want to provide a few default curves.  We will change these curves as new become available and
 # old ones to small to provide sufficient security.
-_CURVES = {u"very-low": (ec.SECT163K1, "M2Crypto"),
-           u"low": (ec.SECT233K1, "M2Crypto"),
-           u"medium": (ec.SECT409K1, "M2Crypto"),
-           u"high": (ec.SECT571R1, "M2Crypto"),
-           u'curve25519': (None, "libnacl")}
+_CURVES = {"very-low": (ec.SECT163K1, "M2Crypto"),
+           "low": (ec.SECT233K1, "M2Crypto"),
+           "medium": (ec.SECT409K1, "M2Crypto"),
+           "high": (ec.SECT571R1, "M2Crypto"),
+           'curve25519': (None, "libnacl")}
 
 logger = logging.getLogger(__name__)
 
 
-class ECCrypto(object):
+class ECCrypto:
     """
     A crypto object which provides a layer between Dispersy and low level eccrypographic features.
 

@@ -13,7 +13,7 @@ from ...identity_formats import IdentityAlgorithm
 class BonehExactAlgorithm(IdentityAlgorithm):
 
     def __init__(self, id_format, formats):
-        super(BonehExactAlgorithm, self).__init__(id_format, formats)
+        super().__init__(id_format, formats)
         self.honesty_check = True
 
         # Check algorithm match

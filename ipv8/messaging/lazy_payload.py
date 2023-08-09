@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import inspect
 import types
-from typing import Any, Dict, List, Type, TypeVar
+from typing import Any, Type, TypeVar
 
 from .serialization import FormatListType, Payload
 
@@ -28,7 +28,7 @@ class VariablePayload(Payload):
     want to apply when actually sending over the wire.
     """
 
-    names: List[str] = []
+    names: list[str] = []
 
     def __init__(self, *args, **kwargs):
         """
@@ -41,16 +41,16 @@ class VariablePayload(Payload):
         index = 0
         fwd_args = {}
         # If our super class is an old-style Payload function, forward the required arguments.
-        if not issubclass(super(VariablePayload, self).__class__, VariablePayload) and \
-                inspect.ismethod(super(VariablePayload, self).__init__):
-            super_argspec = inspect.getfullargspec(super(VariablePayload, self).__init__).args[1:]
+        if not issubclass(super().__class__, VariablePayload) and \
+                inspect.ismethod(super().__init__):
+            super_argspec = inspect.getfullargspec(super().__init__).args[1:]
             for arg in super_argspec:
                 if arg in kwargs:
                     fwd_args[arg] = kwargs.pop(arg)
                 else:
                     fwd_args[arg] = args[index]
                 index += 1
-            super(VariablePayload, self).__init__(**fwd_args)
+            super().__init__(**fwd_args)
         Payload.__init__(self)
         # Try to fill the required format specification.
         base = index
@@ -62,9 +62,9 @@ class VariablePayload(Payload):
                 setattr(self, self.names[index], value)
                 index += 1
         if len(args) - index > 0:
-            raise KeyError("%s missing %d arguments!" % (self.__class__.__name__, len(args) - index))
+            raise KeyError(f"{self.__class__.__name__} missing {len(args) - index} arguments!")
         if kwargs:
-            raise KeyError("%s has leftover keyword arguments: %s!" % (self.__class__.__name__, str(kwargs)))
+            raise KeyError(f"{self.__class__.__name__,} has leftover keyword arguments: {kwargs}!")
         setattr(self.__class__, "__match_args__", tuple(self.names))
 
     @classmethod
@@ -99,7 +99,7 @@ class VariablePayload(Payload):
             return getattr(self, custom_rule)(raw_value)
         return raw_value
 
-    def to_pack_list(self) -> List[tuple]:
+    def to_pack_list(self) -> list[tuple]:
         """
         Convert the VariablePayload to a Serializable pack list.
         This method will automatically pull from the available format names and set instance fields.
@@ -121,7 +121,7 @@ V = TypeVar('V', bound=VariablePayload)
 VT = Type[V]
 
 
-def _compile_init(names: List[str], defaults: Dict[str, Any]) -> types.CodeType:
+def _compile_init(names: list[str], defaults: dict[str, Any]) -> types.CodeType:
     """
     Compile the init function.
 
@@ -138,16 +138,17 @@ def _compile_init(names: List[str], defaults: Dict[str, Any]) -> types.CodeType:
     :return: the compiled code object
     :rtype: code
     """
-    f_code = """
-def __init__(self, %s):
+    arg_list = ', '.join((f"{name}={defaults.get(name)}" if name in defaults else name) for name in names)
+    setters = '\n    '.join([f"self.{name} = {name}" for name in names])
+    f_code = f"""
+def __init__(self, {arg_list}):
     Payload.__init__(self)
-    %s
-    """ % (', '.join((f"{name}={defaults.get(name)}" if name in defaults else name) for name in names),
-           '\n    '.join(['self.%s = %s' % (name, name) for name in names]))
+    {setters}
+    """
     return compile(f_code, f_code, 'exec')
 
 
-def _compile_from_unpack_list(src_cls: VT, names: List[str]) -> types.CodeType:
+def _compile_from_unpack_list(src_cls: VT, names: list[str]) -> types.CodeType:
     """
     Compile the unpacking code.
 
@@ -166,16 +167,17 @@ def _compile_from_unpack_list(src_cls: VT, names: List[str]) -> types.CodeType:
     :rtype: code
     """
     arg_list = ', '.join(names)
-    f_code = """
-def from_unpack_list(cls, %s):
-    return cls(%s)
-    """ % (arg_list, ', '.join(["None if %s is None else cls.fix_unpack_%s(%s)" % (name, name, name)
-                                if hasattr(src_cls, "fix_unpack_" + name)
-                                else name for name in names]))
+    args = ', '.join([f"None if {name} is None else cls.fix_unpack_{name}({name})"
+                      if hasattr(src_cls, "fix_unpack_" + name)
+                      else name for name in names])
+    f_code = f"""
+def from_unpack_list(cls, {arg_list}):
+    return cls({args})
+    """
     return compile(f_code, f_code, 'exec')
 
 
-def _compile_to_pack_list(src_cls: VT, format_list: List[FormatListType], names: List[str]) -> types.CodeType:
+def _compile_to_pack_list(src_cls: VT, format_list: list[FormatListType], names: list[str]) -> types.CodeType:
     """
     Compile the packing code.
 
@@ -195,10 +197,6 @@ def _compile_to_pack_list(src_cls: VT, format_list: List[FormatListType], names:
     :return: the compiled code object
     :rtype: code
     """
-    f_code = """
-def to_pack_list(self):
-    return [%s]
-        """
     fmts = []
     index = 0
     for fmt in format_list:
@@ -211,8 +209,11 @@ def to_pack_list(self):
                 args.append(f"self.{name}")
             index += 1
         derived_fmt = fmt if isinstance(fmt, str) else ("payload-list" if isinstance(fmt, list) else "payload")
-        fmts.append('("%s", %s)' % (derived_fmt, ", ".join(args)))
-    f_code %= ', '.join(fmts)
+        fmts.append('("{}", {})'.format(derived_fmt, ", ".join(args)))
+    f_code = f"""
+def to_pack_list(self):
+    return [{', '.join(fmts)}]
+"""
     return compile(f_code, f_code, 'exec')
 
 

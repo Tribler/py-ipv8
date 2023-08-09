@@ -16,11 +16,11 @@ class TestCommunity(TestBase):
                                                         "8690fb0106408293c67e9f010601d1a9d3744901030f4243"))
 
     def setUp(self):
-        super(TestCommunity, self).setUp()
+        super().setUp()
         self.initialize(AttestationCommunity, 2)
 
     def create_node(self):
-        return MockIPv8(u"curve25519", AttestationCommunity, working_directory=u":memory:")
+        return MockIPv8("curve25519", AttestationCommunity, working_directory=":memory:")
 
     async def test_request_attestation_callback(self):
         """
@@ -81,7 +81,7 @@ class TestCommunity(TestBase):
         def f(peer, attribute_name, metadata):
             self.assertEqual(peer.address, self.address(1))
             self.assertEqual(attribute_name, "MyAttribute")
-            self.assertDictEqual(metadata, {u'test': 123})
+            self.assertDictEqual(metadata, {'test': 123})
 
             f.called = True
 
@@ -183,7 +183,7 @@ class TestCommunity(TestBase):
         """
         serialized = ""
         filename = os.path.join(os.path.dirname(__file__), 'attestation.txt')
-        with open(filename, 'r') as f:
+        with open(filename) as f:
             serialized = unhexlify(f.read().strip())
         attestation = BonehAttestation.unserialize(serialized, "id_metadata")
         attestation_hash = unhexlify('9019195eb75c07ec3e86a62c314dcf5ef2bbcc0d')
@@ -249,7 +249,7 @@ class TestCommunity(TestBase):
         Check if an attestation can be verified for id_metadata_big.
         """
         filename = os.path.join(os.path.dirname(__file__), 'attestation_big.txt')
-        with open(filename, 'r') as f:
+        with open(filename) as f:
             serialized = unhexlify(f.read().strip())
         attestation = BonehAttestation.unserialize(serialized, "id_metadata_big")
         attestation_hash = unhexlify('113d31c31b626268a16c198cbd58dd5aa8d1d81c')
@@ -277,7 +277,7 @@ class TestCommunity(TestBase):
         Check if an attestation can be verified for id_metadata_range_18plus.
         """
         filename = os.path.join(os.path.dirname(__file__), 'attestation_range.txt')
-        with open(filename, 'r') as f:
+        with open(filename) as f:
             serialized = unhexlify(f.read().strip())
         attestation = PengBaoAttestation.unserialize_private(self.private_key, serialized, "id_metadata_range_18plus")
         attestation_hash = unhexlify('b40c8734ba6c91a49670c1f0152c7f4dac2a8272')

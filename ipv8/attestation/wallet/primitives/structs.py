@@ -65,7 +65,7 @@ def unpack_pair(s):
     return a, b, r
 
 
-class BonehPublicKey(object):
+class BonehPublicKey:
     """
     A public key for Boneh et al.'s cryptosystem.
     """
@@ -104,12 +104,12 @@ class BonehPrivateKey(BonehPublicKey):
     FIELDS = 7
 
     def __init__(self, p, g, h, n, t1):
-        super(BonehPrivateKey, self).__init__(p, g, h)
+        super().__init__(p, g, h)
         self.n = n
         self.t1 = t1
 
     def serialize(self):
-        return super(BonehPrivateKey, self).serialize() + ipack(self.n) + ipack(self.t1)
+        return super().serialize() + ipack(self.n) + ipack(self.t1)
 
     def public_key(self):
         return BonehPublicKey(self.p, self.g, self.h)

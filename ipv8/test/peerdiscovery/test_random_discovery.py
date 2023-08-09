@@ -6,7 +6,7 @@ from ...peerdiscovery.discovery import RandomWalk
 class TestRandomWalk(TestBase):
 
     def setUp(self):
-        super(TestRandomWalk, self).setUp()
+        super().setUp()
 
         node_count = 3
         self.overlays = [MockCommunity() for _ in range(node_count)]
@@ -15,7 +15,7 @@ class TestRandomWalk(TestBase):
     async def tearDown(self):
         for overlay in self.overlays:
             await overlay.unload()
-        return await super(TestRandomWalk, self).tearDown()
+        return await super().tearDown()
 
     async def test_take_step(self):
         """

@@ -22,7 +22,7 @@ from .....attestation.wallet.primitives.value import FP2Value
 class TestCredential(TestBase):
 
     def setUp(self):
-        super(TestCredential, self).setUp()
+        super().setUp()
         self.testAttributes1 = [1, 2, 3, 4]
         self.testAttributes2 = [5, 6, 7, 8]
 
@@ -147,12 +147,12 @@ class TestCredential(TestBase):
         secret = random.randint(0, 1 << (self.testPubK.Params.Lm - 1))
         issuer = Issuer(self.testPrivK1, self.testPubK1, context)
         cr = {
-            u'keyCounter': 0,
-            u'credential': u'test.credential',
-            u'validity': int(time.time()) + 60000,
-            u'attributes': {
-                u"test1": u"value1",
-                u"test2": u"value2"
+            'keyCounter': 0,
+            'credential': 'test.credential',
+            'validity': int(time.time()) + 60000,
+            'attributes': {
+                "test1": "value1",
+                "test2": "value2"
             }
         }
 

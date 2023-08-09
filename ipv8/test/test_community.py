@@ -40,7 +40,7 @@ class TestCommunityCompatibility(TestBase):
         self.make_nodes()
 
     def make_nodes(self):
-        self.nodes = [MockIPv8(u"low", NewCommunity), MockIPv8(u"low", NewCommunity), MockIPv8(u"low", OldCommunity)]
+        self.nodes = [MockIPv8("low", NewCommunity), MockIPv8("low", NewCommunity), MockIPv8("low", OldCommunity)]
         self.endpoint_listeners = [MockEndpointListener(self.endpoint(i)) for i in range(len(self.nodes))]
         self.new_peer1 = 0
         self.new_peer2 = 1

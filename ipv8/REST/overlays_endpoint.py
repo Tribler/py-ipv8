@@ -17,7 +17,7 @@ class OverlaysEndpoint(BaseEndpoint):
     """
 
     def __init__(self):
-        super(OverlaysEndpoint, self).__init__()
+        super().__init__()
         self.statistics_supported = None
 
     def setup_routes(self):
@@ -26,7 +26,7 @@ class OverlaysEndpoint(BaseEndpoint):
                              web.post('/statistics', self.enable_statistics)])
 
     def initialize(self, session):
-        super(OverlaysEndpoint, self).initialize(session)
+        super().initialize(session)
         self.statistics_supported = isinstance(session.endpoint, StatisticsEndpoint) \
             or isinstance(getattr(session.endpoint, 'endpoint', None), StatisticsEndpoint)
 

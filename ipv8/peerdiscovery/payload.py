@@ -10,7 +10,7 @@ class SimilarityRequestPayload(Payload):
     format_list = ['H', '4SH', '4SH', 'bits', 'raw']
 
     def __init__(self, identifier, lan_address, wan_address, connection_type, preference_list):
-        super(SimilarityRequestPayload, self).__init__()
+        super().__init__()
         self.identifier = identifier % 65536
         self.preference_list = preference_list
         self.lan_address = lan_address
@@ -46,7 +46,7 @@ class SimilarityResponsePayload(Payload):
     format_list = ['H', 'varlenHx20', 'raw']
 
     def __init__(self, identifier, preference_list, tb_overlap):
-        super(SimilarityResponsePayload, self).__init__()
+        super().__init__()
         self.identifier = identifier % 65536
         self.preference_list = preference_list
         self.tb_overlap = tb_overlap
@@ -75,7 +75,7 @@ class PingPayload(Payload):
     format_list = ['H']
 
     def __init__(self, identifier):
-        super(PingPayload, self).__init__()
+        super().__init__()
         self.identifier = identifier % 65536
 
     def to_pack_list(self):
@@ -98,13 +98,12 @@ class DiscoveryIntroductionRequestPayload(IntroductionRequestPayload):
 
     def __init__(self, introduce_to, destination_address, source_lan_address, source_wan_address, advice,
                  connection_type, identifier, extra_bytes):
-        super(DiscoveryIntroductionRequestPayload, self).__init__(destination_address, source_lan_address,
-                                                                  source_wan_address, advice, connection_type,
-                                                                  identifier, extra_bytes)
+        super().__init__(destination_address, source_lan_address, source_wan_address, advice, connection_type,
+                         identifier, extra_bytes)
         self.introduce_to = introduce_to
 
     def to_pack_list(self):
-        data = super(DiscoveryIntroductionRequestPayload, self).to_pack_list()
+        data = super().to_pack_list()
         data.insert(0, ('c20s', b'Y', self.introduce_to))
         return data
 

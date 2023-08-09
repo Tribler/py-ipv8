@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from functools import lru_cache
-from typing import Dict, List
 
 from .addressprovider import AddressProvider
 from .importshield import Platform, conditional_import_shield
@@ -13,13 +14,13 @@ BLACKLIST = {"127.0.0.1", "127.0.1.1", "0.0.0.0", "255.255.255.255", "::1"}
 
 
 @lru_cache(maxsize=2)  # One copy of verbose and one copy of non-verbose providers.
-def get_providers(verbose: bool = False) -> List[AddressProvider]:
+def get_providers(verbose: bool = False) -> list[AddressProvider]:
     """
     Construct the ``AddressProvider``s that are applicable for this platform.
 
     :param verbose: Log any errors that are encountered while fetching addresses.
     """
-    providers: List[AddressProvider] = []
+    providers: list[AddressProvider] = []
     if netifaces is not None:
         # Netifaces is faster but archived since 2021 and unsupported >= Python 3.11
         with conditional_import_shield(Platform.ANY, verbose):
@@ -45,13 +46,13 @@ def get_providers(verbose: bool = False) -> List[AddressProvider]:
     return providers
 
 
-def get_lan_addresses(verbose: bool = False) -> List[str]:
+def get_lan_addresses(verbose: bool = False) -> list[str]:
     """
     Attempt to find the LAN addresses of this machine using whatever means available.
 
     :param verbose: Log any errors that are encountered while fetching addresses.
     """
-    votes: Dict[str, int] = {}
+    votes: dict[str, int] = {}
     for provider in get_providers(verbose):
         for found in (provider.get_addresses_buffered() - BLACKLIST):
             votes[found] = votes.get(found, 0) + 1

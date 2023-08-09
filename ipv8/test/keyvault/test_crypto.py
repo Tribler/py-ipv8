@@ -7,11 +7,11 @@ from ...keyvault.private.m2crypto import M2CryptoPK, M2CryptoSK
 
 class TestECCrypto(TestBase):
 
-    m2crypto_key = ECCrypto().generate_key(u"very-low")
-    libnacl_key = ECCrypto().generate_key(u"curve25519")
+    m2crypto_key = ECCrypto().generate_key("very-low")
+    libnacl_key = ECCrypto().generate_key("curve25519")
 
     def setUp(self):
-        super(TestECCrypto, self).setUp()
+        super().setUp()
         self.ecc = ECCrypto()
 
     def test_available(self):
@@ -20,11 +20,11 @@ class TestECCrypto(TestBase):
         """
         available = self.ecc.security_levels
 
-        self.assertIn(u"very-low", available)
-        self.assertIn(u"low", available)
-        self.assertIn(u"medium", available)
-        self.assertIn(u"high", available)
-        self.assertIn(u"curve25519", available)
+        self.assertIn("very-low", available)
+        self.assertIn("low", available)
+        self.assertIn("medium", available)
+        self.assertIn("high", available)
+        self.assertIn("curve25519", available)
 
     def test_generate_m2crypto(self):
         """
@@ -50,7 +50,7 @@ class TestECCrypto(TestBase):
         """
         Check if a bogus curve produces a RuntimeError
         """
-        self.assertRaises(RuntimeError, self.ecc.generate_key, u"idontexist")
+        self.assertRaises(RuntimeError, self.ecc.generate_key, "idontexist")
 
     def test_key_to_bin_m2crypto(self):
         """

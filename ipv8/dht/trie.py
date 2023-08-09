@@ -4,7 +4,7 @@ from . import DHTError
 Null = object()
 
 
-class Node(object):
+class Node:
     """
     This class represents a node within a prefix tree.
     """
@@ -14,7 +14,7 @@ class Node(object):
         self.children = {}
 
 
-class Trie(object):
+class Trie:
     """
     This class represents a prefix tree.
     """
@@ -73,8 +73,7 @@ class Trie(object):
             if node.value is not None:
                 yield node.value
             for _, child in node.children.items():
-                for subresult in generator(child):
-                    yield subresult
+                yield from generator(child)
         return generator(self.root)
 
     def values(self):

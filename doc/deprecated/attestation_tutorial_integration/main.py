@@ -35,41 +35,42 @@ async def start_communities():
         configuration = get_default_configuration()
         configuration['logger']['level'] = "ERROR"
         configuration['keys'] = [
-            {'alias': "anonymous id", 'generation': u"curve25519", 'file': u"ec%d_multichain.pem" % i}
+            {'alias': "anonymous id", 'generation': "curve25519", 'file': "ec%d_multichain.pem" % i}
         ]
 
         # Only load the basic communities
-        configuration['overlays'] = [{
-            'class': 'IsolatedDiscoveryCommunity',
-            'key': "anonymous id",
-            'walkers': [
-                {
-                    'strategy': "RandomWalk",
-                    'peers': 20,
-                    'init': {
-                        'timeout': 3.0
+        configuration['overlays'] = [
+            {
+                'class': 'IsolatedDiscoveryCommunity',
+                'key': "anonymous id",
+                'walkers': [
+                    {
+                        'strategy': "RandomWalk",
+                        'peers': 20,
+                        'init': {
+                            'timeout': 3.0
+                        }
+                    },
+                    {
+                        'strategy': "RandomChurn",
+                        'peers': -1,
+                        'init': {
+                            'sample_size': 8,
+                            'ping_interval': 10.0,
+                            'inactive_time': 27.5,
+                            'drop_time': 57.5
+                        }
+                    },
+                    {
+                        'strategy': "PeriodicSimilarity",
+                        'peers': -1,
+                        'init': {}
                     }
-                },
-                {
-                    'strategy': "RandomChurn",
-                    'peers': -1,
-                    'init': {
-                        'sample_size': 8,
-                        'ping_interval': 10.0,
-                        'inactive_time': 27.5,
-                        'drop_time': 57.5
-                    }
-                },
-                {
-                    'strategy': "PeriodicSimilarity",
-                    'peers': -1,
-                    'init': {}
-                }
-            ],
-            'bootstrappers': [DISPERSY_BOOTSTRAPPER],
-            'initialize': {},
-            'on_start': []
-        },
+                ],
+                'bootstrappers': [DISPERSY_BOOTSTRAPPER],
+                'initialize': {},
+                'on_start': []
+            },
             {
                 'class': 'IsolatedAttestationCommunity',
                 'key': "anonymous id",
@@ -97,7 +98,8 @@ async def start_communities():
                 'bootstrappers': [DISPERSY_BOOTSTRAPPER],
                 'initialize': {'working_directory': 'state_%d' % i},
                 'on_start': []
-            }]
+            }
+        ]
 
         # Start the IPv8 service
         ipv8 = IPv8(configuration, extra_communities={

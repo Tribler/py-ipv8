@@ -20,7 +20,7 @@ from .....util import byte2int, int2byte
 DefaultEpochLength = 432000
 
 
-class BaseParameters(object):
+class BaseParameters:
 
     def __init__(self, LePrime, Lh, Lm, Ln, Lstatzk):
         self.LePrime = LePrime
@@ -47,7 +47,7 @@ DefaultSystemParameters = {
 }
 
 
-class PrivateKey(object):
+class PrivateKey:
 
     def __init__(self, p, q, counter, expiryDate):
         self.Counter = counter
@@ -58,7 +58,7 @@ class PrivateKey(object):
         self.QPrime = (q - 1) >> 1
 
 
-class PublicKey(object):
+class PublicKey:
 
     def __init__(self, N, Z, S, R, counter, expiryDate, param=None):
         self.Counter = counter
@@ -155,7 +155,7 @@ def GenerateKeyPair(param, numAttributes, counter, expiryDate):
         return priv, pubk
 
 
-class CLSignature(object):
+class CLSignature:
 
     def __init__(self, A, E, V, KeyshareP=None):
         self.A = A

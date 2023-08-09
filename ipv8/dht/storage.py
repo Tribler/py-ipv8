@@ -3,7 +3,7 @@ import time
 from collections import defaultdict
 
 
-class Value(object):
+class Value:
     """
     Class for storing DHT values.
     """
@@ -30,7 +30,7 @@ class Value(object):
         return 0
 
 
-class Storage(object):
+class Storage:
     """
     Class for storing key-value pairs in memory.
     """

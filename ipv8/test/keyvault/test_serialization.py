@@ -12,10 +12,10 @@ class TestSerialization(TestBase):
     """
 
     def setUp(self):
-        super(TestSerialization, self).setUp()
+        super().setUp()
         self.ec = default_eccrypto
-        self.key = self.ec.generate_key(u"very-low")
-        self.key_nacl = self.ec.generate_key(u"curve25519")
+        self.key = self.ec.generate_key("very-low")
+        self.key_nacl = self.ec.generate_key("curve25519")
 
     def test_private_to_bin(self):
         """

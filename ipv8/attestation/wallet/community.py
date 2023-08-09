@@ -43,7 +43,7 @@ class AttestationCommunity(Community):
         working_directory = kwargs.pop('working_directory', '')
         db_name = kwargs.pop('db_name', 'attestations')
 
-        super(AttestationCommunity, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.receive_block_lock = RLock()
 
@@ -77,7 +77,7 @@ class AttestationCommunity(Community):
     async def unload(self):
         await self.request_cache.shutdown()
 
-        await super(AttestationCommunity, self).unload()
+        await super().unload()
         # Close the database after we stop accepting requests.
         self.database.close()
 
@@ -278,8 +278,8 @@ class AttestationCommunity(Community):
         """
         We received a chunk of an Attestation.
         """
-        hash_id = HashCache.id_from_hash(u"receive-verify-attestation", payload.hash)
-        peer_ids = [PeerCache.id_from_address(u"receive-request-attestation", peer.mid + allowed_glob)
+        hash_id = HashCache.id_from_hash("receive-verify-attestation", payload.hash)
+        peer_ids = [PeerCache.id_from_address("receive-request-attestation", peer.mid + allowed_glob)
                     for allowed_glob in self.allowed_attestations.get(peer.mid, [])
                     if allowed_glob == str(dist.global_time).encode('utf-8')]
         if self.request_cache.has(*hash_id):
@@ -339,7 +339,7 @@ class AttestationCommunity(Community):
 
         relativity_map = algorithm.create_certainty_aggregate(attestation)
         hashed_challenges = []
-        cache = self.request_cache.get(*HashCache.id_from_hash(u"proving-attestation", attestation_hash))
+        cache = self.request_cache.get(*HashCache.id_from_hash("proving-attestation", attestation_hash))
         cache.public_key = attestation.PK
         challenges = algorithm.create_challenges(attestation.PK, attestation)
         for challenge in challenges:
@@ -353,7 +353,7 @@ class AttestationCommunity(Community):
         for challenge in challenges:
             if remaining == 0:
                 break
-            elif self.request_cache.has(*PendingChallengeCache.id_from_hash(u"proving-hash", sha1(challenge).digest())):
+            elif self.request_cache.has(*PendingChallengeCache.id_from_hash("proving-hash", sha1(challenge).digest())):
                 continue
             remaining -= 1
             self.request_cache.add(PendingChallengeCache(self, sha1(challenge).digest(), cache, cache.id_format))
@@ -391,11 +391,11 @@ class AttestationCommunity(Community):
         """
         We received a response to our challenge
         """
-        cache = self.request_cache.get(*HashCache.id_from_hash(u"proving-hash", payload.challenge_hash))
+        cache = self.request_cache.get(*HashCache.id_from_hash("proving-hash", payload.challenge_hash))
         if cache:
-            self.request_cache.pop(*HashCache.id_from_hash(u"proving-hash", payload.challenge_hash))
+            self.request_cache.pop(*HashCache.id_from_hash("proving-hash", payload.challenge_hash))
             proving_cache = cache.proving_cache
-            pcache_prefix, pcache_id = HashCache.id_from_hash(u"proving-attestation", proving_cache.hash)
+            pcache_prefix, pcache_id = HashCache.id_from_hash("proving-attestation", proving_cache.hash)
             challenge = None
             if payload.challenge_hash in proving_cache.hashed_challenges:
                 proving_cache.hashed_challenges.remove(payload.challenge_hash)
@@ -424,15 +424,15 @@ class AttestationCommunity(Community):
                 honesty_check_byte = choice([0, 1, 2]) if honesty_check else -1
                 challenge = None
                 if honesty_check:
-                    while not challenge or self.request_cache.has(*HashCache.id_from_hash(u"proving-hash",
+                    while not challenge or self.request_cache.has(*HashCache.id_from_hash("proving-hash",
                                                                                           sha1(challenge).digest())):
                         challenge = algorithm.create_honesty_challenge(proving_cache.public_key, honesty_check_byte)
-                if (not honesty_check) or (challenge and self.request_cache.has(*HashCache.id_from_hash(u"proving-hash",
+                if (not honesty_check) or (challenge and self.request_cache.has(*HashCache.id_from_hash("proving-hash",
                                                                                 sha1(challenge).digest()))):
                     honesty_check_byte = -1
                     challenge = None
                     for c in proving_cache.challenges:
-                        if not self.request_cache.has(*HashCache.id_from_hash(u"proving-hash", sha1(c).digest())):
+                        if not self.request_cache.has(*HashCache.id_from_hash("proving-hash", sha1(c).digest())):
                             challenge = c
                             break
                     if not challenge:

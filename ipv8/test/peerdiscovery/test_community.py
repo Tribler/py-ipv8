@@ -11,7 +11,7 @@ from ...peerdiscovery.payload import DiscoveryIntroductionRequestPayload
 class TestDiscoveryCommunity(TestBase):
 
     def setUp(self):
-        super(TestDiscoveryCommunity, self).setUp()
+        super().setUp()
         self.tracker = MockCommunity()
 
         node_count = 2
@@ -25,7 +25,7 @@ class TestDiscoveryCommunity(TestBase):
         await self.tracker.unload()
         for overlay in self.overlays:
             await overlay.unload()
-        return await super(TestDiscoveryCommunity, self).tearDown()
+        return await super().tearDown()
 
     async def test_deprecated_introduction(self):
         """
@@ -37,7 +37,7 @@ class TestDiscoveryCommunity(TestBase):
                                                       self.overlays[0].my_estimated_lan,
                                                       self.overlays[0].my_estimated_wan,
                                                       True,
-                                                      u"unknown",
+                                                      "unknown",
                                                       global_time,
                                                       b'')
         auth = BinMemberAuthenticationPayload(self.overlays[0].my_peer.public_key.key_to_bin())

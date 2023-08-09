@@ -16,7 +16,7 @@ from .. import secure_randint
 from ...primitives.value import FP2Value
 
 
-class Issuer(object):
+class Issuer:
 
     def __init__(self, Sk, Pk, Context):
         self.Sk = Sk
@@ -129,7 +129,7 @@ def BuildProofList(builders, context, nonce, issig):
     return BuildDistributedProofList(builders, challenge, [])
 
 
-class IssueCommitmentMessage(object):
+class IssueCommitmentMessage:
 
     def __init__(self, U, Proofs, Nonce2, ProofPjwt=None, ProofPjwts=None):
         self.U = U
@@ -139,7 +139,7 @@ class IssueCommitmentMessage(object):
         self.ProofPjwts = ProofPjwts
 
 
-class IssueSignatureMessage(object):
+class IssueSignatureMessage:
 
     def __init__(self, Signature, Proof):
         self.Proof = Proof
@@ -155,7 +155,7 @@ def commitmentToSecret(pk, secret):
     return vPrime, (Sv * R0s) % pk.N
 
 
-class CredentialBuilder(object):
+class CredentialBuilder:
 
     def __init__(self, pk, context, secret, nonce2):
         vPrime, U = commitmentToSecret(pk, secret)

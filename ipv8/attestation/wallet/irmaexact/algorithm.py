@@ -35,7 +35,7 @@ class IRMAAttestation(Attestation):
         return IRMAAttestation(sign_date, unserialize_proof_d(rem), z)
 
 
-class KeyStub(object):
+class KeyStub:
 
     def public_key(self):
         return self
@@ -51,7 +51,7 @@ class KeyStub(object):
 class IRMAExactAlgorithm(IdentityAlgorithm):
 
     def __init__(self, id_format, formats):
-        super(IRMAExactAlgorithm, self).__init__(id_format, formats)
+        super().__init__(id_format, formats)
 
         # Check algorithm match
         if formats[id_format]["algorithm"] != "irmaexact":
@@ -62,9 +62,9 @@ class IRMAExactAlgorithm(IdentityAlgorithm):
         self.validity = formats[self.id_format]["validity"]
 
         self.base_meta = {
-            u"credential": formats[self.id_format]["credential"],
-            u"keyCounter": formats[self.id_format]["keyCounter"],
-            u"validity": formats[self.id_format]["validity"]
+            "credential": formats[self.id_format]["credential"],
+            "keyCounter": formats[self.id_format]["keyCounter"],
+            "validity": formats[self.id_format]["validity"]
         }
 
         self.system_parameters = DefaultSystemParameters[1024]
@@ -86,7 +86,7 @@ class IRMAExactAlgorithm(IdentityAlgorithm):
         raise NotImplementedError("Only import_blob is supported (now) for IRMA.")
 
     def certainty(self, value, aggregate):
-        value_json = {u"attributes": json.loads(value)}
+        value_json = {"attributes": json.loads(value)}
         value_json.update(self.base_meta)
         attestation = aggregate['attestation']
         attr_ints, sign_date = make_attribute_list(value_json, self.attribute_order,

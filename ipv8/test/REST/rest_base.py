@@ -97,7 +97,7 @@ class MockedRESTManager(RESTManager):
         await self.site.start()
 
 
-class MockRestIPv8(object):
+class MockRestIPv8:
     def __init__(self, crypto_curve, overlay_classes, *args, **kwargs):
         self.endpoint = AutoMockEndpoint()
         self.endpoint.open()
@@ -170,7 +170,7 @@ class RESTTestBase(TestBase):
                     node.network.discover_services(public_peer, overlay_class.community_id)
 
     async def create_node(self, *args, **kwargs):
-        ipv8 = MockRestIPv8(u"curve25519", overlay_classes=self.overlay_classes, *args, **kwargs)
+        ipv8 = MockRestIPv8("curve25519", overlay_classes=self.overlay_classes, *args, **kwargs)
         await ipv8.start_api()
         return ipv8
 

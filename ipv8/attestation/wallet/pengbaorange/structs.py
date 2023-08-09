@@ -20,7 +20,7 @@ def _unserialize_fp2value(mod, value):
     return FP2Value(mod, a, b), rem
 
 
-class PengBaoCommitment(object):
+class PengBaoCommitment:
 
     def __init__(self, c, c1, c2, ca, ca1, ca2, ca3, caa):  # pylint: disable=R0913
         self.c = c
@@ -57,7 +57,7 @@ class PengBaoCommitment(object):
         return cls(c, c1, c2, ca, ca1, ca2, ca3, caa), rem
 
 
-class PengBaoCommitmentPrivate(object):
+class PengBaoCommitmentPrivate:
 
     MSGSPACE = list(range(256))
 
@@ -131,7 +131,7 @@ class PengBaoCommitmentPrivate(object):
         return cls.unserialize(serialized)[0]
 
 
-class PengBaoPublicData(object):
+class PengBaoPublicData:
     """
     Public data required to verify a Peng Bao proof.
     """
@@ -213,7 +213,7 @@ class PengBaoAttestation(Attestation):
         :type publicdata: PengBaoPublicData
         :type privatedata: PengBaoCommitmentPrivate or None
         """
-        super(PengBaoAttestation, self).__init__()
+        super().__init__()
         self.publicdata = publicdata
         self.privatedata = privatedata
         self.id_format = id_format

@@ -8,7 +8,7 @@ from ...peerdiscovery.network import Network, PeerObserver
 
 
 def _generate_peer():
-    key = default_eccrypto.generate_key(u'very-low')
+    key = default_eccrypto.generate_key('very-low')
     address = (".".join([str(random.randint(0, 255)) for _ in range(4)]), random.randint(0, 65535))
     return Peer(key, address)
 
@@ -33,7 +33,7 @@ class TestNetwork(TestBase):
     serialized_ipv4_len = 7
 
     def setUp(self):
-        super(TestNetwork, self).setUp()
+        super().setUp()
         self.network = Network()
 
     def test_discover_address(self):

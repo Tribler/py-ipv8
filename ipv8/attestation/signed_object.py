@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import abc
 import hashlib
 import struct
@@ -18,8 +20,8 @@ class AbstractSignedObject(metaclass=abc.ABCMeta):
     """
 
     def __init__(self,
-                 private_key: typing.Optional[PrivateKey] = None,
-                 signature: typing.Optional[bytes] = None):
+                 private_key: PrivateKey | None = None,
+                 signature: bytes | None = None):
         """
         Create a new object that can be serialized and signed.
         Call this after the data has been established for the `get_plaintext()` method.
@@ -43,8 +45,8 @@ class AbstractSignedObject(metaclass=abc.ABCMeta):
         return self.crypto.is_valid_signature(public_key, self.get_plaintext(), self.signature)
 
     def _sign(self,
-              private_key: typing.Optional[PrivateKey] = None,
-              signature: typing.Optional[bytes] = None) -> None:
+              private_key: PrivateKey | None = None,
+              signature: bytes | None = None) -> None:
         """
         Add a signature to this data.
         Supply either your private key for signing or pass an existing signature.

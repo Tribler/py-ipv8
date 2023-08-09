@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import inspect
 import logging
 import os
@@ -10,7 +12,6 @@ import uuid
 from asyncio import all_tasks, ensure_future, get_event_loop, iscoroutine, sleep
 from contextlib import contextmanager
 from functools import partial
-from typing import List, Optional
 
 from .mocking.endpoint import internet, MockEndpointListener
 from .mocking.ipv8 import MockIPv8
@@ -50,8 +51,8 @@ class TranslatedMockEndpointListener(MockEndpointListener):
      - The requested overlay messages follow the ``lazy_wrapper_*`` standard.
     """
 
-    def __init__(self, overlay: Community, message_classes: List[AnyPayloadType],
-                 message_filter: Optional[List[AnyPayloadType]], main_thread=False):
+    def __init__(self, overlay: Community, message_classes: list[AnyPayloadType],
+                 message_filter: list[AnyPayloadType] | None, main_thread=False):
         super().__init__(overlay.endpoint, main_thread)
 
         self.overlay = overlay
@@ -125,7 +126,7 @@ class TestBase(TestCaseClass):
     MAX_TEST_TIME = 10
 
     def __init__(self, methodName='runTest'):
-        super(TestBase, self).__init__(methodName)
+        super().__init__(methodName)
         self.nodes = []
         self.overlay_class = object
         internet.clear()
@@ -223,7 +224,7 @@ class TestBase(TestCaseClass):
     def setUp(self):
         self.loop.set_debug(True)
         self.loop.set_exception_handler(self._cb_exception)
-        super(TestBase, self).setUp()
+        super().setUp()
         TestBase.__lockup_timestamp__ = time.time()
 
     async def tearDown(self):
@@ -243,9 +244,9 @@ class TestBase(TestCaseClass):
             raise self._uncaught_async_failure["exception"]
         self.loop.set_exception_handler(None)  # None is equivalent to the default handler
         if self.__asynctest_compatibility_mode__:
-            super(TestBase, self).tearDown()
+            super().tearDown()
         else:
-            await super(TestBase, self).asyncTearDown()
+            await super().asyncTearDown()
 
     @classmethod
     def setUpClass(cls):
@@ -295,7 +296,7 @@ class TestBase(TestCaseClass):
         cls.__testing__ = False
 
     def create_node(self, *args, **kwargs):
-        return MockIPv8(u"low", self.overlay_class, *args, **kwargs)
+        return MockIPv8("low", self.overlay_class, *args, **kwargs)
 
     def add_node_to_experiment(self, node):
         """
@@ -389,8 +390,8 @@ class TestBase(TestCaseClass):
         return self.nodes[i].my_peer.public_key
 
     @contextmanager
-    def assertReceivedBy(self, i: int, message_classes: List[AnyPayloadType], ordered: bool = True,
-                         message_filter: Optional[List[AnyPayloadType]] = None) -> List[AnyPayload]:
+    def assertReceivedBy(self, i: int, message_classes: list[AnyPayloadType], ordered: bool = True,
+                         message_filter: list[AnyPayloadType] | None = None) -> list[AnyPayload]:
         """
         Assert that a node i receives messages of a given type, potentially unordered or while ignoring other messages.
 

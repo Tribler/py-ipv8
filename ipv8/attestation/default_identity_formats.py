@@ -26,8 +26,8 @@ FORMATS = {
     "id_irma_nijmegen_address_1568208470": {
         "algorithm": "irmaexact",
         "issuer_pk": nijmegen_pk_1568208470,  # Valid until Wednesday 11 September 2019 13:27:50 GMT
-        "order": [u"street", u"houseNumber", u"zipcode", u"municipality", u"city"],
-        "credential": u"pbdf.nijmegen.address",
+        "order": ["street", "houseNumber", "zipcode", "municipality", "city"],
+        "credential": "pbdf.nijmegen.address",
         "keyCounter": 0,
         "validity": 13
 
@@ -35,25 +35,25 @@ FORMATS = {
     "id_irma_nijmegen_personalData_1568208470": {
         "algorithm": "irmaexact",
         "issuer_pk": nijmegen_pk_1568208470,  # Valid until Wednesday 11 September 2019 13:27:50 GMT
-        "order": [u"initials", u"firstnames", u"prefix", u"familyname", u"surname",
-                  u"fullname", u"dateofbirth", u"gender", u"nationality"],
-        "credential": u"pbdf.nijmegen.personalData",
+        "order": ["initials", "firstnames", "prefix", "familyname", "surname",
+                  "fullname", "dateofbirth", "gender", "nationality"],
+        "credential": "pbdf.nijmegen.personalData",
         "keyCounter": 0,
         "validity": 13
     },
     "id_irma_nijmegen_ageLimits_1568208470": {
         "algorithm": "irmaexact",
         "issuer_pk": nijmegen_pk_1568208470,  # Valid until Wednesday 11 September 2019 13:27:50 GMT
-        "order": [u"over12", u"over16", u"over18", u"over21", u"over65"],
-        "credential": u"pbdf.nijmegen.ageLimits",
+        "order": ["over12", "over16", "over18", "over21", "over65"],
+        "credential": "pbdf.nijmegen.ageLimits",
         "keyCounter": 0,
         "validity": 13
     },
     "id_irma_nijmegen_bsn_1568208470": {
         "algorithm": "irmaexact",
         "issuer_pk": nijmegen_pk_1568208470,  # Valid until Wednesday 11 September 2019 13:27:50 GMT
-        "order": [u"bsn"],
-        "credential": u"pbdf.nijmegen.bsn",
+        "order": ["bsn"],
+        "credential": "pbdf.nijmegen.bsn",
         "keyCounter": 0,
         "validity": 13
     }

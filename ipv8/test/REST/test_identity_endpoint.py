@@ -1,8 +1,8 @@
+from __future__ import annotations
+
 import base64
 import json
-import typing
 import urllib.parse
-from typing import Dict
 
 from ..REST.rest_base import RESTTestBase, partial_cls
 from ...attestation.communication_manager import CommunicationChannel, PseudonymFolderManager, CommunicationManager
@@ -20,7 +20,7 @@ class MockPseudonymFolderManager(PseudonymFolderManager):
 
     def __init__(self):
         super().__init__(".")
-        self.folder_contents: Dict[str, bytes] = {}
+        self.folder_contents: dict[str, bytes] = {}
 
     def get_or_create_private_key(self, name: str) -> PrivateKey:
         if name in self.folder_contents:
@@ -32,7 +32,7 @@ class MockPseudonymFolderManager(PseudonymFolderManager):
     def remove_pseudonym_file(self, name: str):
         self.folder_contents.pop(name, None)
 
-    def list_pseudonym_files(self) -> typing.List[str]:
+    def list_pseudonym_files(self) -> list[str]:
         return [key for key in self.folder_contents]
 
 
@@ -42,10 +42,10 @@ class TestIdentityEndpoint(RESTTestBase):
     """
 
     async def setUp(self):
-        super(TestIdentityEndpoint, self).setUp()
+        super().setUp()
 
-        self.pseudonym_directories: Dict[str, bytes] = {}  # Pseudonym to key-bytes mapping
-        identity_manager = IdentityManager(u":memory:")
+        self.pseudonym_directories: dict[str, bytes] = {}  # Pseudonym to key-bytes mapping
+        identity_manager = IdentityManager(":memory:")
 
         await self.initialize([partial_cls(IdentityCommunity, identity_manager=identity_manager,
                                            working_directory=':memory:')], 2)
@@ -54,7 +54,7 @@ class TestIdentityEndpoint(RESTTestBase):
         """
         We load each node i with a pseudonym `my_peer{i}`, which is the default IPv8 `my_peer` key.
         """
-        ipv8 = await super(TestIdentityEndpoint, self).create_node(*args, **kwargs)
+        ipv8 = await super().create_node(*args, **kwargs)
         key_file_name = 'my_peer' + str(len(self.pseudonym_directories))
         communication_manager = ipv8.rest_manager.root_endpoint.endpoints['/identity'].communication_manager
         communication_manager.working_directory = ':memory:'

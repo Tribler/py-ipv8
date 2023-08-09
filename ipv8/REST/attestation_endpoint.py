@@ -21,7 +21,7 @@ class AttestationEndpoint(BaseEndpoint):
     """
 
     def __init__(self):
-        super(AttestationEndpoint, self).__init__()
+        super().__init__()
         self.attestation_overlay = self.identity_overlay = self.persistent_key = None
         self.attestation_requests = {}
         self.verify_requests = {}
@@ -33,7 +33,7 @@ class AttestationEndpoint(BaseEndpoint):
                              web.post('', self.handle_post)])
 
     def initialize(self, session):
-        super(AttestationEndpoint, self).initialize(session)
+        super().initialize(session)
         self.attestation_overlay = next((overlay for overlay in session.overlays
                                          if isinstance(overlay, AttestationCommunity)), None)
         self.identity_overlay = next((overlay for overlay in session.overlays
@@ -142,10 +142,10 @@ class AttestationEndpoint(BaseEndpoint):
         if not attestation_hashes:
             return
 
-        self.attestation_overlay.database.execute((u"DELETE FROM %s" % self.attestation_overlay.database.db_name)
-                                                  + u" WHERE hash IN ("
-                                                  + u", ".join(c for c in u"?" * len(attestation_hashes))
-                                                  + u")",
+        self.attestation_overlay.database.execute(("DELETE FROM %s" % self.attestation_overlay.database.db_name)
+                                                  + " WHERE hash IN ("
+                                                  + ", ".join(c for c in "?" * len(attestation_hashes))
+                                                  + ")",
                                                   attestation_hashes)
         self.attestation_overlay.database.commit()
 
@@ -243,7 +243,7 @@ class AttestationEndpoint(BaseEndpoint):
             self.attestation_requests.clear()
 
             # Generate new key
-            my_new_peer = Peer(default_eccrypto.generate_key(u"curve25519"))
+            my_new_peer = Peer(default_eccrypto.generate_key("curve25519"))
             identity_manager = self.identity_overlay.identity_manager
             await self.session.unload_overlay(self.identity_overlay)
             self.identity_overlay = await create_community(my_new_peer.key, self.session, identity_manager,

@@ -11,12 +11,12 @@ class TestIdentityCommunity(TestBase):
     FAKE_HASH = b'a' * 32
 
     def setUp(self):
-        super(TestIdentityCommunity, self).setUp()
+        super().setUp()
         self.initialize(IdentityCommunity, 2)
 
     def create_node(self):
-        identity_manager = IdentityManager(u":memory:")
-        return MockIPv8(u"curve25519", IdentityCommunity, identity_manager=identity_manager)
+        identity_manager = IdentityManager(":memory:")
+        return MockIPv8("curve25519", IdentityCommunity, identity_manager=identity_manager)
 
     async def test_advertise(self):
         """

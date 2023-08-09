@@ -52,7 +52,7 @@ DESTROY_REASON_LEAVE_SWARM = 5
 DESTROY_REASON_FORBIDDEN = 6
 
 
-class DataChecker(object):
+class DataChecker:
 
     @staticmethod
     def could_be_utp(data):
@@ -115,7 +115,7 @@ class DataChecker(object):
         return len(data) >= 23 and data[0:1] == b'\x00' and data[1:2] in [b'\x01', b'\x02']
 
 
-class Tunnel(object):
+class Tunnel:
 
     def __init__(self, circuit_id, peer):
         self.circuit_id = circuit_id
@@ -173,7 +173,7 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
                 try:
                     self.transport.sendto(data, (ip_address, destination[1]))
                     self.bytes_up += len(data)
-                except socket.error as e:
+                except OSError as e:
                     self.logger.error("Failed to write to transport. Destination: %r error: %r", destination, e)
 
             try:
@@ -235,7 +235,7 @@ class TunnelExitSocket(Tunnel, DatagramProtocol, TaskManager):
 class Circuit(Tunnel):
 
     def __init__(self, circuit_id, goal_hops=0, ctype=CIRCUIT_TYPE_DATA, required_exit=None, info_hash=None):
-        super(Circuit, self).__init__(circuit_id, None)
+        super().__init__(circuit_id, None)
         self.goal_hops = goal_hops
         self.ctype = ctype
         self.required_exit = required_exit
@@ -307,7 +307,7 @@ class Circuit(Tunnel):
         return other and self.circuit_id == other.circuit_id
 
 
-class Hop(object):
+class Hop:
 
     """
     Circuit Hop containing the address, its public key and the first part of
@@ -353,14 +353,14 @@ class RelayRoute(Tunnel):
         @type circuit_id: int
         @return:
         """
-        super(RelayRoute, self).__init__(circuit_id, peer)
+        super().__init__(circuit_id, peer)
         self.rendezvous_relay = rendezvous_relay
         # Since the creation of a RelayRoute object is triggered by an extend (which was wrapped in a cell
         # that had the early_relay flag set) we start the count at 1.
         self.relay_early_count = 1
 
 
-class RendezvousPoint(object):
+class RendezvousPoint:
 
     def __init__(self, circuit, cookie):
         self.circuit = circuit
@@ -369,7 +369,7 @@ class RendezvousPoint(object):
         self.ready = Future()
 
 
-class IntroductionPoint(object):
+class IntroductionPoint:
 
     def __init__(self, peer, seeder_pk, source=PEER_SOURCE_UNKNOWN, last_seen=None):
         self.peer = peer
@@ -391,7 +391,7 @@ class IntroductionPoint(object):
                'source': self.source}
 
 
-class Swarm(object):
+class Swarm:
 
     def __init__(self, info_hash, hops, lookup_func, seeder_sk=None, max_ip_age=180,
                  min_dht_lookup_interval=300, max_dht_lookup_interval=120):

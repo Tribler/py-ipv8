@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import binascii
 import json
 import logging
@@ -13,7 +15,7 @@ from ...keyvault.keys import PrivateKey
 from ...types import PublicKey, Token
 
 
-class PseudonymManager(object):
+class PseudonymManager:
     """
     Object to manage interactions with our own pseudonym or one belonging to someone else.
 
@@ -21,9 +23,9 @@ class PseudonymManager(object):
     """
 
     def __init__(self, database: IdentityDatabase,
-                 public_key: typing.Optional[PublicKey] = None,
-                 private_key: typing.Optional[PrivateKey] = None):
-        super(PseudonymManager, self).__init__()
+                 public_key: PublicKey | None = None,
+                 private_key: PrivateKey | None = None):
+        super().__init__()
 
         self.database = database
 
@@ -39,7 +41,7 @@ class PseudonymManager(object):
     def public_key(self) -> PublicKey:
         return self.tree.public_key
 
-    def add_credential(self, token: Token, metadata: Metadata, attestations=set()) -> typing.Optional[Credential]:
+    def add_credential(self, token: Token, metadata: Metadata, attestations=set()) -> Credential | None:
         """
         Add a credential to this pseudonym.
 
@@ -98,7 +100,7 @@ class PseudonymManager(object):
     def create_credential(self,
                           attestation_hash: bytes,
                           metadata_json: dict,
-                          after: typing.Optional[Metadata] = None) -> Credential:
+                          after: Metadata | None = None) -> Credential:
         """
         Create a credential and add it to this pseudonym.
         """
@@ -113,7 +115,7 @@ class PseudonymManager(object):
         """
         return self.database.get_credential_over(metadata)
 
-    def get_credentials(self) -> typing.List[Credential]:
+    def get_credentials(self) -> list[Credential]:
         """
         Get all credentials belonging to this pseudonym.
         """
@@ -121,7 +123,7 @@ class PseudonymManager(object):
 
     def disclose_credentials(self,
                              credentials: typing.Iterable[Credential],
-                             attestation_selector: typing.Set[bytes]) -> typing.Tuple[bytes, bytes, bytes, bytes]:
+                             attestation_selector: typing.Set[bytes]) -> tuple[bytes, bytes, bytes, bytes]:
         """
         Create a public disclosure for the given credentials and only include attestations from the given serialized
         public keys.
@@ -136,7 +138,7 @@ class PseudonymManager(object):
 
     def create_disclosure(self,
                           metadata: typing.Set[Metadata],
-                          attestation_selector: typing.Set[bytes]) -> typing.Tuple[bytes, bytes, bytes, bytes]:
+                          attestation_selector: typing.Set[bytes]) -> tuple[bytes, bytes, bytes, bytes]:
         """
         Create a public disclosure for the given set of metadata and only include attestations from the given serialized
         public keys.
@@ -177,13 +179,13 @@ class PseudonymManager(object):
         return s_metadata, b''.join(token.get_plaintext_signed() for token in tokens), attestations, authorities
 
 
-class IdentityManager(object):
+class IdentityManager:
     """
     Manager of our own pseudonyms and those of others.
     """
 
     def __init__(self, database_path=":memory:"):
-        super(IdentityManager, self).__init__()
+        super().__init__()
 
         self.database = IdentityDatabase(database_path)
         self.database.open()
@@ -191,7 +193,7 @@ class IdentityManager(object):
 
         self.crypto = ECCrypto()
 
-    def get_pseudonym(self, key: typing.Union[PublicKey, PrivateKey]) -> PseudonymManager:
+    def get_pseudonym(self, key: PublicKey | PrivateKey) -> PseudonymManager:
         """
         Get the pseudonym belonging to a given public or private key.
         """
@@ -209,7 +211,7 @@ class IdentityManager(object):
                      serialized_metadata: bytes,
                      serialized_tokens: bytes,
                      serialized_attestations: bytes,
-                     serialized_authorities: bytes) -> typing.Tuple[bool, PseudonymManager]:
+                     serialized_authorities: bytes) -> tuple[bool, PseudonymManager]:
         """
         Load the serialized form of a pseudonym for a given public key.
 

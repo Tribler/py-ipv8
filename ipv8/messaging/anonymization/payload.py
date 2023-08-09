@@ -225,9 +225,9 @@ class CellPayload:
                                                       hop.session_keys[ORIGINATOR],
                                                       hop.session_keys[ORIGINATOR_SALT])
                 except ValueError as e:
-                    raise CryptoException("Got exception %r when trying to remove encryption layer %s "
-                                          "for message: %r received for circuit_id: %s, circuit_hops: %r" %
-                                          (e, layer, self.message, self.circuit_id, circuit.hops)) from e
+                    raise CryptoException(f"Got exception {e!r} when trying to remove encryption layer {layer} "
+                                          f"for message: {self.message!r} received for circuit_id: {self.circuit_id}, "
+                                          f"circuit_hops: {circuit.hops}") from e
 
             if circuit.hs_session_keys and circuit.ctype in [CIRCUIT_TYPE_RP_SEEDER, CIRCUIT_TYPE_RP_DOWNLOADER]:
                 direction = int(circuit.ctype == CIRCUIT_TYPE_RP_DOWNLOADER)
@@ -242,8 +242,8 @@ class CellPayload:
                                                   relay_session_keys[EXIT_NODE],
                                                   relay_session_keys[EXIT_NODE_SALT])
             except ValueError as e:
-                raise CryptoException("Got exception %r when trying to decrypt relay message: "
-                                      "cell received for circuit_id: %s" % (e, self.circuit_id)) from e
+                raise CryptoException("Got exception {e!r} when trying to decrypt relay message: "
+                                      "cell received for circuit_id: {self.circuit_id}") from e
 
         else:
             raise CryptoException("Error decrypting message for unknown circuit %d" % self.circuit_id)

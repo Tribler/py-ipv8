@@ -17,7 +17,7 @@ class TestNet1(AddressProvider):
             local_ip = s.getsockname()[0]
             s.close()
             interface_specifications.append(local_ip)
-        except socket.error:
+        except OSError:
             self.on_exception()
 
         try:
@@ -26,7 +26,7 @@ class TestNet1(AddressProvider):
             local_ip = s.getsockname()[0]
             s.close()
             interface_specifications.append(local_ip)
-        except socket.error:
+        except OSError:
             self.on_exception()
 
         return set(interface_specifications)

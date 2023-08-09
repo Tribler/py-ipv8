@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import socket
 import typing
 from ctypes import (POINTER, Structure, Union, c_short, c_size_t, c_ubyte, c_uint, c_uint64, c_ulonglong, c_ushort,
@@ -9,8 +11,8 @@ if typing.TYPE_CHECKING:
 
     class WinDLL(CDLL):
         class _HeapAlloc(typing.Protocol, typing.SupportsInt):
-            restype: typing.Type[LPVOID]
-            argtypes: typing.List
+            restype: type[LPVOID]
+            argtypes: list
 
             def __call__(self, hHeap: c_void_p, dwFlags: DWORD, dwBytes: c_size_t) -> _Pointer:
                 ...
@@ -18,8 +20,8 @@ if typing.TYPE_CHECKING:
         HeapAlloc: _HeapAlloc
 
         class _GetProcessHeap(typing.Protocol, typing.SupportsInt):
-            restype: typing.Type[HANDLE]
-            argtypes: typing.List
+            restype: type[HANDLE]
+            argtypes: list
 
             def __call__(self) -> _Pointer:
                 ...  # incomplete
@@ -27,8 +29,8 @@ if typing.TYPE_CHECKING:
         GetProcessHeap: _GetProcessHeap
 
         class _HeapFree(typing.Protocol, typing.SupportsInt):
-            restype: typing.Type[BOOL]
-            argtypes: typing.List
+            restype: type[BOOL]
+            argtypes: list
 
             def __call__(self, hHeap: c_void_p, dwFlags: DWORD, lpMem: _Pointer) -> _Pointer:
                 ...
@@ -339,7 +341,7 @@ class GetAdaptersAddresses(AddressProvider):
                                          POINTER(IP_ADAPTER_ADDRESSES_LH))
             tries += 1
 
-        out_addresses: typing.List[str] = []
+        out_addresses: list[str] = []
 
         if ret != 0:
             # Memory has already been freed in case of overflow.

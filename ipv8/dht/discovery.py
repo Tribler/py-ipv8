@@ -31,14 +31,14 @@ class DHTDiscoveryCommunity(DHTCommunity):
 
     @lazy_wrapper_wd(PingRequestPayload)
     def on_ping_request(self, peer, payload, data):
-        super(DHTDiscoveryCommunity, self).on_ping_request(peer.address, data)
+        super().on_ping_request(peer.address, data)
         node = self.find_node_in_dict(peer.key.key_to_bin(), self.store)
         if node:
             node.last_queries.append(time.time())
 
     @lazy_wrapper_wd(PingResponsePayload)
     def on_ping_response(self, peer, payload, data):
-        super(DHTDiscoveryCommunity, self).on_ping_response(peer.address, data)
+        super().on_ping_response(peer.address, data)
         node = self.find_node_in_dict(peer.key.key_to_bin(), self.store_for_me)
         if node:
             node.last_response = time.time()

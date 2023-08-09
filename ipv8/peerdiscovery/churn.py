@@ -19,7 +19,7 @@ class RandomChurn(DiscoveryStrategy):
         :param inactive_time: time before pings are sent to check liveness
         :param drop_time: time after which a peer is dropped
         """
-        super(RandomChurn, self).__init__(overlay)
+        super().__init__(overlay)
         self._pinged = {}
         self.sample_size = sample_size
         self.ping_interval = ping_interval

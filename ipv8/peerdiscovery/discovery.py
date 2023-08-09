@@ -38,7 +38,7 @@ class RandomWalk(DiscoveryStrategy):
         :param target_interval: the target interval (in seconds) between steps or 0 to use the default interval
         :type target_interval: int
         """
-        super(RandomWalk, self).__init__(overlay)
+        super().__init__(overlay)
         self.intro_timeouts = {}
         self.node_timeout = timeout
         self.window_size = window_size
@@ -89,7 +89,7 @@ class EdgeWalk(DiscoveryStrategy):
     """
 
     def __init__(self, overlay, edge_length=4, neighborhood_size=6, edge_timeout=3.0):
-        super(EdgeWalk, self).__init__(overlay)
+        super().__init__(overlay)
         self._neighborhood = []
 
         self.complete_edges = []

@@ -10,7 +10,7 @@ async def start_community():
     for peer_id in [1, 2]:
         configuration = get_default_configuration()
         configuration['keys'] = [
-            {'alias': "anonymous id", 'generation': u"curve25519", 'file': f"keyfile_{peer_id}.pem"}]
+            {'alias': "anonymous id", 'generation': "curve25519", 'file': f"keyfile_{peer_id}.pem"}]
         configuration['working_directory'] = f"state_{peer_id}"
         configuration['overlays'] = []
 

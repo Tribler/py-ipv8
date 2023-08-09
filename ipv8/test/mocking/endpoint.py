@@ -25,7 +25,7 @@ class MockEndpoint(Endpoint):
     """
 
     def __init__(self, lan_address, wan_address):
-        super(MockEndpoint, self).__init__()
+        super().__init__()
         internet[lan_address] = self
         internet[wan_address] = self
 
@@ -95,7 +95,7 @@ class AutoMockEndpoint(MockEndpoint):
 
     def __init__(self):
         self._open = False
-        super(AutoMockEndpoint, self).__init__(self._generate_unique_address(), self._generate_unique_address())
+        super().__init__(self._generate_unique_address(), self._generate_unique_address())
         self._port = 0
 
     def _generate_address(self):
@@ -118,7 +118,7 @@ class AutoMockEndpoint(MockEndpoint):
             b7 = random.randint(0, 65535)
             port = random.randint(0, 65535)
 
-            return UDPv6Address('%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x' % (b0, b1, b2, b3, b4, b5, b6, b7), port)
+            return UDPv6Address(f"{b0:02x}:{b1:02x}:{b2:02x}:{b3:02x}:{b4:02x}:{b5:02x}:{b6:02x}:{b7:02x}", port)
         else:
             raise RuntimeError("Illegal address type specified: " + repr(self.ADDRESS_TYPE))
 
@@ -142,7 +142,7 @@ class AutoMockEndpoint(MockEndpoint):
 class MockEndpointListener(EndpointListener):
 
     def __init__(self, endpoint, main_thread=False):
-        super(MockEndpointListener, self).__init__(endpoint, main_thread)
+        super().__init__(endpoint, main_thread)
 
         self.received_packets = []
 

@@ -31,7 +31,7 @@ class MyCommunity(Community):
             global INSTANCES, LOW_EDGE, LOW_EDGE_PEER, START_TIME
             if self.get_peers():
                 if LOW_EDGE and self.my_peer != LOW_EDGE_PEER:
-                    print("%.4f,%.4f" % (LOW_EDGE, time.time() - START_TIME))
+                    print(f"{LOW_EDGE:.4f},{(time.time() - START_TIME):.4f}")
 
                     async def shutdown():
                         for instance in INSTANCES:
@@ -45,8 +45,8 @@ class MyCommunity(Community):
 
     def create_introduction_response(self, lan_socket_address, socket_address, identifier, introduction=None,
                                      extra_bytes=b'', prefix=None, new_style=False):
-        return super(MyCommunity, self).create_introduction_response(lan_socket_address, socket_address,
-                                                                     identifier, introduction, b'1', prefix, new_style)
+        return super().create_introduction_response(lan_socket_address, socket_address,
+                                                    identifier, introduction, b'1', prefix, new_style)
 
     def create_introduction_request(self, socket_address, extra_bytes=b'', new_style=False):
         return super().create_introduction_request(socket_address, b'2', new_style)
@@ -60,8 +60,8 @@ async def start_communities():
         configuration = get_default_configuration()
         configuration['keys'] = [{
             'alias': "my peer",
-            'generation': u"medium",
-            'file': u"ec%d.pem" % i
+            'generation': "medium",
+            'file': "ec%d.pem" % i
         }]
         configuration['port'] = 12000 + randint(0, 10000)
         configuration['overlays'] = [{

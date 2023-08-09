@@ -10,7 +10,7 @@ class DummyEndpointListener(EndpointListener):
     This class simply listens on an endpoint and stores incoming packets in a list.
     """
     def __init__(self, endpoint):
-        super(DummyEndpointListener, self).__init__(endpoint)
+        super().__init__(endpoint)
         self.incoming = []
 
     def on_packet(self, packet):
@@ -22,7 +22,7 @@ class TestUDPEndpoint(TestBase):
     This class contains various tests for the UDP endpoint.
     """
     async def setUp(self):
-        super(TestUDPEndpoint, self).setUp()
+        super().setUp()
         self.endpoint1 = UDPEndpoint()
         await self.endpoint1.open()
         self.endpoint2 = UDPEndpoint()
@@ -39,7 +39,7 @@ class TestUDPEndpoint(TestBase):
             self.endpoint1.close()
         if self.endpoint2.is_open():
             self.endpoint2.close()
-        await super(TestUDPEndpoint, self).tearDown()
+        await super().tearDown()
 
     async def test_send_message(self):
         """

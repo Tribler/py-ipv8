@@ -5,7 +5,7 @@ from ...identity_formats import Attestation
 __all__ = ['BitPairAttestation', 'BonehAttestation']
 
 
-class BitPairAttestation(object):
+class BitPairAttestation:
     """
     An attestation of a single bitpair of a larger Attestation.
     """
@@ -41,7 +41,7 @@ class BonehAttestation(Attestation):
     """
 
     def __init__(self, PK, bitpairs, id_format=None):
-        super(BonehAttestation, self).__init__()
+        super().__init__()
         self.bitpairs = bitpairs
         self.PK = PK
         self.id_format = id_format

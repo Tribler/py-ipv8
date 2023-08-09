@@ -32,7 +32,7 @@ def _on_packet_fragile_cb(self, source_address, data, circuit_id):
 class TestTunnelCommunity(TestBase):
 
     def setUp(self):
-        super(TestTunnelCommunity, self).setUp()
+        super().setUp()
         self.initialize(TunnelCommunity, 2)
 
         # An actual UDPEndpoint, if needed by the test (for catching exited data)
@@ -43,7 +43,7 @@ class TestTunnelCommunity(TestBase):
         if self.public_endpoint:
             self.public_endpoint.close()
 
-        return await super(TestTunnelCommunity, self).tearDown()
+        return await super().tearDown()
 
     def create_node(self):
         # Initialize a TunnelCommunity without circuits or exit node functionality
@@ -51,7 +51,7 @@ class TestTunnelCommunity(TestBase):
         settings.min_circuits = 0
         settings.max_circuits = 0
         settings.remove_tunnel_delay = 0
-        ipv8 = MockIPv8(u"curve25519", TunnelCommunity, settings=settings)
+        ipv8 = MockIPv8("curve25519", TunnelCommunity, settings=settings)
         # Then kill all automated circuit creation
         ipv8.overlay.cancel_all_pending_tasks()
         # Finally, use the proper exitnode and circuit settings for manual creation
@@ -415,7 +415,7 @@ class TestTunnelCommunity(TestBase):
         self.settings(3).peer_flags.add(PEER_FLAG_EXIT_BT)
         await self.introduce_nodes()
         # Let's pretend that node 1 selected node 3 as a possible node for circuit extension
-        cache = self.overlay(1).request_cache.get(u"created", circuit.circuit_id)
+        cache = self.overlay(1).request_cache.get("created", circuit.circuit_id)
         cache.candidates[self.key_bin(3)] = self.my_peer(3)
 
         # Retry to extend the circuit

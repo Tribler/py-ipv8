@@ -39,7 +39,7 @@ from ipv8.messaging.anonymization.tunnel import PEER_FLAG_EXIT_IPV8
 from ipv8_service import IPv8
 
 
-class ExitnodeIPv8Service(object):
+class ExitnodeIPv8Service:
 
     def __init__(self):
         """

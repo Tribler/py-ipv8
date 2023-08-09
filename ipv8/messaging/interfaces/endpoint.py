@@ -238,8 +238,8 @@ class IllegalEndpointListenerError(RuntimeError):
     """
 
     def __init__(self, other):
-        message = '%s is not an instance of %s' % (type(other), str(EndpointListener.__name__))
-        super(IllegalEndpointListenerError, self).__init__(message)
+        message = f"{type(other)} is not an instance of {EndpointListener.__name__}"
+        super().__init__(message)
 
 
 class EndpointClosedException(Exception):
@@ -248,7 +248,7 @@ class EndpointClosedException(Exception):
     """
 
     def __init__(self, endpoint):
-        super(EndpointClosedException, self).__init__('%s is unexpectedly closed' % type(endpoint))
+        super().__init__(f"{type(endpoint)} is unexpectedly closed")
 
 
 class DataTooBigException(Exception):
@@ -257,7 +257,7 @@ class DataTooBigException(Exception):
     """
 
     def __init__(self, size, max_size):
-        super(DataTooBigException, self).__init__('Tried to send packet of size %s > MAX_SIZE(%d)' % (size, max_size))
+        super().__init__(f"Tried to send packet of size {size} > MAX_SIZE({max_size})")
 
 
 class IllegalDestination(Exception):
@@ -266,4 +266,4 @@ class IllegalDestination(Exception):
     """
 
     def __init__(self):
-        super(IllegalDestination, self).__init__('Attempted to send a message to 0.0.0.0:0.')
+        super().__init__("Attempted to send a message to 0.0.0.0:0.")

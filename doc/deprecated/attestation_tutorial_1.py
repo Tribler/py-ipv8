@@ -17,7 +17,7 @@ async def start_communities():
         configuration = get_default_configuration()
         configuration['logger']['level'] = "ERROR"
         configuration['keys'] = [
-            {'alias': "anonymous id", 'generation': u"curve25519", 'file': u"ec%d_multichain.pem" % i},
+            {'alias': "anonymous id", 'generation': "curve25519", 'file': "ec%d_multichain.pem" % i},
         ]
 
         # Only load the basic communities

@@ -10,7 +10,7 @@ class DummyEndpointListener(EndpointListener):
     This class simply listens on an endpoint and stores incoming packets in a list.
     """
     def __init__(self, endpoint):
-        super(DummyEndpointListener, self).__init__(endpoint)
+        super().__init__(endpoint)
         self.incoming = []
 
     def on_packet(self, packet):
@@ -23,7 +23,7 @@ class DummyEndpoint(Endpoint):
     """
 
     def __init__(self):
-        super(DummyEndpoint, self).__init__(prefixlen=1)
+        super().__init__(prefixlen=1)
 
         self.opened = False
         self.sent = []
@@ -56,7 +56,7 @@ class DummyEndpoint(Endpoint):
     def notify_listeners(self, packet):
         socket_address, data = packet
         self.bytes_down += len(data)
-        super(DummyEndpoint, self).notify_listeners(packet)
+        super().notify_listeners(packet)
 
 
 FAST_ADDR_TO_INTERFACE.clear()

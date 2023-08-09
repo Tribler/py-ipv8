@@ -70,7 +70,7 @@ else:
     class IPv8:
 
         def __init__(self, configuration, endpoint_override=None, enable_statistics=False, extra_communities=None):
-            super(IPv8, self).__init__()
+            super().__init__()
             self.configuration = configuration
 
             # Setup logging

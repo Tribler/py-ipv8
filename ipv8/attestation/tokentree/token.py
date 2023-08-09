@@ -3,7 +3,6 @@ from __future__ import annotations
 import binascii
 import hashlib
 import struct
-import typing
 
 from ..signed_object import AbstractSignedObject
 from ...types import PrivateKey
@@ -20,10 +19,10 @@ class Token(AbstractSignedObject):
 
     def __init__(self,
                  previous_token_hash: bytes,
-                 content: typing.Optional[bytes] = None,
-                 content_hash: typing.Optional[bytes] = None,
-                 private_key: typing.Optional[PrivateKey] = None,
-                 signature: typing.Optional[bytes] = None) -> None:
+                 content: bytes | None = None,
+                 content_hash: bytes | None = None,
+                 private_key: PrivateKey | None = None,
+                 signature: bytes | None = None) -> None:
         """
         Create a new Token object, always specify the hash of the preceding Token.
 
@@ -38,7 +37,7 @@ class Token(AbstractSignedObject):
         :param signature: the signature for this Token.
         """
         if content is not None and content_hash is None:
-            self.content: typing.Optional[bytes] = content
+            self.content: bytes | None = content
             self.content_hash = hashlib.sha3_256(content).digest()
         elif content is None and content_hash is not None:
             self.content = None
@@ -48,7 +47,7 @@ class Token(AbstractSignedObject):
 
         self.previous_token_hash = previous_token_hash
 
-        super(Token, self).__init__(private_key, signature)
+        super().__init__(private_key, signature)
 
     def get_plaintext(self) -> bytes:
         """
@@ -79,7 +78,7 @@ class Token(AbstractSignedObject):
     def create(cls, previous_token: Token, content: bytes, private_key: PrivateKey) -> Token:
         return Token(previous_token.get_hash(), content, private_key=private_key)
 
-    def to_database_tuple(self) -> typing.Tuple[bytes, bytes, bytes, typing.Optional[bytes]]:
+    def to_database_tuple(self) -> tuple[bytes, bytes, bytes, bytes | None]:
         """
         Get a representation of this Token as four byte strings (previous hash, signature, content hash and content).
 
@@ -92,7 +91,7 @@ class Token(AbstractSignedObject):
                             previous_token_hash: bytes,
                             signature: bytes,
                             content_hash: bytes,
-                            content: typing.Optional[bytes]) -> Token:
+                            content: bytes | None) -> Token:
         """
         Create a Token from a four-byte-string representation (previous hash, signature, content hash and content).
 

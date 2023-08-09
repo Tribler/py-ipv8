@@ -3,9 +3,9 @@ from ..messaging.serialization import Payload
 
 
 def encode_connection_type(type):
-    if type == u"public":
+    if type == "public":
         return (1, 0)
-    if type == u"symmetric-NAT":
+    if type == "symmetric-NAT":
         return (1, 1)
     return (0, 0)
 
@@ -13,11 +13,11 @@ def encode_connection_type(type):
 def decode_connection_type(bit_0, bit_1):
     bits = (bit_0, bit_1)
     if bits == (0, 0):
-        return u"unknown"
+        return "unknown"
     if bits == (1, 0):
-        return u"public"
+        return "public"
     if bits == (1, 1):
-        return u"symmetric-NAT"
+        return "symmetric-NAT"
 
 
 class IntroductionRequestPayload(Payload):
@@ -52,7 +52,7 @@ class IntroductionRequestPayload(Payload):
 
         EXTRA_BYTES is a string that can be used to piggyback extra information.
         """
-        super(IntroductionRequestPayload, self).__init__()
+        super().__init__()
         self.destination_address = destination_address
         self.source_lan_address = source_lan_address
         self.source_wan_address = source_wan_address
@@ -140,7 +140,7 @@ class IntroductionResponsePayload(Payload):
         (depending on their positions).  The introduced node must sent a puncture message to the
         receiver to punch a hole in its NAT.
         """
-        super(IntroductionResponsePayload, self).__init__()
+        super().__init__()
         self.destination_address = destination_address
         self.source_lan_address = source_lan_address
         self.source_wan_address = source_wan_address
@@ -219,7 +219,7 @@ class PunctureRequestPayload(Payload):
         TODO add connection type
         TODO add tunnel bit
         """
-        super(PunctureRequestPayload, self).__init__()
+        super().__init__()
         self.lan_walker_address = lan_walker_address
         self.wan_walker_address = wan_walker_address
         self.identifier = identifier % 65536
@@ -266,7 +266,7 @@ class PuncturePayload(Payload):
         IDENTIFIER is a number that was given in the associated introduction-request.  This
         number allows to distinguish between multiple introduction-response messages.
         """
-        super(PuncturePayload, self).__init__()
+        super().__init__()
         self.source_lan_address = source_lan_address
         self.source_wan_address = source_wan_address
         self.identifier = identifier % 65536

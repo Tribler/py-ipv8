@@ -9,7 +9,7 @@ class RequestAttestationPayload(Payload):
     format_list = ['raw']
 
     def __init__(self, metadata):
-        super(RequestAttestationPayload, self).__init__()
+        super().__init__()
         self.metadata = metadata
 
     def to_pack_list(self):
@@ -29,7 +29,7 @@ class VerifyAttestationRequestPayload(Payload):
     format_list = ['20s']
 
     def __init__(self, hash):
-        super(VerifyAttestationRequestPayload, self).__init__()
+        super().__init__()
         self.hash = hash
 
     def to_pack_list(self):
@@ -49,7 +49,7 @@ class AttestationChunkPayload(Payload):
     format_list = ['20s', 'H', 'raw']
 
     def __init__(self, hash, sequence_number, data):
-        super(AttestationChunkPayload, self).__init__()
+        super().__init__()
         self.hash = hash
         self.sequence_number = sequence_number
         self.data = data

@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import typing
 
 from ...types import IdentityAlgorithmClass
 
 
-class SchemaManager(object):
+class SchemaManager:
     """
     Manager for schemas: specifications of attribute disclosure algorithm parameterization.
     """
@@ -12,10 +14,10 @@ class SchemaManager(object):
         """
         Create a new SchemaManager: no algorithms are loaded initially.
         """
-        super(SchemaManager, self).__init__()
+        super().__init__()
 
-        self.formats: typing.Dict[str, typing.Dict[str, typing.Any]] = dict()
-        self.algorithms: typing.Dict[str, IdentityAlgorithmClass] = dict()
+        self.formats: dict[str, dict[str, typing.Any]] = dict()
+        self.algorithms: dict[str, IdentityAlgorithmClass] = dict()
 
     def get_algorithm_class(self, algorithm_name: str) -> IdentityAlgorithmClass:
         """

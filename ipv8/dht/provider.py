@@ -14,7 +14,7 @@ class DHTIntroPointPayload(VariablePayload):
     format_list = ['ip_address', 'I', 'varlenH', 'varlenH']
 
 
-class DHTCommunityProvider(object):
+class DHTCommunityProvider:
     """
     This class is a wrapper around the DHTCommunity and is used to discover introduction points
     for hidden services.

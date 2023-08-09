@@ -8,7 +8,7 @@ from ..peerdiscovery.discovery import DiscoveryStrategy
 class PingChurn(DiscoveryStrategy):
 
     def __init__(self, overlay, ping_interval=25):
-        super(PingChurn, self).__init__(overlay)
+        super().__init__(overlay)
         self.ping_interval = ping_interval
 
     def take_step(self):

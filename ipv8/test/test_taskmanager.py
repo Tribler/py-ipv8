@@ -9,13 +9,13 @@ from ..util import coroutine
 class TestTaskManager(TestBase):
 
     def setUp(self):
-        super(TestTaskManager, self).setUp()
+        super().setUp()
         self.tm = TaskManager()
         self.counter = 0
 
     async def tearDown(self):
         await self.tm.shutdown_task_manager()
-        return await super(TestTaskManager, self).tearDown()
+        return await super().tearDown()
 
     def test_call_later(self):
         self.tm.register_task("test", lambda: None, delay=10)

@@ -22,7 +22,7 @@ def format_polynomial(a, b, c):
     return out
 
 
-class FP2Value(object):
+class FP2Value:
     """
     Defines a rational value (a + bx + cx^2)/(aC + bCx + cCx^2)(mod 1 + x + x^2, mod p).
     """
@@ -51,7 +51,7 @@ class FP2Value(object):
         if denominator == '1':
             return numerator
         else:
-            return "(%s)/(%s)" % (numerator, denominator)
+            return f"({numerator})/({denominator})"
 
     def __add__(self, other):
         """

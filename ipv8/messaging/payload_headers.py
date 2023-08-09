@@ -6,7 +6,7 @@ class BinMemberAuthenticationPayload(Payload):
     format_list = ['varlenH', ]
 
     def __init__(self, public_key_bin):
-        super(BinMemberAuthenticationPayload, self).__init__()
+        super().__init__()
         self.public_key_bin = public_key_bin
 
     def to_pack_list(self):
@@ -22,7 +22,7 @@ class GlobalTimeDistributionPayload(Payload):
     format_list = ['Q', ]
 
     def __init__(self, global_time):
-        super(GlobalTimeDistributionPayload, self).__init__()
+        super().__init__()
         self.global_time = global_time
 
     def to_pack_list(self):
