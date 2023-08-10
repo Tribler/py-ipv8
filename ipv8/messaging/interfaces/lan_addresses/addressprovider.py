@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import traceback
 import typing
 from abc import ABC, abstractmethod

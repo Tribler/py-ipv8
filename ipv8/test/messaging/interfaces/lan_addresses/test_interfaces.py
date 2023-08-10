@@ -13,7 +13,7 @@ class PresetProvider(AddressProvider):
         return self.return_value
 
 
-class MockProviders():
+class MockProviders:
 
     def __init__(self):
         super().__init__()

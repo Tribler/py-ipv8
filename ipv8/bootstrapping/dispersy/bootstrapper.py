@@ -1,7 +1,7 @@
 import logging
 from asyncio import Future
 from random import choice
-from socket import error, gethostbyname
+from socket import gethostbyname
 from threading import Thread
 from time import time
 from typing import Iterable
@@ -13,7 +13,7 @@ from ...types import Address
 from ...util import succeed
 
 # Workaround for unnecessarily failing gethostbyname from a worker thread (https://bugs.python.org/issue29288)
-u''.encode('idna')
+''.encode('idna')
 
 
 class DispersyBootstrapper(Bootstrapper):
@@ -38,7 +38,7 @@ class DispersyBootstrapper(Bootstrapper):
                     if resolved_address not in current_addresses:
                         # NOTE: append() is thread-safe. Don't call remove() here!
                         ip_addresses.append(resolved_address)
-                except error:
+                except OSError:
                     logging.info("Unable to resolve bootstrap DNS address (%s, %d)", address, port)
 
         resolution_thread = Thread(name="resolve_dns_bootstrap_addresses",

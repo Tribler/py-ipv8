@@ -1,20 +1,22 @@
+from __future__ import annotations
+
 import logging
 from asyncio import CancelledError, gather
 from contextlib import contextmanager, suppress
 from random import random
 from threading import Lock
-from typing import Dict, Generator, Iterable, Optional, Type
+from typing import Generator, Iterable
 
 from .taskmanager import TaskManager
 
 
-class NumberCache(object):
+class NumberCache:
 
     def __init__(self, request_cache, prefix, number):
         assert isinstance(number, int), type(number)
         assert isinstance(prefix, str), type(prefix)
 
-        super(NumberCache, self).__init__()
+        super().__init__()
         self._logger = logging.getLogger(self.__class__.__name__)
 
         if request_cache.has(prefix, number):
@@ -68,7 +70,7 @@ class RandomNumberCache(NumberCache):
 
         # find an unclaimed identifier
         number = RandomNumberCache.find_unclaimed_identifier(request_cache, prefix)
-        super(RandomNumberCache, self).__init__(request_cache, prefix, number)
+        super().__init__(request_cache, prefix, number)
 
     @classmethod
     def find_unclaimed_identifier(cls, request_cache, prefix):
@@ -88,22 +90,22 @@ class RequestCache(TaskManager):
         """
         Creates a new RequestCache instance.
         """
-        super(RequestCache, self).__init__()
+        super().__init__()
 
         self._logger = logging.getLogger(self.__class__.__name__)
 
-        self._identifiers: Dict[str, NumberCache] = dict()
+        self._identifiers: dict[str, NumberCache] = dict()
         self.lock = Lock()
         self._shutdown = False
 
-        self._timeout_override: Optional[float] = None
+        self._timeout_override: float | None = None
         """
         If not None, this specifies the timeout to use instead of the one defined in
         the ``timeout_delay`` of a ``NumberCache``.
         This is used internally for ``passthrough()``, don't modify this directly!
         """
 
-        self._timeout_filters: Optional[Iterable[Type[NumberCache]]] = None
+        self._timeout_filters: Iterable[type[NumberCache]] | None = None
         """
         If not None, this specifies the ``NumberCache`` (sub)classes to apply the
         timeout override for.
@@ -181,7 +183,7 @@ class RequestCache(TaskManager):
 
     @contextmanager
     def passthrough(self,  # pylint: disable=W1113
-                    cls_filter: Optional[Type[NumberCache]] = None, *filters: Type[NumberCache],
+                    cls_filter: type[NumberCache] | None = None, *filters: type[NumberCache],
                     timeout: float = 0.0) -> Generator:
         """
         A contextmanager that overwrites the timeout_delay of added NumberCaches in its scope.
@@ -260,7 +262,7 @@ class RequestCache(TaskManager):
         self.cancel_pending_task(cache)
 
     def _create_identifier(self, number, prefix):
-        return u"%s:%d" % (prefix, number)
+        return "%s:%d" % (prefix, number)
 
     def clear(self):
         """

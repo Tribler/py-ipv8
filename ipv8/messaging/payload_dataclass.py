@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 from dataclasses import dataclass as ogdataclass
 from functools import partial
-from typing import List, Type, TypeVar, Union, cast, get_type_hints
+from typing import Type, TypeVar, cast, get_type_hints
 
 from .lazy_payload import VariablePayload, vp_compile
 from .serialization import Serializable
@@ -15,7 +17,7 @@ def type_from_format(fmt: str) -> TypeVar:
     return out
 
 
-def type_map(t: Type) -> Union[str, Serializable, List[Serializable]]:
+def type_map(t: Type) -> str | Serializable | list[Serializable]:
     if t is bool:
         return "?"
     elif t is int:

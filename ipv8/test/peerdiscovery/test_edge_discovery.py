@@ -6,7 +6,7 @@ from ...peerdiscovery.discovery import EdgeWalk
 class TestEdgeWalk(TestBase):
 
     def setUp(self):
-        super(TestEdgeWalk, self).setUp()
+        super().setUp()
 
         node_count = 3
         self.overlays = [MockCommunity() for _ in range(node_count)]
@@ -19,7 +19,7 @@ class TestEdgeWalk(TestBase):
     async def tearDown(self):
         for overlay in self.overlays:
             await overlay.unload()
-        return await super(TestEdgeWalk, self).tearDown()
+        return await super().tearDown()
 
     async def test_take_step(self):
         """

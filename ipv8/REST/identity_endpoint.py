@@ -28,12 +28,12 @@ def ez_b64_decode(s):
 class IdentityEndpoint(BaseEndpoint):
 
     def __init__(self, middlewares=()):
-        super(IdentityEndpoint, self).__init__(middlewares)
+        super().__init__(middlewares)
         self.communication_manager = None
         self.app.on_shutdown.append(self.on_shutdown)
 
     def initialize(self, session):
-        super(IdentityEndpoint, self).initialize(session)
+        super().initialize(session)
         self.communication_manager = CommunicationManager(session)
 
     def setup_routes(self):

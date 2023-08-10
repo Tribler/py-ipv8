@@ -22,7 +22,7 @@ from ipv8.configuration import get_default_configuration
 from ipv8_service import IPv8
 
 
-class IPV8Service(object):
+class IPV8Service:
 
     def __init__(self):
         """

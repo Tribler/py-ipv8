@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import typing
 
 from .attestation import Attestation
@@ -7,7 +9,7 @@ from ...database import Database
 from ...types import PublicKey
 
 
-class Credential(object):
+class Credential:
     """
     Cache for Metadata <- [Attestation] mappings.
     """
@@ -127,7 +129,7 @@ class IdentityDatabase(Database):
         """
         return Credential(metadata, self.get_attestations_over(metadata))
 
-    def get_credentials_for(self, public_key: PublicKey) -> typing.List[Credential]:
+    def get_credentials_for(self, public_key: PublicKey) -> list[Credential]:
         """
         Get all credentials for a given public key.
         """

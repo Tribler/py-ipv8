@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from functools import wraps
-from typing import Iterable, List, Tuple, Type, Union
+from typing import Iterable
 
 from .keyvault.crypto import default_eccrypto
 from .messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
@@ -9,14 +11,14 @@ from .peer import Peer
 from .types import Address, AnyPayload, AnyPayloadType, NumberCache
 
 
-def cache_retrieval_failed(overlay: Overlay, cache_class: Type[NumberCache]) -> None:
+def cache_retrieval_failed(overlay: Overlay, cache_class: type[NumberCache]) -> None:
     """
     Handler for messages which failed to match to an existing overlay cache.
     """
     overlay.logger.debug("Failed to match %s: was answered late or did not exist.", repr(cache_class))
 
 
-def retrieve_cache(cache_class: Type[NumberCache]):
+def retrieve_cache(cache_class: type[NumberCache]):
     """
     This function wrapper match a payload to a registered cache for you.
 
@@ -236,7 +238,7 @@ class EZPackOverlay(Overlay, ABC):
             packet += default_eccrypto.create_signature(self.my_peer.key, packet)
         return packet
 
-    def _verify_signature(self, auth: BinMemberAuthenticationPayload, data: bytes) -> Tuple[bool, bytes]:
+    def _verify_signature(self, auth: BinMemberAuthenticationPayload, data: bytes) -> tuple[bool, bytes]:
         ec = default_eccrypto
         public_key = ec.key_from_public_bin(auth.public_key_bin)
         signature_length = ec.get_signature_length(public_key)
@@ -246,7 +248,7 @@ class EZPackOverlay(Overlay, ABC):
 
     def _ez_unpack_auth(self,
                         payload_class: AnyPayloadType,
-                        data: bytes) -> Tuple[BinMemberAuthenticationPayload, GlobalTimeDistributionPayload,
+                        data: bytes) -> tuple[BinMemberAuthenticationPayload, GlobalTimeDistributionPayload,
                                               AnyPayload]:
         # UNPACK
         auth, _ = self.serializer.unpack_serializable(BinMemberAuthenticationPayload, data, offset=23)
@@ -262,7 +264,7 @@ class EZPackOverlay(Overlay, ABC):
     def _ez_unpack_noauth(self,
                           payload_class: AnyPayloadType,
                           data: bytes,
-                          global_time: bool = True) -> Union[List[AnyPayload], AnyPayload]:
+                          global_time: bool = True) -> list[AnyPayload] | AnyPayload:
         # UNPACK
         format = [GlobalTimeDistributionPayload, payload_class] if global_time else [payload_class]
         unpacked = self.serializer.unpack_serializable_list(format, data, offset=23)

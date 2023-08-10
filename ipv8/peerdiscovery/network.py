@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import abc
 import logging
 from collections import OrderedDict, namedtuple
 from operator import methodcaller
 from threading import RLock
-from typing import Dict, Iterable, List, Optional, Set
+from typing import Iterable, Set
 
 from ..messaging.serialization import default_serializer
 from ..types import Address, Overlay, Peer
@@ -27,31 +29,31 @@ class PeerObserver(metaclass=abc.ABCMeta):
         pass
 
 
-class Network(object):
+class Network:
 
     def __init__(self) -> None:
-        self._all_addresses: Dict[Address, WalkableAddress] = {}
+        self._all_addresses: dict[Address, WalkableAddress] = {}
         '''All known IP:port addresses, mapped to (introduction peer, services, new_style).'''
 
-        self.verified_peers: Set[Peer] = set()
+        self.verified_peers: set[Peer] = set()
         '''All verified Peer objects (Peer.address must be in _all_addresses).'''
 
-        self.verified_by_public_key_bin: Dict[PublicKeyMat, Peer] = {}
+        self.verified_by_public_key_bin: dict[PublicKeyMat, Peer] = {}
         '''Map of known public keys to Peer objects.'''
 
         self.graph_lock = RLock()
         '''Lock for all updates of the peer pool.'''
 
-        self.blacklist: List[Address] = []
+        self.blacklist: list[Address] = []
         '''Peers we should not add to the network (e.g., bootstrap peers), by address.'''
 
-        self.blacklist_mids: List[MID] = []
+        self.blacklist_mids: list[MID] = []
         '''Peers we should not add to the network (e.g., bootstrap peers), by mid.'''
 
-        self.services_per_peer: Dict[PublicKeyMat, ServiceSet] = {}
+        self.services_per_peer: dict[PublicKeyMat, ServiceSet] = {}
         '''Map of advertised services (set) per peer.'''
 
-        self.service_overlays: Dict[Service, Overlay] = {}
+        self.service_overlays: dict[Service, Overlay] = {}
         '''Map of service identifiers to local overlays.'''
 
         self.reverse_ip_cache_size = 500
@@ -60,17 +62,17 @@ class Network(object):
         temporal and can grow infinitely): we rotate out old information to avoid a memory leak.'''
 
         self.reverse_intro_cache_size = 500
-        self.reverse_intro_lookup: OrderedDict[Peer, List[Address]] = OrderedDict()
+        self.reverse_intro_lookup: OrderedDict[Peer, list[Address]] = OrderedDict()
         '''Map of Peer -> [IP:port], reversing the information from _all_addresses. This is a cache rather than a
         normal dictionary (the addresses of a peer are temporal and can grow infinitely): we rotate out old
         information to avoid a memory leak.'''
 
         self.reverse_service_cache_size = 500
-        self.reverse_service_lookup: OrderedDict[Service, List[Peer]] = OrderedDict()
+        self.reverse_service_lookup: OrderedDict[Service, list[Peer]] = OrderedDict()
         '''Cache of service_id -> [Peer]. This is a cache rather than a normal dictionary (the services of a peer may
         be temporal and can grow infinitely): we rotate out old information to avoid a memory leak.'''
 
-        self.peer_observers: Set[PeerObserver] = set()
+        self.peer_observers: set[PeerObserver] = set()
         '''
         Set of observers for peer addition and removal.
         '''
@@ -87,7 +89,7 @@ class Network(object):
     def discover_address(self,
                          peer: Peer,
                          address: Address,
-                         service: Optional[Service] = None,
+                         service: Service | None = None,
                          new_style: bool = False) -> None:
         """
         A peer has introduced us to another IP address.
@@ -176,7 +178,7 @@ class Network(object):
         with self.graph_lock:
             self.service_overlays[service_id] = overlay
 
-    def get_peers_for_service(self, service_id: Service) -> List[Peer]:
+    def get_peers_for_service(self, service_id: Service) -> list[Peer]:
         """
         Get peers which support a certain service.
 
@@ -209,8 +211,8 @@ class Network(object):
             return self.services_per_peer.get(peer.public_key.key_to_bin(), set())
 
     def get_walkable_addresses(self,
-                               service_id: Optional[Service] = None,
-                               old_style: bool = False) -> List[Address]:
+                               service_id: Service | None = None,
+                               old_style: bool = False) -> list[Address]:
         """
         Get all addresses ready to be walked to.
 
@@ -219,7 +221,7 @@ class Network(object):
         """
         with self.graph_lock:
             known = self.get_peers_for_service(service_id) if service_id else self.verified_peers
-            verified: List[Address] = []
+            verified: list[Address] = []
             for peer in known:
                 verified.extend(peer.addresses.values())
             out = list(set(self._all_addresses.keys()) - set(verified))
@@ -229,7 +231,7 @@ class Network(object):
                     intro_peer, service, new_style = self._all_addresses[address]
                     if old_style and new_style:
                         continue
-                    services = self.services_per_peer.get(intro_peer, set([]))
+                    services = self.services_per_peer.get(intro_peer, set())
                     if service:
                         services.add(service)
                     if service_id in services:
@@ -237,7 +239,7 @@ class Network(object):
                 out = new_out
             return out
 
-    def get_verified_by_address(self, address: Address) -> Optional[Peer]:
+    def get_verified_by_address(self, address: Address) -> Peer | None:
         """
         Get a verified Peer by its IP address.
 
@@ -261,7 +263,7 @@ class Network(object):
                 self.reverse_ip_lookup[address] = peer
         return peer
 
-    def get_verified_by_public_key_bin(self, public_key_bin: PublicKeyMat) -> Optional[Peer]:
+    def get_verified_by_public_key_bin(self, public_key_bin: PublicKeyMat) -> Peer | None:
         """
         Get a verified Peer by its public key bin.
         :param public_key_bin: the string representation of the public key
@@ -269,7 +271,7 @@ class Network(object):
         """
         return self.verified_by_public_key_bin.get(public_key_bin)
 
-    def get_introductions_from(self, peer: Peer) -> List[Address]:
+    def get_introductions_from(self, peer: Peer) -> list[Address]:
         """
         Get the addresses introduced to us by a certain peer.
 

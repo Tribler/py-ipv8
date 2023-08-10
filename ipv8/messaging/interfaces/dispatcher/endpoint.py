@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import ipaddress
 import logging
 import typing
@@ -65,7 +67,7 @@ class DispatcherEndpoint(Endpoint):
      - Adding and removing listeners will have to be forwarded to all sub-Endpoints.
     """
 
-    def __init__(self, interfaces: typing.List[str], **kwargs) -> None:
+    def __init__(self, interfaces: list[str], **kwargs) -> None:
         """
         Create a new DispatcherEndpoint by giving a list of interfaces to load (check INTERFACES for available
         interfaces).
@@ -80,7 +82,7 @@ class DispatcherEndpoint(Endpoint):
         :param kwargs: optional interface-specific launch arguments.
         :returns: None
         """
-        super(DispatcherEndpoint, self).__init__()
+        super().__init__()
         # Filter the available interfaces and preference order, based on the user's selection.
         self.interfaces = {interface: INTERFACES[interface](**(kwargs.get(interface, {}))) for interface in interfaces}
         self.interface_order = [interface for interface in PREFERENCE_ORDER if interface in interfaces]
@@ -117,7 +119,7 @@ class DispatcherEndpoint(Endpoint):
     def is_open(self) -> bool:
         return any(interface.is_open() for interface in self.interfaces.values())
 
-    def get_address(self, interface=None) -> typing.Optional[typing.Any]:
+    def get_address(self, interface=None) -> typing.Any | None:
         if interface is not None:
             return self.interfaces[interface].get_address()
         elif self._preferred_interface:

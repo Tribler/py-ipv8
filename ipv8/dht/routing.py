@@ -53,7 +53,7 @@ class Node(Peer):
     """
 
     def __init__(self, *args, **kwargs):
-        super(Node, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.bucket = None
         self.last_response = 0
         self.last_queries = deque(maxlen=NODE_LIMIT_QUERIES)
@@ -95,7 +95,7 @@ class Node(Peer):
         return distance(self.id, other_node.id if isinstance(other_node, Node) else other_node)
 
 
-class Bucket(object):
+class Bucket:
     """
     The Bucket class stores nodes that share common prefix ID.
     """
@@ -167,7 +167,7 @@ class Bucket(object):
         return b_0, b_1
 
 
-class RoutingTable(object):
+class RoutingTable:
     """
     The RoutingTable is a binary tree that keeps track of Nodes that we have a connection to.
     """

@@ -45,7 +45,7 @@ def _siunpack(buf, amount):
     return reversed(nums), rem
 
 
-class EL(object):
+class EL:
 
     def __init__(self, c, D, D1, D2):
         self.c = c
@@ -101,7 +101,7 @@ class EL(object):
         return 'EL<%d,%d,%d,%d>' % (self.c, self.D, self.D1, self.D2)
 
 
-class SQR(object):
+class SQR:
 
     def __init__(self, F, el):
         self.F = F
@@ -139,4 +139,4 @@ class SQR(object):
         return 838182
 
     def __str__(self):
-        return 'SQR<%s,%s>' % (str(self.F), str(self.el))
+        return f'SQR<{str(self.F)},{str(self.el)}>'

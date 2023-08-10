@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import binascii
 import struct
-import typing
 
 from ..signed_object import AbstractSignedObject
 from ...types import Metadata, PrivateKey, PublicKey
@@ -18,10 +17,10 @@ class Attestation(AbstractSignedObject):
 
     def __init__(self,
                  metadata_pointer: bytes,
-                 private_key: typing.Optional[PrivateKey] = None,
-                 signature: typing.Optional[bytes] = None):
+                 private_key: PrivateKey | None = None,
+                 signature: bytes | None = None):
         self.metadata_pointer = metadata_pointer
-        super(Attestation, self).__init__(private_key, signature)
+        super().__init__(private_key, signature)
 
     def get_plaintext(self) -> bytes:
         return self.metadata_pointer
@@ -36,7 +35,7 @@ class Attestation(AbstractSignedObject):
     def create(cls, metadata: Metadata, private_key: PrivateKey) -> Attestation:
         return Attestation(metadata.get_hash(), private_key=private_key)
 
-    def to_database_tuple(self) -> typing.Tuple[bytes, bytes]:
+    def to_database_tuple(self) -> tuple[bytes, bytes]:
         """
         Get a representation of this Attestation as two byte strings (metadata hash and signature).
 

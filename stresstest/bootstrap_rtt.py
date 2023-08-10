@@ -30,7 +30,7 @@ CONST_REQUESTS = 10
 class PingCache(NumberCache):
 
     def __init__(self, community, hostname, address, starttime):
-        super(PingCache, self).__init__(community.request_cache, u"introping", community.global_time)
+        super().__init__(community.request_cache, "introping", community.global_time)
         self.hostname = hostname
         self.address = address
         self.starttime = starttime
@@ -48,12 +48,12 @@ class MyCommunity(Community):
     community_id = os.urandom(20)
 
     def __init__(self, *args, **kwargs):
-        super(MyCommunity, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.request_cache = RequestCache()
 
     def unload(self):
         self.request_cache.shutdown()
-        super(MyCommunity, self).unload()
+        super().unload()
 
     def finish_ping(self, cache, include=True):
         global RESULTS
@@ -79,8 +79,8 @@ class MyCommunity(Community):
             get_event_loop().stop()
 
     def introduction_response_callback(self, peer, dist, payload):
-        if self.request_cache.has(u"introping", payload.identifier):
-            cache = self.request_cache.pop(u"introping", payload.identifier)
+        if self.request_cache.has("introping", payload.identifier):
+            cache = self.request_cache.pop("introping", payload.identifier)
             self.finish_ping(cache)
 
     def started(self):
@@ -115,8 +115,8 @@ async def start_communities():
     configuration = get_default_configuration()
     configuration['keys'] = [{
         'alias': "my peer",
-        'generation': u"medium",
-        'file': u"ec1.pem"
+        'generation': "medium",
+        'file': "ec1.pem"
     }]
     configuration['port'] = 12000 + randint(0, 10000)
     configuration['overlays'] = [{

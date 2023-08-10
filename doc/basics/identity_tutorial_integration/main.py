@@ -12,7 +12,7 @@ async def start_community():
         configuration = get_default_configuration()
         configuration['logger']['level'] = "ERROR"
         configuration['keys'] = [{'alias': "anonymous id",
-                                  'generation': u"curve25519",
+                                  'generation': "curve25519",
                                   'file': f"keyfile_{peer_id}.pem"}]
         configuration['working_directory'] = f"state_{peer_id}"
         configuration['overlays'] = []

@@ -2,7 +2,7 @@ import os
 
 from ...database import Database
 
-DATABASE_DIRECTORY = os.path.join(u"sqlite")
+DATABASE_DIRECTORY = os.path.join("sqlite")
 
 
 class AttestationsDB(Database):
@@ -16,11 +16,11 @@ class AttestationsDB(Database):
         that will contain the the db at working directory/DATABASE_PATH
         :param db_name: The name of the database
         """
-        if working_directory != u":memory:":
-            db_path = os.path.join(working_directory, os.path.join(DATABASE_DIRECTORY, u"%s.db" % db_name))
+        if working_directory != ":memory:":
+            db_path = os.path.join(working_directory, os.path.join(DATABASE_DIRECTORY, "%s.db" % db_name))
         else:
             db_path = working_directory
-        super(AttestationsDB, self).__init__(db_path)
+        super().__init__(db_path)
         self.db_name = db_name
         self.open()
 
@@ -28,15 +28,15 @@ class AttestationsDB(Database):
         return list(self.execute(query, params, fetch_all=False))
 
     def get_attestation_by_hash(self, attestation_hash):
-        return self._get(u"SELECT blob FROM %s WHERE hash = ?" % self.db_name, (attestation_hash,))
+        return self._get("SELECT blob FROM %s WHERE hash = ?" % self.db_name, (attestation_hash,))
 
     def get_all(self):
-        return list(self.execute(u"SELECT * FROM %s" % self.db_name, (), fetch_all=True))
+        return list(self.execute("SELECT * FROM %s" % self.db_name, (), fetch_all=True))
 
     def insert_attestation(self, attestation, attestation_hash, secret_key, id_format):
         blob = attestation.serialize_private(secret_key.public_key())
         self.execute(
-            u"INSERT INTO %s (hash, blob, key, id_format) VALUES(?,?,?,?)" % self.db_name,
+            "INSERT INTO %s (hash, blob, key, id_format) VALUES(?,?,?,?)" % self.db_name,
             (attestation_hash, blob, secret_key.serialize(),
              id_format.encode('utf-8')))
         self.commit()
@@ -45,9 +45,9 @@ class AttestationsDB(Database):
         """
         Return the schema for the database.
         """
-        schema = u""
+        schema = ""
         if version == 1:
-            schema = u"""
+            schema = """
                      CREATE TABLE IF NOT EXISTS %s(
                      hash                 BLOB,
                      blob                 LONGBLOB,
@@ -57,7 +57,7 @@ class AttestationsDB(Database):
                      );
                      """ % self.db_name
         elif version == 2:
-            schema = u"""
+            schema = """
                      CREATE TABLE IF NOT EXISTS %s(
                      hash                 BLOB,
                      blob                 LONGBLOB,
@@ -67,7 +67,7 @@ class AttestationsDB(Database):
                      PRIMARY KEY (hash)
                      );
                      """ % self.db_name
-        schema += u"""
+        schema += """
                   CREATE TABLE IF NOT EXISTS option(key TEXT PRIMARY KEY, value BLOB);
                   DELETE FROM option WHERE key = 'database_version';
                   INSERT INTO option(key, value) VALUES('database_version', '%s');
@@ -80,12 +80,12 @@ class AttestationsDB(Database):
         :param current_version: the version of the script to return.
         """
         if current_version == 1:
-            return u"""
-                    ALTER TABLE %s
+            return f"""
+                    ALTER TABLE {self.db_name}
                     ADD id_format TINYTEXT;
 
-                    UPDATE %s SET id_format='id_metadata';
-                    """ % (self.db_name, self.db_name)
+                    UPDATE {self.db_name} SET id_format='id_metadata';
+                    """
         else:
             return None
 

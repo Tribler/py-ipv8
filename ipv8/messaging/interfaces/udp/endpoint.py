@@ -129,7 +129,7 @@ class UDPv6Endpoint(UDPEndpoint):
     SOCKET_FAMILY = socket.AF_INET6
 
     def __init__(self, port=0, ip="::"):
-        super(UDPv6Endpoint, self).__init__(port, ip)
+        super().__init__(port, ip)
 
     def datagram_received(self, datagram, addr):
         # If the endpoint is still running, accept incoming requests, otherwise drop them

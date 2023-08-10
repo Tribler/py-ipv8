@@ -36,7 +36,7 @@ def createChallenge(context, nonce, contributions, issig):
     return hashCommit([context] + contributions + [nonce], issig)
 
 
-class ProofU(object):
+class ProofU:
 
     def __init__(self, U, C, VPrimeResponse, SResponse):
         self.U = U
@@ -75,7 +75,7 @@ class ProofU(object):
         return [self.U, self.reconstructUcommit(pk)]
 
 
-class ProofS(object):
+class ProofS:
 
     def __init__(self, C, EResponse):
         self.C = C
@@ -89,7 +89,7 @@ class ProofS(object):
         return self.C == cPrime
 
 
-class ProofD(object):
+class ProofD:
 
     def __init__(self, C, A, EResponse, VResponse, AResponses, ADisclosed):
         self.C = C
@@ -160,7 +160,7 @@ class ProofD(object):
         return ProofD(self.C, self.A, self.EResponse, self.VResponse, self.AResponses, ADisclosed)
 
 
-class ProofP(object):
+class ProofP:
 
     def __init__(self, P, C, SResponse):
         self.P = P
@@ -168,7 +168,7 @@ class ProofP(object):
         self.SResponse = SResponse
 
 
-class ProofPCommitment(object):
+class ProofPCommitment:
 
     def __init__(self, P, Pcommit):
         self.P = P

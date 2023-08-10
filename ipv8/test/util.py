@@ -1,4 +1,3 @@
-
 class TimeExpired(AssertionError):
     pass
 

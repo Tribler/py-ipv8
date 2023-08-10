@@ -17,7 +17,7 @@ from ..peerdiscovery.discovery import DiscoveryStrategy
 class DequeLogHandler(logging.Handler):
 
     def __init__(self, maxlen=50):
-        super(DequeLogHandler, self).__init__()
+        super().__init__()
         self.deque = collections.deque(maxlen=maxlen)
 
     def emit(self, record):
@@ -27,7 +27,7 @@ class DequeLogHandler(logging.Handler):
 class DriftMeasurementStrategy(DiscoveryStrategy):
 
     def __init__(self, core_update_rate):
-        super(DriftMeasurementStrategy, self).__init__(None)
+        super().__init__(None)
         self.last_measurement = time.time()
         self.history = collections.deque(maxlen=100)
         self.core_update_rate = core_update_rate
@@ -46,7 +46,7 @@ class AsyncioEndpoint(BaseEndpoint):
     """
 
     def __init__(self):
-        super(AsyncioEndpoint, self).__init__()
+        super().__init__()
         self.strategy = None
         self.asyncio_log_handler = None
 

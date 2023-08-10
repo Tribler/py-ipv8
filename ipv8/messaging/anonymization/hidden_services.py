@@ -38,7 +38,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         self.swarms = {}
         self.pex = {}
 
-        super(HiddenTunnelCommunity, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.intro_point_for = {}  # {seeder_pk: (TunnelExitSocket, info_hash)}
         self.rendezvous_point_for = {}  # {cookie: TunnelExitSocket}
@@ -191,7 +191,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
                         self.create_e2e(info_hash, ip)
 
     def do_circuits(self):
-        super(HiddenTunnelCommunity, self).do_circuits()
+        super().do_circuits()
 
         # Make sure we have at least 1 data circuit for every hop count. This circuit will be used for
         # communication with introduction points.
@@ -204,7 +204,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         exclude = [] if exclude is None else exclude
         exclude += [c.circuit_id for c in self.circuits.values()
                     if (c.ctype == CIRCUIT_TYPE_RP_SEEDER) or (c.ctype == CIRCUIT_TYPE_RP_DOWNLOADER and not c.e2e)]
-        super(HiddenTunnelCommunity, self).do_ping(exclude=exclude)
+        super().do_ping(exclude=exclude)
 
     def remove_circuit(self, circuit_id, additional_info='', remove_now=False, destroy=False):
         circuit = self.circuits.get(circuit_id, None)
@@ -212,7 +212,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
             swarm = self.swarms.get(circuit.info_hash)
             if swarm:
                 swarm.remove_connection(circuit)
-        return super(HiddenTunnelCommunity, self).remove_circuit(circuit_id, additional_info, remove_now, destroy)
+        return super().remove_circuit(circuit_id, additional_info, remove_now, destroy)
 
     def remove_exit_socket(self, circuit_id, additional_info='', remove_now=False, destroy=False):
         for seeder_pk, (intro_circuit, info_hash) in list(self.intro_point_for.items()):
@@ -235,14 +235,14 @@ class HiddenTunnelCommunity(TunnelCommunity):
             if rendezvous_circuit.circuit_id == circuit_id:
                 self.rendezvous_point_for.pop(cookie)
 
-        return super(HiddenTunnelCommunity, self).remove_exit_socket(circuit_id, additional_info, remove_now, destroy)
+        return super().remove_exit_socket(circuit_id, additional_info, remove_now, destroy)
 
     def get_max_time(self, circuit_id):
         if circuit_id in self.circuits and self.circuits[circuit_id].ctype == CIRCUIT_TYPE_IP_SEEDER:
             return self.settings.max_time_ip
         if circuit_id in self.exit_sockets and circuit_id in [c.circuit_id for c, _ in self.intro_point_for.values()]:
             return self.settings.max_time_ip
-        return super(HiddenTunnelCommunity, self).get_max_time(circuit_id)
+        return super().get_max_time(circuit_id)
 
     def tunnel_data(self, circuit, destination, payload):
         packet = self._ez_pack(self._prefix, payload.msg_id, [payload], False)

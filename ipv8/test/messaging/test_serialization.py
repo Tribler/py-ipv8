@@ -49,7 +49,7 @@ class Nested(Serializable):
 class TestSerializer(TestBase):
 
     def setUp(self):
-        super(TestSerializer, self).setUp()
+        super().setUp()
         self.serializer = Serializer()
 
     def check_pack_unpack(self, format_ser, format_unser, value):
@@ -119,7 +119,7 @@ class TestSerializer(TestBase):
 
         for format in formats:
             packer = self.serializer.get_packer_for(format)
-            pack_name = "%s(%s)" % (packer.__class__.__name__, format)
+            pack_name = f"{packer.__class__.__name__}({format})"
             self.assertTrue(hasattr(packer, 'pack'), msg='%s has no pack() method' % pack_name)
             self.assertTrue(callable(getattr(packer, 'pack')), msg='%s.pack is not a method' % pack_name)
             self.assertTrue(hasattr(packer, 'unpack'), msg='%s has no unpack() method' % pack_name)

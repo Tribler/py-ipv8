@@ -74,7 +74,7 @@ class EndpointServer(Community):
     community_id = os.urandom(20)
 
     def __init__(self, endpoint):
-        my_peer = Peer(default_eccrypto.generate_key(u"very-low"))
+        my_peer = Peer(default_eccrypto.generate_key("very-low"))
         self.signature_length = default_eccrypto.get_signature_length(my_peer.public_key)
         super().__init__(my_peer, endpoint, Network())
         self.request_cache = RequestCache()

@@ -41,7 +41,7 @@ def task(func):
     return wrapper
 
 
-class TaskManager(object):
+class TaskManager:
     """
     Provides a set of tools to maintain a list of asyncio Tasks that are to be
     executed during the lifetime of an arbitrary object, usually getting killed with it.
@@ -87,7 +87,7 @@ class TaskManager(object):
             raise ValueError('Register_task takes a Task or a (coroutine)function as a parameter')
         if (interval or delay) and isinstance(task, Task):
             raise ValueError('Cannot run Task at an interval or with a delay')
-        if not isinstance(ignore, tuple) or not all((issubclass(e, Exception) for e in ignore)):
+        if not isinstance(ignore, tuple) or not all(issubclass(e, Exception) for e in ignore):
             raise ValueError('Ignore should be a tuple of Exceptions or None')
 
         with self._task_lock:

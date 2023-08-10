@@ -13,17 +13,17 @@ class SocketGetAddrInfo(AddressProvider):
 
         try:
             interface_specifications.extend(socket.getaddrinfo(socket.getfqdn(), 0))
-        except socket.error:
+        except OSError:
             self.on_exception()
 
         try:
             interface_specifications.extend(socket.getaddrinfo(socket.gethostname(), None))
-        except socket.error:
+        except OSError:
             self.on_exception()
 
         try:
             interface_specifications.extend(socket.getaddrinfo(None, 0))
-        except socket.error:
+        except OSError:
             self.on_exception()
 
-        return set([i[4][0] for i in interface_specifications if i[4][0].find(".") != -1])
+        return {i[4][0] for i in interface_specifications if i[4][0].find(".") != -1}

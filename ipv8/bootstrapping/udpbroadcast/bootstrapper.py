@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 import logging
 from asyncio import BaseTransport, DatagramProtocol, get_event_loop
 from asyncio.futures import Future
 from binascii import hexlify
 from socket import AF_INET, SOCK_DGRAM, SOL_SOCKET, SO_BROADCAST, SO_REUSEADDR, socket
 from time import time
-from typing import Coroutine, Iterable, Optional, Union
+from typing import Coroutine, Iterable
 
 from ..bootstrapper_interface import Bootstrapper
 from ...types import Address, Community
@@ -22,8 +24,8 @@ class BroadcastBootstrapEndpoint(DatagramProtocol):
     def __init__(self, overlay: Community):
         super().__init__()
 
-        self._socket: Optional[socket] = None
-        self._transport: Optional[BaseTransport] = None
+        self._socket: socket | None = None
+        self._transport: BaseTransport | None = None
         self.overlay = overlay
         self.logger = logging.getLogger(self.__class__.__name__)
 
@@ -75,7 +77,7 @@ class UDPBroadcastBootstrapper(Bootstrapper):
 
         self.last_bootstrap = 0
 
-    async def initialize(self, overlay: Community) -> Union[Future, Coroutine]:  # pylint: disable=W0236
+    async def initialize(self, overlay: Community) -> Future | Coroutine:  # pylint: disable=W0236
         self.overlay = overlay
 
         # Open the socket

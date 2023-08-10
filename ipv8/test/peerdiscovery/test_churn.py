@@ -9,7 +9,7 @@ from ...peerdiscovery.churn import RandomChurn
 class TestChurn(TestBase):
 
     def setUp(self):
-        super(TestChurn, self).setUp()
+        super().setUp()
 
         node_count = 2
         self.overlays = [MockCommunity() for _ in range(node_count)]
@@ -18,7 +18,7 @@ class TestChurn(TestBase):
     async def tearDown(self):
         for overlay in self.overlays:
             await overlay.unload()
-        return await super(TestChurn, self).tearDown()
+        return await super().tearDown()
 
     async def test_keep_reachable(self):
         """

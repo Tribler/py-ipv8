@@ -8,7 +8,7 @@ from ....keyvault.keys import PublicKey
 class TestTree(TestBase):
 
     def setUp(self) -> None:
-        super(TestTree, self).setUp()
+        super().setUp()
         self.crypto = ECCrypto()
         self.private_key = self.crypto.generate_key("curve25519")
         self.public_key = self.private_key.pub()

@@ -16,7 +16,7 @@ from github import Github, InputGitTreeElement
 def parse_setup():
     print("[1/8] | Parsing setup.py file")
 
-    with open('setup.py', 'r') as f:
+    with open('setup.py') as f:
         file_contents = f.read()
 
     treeobj = ast.parse(file_contents, 'setup.py')
@@ -36,7 +36,7 @@ def parse_setup():
 def parse_doc_conf():
     print("[1/8] | Parsing doc/conf.py file")
 
-    with open('doc/conf.py', 'r') as f:
+    with open('doc/conf.py') as f:
         file_contents = f.read()
 
     treeobj = ast.parse(file_contents, 'doc/conf.py')
@@ -69,7 +69,7 @@ def parse_doc_conf():
 def parse_rest_manager():
     print("[1/8] | Parsing ipv8/REST/rest_manager.py file")
 
-    with open('ipv8/REST/rest_manager.py', 'r') as f:
+    with open('ipv8/REST/rest_manager.py') as f:
         file_contents = f.read()
 
     treeobj = ast.parse(file_contents, 'ipv8/REST/rest_manager.py')

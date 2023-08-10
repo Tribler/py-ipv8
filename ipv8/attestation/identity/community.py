@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import json
 import os
-import typing
 from binascii import hexlify, unhexlify
 from time import time
 
@@ -23,30 +24,29 @@ class IdentityCommunity(Community):
 
     community_id = unhexlify('d5889074c1e4c50423cdb6e9307ee0ca5695ead7')
 
-    def __init__(self, my_peer: Peer, endpoint: Endpoint, network: typing.Optional[Network] = None,
+    def __init__(self, my_peer: Peer, endpoint: Endpoint, network: Network | None = None,
                  max_peers: int = DEFAULT_MAX_PEERS, anonymize: bool = True,
-                 identity_manager: typing.Optional[IdentityManager] = None, working_directory: str = "."):
+                 identity_manager: IdentityManager | None = None, working_directory: str = "."):
         if network is None:
             network = Network()
-        super(IdentityCommunity, self).__init__(my_peer, endpoint, network, max_peers, anonymize)
+        super().__init__(my_peer, endpoint, network, max_peers, anonymize)
         if identity_manager is None:
             dbpath = ":memory:" if working_directory == ":memory:" else os.path.join(working_directory, "sqlite",
                                                                                      "identity.db")
             identity_manager = IdentityManager(database_path=dbpath)
 
         # Dict of hash -> (attribute_name, date, public_key)
-        self.known_attestation_hashes: typing.Dict[bytes, typing.Tuple[str, float, PublicKey,
-                                                                       typing.Optional[typing.Dict[str, str]]]] = {}
+        self.known_attestation_hashes: dict[bytes, tuple[str, float, PublicKey, dict[str, str] | None]] = {}
 
         self.identity_manager = identity_manager
         self.pseudonym_manager = identity_manager.get_pseudonym(self.my_peer.key)
 
         # We assume other people try to cheat us with trees.
         # We don't attack ourselves though and just maintain a chain of attributes per pseudonym.
-        self.token_chain: typing.List[Token] = []
+        self.token_chain: list[Token] = []
         self.metadata_chain = []
         self.attestation_chain = []
-        self.permissions: typing.Dict[Peer, int] = {}  # Map of peer to highest index
+        self.permissions: dict[Peer, int] = {}  # Map of peer to highest index
 
         # Pick the longest chain in case of bugs or malicious behavior.. hello Bitcoin.
         for token in self.pseudonym_manager.tree.elements.values():
@@ -77,7 +77,7 @@ class IdentityCommunity(Community):
                        attribute_hash: bytes,
                        name: str,
                        public_key: PublicKey,
-                       metadata: typing.Optional[typing.Dict[str, str]] = None) -> None:
+                       metadata: dict[str, str] | None = None) -> None:
         """
         We know about this hash+peer combination. Thus we can handle sign requests for it.
         """
@@ -85,7 +85,7 @@ class IdentityCommunity(Community):
             attribute_hash = self.pad_hash(attribute_hash)
         self.known_attestation_hashes[attribute_hash] = (name, time(), public_key, metadata)
 
-    def get_attestation_by_hash(self, attribute_hash: bytes) -> typing.Optional[Metadata]:
+    def get_attestation_by_hash(self, attribute_hash: bytes) -> Metadata | None:
         """
         Get the Metadata object for a particular attribute hash, if it exists.
         """
@@ -136,8 +136,7 @@ class IdentityCommunity(Community):
                 return False
         return True
 
-    def _fit_disclosure(self, disclosure: typing.Tuple[bytes, bytes, bytes, bytes])\
-            -> typing.Tuple[bytes, bytes, bytes, bytes]:
+    def _fit_disclosure(self, disclosure: tuple[bytes, bytes, bytes, bytes]) -> tuple[bytes, bytes, bytes, bytes]:
         """
         Fit a disclosure (metadata, tokens, attestations and authorities) to a UDP packet.
 
@@ -158,7 +157,7 @@ class IdentityCommunity(Community):
 
     def _received_disclosure_for_attest(self,
                                         peer: Peer,
-                                        disclosure: typing.Tuple[bytes, bytes, bytes, bytes]) -> None:
+                                        disclosure: tuple[bytes, bytes, bytes, bytes]) -> None:
         """
         Attempt to insert a disclosure into our database and request more if we are still missing tokens.
         """
@@ -188,7 +187,7 @@ class IdentityCommunity(Community):
                                           attribute_hash: bytes,
                                           name: str,
                                           block_type: str = "id_metadata",
-                                          metadata: typing.Optional[dict] = None) -> None:
+                                          metadata: dict | None = None) -> None:
         """
         Request a peer to sign for our attestation advertisement.
         :param peer: the attestor of our block
@@ -206,7 +205,7 @@ class IdentityCommunity(Community):
                        attribute_hash: bytes,
                        name: str,
                        block_type: str = "id_metadata",
-                       metadata: typing.Optional[dict] = None) -> Credential:
+                       metadata: dict | None = None) -> Credential:
         """
         Self-sign an attribute.
 
@@ -285,9 +284,9 @@ class IdentityCommunity(Community):
 
 
 async def create_community(private_key: PrivateKey, ipv8, identity_manager: IdentityManager,
-                           endpoint: typing.Optional[Endpoint] = None, working_directory: typing.Optional[str] = None,
+                           endpoint: Endpoint | None = None, working_directory: str | None = None,
                            anonymize: bool = True,
-                           rendezvous_token: typing.Optional[bytes] = None) -> IdentityCommunity:
+                           rendezvous_token: bytes | None = None) -> IdentityCommunity:
     my_peer = Peer(private_key)
     if endpoint is None:
         endpoint = await ipv8.produce_anonymized_endpoint()

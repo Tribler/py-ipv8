@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from asyncio import Future
-from typing import Coroutine, Iterable, Union
+from typing import Coroutine, Iterable
 
 from ..types import Address, Community
 
@@ -19,7 +21,7 @@ class Bootstrapper(ABC):
     """
 
     @abstractmethod
-    def initialize(self, overlay: Community) -> Union[Future, Coroutine]:
+    def initialize(self, overlay: Community) -> Future | Coroutine:
         """
         Start connecting to this bootstrapping service. Don't perform any network traffic in ``__init__``!
 

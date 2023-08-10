@@ -18,14 +18,14 @@ class NoBlockDHTEndpoint(BaseEndpoint):
     """
 
     def __init__(self):
-        super(NoBlockDHTEndpoint, self).__init__()
+        super().__init__()
         self.dht = None
 
     def setup_routes(self):
         self.app.add_routes([web.get('/{mid}', self.handle_get)])
 
     def initialize(self, session):
-        super(NoBlockDHTEndpoint, self).initialize(session)
+        super().initialize(session)
         self.dht = session.get_overlay(DHTCommunity)
 
     @docs(

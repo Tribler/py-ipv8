@@ -9,7 +9,7 @@ from ....keyvault.crypto import ECCrypto
 class TestIdentityManager(TestBase):
 
     def setUp(self) -> None:
-        super(TestIdentityManager, self).setUp()
+        super().setUp()
         self.crypto = ECCrypto()
         self.private_key = self.crypto.generate_key("curve25519")
         self.public_key = self.private_key.pub()

@@ -64,8 +64,7 @@ for test_path in test_paths:
 
     error_string = ''.join([repr(error) for error in test_result.errors])
     assert len(test_result.errors) == 0,\
-        "ERROR: UNIT TESTS FAILED, PLEASE FIX BEFORE RUNNING COVERAGE:\n%s\n%s" % (output_stream.getvalue(),
-                                                                                   error_string)
+        f"ERROR: UNIT TESTS FAILED, PLEASE FIX BEFORE RUNNING COVERAGE:\n{output_stream.getvalue()}\n{error_string}"
     output_stream.close()
 
 cov.stop()

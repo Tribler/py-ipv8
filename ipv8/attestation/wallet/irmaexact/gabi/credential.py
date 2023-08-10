@@ -12,7 +12,7 @@ from ...primitives.attestation import sha256_as_int
 from ...primitives.value import FP2Value
 
 
-class Credential(object):
+class Credential:
 
     def __init__(self, Pk, Attributes, Signature):
         self.Signature = Signature
@@ -72,7 +72,7 @@ class Credential(object):
                                       self.Attributes)
 
 
-class DisclosureProofBuilder(object):
+class DisclosureProofBuilder:
 
     def __init__(self, randomizedSignature, eCommit, vCommit, attrRandomizers, z, disclosedAttributes,
                  undisclosedAttributes, pk, attributes):

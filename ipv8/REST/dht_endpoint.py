@@ -23,7 +23,7 @@ class DHTEndpoint(BaseEndpoint):
     """
 
     def __init__(self):
-        super(DHTEndpoint, self).__init__()
+        super().__init__()
         self.dht = self.publisher = None
 
     def setup_routes(self):
@@ -36,7 +36,7 @@ class DHTEndpoint(BaseEndpoint):
                              web.get('/buckets/{prefix:\\w*}/refresh', self.refresh_bucket)])
 
     def initialize(self, session):
-        super(DHTEndpoint, self).initialize(session)
+        super().initialize(session)
         self.dht = session.get_overlay(DHTCommunity)
 
     @docs(

@@ -29,7 +29,7 @@ def _safe_rndint(key_size, mod):
 class PengBaoRangeAlgorithm(IdentityAlgorithm):
 
     def __init__(self, id_format, formats):
-        super(PengBaoRangeAlgorithm, self).__init__(id_format, formats)
+        super().__init__(id_format, formats)
 
         # Check algorithm match
         if formats[id_format]["algorithm"] != "pengbaorange":

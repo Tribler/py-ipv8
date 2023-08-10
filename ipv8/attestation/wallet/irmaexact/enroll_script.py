@@ -101,7 +101,7 @@ nonce = int(binascii.hexlify(base64.b64decode(response["nonce"])), 16)
 
 irmaid = response["credentials"][0]["attributes"]["pseudonym"]
 u = "https://keyshare.privacybydesign.foundation/tomcat/irma_keyshare_server/api/v1/users/verify/pin"
-jwt = do_post(u, "{\"id\":\"%s\",\"pin\":\"%s\"}" % (irmaid, no_pin))["message"]
+jwt = do_post(u, f"{{\"id\":\"{irmaid}\",\"pin\":\"{no_pin}\"}}")["message"]
 
 extra_headers = {"Authorization": jwt, "X-IRMA-Keyshare-Username": ""}
 u = "https://keyshare.privacybydesign.foundation/tomcat/irma_keyshare_server/api/v1/prove/getCommitments"

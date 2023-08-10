@@ -17,7 +17,7 @@ ExpiryFactor = 60 * 60 * 24 * 7
 metadataLength = 1 + 3 + 2 + 2 + 16
 
 
-class metadataField(object):
+class metadataField:
 
     def __init__(self, length, offset):
         self.length = length
@@ -42,7 +42,7 @@ def shortToByte(x):
     return int_to_str(x)[-2:]
 
 
-class MetadataAttribute(object):
+class MetadataAttribute:
 
     def __init__(self, version):
         self.Int = 0
@@ -125,18 +125,18 @@ def make_attribute_list(cr, attribute_order=None, validity_signing=None):
     :type attribute_order: list
     """
     meta = MetadataAttribute(b'\x03')
-    meta.setKeyCounter(cr[u'keyCounter'])
-    meta.setCredentialTypeIdentifier(cr[u'credential'].encode('utf-8'))
+    meta.setKeyCounter(cr['keyCounter'])
+    meta.setCredentialTypeIdentifier(cr['credential'].encode('utf-8'))
     if validity_signing:
         meta.setValidityDuration(validity_signing[0])
         meta.setSigningDate(validity_signing[1])
     else:
         meta.setSigningDate()
-        meta.setExpiryDateFromTimestamp(cr[u'validity'])
+        meta.setExpiryDateFromTimestamp(cr['validity'])
     signing_date = int(binascii.hexlify(meta.field(signingDateField)), 16)
 
     attrs = [meta.Int]
-    attr_map = cr[u"attributes"]
+    attr_map = cr["attributes"]
     attribute_order = attribute_order or attr_map.keys()
 
     for k in attribute_order:

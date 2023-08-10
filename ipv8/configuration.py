@@ -4,11 +4,11 @@ import base64
 import copy
 import enum
 import typing
-from typing import Any, Dict
+from typing import Any
 
 from .keyvault.crypto import default_eccrypto
 
-DISPERSY_BOOTSTRAPPER: Dict[Any, Any] = {
+DISPERSY_BOOTSTRAPPER: dict[Any, Any] = {
     'class': "DispersyBootstrapper",
     'init': {
         'ip_addresses': [
@@ -27,18 +27,18 @@ DISPERSY_BOOTSTRAPPER: Dict[Any, Any] = {
             ("130.161.119.201", 6528)
         ],
         'dns_addresses': [
-            (u"dispersy1.tribler.org", 6421), (u"dispersy1.st.tudelft.nl", 6421),
-            (u"dispersy2.tribler.org", 6422), (u"dispersy2.st.tudelft.nl", 6422),
-            (u"dispersy3.tribler.org", 6423), (u"dispersy3.st.tudelft.nl", 6423),
-            (u"dispersy4.tribler.org", 6424),
-            (u"tracker1.ip-v8.org", 6521),
-            (u"tracker2.ip-v8.org", 6522),
-            (u"tracker3.ip-v8.org", 6523),
-            (u"tracker4.ip-v8.org", 6524),
-            (u"tracker5.ip-v8.org", 6525),
-            (u"tracker6.ip-v8.org", 6526),
-            (u"tracker7.ip-v8.org", 6527),
-            (u"tracker8.ip-v8.org", 6528)
+            ("dispersy1.tribler.org", 6421), ("dispersy1.st.tudelft.nl", 6421),
+            ("dispersy2.tribler.org", 6422), ("dispersy2.st.tudelft.nl", 6422),
+            ("dispersy3.tribler.org", 6423), ("dispersy3.st.tudelft.nl", 6423),
+            ("dispersy4.tribler.org", 6424),
+            ("tracker1.ip-v8.org", 6521),
+            ("tracker2.ip-v8.org", 6522),
+            ("tracker3.ip-v8.org", 6523),
+            ("tracker4.ip-v8.org", 6524),
+            ("tracker5.ip-v8.org", 6525),
+            ("tracker6.ip-v8.org", 6526),
+            ("tracker7.ip-v8.org", 6527),
+            ("tracker8.ip-v8.org", 6528)
         ],
         'bootstrap_timeout': 30.0
     }
@@ -55,8 +55,8 @@ default = {
     'keys': [
         {
             'alias': "anonymous id",
-            'generation': u"curve25519",
-            'file': u"ec_multichain.pem"
+            'generation': "curve25519",
+            'file': "ec_multichain.pem"
         }
     ],
     'logger': {
@@ -188,7 +188,7 @@ class BootstrapperDefinition(typing.NamedTuple):
 default_bootstrap_defs = [BootstrapperDefinition(Bootstrapper.DispersyBootstrapper, DISPERSY_BOOTSTRAPPER['init'])]
 
 
-class ConfigBuilder(object):
+class ConfigBuilder:
 
     def __init__(self, clean: bool = False):
         self.config = {} if clean else get_default_configuration()
@@ -342,7 +342,7 @@ class ConfigBuilder(object):
         })
         return self
 
-    def add_key_from_bin(self, alias: str, key_bin_b64: str, file_path: typing.Optional[str] = None) -> ConfigBuilder:
+    def add_key_from_bin(self, alias: str, key_bin_b64: str, file_path: str | None = None) -> ConfigBuilder:
         """
         Add a key by alias and  its raw key material, possibly stored at a certain file path.
 
@@ -377,10 +377,10 @@ class ConfigBuilder(object):
     def add_overlay(self,
                     overlay_class: str,
                     key_alias: str,
-                    walkers: typing.List[WalkerDefinition],
-                    bootstrappers: typing.List[BootstrapperDefinition],
-                    initialize: typing.Dict[str, typing.Any],
-                    on_start: typing.List[tuple],
+                    walkers: list[WalkerDefinition],
+                    bootstrappers: list[BootstrapperDefinition],
+                    initialize: dict[str, typing.Any],
+                    on_start: list[tuple],
                     allow_duplicate: bool = False) -> ConfigBuilder:
         """
         Add an overlay by its class name. You can choose from the default communities or register your own (see IPv8's

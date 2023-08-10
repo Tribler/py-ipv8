@@ -1,4 +1,4 @@
-from typing import Type, Union
+from __future__ import annotations
 
 from .discovery import MockWalk
 from .endpoint import AutoMockEndpoint
@@ -11,11 +11,11 @@ from ...types import Community
 from ...util import maybe_coroutine
 
 
-class MockIPv8(object):
+class MockIPv8:
 
     def __init__(self,
-                 crypto_curve_or_peer: Union[str, Peer],
-                 overlay_class: Type[Community],
+                 crypto_curve_or_peer: str | Peer,
+                 overlay_class: type[Community],
                  create_dht: bool = False,
                  enable_statistics: bool = False,
                  **kwargs) -> None:

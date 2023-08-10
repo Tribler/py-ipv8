@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import json
 import logging
-import typing
 
 from aiohttp import web
 
@@ -11,7 +12,7 @@ HTTP_CONFLICT = 409
 HTTP_PRECONDITION_FAILED = 412
 HTTP_INTERNAL_SERVER_ERROR = 500
 
-DEFAULT_HEADERS: typing.Dict[str, str] = {}
+DEFAULT_HEADERS: dict[str, str] = {}
 
 
 class BaseEndpoint:
@@ -42,5 +43,5 @@ class Response(web.Response):
         if isinstance(body, (dict, list)):
             body = json.dumps(body)
             content_type = 'application/json'
-        super(Response, self).__init__(body=body, headers=headers or DEFAULT_HEADERS,
-                                       content_type=content_type, status=status, **kwargs)
+        super().__init__(body=body, headers=headers or DEFAULT_HEADERS, content_type=content_type, status=status,
+                         **kwargs)

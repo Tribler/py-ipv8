@@ -1,13 +1,15 @@
+from __future__ import annotations
+
 import logging
 from collections import OrderedDict
 from hashlib import sha3_256
-from typing import Dict, List, Optional, Set
+from typing import Set
 
 from .token import Token
 from ...types import PrivateKey, PublicKey
 
 
-class TokenTree(object):
+class TokenTree:
     """
     Raw datatype for chains of double pointers (Tokens).
 
@@ -21,7 +23,7 @@ class TokenTree(object):
     stored in the Tokens themselves).
     """
 
-    def __init__(self, public_key: Optional[PublicKey] = None, private_key: Optional[PrivateKey] = None) -> None:
+    def __init__(self, public_key: PublicKey | None = None, private_key: PrivateKey | None = None) -> None:
         """
         Create a new view of another's chain by specifying a public key or create your own chain by supplying
         a private key.
@@ -29,10 +31,10 @@ class TokenTree(object):
         :param public_key: the public key of the owner of this chain.
         :param private_key: the private key to use to add tokens to this chain.
         """
-        super(TokenTree, self).__init__()
+        super().__init__()
         self._logger = logging.getLogger(self.__class__.__name__)
 
-        self.elements: Dict[bytes, Token] = {}
+        self.elements: dict[bytes, Token] = {}
         self.unchained: OrderedDict = OrderedDict()
         self.unchained_max_size = 100
 
@@ -47,7 +49,7 @@ class TokenTree(object):
 
         self.genesis_hash = sha3_256(self.public_key.key_to_bin()).digest()
 
-    def add(self, content: bytes, after: Optional[Token] = None) -> Token:
+    def add(self, content: bytes, after: Token | None = None) -> Token:
         """
         Tokenize new content and add it to this chain.
 
@@ -60,7 +62,7 @@ class TokenTree(object):
         previous_hash = self.genesis_hash if not after else after.get_hash()
         return self._append(Token(previous_hash, content=content, private_key=self.private_key))
 
-    def add_by_hash(self, content_hash: bytes, after: Optional[Token] = None) -> Token:
+    def add_by_hash(self, content_hash: bytes, after: Token | None = None) -> Token:
         """
         Add the promise of tokenized content to this chain.
 
@@ -73,7 +75,7 @@ class TokenTree(object):
         previous_hash = self.genesis_hash if not after else after.get_hash()
         return self._append(Token(previous_hash, content_hash=content_hash, private_key=self.private_key))
 
-    def gather_token(self, token: Token) -> Optional[Token]:
+    def gather_token(self, token: Token) -> Token | None:
         """
         Attempt to add received data to this chain.
         Data may be pending missing Tokens before being added to the chain structure.
@@ -129,7 +131,7 @@ class TokenTree(object):
             steps += 1
         return steps < maxdepth
 
-    def get_root_path(self, token: Token, maxdepth: int = 1000) -> List[Token]:
+    def get_root_path(self, token: Token, maxdepth: int = 1000) -> list[Token]:
         """
         Calculate the path back to the root, including this token.
 
@@ -155,7 +157,7 @@ class TokenTree(object):
         else:
             return []
 
-    def serialize_public(self, up_to: Optional[Token] = None) -> bytes:
+    def serialize_public(self, up_to: Token | None = None) -> bytes:
         """
         Serialize all the signed double pointers of this chain.
 

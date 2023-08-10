@@ -8,7 +8,7 @@ class TestSignatures(TestBase):
     """
 
     def setUp(self):
-        super(TestSignatures, self).setUp()
+        super().setUp()
         self.ec = default_eccrypto
         self.data = bytes(range(256))
 
@@ -16,7 +16,7 @@ class TestSignatures(TestBase):
         """
         Check if very-low security keys generate a valid signature.
         """
-        key = self.ec.generate_key(u"very-low")
+        key = self.ec.generate_key("very-low")
 
         signature = key.signature(self.data)
 
@@ -26,7 +26,7 @@ class TestSignatures(TestBase):
         """
         Check if low security keys generate a valid signature.
         """
-        key = self.ec.generate_key(u"low")
+        key = self.ec.generate_key("low")
 
         signature = key.signature(self.data)
 
@@ -36,7 +36,7 @@ class TestSignatures(TestBase):
         """
         Check if medium security keys generate a valid signature.
         """
-        key = self.ec.generate_key(u"medium")
+        key = self.ec.generate_key("medium")
 
         signature = key.signature(self.data)
 
@@ -46,7 +46,7 @@ class TestSignatures(TestBase):
         """
         Check if high security keys generate a valid signature.
         """
-        key = self.ec.generate_key(u"high")
+        key = self.ec.generate_key("high")
 
         signature = key.signature(self.data)
 
@@ -56,7 +56,7 @@ class TestSignatures(TestBase):
         """
         Check if curve25519 keys generate a valid signature.
         """
-        key = self.ec.generate_key(u"curve25519")
+        key = self.ec.generate_key("curve25519")
 
         signature = key.signature(self.data)
 
@@ -66,7 +66,7 @@ class TestSignatures(TestBase):
         """
         Check if an M2Crypto key detects an invalid signature.
         """
-        key = self.ec.generate_key(u"very-low")
+        key = self.ec.generate_key("very-low")
 
         signature = ""
 
@@ -76,7 +76,7 @@ class TestSignatures(TestBase):
         """
         Check if an libnacl key detects an invalid signature.
         """
-        key = self.ec.generate_key(u"curve25519")
+        key = self.ec.generate_key("curve25519")
 
         signature = ""
 

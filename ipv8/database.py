@@ -5,16 +5,17 @@ This module provides basic database functionalty and simple version control.
 @organization: Technical University Delft
 @contact: dispersy@frayja.com
 """
+from __future__ import annotations
+
 import logging
 import os
 import sqlite3
-import typing
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
 from threading import RLock
 
 
-db_locks: typing.Dict[str, RLock] = defaultdict(RLock)
+db_locks: dict[str, RLock] = defaultdict(RLock)
 
 
 def db_call(f):
@@ -44,7 +45,7 @@ class IgnoreCommits(Exception):
        raise IgnoreCommits()
     """
     def __init__(self):
-        super(IgnoreCommits, self).__init__("Ignore all commits made within __enter__ and __exit__")
+        super().__init__("Ignore all commits made within __enter__ and __exit__")
 
 
 class DatabaseException(RuntimeError):
@@ -63,7 +64,7 @@ class Database(metaclass=ABCMeta):
         self._assert(isinstance(file_path, str),
                      "expected file_path to be unicode, but was %s" % str(type(file_path)))
 
-        super(Database, self).__init__()
+        super().__init__()
         self._logger = logging.getLogger(self.__class__.__name__)
 
         self._logger.debug("loading database [%s]", file_path)

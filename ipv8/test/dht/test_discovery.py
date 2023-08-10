@@ -21,7 +21,7 @@ class TestDHTDiscoveryCommunity(TestDHTBase):
             node.overlay.token_maintenance()
 
     def create_node(self, *args, **kwargs):
-        return MockIPv8(u"curve25519", DHTDiscoveryCommunity)
+        return MockIPv8("curve25519", DHTDiscoveryCommunity)
 
     async def test_store_peer(self):
         await self.introduce_nodes()
@@ -36,7 +36,7 @@ class TestDHTDiscoveryCommunity(TestDHTBase):
 
     async def test_connect_peer(self):
         # Add a third node
-        node = MockIPv8(u"curve25519", DHTDiscoveryCommunity)
+        node = MockIPv8("curve25519", DHTDiscoveryCommunity)
         self.add_node_to_experiment(node)
         await self.introduce_nodes()
 

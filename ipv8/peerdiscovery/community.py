@@ -18,7 +18,7 @@ from ..requestcache import NumberCache, RequestCache
 class PeriodicSimilarity(DiscoveryStrategy):
 
     def __init__(self, overlay):
-        super(PeriodicSimilarity, self).__init__(overlay)
+        super().__init__(overlay)
         self.last_step = 0
 
     def take_step(self):
@@ -56,7 +56,7 @@ class DiscoveryCommunity(Community):
     community_id = unhexlify('7e313685c1912a141279f8248fc8db5899c5df5a')
 
     def __init__(self, my_peer, endpoint, network, max_peers=DEFAULT_MAX_PEERS, anonymize=False):
-        super(DiscoveryCommunity, self).__init__(my_peer, endpoint, network, max_peers=max_peers, anonymize=anonymize)
+        super().__init__(my_peer, endpoint, network, max_peers=max_peers, anonymize=anonymize)
 
         self.request_cache = RequestCache()
 
@@ -70,7 +70,7 @@ class DiscoveryCommunity(Community):
 
     async def unload(self):
         await self.request_cache.shutdown()
-        await super(DiscoveryCommunity, self).unload()
+        await super().unload()
 
     def on_old_introduction_request(self, source_address, data):
         if self.max_peers >= 0 and len(self.get_peers()) > self.max_peers:
@@ -101,7 +101,7 @@ class DiscoveryCommunity(Community):
         self.send_similarity_request(peer.address)
 
     def send_similarity_request(self, address):
-        my_peer_set = set([overlay.my_peer for overlay in self.network.service_overlays.values()])
+        my_peer_set = {overlay.my_peer for overlay in self.network.service_overlays.values()}
         for peer in my_peer_set:
             packet = self.create_similarity_request(peer)
             self.endpoint.send(address, packet)
@@ -110,7 +110,7 @@ class DiscoveryCommunity(Community):
     def on_similarity_request(self, node, dist, payload):
         self.network.discover_services(node, payload.preference_list)
 
-        my_peer_set = set([overlay.my_peer for overlay in self.network.service_overlays.values()])
+        my_peer_set = {overlay.my_peer for overlay in self.network.service_overlays.values()}
         for peer in my_peer_set:
             packet = self.create_similarity_response(payload.identifier, peer)
             self.endpoint.send(node.address, packet)
@@ -150,7 +150,7 @@ class DiscoveryCommunity(Community):
         payload = SimilarityRequestPayload(global_time,
                                            self.my_estimated_lan,
                                            self.my_estimated_wan,
-                                           u"unknown",
+                                           "unknown",
                                            self.get_my_overlays(peer))
         auth = BinMemberAuthenticationPayload(peer.public_key.key_to_bin())
         dist = GlobalTimeDistributionPayload(global_time)

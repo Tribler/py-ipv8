@@ -27,7 +27,7 @@ class TestDHTCommunity(TestDHTBase):
             node.overlay.token_maintenance()
 
     def create_node(self, *args, **kwargs):
-        return MockIPv8(u"curve25519", DHTCommunity)
+        return MockIPv8("curve25519", DHTCommunity)
 
     async def test_routing_table(self):
         await self.introduce_nodes()
@@ -39,8 +39,8 @@ class TestDHTCommunity(TestDHTBase):
         node0_bucket = self.routing_table(0).get_bucket(node1_id)
         node1_bucket = self.routing_table(1).get_bucket(node0_id)
 
-        self.assertTrue(node0_bucket and node0_bucket.prefix_id == u'')
-        self.assertTrue(node1_bucket and node1_bucket.prefix_id == u'')
+        self.assertTrue(node0_bucket and node0_bucket.prefix_id == '')
+        self.assertTrue(node1_bucket and node1_bucket.prefix_id == '')
 
         self.assertTrue(node1_bucket.get(node0_id))
         self.assertTrue(node0_bucket.get(node1_id))
@@ -71,8 +71,8 @@ class TestDHTCommunity(TestDHTBase):
     async def test_find_nodes(self):
         await self.introduce_nodes()
         nodes = await self.overlay(0).find_nodes(self.key)
-        self.assertSetEqual(set(nodes), set([Node(n.my_peer.key.pub().key_to_bin(), n.my_peer.address)
-                                             for n in self.nodes[1:]]))
+        self.assertSetEqual(set(nodes), {Node(n.my_peer.key.pub().key_to_bin(), n.my_peer.address)
+                                         for n in self.nodes[1:]})
 
     async def test_find_values(self):
         await self.introduce_nodes()
@@ -88,7 +88,7 @@ class TestDHTCommunity(TestDHTBase):
 
     async def test_caching(self):
         # Add a third node
-        node = MockIPv8(u"curve25519", DHTCommunity)
+        node = MockIPv8("curve25519", DHTCommunity)
         node.overlay.token_maintenance()
         self.add_node_to_experiment(node)
 
@@ -209,14 +209,14 @@ class TestDHTCommunity(TestDHTBase):
 class TestDHTCommunityXL(TestDHTBase):
 
     def setUp(self):
-        super(TestDHTCommunityXL, self).setUp()
+        super().setUp()
         self.initialize(DHTCommunity, 15)
         for node in self.nodes:
             node.overlay.cancel_pending_task('store_peer')
             node.overlay.ping = lambda _: succeed(None)
 
     def create_node(self, *args, **kwargs):
-        return MockIPv8(u"curve25519", DHTCommunity)
+        return MockIPv8("curve25519", DHTCommunity)
 
     def get_closest_nodes(self, node_id, max_nodes=8):
         return sorted(self.nodes,

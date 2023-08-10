@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Configuration file for the Sphinx documentation builder.
 #
@@ -21,9 +20,9 @@
 
 # -- Project information -----------------------------------------------------
 
-project = u'IPv8'
+project = 'IPv8'
 copyright = '2017-2023, Tribler'  # Do not change manually! Handled by github_increment_version.py
-author = u'Tribler'
+author = 'Tribler'
 
 # The short X.Y version
 version = '2.11'  # Do not change manually! Handled by github_increment_version.py
@@ -143,8 +142,8 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'IPv8.tex', u'IPv8 Documentation',
-     u'Tribler', 'manual'),
+    (master_doc, 'IPv8.tex', 'IPv8 Documentation',
+     'Tribler', 'manual'),
 ]
 
 
@@ -153,7 +152,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'ipv8', u'IPv8 Documentation',
+    (master_doc, 'ipv8', 'IPv8 Documentation',
      [author], 1)
 ]
 
@@ -164,7 +163,7 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'IPv8', u'IPv8 Documentation',
+    (master_doc, 'IPv8', 'IPv8 Documentation',
      author, 'IPv8', 'One line description of project.',
      'Miscellaneous'),
 ]

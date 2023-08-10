@@ -13,7 +13,7 @@ class TestNetworkEndpoint(RESTTestBase):
     mock_b64pubkey = base64.b64encode(mock_peer.public_key.key_to_bin()).decode()
 
     async def setUp(self):
-        super(TestNetworkEndpoint, self).setUp()
+        super().setUp()
         await self.initialize([], 1)
         self.ipv8 = self.node(0)
 
