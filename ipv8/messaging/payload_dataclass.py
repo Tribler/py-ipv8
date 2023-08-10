@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass as ogdataclass
 from functools import partial
-from typing import Type, TypeVar, cast, get_type_hints
+from typing import Callable, Iterable, Type, TypeVar, cast, get_type_hints
 
 from .lazy_payload import VariablePayload, vp_compile
-from .serialization import Serializable
+from .serialization import FormatListType, Serializable
 
 
 def type_from_format(fmt: str) -> TypeVar:
@@ -17,52 +17,60 @@ def type_from_format(fmt: str) -> TypeVar:
     return out
 
 
-def type_map(t: Type) -> str | Serializable | list[Serializable]:
+def type_map(t: Type) -> FormatListType:
     if t is bool:
         return "?"
-    elif t is int:
+    if t is int:
         return "q"
-    elif t is bytes:
+    if t is bytes:
         return "varlenH"
-    elif t is str:
+    if t is str:
         return "varlenHutf8"
-    elif isinstance(t, TypeVar):
+    if isinstance(t, TypeVar):
         return t.__name__
-    elif hasattr(t, '__origin__') and t.__origin__ in (tuple, list, set):
+    if getattr(t, '__origin__', None) in (tuple, list, set):
         return [t.__args__[0]]
-    elif isinstance(t, (tuple, list, set)) or Serializable in t.mro():
-        return cast(Serializable, t)
-    else:
-        raise NotImplementedError(t, " unknown")
+    if isinstance(t, (tuple, list, set)) or Serializable in getattr(t, "mro", list)():
+        return cast(Type[Serializable], t)
+    raise NotImplementedError(t, " unknown")
 
-
-def dataclass(cls=None, *, init=True, repr=True,  # pylint: disable=W0622
-              eq=True, order=False, unsafe_hash=False, frozen=False, msg_id=None):
+def dataclass(cls: type | None = None, *,  # noqa: PLR0913
+              init: bool = True,
+              repr: bool = True,  # noqa: A002
+              eq: bool = True,
+              order: bool = False,
+              unsafe_hash: bool = False,
+              frozen: bool = False,
+              msg_id: int | None = None) -> partial[Type[VariablePayload]] | Type[VariablePayload]:
     """
     Equivalent to ``@dataclass``, but also makes the wrapped class a ``VariablePayload``.
 
     See ``dataclasses.dataclass`` for argument descriptions.
     """
     if cls is None:
-        return partial(dataclass, init=init, repr=repr, eq=eq, order=order, unsafe_hash=unsafe_hash,
-                       frozen=frozen, msg_id=msg_id)
+        # Forward user parameters. Format: ``@dataclass(foo=bar)``.
+        return partial(cast(Callable[..., Type[VariablePayload]], dataclass), init=init, repr=repr, eq=eq, order=order,
+                       unsafe_hash=unsafe_hash, frozen=frozen, msg_id=msg_id)
 
-    origin = ogdataclass(cls, init=init, repr=repr, eq=eq, order=order, unsafe_hash=unsafe_hash,
-                         frozen=frozen)
+    # Finally, we have the actual class. Format: ``@dataclass`` or forwarded from partial (see above).
+    origin: type = ogdataclass(cls, init=init, repr=repr, eq=eq, order=order,  # type: ignore[call-overload]
+                               unsafe_hash=unsafe_hash, frozen=frozen)
 
     class DataClassPayload(origin, VariablePayload):
         names = list(get_type_hints(cls).keys())
-        format_list = list(map(type_map, get_type_hints(cls).values()))
+        format_list = list(map(type_map, cast(Iterable[type], get_type_hints(cls).values())))
 
     if msg_id is not None:
-        setattr(DataClassPayload, "msg_id", msg_id)
+        setattr(DataClassPayload, "msg_id", msg_id)  # noqa: B010
     DataClassPayload.__name__ = cls.__name__
     DataClassPayload.__qualname__ = cls.__qualname__
     return vp_compile(DataClassPayload)
 
 
-def overwrite_dataclass(old_dataclass):
+def overwrite_dataclass(old_dataclass):  # noqa: ANN001, ANN201
     """
+    Overwrite the dataclass function.
+
     In order to get type hinting you have to do the following:
 
     .. code-block:: python

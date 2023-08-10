@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 import os
 import time
 from asyncio import ensure_future, get_event_loop
 from random import randint
 from socket import gethostbyname
+from typing import TYPE_CHECKING, cast
 
 # Check if we are running from the root directory
 # If not, modify our path so that we can import IPv8
@@ -13,51 +16,52 @@ except ImportError:
     import __scriptpath__  # noqa: F401
 
 
-from ipv8.community import Community
+from ipv8.community import Community  # noqa: I001
 from ipv8.configuration import DISPERSY_BOOTSTRAPPER, get_default_configuration
 from ipv8.messaging.interfaces.udp.endpoint import UDPv4Address
 from ipv8.requestcache import NumberCache, RequestCache
 
 from ipv8_service import IPv8, _COMMUNITIES
 
+if TYPE_CHECKING:
+    from ipv8.messaging.payload import IntroductionResponsePayload
+    from ipv8.messaging.payload_headers import GlobalTimeDistributionPayload
+    from ipv8.types import Address, Peer
+
 INSTANCES = []
-CHECK_QUEUE = []
 RESULTS = {}
 
 CONST_REQUESTS = 10
 
 
-class PingCache(NumberCache):
-
-    def __init__(self, community, hostname, address, starttime):
-        super().__init__(community.request_cache, "introping", community.global_time)
-        self.hostname = hostname
-        self.address = address
-        self.starttime = starttime
-        self.community = community
-
-    @property
-    def timeout_delay(self):
-        return 5.0
-
-    def on_timeout(self):
-        self.community.finish_ping(self, False)
-
-
 class MyCommunity(Community):
+    """
+    Community with a random id to send pings to bootstrap servers.
+    """
+
     community_id = os.urandom(20)
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: object, **kwargs) -> None:
+        """
+        Create a new measuring Community.
+        """
         super().__init__(*args, **kwargs)
         self.request_cache = RequestCache()
+        self.check_queue = []
 
-    def unload(self):
-        self.request_cache.shutdown()
-        super().unload()
+    async def unload(self) -> None:
+        """
+        Stop the request cache and unload.
+        """
+        await self.request_cache.shutdown()
+        await super().unload()
 
-    def finish_ping(self, cache, include=True):
-        global RESULTS
-        print(cache.hostname, cache.address, time.time() - cache.starttime)  # noqa: T001
+    def finish_ping(self, cache: PingCache, include: bool = True) -> None:
+        """
+        Finish off a ping using a given cache. Potentially refrain from including an illegal time (timed out).
+        """
+        global RESULTS  # noqa: PLW0602
+        print(cache.hostname, cache.address, time.time() - cache.starttime)  # noqa: T201
         if include:
             if (cache.hostname, cache.address) in RESULTS:
                 RESULTS[(cache.hostname, cache.address)].append(time.time() - cache.starttime)
@@ -68,24 +72,33 @@ class MyCommunity(Community):
 
         self.next_ping()
 
-    def next_ping(self):
-        global CHECK_QUEUE
-        if CHECK_QUEUE:
-            hostname, address = CHECK_QUEUE.pop()
+    def next_ping(self) -> None:
+        """
+        Send the next ping in line.
+        """
+        if self.check_queue:
+            hostname, address = self.check_queue.pop()
             packet = self.create_introduction_request(UDPv4Address(*address))
             self.request_cache.add(PingCache(self, hostname, address, time.time()))
             self.endpoint.send(address, packet)
         else:
             get_event_loop().stop()
 
-    def introduction_response_callback(self, peer, dist, payload):
+    def introduction_response_callback(self,
+                                       peer: Peer,
+                                       dist: GlobalTimeDistributionPayload,
+                                       payload: IntroductionResponsePayload) -> None:
+        """
+        Got a response. Finish of any ping we might have sent to this peer.
+        """
         if self.request_cache.has("introping", payload.identifier):
             cache = self.request_cache.pop("introping", payload.identifier)
-            self.finish_ping(cache)
+            self.finish_ping(cast(PingCache, cache))
 
-    def started(self):
-        global CHECK_QUEUE
-
+    def started(self) -> None:
+        """
+        Perform DNS name resolution and start sending pings.
+        """
         dnsmap = {}
         for (address, port) in DISPERSY_BOOTSTRAPPER['init']['dns_addresses']:
             try:
@@ -101,17 +114,49 @@ class MyCommunity(Community):
             if not hostname:
                 hostname = unknown_name
                 unknown_name = unknown_name + '*'
-            CHECK_QUEUE.append((hostname, (ip, port)))
+            self.check_queue.append((hostname, (ip, port)))
 
-        CHECK_QUEUE = CHECK_QUEUE * CONST_REQUESTS
+        self.check_queue = self.check_queue * CONST_REQUESTS
 
         self.next_ping()
+
+
+class PingCache(NumberCache):
+    """
+    Cache for a single ping to a bootstrap server.
+    """
+
+    def __init__(self, community: MyCommunity, hostname: str, address: Address, starttime: float) -> None:
+        """
+        Create a new cache for the ping information.
+        """
+        super().__init__(community.request_cache, "introping", community.global_time)
+        self.hostname = hostname
+        self.address = address
+        self.starttime = starttime
+        self.community = community
+
+    @property
+    def timeout_delay(self) -> float:
+        """
+        Wait 5 seconds to timeout.
+        """
+        return 5.0
+
+    def on_timeout(self) -> None:
+        """
+        Finish off the ping in the Community with the failed state.
+        """
+        self.community.finish_ping(self, False)
 
 
 _COMMUNITIES['MyCommunity'] = MyCommunity
 
 
-async def start_communities():
+async def start_communities() -> None:
+    """
+    Start an IPv8 instance for our measuring Community.
+    """
     configuration = get_default_configuration()
     configuration['keys'] = [{
         'alias': "my peer",
@@ -132,7 +177,7 @@ async def start_communities():
     INSTANCES.append(ipv8_instance)
 
 
-ensure_future(start_communities())
+ensure_future(start_communities())  # noqa: RUF006
 get_event_loop().run_forever()
 
 with open('summary.txt', 'w') as f:

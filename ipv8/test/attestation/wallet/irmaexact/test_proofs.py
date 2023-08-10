@@ -1,4 +1,4 @@
-# flake8: noqa
+# ruff: noqa
 """
 Copyright (c) 2016, Maarten Everts
 All rights reserved.

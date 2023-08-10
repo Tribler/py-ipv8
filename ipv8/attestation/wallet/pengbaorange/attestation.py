@@ -2,15 +2,23 @@ from binascii import hexlify
 from math import sqrt
 from os import urandom
 
+from ..primitives.structs import BonehPublicKey
 from .boudot import EL, SQR
 from .structs import PengBaoAttestation, PengBaoCommitment, PengBaoCommitmentPrivate, PengBaoPublicData
 
 
-def _random_number(bytelen):
+def _random_number(bytelen: int) -> int:
+    """
+    Generate a random integer of a given number of bytes.
+    """
     return int(hexlify(urandom(bytelen)), 16)
 
 
-def create_attest_pair(PK, value, a, b, bitspace):  # pylint: disable=R0914
+def create_attest_pair(PK: BonehPublicKey,  # noqa: N803
+                       value: int,
+                       a: int,
+                       b: int,
+                       bitspace: int) -> PengBaoAttestation:
     """
     Create an proof that a <= value <= b, for a public key's value lying within a certain bitspace.
     """

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import inspect
 import types
-from typing import Any, Type, TypeVar
+from typing import Any
 
 from .serialization import FormatListType, Payload
 
@@ -30,7 +30,7 @@ class VariablePayload(Payload):
 
     names: list[str] = []
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs) -> None:  # noqa: ANN401
         """
         Instantiate this VariablePayload class.
 
@@ -62,13 +62,15 @@ class VariablePayload(Payload):
                 setattr(self, self.names[index], value)
                 index += 1
         if len(args) - index > 0:
-            raise KeyError(f"{self.__class__.__name__} missing {len(args) - index} arguments!")
+            msg = f"{self.__class__.__name__} missing {len(args) - index} arguments!"
+            raise KeyError(msg)
         if kwargs:
-            raise KeyError(f"{self.__class__.__name__,} has leftover keyword arguments: {kwargs}!")
+            msg = f"{self.__class__.__name__,} has leftover keyword arguments: {kwargs}!"
+            raise KeyError(msg)
         setattr(self.__class__, "__match_args__", tuple(self.names))
 
     @classmethod
-    def from_unpack_list(cls, *args) -> VariablePayload:
+    def from_unpack_list(cls: type[VariablePayload], *args: Any) -> VariablePayload:  # noqa: ANN401
         """
         Given a list of raw arguments, initialize a new cls instance.
 
@@ -89,7 +91,7 @@ class VariablePayload(Payload):
             return 'payload-list'
         return 'payload'
 
-    def _fix_pack(self, name: str) -> Any:
+    def _fix_pack(self, name: str) -> Any:  # noqa: ANN401
         """
         Check if there are custom rules for sending this field.
         """
@@ -115,10 +117,6 @@ class VariablePayload(Payload):
                 index += 1
             out.append((self._to_packlist_fmt(self.format_list[i]), *args))
         return out
-
-
-V = TypeVar('V', bound=VariablePayload)
-VT = Type[V]
 
 
 def _compile_init(names: list[str], defaults: dict[str, Any]) -> types.CodeType:
@@ -148,7 +146,7 @@ def __init__(self, {arg_list}):
     return compile(f_code, f_code, 'exec')
 
 
-def _compile_from_unpack_list(src_cls: VT, names: list[str]) -> types.CodeType:
+def _compile_from_unpack_list(src_cls: type[VariablePayload], names: list[str]) -> types.CodeType:
     """
     Compile the unpacking code.
 
@@ -177,7 +175,9 @@ def from_unpack_list(cls, {arg_list}):
     return compile(f_code, f_code, 'exec')
 
 
-def _compile_to_pack_list(src_cls: VT, format_list: list[FormatListType], names: list[str]) -> types.CodeType:
+def _compile_to_pack_list(src_cls: type[VariablePayload],
+                          format_list: list[FormatListType],
+                          names: list[str]) -> types.CodeType:
     """
     Compile the packing code.
 
@@ -217,13 +217,12 @@ def to_pack_list(self):
     return compile(f_code, f_code, 'exec')
 
 
-def vp_compile(vp_definition: VT) -> VT:
+def vp_compile(vp_definition: type[VariablePayload]) -> type[VariablePayload]:
     """
     JIT Compilation of a VariablePayload definition.
     """
-
     # We use ``exec`` purposefully here, disable the pylint warning:
-    # pylint: disable=W0122
+    # ruff: noqa: B010, S102
 
     # Load the function definitions into the local scope.
     exec(_compile_init(vp_definition.names, {

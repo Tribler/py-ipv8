@@ -1,19 +1,27 @@
+from __future__ import annotations
+
 from binascii import hexlify, unhexlify
 from struct import pack, unpack
 
+from ...identity_formats import Attestation
 from ..pengbaorange.boudot import EL, SQR
 from ..primitives.boneh import decode, encode
-from ..primitives.structs import BonehPublicKey, ipack, iunpack
+from ..primitives.structs import BonehPrivateKey, BonehPublicKey, ipack, iunpack
 from ..primitives.value import FP2Value
-from ...identity_formats import Attestation
 
 
-def _serialize_fp2value(value):
+def _serialize_fp2value(value: FP2Value) -> bytes:
+    """
+    Convert an FP2Value to bytes.
+    """
     normalized = value.wp_compress()
     return ipack(normalized.a) + ipack(normalized.b)
 
 
-def _unserialize_fp2value(mod, value):
+def _unserialize_fp2value(mod: int, value: bytes) -> tuple[FP2Value, bytes]:
+    """
+    Decode serialized bytes back into an FP2Value of the given modulus.
+    """
     rem = value
     a, rem = iunpack(rem)
     b, rem = iunpack(rem)
@@ -21,8 +29,22 @@ def _unserialize_fp2value(mod, value):
 
 
 class PengBaoCommitment:
+    """
+    The proof structure that a commitment hides a value within a certain range.
+    """
 
-    def __init__(self, c, c1, c2, ca, ca1, ca2, ca3, caa):  # pylint: disable=R0913
+    def __init__(self,  # noqa: PLR0913
+                 c: FP2Value,
+                 c1: FP2Value,
+                 c2: FP2Value,
+                 ca: FP2Value,
+                 ca1: FP2Value,
+                 ca2: FP2Value,
+                 ca3: FP2Value,
+                 caa: FP2Value) -> None:
+        """
+        Create a new public proof to check secret range for.
+        """
         self.c = c
         self.c1 = c1
         self.c2 = c2
@@ -32,18 +54,18 @@ class PengBaoCommitment:
         self.ca3 = ca3
         self.caa = caa
 
-    def serialize(self):
+    def serialize(self) -> bytes:
+        """
+        Convert this commitment to bytes.
+        """
         return (ipack(self.c.mod) + _serialize_fp2value(self.c) + _serialize_fp2value(self.c1)
                 + _serialize_fp2value(self.c2) + _serialize_fp2value(self.ca) + _serialize_fp2value(self.ca1)
                 + _serialize_fp2value(self.ca2) + _serialize_fp2value(self.ca3) + _serialize_fp2value(self.caa))
 
     @classmethod
-    def unserialize(cls, s):
+    def unserialize(cls: type[PengBaoCommitment], s: bytes) -> tuple[PengBaoCommitment, bytes]:
         """
-        :param s: the string to unserialize
-        :type s: str
-        :return: the unserialized commitment
-        :rtype: PengBaoCommitment
+        Convert bytes to a commitment.
         """
         mod, rem = iunpack(s)
         c, rem = _unserialize_fp2value(mod, rem)
@@ -58,10 +80,16 @@ class PengBaoCommitment:
 
 
 class PengBaoCommitmentPrivate:
+    """
+    Private part of the PengBaoCommitment.
+    """
 
-    MSGSPACE = list(range(256))
+    MSGSPACE: list[int] = list(range(256))
 
-    def __init__(self, m1, m2, m3, r1, r2, r3):
+    def __init__(self, m1: int, m2: int, m3: int, r1: int, r2: int, r3: int) -> None:  # noqa: PLR0913
+        """
+        Private values for to answer challenges for our public range proof.
+        """
         self.m1 = m1
         self.m2 = m2
         self.m3 = m3
@@ -69,7 +97,7 @@ class PengBaoCommitmentPrivate:
         self.r2 = r2
         self.r3 = r3
 
-    def generate_response(self, s, t):
+    def generate_response(self, s: int, t: int) -> tuple[int, int, int, int]:
         """
         Given s and t and our private information, generate the appropriate response.
 
@@ -87,16 +115,16 @@ class PengBaoCommitmentPrivate:
                 s * self.r1 + self.r2 + self.r3,
                 self.r1 + t * self.r2 + self.r3)
 
-    def serialize(self):
+    def serialize(self) -> bytes:
+        """
+        Convert this commitment to bytes.
+        """
         return ipack(self.m1) + ipack(self.m2) + ipack(self.m3) + ipack(self.r1) + ipack(self.r2) + ipack(self.r3)
 
     @classmethod
-    def unserialize(cls, s):
+    def unserialize(cls: type[PengBaoCommitmentPrivate], s: bytes) -> tuple[PengBaoCommitmentPrivate, bytes]:
         """
-        :param s: the string to unserialize
-        :type s: str
-        :return: the unserialized private data
-        :rtype: PengBaoCommitmentPrivate
+        Convert bytes to a commitment.
         """
         m1, rem = iunpack(s)
         m2, rem = iunpack(rem)
@@ -106,7 +134,10 @@ class PengBaoCommitmentPrivate:
         r3, rem = iunpack(rem)
         return cls(m1, m2, m3, r1, r2, r3), rem
 
-    def encode(self, PK):
+    def encode(self, PK: BonehPublicKey) -> bytes:  # noqa: N803
+        """
+        Serialize and encode using a given public key.
+        """
         serialized = self.serialize()
         hex_serialized = hexlify(serialized)
         serialized_encodings = pack(">B", len(hex_serialized) // 2)
@@ -116,7 +147,12 @@ class PengBaoCommitmentPrivate:
         return serialized_encodings
 
     @classmethod
-    def decode(cls, SK, s):
+    def decode(cls: type[PengBaoCommitmentPrivate],
+               SK: BonehPrivateKey,  # noqa: N803
+               s: bytes) -> PengBaoCommitmentPrivate:
+        """
+        Decode an encoded PengBaoCommitmentPrivate using a secret key.
+        """
         serialized = b""
         count, = unpack(">B", s[0:1])
         rem = s[1:]
@@ -136,20 +172,20 @@ class PengBaoPublicData:
     Public data required to verify a Peng Bao proof.
     """
 
-    def __init__(self, PK, bitspace, commitment, el, sqr1, sqr2):
+    def __init__(self,  # noqa: PLR0913
+                 PK: BonehPublicKey,  # noqa: N803
+                 bitspace: int,
+                 commitment: PengBaoCommitment,
+                 el: EL,
+                 sqr1: SQR,
+                 sqr2: SQR) -> None:
         """
         :param PK: the BonehPublicKey of the owner
-        :type PK: BonehPublicKey
         :param bitspace: the bitspace for the commitment message
-        :type bitspace: int
         :param commitment: the range commitment
-        :type commitment: PengBaoCommitment
         :param el: the Boudot equality commitment
-        :type el: EL
         :param sqr1: the first Boudot square commitment
-        :type sqr1: SQR
         :param sqr2: the second Boudot square commitment
-        :type sqr2: SQR
         """
         self.PK = PK
         self.bitspace = bitspace
@@ -158,7 +194,18 @@ class PengBaoPublicData:
         self.sqr1 = sqr1
         self.sqr2 = sqr2
 
-    def check(self, a, b, s, t, x, y, u, v):  # pylint: disable=R0913
+    def check(self,  # noqa: PLR0913
+              a: int,
+              b: int,
+              s: int,
+              t: int,
+              x: int,
+              y: int,
+              u: int,
+              v: int) -> bool:
+        """
+        Check whether the given range is correct.
+        """
         out = True
         out &= self.el.check(self.PK.g, self.PK.h, self.commitment.c1, self.PK.h, self.commitment.c2,
                              self.commitment.ca)
@@ -175,7 +222,7 @@ class PengBaoPublicData:
         out &= y > 0
         return out
 
-    def serialize(self):
+    def serialize(self) -> bytes:
         """
         Serialize this Attestation to a string.
 
@@ -186,7 +233,7 @@ class PengBaoPublicData:
                 + self.sqr1.serialize() + self.sqr2.serialize())
 
     @classmethod
-    def unserialize(cls, s):
+    def unserialize(cls: type[PengBaoPublicData], s: bytes) -> tuple[PengBaoPublicData, bytes]:
         """
         Given a string, create an Attestation object.
 
@@ -207,8 +254,14 @@ class PengBaoPublicData:
 
 
 class PengBaoAttestation(Attestation):
+    """
+    An attestation for a Peng Bao range proof.
+    """
 
-    def __init__(self, publicdata, privatedata, id_format=None):
+    def __init__(self,
+                 publicdata: PengBaoPublicData,
+                 privatedata: PengBaoCommitmentPrivate | None,
+                 id_format: str | None = None) -> None:
         """
         :type publicdata: PengBaoPublicData
         :type privatedata: PengBaoCommitmentPrivate or None
@@ -219,7 +272,7 @@ class PengBaoAttestation(Attestation):
         self.id_format = id_format
         self.PK = publicdata.PK
 
-    def serialize(self):
+    def serialize(self) -> bytes:
         """
         Serialize this Attestation to a string.
 
@@ -228,7 +281,7 @@ class PengBaoAttestation(Attestation):
         """
         return self.publicdata.serialize()
 
-    def serialize_private(self, PK):
+    def serialize_private(self, PK: BonehPublicKey) -> bytes:  # noqa: N803
         """
         Serialize this Attestation to a string, include shared secrets (not to be published!).
 
@@ -240,7 +293,7 @@ class PengBaoAttestation(Attestation):
         return self.publicdata.serialize() + self.privatedata.encode(PK)
 
     @classmethod
-    def unserialize(cls, s, id_format=None):
+    def unserialize(cls: type[PengBaoAttestation], s: bytes, id_format: str | None = None) -> PengBaoAttestation:
         """
         Given a string, create an Attestation object.
 
@@ -255,7 +308,10 @@ class PengBaoAttestation(Attestation):
         return cls(publicdata, None, id_format)
 
     @classmethod
-    def unserialize_private(cls, SK, s, id_format=None):
+    def unserialize_private(cls: type[PengBaoAttestation],
+                            SK: BonehPrivateKey,  # noqa: N803
+                            s: bytes,
+                            id_format: str | None = None) -> PengBaoAttestation:
         """
         Given a string, create an Attestation object.
         The input contains shared secrets not to be published.

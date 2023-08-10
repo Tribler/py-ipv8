@@ -1,13 +1,15 @@
+from __future__ import annotations
+
 from sys import version_info
 from unittest import skipIf
 
-from ..base import TestBase
 from ...messaging.lazy_payload import VariablePayload, vp_compile
 from ...messaging.payload import Payload
 from ...messaging.serialization import default_serializer
+from ..base import TestBase
 
-
-skipUnlessPython310 = skipIf(version_info[0] < 4 and not (version_info[0] == 3 and version_info[1] >= 10),
+skipUnlessPython310 = skipIf(version_info[0] < 4  # noqa: N816
+                             and not (version_info[0] == 3 and version_info[1] >= 10),  # noqa: YTT201, YTT203
                              reason="Test only available for Python 3.10 and later.")
 
 
@@ -15,43 +17,56 @@ class A(VariablePayload):
     """
     A basic VariablePayload.
     """
+
     format_list = ['I', 'H']
     names = ["a", "b"]
 
 
 @vp_compile
 class CompiledA(A):
-    pass
+    """
+    Same as A but compiled.
+    """
 
 
 class BitsPayload(VariablePayload):
     """
     An unbalanced VariablePayload.
     """
+
     format_list = ['bits']
     names = ['flag0', 'flag1', 'flag2', 'flag3', 'flag4', 'flag5', 'flag6', 'flag7']
 
 
 @vp_compile
 class CompiledBitsPayload(BitsPayload):
-    pass
+    """
+    Same as BitsPayload but compiled.
+    """
 
 
 class B(VariablePayload):
     """
     A VariablePayload with a nested Payload.
     """
+
     format_list = [A]
     names = ["a"]
 
 
 @vp_compile
 class CompiledB(B):
-    pass
+    """
+    Same as B but compiled.
+    """
 
 
 @vp_compile
 class CompiledBAlt(B):
+    """
+    Overwritten format list for B.
+    """
+
     format_list = [CompiledA]
 
 
@@ -59,71 +74,107 @@ class C(A):
     """
     A VariablePayload with inherited fields.
     """
-    format_list = A.format_list + ['B']
-    names = A.names + ['c']
+
+    format_list = [*A.format_list, "B"]
+    names = [*A.names, "c"]
 
 
 @vp_compile
 class CompiledC(C):
-    pass
+    """
+    C but compiled.
+    """
 
 
 @vp_compile
 class CompiledCAlt(CompiledA):
-    format_list = A.format_list + ['B']
-    names = A.names + ['c']
+    """
+    C but compiled and inherited from compiled A.
+    """
+
+    format_list = [*A.format_list, "B"]
+    names = [*A.names, "c"]
 
 
 class OldA(Payload):
+    """
+    Old style Payload A.
+    """
+
     format_list = ["I", "H"]
 
-    def __init__(self, a, b):
+    def __init__(self, a: int, b: int) -> None:
+        """
+        Create a new old-style payload.
+        """
         self.a = a
         self.b = b
 
-    def to_pack_list(self):
+    def to_pack_list(self) -> list[tuple]:
+        """
+        Create an old style pack list.
+        """
         return [("I", self.a),
                 ("H", self.b)]
 
     @classmethod
-    def from_unpack_list(cls, *args):
-        return OldA(*args)  # pylint: disable=E1120
+    def from_unpack_list(cls: type[OldA], *args: object) -> OldA:
+        """
+        Unpack an OldA.
+        """
+        return OldA(*args)
 
 
 class D(VariablePayload):
+    """
+    A mock payload for testing value fixing.
+    """
+
     format_list = ["I"]
     names = ["a"]
 
-    def fix_pack_a(self, value):
+    def fix_pack_a(self, value: int) -> int:
+        """
+        Correct the known int value by adding one, still an int.
+        """
         return value + 1
 
     @classmethod
-    def fix_unpack_a(cls, value):
+    def fix_unpack_a(cls: type[D], value: int) -> int:
+        """
+        Uncorrect a given integer value by subtracting one, still an int.
+        """
         return value - 1
 
 
 @vp_compile
 class CompiledD(D):
-    pass
+    """
+    Same as D but compiled.
+    """
 
 
 class NewC(VariablePayload, OldA):
     """
     A VariablePayload with inherited fields.
     """
-    format_list = OldA.format_list + ['B']
+
+    format_list = [*OldA.format_list, "B"]
     names = ['a', 'b', 'c']
 
 
 @vp_compile
 class CompiledNewC(NewC):
-    pass
+    """
+    Same as NewC but compiled.
+    """
 
 
 class E(VariablePayload):
     """
     A VariablePayload with a list of payloads.
     """
+
     format_list = [[A]]
     names = ["list_of_A"]
 
@@ -132,10 +183,14 @@ class F(VariablePayload):
     """
     A VariablePayload with a default value.
     """
+
     format_list = ['I', 'H']
     names = ["a", "b"]
 
-    def __init__(self, a, b=3, **kwargs):
+    def __init__(self, a: int, b: int = 3, **kwargs) -> None:
+        """
+        Create a new F with a default value for value b.
+        """
         super().__init__(a, b, **kwargs)
 
 
@@ -144,18 +199,26 @@ class CompiledF(VariablePayload):
     """
     A compiled VariablePayload with a default value.
     """
+
     format_list = ['I', 'H']
     names = ["a", "b"]
 
-    def __init__(self, a, b=3, **kwargs):
+    def __init__(self, a: int, b: int = 3, **kwargs) -> None:
+        """
+        Create a new compiled F with a default value for value b.
+        """
         super().__init__(a, b, **kwargs)
 
 
 class TestVariablePayload(TestBase):
+    """
+    Tests for VariablePaylods.
+    """
 
-    def _pack_and_unpack(self, payload, instance):
+    def _pack_and_unpack(self, payload: type[Payload], instance: Payload) -> Payload:
         """
         Serialize and unserialize an instance of payload.
+
         :param payload: the payload class to serialize for
         :type payload: type(Payload)
         :param instance: the payload instance to serialize
@@ -163,10 +226,10 @@ class TestVariablePayload(TestBase):
         :return: the repacked instance
         """
         serialized = default_serializer.pack_serializable(instance)
-        deserialized, _ = default_serializer.unpack_serializable(payload, serialized)  # pylint: disable=E0632
+        deserialized, _ = default_serializer.unpack_serializable(payload, serialized)
         return deserialized
 
-    def test_base_unnamed(self):
+    def test_base_unnamed(self) -> None:
         """
         Check if the wrapper returns the payload correctly with unnamed arguments.
         """
@@ -179,7 +242,7 @@ class TestVariablePayload(TestBase):
         self.assertEqual(deserialized.a, 42)
         self.assertEqual(deserialized.b, 1337)
 
-    def test_base_unnamed_compiled(self):
+    def test_base_unnamed_compiled(self) -> None:
         """
         Check if the wrapper returns the payload correctly with unnamed arguments, compiled.
         """
@@ -192,7 +255,7 @@ class TestVariablePayload(TestBase):
         self.assertEqual(deserialized.a, 42)
         self.assertEqual(deserialized.b, 1337)
 
-    def test_base_named(self):
+    def test_base_named(self) -> None:
         """
         Check if the wrapper returns the payload correctly with named arguments.
         """
@@ -205,7 +268,7 @@ class TestVariablePayload(TestBase):
         self.assertEqual(deserialized.a, 42)
         self.assertEqual(deserialized.b, 1337)
 
-    def test_base_named_compiled(self):
+    def test_base_named_compiled(self) -> None:
         """
         Check if the wrapper returns the payload correctly with named arguments, compiled.
         """
@@ -218,7 +281,7 @@ class TestVariablePayload(TestBase):
         self.assertEqual(deserialized.a, 42)
         self.assertEqual(deserialized.b, 1337)
 
-    def test_bits_payload(self):
+    def test_bits_payload(self) -> None:
         """
         Check if unpacked BitPayload works correctly.
         """
@@ -235,7 +298,7 @@ class TestVariablePayload(TestBase):
         self.assertEqual(deserialized.flag6, False)
         self.assertEqual(deserialized.flag7, True)
 
-    def test_bits_payload_compiled(self):
+    def test_bits_payload_compiled(self) -> None:
         """
         Check if unpacked compiled BitPayload works correctly.
         """
@@ -252,7 +315,7 @@ class TestVariablePayload(TestBase):
         self.assertEqual(deserialized.flag6, False)
         self.assertEqual(deserialized.flag7, True)
 
-    def test_inheritance(self):
+    def test_inheritance(self) -> None:
         """
         Check if the wrapper allows for nested payloads.
         """
@@ -266,7 +329,7 @@ class TestVariablePayload(TestBase):
         self.assertIsInstance(deserialized, B)
         self.assertIsInstance(deserialized.a, A)
 
-    def test_inheritance_uncompiled_compiled(self):
+    def test_inheritance_uncompiled_compiled(self) -> None:
         """
         Check if the wrapper allows for nested payloads, compiled.
         """
@@ -280,7 +343,7 @@ class TestVariablePayload(TestBase):
         self.assertIsInstance(deserialized, CompiledB)
         self.assertIsInstance(deserialized.a, A)
 
-    def test_inheritance_compiled_compiled(self):
+    def test_inheritance_compiled_compiled(self) -> None:
         """
         Check if the wrapper allows for compiled nested payloads, compiled.
         """
@@ -294,7 +357,7 @@ class TestVariablePayload(TestBase):
         self.assertIsInstance(deserialized, CompiledBAlt)
         self.assertIsInstance(deserialized.a, CompiledA)
 
-    def test_subclass(self):
+    def test_subclass(self) -> None:
         """
         Check if the wrapper allows for subclasses.
         """
@@ -308,7 +371,7 @@ class TestVariablePayload(TestBase):
         self.assertIsInstance(deserialized, C)
         self.assertIsInstance(deserialized, A)
 
-    def test_subclass_uncompiled_compiled(self):
+    def test_subclass_uncompiled_compiled(self) -> None:
         """
         Check if the wrapper allows for subclasses, compiled.
         """
@@ -322,7 +385,7 @@ class TestVariablePayload(TestBase):
         self.assertIsInstance(deserialized, CompiledC)
         self.assertIsInstance(deserialized, A)
 
-    def test_subclass_compiled_compiled(self):
+    def test_subclass_compiled_compiled(self) -> None:
         """
         Check if the wrapper allows for compiled subclasses, compiled.
         """
@@ -336,7 +399,7 @@ class TestVariablePayload(TestBase):
         self.assertIsInstance(deserialized, CompiledCAlt)
         self.assertIsInstance(deserialized, CompiledA)
 
-    def test_old_subclass(self):
+    def test_old_subclass(self) -> None:
         """
         Check if the wrapper allows for subclasses from old-style Payloads.
         """
@@ -350,7 +413,7 @@ class TestVariablePayload(TestBase):
         self.assertIsInstance(deserialized, NewC)
         self.assertIsInstance(deserialized, OldA)
 
-    def test_old_subclass_compiled(self):
+    def test_old_subclass_compiled(self) -> None:
         """
         Check if the wrapper allows for subclasses from old-style Payloads, compiled.
         """
@@ -364,7 +427,7 @@ class TestVariablePayload(TestBase):
         self.assertIsInstance(deserialized, CompiledNewC)
         self.assertIsInstance(deserialized, OldA)
 
-    def test_custom_pack(self):
+    def test_custom_pack(self) -> None:
         """
         Check if the wire-format manipulation rules are applied correctly.
         """
@@ -377,7 +440,7 @@ class TestVariablePayload(TestBase):
         self.assertEqual(deserialized.a, 0)
         self.assertEqual(serialized, b'\x00\x00\x00\x01')
 
-    def test_custom_pack_compiled(self):
+    def test_custom_pack_compiled(self) -> None:
         """
         Check if the wire-format manipulation rules are applied correctly, compiled.
         """
@@ -390,7 +453,7 @@ class TestVariablePayload(TestBase):
         self.assertEqual(deserialized.a, 0)
         self.assertEqual(serialized, b'\x00\x00\x00\x01')
 
-    def test_payload_list(self):
+    def test_payload_list(self) -> None:
         """
         Check if unpacked payload lists works correctly.
         """
@@ -403,7 +466,7 @@ class TestVariablePayload(TestBase):
         self.assertEqual(e.list_of_A[1].a, deserialized.list_of_A[1].a)
         self.assertEqual(e.list_of_A[1].b, deserialized.list_of_A[1].b)
 
-    def test_pass_default(self):
+    def test_pass_default(self) -> None:
         """
         Check if default values are forwarded.
         """
@@ -412,7 +475,7 @@ class TestVariablePayload(TestBase):
         self.assertEqual(1, payload.a)
         self.assertEqual(3, payload.b)
 
-    def test_pass_default_compiled(self):
+    def test_pass_default_compiled(self) -> None:
         """
         Check if default values are forwarded, compiled.
         """
@@ -421,7 +484,7 @@ class TestVariablePayload(TestBase):
         self.assertEqual(1, payload.a)
         self.assertEqual(3, payload.b)
 
-    def test_pass_default_overwrite(self):
+    def test_pass_default_overwrite(self) -> None:
         """
         Check if default values are correctly overwritten.
         """
@@ -430,7 +493,7 @@ class TestVariablePayload(TestBase):
         self.assertEqual(1, payload.a)
         self.assertEqual(7, payload.b)
 
-    def test_pass_default_overwrite_compiled(self):
+    def test_pass_default_overwrite_compiled(self) -> None:
         """
         Check if default values are correctly overwritten, compiled.
         """
@@ -440,83 +503,83 @@ class TestVariablePayload(TestBase):
         self.assertEqual(7, payload.b)
 
     @skipUnlessPython310
-    def test_plain_mismatch_list(self):
+    def test_plain_mismatch_list(self) -> None:
         """
         Check if a VariablePayload instance does not match anything but its own pattern.
 
         We intentionally check here for a list of values equal to the __init__ arguments, which is the default.
         If this test fails, you probably screwed up the class-level sub-pattern.
         """
-        # pylint: disable=W0122, W0641
         payload = BitsPayload(False, True, False, True, False, True, False, True)
 
         # The following will crash all interpreters < 3.10 if not contained in a string.
-        exec(compile('''
+        exec(  # noqa: S102
+            compile("""
 match payload:
     case [False, True, False, True, False, True, False, True]:
         matched = True
     case _:
         matched = False
-''', '<string>', 'exec'), globals(), locals())
+""", '<string>', 'exec'), globals(), locals())
 
         self.assertFalse(locals()["matched"])
 
     @skipUnlessPython310
-    def test_compiled_mismatch_list(self):
+    def test_compiled_mismatch_list(self) -> None:
         """
         Check if a compiled VariablePayload instance does not match anything but its own pattern.
 
         We intentionally check here for a list of values equal to the __init__ arguments, which is the default.
         If this test fails, you probably screwed up the class-level sub-pattern.
         """
-        # pylint: disable=W0122, W0641
         payload = CompiledBitsPayload(False, True, False, True, False, True, False, True)
 
         # The following will crash all interpreters < 3.10 if not contained in a string.
-        exec(compile('''
+        exec(  # noqa: S102
+            compile("""
 match payload:
     case [False, True, False, True, False, True, False, True]:
         matched = True
     case _:
         matched = False
-''', '<string>', 'exec'), globals(), locals())
+""", '<string>', 'exec'), globals(), locals())
 
         self.assertFalse(locals()["matched"])
 
     @skipUnlessPython310
-    def test_plain_match_pattern(self):
+    def test_plain_match_pattern(self) -> None:
         """
         Check if a VariablePayload instance matches its own pattern.
         """
-        # pylint: disable=W0122, W0641
         payload = BitsPayload(False, True, False, True, False, True, False, True)
 
         # The following will crash all interpreters < 3.10 if not contained in a string.
-        exec(compile('''
+        exec(  # noqa: S102
+            compile("""
 match payload:
     case BitsPayload(False, True, False, True, False, True, False, True):
         matched = True
     case _:
         matched = False
-''', '<string>', 'exec'), globals(), locals())
+""", '<string>', 'exec'), globals(), locals())
 
         self.assertTrue(locals()["matched"])
 
     @skipUnlessPython310
-    def test_compiled_match_pattern(self):
+    def test_compiled_match_pattern(self) -> None:
         """
         Check if a compiled VariablePayload instance matches its own pattern.
         """
-        # pylint: disable=W0122, W0641
         payload = CompiledBitsPayload(False, True, False, True, False, True, False, True)
 
         # The following will crash all interpreters < 3.10 if not contained in a string.
-        exec(compile('''
+        exec(  # noqa: S102
+            compile("""
 match payload:
     case CompiledBitsPayload(False, True, False, True, False, True, False, True):
         matched = True
     case _:
         matched = False
-''', '<string>', 'exec'), globals(), locals())
+""", '<string>', 'exec'), globals(), locals())
 
         self.assertTrue(locals()["matched"])

@@ -1,81 +1,107 @@
 from __future__ import annotations
 
 import abc
+import contextlib
 import logging
-from collections import OrderedDict, namedtuple
+from collections import OrderedDict
 from operator import methodcaller
 from threading import RLock
-from typing import Iterable, Set
+from typing import TYPE_CHECKING, Iterable, NamedTuple, Set, cast
 
 from ..messaging.serialization import default_serializer
-from ..types import Address, Overlay, Peer
+from ..types import Address
+
+if TYPE_CHECKING:
+    from ..types import Overlay, Peer
 
 
 MID = bytes
 PublicKeyMat = bytes
 Service = bytes
 ServiceSet = Set[Service]
-WalkableAddress = namedtuple('WalkableAddress', ['introduced_by', 'services', 'new_style'])
+
+
+class WalkableAddress(NamedTuple):
+    """
+    A walkable address.
+    """
+
+    introduced_by: bytes
+    services: bytes | None
+    new_style: bool
 
 
 class PeerObserver(metaclass=abc.ABCMeta):
+    """
+    An observer that gets called back when a peer is added or removed from the Network.
+    """
 
     @abc.abstractmethod
     def on_peer_added(self, peer: Peer) -> None:
-        pass
+        """
+        A given peer was added to the Network.
+        """
 
     @abc.abstractmethod
     def on_peer_removed(self, peer: Peer) -> None:
-        pass
+        """
+        A given peer was removed from the Network.
+        """
 
 
 class Network:
+    """
+    A class that stores Peer instances and their various states and interconnections.
+    """
 
     def __init__(self) -> None:
+        """
+        Create a new Network instance.
+        """
         self._all_addresses: dict[Address, WalkableAddress] = {}
-        '''All known IP:port addresses, mapped to (introduction peer, services, new_style).'''
+        """All known IP:port addresses, mapped to (introduction peer, services, new_style)."""
 
         self.verified_peers: set[Peer] = set()
-        '''All verified Peer objects (Peer.address must be in _all_addresses).'''
+        """All verified Peer objects (Peer.address must be in _all_addresses)."""
 
         self.verified_by_public_key_bin: dict[PublicKeyMat, Peer] = {}
-        '''Map of known public keys to Peer objects.'''
+        """Map of known public keys to Peer objects."""
 
         self.graph_lock = RLock()
-        '''Lock for all updates of the peer pool.'''
+        """Lock for all updates of the peer pool."""
 
         self.blacklist: list[Address] = []
-        '''Peers we should not add to the network (e.g., bootstrap peers), by address.'''
+        """Peers we should not add to the network (e.g., bootstrap peers), by address."""
 
         self.blacklist_mids: list[MID] = []
-        '''Peers we should not add to the network (e.g., bootstrap peers), by mid.'''
+        """Peers we should not add to the network (e.g., bootstrap peers), by mid."""
 
         self.services_per_peer: dict[PublicKeyMat, ServiceSet] = {}
-        '''Map of advertised services (set) per peer.'''
+        """Map of advertised services (set) per peer."""
 
         self.service_overlays: dict[Service, Overlay] = {}
-        '''Map of service identifiers to local overlays.'''
+        """Map of service identifiers to local overlays."""
 
         self.reverse_ip_cache_size = 500
         self.reverse_ip_lookup: OrderedDict[Address, Peer] = OrderedDict()
-        '''Cache of IP:port -> Peer. This is a cache rather than a normal dictionary (the addresses of a peer are
-        temporal and can grow infinitely): we rotate out old information to avoid a memory leak.'''
+        """Cache of IP:port -> Peer. This is a cache rather than a normal dictionary (the addresses of a peer are
+        temporal and can grow infinitely): we rotate out old information to avoid a memory leak."""
 
         self.reverse_intro_cache_size = 500
         self.reverse_intro_lookup: OrderedDict[Peer, list[Address]] = OrderedDict()
-        '''Map of Peer -> [IP:port], reversing the information from _all_addresses. This is a cache rather than a
+        """Map of Peer -> [IP:port], reversing the information from _all_addresses. This is a cache rather than a
         normal dictionary (the addresses of a peer are temporal and can grow infinitely): we rotate out old
-        information to avoid a memory leak.'''
+        information to avoid a memory leak."""
 
         self.reverse_service_cache_size = 500
         self.reverse_service_lookup: OrderedDict[Service, list[Peer]] = OrderedDict()
-        '''Cache of service_id -> [Peer]. This is a cache rather than a normal dictionary (the services of a peer may
-        be temporal and can grow infinitely): we rotate out old information to avoid a memory leak.'''
+        """Cache of service_id -> [Peer]. This is a cache rather than a normal dictionary (the services of a peer may
+        be temporal and can grow infinitely): we rotate out old information to avoid a memory leak."""
 
         self.peer_observers: set[PeerObserver] = set()
-        '''
+        """
         Set of observers for peer addition and removal.
-        '''
+        """
 
     def is_new_style(self, address: Address) -> bool:
         """
@@ -201,7 +227,7 @@ class Network:
             self.reverse_service_lookup.popitem(False)  # Pop the oldest cache entry
         return out
 
-    def get_services_for_peer(self, peer):
+    def get_services_for_peer(self, peer: Peer) -> set[bytes]:
         """
         Get the known services supported by a peer.
 
@@ -266,6 +292,7 @@ class Network:
     def get_verified_by_public_key_bin(self, public_key_bin: PublicKeyMat) -> Peer | None:
         """
         Get a verified Peer by its public key bin.
+
         :param public_key_bin: the string representation of the public key
         :return: the Peer object for this public_key_bin or None
         """
@@ -349,11 +376,12 @@ class Network:
                 previous_offset = offset
                 try:
                     address, offset = default_serializer.unpack('address', snapshot, offset)
+                    address = cast(Address, address)
                     self._all_addresses[address] = WalkableAddress(b'', None, False)
-                except Exception:  # pylint: disable=W0703
+                except Exception:
                     if offset <= previous_offset:
                         # We got stuck, or even went back in time.
-                        logging.error("Snapshot loading got stuck! Aborting snapshot load.")
+                        logging.exception("Snapshot loading got stuck! Aborting snapshot load.")
                         break
                     logging.warning("Snapshot failed on entry, skipping %s!", repr(address))
 
@@ -373,7 +401,5 @@ class Network:
         :param observer: the observer to unregister.
         :returns: None
         """
-        try:
+        with contextlib.suppress(KeyError):
             self.peer_observers.remove(observer)
-        except KeyError:
-            pass

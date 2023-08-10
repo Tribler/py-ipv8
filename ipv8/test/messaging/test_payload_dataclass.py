@@ -1,49 +1,79 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, is_dataclass
-from typing import List
+from typing import List, TypeVar
 
-from ..base import TestBase
 from ...messaging.payload_dataclass import overwrite_dataclass, type_from_format
 from ...messaging.serialization import default_serializer
+from ..base import TestBase
 
 ogdataclass = dataclass
 dataclass = overwrite_dataclass(dataclass)
-varlenH = type_from_format('varlenH')
+varlenH = type_from_format('varlenH')  # noqa: N816
+
+T = TypeVar("T")
 
 
 @dataclass
 class NativeBool:
+    """
+    A single boolean payload.
+    """
+
     a: bool
 
 
 @dataclass
 class NativeInt:
+    """
+    A single integer payload.
+    """
+
     a: int
 
 
 @dataclass
 class NativeBytes:
+    """
+    A single bytes payload.
+    """
+
     a: bytes
 
 
 @dataclass
 class NativeStr:
+    """
+    A single string payload.
+    """
+
     a: str
 
 
 @dataclass
 class SerializerType:
+    """
+    A ``Serializer`` format payload.
+    """
+
     a: varlenH
 
 
 @dataclass
 class NestedType:
+    """
+    A single nested payload.
+    """
+
     a: NativeInt
 
 
 @dataclass
 class NestedListType:
+    """
+    A single list of nested payload.
+    """
+
     a: List[NativeInt]  # Backward compatibility: Python >= 3.9 can use ``list[NativeInt]``
 
 
@@ -52,45 +82,80 @@ class Unknown:
     """
     To whomever is reading this and wondering why dict is not supported: use a nested payload instead.
     """
+
     a: dict
 
 
 @dataclass
 class A:
+    """
+    A payload consisting of two integers.
+    """
+
     a: int
     b: int
 
 
 @dataclass
 class B:
+    """
+    A payload consisting of two integers, of which one has a default value.
+    """
+
     a: int
     b: int = 3
 
 
 @dataclass(eq=False)
 class FwdDataclass:
+    """
+    A payload to test if the dataclass overwrite forwards its arguments to the "real" dataclass.
+    """
+
     a: int
 
 
 @dataclass
 class StripMsgId:
+    """
+    Payload to make sure that the message id is not seen as a field.
+    """
+
     a: int
     msg_id = 1
+
+    names = []   # Expose secret VariablePayload list
+    format_list = []   # Expose secret VariablePayload list
 
 
 @dataclass(msg_id=1)
 class FwdMsgId:
+    """
+    Payload that specfies the message id as an argument to the dataclass overwrite.
+    """
+
     a: int
+
+    names = []  # Expose secret VariablePayload list
+    format_list = []  # Expose secret VariablePayload list
 
 
 @dataclass
 class EverythingItem:
+    """
+    An item for the following Everything payload.
+    """
+
     a: bool
 
 
 @dataclass
 @ogdataclass
 class Everything:
+    """
+    Dataclass payload that includes all functionality.
+    """
+
     a: int
     b: bytes
     c: varlenH
@@ -99,12 +164,16 @@ class Everything:
     f: str
 
 
-class TestDataclassPayload(TestBase):  # pylint: disable=R0904
+class TestDataclassPayload(TestBase):
+    """
+    Tests for dataclass-based payloads.
+    """
 
     @staticmethod
-    def _pack_and_unpack(payload, instance):
+    def _pack_and_unpack(payload: type[T], instance: object) -> T:
         """
         Serialize and unserialize an instance of payload.
+
         :param payload: the payload class to serialize for
         :type payload: type(Payload)
         :param instance: the payload instance to serialize
@@ -112,10 +181,10 @@ class TestDataclassPayload(TestBase):  # pylint: disable=R0904
         :return: the repacked instance
         """
         serialized = default_serializer.pack_serializable(instance)
-        deserialized, _ = default_serializer.unpack_serializable(payload, serialized)  # pylint: disable=E0632
+        deserialized, _ = default_serializer.unpack_serializable(payload, serialized)
         return deserialized
 
-    def test_base_unnamed(self):
+    def test_base_unnamed(self) -> None:
         """
         Check if the wrapper returns the payload correctly with unnamed arguments.
         """
@@ -128,7 +197,7 @@ class TestDataclassPayload(TestBase):  # pylint: disable=R0904
         self.assertEqual(deserialized.a, 42)
         self.assertEqual(deserialized.b, 1337)
 
-    def test_base_named(self):
+    def test_base_named(self) -> None:
         """
         Check if the wrapper returns the payload correctly with named arguments.
         """
@@ -141,7 +210,7 @@ class TestDataclassPayload(TestBase):  # pylint: disable=R0904
         self.assertEqual(deserialized.a, 42)
         self.assertEqual(deserialized.b, 1337)
 
-    def test_pass_default(self):
+    def test_pass_default(self) -> None:
         """
         Check if the wrapper forwards default values.
         """
@@ -150,7 +219,7 @@ class TestDataclassPayload(TestBase):  # pylint: disable=R0904
         self.assertEqual(payload.a, 5)
         self.assertEqual(payload.b, 3)
 
-    def test_pass_default_overwrite(self):
+    def test_pass_default_overwrite(self) -> None:
         """
         Check if the wrapper correctly overwrites default values.
         """
@@ -159,7 +228,7 @@ class TestDataclassPayload(TestBase):  # pylint: disable=R0904
         self.assertEqual(payload.a, 5)
         self.assertEqual(payload.b, 7)
 
-    def test_nativebool_t_payload(self):
+    def test_nativebool_t_payload(self) -> None:
         """
         Check if unpacked BitPayload(true) works correctly.
         """
@@ -170,7 +239,7 @@ class TestDataclassPayload(TestBase):  # pylint: disable=R0904
         self.assertEqual(payload.a, True)
         self.assertEqual(deserialized.a, True)
 
-    def test_nativebool_f_payload(self):
+    def test_nativebool_f_payload(self) -> None:
         """
         Check if unpacked BitPayload(false) works correctly.
         """
@@ -181,7 +250,7 @@ class TestDataclassPayload(TestBase):  # pylint: disable=R0904
         self.assertEqual(payload.a, False)
         self.assertEqual(deserialized.a, False)
 
-    def test_nativeint_negative_payload(self):
+    def test_nativeint_negative_payload(self) -> None:
         """
         Check if unpacked NativeInt(-1) works correctly.
         """
@@ -192,7 +261,7 @@ class TestDataclassPayload(TestBase):  # pylint: disable=R0904
         self.assertEqual(payload.a, -1)
         self.assertEqual(deserialized.a, -1)
 
-    def test_nativeint_zero_payload(self):
+    def test_nativeint_zero_payload(self) -> None:
         """
         Check if unpacked NativeInt(0) works correctly.
         """
@@ -203,7 +272,7 @@ class TestDataclassPayload(TestBase):  # pylint: disable=R0904
         self.assertEqual(payload.a, 0)
         self.assertEqual(deserialized.a, 0)
 
-    def test_nativeint_positive_payload(self):
+    def test_nativeint_positive_payload(self) -> None:
         """
         Check if unpacked NativeInt(1) works correctly.
         """
@@ -214,7 +283,7 @@ class TestDataclassPayload(TestBase):  # pylint: disable=R0904
         self.assertEqual(payload.a, 1)
         self.assertEqual(deserialized.a, 1)
 
-    def test_nativebytes_empty_payload(self):
+    def test_nativebytes_empty_payload(self) -> None:
         """
         Check if unpacked NativeBytes(b'') works correctly.
         """
@@ -225,7 +294,7 @@ class TestDataclassPayload(TestBase):  # pylint: disable=R0904
         self.assertEqual(payload.a, b'')
         self.assertEqual(deserialized.a, b'')
 
-    def test_nativebytes_filled_payload(self):
+    def test_nativebytes_filled_payload(self) -> None:
         """
         Check if unpacked NativeBytes(b'hi') works correctly.
         """
@@ -236,7 +305,7 @@ class TestDataclassPayload(TestBase):  # pylint: disable=R0904
         self.assertEqual(payload.a, b'hi')
         self.assertEqual(deserialized.a, b'hi')
 
-    def test_nativestr_empty_payload(self):
+    def test_nativestr_empty_payload(self) -> None:
         """
         Check if unpacked NativeStr('') works correctly.
         """
@@ -247,7 +316,7 @@ class TestDataclassPayload(TestBase):  # pylint: disable=R0904
         self.assertEqual(payload.a, '')
         self.assertEqual(deserialized.a, '')
 
-    def test_nativestr_filled_payload(self):
+    def test_nativestr_filled_payload(self) -> None:
         """
         Check if unpacked NativeStr('hi') works correctly.
         """
@@ -258,7 +327,7 @@ class TestDataclassPayload(TestBase):  # pylint: disable=R0904
         self.assertEqual(payload.a, 'hi')
         self.assertEqual(deserialized.a, 'hi')
 
-    def test_serializertype_payload(self):
+    def test_serializertype_payload(self) -> None:
         """
         Check if a custom SerializerType ("varlenH") works correctly.
         """
@@ -269,7 +338,7 @@ class TestDataclassPayload(TestBase):  # pylint: disable=R0904
         self.assertEqual(payload.a, b'hi')
         self.assertEqual(deserialized.a, b'hi')
 
-    def test_nested_payload(self):
+    def test_nested_payload(self) -> None:
         """
         Check if a nested payload works correctly.
         """
@@ -280,7 +349,7 @@ class TestDataclassPayload(TestBase):  # pylint: disable=R0904
         self.assertEqual(payload.a, NativeInt(42))
         self.assertEqual(deserialized.a, NativeInt(42))
 
-    def test_nestedlist_empty_payload(self):
+    def test_nestedlist_empty_payload(self) -> None:
         """
         Check if an empty list of nested payloads works correctly.
         """
@@ -291,7 +360,7 @@ class TestDataclassPayload(TestBase):  # pylint: disable=R0904
         self.assertListEqual(payload.a, [])
         self.assertListEqual(deserialized.a, [])
 
-    def test_nestedlist_filled_payload(self):
+    def test_nestedlist_filled_payload(self) -> None:
         """
         Check if a list of nested payloads works correctly.
         """
@@ -302,13 +371,13 @@ class TestDataclassPayload(TestBase):  # pylint: disable=R0904
         self.assertListEqual(payload.a, [NativeInt(42), NativeInt(1337)])
         self.assertListEqual(deserialized.a, [NativeInt(42), NativeInt(1337)])
 
-    def test_unknown_payload(self):
+    def test_unknown_payload(self) -> None:
         """
         Check if an unknown type raises an error.
         """
         self.assertRaises(NotImplementedError, dataclass, Unknown)
 
-    def test_fwd_args(self):
+    def test_fwd_args(self) -> None:
         """
         Check if ``dataclass_payload`` forwards its arguments to ``dataclass``.
 
@@ -317,7 +386,7 @@ class TestDataclassPayload(TestBase):  # pylint: disable=R0904
         self.assertEqual(NativeInt(1), NativeInt(1))
         self.assertNotEqual(FwdDataclass(3), FwdDataclass(3))
 
-    def test_strip_msg_id(self):
+    def test_strip_msg_id(self) -> None:
         """
         Check if the ``msg_id`` field is identifier and stripped.
         """
@@ -328,7 +397,7 @@ class TestDataclassPayload(TestBase):  # pylint: disable=R0904
         self.assertListEqual(["q"], payload.format_list)
         self.assertEqual(payload.msg_id, 1)
 
-    def test_fwd_msg_id(self):
+    def test_fwd_msg_id(self) -> None:
         """
         Check if the ``msg_id`` argument is sets the Payload ``msg_id``.
         """
@@ -339,7 +408,7 @@ class TestDataclassPayload(TestBase):  # pylint: disable=R0904
         self.assertListEqual(["q"], payload.format_list)
         self.assertEqual(payload.msg_id, 1)
 
-    def test_everything(self):
+    def test_everything(self) -> None:
         """
         Check if the wrapper handles all of the different data types together.
         """

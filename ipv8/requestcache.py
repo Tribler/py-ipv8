@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import abc
 import logging
-from asyncio import CancelledError, gather
+from asyncio import CancelledError, Future, gather
 from contextlib import contextmanager, suppress
 from random import random
 from threading import Lock
@@ -11,11 +12,14 @@ from .taskmanager import TaskManager
 
 
 class NumberCache:
+    """
+    A cache for state information that is uniquely identified by a prefix and a number.
+    """
 
-    def __init__(self, request_cache, prefix, number):
-        assert isinstance(number, int), type(number)
-        assert isinstance(prefix, str), type(prefix)
-
+    def __init__(self, request_cache: RequestCache, prefix: str, number: int) -> None:
+        """
+        Create a new cache to be inserted in the given requestcache.
+        """
         super().__init__()
         self._logger = logging.getLogger(self.__class__.__name__)
 
@@ -25,66 +29,92 @@ class NumberCache:
         self._prefix = prefix
         self._number = number
 
-        self._managed_futures = []
+        self._managed_futures: list[tuple[Future, object | None]] = []
 
-    def register_future(self, future, on_timeout=None):
+    def register_future(self, future: Future, on_timeout: object | None = None) -> None:
         """
         Register a future for this Cache that will be canceled when this Cache times out.
 
         :param future: the future to register for this instance
-        :type future: Future
         :param on_timeout: The value to which the future is to be set when a timeout occurs. If the value is an
                            instance of Exception, future.set_exception will be called instead of future.set_result
-        :type on_timeout: Object
-        :returns: None
         """
         self._managed_futures.append((future, on_timeout))
 
     @property
-    def managed_futures(self):
+    def managed_futures(self) -> list[tuple[Future, object | None]]:
+        """
+        Get a list of all managed futures.
+        """
         return self._managed_futures
 
     @property
-    def prefix(self):
+    def prefix(self) -> str:
+        """
+        Get the prefix of this cache type.
+        """
         return self._prefix
 
     @property
-    def number(self):
+    def number(self) -> int:
+        """
+        Get the unique number of this cache.
+        """
         return self._number
 
     @property
-    def timeout_delay(self):
+    def timeout_delay(self) -> float:
+        """
+        The delay until this cache should be timed out.
+        """
         return 10.0
 
-    def on_timeout(self):
-        pass
+    @abc.abstractmethod
+    def on_timeout(self) -> None:
+        """
+        The logic to call when this cache times out.
+        """
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """
+        Convert this cache to a printable string.
+        """
         return "<%s %s-%d>" % (self.__class__.__name__, self.prefix, self.number)
 
 
 class RandomNumberCache(NumberCache):
+    """
+    A cache with a randomly generated number.
+    """
 
-    def __init__(self, request_cache, prefix):
-        assert isinstance(prefix, str), type(prefix)
-
+    def __init__(self, request_cache: RequestCache, prefix: str) -> None:
+        """
+        Create a new cache to be inserted in the given requestcache.
+        """
         # find an unclaimed identifier
         number = RandomNumberCache.find_unclaimed_identifier(request_cache, prefix)
         super().__init__(request_cache, prefix, number)
 
     @classmethod
-    def find_unclaimed_identifier(cls, request_cache, prefix):
+    def find_unclaimed_identifier(cls: type[RandomNumberCache], request_cache: RequestCache, prefix: str) -> int:
+        """
+        Generate a random number for use with this cache.
+        """
         for _ in range(1000):
             number = int(random() * 2 ** 16)
             if not request_cache.has(prefix, number):
                 break
         else:
-            raise RuntimeError("Could not find a number that isn't in use")
+            msg = "Could not find a number that isn't in use"
+            raise RuntimeError(msg)
 
         return number
 
 
 class RequestCache(TaskManager):
+    """
+    Manager for NumberCache caches.
+    """
 
     def __init__(self) -> None:
         """
@@ -94,7 +124,7 @@ class RequestCache(TaskManager):
 
         self._logger = logging.getLogger(self.__class__.__name__)
 
-        self._identifiers: dict[str, NumberCache] = dict()
+        self._identifiers: dict[str, NumberCache] = {}
         self.lock = Lock()
         self._shutdown = False
 
@@ -112,7 +142,7 @@ class RequestCache(TaskManager):
         This is used internally for ``passthrough()``, don't modify this directly!
         """
 
-    def add(self, cache: NumberCache):
+    def add(self, cache: NumberCache) -> NumberCache | None:
         """
         Add CACHE into this RequestCache instance.
 
@@ -136,53 +166,45 @@ class RequestCache(TaskManager):
                 self._logger.error("add with duplicate identifier \"%s\"", identifier)
                 return None
 
-            else:
-                self._logger.debug("add %s", cache)
-                self._identifiers[identifier] = cache
+            self._logger.debug("add %s", cache)
+            self._identifiers[identifier] = cache
 
-                timeout_delay = cache.timeout_delay
-                if self._timeout_override is not None:
-                    # Only overwrite the timeout if an overwrite is set.
-                    if (self._timeout_filters is None
-                            or any(issubclass(cache.__class__, f) for f in self._timeout_filters)):
-                        # Only overwrite the timeout if no class filters are set.
-                        # Otherwise, only overwrite the timeout if the cache class is in the filter.
-                        timeout_delay = self._timeout_override
+            timeout_delay = cache.timeout_delay
+            if (self._timeout_override is not None
+                    and (self._timeout_filters is None
+                         or any(issubclass(cache.__class__, f) for f in self._timeout_filters))):
+                # Only overwrite the timeout if an overwrite is set.
+                # Only overwrite the timeout if no class filters are set.
+                # Otherwise, only overwrite the timeout if the cache class is in the filter.
+                timeout_delay = self._timeout_override
 
-                self.register_task(cache, self._on_timeout, cache, delay=timeout_delay)
-                return cache
+            self.register_task(cache, self._on_timeout, cache, delay=timeout_delay)
+            return cache
 
-    def has(self, prefix, number):
+    def has(self, prefix: str, number: int) -> bool:
         """
         Returns True when IDENTIFIER is part of this RequestCache.
         """
-        assert isinstance(number, int), type(number)
-        assert isinstance(prefix, str), type(prefix)
         return self._create_identifier(number, prefix) in self._identifiers
 
-    def get(self, prefix, number):
+    def get(self, prefix: str, number: int) -> NumberCache | None:
         """
         Returns the Cache associated with IDENTIFIER when it exists, otherwise returns None.
         """
-        assert isinstance(number, int), type(number)
-        assert isinstance(prefix, str), type(prefix)
         return self._identifiers.get(self._create_identifier(number, prefix))
 
-    def pop(self, prefix, number):
+    def pop(self, prefix: str, number: int) -> NumberCache:
         """
         Returns the Cache associated with IDENTIFIER, and removes it from this RequestCache, when it exists, otherwise
         raises a KeyError exception.
         """
-        assert isinstance(number, int), type(number)
-        assert isinstance(prefix, str), type(prefix)
-
         identifier = self._create_identifier(number, prefix)
         cache = self._identifiers.pop(identifier)
         self.cancel_pending_task(cache)
         return cache
 
     @contextmanager
-    def passthrough(self,  # pylint: disable=W1113
+    def passthrough(self,
                     cls_filter: type[NumberCache] | None = None, *filters: type[NumberCache],
                     timeout: float = 0.0) -> Generator:
         """
@@ -227,22 +249,20 @@ class RequestCache(TaskManager):
         :returns: A context manager (compatible with ``with``).
         """
         self._timeout_override = timeout
-        self._timeout_filters = None if cls_filter is None else [cls_filter] + list(filters)
+        self._timeout_filters = None if cls_filter is None else [cls_filter, *list(filters)]
         try:
             yield
         finally:
             self._timeout_override = None
             self._timeout_filters = None
 
-    def _on_timeout(self, cache):
+    def _on_timeout(self, cache: NumberCache) -> None:
         """
         Called CACHE.timeout_delay seconds after CACHE was added to this RequestCache.
 
         _on_timeout is called for every Cache, except when it has been popped before the timeout expires.  When called
         _on_timeout will CACHE.on_timeout().
         """
-        assert isinstance(cache, NumberCache), type(cache)
-
         self._logger.debug("timeout on %s", cache)
 
         # the on_timeout call could have already removed the identifier from the cache using pop
@@ -261,20 +281,19 @@ class RequestCache(TaskManager):
 
         self.cancel_pending_task(cache)
 
-    def _create_identifier(self, number, prefix):
-        return "%s:%d" % (prefix, number)
+    def _create_identifier(self, number: int, prefix: str) -> str:
+        return f"{prefix}:{number}"
 
-    def clear(self):
+    def clear(self) -> list[Future | None]:
         """
         Clear the cache, canceling all pending tasks.
-
         """
         self._logger.debug("Clearing %s [%s]", self, len(self._identifiers))
         tasks = self.cancel_all_pending_tasks()
         self._identifiers.clear()
         return tasks
 
-    async def shutdown(self):
+    async def shutdown(self) -> None:
         """
         Clear the cache, cancel all pending tasks and disallow new caches being added.
         """

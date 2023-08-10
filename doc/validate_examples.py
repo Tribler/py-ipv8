@@ -2,16 +2,17 @@
 This script runs through all of the .py files in the subfolders of the ``/doc`` folder and runs them.
 If any of the scripts has tracebacks during their execution, this file exits with status 1.
 """
+import contextlib
 import multiprocessing
 import os
 import sys
 import threading
-
+from typing import TextIO
 
 TOP_DIRECTORY = os.path.dirname(os.path.dirname(os.path.realpath('__file__')))
 
 
-def validate_run(stdout: multiprocessing.Pipe, stderr: multiprocessing.Pipe, module_path: str):
+def validate_run(stdout: multiprocessing.Pipe, stderr: multiprocessing.Pipe, module_path: str) -> None:
     """
     Run the example from ``module_path`` isolated in a process.
 
@@ -32,20 +33,18 @@ def validate_run(stdout: multiprocessing.Pipe, stderr: multiprocessing.Pipe, mod
             module_contents += line
             line = module_file_h.readline()
 
-    exec(compile(module_contents, module_path, 'exec', dont_inherit=True, optimize=0), {})  # pylint: disable=W0122
+    exec(compile(module_contents, module_path, 'exec', dont_inherit=True, optimize=0), {})  # noqa: S102
 
 
-def safe_close(stream):
+def safe_close(stream: TextIO) -> None:
     """
     Always works, even if stream is already closed.
     """
-    try:
+    with contextlib.suppress(OSError):
         stream.close()
-    except OSError:
-        pass
 
 
-def empty_reader(input_buffer, output_list: list):
+def empty_reader(input_buffer: TextIO, output_list: list) -> None:
     """
     Consume lines from the ``input_buffer`` and append to the ``output_list``.
 
@@ -87,7 +86,7 @@ for path in os.listdir("."):
 
                 p.join(30.0)
                 if p.is_alive():
-                    print(f"Killed {subfile} after 30 seconds!")
+                    print(f"Killed {subfile} after 30 seconds!")  # noqa: T201
                     p.kill()
 
                 captured_stdout = "".join(output_stdout)
@@ -103,13 +102,13 @@ for path in os.listdir("."):
 
                 # Finally, check if the word "Traceback" occurs in any output.
                 if "Traceback" in captured_stdout or "Traceback" in captured_stderr:
-                    print(f"[FAILED] Traceback detected in {subfile}")
-                    print("=== stdout ===")
-                    print(captured_stdout)
-                    print("=== stderr ===")
-                    print(captured_stderr)
+                    print(f"[FAILED] Traceback detected in {subfile}")  # noqa: T201
+                    print("=== stdout ===")  # noqa: T201
+                    print(captured_stdout)  # noqa: T201
+                    print("=== stderr ===")  # noqa: T201
+                    print(captured_stderr)  # noqa: T201
                     success = False
                 else:
-                    print(f"[SUCCESS] No tracebacks detected in {subfile}")
+                    print(f"[SUCCESS] No tracebacks detected in {subfile}")  # noqa: T201
 
 sys.exit(0 if success else 1)

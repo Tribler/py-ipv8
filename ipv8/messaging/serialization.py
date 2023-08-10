@@ -5,6 +5,7 @@ import socket
 import typing
 from binascii import hexlify
 from struct import Struct, pack, unpack_from
+from typing import cast
 
 from .interfaces.udp.endpoint import DomainAddress, UDPv4Address, UDPv6Address
 
@@ -13,14 +14,38 @@ ADDRESS_TYPE_DOMAIN_NAME = 0x02
 ADDRESS_TYPE_IPV6 = 0x03
 
 
-FormatListType = typing.Union[str, typing.Type["Serializable"], typing.List["FormatListType"]]  # type:ignore
+FormatListType = typing.Union[str, typing.Type["Serializable"], typing.List["FormatListType"]]
 
 
 class PackError(RuntimeError):
-    pass
+    """
+    A given message format could not be packed to bytes or unpacked from bytes.
+    """
 
 
-class NestedPayload:
+T = typing.TypeVar('T')
+A = typing.TypeVar('A')
+
+
+class Packer(typing.Generic[T, A], metaclass=abc.ABCMeta):
+    """
+    A class that can pack and unpack objects to and from bytes.
+    """
+
+    @abc.abstractmethod
+    def pack(self, data: T) -> bytes:
+        """
+        Pack the given data.
+        """
+
+    @abc.abstractmethod
+    def unpack(self, data: bytes, offset: int, unpack_list: list, *args: A) -> int:
+        """
+        Unpack an object from the given data buffer and return the new offset in the data buffer.
+        """
+
+
+class NestedPayload(Packer):
     """
     This is a special type of format. Allowing for nested packing.
 
@@ -43,54 +68,53 @@ class NestedPayload:
 
     """
 
-    def __init__(self, serializer):
+    def __init__(self, serializer: Serializer) -> None:
         """
         Initialize with a known serializer, so we do not keep creating Serializer instances.
         As an added bonus, we also get all of the custom types defined in the given instance.
 
         :param serializer: the Serializer to inherit
-        :type serializer: Serializer
         """
         super().__init__()
         self.serializer = serializer
 
-    def pack(self, serializable):
+    def pack(self, serializable: Serializable) -> bytes:
         """
         Pack some serializable.
 
         :param serializable: the Serializable instance which we should serialize.
-        :type serializable: Serializable
         :return: the serialized data
-        :rtype: bytes
         """
         data = self.serializer.pack_serializable(serializable)
-        data = pack('>H', len(data)) + data
-        return data
+        return pack('>H', len(data)) + data
 
-    def unpack(self, data, offset, unpack_list, serializable_class):
+    def unpack(self,
+               data: bytes,
+               offset: int,
+               unpack_list: list,
+               *args: type[Serializable]) -> int:
         """
         Unpack a Serializable using a class definition for some given data and offset.
         This is a special unpack_from which also takes a payload class.
 
         :param data: the data to unpack from
-        :type data: str
         :param offset: the offset in the list of data to unpack from
-        :type offset: int
         :param unpack_list: the list to which to append the Serializable
-        :type unpack_list: list
-        :param serializable_class: the Serializable class to unpack to
-        :type serializable_class: type(Serializable)
+        :param args: a list of one Serializable class to unpack to
         :return: the new offset
-        :rtype: int
         """
+        serializable_class = args[0]
         unpacked, offset = self.serializer.unpack_serializable(serializable_class, data, offset=offset + 2)
         unpack_list.append(unpacked)
         return offset
 
 
-class Bits:
+class Bits(Packer):
+    """
+    A packer for bits into a byte.
+    """
 
-    def pack(self, *data):
+    def pack(self, *data: int) -> bytes:
         """
         Pack multiple bits into a single byte.
 
@@ -108,9 +132,9 @@ class Bits:
         byte |= 0x01 if data[7] else 0x00
         return pack('>B', byte)
 
-    def unpack(self, data, offset, unpack_list):
+    def unpack(self, data: bytes, offset: int, unpack_list: list, *args: object) -> int:
         """
-        Unpack multiple bits from a single byte. The resulting bits are appended to unpack_list
+        Unpack multiple bits from a single byte. The resulting bits are appended to unpack_list.
 
         :returns: the new offset
         """
@@ -127,33 +151,48 @@ class Bits:
         return offset + 1
 
 
-class Raw:
+class Raw(Packer):
     """
     Paste/unpack the remaining input without (un)packing.
     """
 
-    def pack(self, packable):
+    def pack(self, packable: bytes) -> bytes:
+        """
+        Forward the packable without doing anything to it.
+        """
         return packable
 
-    def unpack(self, data, offset, unpack_list):
+    def unpack(self, data: bytes, offset: int, unpack_list: list, *args: object) -> int:
+        """
+        Match everything remaining in the data as a bytes string.
+        """
         unpack_list.append(data[offset:])
         return len(data)
 
 
-class VarLen:
+class VarLen(Packer):
     """
     Pack/unpack from an encoded length + data string.
     """
 
-    def __init__(self, length_format, base=1):
+    def __init__(self, length_format: str, base: int = 1) -> None:
+        """
+        Create a new VarLen instance.
+        """
         self.length_format = length_format
         self.length_size = Struct(length_format).size
         self.base = base
 
-    def pack(self, data):
+    def pack(self, data: bytes) -> bytes:
+        """
+        Prefix the length of the given data to it and return the result.
+        """
         return pack(self.length_format, len(data) // self.base) + data
 
-    def unpack(self, data, offset, unpack_list):
+    def unpack(self, data: bytes, offset: int, unpack_list: list, *args: object) -> int:
+        """
+        Unpack from VarLen packed data.
+        """
         str_length = unpack_from(self.length_format, data, offset)[0] * self.base
         unpack_list.append(data[offset + self.length_size: offset + self.length_size + str_length])
         return offset + self.length_size + str_length
@@ -163,105 +202,167 @@ class VarLenUtf8(VarLen):
     """
     Pack/unpack from an unencoded utf8 length + data string.
     """
-    def pack(self, data):
+
+    def pack(self, data: str) -> bytes:  # type: ignore[override]
+        """
+        Pack a UTF-8 string.
+        """
         return super().pack(data.encode())
 
-    def unpack(self, data, offset, unpack_list):
-        encoded_data = []
+    def unpack(self, data: bytes, offset: int, unpack_list: list, *args: object) -> int:
+        """
+        Unpack an encoded UTF-8 string.
+        """
+        encoded_data: list[bytes] = []
         out = super().unpack(data, offset, encoded_data)
         unpack_list.append(encoded_data[0].decode())
         return out
 
 
-class IPv4:
+class IPv4(Packer):
     """
-    Pack/unpack an IPv4 address
+    Pack/unpack an IPv4 address.
     """
 
-    def pack(self, data):
+    def pack(self, data: tuple[str, int]) -> bytes:
+        """
+        Pack an IPv4 address to bytes.
+        """
         return pack('>4sH', socket.inet_aton(data[0]), data[1])
 
-    def unpack(self, data, offset, unpack_list):
+    def unpack(self, data: bytes, offset: int, unpack_list: list, *args: object) -> int:
+        """
+        Unpack a packed IPv4 address.
+        """
         host_bytes, port = unpack_from('>4sH', data, offset)
         unpack_list.append(UDPv4Address(socket.inet_ntoa(host_bytes), port))
         return offset + 6
 
 
-class Address:
+class Address(Packer):
+    """
+    Any address format: IPv4, IPv6 or host format.
+    """
 
-    def __init__(self, ip_only=False):
+    def __init__(self, ip_only: bool = False) -> None:
+        """
+        Create a new Address packer.
+        """
         self.ip_only = ip_only
 
-    def pack(self, address):
+    def pack(self, address: tuple[str, int]) -> bytes:
+        """
+        Pack a generic address as bytes.
+        """
         if isinstance(address, UDPv6Address):
-            return pack('>B16sH', ADDRESS_TYPE_IPV6, socket.inet_pton(socket.AF_INET6, address.ip), address.port)
+            address = typing.cast(UDPv6Address, address)
+            return pack('>B16sH', ADDRESS_TYPE_IPV6,
+                        socket.inet_pton(socket.AF_INET6, address.ip), address.port)
         if not self.ip_only and isinstance(address, DomainAddress):
+            address = typing.cast(DomainAddress, address)
             host_bytes = address.host.encode()
-            return pack(f'>BH{len(host_bytes)}sH', ADDRESS_TYPE_DOMAIN_NAME, len(host_bytes), host_bytes, address.port)
+            return pack(f'>BH{len(host_bytes)}sH', ADDRESS_TYPE_DOMAIN_NAME,
+                        len(host_bytes), host_bytes, address.port)
         if isinstance(address, tuple):
             return pack('>B4sH', ADDRESS_TYPE_IPV4, socket.inet_pton(socket.AF_INET, address[0]), address[1])
-        raise PackError(f'Unexpected address type {address}')
+        msg = f"Unexpected address type {address}"
+        raise PackError(msg)
 
-    def unpack(self, data, offset, unpack_list):
+    def unpack(self, data: bytes, offset: int, unpack_list: list, *args: object) -> int:
+        """
+        Unpack a generic address from bytes.
+        """
         address_type, = unpack_from('>B', data, offset)
         if address_type == ADDRESS_TYPE_IPV4:
             ip_bytes, port = unpack_from('>4sH', data, offset + 1)
             unpack_list.append(UDPv4Address(socket.inet_ntop(socket.AF_INET, ip_bytes), port))
             return offset + 7
-        elif address_type == ADDRESS_TYPE_IPV6:
+        if address_type == ADDRESS_TYPE_IPV6:
             ip_bytes, port = unpack_from('>16sH', data, offset + 1)
             unpack_list.append(UDPv6Address(socket.inet_ntop(socket.AF_INET6, ip_bytes), port))
             return offset + 19
-        elif not self.ip_only and address_type == ADDRESS_TYPE_DOMAIN_NAME:
+        if not self.ip_only and address_type == ADDRESS_TYPE_DOMAIN_NAME:
             length, = unpack_from('>H', data, offset + 1)
             host = data[offset + 3: offset + 3 + length].decode()
             unpack_list.append(DomainAddress(host, unpack_from('>H', data, offset + 3 + length)[0]))
             return offset + 5 + length
-        else:
-            raise PackError(f'Cannot unpack address type {address_type}')
+        msg = f"Cannot unpack address type {address_type}"
+        raise PackError(msg)
 
 
-class ListOf:
+class ListOf(Packer):
+    """
+    A list of a given packer.
+    """
 
-    def __init__(self, packer, length_format='>B'):
+    def __init__(self, packer: Packer, length_format: str = ">B") -> None:
+        """
+        Create a new list of a given packer format.
+
+        By default, we encode the number of items in a byte (max 255 items).
+        """
         self.packer = packer
         self.length_format = length_format
         self.length_size = Struct(length_format).size
 
-    def pack(self, data):
+    def pack(self, data: list) -> bytes:
+        """
+        Feed a list of objects to the registered packer.
+        """
         return pack(self.length_format, len(data)) + b''.join([self.packer.pack(item) for item in data])
 
-    def unpack(self, data, offset, unpack_list, *args):
+    def unpack(self, data: bytes, offset: int, unpack_list: list, *args: object) -> int:
+        """
+        Unpack a list of objects from the data.
+        """
         length, = unpack_from(self.length_format, data, offset)
         offset += self.length_size
 
-        result = []
+        result: list = []
         unpack_list.append(result)
         for _ in range(length):
             offset = self.packer.unpack(data, offset, result, *args)
         return offset
 
 
-class DefaultStruct:
+class DefaultStruct(Packer):
+    """
+    A format known to the ``struct`` module (like 'I', '20s', etc.).
+    """
 
-    def __init__(self, format_str):
+    def __init__(self, format_str: str) -> None:
+        """
+        Create a new packer for the given ``struct`` format string.
+        """
         self.format_str = format_str
         self.size = Struct(format_str).size
 
-    def pack(self, *data):
+    def pack(self, *data: list) -> bytes:
+        """
+        Pack a list of items by forwarding them to ``struct``.
+        """
         return pack(self.format_str, *data)
 
-    def unpack(self, data, offset, unpack_list):
+    def unpack(self, data: bytes, offset: int, unpack_list: list, *args: object) -> int:
+        """
+        Unpack a list of items from a the known ``struct`` format.
+        """
         result = unpack_from(self.format_str, data, offset)
         unpack_list.append(result if len(result) > 1 else result[0])
         return offset + self.size
 
 
 class Serializer:
+    """
+    The class performing serialization of Serializable objects.
+    """
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """
+        Create a new Serializer and register the default formats.
+        """
         super().__init__()
-        self._packers = {
+        self._packers: dict[str, Packer] = {
             '?': DefaultStruct(">?"),
             'B': DefaultStruct(">B"),
             'BBH': DefaultStruct(">BBH"),
@@ -302,19 +403,19 @@ class Serializer:
             'payload-list': ListOf(NestedPayload(self))
         }
 
-    def get_available_formats(self):
+    def get_available_formats(self) -> list[str]:
         """
         Get all available packing formats.
         """
         return list(self._packers.keys())
 
-    def get_packer_for(self, name):
+    def get_packer_for(self, name: str) -> Packer:
         """
         Get a packer by name.
         """
         return self._packers[name]
 
-    def add_packer(self, name, packer):
+    def add_packer(self, name: str, packer: Packer) -> None:
         """
         Register a new packer with a certain name.
 
@@ -323,25 +424,25 @@ class Serializer:
         """
         self._packers[name] = packer
 
-    def pack(self, fmt, item):
+    def pack(self, fmt: str, item: object) -> bytes:
         """
         Pack data without using a Serializable. Using a Serializable is the preferred method.
+
         :param fmt: the name of the packer to use while packing
         :param item: object to pack
         :return: the packed data
-        :rtype: bytes
         """
         return self._packers[fmt].pack(item)
 
-    def unpack(self, fmt, data, offset=0):
+    def unpack(self, fmt: str, data: bytes, offset: int = 0) -> tuple[object, int]:
         """
         Unpack data without using a Serializable. Using a Serializable is the preferred method.
+
         :param fmt: the name of the packer to use while unpacking
         :param data: bytes to unpack
         :return: the unpacked object
-        :rtype: object
         """
-        unpack_list = []
+        unpack_list: list = []
         if isinstance(fmt, str):
             offset = self._packers[fmt].unpack(data, offset, unpack_list)
         elif isinstance(fmt, list):
@@ -350,35 +451,37 @@ class Serializer:
             offset = self._packers['payload'].unpack(data, offset, unpack_list, fmt)
         return unpack_list[0], offset
 
-    def pack_serializable(self, serializable):
+    def pack_serializable(self, serializable: Serializable) -> bytes:
         """
         Serialize a single Serializable instance.
 
         :param serializable: the Serializable to pack
         :type serializable: Serializable
         :return: the serialized object
-        :rtype: bytes
         """
         packed = b''
         for packable in serializable.to_pack_list():
             try:
                 packed += self._packers[packable[0]].pack(*packable[1:])
             except Exception as e:
-                raise PackError(f"Could not pack item: {packable}\n{type(e).__name__}: {e}") from e
+                msg = f"Could not pack item: {packable}\n{type(e).__name__}: {e}"
+                raise PackError(msg) from e
         return packed
 
-    def pack_serializable_list(self, serializables):
+    def pack_serializable_list(self, serializables: list[Serializable]) -> bytes:
         """
         Serialize a list of Serializable instances.
 
         :param serializables: the Serializables to pack
         :type serializables: [Serializable]
         :return: the serialized list
-        :rtype: bytes
         """
         return b''.join(self.pack_serializable(serializable) for serializable in serializables)
 
-    def unpack_serializable(self, serializable, data, offset=0):
+    def unpack_serializable(self,
+                            serializable: type[Serializable],
+                            data: bytes,
+                            offset: int = 0) -> tuple[Serializable, int]:
         """
         Use the formats specified in a serializable object and unpack to it.
 
@@ -386,11 +489,12 @@ class Serializer:
         :param data: the data to unpack from
         :param offset: the optional offset to unpack data from
         """
-        unpack_list = []
+        unpack_list: list = []
         for fmt in serializable.format_list:
             try:
-                offset = self._packers[fmt].unpack(data, offset, unpack_list)
+                offset = self._packers[fmt].unpack(data, offset, unpack_list)  # type: ignore[index]
             except KeyError:
+                fmt = cast(type, fmt)  # If this is not a type, we'll crash
                 if not issubclass(fmt, Serializable):
                     raise
                 offset = self._packers['payload'].unpack(data, offset, unpack_list, fmt)
@@ -399,10 +503,15 @@ class Serializer:
                     raise
                 offset = self._packers['payload-list'].unpack(data, offset, unpack_list, fmt[0])
             except Exception as e:
-                raise PackError(f"Could not unpack item: {fmt}\n{type(e).__name__}: {e}") from e
+                msg = f"Could not unpack item: {fmt}\n{type(e).__name__}: {e}"
+                raise PackError(msg) from e
         return serializable.from_unpack_list(*unpack_list), offset
 
-    def unpack_serializable_list(self, serializables, data, offset=0, consume_all=True):
+    def unpack_serializable_list(self,
+                                 serializables: list[type[Serializable]],
+                                 data: bytes,
+                                 offset: int = 0,
+                                 consume_all: bool = True) -> list[Serializable | bytes]:
         """
         Use the formats specified in a list of serializable objects and unpack to them.
 
@@ -413,9 +522,8 @@ class Serializer:
         :except PackError: if the data could not be fit into the specified serializables
         :except PackError: if consume_all is True and not all of the data was consumed when parsing the serializables
         :return: the list of Serializable instances
-        :rtype: [Serializable]
         """
-        unpacked = []
+        unpacked: list[Serializable | bytes] = []
         for serializable in serializables:
             payload, offset = self.unpack_serializable(serializable, data, offset)
             unpacked.append(payload)
@@ -423,8 +531,9 @@ class Serializer:
         if not consume_all:
             unpacked.append(remainder)
         elif remainder:
-            raise PackError(f"Incoming packet {[serializable_class.__name__ for serializable_class in serializables]} "
-                            f"({hexlify(data)}) has extra data: ({hexlify(remainder)})")
+            msg = (f"Incoming packet {[serializable_class.__name__ for serializable_class in serializables]} "
+                   f"({hexlify(data)!r}) has extra data: ({hexlify(remainder)!r})")
+            raise PackError(msg)
         return unpacked
 
 
@@ -443,19 +552,24 @@ class Serializable(metaclass=abc.ABCMeta):
         E.g.:
         ``[(format1, data1), (format2, data2), (format3, data3), ..]``
         """
-        pass
 
+    @classmethod
     @abc.abstractmethod
-    def from_unpack_list(cls, *args) -> Serializable:  # pylint: disable=E0213
+    def from_unpack_list(cls: type[Serializable], *args: object) -> Serializable:
         """
         Create a new Serializable object from a list of unpacked variables.
         """
-        pass
 
 
 class Payload(Serializable, abc.ABC):
+    """
+    A serializable that has extra printing functionality.
+    """
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """
+        The string representation of this payload.
+        """
         out = self.__class__.__name__
         for attribute in dir(self):
             if not (attribute.startswith('_') or callable(getattr(self, attribute))) \
