@@ -3,13 +3,14 @@ from asyncio import ensure_future
 from binascii import hexlify, unhexlify
 
 from aiohttp import web
-
+from aiohttp.abc import Request
 from aiohttp_apispec import docs
 
-from .base_endpoint import BaseEndpoint, HTTP_NOT_FOUND, Response
-from .schema import DefaultResponseSchema
 from ..dht import DHTError
 from ..dht.community import DHTCommunity
+from ..types import IPv8
+from .base_endpoint import HTTP_NOT_FOUND, BaseEndpoint, Response
+from .schema import DefaultResponseSchema
 
 
 class NoBlockDHTEndpoint(BaseEndpoint):
@@ -17,14 +18,23 @@ class NoBlockDHTEndpoint(BaseEndpoint):
     This endpoint is responsible for handling requests for DHT data, non-blocking.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """
+        Create a REST endpoint for all non-blocking calls to the DHT overlay.
+        """
         super().__init__()
         self.dht = None
 
-    def setup_routes(self):
+    def setup_routes(self) -> None:
+        """
+        Register the names to make this endpoint callable.
+        """
         self.app.add_routes([web.get('/{mid}', self.handle_get)])
 
-    def initialize(self, session):
+    def initialize(self, session: IPv8) -> None:
+        """
+        Initialize this endpoint.
+        """
         super().initialize(session)
         self.dht = session.get_overlay(DHTCommunity)
 
@@ -49,19 +59,22 @@ class NoBlockDHTEndpoint(BaseEndpoint):
             }
         }
     )
-    async def handle_get(self, request):
+    async def handle_get(self, request: Request) -> Response:
+        """
+        Handle a GET request.
+        """
         if not self.dht:
             return Response({"error": "DHT community not found"}, status=HTTP_NOT_FOUND)
 
         mid = unhexlify(request.match_info['mid'])
 
-        async def connect_peer():
+        async def connect_peer() -> None:
             try:
                 self.dht.connect_peer(mid)
             except DHTError:
-                logging.error("DHT Failed to connect to %s", hexlify(mid))
+                logging.exception("DHT Failed to connect to %s", hexlify(mid))
             else:
-                logging.error("DHT connected to %s", hexlify(mid))
+                logging.exception("DHT connected to %s", hexlify(mid))
 
-        ensure_future(connect_peer())
+        ensure_future(connect_peer())  # noqa: RUF006
         return Response({"success": True})

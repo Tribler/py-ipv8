@@ -1,18 +1,26 @@
 import time
 from asyncio import TimeoutError, ensure_future, wait_for
+from typing import Iterable
 
-from .base import TestDHTBase
-from ..mocking.ipv8 import MockIPv8
 from ...dht import DHTError
 from ...dht.community import DHTCommunity
 from ...dht.provider import DHTCommunityProvider
 from ...dht.routing import NODE_LIMIT_QUERIES, Node, RoutingTable, distance
 from ...messaging.anonymization.tunnel import IntroductionPoint
 from ...util import succeed
+from ..mocking.ipv8 import MockIPv8
+from .base import TestDHTBase
 
 
 class TestDHTCommunity(TestDHTBase):
-    def setUp(self):
+    """
+    Tests for the DHT Community.
+    """
+
+    def setUp(self) -> None:
+        """
+        Setup with two nodes.
+        """
         super().setUp()
         self.initialize(DHTCommunity, 2)
 
@@ -26,10 +34,16 @@ class TestDHTCommunity(TestDHTBase):
             node.overlay.cancel_pending_task('store_my_peer')
             node.overlay.token_maintenance()
 
-    def create_node(self, *args, **kwargs):
+    def create_node(self, *args, **kwargs) -> MockIPv8:  # noqa: ANN002
+        """
+        Create a new node that runs the DHTCommunity with a curve25519 key.
+        """
         return MockIPv8("curve25519", DHTCommunity)
 
-    async def test_routing_table(self):
+    async def test_routing_table(self) -> None:
+        """
+        Test if the routing table is properly updated.
+        """
         await self.introduce_nodes()
         await self.deliver_messages()
 
@@ -45,48 +59,72 @@ class TestDHTCommunity(TestDHTBase):
         self.assertTrue(node1_bucket.get(node0_id))
         self.assertTrue(node0_bucket.get(node1_id))
 
-    async def test_ping_pong(self):
+    async def test_ping_pong(self) -> None:
+        """
+        Tests if pings are properly propagated.
+        """
         await self.introduce_nodes()
         node = await self.overlay(0).ping(Node(self.private_key(1), self.address(1)))
         self.assertEqual(node, self.my_peer(1))
 
-    async def test_ping_pong_fail(self):
+    async def test_ping_pong_fail(self) -> None:
+        """
+        Test if pings can timeout.
+        """
         await self.introduce_nodes()
         await self.nodes[1].stop()
         with self.assertRaises(TimeoutError):
             await wait_for(self.overlay(0).ping(Node(self.private_key(1), self.address(1))), 0.1)
 
-    async def test_store_value(self):
+    async def test_store_value(self) -> None:
+        """
+        Test if values are properly stored.
+        """
         await self.introduce_nodes()
         node = await self.overlay(0).store_value(self.key, self.value)
         self.assertIn(self.my_peer(1), node)
         self.assertEqual(self.storage(1).get(self.key), [self.value_in_store])
 
-    async def test_store_value_fail(self):
+    async def test_store_value_fail(self) -> None:
+        """
+        Test if values are not stored irresponsibly.
+        """
         await self.introduce_nodes()
         self.overlay(0).routing_tables[self.address(0).__class__] = RoutingTable(self.my_node_id(0))
         with self.assertRaises(DHTError):
             await self.overlay(0).store_value(self.key, self.value)
 
-    async def test_find_nodes(self):
+    async def test_find_nodes(self) -> None:
+        """
+        Test if nodes can be found.
+        """
         await self.introduce_nodes()
         nodes = await self.overlay(0).find_nodes(self.key)
         self.assertSetEqual(set(nodes), {Node(n.my_peer.key.pub().key_to_bin(), n.my_peer.address)
                                          for n in self.nodes[1:]})
 
-    async def test_find_values(self):
+    async def test_find_values(self) -> None:
+        """
+        Test if values can be found.
+        """
         await self.introduce_nodes()
         self.storage(1).put(self.key, self.value_in_store)
         values = await self.overlay(0).find_values(self.key)
         self.assertIn((self.value, None), values)
 
-    async def test_find_values_signed(self):
+    async def test_find_values_signed(self) -> None:
+        """
+        Test if signed values can be found.
+        """
         await self.introduce_nodes()
         self.storage(1).put(self.key, self.signed_in_store)
         values = await self.overlay(0).find_values(self.key)
         self.assertIn((self.value, self.key_bin(0)), values)
 
-    async def test_caching(self):
+    async def test_caching(self) -> None:
+        """
+        Test if values are cached.
+        """
         # Add a third node
         node = MockIPv8("curve25519", DHTCommunity)
         node.overlay.token_maintenance()
@@ -103,7 +141,10 @@ class TestDHTCommunity(TestDHTBase):
         await self.deliver_messages(.2)
         self.assertEqual(self.storage(1).get(self.key), [self.value_in_store])
 
-    async def test_refresh(self):
+    async def test_refresh(self) -> None:
+        """
+        Test if refreshing works.
+        """
         await self.introduce_nodes()
         await self.deliver_messages()
 
@@ -121,7 +162,10 @@ class TestDHTCommunity(TestDHTBase):
         self.assertEqual(bucket.last_changed, prev_ts)
         self.assertFalse(self.is_called)
 
-    async def test_token(self):
+    async def test_token(self) -> None:
+        """
+        Test if tokens work.
+        """
         dht_node = Node(self.private_key(1), self.address(1))
 
         # Without tokens
@@ -153,9 +197,9 @@ class TestDHTCommunity(TestDHTBase):
             await self.overlay(0).store_on_nodes(self.key, [self.value_in_store], [dht_node])
         self.assertEqual(self.storage(1).get(self.key), [])
 
-    async def test_provider(self):
+    async def test_provider(self) -> None:
         """
-        Test the DHT provider (used to fetch peers in the hidden services)
+        Test the DHT provider (used to fetch peers in the hidden services).
         """
         self.add_node_to_experiment(self.create_node())
 
@@ -171,16 +215,19 @@ class TestDHTCommunity(TestDHTBase):
         peers = await dht_provider_3.lookup(b'a' * 20)
         self.assertEqual(len(peers[1]), 2)
 
-    async def test_provider_invalid_data(self):
+    async def test_provider_invalid_data(self) -> None:
         """
-        Test the DHT provider when invalid data arrives
+        Test the DHT provider when invalid data arrives.
         """
         self.overlay(0).find_values = lambda _: succeed([('invalid_data', None)])
         dht_provider = DHTCommunityProvider(self.overlay(0), 1337)
         peers = await dht_provider.lookup(b'a' * 20)
         self.assertEqual(len(peers[1]), 0)
 
-    async def test_rate_limit(self):
+    async def test_rate_limit(self) -> None:
+        """
+        Test that the rate limit is respected.
+        """
         await self.introduce_nodes()
         await self.deliver_messages(.5)
 
@@ -198,31 +245,49 @@ class TestDHTCommunity(TestDHTBase):
         with self.assertRaises(TimeoutError):
             await wait_for(self.overlay(0).ping(node1), 0.1)
 
-    async def test_unload_while_contacting_node(self):
+    async def test_unload_while_contacting_node(self) -> None:
+        """
+        Test unloading nodes while contacting them.
+        """
         await self.introduce_nodes()
-        ensure_future(self.overlay(0).find_nodes(self.key))
+        ensure_future(self.overlay(0).find_nodes(self.key))  # noqa: RUF006
         await self.overlay(0).unload()
-        self.assertTrue(self.overlay(0).request_cache._shutdown)  # pylint: disable=W0212
-        self.assertTrue(self.overlay(0)._shutdown)  # pylint: disable=W0212
+        self.assertTrue(self.overlay(0).request_cache._shutdown)  # noqa: SLF001
+        self.assertTrue(self.overlay(0)._shutdown)  # noqa: SLF001
 
 
 class TestDHTCommunityXL(TestDHTBase):
+    """
+    Fat tests for the DHT Community.
+    """
 
-    def setUp(self):
+    def setUp(self) -> None:
+        """
+        Set up 15 nodes that run the DHT Community.
+        """
         super().setUp()
         self.initialize(DHTCommunity, 15)
         for node in self.nodes:
             node.overlay.cancel_pending_task('store_peer')
             node.overlay.ping = lambda _: succeed(None)
 
-    def create_node(self, *args, **kwargs):
+    def create_node(self, *args, **kwargs) -> MockIPv8:  # noqa: ANN002
+        """
+        Create a new node that runs the DHTCommunity with a curve25519 key.
+        """
         return MockIPv8("curve25519", DHTCommunity)
 
-    def get_closest_nodes(self, node_id, max_nodes=8):
+    def get_closest_nodes(self, node_id: bytes, max_nodes: int = 8) -> Iterable[MockIPv8]:
+        """
+        Get the nodes closest to a given node id.
+        """
         return sorted(self.nodes,
                       key=lambda n: distance(n.overlay.get_my_node_id(n.overlay.my_peer), node_id))[:max_nodes]
 
-    async def test_full_protocol(self):
+    async def test_full_protocol(self) -> None:
+        """
+        Check if the full DHT protocol works.
+        """
         # Fill routing tables
         await self.introduce_nodes()
         await self.deliver_messages(.5)

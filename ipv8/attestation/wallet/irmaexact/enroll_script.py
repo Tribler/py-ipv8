@@ -8,6 +8,8 @@ export PYTHONPATH=.
 python3 -m ipv8.attestation.wallet.irmaexact.enroll_script
 """
 
+# ruff: noqa
+
 import base64
 import binascii
 import json
@@ -216,7 +218,7 @@ for i in range(len(cbs)):
     attr_output += '\t"z": ' + str(Z) + '\n'
     attr_output += '}'
 
-    print("*" * 20)  # noqa: T001
-    print("Attribute:", issuance_output["credentials"][i]['credential'])  # noqa: T001
-    print(attr_output)  # noqa: T001
-    print("*" * 20)  # noqa: T001
+    print("*" * 20)  # noqa: T201
+    print("Attribute:", issuance_output["credentials"][i]['credential'])  # noqa: T201
+    print(attr_output)  # noqa: T201
+    print("*" * 20)  # noqa: T201

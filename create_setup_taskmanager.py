@@ -10,11 +10,10 @@ import importlib
 import logging
 import os
 import typing
-from collections import namedtuple
 
 import ipv8.taskmanager
 
-MissingImport = namedtuple("MissingImport", ["node", "stmt", "alias"])
+MissingImport = typing.NamedTuple("MissingImport", ["node", "stmt", "alias"])
 TASKMNGR_FILE = ipv8.taskmanager.__file__
 TASKMNGR_FOLDER = os.path.dirname(TASKMNGR_FILE)
 TARGET_TMP_DIR = "ipv8_taskmanager"
@@ -33,10 +32,10 @@ def prepare_folder() -> None:
     try:
         os.makedirs(TARGET_FOLDER, mode=0o777, exist_ok=False)
     except FileExistsError as e:
-        logging.error("The ipv8_taskmanager folder already exists. "
+        logging.exception("The ipv8_taskmanager folder already exists. "
                       "Please check that you are not overwriting something important and "
                       "delete the folder manually.")
-        raise e
+        raise e  # noqa: TRY201
 
 
 def find_missing_imports(tree: ast.AST) -> list[MissingImport]:
@@ -55,15 +54,15 @@ def find_missing_imports(tree: ast.AST) -> list[MissingImport]:
             for alias in node.names:
                 stmt = f"import {alias.name}"
                 try:
-                    exec(stmt, {}, {})  # pylint: disable=W0122
+                    exec(stmt, {}, {})  # noqa: S102
                 except ModuleNotFoundError as e:
-                    logging.error("Unimportable modules are not allowed!")
-                    raise e
+                    logging.exception("Unimportable modules are not allowed!")
+                    raise e  # noqa: TRY201
         elif isinstance(node, ast.ImportFrom):
             for alias in node.names:
                 stmt = f"from {node.module} import {alias.name}"
                 try:
-                    exec(stmt, {}, {})  # pylint: disable=W0122
+                    exec(stmt, {}, {})  # noqa: S102
                 except ModuleNotFoundError:
                     missing.append(MissingImport(node=node, stmt=stmt, alias=alias.name))
     return missing
@@ -174,7 +173,7 @@ def extract_taskmanager() -> None:
         f.write(raw_source)
 
 
-def make_setup():
+def make_setup() -> None:
     """
     Create ``ipv8_taskmanager/setup.py``.
 

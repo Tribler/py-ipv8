@@ -5,7 +5,7 @@
 # full list see the documentation:
 # http://www.sphinx-doc.org/en/master/config
 
-# pylint: disable=W0622
+# ruff: noqa: A001
 
 # -- Path setup --------------------------------------------------------------
 

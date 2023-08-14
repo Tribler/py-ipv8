@@ -3,7 +3,7 @@ import typing
 Address = typing.Tuple[str, int]
 DataclassPayload = typing.TypeVar('DataclassPayload')
 
-# pylint: disable=unused-import
+# ruff: noqa: F401
 
 if typing.TYPE_CHECKING:
     from ipv8.attestation.identity.attestation import Attestation

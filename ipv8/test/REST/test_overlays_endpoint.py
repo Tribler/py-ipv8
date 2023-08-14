@@ -1,41 +1,62 @@
+from __future__ import annotations
+
 import binascii
 
-from ..REST.rest_base import RESTTestBase
-from ..mocking.community import MockCommunity
 from ...keyvault.crypto import default_eccrypto
 from ...messaging.interfaces.statistics_endpoint import StatisticsEndpoint
 from ...peer import Peer
+from ..mocking.community import MockCommunity
+from ..REST.rest_base import RESTTestBase
 
 
-def hexlify(value):
+def hexlify(value: str) -> str:
+    """
+    Convert a utf-8 string into a utf-8 hex string.
+    """
     return binascii.hexlify(value).decode()
 
 
 class MockCommunity2(MockCommunity):
+    """
+    Empty Community for testing.
+    """
+
     community_id = b'DifferentCommunityID'
 
 
 class TestOverlaysEndpoint(RESTTestBase):
+    """
+    Tests for REST requests to the overlays endpoint.
+    """
 
-    async def setUp(self):  # pylint: disable=W0236
+    async def setUp(self) -> None:
+        """
+        Set up a single node.
+        """
         super().setUp()
         await self.initialize([], 1)
         self.ipv8 = self.node(0)
 
-    def mount_statistics(self, i, add_mock_community=True):
+    def mount_statistics(self, i: int, add_mock_community: bool = True) -> None:
+        """
+        Add a statistics endpoint to the given node id and possibly load a mock community.
+        """
         self.node(i).endpoint = StatisticsEndpoint(self.node(i).endpoint)
         self.node(i).rest_manager.root_endpoint.endpoints['/overlays'].statistics_supported = True
 
         if add_mock_community:
             self.node(i).overlay = self.add_mock_community(i)
 
-    def add_mock_community(self, i, overlay_class=MockCommunity):
+    def add_mock_community(self, i: int, overlay_class: type[MockCommunity] = MockCommunity) -> MockCommunity:
+        """
+        Add a given overlay class to the given node id.
+        """
         mock_community = overlay_class()
         mock_community.endpoint = self.node(i).endpoint
         self.node(i).overlays.append(mock_community)
         return mock_community
 
-    async def test_no_overlays(self):
+    async def test_no_overlays(self) -> None:
         """
         Check if the overlays endpoint returns no overlays if it has no overlays.
         """
@@ -44,7 +65,7 @@ class TestOverlaysEndpoint(RESTTestBase):
         self.assertIn("overlays", response)
         self.assertListEqual([], response["overlays"])
 
-    async def test_one_overlay_no_peers(self):
+    async def test_one_overlay_no_peers(self) -> None:
         """
         Check if the overlays endpoint returns one overlay if it has one overlay.
         """
@@ -65,7 +86,7 @@ class TestOverlaysEndpoint(RESTTestBase):
         self.assertEqual("MockCommunity", response["overlays"][0]["overlay_name"])
         self.assertDictEqual({}, response["overlays"][0]["statistics"])
 
-    async def test_one_overlay_one_peer(self):
+    async def test_one_overlay_one_peer(self) -> None:
         """
         Check if the overlays endpoint correctly returns its one peer for its one overlay.
         """
@@ -85,7 +106,7 @@ class TestOverlaysEndpoint(RESTTestBase):
         self.assertEqual(hexlify(expected_peer.public_key.key_to_bin()),
                          response["overlays"][0]["peers"][0]["public_key"])
 
-    async def test_one_overlay_multiple_peers(self):
+    async def test_one_overlay_multiple_peers(self) -> None:
         """
         Check if the overlays endpoint correctly returns its peers for its one overlay.
         """
@@ -111,7 +132,7 @@ class TestOverlaysEndpoint(RESTTestBase):
             self.assertNotIn(response["overlays"][0]["peers"][i]["public_key"], known_keys)
             known_keys.add(response["overlays"][0]["peers"][i]["public_key"])
 
-    async def test_one_overlay_statistics(self):
+    async def test_one_overlay_statistics(self) -> None:
         """
         Check if the overlays endpoint returns overlay statistics correctly for one overlay.
         """
@@ -132,7 +153,7 @@ class TestOverlaysEndpoint(RESTTestBase):
         self.assertEqual(1, len(response["overlays"]))
         self.assertDictEqual(expected_stats, response["overlays"][0]["statistics"])
 
-    async def test_multiple_overlays(self):
+    async def test_multiple_overlays(self) -> None:
         """
         Check if the overlays endpoint returns multiple overlays.
         """
@@ -155,7 +176,7 @@ class TestOverlaysEndpoint(RESTTestBase):
             self.assertNotIn(response["overlays"][i]["global_time"], known_global_times)
             known_global_times.add(response["overlays"][i]["global_time"])
 
-    async def test_statistics_no_overlays(self):
+    async def test_statistics_no_overlays(self) -> None:
         """
         Check if no statistics are returned if no overlays are loaded.
         """
@@ -164,7 +185,7 @@ class TestOverlaysEndpoint(RESTTestBase):
         self.assertIn("statistics", response)
         self.assertListEqual([], response["statistics"])
 
-    async def test_statistics_one_overlay(self):
+    async def test_statistics_one_overlay(self) -> None:
         """
         Check if statistics are returned for one loaded overlay.
         """
@@ -193,7 +214,7 @@ class TestOverlaysEndpoint(RESTTestBase):
         self.assertDictEqual(expected_stats,
                              response["statistics"][0]["MockCommunity"]["245:on_old_introduction_response"])
 
-    async def test_statistics_one_overlay_with_unknown(self):
+    async def test_statistics_one_overlay_with_unknown(self) -> None:
         """
         Check if statistics are returned for one loaded overlay, with an unknown message.
         """
@@ -212,7 +233,7 @@ class TestOverlaysEndpoint(RESTTestBase):
         self.assertIn("245:on_old_introduction_response", response["statistics"][0]["MockCommunity"])
         self.assertIn("69:unknown", response["statistics"][0]["MockCommunity"])
 
-    async def test_enable_stats_not_supported(self):
+    async def test_enable_stats_not_supported(self) -> None:
         """
         Check if stats cannot be enabled on an endpoint that is not a StatisticsEndpoint.
         """
@@ -221,7 +242,7 @@ class TestOverlaysEndpoint(RESTTestBase):
 
         self.assertFalse(response["success"])
 
-    async def test_enable_stats_no_enable_param(self):
+    async def test_enable_stats_no_enable_param(self) -> None:
         """
         Check if stats cannot be enabled when the "enable" parameter is missing.
         """
@@ -232,7 +253,7 @@ class TestOverlaysEndpoint(RESTTestBase):
 
         self.assertFalse(response["success"])
 
-    async def test_enable_stats_no_target(self):
+    async def test_enable_stats_no_target(self) -> None:
         """
         Check if stats cannot be enabled without specifying what overlay(s) to use.
         """
@@ -243,7 +264,7 @@ class TestOverlaysEndpoint(RESTTestBase):
 
         self.assertFalse(response["success"])
 
-    async def test_enable_stats_all(self):
+    async def test_enable_stats_all(self) -> None:
         """
         Check if stats are correctly returned for one "all" overlays.
         """
@@ -255,7 +276,7 @@ class TestOverlaysEndpoint(RESTTestBase):
         self.assertTrue(response["success"])
         self.assertIn(self.overlay(0).get_prefix(), self.overlay(0).endpoint.statistics)
 
-    async def test_enable_stats_all_many(self):
+    async def test_enable_stats_all_many(self) -> None:
         """
         Check if stats are correctly returned for all overlays.
         """
@@ -269,7 +290,7 @@ class TestOverlaysEndpoint(RESTTestBase):
         self.assertIn(self.overlay(0).get_prefix(), self.overlay(0).endpoint.statistics)
         self.assertIn(mock_community2.get_prefix(), self.overlay(0).endpoint.statistics)
 
-    async def test_enable_stats_one_exclude(self):
+    async def test_enable_stats_one_exclude(self) -> None:
         """
         Check if stats are correctly returned for a specific overlay, excluding another.
         """
@@ -283,7 +304,7 @@ class TestOverlaysEndpoint(RESTTestBase):
         self.assertIn(self.overlay(0).get_prefix(), self.overlay(0).endpoint.statistics)
         self.assertNotIn(mock_community2.get_prefix(), self.overlay(0).endpoint.statistics)
 
-    async def test_enable_stats_one_include(self):
+    async def test_enable_stats_one_include(self) -> None:
         """
         Check if stats are correctly returned for a specific overlay, including another.
         """
