@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from asyncio import Future
-from typing import Coroutine, Iterable
+from typing import TYPE_CHECKING, Coroutine, Iterable
 
-from ..types import Address, Community
+if TYPE_CHECKING:
+    from asyncio import Future
+
+    from ..types import Address, Community
 
 
 class Bootstrapper(ABC):
