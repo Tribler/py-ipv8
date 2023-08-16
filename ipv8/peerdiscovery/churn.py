@@ -1,7 +1,13 @@
+from __future__ import annotations
+
 from random import sample
 from time import time
+from typing import TYPE_CHECKING
 
 from .discovery import DiscoveryStrategy
+
+if TYPE_CHECKING:
+    from ..types import Address, Overlay, Peer
 
 
 class RandomChurn(DiscoveryStrategy):
@@ -9,7 +15,8 @@ class RandomChurn(DiscoveryStrategy):
     Select random peers, ping them if inactive, remove them if unresponsive.
     """
 
-    def __init__(self, overlay, sample_size=8, ping_interval=10.0, inactive_time=27.5, drop_time=57.5):
+    def __init__(self, overlay: Overlay, sample_size: int = 8,  # noqa: PLR0913
+                 ping_interval: float = 10.0, inactive_time: float = 27.5, drop_time: float = 57.5) -> None:
         """
         Random peer removal strategy.
 
@@ -20,13 +27,13 @@ class RandomChurn(DiscoveryStrategy):
         :param drop_time: time after which a peer is dropped
         """
         super().__init__(overlay)
-        self._pinged = {}
+        self._pinged: dict[Address, float] = {}
         self.sample_size = sample_size
         self.ping_interval = ping_interval
         self.inactive_time = inactive_time
         self.drop_time = drop_time
 
-    def should_drop(self, peer):
+    def should_drop(self, peer: Peer) -> bool:
         """
         Have we passed the time before we consider this peer to be unreachable.
         """
@@ -34,7 +41,7 @@ class RandomChurn(DiscoveryStrategy):
             return False
         return time() > (peer.last_response + self.drop_time)
 
-    def is_inactive(self, peer):
+    def is_inactive(self, peer: Peer) -> bool:
         """
         Have we passed the time before we consider this peer to be inactive.
         """
@@ -42,7 +49,7 @@ class RandomChurn(DiscoveryStrategy):
             return False
         return time() > (peer.last_response + self.inactive_time)
 
-    def take_step(self):
+    def take_step(self) -> None:
         """
         Select a new (set of) peer(s) to investigate liveness for.
         """
@@ -62,4 +69,4 @@ class RandomChurn(DiscoveryStrategy):
                             self._pinged.pop(peer.address)
                         if peer.address not in self._pinged:
                             self._pinged[peer.address] = time()
-                            self.overlay.send_ping(peer)
+                            self.overlay.send_ping(peer)  # type: ignore[attr-defined]

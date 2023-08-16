@@ -1,7 +1,13 @@
+from __future__ import annotations
+
 import abc
 from random import choice, randint
 from threading import Lock
 from time import time
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..types import Address, Overlay, Peer
 
 
 class DiscoveryStrategy(metaclass=abc.ABCMeta):
@@ -9,13 +15,18 @@ class DiscoveryStrategy(metaclass=abc.ABCMeta):
     Strategy for discovering peers in a network.
     """
 
-    def __init__(self, overlay):
+    def __init__(self, overlay: Overlay) -> None:
+        """
+        Create a new strategy instance for a particular overlay.
+        """
         self.overlay = overlay
         self.walk_lock = Lock()
 
     @abc.abstractmethod
-    def take_step(self):
-        pass
+    def take_step(self) -> None:
+        """
+        Callback for when an IPv8 tick occurs (defaults to roughly every 0.5 seconds).
+        """
 
 
 class RandomWalk(DiscoveryStrategy):
@@ -23,39 +34,34 @@ class RandomWalk(DiscoveryStrategy):
     Walk randomly through the network.
     """
 
-    def __init__(self, overlay, timeout=3.0, window_size=5, reset_chance=50, target_interval=0):
+    def __init__(self, overlay: Overlay, timeout: float = 3.0,  # noqa: PLR0913
+                 window_size: int = 5, reset_chance: int = 50, target_interval: int = 0) -> None:
         """
         Create a new walk strategy.
 
         :param overlay: the Overlay to walk over
-        :type overlay: Overlay
         :param timeout: the timeout (in seconds) after which peers are considered unreachable
-        :type timeout: float
         :param window_size: the amount of unanswered packets we can have in-flight
-        :type window_size: int
         :param reset_chance: the chance (0-255) to go back to the tracker
         :type reset_chance: int
         :param target_interval: the target interval (in seconds) between steps or 0 to use the default interval
         :type target_interval: int
         """
         super().__init__(overlay)
-        self.intro_timeouts = {}
+        self.intro_timeouts: dict[Address, float] = {}
         self.node_timeout = timeout
         self.window_size = window_size
         self.reset_chance = reset_chance
         self.target_interval = target_interval
-        self.last_step = 0
+        self.last_step: float = 0
 
-    def take_step(self):
+    def take_step(self) -> None:
         """
         Walk to random walkable peer.
         """
         with self.walk_lock:
             # Sanitize unreachable nodes
-            to_remove = []
-            for node in self.intro_timeouts:
-                if self.intro_timeouts[node] + self.node_timeout < time():
-                    to_remove.append(node)
+            to_remove = [node for node in self.intro_timeouts if self.intro_timeouts[node] + self.node_timeout < time()]
             for node in to_remove:
                 self.intro_timeouts.pop(node)
                 if not self.overlay.network.get_verified_by_address(node):
@@ -88,26 +94,30 @@ class EdgeWalk(DiscoveryStrategy):
     When a certain depth is reached, we teleport home and start again from our neighborhood.
     """
 
-    def __init__(self, overlay, edge_length=4, neighborhood_size=6, edge_timeout=3.0):
+    def __init__(self, overlay: Overlay, edge_length: int = 4, neighborhood_size: int = 6,
+                 edge_timeout: float = 3.0) -> None:
+        """
+        Create a new edge walk instance with no known neighbors.
+        """
         super().__init__(overlay)
-        self._neighborhood = []
+        self._neighborhood: list[Peer] = []
 
-        self.complete_edges = []
-        self.under_construction = {}
-        self.last_edge_responses = {}
+        self.complete_edges: list[list[Peer]] = []
+        self.under_construction: dict[Peer, list[Peer]] = {}
+        self.last_edge_responses: dict[Peer, float] = {}
 
         self.edge_length = edge_length
         self.neighborhood_size = neighborhood_size
         self.edge_timeout = edge_timeout
 
-    def get_available_root(self):
+    def get_available_root(self) -> Peer | None:
         """
         Get a root, if it exists, which is not busy constructing an edge for us.
         """
         available = list(set(self._neighborhood) - set(self.under_construction.keys()))
         return choice(available) if available else None
 
-    def take_step(self):
+    def take_step(self) -> None:  # noqa: C901
         """
         Attempt to grow an edge.
         """
