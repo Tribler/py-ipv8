@@ -555,7 +555,7 @@ class Serializable(metaclass=abc.ABCMeta):
 
     @classmethod
     @abc.abstractmethod
-    def from_unpack_list(cls: type[Serializable], *args: object) -> Serializable:
+    def from_unpack_list(cls: type[Serializable], *args: typing.Any, **kwargs) -> Serializable:  # noqa: ANN401
         """
         Create a new Serializable object from a list of unpacked variables.
         """
