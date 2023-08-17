@@ -16,7 +16,10 @@ class RootEndpoint(BaseEndpoint):
     It will dispatch requests regarding torrents, channels, settings etc to the right child endpoint.
     """
 
-    def setup_routes(self):
+    def setup_routes(self) -> None:
+        """
+        Register the names to make this endpoint callable.
+        """
         endpoints = {'/asyncio': AsyncioEndpoint,
                      '/attestation': AttestationEndpoint,
                      '/dht': DHTEndpoint,

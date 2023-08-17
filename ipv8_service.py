@@ -181,8 +181,7 @@ else:
                         try:
                             # We wrap the take_step into a general except as it is prone to programmer error.
                             # Even ``get_peers()`` may fail (https://github.com/Tribler/py-ipv8/issues/1136).
-                            peer_count = len(strategy.overlay.get_peers())
-                            if (target_peers == -1) or (peer_count < target_peers):
+                            if (target_peers == -1) or (strategy.get_peer_count() < target_peers):
                                 strategy.take_step()
                         except Exception:
                             logging.exception("Exception occurred while trying to walk!\n%s,"

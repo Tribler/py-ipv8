@@ -1,42 +1,64 @@
+from __future__ import annotations
+
 import base64
+from typing import TYPE_CHECKING, cast
 
 from aiohttp import web
-
 from aiohttp_apispec import docs, json_schema
-
 from marshmallow.fields import Dict, Float, String
 
-from .base_endpoint import BaseEndpoint, HTTP_BAD_REQUEST, Response
-from .schema import DefaultResponseSchema, schema
 from ..attestation.communication_manager import CommunicationManager
+from ..types import IPv8
 from ..util import strip_sha1_padding
+from .base_endpoint import HTTP_BAD_REQUEST, BaseEndpoint, MiddleWaresType, Response
+from .schema import DefaultResponseSchema, schema
 
+if TYPE_CHECKING:
+    from aiohttp.abc import Application, Request
 
 PseudonymListResponseSchema = schema(PseudonymListResponse={"names": [String]})
 CredentialSchema = schema(Credential={"name": String, "hash": String, "metadata": Dict, "attesters": [String]})
 CredentialListResponseSchema = schema(CredentialListResponse={"names": [CredentialSchema]})
 
 
-def ez_b64_encode(s):
+def ez_b64_encode(s: bytes) -> str:
+    """
+    Encode bytes as base 64.
+    """
     return base64.b64encode(s).decode()
 
 
-def ez_b64_decode(s):
+def ez_b64_decode(s: str) -> bytes:
+    """
+    Decode bytes from base 64.
+    """
     return base64.b64decode(s.encode())
 
 
-class IdentityEndpoint(BaseEndpoint):
+class IdentityEndpoint(BaseEndpoint[IPv8]):
+    """
+    Endpoint to spawn and manipulate Self-Sovereign Identities.
+    """
 
-    def __init__(self, middlewares=()):
+    def __init__(self, middlewares: MiddleWaresType = ()) -> None:
+        """
+        Create new unregistered and uninitialized REST endpoint.
+        """
         super().__init__(middlewares)
-        self.communication_manager = None
+        self.communication_manager: CommunicationManager | None = None
         self.app.on_shutdown.append(self.on_shutdown)
 
-    def initialize(self, session):
+    def initialize(self, session: IPv8) -> None:
+        """
+        Initialize this endpoint for the given session instance.
+        """
         super().initialize(session)
         self.communication_manager = CommunicationManager(session)
 
-    def setup_routes(self):
+    def setup_routes(self) -> None:
+        """
+        Register the names to make this endpoint callable.
+        """
         self.app.add_routes([web.get('', self.list_pseudonyms),
 
                              web.get('/{pseudonym_name}/schemas', self.list_schemas),
@@ -71,7 +93,14 @@ class IdentityEndpoint(BaseEndpoint):
             }
         }
     )
-    async def list_pseudonyms(self, request):
+    async def list_pseudonyms(self, request: Request) -> Response:
+        """
+        List our pseudonyms.
+        """
+        if self.communication_manager is None:
+            return Response({"names": []})
+        self.communication_manager = cast(CommunicationManager, self.communication_manager)
+
         return Response({"names": self.communication_manager.list_names()})
 
     @docs(
@@ -89,7 +118,14 @@ class IdentityEndpoint(BaseEndpoint):
             }
         }
     )
-    async def list_schemas(self, request):
+    async def list_schemas(self, request: Request) -> Response:
+        """
+        List our available identity schemas.
+        """
+        if self.communication_manager is None:
+            return Response({"schemas": []})
+        self.communication_manager = cast(CommunicationManager, self.communication_manager)
+
         channel = await self.communication_manager.load(request.match_info['pseudonym_name'],
                                                         request.headers.get('X-Rendezvous'))
         return Response({"schemas": channel.schemas})
@@ -109,7 +145,14 @@ class IdentityEndpoint(BaseEndpoint):
             }
         }
     )
-    async def get_pseudonym_public_key(self, request):
+    async def get_pseudonym_public_key(self, request: Request) -> Response:
+        """
+        Get the public key for a pseudonym.
+        """
+        if self.communication_manager is None:
+            return Response({"success": False, "error": "communication manager is not loaded"})
+        self.communication_manager = cast(CommunicationManager, self.communication_manager)
+
         channel = await self.communication_manager.load(request.match_info['pseudonym_name'],
                                                         request.headers.get('X-Rendezvous'))
         return Response({"public_key": ez_b64_encode(channel.public_key_bin)})
@@ -130,7 +173,14 @@ class IdentityEndpoint(BaseEndpoint):
             }
         }
     )
-    async def unload_pseudonym(self, request):
+    async def unload_pseudonym(self, request: Request) -> Response:
+        """
+        Unload a pseudonym.
+        """
+        if self.communication_manager is None:
+            return Response({"success": False, "error": "communication manager is not loaded"})
+        self.communication_manager = cast(CommunicationManager, self.communication_manager)
+
         await self.communication_manager.unload(request.match_info['pseudonym_name'])
         return Response({"success": True})
 
@@ -150,7 +200,14 @@ class IdentityEndpoint(BaseEndpoint):
             }
         }
     )
-    async def remove_pseudonym(self, request):
+    async def remove_pseudonym(self, request: Request) -> Response:
+        """
+        Remove a pseudonym.
+        """
+        if self.communication_manager is None:
+            return Response({"success": False, "error": "communication manager is not loaded"})
+        self.communication_manager = cast(CommunicationManager, self.communication_manager)
+
         await self.communication_manager.remove(request.match_info['pseudonym_name'])
         return Response({"success": True})
 
@@ -169,7 +226,14 @@ class IdentityEndpoint(BaseEndpoint):
             }
         }
     )
-    async def list_pseudonym_credentials(self, request):
+    async def list_pseudonym_credentials(self, request: Request) -> Response:
+        """
+        List a pseudonym's credentials.
+        """
+        if self.communication_manager is None:
+            return Response({"names": []})
+        self.communication_manager = cast(CommunicationManager, self.communication_manager)
+
         channel = await self.communication_manager.load(request.match_info['pseudonym_name'],
                                                         request.headers.get('X-Rendezvous'))
         return Response({"names": [{
@@ -208,7 +272,14 @@ class IdentityEndpoint(BaseEndpoint):
             }
         }
     )
-    async def list_subject_credentials(self, request):
+    async def list_subject_credentials(self, request: Request) -> Response:
+        """
+        List a subject's credentials.
+        """
+        if self.communication_manager is None:
+            return Response({"names": []})
+        self.communication_manager = cast(CommunicationManager, self.communication_manager)
+
         channel = await self.communication_manager.load(request.match_info['pseudonym_name'],
                                                         request.headers.get('X-Rendezvous'))
 
@@ -244,7 +315,14 @@ class IdentityEndpoint(BaseEndpoint):
             }
         }
     )
-    async def list_pseudonym_peers(self, request):
+    async def list_pseudonym_peers(self, request: Request) -> Response:
+        """
+        List a pseudonym's peers.
+        """
+        if self.communication_manager is None:
+            return Response({"peers": []})
+        self.communication_manager = cast(CommunicationManager, self.communication_manager)
+
         channel = await self.communication_manager.load(request.match_info['pseudonym_name'],
                                                         request.headers.get('X-Rendezvous'))
         return Response({"peers": [ez_b64_encode(peer.public_key.key_to_bin()) for peer in channel.peers]})
@@ -280,7 +358,14 @@ class IdentityEndpoint(BaseEndpoint):
     @json_schema(schema(AllowVerification={
         'name*': (String, 'The name of the attribute to allow verification of.')
     }))
-    async def allow_pseudonym_verification(self, request):
+    async def allow_pseudonym_verification(self, request: Request) -> Response:
+        """
+        Verify a credential.
+        """
+        if self.communication_manager is None:
+            return Response({"success": False, "error": "communication manager is not loaded"})
+        self.communication_manager = cast(CommunicationManager, self.communication_manager)
+
         parameters = await request.json()
         if 'name' not in parameters:
             return Response({"error": "incorrect parameters"}, status=HTTP_BAD_REQUEST)
@@ -330,7 +415,14 @@ class IdentityEndpoint(BaseEndpoint):
     @json_schema(schema(DisallowVerification={
         'name*': (String, 'The name of the attribute to disallow verification of.')
     }))
-    async def disallow_pseudonym_verification(self, request):
+    async def disallow_pseudonym_verification(self, request: Request) -> Response:
+        """
+        Disallow verification of a credential.
+        """
+        if self.communication_manager is None:
+            return Response({"success": False, "error": "communication manager is not loaded"})
+        self.communication_manager = cast(CommunicationManager, self.communication_manager)
+
         parameters = await request.json()
         if 'name' not in parameters:
             return Response({"error": "incorrect parameters"}, status=HTTP_BAD_REQUEST)
@@ -382,7 +474,14 @@ class IdentityEndpoint(BaseEndpoint):
         'schema*': (String, 'The attribute schema to use.'),
         'metadata': (Dict, 'The metadata to attach.')
     }))
-    async def create_pseudonym_credential(self, request):
+    async def create_pseudonym_credential(self, request: Request) -> Response:
+        """
+        Create a credential.
+        """
+        if self.communication_manager is None:
+            return Response({"success": False, "error": "communication manager is not loaded"})
+        self.communication_manager = cast(CommunicationManager, self.communication_manager)
+
         parameters = await request.json()
         if 'name' not in parameters or 'schema' not in parameters:
             return Response({"error": "incorrect parameters"}, status=HTTP_BAD_REQUEST)
@@ -434,7 +533,14 @@ class IdentityEndpoint(BaseEndpoint):
         'name*': (String, 'The name of the subject\'s attribute.'),
         'value*': (String, 'The value we believe the subject\'s attribute has.')
     }))
-    async def attest_pseudonym_credential(self, request):
+    async def attest_pseudonym_credential(self, request: Request) -> Response:
+        """
+        Attest to a credential.
+        """
+        if self.communication_manager is None:
+            return Response({"success": False, "error": "communication manager is not loaded"})
+        self.communication_manager = cast(CommunicationManager, self.communication_manager)
+
         parameters = await request.json()
         if 'name' not in parameters or 'value' not in parameters:
             return Response({"error": "incorrect parameters"}, status=HTTP_BAD_REQUEST)
@@ -487,7 +593,14 @@ class IdentityEndpoint(BaseEndpoint):
         'value*': (String, 'The value we require the subject\'s attribute to have.'),
         'schema*': (String, 'The schema we require the subject\'s attribute to have.')
     }))
-    async def verify_pseudonym_credential(self, request):
+    async def verify_pseudonym_credential(self, request: Request) -> Response:
+        """
+        Request verification of a credential.
+        """
+        if self.communication_manager is None:
+            return Response({"success": False, "error": "communication manager is not loaded"})
+        self.communication_manager = cast(CommunicationManager, self.communication_manager)
+
         parameters = await request.json()
         if 'hash' not in parameters or 'value' not in parameters or 'schema' not in parameters:
             return Response({"error": "incorrect parameters"}, status=HTTP_BAD_REQUEST)
@@ -527,7 +640,14 @@ class IdentityEndpoint(BaseEndpoint):
             }
         }
     )
-    async def list_pseudonym_outstanding_attestations(self, request):
+    async def list_pseudonym_outstanding_attestations(self, request: Request) -> Response:
+        """
+        List the oustanding requests for attestations by others.
+        """
+        if self.communication_manager is None:
+            return Response({"requests": []})
+        self.communication_manager = cast(CommunicationManager, self.communication_manager)
+
         channel = await self.communication_manager.load(request.match_info['pseudonym_name'],
                                                         request.headers.get('X-Rendezvous'))
         formatted = []
@@ -557,15 +677,18 @@ class IdentityEndpoint(BaseEndpoint):
             }
         }
     )
-    async def list_pseudonym_outstanding_verifications(self, request):
+    async def list_pseudonym_outstanding_verifications(self, request: Request) -> Response:
+        """
+        List the oustanding requests for verification by others.
+        """
+        if self.communication_manager is None:
+            return Response({"requests": []})
+        self.communication_manager = cast(CommunicationManager, self.communication_manager)
+
         channel = await self.communication_manager.load(request.match_info['pseudonym_name'],
                                                         request.headers.get('X-Rendezvous'))
-        formatted = []
-        for k in channel.verify_requests.keys():
-            formatted.append({
-                "peer": ez_b64_encode(k[0].public_key.key_to_bin()),
-                "attribute_name": k[1]
-            })
+        formatted = [{"peer": ez_b64_encode(k[0].public_key.key_to_bin()), "attribute_name": k[1]}
+                     for k in channel.verify_requests]
         return Response({"requests": formatted})
 
     @docs(
@@ -589,7 +712,14 @@ class IdentityEndpoint(BaseEndpoint):
             }
         }
     )
-    async def list_pseudonym_verification_output(self, request):
+    async def list_pseudonym_verification_output(self, request: Request) -> Response:
+        """
+        Return the output of our verification requests.
+        """
+        if self.communication_manager is None:
+            return Response({"outputs": []})
+        self.communication_manager = cast(CommunicationManager, self.communication_manager)
+
         channel = await self.communication_manager.load(request.match_info['pseudonym_name'],
                                                         request.headers.get('X-Rendezvous'))
 
@@ -602,6 +732,9 @@ class IdentityEndpoint(BaseEndpoint):
 
         return Response({"outputs": formatted})
 
-    async def on_shutdown(self, _):
+    async def on_shutdown(self, _: Application) -> None:
+        """
+        Callback when the shutdown signal fires.
+        """
         if self.communication_manager:
             await self.communication_manager.shutdown()

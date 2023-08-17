@@ -43,12 +43,12 @@ class PeriodicSimilarity(DiscoveryStrategy):
         """
         Select a random peer, at most every second, to send a similarity request to.
         """
+        self.overlay = cast(DiscoveryCommunity, self.overlay)
         now = time()
         if (now - self.last_step < 1.0) or not self.overlay.network.verified_peers:
             return
         self.last_step = now
         with self.walk_lock:
-            self.overlay = cast(DiscoveryCommunity, self.overlay)
             self.overlay.send_similarity_request(sample(list(self.overlay.network.verified_peers), 1)[0].address)
 
 
