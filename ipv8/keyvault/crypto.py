@@ -1,20 +1,28 @@
+from __future__ import annotations
+
 import logging
+from typing import TYPE_CHECKING
 
 from cryptography.hazmat.primitives.asymmetric import ec
 
+from ..keyvault.keys import Key
 from .private.libnaclkey import LibNaCLSK
 from .private.m2crypto import M2CryptoSK
 from .public.libnaclkey import LibNaCLPK
 from .public.m2crypto import M2CryptoPK
-from ..keyvault.keys import Key
+
+if TYPE_CHECKING:
+    from ..types import PrivateKey, PublicKey
 
 # We want to provide a few default curves.  We will change these curves as new become available and
 # old ones to small to provide sufficient security.
-_CURVES = {"very-low": (ec.SECT163K1, "M2Crypto"),
-           "low": (ec.SECT233K1, "M2Crypto"),
-           "medium": (ec.SECT409K1, "M2Crypto"),
-           "high": (ec.SECT571R1, "M2Crypto"),
-           'curve25519': (None, "libnacl")}
+_CURVES: dict[str, tuple[ec.EllipticCurve | None, str]] = {
+    "very-low": (ec.SECT163K1(), "M2Crypto"),
+    "low": (ec.SECT233K1(), "M2Crypto"),
+    "medium": (ec.SECT409K1(), "M2Crypto"),
+    "high": (ec.SECT571R1(), "M2Crypto"),
+    "curve25519": (None, "libnacl")
+}
 
 logger = logging.getLogger(__name__)
 
@@ -33,14 +41,13 @@ class ECCrypto:
     """
 
     @property
-    def security_levels(self):
+    def security_levels(self) -> list[str]:
         """
         Returns the names of all available curves.
-        @rtype: [unicode]
         """
         return list(_CURVES.keys())
 
-    def generate_key(self, security_level):
+    def generate_key(self, security_level: str) -> PrivateKey:
         """
         Generate a new Elliptic Curve object with a new public / private key pair.
 
@@ -57,62 +64,74 @@ class ECCrypto:
         @param security_level: Level of security {u'very-low', u'low', u'medium', or u'high'}.
         @type security_level: unicode
         """
-        if security_level not in _CURVES:
-            raise RuntimeError("Illegal curve for key generation: %s" % security_level)
+        if security_level in _CURVES:
+            curve = _CURVES[security_level]
+            if curve[1] == "M2Crypto":
+                return M2CryptoSK(curve[0])
 
-        curve = _CURVES[security_level]
-        if curve[1] == "M2Crypto":
-            return M2CryptoSK(curve[0])
+            if curve[1] == "libnacl":
+                return LibNaCLSK()
 
-        if curve[1] == "libnacl":
-            return LibNaCLSK()
+        raise RuntimeError("Illegal curve for key generation: %s" % security_level)
 
-    def key_to_bin(self, ec):
-        "Convert the key to a binary format."
+    def key_to_bin(self, ec: Key) -> bytes:
+        """
+        Convert the key to a binary format.
+        """
         assert isinstance(ec, Key), ec
         return ec.key_to_bin()
 
-    def key_to_hash(self, ec):
-        "Get a hash representation from a key."
+    def key_to_hash(self, ec: Key) -> bytes:
+        """
+        Get a hash representation from a key.
+        """
         assert isinstance(ec, Key), ec
         return ec.key_to_hash()
 
-    def is_valid_private_bin(self, string):
-        "Returns True if the input is a valid public/private keypair stored in a binary format"
+    def is_valid_private_bin(self, string: bytes) -> bool:
+        """
+        Returns True if the input is a valid public/private keypair stored in a binary format.
+        """
         try:
             self.key_from_private_bin(string)
         except Exception:
             return False
         return True
 
-    def is_valid_public_bin(self, string):
-        "Returns True if the input is a valid public key"
+    def is_valid_public_bin(self, string: bytes) -> bool:
+        """
+        Returns True if the input is a valid public key.
+        """
         try:
             self.key_from_public_bin(string)
         except Exception:
             return False
         return True
 
-    def key_from_private_bin(self, string):
-        "Get the EC from a public/private keypair stored in a binary format."
+    def key_from_private_bin(self, string: bytes) -> PrivateKey:
+        """
+        Get the EC from a public/private keypair stored in a binary format.
+        """
         if string.startswith(b"LibNaCLSK:"):
             return LibNaCLSK(string[10:])
         return M2CryptoSK(keystring=string)
 
-    def key_from_public_bin(self, string):
-        "Get the EC from a public key in binary format."
+    def key_from_public_bin(self, string: bytes) -> PublicKey:
+        """
+        Get the EC from a public key in binary format.
+        """
         if string.startswith(b"LibNaCLPK:"):
             return LibNaCLPK(string[10:])
         return M2CryptoPK(keystring=string)
 
-    def get_signature_length(self, ec):
+    def get_signature_length(self, ec: PublicKey) -> int:
         """
         Returns the length, in bytes, of each signature made using EC.
         """
         assert isinstance(ec, Key), ec
         return ec.get_signature_length()
 
-    def create_signature(self, ec, data):
+    def create_signature(self, ec: PrivateKey, data: bytes) -> bytes:
         """
         Returns the signature of DIGEST made using EC.
         """
@@ -120,7 +139,7 @@ class ECCrypto:
         assert isinstance(data, (bytes, str)), type(data)
         return ec.signature(data)
 
-    def is_valid_signature(self, ec, data, signature):
+    def is_valid_signature(self, ec: PublicKey, data: bytes, signature: bytes) -> bool:
         """
         Returns True when SIGNATURE matches the DIGEST made using EC.
         """

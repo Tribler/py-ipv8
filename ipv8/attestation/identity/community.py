@@ -4,29 +4,40 @@ import json
 import os
 from binascii import hexlify, unhexlify
 from time import time
+from typing import TYPE_CHECKING
 
-from .attestation import Attestation
-from .manager import IdentityManager
-from .payload import AttestPayload, DiclosePayload, MissingResponsePayload, RequestMissingPayload
 from ...bootstrapping.dispersy.bootstrapper import DispersyBootstrapper
-from ...community import Community, DEFAULT_MAX_PEERS
+from ...community import DEFAULT_MAX_PEERS, Community
 from ...configuration import DISPERSY_BOOTSTRAPPER
 from ...lazy_community import lazy_wrapper
 from ...peer import Peer
 from ...peerdiscovery.discovery import RandomWalk
 from ...peerdiscovery.network import Network
-from ...types import Credential, Endpoint, Metadata, PrivateKey, PseudonymManager, PublicKey, Token
+from .attestation import Attestation
+from .manager import IdentityManager
+from .payload import AttestPayload, DiclosePayload, MissingResponsePayload, RequestMissingPayload
+
+if TYPE_CHECKING:
+    from ...types import Credential, Endpoint, IPv8, Metadata, PrivateKey, PseudonymManager, Token
 
 SAFE_UDP_PACKET_LENGTH = 1296
 
 
 class IdentityCommunity(Community):
+    """
+    Community for business logic surrounding identities.
+
+    Actual identity information goes through the wallet.
+    """
 
     community_id = unhexlify('d5889074c1e4c50423cdb6e9307ee0ca5695ead7')
 
-    def __init__(self, my_peer: Peer, endpoint: Endpoint, network: Network | None = None,
+    def __init__(self, my_peer: Peer, endpoint: Endpoint, network: Network | None = None,  # noqa: PLR0913
                  max_peers: int = DEFAULT_MAX_PEERS, anonymize: bool = True,
-                 identity_manager: IdentityManager | None = None, working_directory: str = "."):
+                 identity_manager: IdentityManager | None = None, working_directory: str = ".") -> None:
+        """
+        Create a new identity management overlay.
+        """
         if network is None:
             network = Network()
         super().__init__(my_peer, endpoint, network, max_peers, anonymize)
@@ -36,7 +47,7 @@ class IdentityCommunity(Community):
             identity_manager = IdentityManager(database_path=dbpath)
 
         # Dict of hash -> (attribute_name, date, public_key)
-        self.known_attestation_hashes: dict[bytes, tuple[str, float, PublicKey, dict[str, str] | None]] = {}
+        self.known_attestation_hashes: dict[bytes, tuple[str, float, bytes, dict[str, str] | None]] = {}
 
         self.identity_manager = identity_manager
         self.pseudonym_manager = identity_manager.get_pseudonym(self.my_peer.key)
@@ -76,7 +87,7 @@ class IdentityCommunity(Community):
     def add_known_hash(self,
                        attribute_hash: bytes,
                        name: str,
-                       public_key: PublicKey,
+                       public_key: bytes,
                        metadata: dict[str, str] | None = None) -> None:
         """
         We know about this hash+peer combination. Thus we can handle sign requests for it.
@@ -97,7 +108,7 @@ class IdentityCommunity(Community):
                 return credential.metadata
         return None
 
-    def should_sign(self,
+    def should_sign(self,  # noqa: PLR0911
                     pseudonym: PseudonymManager,
                     metadata: Metadata) -> bool:
         """
@@ -109,30 +120,30 @@ class IdentityCommunity(Community):
             return False
         attribute_hash = pseudonym.tree.elements[metadata.token_pointer].content_hash
         if "name" not in requested_keys or "date" not in requested_keys or "schema" not in requested_keys:
-            self.logger.debug(f"Not signing {str(metadata)}, it doesn't include the required fields!")
+            self.logger.debug("Not signing %s, it doesn't include the required fields!", str(metadata))
             return False
         if attribute_hash not in self.known_attestation_hashes:
-            self.logger.debug(f"Not signing {str(metadata)}, it doesn't point to known content!")
+            self.logger.debug("Not signing %s, it doesn't point to known content!", str(metadata))
             return False
         if pseudonym.public_key.key_to_bin() != self.known_attestation_hashes[attribute_hash][2]:
-            self.logger.debug(f"Not signing {str(metadata)}, attribute doesn't belong to key!")
+            self.logger.debug("Not signing %s, attribute doesn't belong to key!", str(metadata))
             return False
         # Refuse to sign blocks older than 5 minutes
         if time() > self.known_attestation_hashes[attribute_hash][1] + 300:
-            self.logger.debug(f"Not signing {str(metadata)}, timed out!")
+            self.logger.debug("Not signing %s, timed out!", str(metadata))
             return False
         if transaction['name'] != self.known_attestation_hashes[attribute_hash][0]:
-            self.logger.debug(f"Not signing {str(metadata)}, name does not match!")
+            self.logger.debug("Not signing %s, name does not match!", str(metadata))
             return False
         if (self.known_attestation_hashes[attribute_hash][3] is not None
                 and ({k: v for k, v in transaction.items() if k not in ["name", "date", "schema"]}
                      != self.known_attestation_hashes[attribute_hash][3])):
-            self.logger.debug(f"Not signing {str(metadata)}, metadata does not match!")
+            self.logger.debug("Not signing %s, metadata does not match!", str(metadata))
             return False
         for attestation in pseudonym.database.get_attestations_over(metadata):
             if any(authority == self.my_peer.public_key.key_to_bin()
                    for authority in pseudonym.database.get_authority(attestation)):
-                self.logger.debug(f"Not signing {str(metadata)}, already attested!")
+                self.logger.debug("Not signing %s, already attested!", str(metadata))
                 return False
         return True
 
@@ -149,7 +160,7 @@ class IdentityCommunity(Community):
         if meta_len + len(tokens) > SAFE_UDP_PACKET_LENGTH:
             packet_space = SAFE_UDP_PACKET_LENGTH - meta_len
             if packet_space < 0:
-                self.logger.warning(f"Attempting to disclose with packet of length {meta_len}, hoping for the best!")
+                self.logger.warning("Attempting to disclose with packet of length %d, hoping for the best!", meta_len)
             packet_space = max(0, packet_space)
             trim_len = packet_space // token_size
             tokens = tokens[-trim_len * token_size:]
@@ -170,7 +181,7 @@ class IdentityCommunity(Community):
             if correct and any(attribute_hash in known_attributes for attribute_hash in required_attributes):
                 for credential in pseudonym.get_credentials():
                     if self.should_sign(pseudonym, credential.metadata):
-                        self.logger.info(f"Attesting to {str(credential.metadata)}")
+                        self.logger.info("Attesting to %s", str(credential.metadata))
                         attestation = pseudonym.create_attestation(credential.metadata, self.my_peer.key)
                         pseudonym.add_attestation(self.my_peer.public_key, attestation)
                         self.ez_send(peer, AttestPayload(attestation.get_plaintext_signed()))
@@ -182,7 +193,7 @@ class IdentityCommunity(Community):
         else:
             self.logger.warning("Received unsolicited disclosure from %s, dropping!", str(peer))
 
-    def request_attestation_advertisement(self,
+    def request_attestation_advertisement(self,  # noqa: PLR0913
                                           peer: Peer,
                                           attribute_hash: bytes,
                                           name: str,
@@ -190,6 +201,7 @@ class IdentityCommunity(Community):
                                           metadata: dict | None = None) -> None:
         """
         Request a peer to sign for our attestation advertisement.
+
         :param peer: the attestor of our block
         :param attribute_hash: the hash of the attestation
         :param name: the name of the attribute (metadata)
@@ -253,9 +265,9 @@ class IdentityCommunity(Community):
         """
         attestation = Attestation.unserialize(payload.attestation, peer.public_key)
         if self.pseudonym_manager.add_attestation(peer.public_key, attestation):
-            self.logger.info(f"Received attestation from {str(peer)}!")
+            self.logger.info("Received attestation from %s!", str(peer))
         else:
-            self.logger.warning(f"Received invalid attestation from {str(peer)}!")
+            self.logger.warning("Received invalid attestation from %s!", str(peer))
 
     @lazy_wrapper(RequestMissingPayload)
     def on_request_missing(self, peer: Peer, request: RequestMissingPayload) -> None:
@@ -283,21 +295,24 @@ class IdentityCommunity(Community):
         self._received_disclosure_for_attest(peer, (b'', response.tokens, b'', b''))
 
 
-async def create_community(private_key: PrivateKey, ipv8, identity_manager: IdentityManager,
+async def create_community(private_key: PrivateKey, ipv8: IPv8, identity_manager: IdentityManager,  # noqa: PLR0913
                            endpoint: Endpoint | None = None, working_directory: str | None = None,
                            anonymize: bool = True,
                            rendezvous_token: bytes | None = None) -> IdentityCommunity:
+    """
+    Create an anonymized runtime overlay to meet other peers for identity business logic.
+    """
     my_peer = Peer(private_key)
     if endpoint is None:
         endpoint = await ipv8.produce_anonymized_endpoint()
-    working_directory_str: str = (ipv8.configuration.get("working_directory") if not working_directory
-                                  else working_directory)
+    working_directory_str: str = (working_directory if working_directory
+                                  else ipv8.configuration.get('working_directory'))
     overlay_cls = IdentityCommunity
     if rendezvous_token is not None:
         token_str = hexlify(rendezvous_token).decode()
         rendezvous_id = bytes(b ^ rendezvous_token[i] if i < len(rendezvous_token) else b
                               for i, b in enumerate(IdentityCommunity.community_id))
-        overlay_cls = type(f"IdentityCommunity-{token_str}", (IdentityCommunity, ), {  # type:ignore
+        overlay_cls = type(f"IdentityCommunity-{token_str}", (IdentityCommunity, ), {  # type:ignore[assignment]
             'community_id': rendezvous_id
         })
     community = overlay_cls(my_peer, endpoint, identity_manager=identity_manager,

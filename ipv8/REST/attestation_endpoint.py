@@ -124,7 +124,7 @@ class AttestationEndpoint(BaseEndpoint[IPv8]):
         matches = [p for p in peers if p.mid == mid]
         return matches[0] if matches else None
 
-    def _drop_identity_table_data(self, keys_to_keep: list[str]) -> list[bytes]:
+    def _drop_identity_table_data(self, keys_to_keep: list[bytes]) -> list[bytes]:
         """
         Remove all metadata  from the identity community.
 
