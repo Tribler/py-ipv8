@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from random import sample
 from time import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
+from ..types import Overlay
 from .discovery import DiscoveryStrategy
 
 if TYPE_CHECKING:
-    from ..types import Address, Overlay, Peer
+    from ..types import Address, Peer
 
 
 class RandomChurn(DiscoveryStrategy):
@@ -53,6 +54,7 @@ class RandomChurn(DiscoveryStrategy):
         """
         Select a new (set of) peer(s) to investigate liveness for.
         """
+        self.overlay = cast(Overlay, self.overlay)
         with self.walk_lock:
             # Find an inactive or droppable peer
             sample_size = min(len(self.overlay.network.verified_peers), self.sample_size)

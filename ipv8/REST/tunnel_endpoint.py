@@ -1,20 +1,34 @@
+from __future__ import annotations
+
 from binascii import hexlify, unhexlify
+from typing import TYPE_CHECKING, cast
 
 from aiohttp import web
-
 from aiohttp_apispec import docs, json_schema
-
 from marshmallow.fields import Boolean, Float, Integer, List, String
 
-from .base_endpoint import BaseEndpoint, HTTP_BAD_REQUEST, HTTP_INTERNAL_SERVER_ERROR, HTTP_NOT_FOUND, Response
-from .schema import AddressWithPK, schema
 from ..dht.provider import DHTIntroPointPayload
-from ..messaging.anonymization.community import (CIRCUIT_STATE_READY, CIRCUIT_TYPE_DATA, IntroductionPoint,
-                                                 PEER_FLAG_SPEED_TEST, PEER_SOURCE_DHT, PEER_SOURCE_PEX,
-                                                 TunnelCommunity)
+from ..messaging.anonymization.community import (
+    CIRCUIT_STATE_READY,
+    CIRCUIT_TYPE_DATA,
+    PEER_FLAG_SPEED_TEST,
+    PEER_SOURCE_DHT,
+    PEER_SOURCE_PEX,
+    IntroductionPoint,
+    TunnelCommunity,
+)
+from ..messaging.anonymization.hidden_services import HiddenTunnelCommunity
 from ..messaging.anonymization.utils import run_speed_test
 from ..messaging.serialization import PackError
 from ..peer import Peer
+from ..types import IPv8
+from .base_endpoint import HTTP_BAD_REQUEST, HTTP_INTERNAL_SERVER_ERROR, HTTP_NOT_FOUND, BaseEndpoint, Response
+from .schema import AddressWithPK, schema
+
+if TYPE_CHECKING:
+    from aiohttp.abc import Request
+
+    from ..messaging.anonymization.tunnel import Circuit
 
 SpeedTestResponseSchema = schema(SpeedTestResponse={
     "speed": (Float, 'Speed in MiB/s'),
@@ -25,16 +39,22 @@ SpeedTestResponseSchema = schema(SpeedTestResponse={
 })
 
 
-class TunnelEndpoint(BaseEndpoint):
+class TunnelEndpoint(BaseEndpoint[IPv8]):
     """
     This endpoint is responsible for handling requests for DHT data.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """
+        Create new unregistered and uninitialized REST endpoint.
+        """
         super().__init__()
-        self.tunnels = None
+        self.tunnels: TunnelCommunity | None = None
 
-    def setup_routes(self):
+    def setup_routes(self) -> None:
+        """
+        Register the names to make this endpoint callable.
+        """
         self.app.add_routes([web.get('/settings', self.get_settings),
                              web.get('/circuits', self.get_circuits),
                              web.post('/circuits/test', self.speed_test_new_circuit),
@@ -47,7 +67,10 @@ class TunnelEndpoint(BaseEndpoint):
                              web.get('/peers/dht', self.get_dht_peers),
                              web.get('/peers/pex', self.get_pex_peers)])
 
-    def initialize(self, session):
+    def initialize(self, session: IPv8) -> None:
+        """
+        Initialize this endpoint for the given session instance.
+        """
         super().initialize(session)
         self.tunnels = session.get_overlay(TunnelCommunity)
 
@@ -62,7 +85,14 @@ class TunnelEndpoint(BaseEndpoint):
             }
         }
     )
-    def get_settings(self, _):
+    def get_settings(self, _: Request) -> Response:
+        """
+        Return a dictionary of all tunnel settings.
+        """
+        if self.tunnels is None:
+            return Response({"settings": {}})
+        self.tunnels = cast(TunnelCommunity, self.tunnels)
+
         return Response({'settings': {k: list(v) if isinstance(v, set) else v
                                       for k, v in self.tunnels.settings.__dict__.items() if k != 'crypto'}})
 
@@ -88,7 +118,14 @@ class TunnelEndpoint(BaseEndpoint):
             }
         }
     )
-    async def get_circuits(self, _):
+    async def get_circuits(self, _: Request) -> Response:
+        """
+        Return a list of all current circuits.
+        """
+        if self.tunnels is None:
+            return Response({"circuits": []})
+        self.tunnels = cast(TunnelCommunity, self.tunnels)
+
         return Response({"circuits": [{
             "circuit_id": circuit.circuit_id,
             "goal_hops": circuit.goal_hops,
@@ -121,9 +158,15 @@ class TunnelEndpoint(BaseEndpoint):
         'response_size*': (Integer, 'Size of the responses to send (0..1500)'),
         'num_packets*': (Integer, 'Number of packets to send'),
     }))
-    async def speed_test_existing_circuit(self, request):
+    async def speed_test_existing_circuit(self, request: Request) -> Response:
+        """
+        Test the upload or download speed of a circuit.
+        """
         if not request.match_info['circuit_id'].isdigit():
             return Response({"error": "circuit_id must be an integer"}, status=HTTP_BAD_REQUEST)
+        if self.tunnels is None:
+            return Response({"error": "TunnelCommunity is not initialized"}, status=HTTP_NOT_FOUND)
+        self.tunnels = cast(TunnelCommunity, self.tunnels)
 
         circuit = self.tunnels.circuits.get(int(request.match_info['circuit_id']))
         if not circuit:
@@ -156,7 +199,15 @@ class TunnelEndpoint(BaseEndpoint):
         'response_size*': (Integer, 'Size of the responses to send (0..1500)'),
         'num_packets*': (Integer, 'Number of packets to send'),
     }))
-    async def speed_test_new_circuit(self, request):
+    async def speed_test_new_circuit(self, request: Request) -> Response:
+        """
+        Test the upload or download speed of a newly created circuit.
+        The circuit is destroyed after the test has completed.
+        """
+        if self.tunnels is None:
+            return Response({"error": "TunnelCommunity is not initialized"}, status=HTTP_NOT_FOUND)
+        self.tunnels = cast(TunnelCommunity, self.tunnels)
+
         params = await request.json()
 
         goal_hops = params.get('goal_hops', 1)
@@ -168,10 +219,17 @@ class TunnelEndpoint(BaseEndpoint):
             return Response({"error": "failed to create circuit"}, status=HTTP_INTERNAL_SERVER_ERROR)
 
         result = await self.run_speed_test(circuit, params)
-        self.tunnels.remove_circuit(circuit.circuit_id, additional_info='speed test finished')
+        await self.tunnels.remove_circuit(circuit.circuit_id, additional_info='speed test finished')
         return result
 
-    async def run_speed_test(self, circuit, params):
+    async def run_speed_test(self, circuit: Circuit | None, params: dict) -> Response:
+        """
+        Run a speed test on the given circuit and form an HTTP response.
+        """
+        if self.tunnels is None:
+            return Response({"error": "TunnelCommunity is not initialized"}, status=HTTP_NOT_FOUND)
+        self.tunnels = cast(TunnelCommunity, self.tunnels)
+
         if not 0 <= params.get('request_size', -1) <= 2000 or not 0 <= params.get('response_size', -1) <= 2000:
             return Response({"error": "invalid request or response size specified"}, status=HTTP_BAD_REQUEST)
         if 'num_requests' not in params:
@@ -197,7 +255,14 @@ class TunnelEndpoint(BaseEndpoint):
             }
         }
     )
-    async def get_relays(self, _):
+    async def get_relays(self, _: Request) -> Response:
+        """
+        Return a list of all current relays.
+        """
+        if self.tunnels is None:
+            return Response({"relays": []})
+        self.tunnels = cast(TunnelCommunity, self.tunnels)
+
         return Response({"relays": [{
             "circuit_from": circuit_from,
             "circuit_to": relay.circuit_id,
@@ -224,7 +289,14 @@ class TunnelEndpoint(BaseEndpoint):
             }
         }
     )
-    async def get_exits(self, _):
+    async def get_exits(self, _: Request) -> Response:
+        """
+        Return a list of all current exits.
+        """
+        if self.tunnels is None or not isinstance(self.tunnels, HiddenTunnelCommunity):
+            return Response({"exits": []})
+        self.tunnels = cast(HiddenTunnelCommunity, self.tunnels)
+
         return Response({"exits": [{
             "circuit_from": circuit_from,
             "enabled": exit_sock.enabled,
@@ -255,7 +327,14 @@ class TunnelEndpoint(BaseEndpoint):
             }
         }
     )
-    async def get_swarms(self, _):
+    async def get_swarms(self, _: Request) -> Response:
+        """
+        Return a list of all current hidden swarms.
+        """
+        if self.tunnels is None or not isinstance(self.tunnels, HiddenTunnelCommunity):
+            return Response({"swarms": []})
+        self.tunnels = cast(HiddenTunnelCommunity, self.tunnels)
+
         return Response({"swarms": [{
             "info_hash": hexlify(swarm.info_hash).decode('utf-8'),
             "num_seeders": swarm.get_num_seeders(),
@@ -287,7 +366,14 @@ class TunnelEndpoint(BaseEndpoint):
             }
         }
     )
-    async def get_swarm_size(self, request):
+    async def get_swarm_size(self, request: Request) -> Response:
+        """
+        Estimate the hidden swarm size for a given infohash.
+        """
+        if self.tunnels is None or not isinstance(self.tunnels, HiddenTunnelCommunity):
+            return Response({"swarms": []})
+        self.tunnels = cast(HiddenTunnelCommunity, self.tunnels)
+
         infohash = unhexlify(request.match_info['infohash'])
         swarm_size = await self.tunnels.estimate_swarm_size(infohash, hops=request.query.get('hops', 1))
         return Response({"swarm_size": swarm_size})
@@ -309,7 +395,14 @@ class TunnelEndpoint(BaseEndpoint):
             }
         }
     )
-    async def get_peers(self, _):
+    async def get_peers(self, _: Request) -> Response:
+        """
+        Return a list of all peers currently part of the tunnel community.
+        """
+        if self.tunnels is None:
+            return Response({"peers": []})
+        self.tunnels = cast(TunnelCommunity, self.tunnels)
+
         return Response({"peers": [{
             "ip": peer.address[0],
             "port": peer.address[1],
@@ -329,9 +422,16 @@ class TunnelEndpoint(BaseEndpoint):
             }
         }
     )
-    async def get_dht_peers(self, _):
+    async def get_dht_peers(self, _: Request) -> Response:
+        """
+        Return a list of all hidden services peers that are in the local DHT store.
+        """
+        if self.tunnels is None:
+            return Response([])
+        self.tunnels = cast(TunnelCommunity, self.tunnels)
+
         dht = self.tunnels.dht_provider.dht_community
-        ips_by_infohash = {}
+        ips_by_infohash: dict[bytes, list[IntroductionPoint]] = {}
         for storage in dht.storages.values():
             for key, raw_values in storage.items.items():
                 ips_by_infohash[key] = []
@@ -358,6 +458,13 @@ class TunnelEndpoint(BaseEndpoint):
             }
         }
     )
-    async def get_pex_peers(self, _):
+    async def get_pex_peers(self, _: Request) -> Response:
+        """
+        Return a list of all hidden services peers that are in the local PEX store.
+        """
+        if self.tunnels is None or not isinstance(self.tunnels, HiddenTunnelCommunity):
+            return Response([])
+        self.tunnels = cast(HiddenTunnelCommunity, self.tunnels)
+
         return Response([{'info_hash': hexlify(h).decode(),
                           'peers': [i.to_dict() for i in c.get_intro_points()]} for h, c in self.tunnels.pex.items()])

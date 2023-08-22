@@ -1,31 +1,48 @@
+from __future__ import annotations
+
 from binascii import hexlify
+from typing import TYPE_CHECKING, Any, cast
 
 from aiohttp import web
-
 from aiohttp_apispec import docs, json_schema
-
+from marshmallow.base import SchemaABC
 from marshmallow.fields import Boolean, Dict, List, Nested, String
 
-from .base_endpoint import BaseEndpoint, HTTP_BAD_REQUEST, HTTP_PRECONDITION_FAILED, Response
-from .schema import DefaultResponseSchema, OverlaySchema, OverlayStatisticsSchema, schema
 from ..messaging.interfaces.statistics_endpoint import StatisticsEndpoint
+from ..types import Community, IPv8
+from .base_endpoint import HTTP_BAD_REQUEST, HTTP_PRECONDITION_FAILED, BaseEndpoint, Response
+from .schema import DefaultResponseSchema, OverlaySchema, OverlayStatisticsSchema, schema
+
+if TYPE_CHECKING:
+    from aiohttp.abc import Request
+
+    from ..messaging.interfaces.network_stats import NetworkStat
 
 
-class OverlaysEndpoint(BaseEndpoint):
+class OverlaysEndpoint(BaseEndpoint[IPv8]):
     """
     This endpoint is responsible for handing all requests regarding the status of overlays.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """
+        Create new unregistered and uninitialized REST endpoint.
+        """
         super().__init__()
-        self.statistics_supported = None
+        self.statistics_supported: bool = False
 
-    def setup_routes(self):
+    def setup_routes(self) -> None:
+        """
+        Register the names to make this endpoint callable.
+        """
         self.app.add_routes([web.get('', self.get_overlays),
                              web.get('/statistics', self.get_statistics),
                              web.post('/statistics', self.enable_statistics)])
 
-    def initialize(self, session):
+    def initialize(self, session: IPv8) -> None:
+        """
+        Initialize this endpoint for the given session instance.
+        """
         super().initialize(session)
         self.statistics_supported = isinstance(session.endpoint, StatisticsEndpoint) \
             or isinstance(getattr(session.endpoint, 'endpoint', None), StatisticsEndpoint)
@@ -41,8 +58,14 @@ class OverlaysEndpoint(BaseEndpoint):
             }
         }
     )
-    async def get_overlays(self, _):
-        overlay_stats = []
+    async def get_overlays(self, _: Request) -> Response:
+        """
+        Return information about all currently loaded overlays.
+        """
+        overlay_stats: list[dict[str, Any]] = []
+        if self.session is None:
+            return Response({"overlays": overlay_stats})
+        self.session = cast(IPv8, self.session)
         for overlay in self.session.overlays:
             peers = overlay.get_peers()
             statistics = self.session.endpoint.get_aggregate_statistics(overlay.get_prefix()) \
@@ -72,7 +95,7 @@ class OverlaysEndpoint(BaseEndpoint):
         responses={
             200: {
                 "schema": schema(StatisticsResponse={
-                    "statistics": List(Dict(keys=String, values=Nested(OverlayStatisticsSchema))),
+                    "statistics": List(Dict(keys=String, values=Nested(cast(SchemaABC, OverlayStatisticsSchema)))),
                 }),
                 "examples": {'Success': {"statistics": [{"DiscoveryCommunity": {'num_up': 0, 'num_down': 0,
                                                                                 'bytes_up': 0, 'bytes_down': 0,
@@ -80,8 +103,14 @@ class OverlaysEndpoint(BaseEndpoint):
             }
         }
     )
-    async def get_statistics(self, _):
-        overlay_stats = []
+    async def get_statistics(self, _: Request) -> Response:
+        """
+        Return statistics for all currently loaded overlays.
+        """
+        overlay_stats: list[dict[str, Any]] = []
+        if self.session is None:
+            return Response({"statistics": overlay_stats})
+        self.session = cast(IPv8, self.session)
         for overlay in self.session.overlays:
             statistics = self.session.endpoint.get_statistics(overlay.get_prefix()) if self.statistics_supported else {}
             overlay_stats.append({
@@ -89,7 +118,11 @@ class OverlaysEndpoint(BaseEndpoint):
             })
         return Response({"statistics": overlay_stats})
 
-    def statistics_by_name(self, statistics, overlay):
+    def statistics_by_name(self, statistics: dict[int, NetworkStat],
+                           overlay: Community) -> dict[str, dict[str, str | int | float]]:
+        """
+        Convert the captured statistics to a human-readable dict.
+        """
         named_statistics = {}
         for message_id, network_stats in statistics.items():
             if overlay.decode_map[message_id]:
@@ -123,7 +156,12 @@ class OverlaysEndpoint(BaseEndpoint):
         'all': (Boolean, 'Whether update applies to all overlays'),
         'overlay_name': (String, 'Class name of the overlay'),
     }))
-    async def enable_statistics(self, request):
+    async def enable_statistics(self, request: Request) -> Response:
+        """
+        Enable/disable statistics for a given overlay.
+        """
+        if self.session is None:
+            return Response({"success": False, "error": "IPv8 is not running"}, status=HTTP_PRECONDITION_FAILED)
         if not self.statistics_supported:
             return Response({"success": False, "error": "StatisticsEndpoint is not enabled."},
                             status=HTTP_PRECONDITION_FAILED)
@@ -140,7 +178,12 @@ class OverlaysEndpoint(BaseEndpoint):
                                        all_overlays=args.get('all', False))
         return Response({"success": True})
 
-    def enable_overlay_statistics(self, enable=False, class_name=None, all_overlays=False):
+    def enable_overlay_statistics(self, enable: bool = False, class_name: str | None = None,
+                                  all_overlays: bool = False) -> None:
+        """
+        Enable statistics for the specified overlays.
+        """
+        self.session = cast(IPv8, self.session)
         if all_overlays:
             for overlay in self.session.overlays:
                 self.session.endpoint.enable_community_statistics(overlay.get_prefix(), enable)

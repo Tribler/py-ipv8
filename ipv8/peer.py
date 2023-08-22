@@ -4,46 +4,72 @@ from base64 import b64encode
 from collections import deque
 from struct import unpack
 from time import time
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 from .keyvault.crypto import default_eccrypto
 from .keyvault.keys import Key
 from .messaging.interfaces.udp.endpoint import UDPv4Address, UDPv6Address
-from .types import Address
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from .types import Address
 
 
 class DirtyDict(dict):
     """
     Dictionary that becomes dirty when elements are changed.
     """
-    def __init__(self, **kwargs):
+
+    def __init__(self, **kwargs) -> None:
+        """
+        Create a new dict that flags when its content has been updated.
+        """
         super().__init__(**kwargs)
         self.dirty = True
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: Any, value: Any) -> None: # noqa: ANN401
+        """
+        Callback for when an item is set to a value. This dirties the dict.
+        """
         super().__setitem__(key, value)
         self.dirty = True
 
-    def update(self, mapping, **kwargs):
+    def update(self, mapping: Mapping, **kwargs) -> None:  # type: ignore[override]
+        """
+        Callback for when another mapping is merged into this dict. This dirties the dict.
+        """
         super().update(mapping, **kwargs)
         self.dirty = True
 
-    def clear(self):
+    def clear(self) -> None:
+        """
+        Callback for when all items are removed. This dirties the dict.
+        """
         super().clear()
         self.dirty = True
 
-    def pop(self, key):
+    def pop(self, key: Any) -> Any:  # type: ignore[override]  # noqa: ANN401
+        """
+        Callback for when a particular item is popped. This dirties the dict.
+        """
         out = super().pop(key)
         self.dirty = True
         return out
 
-    def popitem(self):
+    def popitem(self) -> Any:  # noqa: ANN401
+        """
+        Callback for when an item is popped. This dirties the dict.
+        """
         out = super().popitem()
         self.dirty = True
         return out
 
 
 class Peer:
+    """
+    A public key that has additional information attached to it (like an IP address, measured RTT, etc.).
+    """
 
     INTERFACE_ORDER = [UDPv6Address, UDPv4Address, tuple]
 
@@ -58,7 +84,7 @@ class Peer:
         if not isinstance(key, Key):
             self.key: Key = default_eccrypto.key_from_public_bin(key)
         else:
-            self.key = key  # type:ignore
+            self.key = cast(Key, key)
         self.mid = self.key.key_to_hash()
         self.public_key = self.key.pub()
         self._addresses = DirtyDict()
@@ -95,11 +121,13 @@ class Peer:
     @address.setter
     def address(self, value: Address) -> None:
         """
+        Register an address of this peer.
+
         Alias of ``add_address(value)``.
         """
         self.add_address(value)
 
-    def add_address(self, value: Any) -> None:
+    def add_address(self, value: Any) -> None:  # noqa: ANN401
         """
         Add a known address for this Peer.
 
@@ -134,8 +162,7 @@ class Peer:
         sorted_pings = sorted(self.pings)
         if len(sorted_pings) % 2 == 0:
             return (sorted_pings[len(sorted_pings) // 2 - 1] + sorted_pings[len(sorted_pings) // 2]) / 2
-        else:
-            return sorted_pings[len(sorted_pings) // 2]
+        return sorted_pings[len(sorted_pings) // 2]
 
     def get_average_ping(self) -> float | None:
         """
@@ -162,21 +189,36 @@ class Peer:
         self.last_response = time()  # This is in seconds since the epoch
 
     def get_lamport_timestamp(self) -> int:
+        """
+        Get the Lamport timestamp of this peer.
+        """
         return self._lamport_timestamp
 
     def __hash__(self) -> int:
+        """
+        Generate a hash based on the mid of this peer.
+        """
         as_long, = unpack(">Q", self.mid[:8])
         return as_long
 
     def __eq__(self, other: object) -> bool:
+        """
+        Check if the other instance is a peer with the same public key.
+        """
         if not isinstance(other, Peer):
             return False
         return self.public_key.key_to_bin() == other.public_key.key_to_bin()
 
     def __ne__(self, other: object) -> bool:
+        """
+        Check if the other instance is NOT a peer with the same public key.
+        """
         if not isinstance(other, Peer):
             return True
         return self.public_key.key_to_bin() != other.public_key.key_to_bin()
 
     def __str__(self) -> str:
+        """
+        Represent this peer as a human-readable string.
+        """
         return 'Peer<%s:%d, %s>' % (self.address[0], self.address[1], b64encode(self.mid).decode('utf-8'))

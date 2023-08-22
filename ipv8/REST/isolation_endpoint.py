@@ -1,37 +1,52 @@
+from typing import cast
+
 from aiohttp import web
-
+from aiohttp.abc import Request
 from aiohttp_apispec import docs, json_schema
-
 from marshmallow.fields import Boolean, Integer, String
 
-from .base_endpoint import BaseEndpoint, HTTP_BAD_REQUEST, Response
-from .schema import DefaultResponseSchema, schema
 from ..bootstrapping.dispersy.bootstrapper import DispersyBootstrapper
+from ..community import Community
 from ..messaging.anonymization.community import TunnelCommunity
+from ..messaging.interfaces.udp.endpoint import UDPv4Address
+from ..types import Address, IPv8
+from .base_endpoint import HTTP_BAD_REQUEST, BaseEndpoint, Response
+from .schema import DefaultResponseSchema, schema
 
 
-class IsolationEndpoint(BaseEndpoint):
+class IsolationEndpoint(BaseEndpoint[IPv8]):
     """
     This endpoint is responsible for on-demand adding of addresses for different services.
     """
 
-    def setup_routes(self):
+    def setup_routes(self) -> None:
+        """
+        Register the names to make this endpoint callable.
+        """
         self.app.add_routes([web.post('', self.handle_post)])
 
-    def add_exit_node(self, address):
+    def add_exit_node(self, address: Address) -> None:
+        """
+        Connect to the given exit node address.
+        """
+        self.session = cast(IPv8, self.session)
         for overlay in self.session.overlays:
             if isinstance(overlay, TunnelCommunity):
                 overlay.walk_to(address)
 
-    def add_bootstrap_server(self, address):
-        if hasattr(self.session, "network"):
-            self.session.network.blacklist.append(address)
+    def add_bootstrap_server(self, address: Address) -> None:
+        """
+        Register the given bootstrap server.
+        """
+        self.session = cast(IPv8, self.session)
+        self.session.network.blacklist.append(address)
         for overlay in self.session.overlays:
             overlay.network.blacklist.append(address)
             overlay.walk_to(address)
-            for bootstrapper in overlay.bootstrappers:
-                if isinstance(bootstrapper, DispersyBootstrapper):
-                    bootstrapper.ip_addresses.append(address)
+            if isinstance(overlay, Community):
+                for bootstrapper in overlay.bootstrappers:
+                    if isinstance(bootstrapper, DispersyBootstrapper):
+                        bootstrapper.ip_addresses.append(cast(UDPv4Address, address))
 
     @docs(
         tags=["Isolation"],
@@ -53,7 +68,10 @@ class IsolationEndpoint(BaseEndpoint):
         'bootstrapnode': Boolean,
         'exitnode': Boolean
     }))
-    async def handle_post(self, request):
+    async def handle_post(self, request: Request) -> Response:
+        """
+        Add an address to a specific IPv8 service.
+        """
         # Check if we have arguments, containing an address and the type of address to add.
         args = await request.json()
         if not args or 'ip' not in args or 'port' not in args:

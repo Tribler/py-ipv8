@@ -1,32 +1,44 @@
+from __future__ import annotations
+
 from base64 import b64encode
 from binascii import hexlify, unhexlify
 from timeit import default_timer
+from typing import TYPE_CHECKING, cast
 
 from aiohttp import web
-
 from aiohttp_apispec import docs, json_schema
-
 from marshmallow.fields import Integer, String
 
-from .base_endpoint import BaseEndpoint, HTTP_BAD_REQUEST, HTTP_NOT_FOUND, Response
-from .schema import DHTValueSchema, DefaultResponseSchema, schema
 from ..dht import DHTError
 from ..dht.community import DHTCommunity
 from ..dht.discovery import DHTDiscoveryCommunity
-from ..dht.routing import calc_node_id
+from ..dht.routing import Node, calc_node_id
 from ..messaging.interfaces.dispatcher.endpoint import FAST_ADDR_TO_INTERFACE
+from ..types import IPv8
+from .base_endpoint import HTTP_BAD_REQUEST, HTTP_NOT_FOUND, BaseEndpoint, Response
+from .schema import DefaultResponseSchema, DHTValueSchema, schema
+
+if TYPE_CHECKING:
+    from aiohttp.abc import Request
 
 
-class DHTEndpoint(BaseEndpoint):
+class DHTEndpoint(BaseEndpoint[IPv8]):
     """
     This endpoint is responsible for handling requests for DHT data.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """
+        Create new unregistered and uninitialized REST endpoint.
+        """
         super().__init__()
-        self.dht = self.publisher = None
+        self.dht: DHTCommunity | None = None
+        self.publisher = None
 
-    def setup_routes(self):
+    def setup_routes(self) -> None:
+        """
+        Register the names to make this endpoint callable.
+        """
         self.app.add_routes([web.get('/statistics', self.get_statistics),
                              web.get('/values', self.get_stored_values),
                              web.get('/values/{key}', self.get_values),
@@ -35,7 +47,10 @@ class DHTEndpoint(BaseEndpoint):
                              web.get('/buckets', self.get_buckets),
                              web.get('/buckets/{prefix:\\w*}/refresh', self.refresh_bucket)])
 
-    def initialize(self, session):
+    def initialize(self, session: IPv8) -> None:
+        """
+        Initialize this endpoint for the given session instance.
+        """
         super().initialize(session)
         self.dht = session.get_overlay(DHTCommunity)
 
@@ -63,8 +78,11 @@ class DHTEndpoint(BaseEndpoint):
             }
         }
     )
-    async def get_statistics(self, _):
-        if not self.dht:
+    async def get_statistics(self, _: Request) -> Response:
+        """
+        Return DHT statistics.
+        """
+        if self.dht is None:
             return Response({"success": False, "error": "DHT community not found"}, status=HTTP_NOT_FOUND)
 
         stats = {
@@ -76,7 +94,8 @@ class DHTEndpoint(BaseEndpoint):
         for address_cls, routing_table in self.dht.routing_tables.items():
             buckets = routing_table.trie.values()
             address = self.dht.my_peer.addresses.get(address_cls, self.dht.my_estimated_wan)
-            stats["endpoints"].append({
+            endpoints = cast(list, stats["endpoints"])
+            endpoints.append({
                 "endpoint": FAST_ADDR_TO_INTERFACE[address_cls],
                 "node_id": hexlify(calc_node_id(address, self.dht.my_peer.mid)).decode('utf-8'),
                 "routing_table_size": sum([len(bucket.nodes) for bucket in buckets]),
@@ -113,8 +132,11 @@ class DHTEndpoint(BaseEndpoint):
             }
         }
     )
-    async def get_peer(self, request):
-        if not self.dht:
+    async def get_peer(self, request: Request) -> Response:
+        """
+        Connect to a peer using the DHT.
+        """
+        if self.dht is None or not isinstance(self.dht, DHTDiscoveryCommunity):
             return Response({"success": False, "error": "DHT community not found"}, status=HTTP_NOT_FOUND)
 
         mid = unhexlify(request.match_info['mid'])
@@ -137,8 +159,11 @@ class DHTEndpoint(BaseEndpoint):
             }
         }
     )
-    async def get_stored_values(self, _):
-        if not self.dht:
+    async def get_stored_values(self, _: Request) -> Response:
+        """
+        Get a list of locally stored key-value pairs from the DHT.
+        """
+        if self.dht is None:
             return Response({"success": False, "error": "DHT community not found"}, status=HTTP_NOT_FOUND)
 
         results = {}
@@ -172,8 +197,11 @@ class DHTEndpoint(BaseEndpoint):
             }
         }
     )
-    async def get_values(self, request):
-        if not self.dht:
+    async def get_values(self, request: Request) -> Response:
+        """
+        Lookup the values for a specific key on the DHT.
+        """
+        if self.dht is None:
             return Response({"success": False, "error": "DHT community not found"}, status=HTTP_NOT_FOUND)
 
         key = unhexlify(request.match_info['key'])
@@ -181,7 +209,7 @@ class DHTEndpoint(BaseEndpoint):
         start = default_timer()
         values, crawls = await self.dht.find_values(key, debug=True)
         nodes_tried = set().union(*[crawl.nodes_tried for crawl in crawls])
-        responses = sum([crawl.responses for crawl in crawls], [])
+        responses: list[tuple[Node, dict]] = sum([crawl.responses for crawl in crawls], [])
         stop = default_timer()
 
         return Response({
@@ -218,8 +246,11 @@ class DHTEndpoint(BaseEndpoint):
     @json_schema(schema(DHTStoreRequest={
         'value*': String
     }))
-    async def put_value(self, request):
-        if not self.dht:
+    async def put_value(self, request: Request) -> Response:
+        """
+        Store a key-value pair on the DHT.
+        """
+        if self.dht is None:
             return Response({"success": False, "error": "DHT community not found"}, status=HTTP_NOT_FOUND)
 
         parameters = await request.json()
@@ -253,7 +284,14 @@ class DHTEndpoint(BaseEndpoint):
             }
         }
     )
-    async def get_buckets(self, _):
+    async def get_buckets(self, _: Request) -> Response:
+        """
+        Return a list of all buckets in the routing table of the DHT community.
+        """
+        if self.dht is None:
+            return Response({"buckets": []})
+        self.dht = cast(DHTCommunity, self.dht)
+
         return Response({"buckets": [{
             "prefix": bucket.prefix_id,
             "last_changed": bucket.last_changed,
@@ -290,7 +328,14 @@ class DHTEndpoint(BaseEndpoint):
             }
         }
     )
-    async def refresh_bucket(self, request):
+    async def refresh_bucket(self, request: Request) -> Response:
+        """
+        Prefix of the bucket which to refresh.
+        """
+        if self.dht is None:
+            return Response({"success": False, "error": "DHT community is not loaded"}, status=HTTP_BAD_REQUEST)
+        self.dht = cast(DHTCommunity, self.dht)
+
         prefix = request.match_info['prefix']
         success = False
         error = None

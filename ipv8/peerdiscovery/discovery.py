@@ -4,10 +4,12 @@ import abc
 from random import choice, randint
 from threading import Lock
 from time import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
+
+from ..types import Overlay
 
 if TYPE_CHECKING:
-    from ..types import Address, Overlay, Peer
+    from ..types import Address, Peer
 
 
 class DiscoveryStrategy(metaclass=abc.ABCMeta):
@@ -15,7 +17,7 @@ class DiscoveryStrategy(metaclass=abc.ABCMeta):
     Strategy for discovering peers in a network.
     """
 
-    def __init__(self, overlay: Overlay) -> None:
+    def __init__(self, overlay: Overlay | None) -> None:
         """
         Create a new strategy instance for a particular overlay.
         """
@@ -27,6 +29,12 @@ class DiscoveryStrategy(metaclass=abc.ABCMeta):
         """
         Callback for when an IPv8 tick occurs (defaults to roughly every 0.5 seconds).
         """
+
+    def get_peer_count(self) -> int:
+        """
+        Determine the current number of peers. This is used by IPv8 to determine whether to call this strategy.
+        """
+        return 0 if self.overlay is None else len(self.overlay.get_peers())
 
 
 class RandomWalk(DiscoveryStrategy):
@@ -59,6 +67,7 @@ class RandomWalk(DiscoveryStrategy):
         """
         Walk to random walkable peer.
         """
+        self.overlay = cast(Overlay, self.overlay)
         with self.walk_lock:
             # Sanitize unreachable nodes
             to_remove = [node for node in self.intro_timeouts if self.intro_timeouts[node] + self.node_timeout < time()]
@@ -121,6 +130,7 @@ class EdgeWalk(DiscoveryStrategy):
         """
         Attempt to grow an edge.
         """
+        self.overlay = cast(Overlay, self.overlay)
         with self.walk_lock:
             if not self._neighborhood or len(self._neighborhood) < self.neighborhood_size:
                 # Wait for our immediate neighborhood to be discovered
