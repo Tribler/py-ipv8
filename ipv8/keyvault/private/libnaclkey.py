@@ -11,7 +11,7 @@ class LibNaCLSK(PrivateKey, LibNaCLPK):
     A LibNaCL implementation of a secret key.
     """
 
-    def __init__(self, binarykey=""):
+    def __init__(self, binarykey: bytes = b"") -> None:
         """
         Create a new LibNaCL secret key. Optionally load it from a string representation.
         Otherwise generate it from the 25519 curve.
@@ -23,19 +23,20 @@ class LibNaCLSK(PrivateKey, LibNaCLPK):
             crypt, seed = (binarykey[:libnacl.crypto_box_SECRETKEYBYTES],
                            binarykey[libnacl.crypto_box_SECRETKEYBYTES: libnacl.crypto_box_SECRETKEYBYTES
                                      + libnacl.crypto_sign_SEEDBYTES])
-            self.key = libnacl.dual.DualSecret(crypt, seed)
+            key = libnacl.dual.DualSecret(crypt, seed)
         else:
-            self.key = libnacl.dual.DualSecret()
-        # Immediately create a verifier
-        self.veri = libnacl.sign.Verifier(self.key.hex_vk())
+            key = libnacl.dual.DualSecret()
 
-    def pub(self):
+        super().__init__(pk=key.pk, hex_vk=key.hex_vk())
+        self.key = key
+
+    def pub(self) -> LibNaCLPK:
         """
         Get the public key for this secret key.
         """
         return LibNaCLPK(pk=self.key.pk, hex_vk=self.veri.hex_vk())
 
-    def signature(self, msg):
+    def signature(self, msg: bytes) -> bytes:
         """
         Create a signature for a message.
 
@@ -44,7 +45,7 @@ class LibNaCLSK(PrivateKey, LibNaCLPK):
         """
         return self.key.signature(msg)
 
-    def key_to_bin(self):
+    def key_to_bin(self) -> bytes:
         """
         Get the string representation of this key.
         """

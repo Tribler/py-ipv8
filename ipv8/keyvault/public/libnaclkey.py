@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import libnacl
 import libnacl.encode
 import libnacl.public
@@ -11,7 +13,7 @@ class LibNaCLPK(PublicKey):
     A LibNaCL implementation of a public key.
     """
 
-    def __init__(self, binarykey="", pk=None, hex_vk=None):
+    def __init__(self, binarykey: bytes = b"", pk: bytes | None = None, hex_vk: bytes | None = None) -> None:
         """
         Create a new LibNaCL public key. Optionally load it from a string representation or
         using a public key and verification key.
@@ -30,7 +32,7 @@ class LibNaCLPK(PublicKey):
         self.key = libnacl.public.PublicKey(pk)
         self.veri = libnacl.sign.Verifier(hex_vk)
 
-    def verify(self, signature, msg):
+    def verify(self, signature: bytes, msg: bytes) -> bool:
         """
         Verify whether a given signature is correct for a message.
 
@@ -39,13 +41,13 @@ class LibNaCLPK(PublicKey):
         """
         return self.veri.verify(signature + msg)
 
-    def key_to_bin(self):
+    def key_to_bin(self) -> bytes:
         """
         Get the string representation of this key.
         """
         return b"LibNaCLPK:" + self.key.pk + self.veri.vk
 
-    def get_signature_length(self):
+    def get_signature_length(self) -> int:
         """
         Returns the length, in bytes, of each signature made using EC.
         """

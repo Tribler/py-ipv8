@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Iterable, Union, cast
 
 from ..community import DEFAULT_MAX_PEERS, Community
 from ..keyvault.crypto import default_eccrypto
+from ..keyvault.keys import PrivateKey
 from ..lazy_community import PacketDecodingError, lazy_wrapper, lazy_wrapper_unsigned, retrieve_cache
 from ..messaging.payload import IntroductionRequestPayload, IntroductionResponsePayload
 from ..messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
@@ -236,7 +237,7 @@ class DiscoveryCommunity(Community):
         """
         packet = self._prefix + bytes([msg_num])
         packet += self.serializer.pack_serializable_list(payloads)
-        packet += default_eccrypto.create_signature(peer.key, packet)
+        packet += default_eccrypto.create_signature(cast(PrivateKey, peer.key), packet)
         return packet
 
     def create_similarity_request(self, peer: Peer) -> bytes:
