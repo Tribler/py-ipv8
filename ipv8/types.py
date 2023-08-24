@@ -16,6 +16,7 @@ if typing.TYPE_CHECKING:
     from ipv8.community import Community
     from ipv8.configuration import ConfigBuilder
     from ipv8.database import Database
+    from ipv8.dht.community import DHTCommunity
     from ipv8.keyvault.keys import Key, PrivateKey, PublicKey
     from ipv8.messaging.interfaces.endpoint import Endpoint
     from ipv8.messaging.serialization import Payload
@@ -32,6 +33,7 @@ else:
     ConfigBuilder = 'ipv8.configuration.ConfigBuilder'
     Credential = 'ipv8.attestation.identity.database.Credential'
     Database = 'ipv8.database.Database'
+    DHTCommunity = 'ipv8.dht.community.DHTCommunity'
     Endpoint = 'ipv8.messaging.interfaces.endpoint.Endpoint'
     IdentityAlgorithm = 'ipv8.attestation.identity_formats.IdentityAlgorithm'
     IdentityAlgorithmClass = 'ipv8.attestation.identity_formats.IdentityAlgorithm.__class__'
