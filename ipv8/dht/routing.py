@@ -122,7 +122,7 @@ class Node(Peer):
             return NODE_STATUS_GOOD
         return NODE_STATUS_UNKNOWN
 
-    def distance(self, other_node: Node) -> int:
+    def distance(self, other_node: Node | bytes) -> int:
         """
         The distance to another node.
         """
@@ -234,7 +234,7 @@ class RoutingTable:
         Construct a new routing table for our own node id.
         """
         self.my_node_id = my_node_id
-        self.trie = Trie('01')
+        self.trie = Trie[Bucket]('01')
         self.trie[''] = Bucket('')
         self.lock = RLock()
 

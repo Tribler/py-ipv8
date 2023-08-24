@@ -3,16 +3,17 @@ from __future__ import annotations
 from base64 import b64encode
 from binascii import hexlify, unhexlify
 from timeit import default_timer
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Optional, Sequence, cast
 
 from aiohttp import web
 from aiohttp_apispec import docs, json_schema
 from marshmallow.fields import Integer, String
 
 from ..dht import DHTError
-from ..dht.community import DHTCommunity
+from ..dht.community import Crawl, DHTCommunity
 from ..dht.discovery import DHTDiscoveryCommunity
 from ..dht.routing import Node, calc_node_id
+from ..dht.storage import Storage
 from ..messaging.interfaces.dispatcher.endpoint import FAST_ADDR_TO_INTERFACE
 from ..types import IPv8
 from .base_endpoint import HTTP_BAD_REQUEST, HTTP_NOT_FOUND, BaseEndpoint, Response
@@ -101,7 +102,8 @@ class DHTEndpoint(BaseEndpoint[IPv8]):
                 "routing_table_size": sum([len(bucket.nodes) for bucket in buckets]),
                 "routing_table_buckets": len(buckets),
                 "num_keys_in_store":
-                    len(self.dht.storages.get(address_cls).items) if self.dht.storages.get(address_cls) else 0,
+                    len(cast(Storage, self.dht.storages.get(address_cls)).items) if self.dht.storages.get(address_cls)
+                    else 0,
             })
 
         if isinstance(self.dht, DHTDiscoveryCommunity):
@@ -207,7 +209,8 @@ class DHTEndpoint(BaseEndpoint[IPv8]):
         key = unhexlify(request.match_info['key'])
 
         start = default_timer()
-        values, crawls = await self.dht.find_values(key, debug=True)
+        values, crawls = cast(tuple[Sequence[tuple[bytes, Optional[bytes]]], list[Crawl]],
+                              await self.dht.find_values(key, debug=True))
         nodes_tried = set().union(*[crawl.nodes_tried for crawl in crawls])
         responses: list[tuple[Node, dict]] = sum([crawl.responses for crawl in crawls], [])
         stop = default_timer()

@@ -16,7 +16,7 @@ class TestNode(TestBase):
 
     def test_get_set_del(self) -> None:
         """
-        Test gettig, setting and deleting from the Trie.
+        Test getting, setting and deleting from the Trie.
         """
         self.trie['0'] = 1
         self.assertEqual(self.trie['0'], 1)

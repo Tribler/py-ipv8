@@ -1,2 +1,4 @@
 class DHTError(Exception):
-    pass
+    """
+    Generic error for DHT-related failures.
+    """
