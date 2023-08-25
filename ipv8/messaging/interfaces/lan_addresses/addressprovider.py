@@ -8,6 +8,9 @@ from time import time
 
 
 class AddressProvider(ABC):
+    """
+    Interface for OS-specific methods of finding local interfaces addresses.
+    """
 
     def __init__(self, verbose: bool = False) -> None:
         """
@@ -33,7 +36,6 @@ class AddressProvider(ABC):
         """
         Get a set of LAN addresses using this provider.
         """
-        pass
 
     def get_addresses_buffered(self, buffer_time_secs: float = 10.0) -> typing.Set[str]:
         """

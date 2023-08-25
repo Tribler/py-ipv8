@@ -4,6 +4,9 @@ from ..addressprovider import AddressProvider
 
 
 class SocketGetAddrInfo(AddressProvider):
+    """
+    Use the ``socket`` library to discover interface addresses.
+    """
 
     def get_addresses(self) -> set:
         """

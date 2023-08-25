@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from typing import TYPE_CHECKING
 
-from .addressprovider import AddressProvider
 from .importshield import Platform, conditional_import_shield
 
+if TYPE_CHECKING:
+    from .addressprovider import AddressProvider
 
 try:
     import netifaces

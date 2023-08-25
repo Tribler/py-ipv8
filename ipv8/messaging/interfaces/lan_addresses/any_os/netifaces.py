@@ -5,13 +5,15 @@ import netifaces
 
 from ..addressprovider import AddressProvider
 
-
 NETMASK0_V6 = socket.inet_ntop(socket.AF_INET6, b'\x00' * 16)
 
 
 class Netifaces(AddressProvider):
+    """
+    Use the ``netifaces`` library to discover local interface addresses.
+    """
 
-    def get_addresses(self) -> set:
+    def get_addresses(self) -> set:  # noqa: C901
         """
         Use ``netifaces.ifaddresses`` to retrieve addresses.
         """
