@@ -119,11 +119,11 @@ class OverlaysEndpoint(BaseEndpoint[IPv8]):
         return Response({"statistics": overlay_stats})
 
     def statistics_by_name(self, statistics: dict[int, NetworkStat],
-                           overlay: Community) -> dict[str, dict[str, str | int | float]]:
+                           overlay: Community) -> dict[str, dict[str, int | float]]:
         """
         Convert the captured statistics to a human-readable dict.
         """
-        named_statistics = {}
+        named_statistics: dict[str, dict[str, int | float]] = {}
         for message_id, network_stats in statistics.items():
             if overlay.decode_map[message_id]:
                 mapped_name = str(message_id) + ":" + overlay.decode_map[message_id].__name__

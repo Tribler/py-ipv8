@@ -4,6 +4,9 @@ from ..addressprovider import AddressProvider
 
 
 class TestNet1(AddressProvider):
+    """
+    Use the ``TEST-NET-1`` address to discover local interface addresses.
+    """
 
     def get_addresses(self) -> set:
         """

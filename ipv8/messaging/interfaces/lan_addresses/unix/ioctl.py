@@ -4,6 +4,9 @@ import typing
 
 if typing.TYPE_CHECKING:
     def ioctl(__fd: int, __request: int, __arg: bytes, __mutate_flag: bool = ...) -> bytes:
+        """
+        Stub for the ioctl call's types.
+        """
         ...
 else:
     from fcntl import ioctl
@@ -16,6 +19,9 @@ FMT_FAMILY = 'H'
 
 
 class Ioctl(AddressProvider):
+    """
+    Attempt to find local addresses using the ``ioctl`` system call.
+    """
 
     def get_addresses(self) -> set:
         """

@@ -2,14 +2,33 @@ from __future__ import annotations
 
 import socket
 import typing
-from ctypes import (POINTER, Structure, Union, c_short, c_size_t, c_ubyte, c_uint, c_uint64, c_ulonglong, c_ushort,
-                    cast, pointer, string_at)
+from ctypes import (
+    POINTER,
+    Structure,
+    Union,
+    c_short,
+    c_size_t,
+    c_ubyte,
+    c_uint,
+    c_uint64,
+    c_ulonglong,
+    c_ushort,
+    cast,
+    pointer,
+    string_at,
+)
 from ctypes.wintypes import BOOL, BYTE, DWORD, HANDLE, INT, LONG, LPVOID, PCHAR, PWCHAR, ULONG, WCHAR
 
+# ruff: noqa: N801, N803, N806, SLF001
+
 if typing.TYPE_CHECKING:
-    from ctypes import _Pointer, CDLL, c_ulong, c_void_p
+    from ctypes import CDLL, _Pointer, c_ulong, c_void_p
 
     class WinDLL(CDLL):
+        """
+        Stub for WinDLL instance types.
+        """
+
         class _HeapAlloc(typing.Protocol, typing.SupportsInt):
             restype: type[LPVOID]
             argtypes: list
@@ -38,15 +57,29 @@ if typing.TYPE_CHECKING:
         HeapFree: _HeapFree
 
     class windll:
-        def __getattr__(self, name: str) -> typing.Any:
+        """
+        Stub for windll library loader types.
+        """
+
+        def __getattr__(self, name: str) -> typing.Any:  # noqa: ANN401
+            """
+            Stub for all calls to ``windll``.
+            """
             ...  # incomplete
 
         class iphlpapi:
-            def __getattr__(self, name: str) -> typing.Any:
+            """
+            Stub for iphlpapi library loader types.
+            """
+
+            def __getattr__(self, name: str) -> typing.Any:  # noqa: ANN401
+                """
+                Stub for all calls to ``iphlpapi``.
+                """
                 ...  # incomplete
 
-            class _GetAdaptersAddresses(typing.Protocol, typing.SupportsInt):
-                def __call__(self, Family: c_ulong, Flags: c_ulong, Reserved: int,
+            class _GetAdaptersAddresses(typing.Protocol, typing.SupportsInt):  # noqa: PYI046
+                def __call__(self, Family: c_ulong, Flags: c_ulong, Reserved: int,  # noqa: PLR0913
                              AdapterAddresses: _Pointer, SizePointer: _Pointer) -> int:
                     ...
 
@@ -101,6 +134,10 @@ HeapFree.argtypes = [HANDLE, DWORD, LPVOID]
 
 
 class SOCKADDR_IN(Structure):
+    """
+    IPv4 address struct.
+    """
+
     _fields_ = [
         ("sin_family", c_short),
         ("sin_port", c_ushort),
@@ -110,6 +147,10 @@ class SOCKADDR_IN(Structure):
 
 
 class SOCKADDR_IN6(Structure):
+    """
+    IPv6 address struct.
+    """
+
     _fields_ = [
         ("sin6_family", c_short),
         ("sin6_port", c_ushort),
@@ -120,6 +161,10 @@ class SOCKADDR_IN6(Structure):
 
 
 class SOCKET_ADDRESS(Structure):
+    """
+    Unknown address struct, can be ``SOCKADDR_IN`` or ``SOCKADDR_IN6``.
+    """
+
     _fields_ = [
         ('lpSockaddr', LPSOCKADDR),
         ('iSockaddrLength', INT)
@@ -127,6 +172,10 @@ class SOCKET_ADDRESS(Structure):
 
 
 class IP_ADAPTER_GATEWAY_ADDRESS_LH(Structure):
+    """
+    Struct for gateway address info linked lists.
+    """
+
     class _u1(Union):
         class _s1(Structure):
             _fields_ = [("Length", ULONG),
@@ -144,6 +193,10 @@ IP_ADAPTER_GATEWAY_ADDRESS_LH._fields_ = [
 
 
 class IP_ADAPTER_WINS_SERVER_ADDRESS_LH(Structure):
+    """
+    Struct for win server address info linked lists.
+    """
+
     class _u1(Union):
         class _s1(Structure):
             _fields_ = [("Length", ULONG),
@@ -161,6 +214,10 @@ IP_ADAPTER_WINS_SERVER_ADDRESS_LH._fields_ = [
 
 
 class IP_ADAPTER_PREFIX_XP(Structure):
+    """
+    Struct for adapter address info linked lists.
+    """
+
     class _u1(Union):
         class _s1(Structure):
             _fields_ = [("Length", ULONG),
@@ -178,6 +235,10 @@ IP_ADAPTER_PREFIX_XP._fields_ = [
 
 
 class IP_ADAPTER_DNS_SERVER_ADDRESS_XP(Structure):
+    """
+    Struct for dns address info linked lists.
+    """
+
     class _u1(Union):
         class _s1(Structure):
             _fields_ = [("Length", ULONG),
@@ -195,6 +256,10 @@ IP_ADAPTER_DNS_SERVER_ADDRESS_XP._fields_ = [
 
 
 class IP_ADAPTER_MULTICAST_ADDRESS_XP(Structure):
+    """
+    Struct for adapter multicast address info (deprecated Windows XP format) linked lists.
+    """
+
     class _u1(Union):
         class _s1(Structure):
             _fields_ = [("Length", ULONG),
@@ -212,6 +277,10 @@ IP_ADAPTER_MULTICAST_ADDRESS_XP._fields_ = [
 
 
 class IP_ADAPTER_ANYCAST_ADDRESS_XP(Structure):
+    """
+    Struct for adapter anycast address info (deprecated Windows XP format) linked lists.
+    """
+
     class _u1(Union):
         class _s1(Structure):
             _fields_ = [("Length", ULONG),
@@ -229,6 +298,10 @@ IP_ADAPTER_ANYCAST_ADDRESS_XP._fields_ = [
 
 
 class IP_ADAPTER_UNICAST_ADDRESS_LH(Structure):
+    """
+    Struct for adapter unicast address info linked lists.
+    """
+
     class _u1(Union):
         class _s1(Structure):
             _fields_ = [("Length", ULONG),
@@ -252,7 +325,9 @@ IP_ADAPTER_UNICAST_ADDRESS_LH._fields_ = [
 
 
 class IP_ADAPTER_DNS_SUFFIX(Structure):
-    pass
+    """
+    Struct stub for DNS suffixes.
+    """
 
 
 IP_ADAPTER_DNS_SUFFIX._fields_ = [
@@ -262,6 +337,10 @@ IP_ADAPTER_DNS_SUFFIX._fields_ = [
 
 
 class IF_LUID(Structure):
+    """
+    Struct for LUID info.
+    """
+
     _fields_ = [
         ('LowPart', DWORD),
         ('HighPart', LONG)
@@ -269,7 +348,17 @@ class IF_LUID(Structure):
 
 
 class IP_ADAPTER_ADDRESSES_LH(Structure):
-    __slots__ = ["__u1", "Next", "AdapterName", "FirstUnicastAddress", "FirstAnycastAddress", "FirstMulticastAddress", "FirstDnsServerAddress", "DnsSuffix", "Description", "FriendlyName", "PhysicalAddress", "PhysicalAddressLength", "Flags", "Mtu", "IfType", "OperStatus", "Ipv6IfIndex", "ZoneIndices", "FirstPrefix", "TransmitLinkSpeed", "ReceiveLinkSpeed", "FirstWinsServerAddress", "FirstGatewayAddress", "Ipv4Metric", "Ipv6Metric", "Luid", "Dhcpv4Server", "CompartmentId", "NetworkGuid", "ConnectionType", "TunnelType", "Dhcpv6Server", "Dhcpv6ClientDuid", "Dhcpv6ClientDuidLength", "Dhcpv6Iaid", "FirstDnsSuffix"]
+    """
+    Struct for ``GetAdaptersAddresses`` return values.
+    """
+
+    __slots__ = ["__u1", "Next", "AdapterName", "FirstUnicastAddress", "FirstAnycastAddress", "FirstMulticastAddress",
+                 "FirstDnsServerAddress", "DnsSuffix", "Description", "FriendlyName", "PhysicalAddress",
+                 "PhysicalAddressLength", "Flags", "Mtu", "IfType", "OperStatus", "Ipv6IfIndex", "ZoneIndices",
+                 "FirstPrefix", "TransmitLinkSpeed", "ReceiveLinkSpeed", "FirstWinsServerAddress",
+                 "FirstGatewayAddress", "Ipv4Metric", "Ipv6Metric", "Luid", "Dhcpv4Server", "CompartmentId",
+                 "NetworkGuid", "ConnectionType", "TunnelType", "Dhcpv6Server", "Dhcpv6ClientDuid",
+                 "Dhcpv6ClientDuidLength", "Dhcpv6Iaid", "FirstDnsSuffix"]
 
     class _u1(Union):
         class _s1(Structure):
@@ -320,6 +409,9 @@ IP_ADAPTER_ADDRESSES_LH._fields_ = [
 
 
 class GetAdaptersAddresses(AddressProvider):
+    """
+    Attempt to find local addresses using the ``GetAdaptersAddresses`` system call.
+    """
 
     def get_addresses(self) -> set:
         """
@@ -349,7 +441,7 @@ class GetAdaptersAddresses(AddressProvider):
                 HeapFree(proc_heap, DWORD(0), pAdapterAddresses)
             return set(out_addresses)
 
-        next = pAdapterAddresses
+        next = pAdapterAddresses  # noqa: A001
         while next:
             adapterAddresses: IP_ADAPTER_ADDRESSES_LH = next.contents
 
@@ -366,7 +458,7 @@ class GetAdaptersAddresses(AddressProvider):
                         out_addresses.append(socket.inet_ntop(socket.AF_INET6, string_at(socket_desc6.sin6_addr, 16)))
                 next_unicast = unicast_address.Next
 
-            next = adapterAddresses.Next
+            next = adapterAddresses.Next  # noqa: A001
 
         # Free memory
         HeapFree(proc_heap, DWORD(0), pAdapterAddresses)

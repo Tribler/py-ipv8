@@ -4,8 +4,11 @@ import ipaddress
 import logging
 import typing
 
-from ..endpoint import Endpoint
+from ..endpoint import Endpoint, EndpointListener
 from ..udp.endpoint import UDPEndpoint, UDPv4Address, UDPv6Address, UDPv6Endpoint
+
+if typing.TYPE_CHECKING:
+    from ipv8.types import Address
 
 INTERFACES = {
     "UDPIPv4": UDPEndpoint,
@@ -25,7 +28,7 @@ For example, ``["UDPIPv4", "UDPIPv6"]`` means: use IPv4 over IPv6, if it is avai
 """
 
 
-FAST_ADDR_TO_INTERFACE = {
+FAST_ADDR_TO_INTERFACE: dict[type, str] = {
     UDPv4Address: "UDPIPv4",
     UDPv6Address: "UDPIPv6"
 }
@@ -35,7 +38,7 @@ For addresses which do not use these classes the slower ``guess_interface`` will
 """
 
 
-def guess_interface(socket_address: typing.Any):
+def guess_interface(socket_address: typing.Any) -> str | None:  # noqa: ANN401
     """
     Attempt to guess the interface for the given address.
 
@@ -48,8 +51,7 @@ def guess_interface(socket_address: typing.Any):
                 and isinstance(socket_address[0], str) and isinstance(socket_address[1], int)):
             if isinstance(ipaddress.ip_address(socket_address[0]), ipaddress.IPv4Address):
                 return "UDPIPv4"
-            else:
-                return "UDPIPv6"
+            return "UDPIPv6"
     except Exception:
         logging.exception("Exception occurred while guessing interface for %s", repr(socket_address))
     return None
@@ -90,59 +92,100 @@ class DispatcherEndpoint(Endpoint):
         self._preferred_interface = self.interfaces[self.interface_order[0]] if self.interface_order else None
 
     @property
-    def bytes_up(self):
+    def bytes_up(self) -> int:
+        """
+        Get the number of bytes sent over this endpoint.
+        """
         return sum(interface.bytes_up for interface in self.interfaces.values())
 
     @property
-    def bytes_down(self):
+    def bytes_down(self) -> int:
+        """
+        Get the number of bytes received over this endpoint.
+        """
         return sum(interface.bytes_down for interface in self.interfaces.values())
 
-    def add_listener(self, listener) -> None:
+    def add_listener(self, listener: EndpointListener) -> None:
+        """
+        Reroute a listener to all the interfaces we dispatch to.
+        """
         for interface in self.interfaces.values():
             interface.add_listener(listener)
 
-    def add_prefix_listener(self, listener, prefix) -> None:
+    def add_prefix_listener(self, listener: EndpointListener, prefix: bytes) -> None:
+        """
+        Reroute a prefix listener to all the interfaces we dispatch to.
+        """
         for interface in self.interfaces.values():
             interface.add_prefix_listener(listener, prefix)
 
-    def remove_listener(self, listener) -> None:
+    def remove_listener(self, listener: EndpointListener) -> None:
+        """
+        Remove a listener from all the interfaces we dispatch to.
+        """
         for interface in self.interfaces.values():
             interface.remove_listener(listener)
 
-    def notify_listeners(self, packet) -> None:
+    def notify_listeners(self, packet: tuple[Address, bytes]) -> None:
+        """
+        Dispatch a new packet to all interfaces.
+        """
         for interface in self.interfaces.values():
             interface.notify_listeners(packet)
 
     def assert_open(self) -> None:
+        """
+        Perform an assert that we are opened.
+        """
         assert self.is_open()
 
     def is_open(self) -> bool:
+        """
+        Check if we have ANY open interface.
+        """
         return any(interface.is_open() for interface in self.interfaces.values())
 
-    def get_address(self, interface=None) -> typing.Any | None:
+    def get_address(self, interface: str | None = None) -> Address:
+        """
+        Get the most likely interface for our interfaces.
+        """
         if interface is not None:
             return self.interfaces[interface].get_address()
-        elif self._preferred_interface:
+        if self._preferred_interface:
             return self._preferred_interface.get_address()
-        return None
+        return "0.0.0.0", 0
 
-    def send(self, socket_address, packet, interface=None) -> None:
+    def send(self, socket_address: Address, packet: bytes, interface: str | None = None) -> None:
+        """
+        Send a packet to a given address over the most likely interface, or a given interface.
+        """
         if interface is not None:
             self.interfaces[interface].send(socket_address, packet)
         else:
-            interface = self.interfaces.get(FAST_ADDR_TO_INTERFACE.get(socket_address.__class__)
-                                            or guess_interface(socket_address))
-            if interface is not None:
-                interface.send(socket_address, packet)
+            ep = self.interfaces.get(typing.cast(str, FAST_ADDR_TO_INTERFACE.get(socket_address.__class__)
+                                                      or guess_interface(socket_address)))
+            if ep is not None:
+                ep.send(socket_address, packet)
 
-    async def open(self) -> None:
+    async def open(self) -> bool:  # noqa: A003
+        """
+        Open all interfaces.
+        """
+        any_success = False
         for interface in self.interfaces.values():
-            await interface.open()
+            any_success |= await interface.open()
+        return any_success
 
     def close(self) -> None:
+        """
+        Close all interfaces.
+        """
         for interface in self.interfaces.values():
             interface.close()
 
     def reset_byte_counters(self) -> None:
+        """
+        Reset our counters.
+        """
         for interface in self.interfaces.values():
             interface.reset_byte_counters()

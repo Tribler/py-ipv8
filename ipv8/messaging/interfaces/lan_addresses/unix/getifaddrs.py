@@ -1,20 +1,40 @@
 import socket
-from ctypes import (CDLL, POINTER, Structure, Union, c_char_p, c_int, c_short, c_ubyte, c_uint, c_uint32, c_ushort,
-                    c_void_p, cast, pointer, string_at)
+from ctypes import (
+    CDLL,
+    POINTER,
+    Structure,
+    Union,
+    c_char_p,
+    c_int,
+    c_short,
+    c_ubyte,
+    c_uint,
+    c_uint32,
+    c_ushort,
+    c_void_p,
+    cast,
+    pointer,
+    string_at,
+)
 
 from ..addressprovider import AddressProvider
 
-
 libc = CDLL("libc.so.6", use_errno=True)
 libc.getifaddrs.restype = c_int
-libc.__errno_location.restype = POINTER(c_int)
+libc.__errno_location.restype = POINTER(c_int)  # noqa: SLF001
 libc.strerror.restype = c_char_p
 
 NETMASK0_V4 = b'\x00' * 4
 NETMASK0_V6 = b'\x00' * 16
 
+# ruff: noqa: N801
+
 
 class sockaddr_in(Structure):
+    """
+    IPv4 address struct.
+    """
+
     _fields_ = [
         ('sin_family', c_short),
         ("sin_port", c_ushort),
@@ -24,6 +44,10 @@ class sockaddr_in(Structure):
 
 
 class sockaddr_in6(Structure):
+    """
+    IPv6 address struct.
+    """
+
     _fields_ = [
         ('sin6_family', c_short),
         ("sin6_port", c_ushort),
@@ -34,6 +58,10 @@ class sockaddr_in6(Structure):
 
 
 class sockaddr(Structure):
+    """
+    Unknown address struct, can be ``sockaddr_in`` or ``sockaddr_in6``.
+    """
+
     _fields_ = [
         ('sa_family', c_ushort),
         ('sa_data', c_ubyte * 14)  # Placeholder, needs logic to cast.
@@ -41,6 +69,10 @@ class sockaddr(Structure):
 
 
 class ifa_ifu(Union):
+    """
+    Union to capture both broadcast addresses and "normal" addresses.
+    """
+
     _fields_ = [
         ('ifu_broadaddr', POINTER(sockaddr)),
         ('ifu_dstaddr', POINTER(sockaddr))
@@ -48,7 +80,9 @@ class ifa_ifu(Union):
 
 
 class ifaddrs(Structure):
-    pass
+    """
+    Stub for pointers to the next ``ifaddrs`` struct.
+    """
 
 
 ifaddrs._fields_ = [
@@ -63,6 +97,9 @@ ifaddrs._fields_ = [
 
 
 class GetIfAddrs(AddressProvider):
+    """
+    Attempt to find local addresses using the ``getifaddrs`` system call.
+    """
 
     def get_addresses(self) -> set:
         """
@@ -84,7 +121,7 @@ class GetIfAddrs(AddressProvider):
                 self.on_exception()
             return set()
 
-        next = p_if_adresses
+        next = p_if_adresses  # noqa: A001
         while next:
             p_address = next.contents.ifa_addr
             netmask_is_zero = False  # Check for netmask "0.0.0.0"
@@ -104,7 +141,7 @@ class GetIfAddrs(AddressProvider):
                 elif family == 10:
                     socket_desc6 = cast(p_address, POINTER(sockaddr_in6)).contents
                     out_addresses.append(socket.inet_ntop(socket.AF_INET6, string_at(socket_desc6.sin6_addr, 16)))
-            next = next.contents.ifa_next
+            next = next.contents.ifa_next  # noqa: A001
 
         # ctypes takes care of free(), no need to call ``freeifaddrs()``
 

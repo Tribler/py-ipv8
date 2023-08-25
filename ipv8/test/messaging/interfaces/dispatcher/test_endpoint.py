@@ -1,19 +1,38 @@
-from ....base import TestBase
-from .....messaging.interfaces.dispatcher.endpoint import (DispatcherEndpoint, FAST_ADDR_TO_INTERFACE, INTERFACES,
-                                                           PREFERENCE_ORDER, guess_interface)
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+from .....messaging.interfaces.dispatcher.endpoint import (
+    FAST_ADDR_TO_INTERFACE,
+    INTERFACES,
+    PREFERENCE_ORDER,
+    DispatcherEndpoint,
+    guess_interface,
+)
 from .....messaging.interfaces.endpoint import Endpoint, EndpointListener
 from .....messaging.interfaces.udp.endpoint import UDPv4Address
+from ....base import TestBase
+
+if TYPE_CHECKING:
+    from .....types import Address
 
 
 class DummyEndpointListener(EndpointListener):
     """
     This class simply listens on an endpoint and stores incoming packets in a list.
     """
-    def __init__(self, endpoint):
+
+    def __init__(self, endpoint: Endpoint) -> None:
+        """
+        Wrap the given endpoint.
+        """
         super().__init__(endpoint)
         self.incoming = []
 
-    def on_packet(self, packet):
+    def on_packet(self, packet: tuple[Address, bytes]) -> None:
+        """
+        Callback for incoming packets.
+        """
         self.incoming.append(packet)
 
 
@@ -22,7 +41,10 @@ class DummyEndpoint(Endpoint):
     Non-functional endpoint for manual staging and inspection.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """
+        Create a new dummy endpoint.
+        """
         super().__init__(prefixlen=1)
 
         self.opened = False
@@ -30,30 +52,55 @@ class DummyEndpoint(Endpoint):
         self.bytes_up = 0
         self.bytes_down = 0
 
-    def assert_open(self):
+    def assert_open(self) -> None:
+        """
+        Assert open state as usual.
+        """
         assert self.opened
 
-    def is_open(self):
+    def is_open(self) -> bool:
+        """
+        Check if opened as usual.
+        """
         return self.opened
 
-    def get_address(self):
+    def get_address(self) -> Address:
+        """
+        Give a fake localhost IPv4 address.
+        """
         return UDPv4Address("127.0.0.1", 1337)
 
-    def send(self, socket_address, packet):
+    def send(self, socket_address: Address, packet: bytes) -> None:
+        """
+        Intercept and store sends without actually sending.
+        """
         self.bytes_up += len(packet)
         self.sent.append((socket_address, packet))
 
-    async def open(self):
+    async def open(self) -> bool:  # noqa: A003
+        """
+        Do a fake open.
+        """
         self.opened = True
+        return True
 
-    def close(self):
+    def close(self) -> None:
+        """
+        Close as usual.
+        """
         self.opened = False
 
-    def reset_byte_counters(self):
+    def reset_byte_counters(self) -> None:
+        """
+        Reset counters as usual.
+        """
         self.bytes_up = 0
         self.bytes_down = 0
 
-    def notify_listeners(self, packet):
+    def notify_listeners(self, packet: tuple[Address, bytes]) -> None:
+        """
+        Perform usual notification.
+        """
         socket_address, data = packet
         self.bytes_down += len(data)
         super().notify_listeners(packet)
@@ -72,21 +119,21 @@ class TestDispatcherEndpoint(TestBase):
     This class contains various tests for the DispatcherEndpoint.
     """
 
-    RANDOM_DATA = "data"
+    RANDOM_DATA = b"data"
 
     @staticmethod
-    async def _produce_dummy():
+    async def _produce_dummy() -> tuple[DispatcherEndpoint, DummyEndpoint, DummyEndpointListener]:
         """
         Create and open a DispatcherEndpoint, dispatching to a dummy endpoint and listener.
         """
         endpoint = DispatcherEndpoint(["Dummy"])
-        child_endpoint = list(endpoint.interfaces.values())[0]
+        child_endpoint = next(iter(endpoint.interfaces.values()))
         listener = DummyEndpointListener(endpoint)
         endpoint.add_listener(listener)
         await endpoint.open()
         return endpoint, child_endpoint, listener
 
-    async def test_initialize_no_interfaces(self):
+    async def test_initialize_no_interfaces(self) -> None:
         """
         Check if the DispatcherEndpoint can initialize and "send" without interfaces.
 
@@ -95,7 +142,7 @@ class TestDispatcherEndpoint(TestBase):
         endpoint = DispatcherEndpoint([])
         endpoint.send(("0.0.0.0", 0), TestDispatcherEndpoint.RANDOM_DATA)
 
-    async def test_dispatch_receive(self):
+    async def test_dispatch_receive(self) -> None:
         """
         Check if packet reception is correctly propagated from children.
         """
@@ -107,7 +154,7 @@ class TestDispatcherEndpoint(TestBase):
         self.assertEqual(1, len(listener.incoming))
         self.assertEqual(packet, listener.incoming[0])
 
-    async def test_dispatch_send(self):
+    async def test_dispatch_send(self) -> None:
         """
         Check if packet sending is correctly propagated to children.
         """
@@ -119,7 +166,7 @@ class TestDispatcherEndpoint(TestBase):
         self.assertEqual(1, len(child_endpoint.sent))
         self.assertEqual(packet, child_endpoint.sent[0])
 
-    async def test_dispatch_send_specific(self):
+    async def test_dispatch_send_specific(self) -> None:
         """
         Check if packet sending is correctly propagated to children, with specific interface.
         """
@@ -131,7 +178,7 @@ class TestDispatcherEndpoint(TestBase):
         self.assertEqual(1, len(child_endpoint.sent))
         self.assertEqual(packet, child_endpoint.sent[0])
 
-    async def test_is_open(self):
+    async def test_is_open(self) -> None:
         """
         Check if is_open is correctly propagated from children.
         """
@@ -149,7 +196,7 @@ class TestDispatcherEndpoint(TestBase):
         self.assertFalse(endpoint.is_open())
         self.assertRaises(AssertionError, endpoint.assert_open)
 
-    async def test_remove_listener(self):
+    async def test_remove_listener(self) -> None:
         """
         Check if remove_listener is correctly propagated to children.
         """
@@ -167,7 +214,7 @@ class TestDispatcherEndpoint(TestBase):
         endpoint.notify_listeners(packet)
         self.assertEqual(1, len(listener.incoming))
 
-    async def test_byte_counters(self):
+    async def test_byte_counters(self) -> None:
         """
         Check if byte counters are correctly propagated from children.
         """
@@ -191,7 +238,7 @@ class TestDispatcherEndpoint(TestBase):
         self.assertEqual(0, endpoint.bytes_up)
         self.assertEqual(0, endpoint.bytes_down)
 
-    async def test_get_address(self):
+    async def test_get_address(self) -> None:
         """
         Check if get_address is correctly propagated from children.
         """
@@ -199,7 +246,7 @@ class TestDispatcherEndpoint(TestBase):
 
         self.assertEqual(UDPv4Address("127.0.0.1", 1337), endpoint.get_address())
 
-    async def test_get_address_specific(self):
+    async def test_get_address_specific(self) -> None:
         """
         Check if get_address is correctly propagated from children, with specific interface.
         """
@@ -207,15 +254,15 @@ class TestDispatcherEndpoint(TestBase):
 
         self.assertEqual(UDPv4Address("127.0.0.1", 1337), endpoint.get_address(interface="Dummy"))
 
-    async def test_add_prefix_listener(self):
+    async def test_add_prefix_listener(self) -> None:
         """
         Check if add_prefix_listener is correctly propagated to children.
         """
         endpoint, child_endpoint, listener1 = await self._produce_dummy()
         listener2 = DummyEndpointListener(endpoint)
-        endpoint.add_prefix_listener(listener2, "s")
+        endpoint.add_prefix_listener(listener2, b"s")
         packet1 = ("1.2.3.4", 5), TestDispatcherEndpoint.RANDOM_DATA
-        packet2 = ("1.2.3.4", 5), "sata"
+        packet2 = ("1.2.3.4", 5), b"sata"
 
         child_endpoint.notify_listeners(packet1)
         child_endpoint.notify_listeners(packet2)
@@ -224,37 +271,37 @@ class TestDispatcherEndpoint(TestBase):
         self.assertEqual(2, len(listener1.incoming))
         self.assertEqual(1, len(listener2.incoming))
 
-    async def test_guess_interface_ipv4(self):
+    async def test_guess_interface_ipv4(self) -> None:
         """
         Check if guess_interface guesses IPv4 interfaces correctly.
         """
         self.assertEqual("UDPIPv4", guess_interface(("1.2.3.4", 5)))
 
-    async def test_guess_interface_ipv6(self):
+    async def test_guess_interface_ipv6(self) -> None:
         """
         Check if guess_interface guesses IPv6 interfaces correctly.
         """
         self.assertEqual("UDPIPv6", guess_interface(("2001:0db8:0000:0000:0000:ff00:0042:8329", 5)))
 
-    async def test_guess_interface_ipv6_short(self):
+    async def test_guess_interface_ipv6_short(self) -> None:
         """
         Check if guess_interface guesses shortened IPv6 interfaces correctly.
         """
         self.assertEqual("UDPIPv6", guess_interface(("2001:db8:0:0:0:ff00:42:8329", 5)))
 
-    async def test_guess_interface_ipv6_very_short(self):
+    async def test_guess_interface_ipv6_very_short(self) -> None:
         """
         Check if guess_interface guesses zero-omitted IPv6 interfaces correctly.
         """
         self.assertEqual("UDPIPv6", guess_interface(("2001:db8::ff00:42:8329", 5)))
 
-    async def test_guess_interface_ipv6_ipv4map(self):
+    async def test_guess_interface_ipv6_ipv4map(self) -> None:
         """
         Check if guess_interface guesses IPv4 mapped onto IPv6 interfaces correctly.
         """
         self.assertEqual("UDPIPv6", guess_interface(("::ffff:192.0.2.128", 5)))
 
-    async def test_guess_interface_unknown(self):
+    async def test_guess_interface_unknown(self) -> None:
         """
         Check if guess_interface guesses None if the interface is invalid.
         """
