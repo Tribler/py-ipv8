@@ -1,14 +1,24 @@
-from asyncio import FIRST_COMPLETED, wait
+from __future__ import annotations
+
+from asyncio import FIRST_COMPLETED, Future, wait
 from statistics import mean, median
 from timeit import default_timer
+from typing import TYPE_CHECKING, Set
 
-from .tunnel import CIRCUIT_STATE_CLOSING
+from .tunnel import CIRCUIT_STATE_CLOSING, Circuit
+
+if TYPE_CHECKING:
+    from .community import TunnelCommunity
 
 
-async def run_speed_test(tc, circuit, request_size, response_size, num_requests, window=50):
+async def run_speed_test(tc: TunnelCommunity, circuit: Circuit, request_size: int, response_size: int,  # noqa: PLR0913
+                         num_requests: int, window: int = 50) -> dict[str, int | float]:
+    """
+    Test a circuit's speed.
+    """
     num_sent = 0
     num_ack = 0
-    outstanding = set()
+    outstanding: Set[Future[tuple[bytes, float]]] = set()
     start = default_timer()
     rtts = []
 
