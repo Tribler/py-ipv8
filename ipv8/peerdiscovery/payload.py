@@ -51,13 +51,11 @@ class SimilarityRequestPayload(Payload):
         """
         Unpack a SimilarityRequestPayload.
         """
-        args = [identifier,
-                (inet_ntoa(lan_address[0]), lan_address[1]),
-                (inet_ntoa(wan_address[0]), wan_address[1]),
-                decode_connection_type(connection_type_0, connection_type_1),
-                [preference_list[i:i + 20] for i in range(0, len(preference_list), 20)]]
-
-        return SimilarityRequestPayload(*args)
+        return SimilarityRequestPayload(identifier,
+                                        (inet_ntoa(lan_address[0]), lan_address[1]),
+                                        (inet_ntoa(wan_address[0]), wan_address[1]),
+                                        decode_connection_type(connection_type_0, connection_type_1),
+                                        [preference_list[i:i + 20] for i in range(0, len(preference_list), 20)])
 
 
 class SimilarityResponsePayload(Payload):
@@ -143,7 +141,7 @@ class DiscoveryIntroductionRequestPayload(IntroductionRequestPayload):
     format_list = ['c20s', '4SH', '4SH', '4SH', 'bits', 'H', 'raw']
 
     def __init__(self, introduce_to: bytes, destination_address: Address, source_lan_address: Address,  # noqa: PLR0913
-                 source_wan_address: Address, advice: int, connection_type: str, identifier: int,
+                 source_wan_address: Address, advice: bool, connection_type: str, identifier: int,
                  extra_bytes: bytes) -> None:
         """
         Create a new introduction request.
@@ -165,18 +163,16 @@ class DiscoveryIntroductionRequestPayload(IntroductionRequestPayload):
                          introduce_to: bytes,
                          destination_address: tuple[bytes, int], source_lan_address: tuple[bytes, int],
                          source_wan_address: tuple[bytes, int], connection_type_0: int, connection_type_1: int,
-                         dflag0: int, dflag1: int, dflag2: int, tunnel: int, _: int, advice: int,  # noqa: ARG003
-                         identifier: int, extra_bytes: bytes) -> DiscoveryIntroductionRequestPayload:
+                         dflag0: bool, dflag1: bool, dflag2: bool, tunnel: bool, _: bool, advice: bool,  # noqa: ARG003
+                         identifier: bool, extra_bytes: bytes) -> DiscoveryIntroductionRequestPayload:
         """
         Unpack a DiscoveryIntroductionRequestPayload.
         """
-        args = [introduce_to[1:],
-                (inet_ntoa(destination_address[0]), destination_address[1]),
-                (inet_ntoa(source_lan_address[0]), source_lan_address[1]),
-                (inet_ntoa(source_wan_address[0]), source_wan_address[1]),
-                [True, False][advice],
-                decode_connection_type(connection_type_0, connection_type_1),
-                identifier,
-                extra_bytes]
-
-        return DiscoveryIntroductionRequestPayload(*args)
+        return DiscoveryIntroductionRequestPayload(introduce_to[1:],
+                                                   (inet_ntoa(destination_address[0]), destination_address[1]),
+                                                   (inet_ntoa(source_lan_address[0]), source_lan_address[1]),
+                                                   (inet_ntoa(source_wan_address[0]), source_wan_address[1]),
+                                                   [True, False][advice],
+                                                   decode_connection_type(connection_type_0, connection_type_1),
+                                                   identifier,
+                                                   extra_bytes)
