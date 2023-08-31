@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import inspect
 import types
-from typing import Any
+from typing import Any, TypeVar
 
 from .serialization import FormatListType, Payload
 
@@ -119,6 +119,10 @@ class VariablePayload(Payload):
         return out
 
 
+class VariablePayloadWID(VariablePayload):
+    msg_id: int
+
+
 def _compile_init(names: list[str], defaults: dict[str, Any]) -> types.CodeType:
     """
     Compile the init function.
@@ -217,7 +221,10 @@ def to_pack_list(self):
     return compile(f_code, f_code, 'exec')
 
 
-def vp_compile(vp_definition: type[VariablePayload]) -> type[VariablePayload]:
+T = TypeVar("T", bound=VariablePayload)
+
+
+def vp_compile(vp_definition: type[T]) -> type[T]:
     """
     JIT Compilation of a VariablePayload definition.
     """

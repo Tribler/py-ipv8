@@ -3,26 +3,40 @@ The tunnel community.
 
 Author(s): Egbert Bouman
 """
-import os
+from __future__ import annotations
+
 import random
 from asyncio import iscoroutine, sleep
 from binascii import unhexlify
 from collections import defaultdict
+from typing import TYPE_CHECKING, Awaitable, Iterable, Optional, Set, cast
 
+from ...community import DEFAULT_MAX_PEERS, Community
+from ...lazy_community import lazy_wrapper
+from ...messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
+from ...peer import Peer
+from ...requestcache import RequestCache
+from ...taskmanager import task
+from ...types import Address
 from .caches import *
 from .endpoint import TunnelEndpoint
 from .payload import *
 from .tunnel import *
 from .tunnelcrypto import CryptoException, TunnelCrypto
-from ...community import Community
-from ...lazy_community import lazy_wrapper
-from ...messaging.payload_headers import BinMemberAuthenticationPayload
-from ...peer import Peer
-from ...requestcache import RequestCache
-from ...taskmanager import task
+
+if TYPE_CHECKING:
+    from collections.abc import Collection
+
+    from ...dht.provider import DHTCommunityProvider
+    from ...peerdiscovery.network import Network
+    from ...types import Endpoint
+    from ..lazy_payload import VariablePayloadWID
+    from ..payload import IntroductionRequestPayload, IntroductionResponsePayload
+    from ..serialization import Serializable, Serializer
 
 
-def unpack_cell(payload_cls):
+def unpack_cell(payload_cls: type[Serializable]) -> Callable[...,  # User function
+    Callable[[TunnelCommunity, Address, bytes, int | None], None]]:  # Actual call signature
     """
     This function wrapper will unpack the normal payload for you, and handle a singular circuit_id parameter at
     the end of the parameter list
@@ -34,10 +48,12 @@ def unpack_cell(payload_cls):
             :type source_address: str
             :type payload: DataPayload
             '''
-            pass
+            pass.
     """
-    def decorator(func):
-        def wrapper(self, source_address, data, circuit_id=None):
+
+    def decorator(func: Callable[[TunnelCommunity, Address, Serializable, int | None], None]) -> \
+            Callable[[TunnelCommunity, Address, bytes, int | None], None]:
+        def wrapper(self: TunnelCommunity, source_address: Address, data: bytes, circuit_id: int | None = None) -> None:
             payload, _ = self.serializer.unpack_serializable(payload_cls, data, offset=23)
             return func(self, source_address, payload, circuit_id)
         return wrapper
@@ -45,8 +61,14 @@ def unpack_cell(payload_cls):
 
 
 class TunnelSettings:
+    """
+    Settings to forward to the TunnelCommunity.
+    """
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """
+        Create a new settings manager.
+        """
         self.crypto = TunnelCrypto()
 
         self.min_circuits = 1
@@ -82,7 +104,10 @@ class TunnelSettings:
         self.max_relay_early = 8
 
     @classmethod
-    def from_dict(cls, d):
+    def from_dict(cls: type[TunnelSettings], d: dict[str, int | Set[int]]) -> TunnelSettings:
+        """
+        Convert a dict into a TunnelSettings object.
+        """
         result = cls()
         for k, v in d.items():
             setattr(result, k, v)
@@ -90,21 +115,30 @@ class TunnelSettings:
 
 
 class TunnelCommunity(Community):
+    """
+    Community to create circuits of intermediate peers (hops) that send data into (exit) and receive from the Internet.
+    """
 
     version = b'\x02'
     community_id = unhexlify('81ded07332bdc775aa5a46f96de9f8f390bbc9f3')
 
-    def __init__(self, *args, **kwargs):
-        settings = kwargs.pop('settings', TunnelSettings())
-        if isinstance(settings, dict):
-            settings = TunnelSettings.from_dict(settings)
-        self.settings = settings
-        self.dht_provider = kwargs.pop('dht_provider', None)
+    def __init__(self, my_peer: Peer, endpoint: Endpoint, network: Network,  # noqa: PLR0913
+                 max_peers: int = DEFAULT_MAX_PEERS, anonymize: bool = False, *, settings: TunnelSettings | None = None,
+                 dht_provider: DHTCommunityProvider | None = None) -> None:
+        """
+        Create a new TunnelCommunity.
+        """
+        self.settings: TunnelSettings = (TunnelSettings() if settings is None
+                                         else cast(TunnelSettings,
+                                                   TunnelSettings.from_dict(settings) if isinstance(settings, dict)
+                                                   else settings))
+        self.dht_provider = dht_provider
 
-        super().__init__(*args, **kwargs)
+        super().__init__(my_peer, endpoint, network, max_peers, anonymize)
 
         self.request_cache = RequestCache()
-        self.decode_map_private = {}
+        self.decode_map_private: dict[int, Callable[[TunnelCommunity, Address, bytes, int | None], None]
+                                           | Callable[[Address, bytes, int | None], None]] = {}
 
         # Messages that can arrive from the socket
         self.add_message_handler(CellPayload, self.on_cell)
@@ -121,14 +155,13 @@ class TunnelCommunity(Community):
         self.add_cell_handler(TestRequestPayload, self.on_test_request)
         self.add_cell_handler(TestResponsePayload, self.on_test_response)
 
-        self.circuits = {}
-        self.directions = {}
-        self.relay_from_to = {}
-        self.relay_session_keys = {}
-        self.exit_sockets = {}
-        self.circuits_needed = defaultdict(int)
-        self.num_hops_by_downloads = defaultdict(int)  # Keeps track of the number of hops required by downloads
-        self.candidates = {}  # Keeps track of the candidates that want to be a relay/exit node
+        self.circuits: dict[int, Circuit] = {}
+        self.directions: dict[int, int | None] = {}
+        self.relay_from_to: dict[int, RelayRoute] = {}
+        self.relay_session_keys: dict[int, SessionKeys] = {}
+        self.exit_sockets: dict[int, TunnelExitSocket] = {}
+        self.circuits_needed: dict[int, int] = defaultdict(int)
+        self.candidates: dict[Peer, list[int]] = {}  # Keeps track of the candidates that want to be a relay/exit node
 
         self.crypto = self.settings.crypto
 
@@ -145,28 +178,41 @@ class TunnelCommunity(Community):
         self.register_task("do_circuits", self.do_circuits, interval=5, delay=0)
         self.register_task("do_ping", self.do_ping, interval=PING_INTERVAL)
 
-    async def unload(self):
-        # Remove all circuits/relays/exitsockets
+    async def unload(self) -> None:
+        """
+        Remove all circuits/relays/exitsockets.
+        """
         for circuit_id in list(self.circuits.keys()):
-            self.remove_circuit(circuit_id, 'unload', remove_now=True, destroy=DESTROY_REASON_SHUTDOWN)
+            await self.remove_circuit(circuit_id, 'unload', remove_now=True,
+                                      destroy=DESTROY_REASON_SHUTDOWN)
         for circuit_id in list(self.relay_from_to.keys()):
-            self.remove_relay(circuit_id, 'unload', remove_now=True, destroy=DESTROY_REASON_SHUTDOWN, both_sides=False)
+            await self.remove_relay(circuit_id, 'unload', remove_now=True, destroy=DESTROY_REASON_SHUTDOWN,
+                                    both_sides=False)
         for circuit_id in list(self.exit_sockets.keys()):
-            self.remove_exit_socket(circuit_id, 'unload', remove_now=True, destroy=DESTROY_REASON_SHUTDOWN)
+            await self.remove_exit_socket(circuit_id, 'unload', remove_now=True,
+                                          destroy=DESTROY_REASON_SHUTDOWN)
 
         await self.request_cache.shutdown()
 
         await super().unload()
 
-    def get_serializer(self):
+    def get_serializer(self) -> Serializer:
+        """
+        Extend our serializer with the ability to (un)pack exit node flags.
+        """
         serializer = super().get_serializer()
         serializer.add_packer('flags', Flags())
         return serializer
 
-    def add_cell_handler(self, payload_cls, handler):
+    def add_cell_handler(self, payload_cls: type[VariablePayloadWID],
+                         handler: Callable[[TunnelCommunity, Address, bytes, int | None], None] | \
+                                  Callable[[Address, bytes, int | None], None]) -> None:
+        """
+        Handler for messages that are exclusively tunneled (i.e., never handled plaintext).
+        """
         self.decode_map_private[payload_cls.msg_id] = handler
 
-    def _generate_circuit_id(self):
+    def _generate_circuit_id(self) -> int:
         circuit_id = random.getrandbits(32)
 
         # Prevent collisions.
@@ -175,7 +221,10 @@ class TunnelCommunity(Community):
 
         return circuit_id
 
-    def do_circuits(self):
+    def do_circuits(self) -> None:
+        """
+        Check if we have sufficient circuits and attempt to create new circuits if we have too little.
+        """
         for circuit_length, num_circuits in self.circuits_needed.items():
             num_to_build = max(0, num_circuits - len(self.find_circuits(state=None, hops=circuit_length)))
             self.logger.info("Want %d data circuits of length %d", num_to_build, circuit_length)
@@ -185,22 +234,33 @@ class TunnelCommunity(Community):
                     break
         self.do_remove()
 
-    def build_tunnels(self, hops):
+    def build_tunnels(self, hops: int) -> None:
+        """
+        Signal that we want circuits of a given number of hops.
+
+        The number of circuits created for this hop count is dictated by the ``max_circuits`` setting.
+        """
         if hops > 0:
             self.circuits_needed[hops] = max(self.settings.max_circuits,
                                              min(self.settings.max_circuits, self.circuits_needed.get(hops, 0) + 1))
             self.do_circuits()
 
-    def tunnels_ready(self, hops):
+    def tunnels_ready(self, hops: int) -> float:
+        """
+        Fraction of circuits that are available for the given hop count.
+        """
         if hops > 0 and self.circuits_needed.get(hops, 0):
             return len(self.find_circuits(hops=hops)) / float(self.circuits_needed[hops])
         return 1.0
 
-    def do_remove(self):
+    def do_remove(self) -> None:  # noqa: C901, PLR0912
+        """
+        Remove all circuits that are inactive, old or overused and remove old peers from our candidate list.
+        """
         # Remove circuits that are inactive / are too old / have transferred too many bytes.
         for circuit_id, circuit in list(self.circuits.items()):
             if circuit.state == CIRCUIT_STATE_READY and \
-               circuit.last_activity < time.time() - self.settings.max_time_inactive:
+                    circuit.last_activity < time.time() - self.settings.max_time_inactive:
                 self.remove_circuit(circuit_id, 'no activity')
             elif circuit.creation_time < time.time() - self.get_max_time(circuit_id):
                 self.remove_circuit(circuit_id, 'too old')
@@ -229,21 +289,39 @@ class TunnelCommunity(Community):
             if peer not in current_peers:
                 self.candidates.pop(peer)
 
-    def get_candidates(self, *requested_flags):
+    def get_candidates(self, *requested_flags: int) -> list[Peer]:
+        """
+        Get all the peers that we can create circuits with.
+        """
         return [peer for peer, flags in self.candidates.items()
                 if set(requested_flags) <= set(flags) and self.crypto.is_key_compatible(peer.public_key)]
 
-    def get_max_time(self, circuit_id):
+    def get_max_time(self, circuit_id: int) -> float:
+        """
+        Get the maximum time (in seconds) that the given circuit is allowed to exist.
+        """
         return self.settings.max_time
 
-    def find_circuits(self, ctype=CIRCUIT_TYPE_DATA, state=CIRCUIT_STATE_READY, exit_flags=None, hops=None):
+    def find_circuits(self, ctype: str | None = CIRCUIT_TYPE_DATA, state: str | None = CIRCUIT_STATE_READY,
+                      exit_flags: Collection[int] | None = None, hops: int | None = None) -> list[Circuit]:
+        """
+        Get circuits of the given type and state (and potentially exit flags and a given number of hops).
+        """
         return [c for c in self.circuits.values()
                 if (state is None or c.state == state)
                 and (ctype is None or c.ctype == ctype)
                 and (exit_flags is None or set(exit_flags) <= set(c.exit_flags))
                 and (hops is None or hops == c.goal_hops)]
 
-    def create_circuit(self, goal_hops, ctype=CIRCUIT_TYPE_DATA, exit_flags=None, required_exit=None, info_hash=None):
+    def create_circuit(self, goal_hops: int, ctype: str = CIRCUIT_TYPE_DATA,  # noqa: PLR0913
+                       exit_flags: Collection[int] | None = None, required_exit: Peer | None = None,
+                       info_hash: bytes | None = None) -> Circuit | None:
+        """
+        Create a circuit of a given number of hops. The circuit will be created immediately but not be available
+        for transmission of data immediately. Note that not all circuits exist to send data.
+
+        :return: None if we are supposed to find an exit node and know of none.
+        """
         self.logger.info("Creating a new circuit of length %d (type: %s)", goal_hops, ctype)
 
         # Determine the last hop
@@ -255,8 +333,8 @@ class TunnelCommunity(Community):
             elif ctype == CIRCUIT_TYPE_IP_SEEDER:
                 # For introduction points we prefer exit nodes, but perhaps a relay peer would also suffice..
                 exit_candidates = self.get_candidates(PEER_FLAG_EXIT_BT) \
-                    or self.get_candidates(PEER_FLAG_EXIT_IPV8) \
-                    or self.get_candidates(PEER_FLAG_RELAY)
+                                  or self.get_candidates(PEER_FLAG_EXIT_IPV8) \
+                                  or self.get_candidates(PEER_FLAG_RELAY)
             else:
                 # For exit nodes that don't exit actual data, we prefer relay candidates,
                 # but we also consider exit candidates.
@@ -264,7 +342,7 @@ class TunnelCommunity(Community):
 
             if not exit_candidates:
                 self.logger.info("Could not create circuit, no available exit-nodes")
-                return
+                return None
 
             required_exit = random.choice(exit_candidates)
 
@@ -277,14 +355,13 @@ class TunnelCommunity(Community):
             self.logger.info("Look for a first hop that is not an exit node and is not used before")
             # First build a list of hops, then filter the list. Avoids issues when create_circuit is called
             # from a different thread (caused by circuit.peer being reset to None).
-            first_hops = [c.peer for c in self.circuits.values()]
-            first_hops = {h for h in first_hops if h}
+            first_hops = {h for h in [c.peer for c in self.circuits.values()] if h}
             relay_candidates = self.get_candidates(PEER_FLAG_RELAY)
             possible_first_hops = [c for c in relay_candidates if c not in first_hops and c != required_exit]
 
         if not possible_first_hops:
             self.logger.info("Could not create circuit, no first hop available")
-            return
+            return None
 
         # Finally, construct the Circuit object and send the CREATE message
         circuit_id = self._generate_circuit_id()
@@ -294,14 +371,17 @@ class TunnelCommunity(Community):
 
         return circuit
 
-    def send_initial_create(self, circuit, candidate_list, max_tries):
+    def send_initial_create(self, circuit: Circuit, candidate_list: list[Peer], max_tries: int) -> None:
+        """
+        Attempt to establish the first hop in a Circuit.
+        """
         first_hop = random.choice(candidate_list)
         alt_first_hops = [c for c in candidate_list if c != first_hop]
 
         circuit.unverified_hop = Hop(first_hop, flags=self.candidates.get(first_hop))
         circuit.unverified_hop.dh_secret, circuit.unverified_hop.dh_first_part = self.crypto.generate_diffie_secret()
 
-        self.logger.info("Adding first hop %s:%d to circuit %d", *(first_hop.address + (circuit.circuit_id,)))
+        self.logger.info("Adding first hop %s:%d to circuit %d", *((*first_hop.address, circuit.circuit_id)))
 
         try:
             self.request_cache.pop("retry", circuit.circuit_id)
@@ -320,15 +400,14 @@ class TunnelCommunity(Community):
                                                 circuit.unverified_hop.dh_first_part))
 
     @task
-    async def remove_circuit(self, circuit_id, additional_info='', remove_now=False, destroy=False):
+    async def remove_circuit(self, circuit_id: int, additional_info: str = '', remove_now: bool = False,
+                             destroy: bool | int = False) -> None:
         """
-        Remove a circuit and return a deferred that fires when all data associated with the circuit is destroyed.
-        Optionally send a destroy message.
+        Remove a circuit and optionally send a destroy message.
         """
-        try:
+        with contextlib.suppress(KeyError):
             self.request_cache.pop("retry", circuit_id)
-        except KeyError:
-            pass  # All is good if there was no pending retry cache for this circuit: continue.
+        # All is good if there was no pending retry cache for this circuit: continue.
 
         circuit_to_remove = self.circuits.get(circuit_id, None)
         if circuit_to_remove is None:
@@ -347,14 +426,15 @@ class TunnelCommunity(Community):
 
         circuit = self.circuits.pop(circuit_id, None)
         if circuit:
-            self.logger.info("Removed circuit %d " + additional_info, circuit_id)
+            self.logger.info("Removed circuit %d %s", circuit_id, additional_info)
 
         # Clean up the directions dictionary
         self.directions.pop(circuit_id, None)
 
     @task
-    async def remove_relay(self, circuit_id, additional_info='', remove_now=False, destroy=False,
-                           got_destroy_from=None, both_sides=True):
+    async def remove_relay(self, circuit_id: int, additional_info: str = '', remove_now: bool = False,  # noqa: PLR0913
+                           destroy: bool = False, got_destroy_from: tuple[int, Address] | None = None,
+                           both_sides: bool = True) -> list[RelayRoute]:
         """
         Remove a relay and all information associated with the relay. Return the relays that have been removed.
         """
@@ -390,7 +470,8 @@ class TunnelCommunity(Community):
         return removed_relays
 
     @task
-    async def remove_exit_socket(self, circuit_id, additional_info='', remove_now=False, destroy=False):
+    async def remove_exit_socket(self, circuit_id: int, additional_info: str = '', remove_now: bool = False,
+                                 destroy: bool = False) -> TunnelExitSocket | None:
         """
         Remove an exit socket. Send a destroy message if necessary.
         """
@@ -412,17 +493,28 @@ class TunnelCommunity(Community):
             await exit_socket.shutdown_task_manager()
         return exit_socket
 
-    def destroy_circuit(self, circuit, reason=0):
-        sock_addr = circuit.peer.address
+    def destroy_circuit(self, circuit: Circuit, reason: int = 0) -> None:
+        """
+        Send a destroy message over a circuit.
+
+        Note that the circuit will still exist.
+        """
+        sock_addr = cast(Peer, circuit.peer).address
         self.send_destroy(sock_addr, circuit.circuit_id, reason)
         self.logger.info("destroy_circuit %s %s", circuit.circuit_id, sock_addr)
 
-    def destroy_relay(self, circuit_ids, reason=0, got_destroy_from=None):
+    def destroy_relay(self, circuit_ids: Iterable[int], reason: int = 0,
+                      got_destroy_from: tuple[int, Address] | None = None) -> None:
+        """
+        Destroy our relay circuit upon request and forward a destroy message.
+
+        Note that the relay route will still exist.
+        """
         relays = {cid_from: (self.relay_from_to[cid_from].circuit_id,
                              self.relay_from_to[cid_from].peer.address) for cid_from in circuit_ids
                   if cid_from in self.relay_from_to}
 
-        if got_destroy_from and got_destroy_from not in relays.values():
+        if got_destroy_from is not None and got_destroy_from not in relays.values():
             self.logger.error("%s not allowed send destroy for circuit %s", *reversed(got_destroy_from))
             return
 
@@ -432,12 +524,20 @@ class TunnelCommunity(Community):
                 self.send_destroy(sock_addr, cid_to, reason)
                 self.logger.info("Fw destroy to %s %s", cid_to, sock_addr)
 
-    def destroy_exit_socket(self, exit_socket, reason=0):
+    def destroy_exit_socket(self, exit_socket: TunnelExitSocket, reason: int = 0) -> None:
+        """
+        Destroy an exit socket.
+
+        Note that the exit socket will still exist.
+        """
         sock_addr = exit_socket.peer.address
         self.send_destroy(sock_addr, exit_socket.circuit_id, reason)
         self.logger.info("Destroy_exit_socket %s %s", exit_socket.circuit_id, sock_addr)
 
-    def send_cell(self, peer, payload):
+    def send_cell(self, peer: Address | Peer, payload: CellablePayload) -> None:
+        """
+        Send the given payload DIRECTLY to the given peer with the appropriate encryption rules.
+        """
         circuit_id = payload.circuit_id
         message = self.serializer.pack_serializable(payload)[4:]
         cell = CellPayload(circuit_id, pack('!B', payload.msg_id) + message)
@@ -461,21 +561,34 @@ class TunnelCommunity(Community):
         if tunnel_obj:
             tunnel_obj.bytes_up += packet_len
 
-    def send_data(self, peer, circuit_id, dest_address, source_address, data):
+    def send_data(self, peer: Address | Peer, circuit_id: int, dest_address: Address,  # noqa: PLR0913
+                  source_address: Address, data: bytes) -> None:
+        """
+        Pack the given binary data and forward it to the given peer.
+        """
         payload = DataPayload(circuit_id, dest_address, source_address, data)
         return self.send_cell(peer, payload)
 
-    def send_packet(self, peer, packet):
+    def send_packet(self, peer: Address | Peer, packet: bytes) -> int:
+        """
+        Send raw data over the socket to a given peer and return the length of the sent data.
+        """
         self.endpoint.send(peer if isinstance(peer, tuple) else peer.address, packet)
         return len(packet)
 
-    def send_destroy(self, peer, circuit_id, reason):
+    def send_destroy(self, peer: Address | Peer, circuit_id: int, reason: int) -> None:
+        """
+        Send a destroy message directly to the given peer.
+        """
         auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin())
         payload = DestroyPayload(circuit_id, reason)
         packet = self._ez_pack(self._prefix, DestroyPayload.msg_id, [auth, payload])
         self.send_packet(peer, packet)
 
-    def relay_cell(self, cell):
+    def relay_cell(self, cell: CellPayload) -> None:
+        """
+        Forward the given cell, which contains the information needed for its own relaying.
+        """
         next_relay = self.relay_from_to[cell.circuit_id]
         if cell.plaintext:
             self.logger.warning('Dropping cell (cell not encrypted)')
@@ -504,13 +617,14 @@ class TunnelCommunity(Community):
         next_relay.bytes_up += self.send_packet(next_relay.peer, packet)
         next_relay.relay_early_count += 1
 
-    def _ours_on_created_extended(self, circuit, payload):
-        hop = circuit.unverified_hop
+    def _ours_on_created_extended(self, circuit: Circuit, payload: CreatedPayload | ExtendedPayload) -> None:
+        hop = cast(Hop, circuit.unverified_hop)
 
         try:
             shared_secret = self.crypto.verify_and_generate_shared_secret(hop.dh_secret, payload.key,
                                                                           payload.auth, hop.public_key.key.pk)
-            hop.session_keys = self.crypto.generate_session_keys(shared_secret)
+            session_keys = self.crypto.generate_session_keys(shared_secret)
+            hop.session_keys = session_keys
 
         except CryptoException:
             self.remove_circuit(circuit.circuit_id, "error while verifying shared secret")
@@ -522,17 +636,20 @@ class TunnelCommunity(Community):
         if circuit.state == CIRCUIT_STATE_EXTENDING:
             candidate_list_enc = payload.candidate_list_enc
             candidate_list_bin = self.crypto.decrypt_str(candidate_list_enc,
-                                                         hop.session_keys[EXIT_NODE],
-                                                         hop.session_keys[EXIT_NODE_SALT])
+                                                         session_keys.key_backward,
+                                                         session_keys.salt_backward)
             candidate_list, _ = self.serializer.unpack('varlenH-list', candidate_list_bin)
 
-            cache = self.request_cache.pop("retry", circuit.circuit_id)
+            cache = cast(RetryRequestCache, self.request_cache.pop("retry", circuit.circuit_id))
             self.send_extend(circuit, candidate_list, cache.max_tries if cache else 1)
 
         elif circuit.state == CIRCUIT_STATE_READY:
             self.request_cache.pop("retry", circuit.circuit_id)
 
-    def send_extend(self, circuit, candidate_list, max_tries):
+    def send_extend(self, circuit: Circuit, candidate_list: list[bytes], max_tries: int) -> None:  # noqa: PLR0912
+        """
+        Extend a circuit by choosing one of the given candidates.
+        """
         ignore_candidates = [hop.node_public_key for hop in circuit.hops] + [self.my_peer.public_key.key_to_bin()]
         if circuit.required_exit:
             ignore_candidates.append(circuit.required_exit.public_key.key_to_bin())
@@ -554,7 +671,7 @@ class TunnelCommunity(Community):
                 if not self.crypto.is_key_compatible(public_key):
                     candidate_list.pop(i)
 
-            extend_hop_public_bin = next(iter(candidate_list), None)
+            extend_hop_public_bin = next(iter(candidate_list), b'')
             extend_hop_addr = ('0.0.0.0', 0)
 
         if extend_hop_public_bin:
@@ -581,42 +698,65 @@ class TunnelCommunity(Community):
                                       self.send_extend, self.settings.next_hop_timeout)
             self.request_cache.add(cache)
 
-            self.send_cell(circuit.peer, ExtendPayload(circuit.circuit_id,
-                                                       cache.packet_identifier,
-                                                       circuit.unverified_hop.node_public_key,
-                                                       circuit.unverified_hop.dh_first_part,
-                                                       extend_hop_addr))
+            self.send_cell(cast(Peer, circuit.peer), ExtendPayload(circuit.circuit_id,
+                                                                   cache.packet_identifier,
+                                                                   circuit.unverified_hop.node_public_key,
+                                                                   circuit.unverified_hop.dh_first_part,
+                                                                   extend_hop_addr))
 
         else:
             self.remove_circuit(circuit.circuit_id, "no candidates to extend")
 
-    def extract_peer_flags(self, extra_bytes):
+    def extract_peer_flags(self, extra_bytes: bytes) -> list[int]:
+        """
+        Convert piggybacked introduction bytes to a list of peer flags.
+        """
         if not extra_bytes:
             return []
 
         payload, _ = self.serializer.unpack_serializable(ExtraIntroductionPayload, extra_bytes)
         return payload.flags
 
-    def introduction_request_callback(self, peer, dist, payload):
+    def introduction_request_callback(self, peer: Peer, dist: GlobalTimeDistributionPayload,
+                                      payload: IntroductionRequestPayload) -> None:
+        """
+        Try to extract piggybacked data from the introduction request.
+        """
         self.candidates[peer] = self.extract_peer_flags(payload.extra_bytes)
 
-    def introduction_response_callback(self, peer, dist, payload):
+    def introduction_response_callback(self, peer: Peer, dist: GlobalTimeDistributionPayload,
+                                       payload: IntroductionResponsePayload) -> None:
+        """
+        Try to extract piggybacked data from the introduction response.
+        """
         self.candidates[peer] = self.extract_peer_flags(payload.extra_bytes)
 
-    def create_introduction_request(self, socket_address, extra_bytes=b'', new_style=False):
+    def create_introduction_request(self, socket_address: Address, extra_bytes: bytes = b'',
+                                    new_style: bool = False, prefix: bytes | None = None) -> IntroductionRequestPayload:
+        """
+        Add peer flags to our introduction requests.
+        """
         extra_payload = ExtraIntroductionPayload(self.settings.peer_flags)
         extra_bytes = self.serializer.pack_serializable(extra_payload)
         return super().create_introduction_request(socket_address, extra_bytes, new_style)
 
-    def create_introduction_response(self, lan_socket_address, socket_address, identifier,
-                                     introduction=None, extra_bytes=b'', prefix=None, new_style=False):
+    def create_introduction_response(self, lan_socket_address: Address, socket_address: Address,  # noqa: PLR0913
+                                     identifier: int, introduction: Peer | None = None, extra_bytes: bytes = b'',
+                                     prefix: bytes | None = None,
+                                     new_style: bool = False) -> IntroductionResponsePayload:
+        """
+        Add peer flags to our introduction responses.
+        """
         extra_payload = ExtraIntroductionPayload(self.settings.peer_flags)
         extra_bytes = self.serializer.pack_serializable(extra_payload)
         return super().create_introduction_response(lan_socket_address, socket_address,
                                                     identifier, introduction, extra_bytes,
                                                     prefix, new_style)
 
-    def on_cell(self, source_address, data):
+    def on_cell(self, source_address: Address, data: bytes) -> None:
+        """
+        Process incoming raw data, assumed to be a cell, originating from a given address.
+        """
         cell = CellPayload.from_bin(data)
         circuit_id = cell.circuit_id
 
@@ -636,7 +776,7 @@ class TunnelCommunity(Community):
         except CryptoException as e:
             self.logger.debug(str(e))
             if circuit:
-                self.send_destroy(circuit.peer, circuit_id, 0)
+                self.send_destroy(cast(Peer, circuit.peer), circuit_id, 0)
             return
         self.logger.debug("Got cell(%s) from circuit %d (sender %s, receiver %s)",
                           cell.message[0], circuit_id, source_address, self.my_peer)
@@ -654,33 +794,39 @@ class TunnelCommunity(Community):
             circuit.beat_heart()
             circuit.bytes_down += len(data)
 
-    def on_packet_from_circuit(self, source_address, data, circuit_id):
+    def on_packet_from_circuit(self, source_address: Address, data: bytes, circuit_id: int) -> None:
+        """
+        Process incoming raw data, assumed to be an IPv8 packet, originating from a given address.
+        """
         if self._prefix != data[:22]:
             return
         msg_id = data[22]
         if msg_id in self.decode_map_private:
             try:
-                handler = self.decode_map_private[msg_id]
+                handler = cast(Callable[[Address, bytes, Optional[int]], None], self.decode_map_private[msg_id])
                 result = handler(source_address, data, circuit_id)
                 if iscoroutine(result):
-                    self.register_anonymous_task('on_packet_from_circuit', ensure_future(result), ignore=(Exception,))
+                    aw_result = cast(Awaitable, result)
+                    self.register_anonymous_task('on_packet_from_circuit', ensure_future(aw_result),
+                                                 ignore=(Exception,))
             except Exception:
-                self.logger.error("Exception occurred while handling packet!\n"
-                                  + ''.join(format_exception(*sys.exc_info())))
+                self.logger.exception("Exception occurred while handling packet!\n%s",
+                                      "".join(format_exception(*sys.exc_info())))
 
-    async def should_join_circuit(self, create_payload, previous_node_address):
+    async def should_join_circuit(self, create_payload: CreatePayload, previous_node_address: Address) -> bool:
         """
         Check whether we should join a circuit.
-        Returns a deferred that fires with a boolean.
+
+        Note that this method is intended to be overwritten and, therefore, has unused arguments.
         """
         if self.settings.max_joined_circuits <= len(self.relay_from_to) + len(self.exit_sockets):
             self.logger.warning("Too many relays (%d)", (len(self.relay_from_to) + len(self.exit_sockets)))
             return False
         return True
 
-    def join_circuit(self, create_payload, previous_node_address):
+    def join_circuit(self, create_payload: CreatePayload, previous_node_address: Address) -> None:
         """
-        Actively join a circuit and send a created message back
+        Actively join a circuit and send a created message back.
         """
         circuit_id = create_payload.circuit_id
 
@@ -706,7 +852,10 @@ class TunnelCommunity(Community):
                        CreatedPayload(circuit_id, create_payload.identifier, key, auth, candidate_list_enc))
 
     @unpack_cell(CreatePayload)
-    async def on_create(self, source_address, payload, _):
+    async def on_create(self, source_address: Address, payload: CreatePayload, _: int | None) -> None:
+        """
+        Process a request to join someone's circuit.
+        """
         if not self.settings.peer_flags:
             self.logger.warning("Ignoring create for circuit %d", payload.circuit_id)
             return
@@ -721,12 +870,15 @@ class TunnelCommunity(Community):
             self.logger.warning("We're not joining circuit with ID %s", payload.circuit_id)
 
     @unpack_cell(CreatedPayload)
-    def on_created(self, source_address, payload, _):
+    def on_created(self, source_address: Address, payload: CreatedPayload, _: int | None) -> None:
+        """
+        Callback for when another peer signals that they have joined our circuit.
+        """
         circuit_id = payload.circuit_id
         self.directions[circuit_id] = ORIGINATOR
 
         if self.request_cache.has("create", payload.identifier):
-            request = self.request_cache.pop("create", payload.identifier)
+            request = cast(CreateRequestCache, self.request_cache.pop("create", payload.identifier))
 
             self.logger.info("Got CREATED message forward as EXTENDED to origin.")
 
@@ -747,7 +899,10 @@ class TunnelCommunity(Community):
             self.logger.warning("Received unexpected created for circuit %d", payload.circuit_id)
 
     @unpack_cell(ExtendPayload)
-    async def on_extend(self, source_address, payload, _):
+    async def on_extend(self, source_address: Address, payload: ExtendPayload, _: int | None) -> None:
+        """
+        Callback for when a peer asks us to extend for their circuit.
+        """
         if PEER_FLAG_RELAY not in self.settings.peer_flags:
             self.logger.warning("Ignoring create for circuit %d", payload.circuit_id)
             return
@@ -758,7 +913,7 @@ class TunnelCommunity(Community):
 
         circuit_id = payload.circuit_id
         # Leave the RequestCache in case the circuit owner wants to reuse the tunnel for a different next-hop
-        request = self.request_cache.get("created", circuit_id)
+        request = cast(CreatedRequestCache, self.request_cache.get("created", circuit_id))
         if payload.node_addr == ('0.0.0.0', 0) and payload.node_public_key not in request.candidates:
             self.logger.warning("Node public key not in request candidates and no ip specified")
             return
@@ -791,14 +946,18 @@ class TunnelCommunity(Community):
 
         self.logger.info("Extending circuit, got candidate with IP %s:%d from cache", *extend_candidate.address)
 
-        cache = CreateRequestCache(self, payload.identifier, to_circuit_id, circuit_id, candidate, extend_candidate)
+        cache = CreateRequestCache(self, payload.identifier, to_circuit_id, circuit_id, cast(Peer, candidate),
+                                   extend_candidate)
         self.request_cache.add(cache)
 
         self.send_cell(extend_candidate,
                        CreatePayload(to_circuit_id, cache.number, self.my_peer.public_key.key_to_bin(), payload.key))
 
     @unpack_cell(ExtendedPayload)
-    def on_extended(self, source_address, payload, _):
+    def on_extended(self, source_address: Address, payload: ExtendedPayload, _: int | None) -> None:
+        """
+        Callback for when a peer signals that they have extended our circuit.
+        """
         if not self.request_cache.has("retry", payload.circuit_id):
             self.logger.warning("Received unexpected extended for circuit %s", payload.circuit_id)
             return
@@ -807,14 +966,18 @@ class TunnelCommunity(Community):
         circuit = self.circuits[circuit_id]
         self._ours_on_created_extended(circuit, payload)
 
-    def on_raw_data(self, circuit, origin, data):
+    def on_raw_data(self, circuit: Circuit, origin: Address, data: bytes) -> None:
         """
         Handle data, coming from a specific circuit and origin.
         This method is usually implemented in subclasses of this community.
         """
-        pass
 
-    def on_data(self, sock_addr, data, _):
+    def on_data(self, sock_addr: Address, data: bytes, _: int | None) -> None:
+        """
+        Callback for when we receive a DataPayload out of a circuit.
+
+        Data is readable only if this handler is (a) an exit node or (b) the one that created the circuit.
+        """
         payload, _ = self.serializer.unpack_serializable(DataPayload, data, offset=23)
 
         # If its our circuit, the messenger is the candidate assigned to that circuit and the DATA's destination
@@ -827,7 +990,7 @@ class TunnelCommunity(Community):
         self.logger.debug("Got data (%d) from %s", circuit_id, sock_addr)
 
         circuit = self.circuits.get(circuit_id, None)
-        if circuit and origin and sock_addr == circuit.peer.address:
+        if circuit and origin and sock_addr == cast(Peer, circuit.peer).address:
             circuit.beat_heart()
 
             e2e_data = circuit.ctype in [CIRCUIT_TYPE_RP_DOWNLOADER, CIRCUIT_TYPE_RP_SEEDER]
@@ -855,7 +1018,10 @@ class TunnelCommunity(Community):
                 self.logger.warning("Cannot exit data, destination is 0.0.0.0:0")
 
     @unpack_cell(PingPayload)
-    def on_ping(self, source_address, payload, _):
+    def on_ping(self, source_address: Address, payload: PingPayload, _: int | None) -> None:
+        """
+        Callback for when we received a tunneled ping message.
+        """
         if not (payload.circuit_id in self.circuits
                 or payload.circuit_id in self.exit_sockets
                 or payload.circuit_id in self.relay_from_to):
@@ -869,7 +1035,10 @@ class TunnelCommunity(Community):
         self.logger.debug("Got ping from %s", source_address)
 
     @unpack_cell(PongPayload)
-    def on_pong(self, source_address, payload, _):
+    def on_pong(self, source_address: Address, payload: PongPayload, _: int | None) -> None:
+        """
+        Callback for when we received a tunneled pong (response) message.
+        """
         if not self.request_cache.has("ping", payload.identifier):
             self.logger.warning("Invalid ping circuit_id")
             return
@@ -877,8 +1046,10 @@ class TunnelCommunity(Community):
         self.request_cache.pop("ping", payload.identifier)
         self.logger.debug("Got pong from %s", source_address)
 
-    def do_ping(self, exclude=None):
-        # Ping circuits. Pings are only sent to the first hop, subsequent hops will relay the ping.
+    def do_ping(self, exclude: list[int] | None = None) -> None:
+        """
+        Ping circuits. Pings are only sent to the first hop, subsequent hops will relay the ping.
+        """
         exclude = [] if exclude is None else exclude
         for circuit in list(self.circuits.values()):
             if circuit.state in [CIRCUIT_STATE_READY, CIRCUIT_STATE_EXTENDING] \
@@ -886,10 +1057,13 @@ class TunnelCommunity(Community):
                     and circuit.hops:
                 cache = PingRequestCache(self)
                 self.request_cache.add(cache)
-                self.send_cell(circuit.peer, PingPayload(circuit.circuit_id, cache.number))
+                self.send_cell(cast(Peer, circuit.peer), PingPayload(circuit.circuit_id, cache.number))
 
     @lazy_wrapper(DestroyPayload)
-    def on_destroy(self, peer, payload):
+    def on_destroy(self, peer: Peer, payload: DestroyPayload) -> None:
+        """
+        Callback for when we received a destroy message.
+        """
         source_address = peer.address
         circuit_id = payload.circuit_id
         self.logger.info("Got destroy from %s for circuit %s", source_address, circuit_id)
@@ -902,14 +1076,17 @@ class TunnelCommunity(Community):
             self.logger.info("Got an exit socket %s %s", circuit_id, source_address)
             self.remove_exit_socket(circuit_id, f"got destroy with reason {payload.reason}")
 
-        elif circuit_id in self.circuits and source_address == self.circuits[circuit_id].peer.address:
+        elif circuit_id in self.circuits and source_address == cast(Peer, self.circuits[circuit_id].peer).address:
             self.logger.info("Got a circuit %s %s", circuit_id, source_address)
             self.remove_circuit(circuit_id, f"got destroy with reason {payload.reason}")
 
         else:
             self.logger.warning("Invalid or unauthorized destroy")
 
-    def exit_data(self, circuit_id, sock_addr, destination, data):
+    def exit_data(self, circuit_id: int, sock_addr: Address, destination: Address, data: bytes) -> None:
+        """
+        Exit data (to the destination) out of the exit socket associated with the given circuit id.
+        """
         if circuit_id not in self.exit_sockets:
             self.logger.error("Dropping data packets with unknown circuit_id")
             return
@@ -927,22 +1104,38 @@ class TunnelCommunity(Community):
         except Exception:
             self.logger.warning("Dropping data packets while exiting")
 
-    async def dht_peer_lookup(self, mid, peer=None):
+    async def dht_peer_lookup(self, mid: bytes, peer: Peer | None = None) -> None:
+        """
+        Perform a DHT lookup for a given SHA-1 hash of a public key.
+
+        Note that connections (if any) will be performed in the background. Query for results manually later.
+        """
         if self.dht_provider:
             await self.dht_provider.peer_lookup(mid, peer)
         else:
             self.logger.error("Need a DHT provider to connect to a peer using the DHT")
 
-    def send_test_request(self, circuit, request_size=0, response_size=0):
+    def send_test_request(self, circuit: Circuit, request_size: int = 0,
+                          response_size: int = 0) -> Future[tuple[bytes, float]]:
+        """
+        Send a speed test request and wait for a (data, RTT time in seconds) tuple to be recorded.
+        """
         cache = TestRequestCache(self, circuit)
         self.request_cache.add(cache)
-        self.send_cell(circuit.peer,
+        self.send_cell(cast(Peer, circuit.peer),
                        TestRequestPayload(circuit.circuit_id, cache.number, response_size, os.urandom(request_size)))
         return cache.future
 
-    def on_test_request(self, source_address, data, circuit_id):
+    def on_test_request(self, source_address: Address, data: bytes, circuit_id: int | None) -> None:
+        """
+        Callback for when we receive a speed test request.
+        """
         if PEER_FLAG_SPEED_TEST not in self.settings.peer_flags:
             self.logger.warning("Ignoring test-request from circuit %d", circuit_id)
+            return
+
+        if circuit_id is None:
+            self.logger.error("Dropping test-request without circuit_id")
             return
 
         payload, _ = self.serializer.unpack_serializable(TestRequestPayload, data, offset=23)
@@ -958,10 +1151,19 @@ class TunnelCommunity(Community):
         self.send_cell(source_address,
                        TestResponsePayload(circuit_id, payload.identifier, os.urandom(payload.response_size)))
 
-    def on_test_response(self, source_address, data, circuit_id):
+    def on_test_response(self, source_address: Address, data: bytes, circuit_id: int | None) -> None:
+        """
+        Callback for when we received a test response.
+
+        We record the data that the response contained and the time since we sent the original request.
+        """
+        if circuit_id is None:
+            self.logger.error("Dropping test-response without circuit_id")
+            return
+
         payload, _ = self.serializer.unpack_serializable(TestResponsePayload, data, offset=23)
         circuit = self.circuits.get(circuit_id)
-        if not circuit:
+        if circuit is None:
             self.logger.error("Dropping test-response with unknown circuit_id")
             return
         if not self.request_cache.has("test-request", payload.identifier):
@@ -969,5 +1171,5 @@ class TunnelCommunity(Community):
             return
 
         self.logger.debug("Got test-response (%d) from %s", circuit_id, source_address)
-        cache = self.request_cache.pop("test-request", payload.identifier)
+        cache = cast(TestRequestCache, self.request_cache.pop("test-request", payload.identifier))
         cache.future.set_result((payload.data, time.time() - cache.ts))

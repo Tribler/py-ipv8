@@ -7,7 +7,7 @@ from aiohttp import web
 from aiohttp_apispec import docs, json_schema
 from marshmallow.fields import Boolean, Float, Integer, List, String
 
-from ..dht.provider import DHTIntroPointPayload
+from ..dht.provider import DHTCommunityProvider, DHTIntroPointPayload
 from ..messaging.anonymization.community import (
     CIRCUIT_STATE_READY,
     CIRCUIT_TYPE_DATA,
@@ -222,7 +222,7 @@ class TunnelEndpoint(BaseEndpoint[IPv8]):
         await self.tunnels.remove_circuit(circuit.circuit_id, additional_info='speed test finished')
         return result
 
-    async def run_speed_test(self, circuit: Circuit | None, params: dict) -> Response:
+    async def run_speed_test(self, circuit: Circuit, params: dict) -> Response:
         """
         Run a speed test on the given circuit and form an HTTP response.
         """
@@ -375,7 +375,7 @@ class TunnelEndpoint(BaseEndpoint[IPv8]):
         self.tunnels = cast(HiddenTunnelCommunity, self.tunnels)
 
         infohash = unhexlify(request.match_info['infohash'])
-        swarm_size = await self.tunnels.estimate_swarm_size(infohash, hops=request.query.get('hops', 1))
+        swarm_size = await self.tunnels.estimate_swarm_size(infohash, hops=cast(int, request.query.get('hops', 1)))
         return Response({"swarm_size": swarm_size})
 
     @docs(
@@ -426,11 +426,11 @@ class TunnelEndpoint(BaseEndpoint[IPv8]):
         """
         Return a list of all hidden services peers that are in the local DHT store.
         """
-        if self.tunnels is None:
+        if self.tunnels is None or self.tunnels.dht_provider is None:
             return Response([])
         self.tunnels = cast(TunnelCommunity, self.tunnels)
 
-        dht = self.tunnels.dht_provider.dht_community
+        dht = cast(DHTCommunityProvider, self.tunnels.dht_provider).dht_community
         ips_by_infohash: dict[bytes, list[IntroductionPoint]] = {}
         for storage in dht.storages.values():
             for key, raw_values in storage.items.items():

@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from typing import cast
 
-from ..messaging.lazy_payload import VariablePayload, vp_compile
+from ..messaging.lazy_payload import VariablePayload, VariablePayloadWID, vp_compile
 from ..messaging.serialization import Packer, Serializer
 from ..types import Address
 from .routing import Node
 
 
 @vp_compile
-class PingRequestPayload(VariablePayload):
+class PingRequestPayload(VariablePayloadWID):
     """
     Payload to send ping messages with a given identifier nonce.
     """
@@ -22,7 +22,7 @@ class PingRequestPayload(VariablePayload):
 
 
 @vp_compile
-class PingResponsePayload(VariablePayload):
+class PingResponsePayload(VariablePayloadWID):
     """
     Payload to respond to pings with a given identifier.
     """
@@ -35,7 +35,7 @@ class PingResponsePayload(VariablePayload):
 
 
 @vp_compile
-class StoreRequestPayload(VariablePayload):
+class StoreRequestPayload(VariablePayloadWID):
     """
     Payload for a token-holder to send a target certain values to store, with a given identifier nonce.
     """
@@ -51,7 +51,7 @@ class StoreRequestPayload(VariablePayload):
 
 
 @vp_compile
-class StoreResponsePayload(VariablePayload):
+class StoreResponsePayload(VariablePayloadWID):
     """
     Response that the previously-given values have been stored.
     """
@@ -64,7 +64,7 @@ class StoreResponsePayload(VariablePayload):
 
 
 @vp_compile
-class FindRequestPayload(VariablePayload):
+class FindRequestPayload(VariablePayloadWID):
     """
     Attempt for our lan address to have the given target fetch values and nodes for us from a given starting offset,
     potentially with a request to force new node connections even if some are already known.
@@ -82,7 +82,7 @@ class FindRequestPayload(VariablePayload):
 
 
 @vp_compile
-class FindResponsePayload(VariablePayload):
+class FindResponsePayload(VariablePayloadWID):
     """
     Response to a find request with the known values and nodes for the queried starting offset.
     """
@@ -98,7 +98,7 @@ class FindResponsePayload(VariablePayload):
 
 
 @vp_compile
-class StorePeerRequestPayload(VariablePayload):
+class StorePeerRequestPayload(VariablePayloadWID):
     """
     Request to another node to register our own node (id) as a server of the given target.
     """
@@ -113,7 +113,7 @@ class StorePeerRequestPayload(VariablePayload):
 
 
 @vp_compile
-class StorePeerResponsePayload(VariablePayload):
+class StorePeerResponsePayload(VariablePayloadWID):
     """
     Confirmation that a node (id) has been stored as part of our tree.
     """
@@ -126,7 +126,7 @@ class StorePeerResponsePayload(VariablePayload):
 
 
 @vp_compile
-class ConnectPeerRequestPayload(VariablePayload):
+class ConnectPeerRequestPayload(VariablePayloadWID):
     """
     Request for our lan address to be introduced to peers in the target range.
     """
@@ -141,7 +141,7 @@ class ConnectPeerRequestPayload(VariablePayload):
 
 
 @vp_compile
-class ConnectPeerResponsePayload(VariablePayload):
+class ConnectPeerResponsePayload(VariablePayloadWID):
     """
     A response to a connection request, with the nodes that have been punctured (and are hopefully connectable).
     """
