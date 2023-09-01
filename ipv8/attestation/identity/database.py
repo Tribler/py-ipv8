@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import typing
 
+from ...database import Database
+from ..tokentree.token import Token
 from .attestation import Attestation
 from .metadata import Metadata
-from ..tokentree.token import Token
-from ...database import Database
-from ...types import PublicKey
+
+if typing.TYPE_CHECKING:
+    from ...types import PublicKey
 
 
 class Credential:
@@ -14,12 +16,15 @@ class Credential:
     Cache for Metadata <- [Attestation] mappings.
     """
 
-    def __init__(self, metadata: Metadata, attestations: typing.Set[Attestation]):
+    def __init__(self, metadata: Metadata, attestations: typing.Set[Attestation]) -> None:
+        """
+        Create a new credential.
+        """
         self.metadata = metadata
         self.attestations = attestations
 
 
-def to_list(obj) -> list:
+def to_list(obj: typing.Any | None) -> list:  # noqa: ANN401
     """
     If no results are found in the database, the cursor will return None.
     This function always returns a list.
@@ -120,8 +125,9 @@ class IdentityDatabase(Database):
         """
         Retrieve the authority that created a certain attestation.
         """
-        return next(self.execute("SELECT authority_key from Attestations WHERE signature = ?",
-                                 (attestation.signature,), fetch_all=False))
+        return next(typing.cast(typing.Iterator[bytes], self.execute("SELECT authority_key FROM Attestations "
+                                                                     "WHERE signature = ?", (attestation.signature,),
+                                                                     fetch_all=False)))
 
     def get_credential_over(self, metadata: Metadata) -> Credential:
         """
@@ -136,15 +142,13 @@ class IdentityDatabase(Database):
         return [Credential(metadata, self.get_attestations_over(metadata))
                 for metadata in self.get_metadata_for(public_key)]
 
-    def get_known_identities(self):
+    def get_known_identities(self) -> list[bytes]:
         """
         List the public keys of all known identity owners.
         """
-        out = []
-        for result in self.execute("SELECT public_key FROM Tokens", fetch_all=True):
-            # These are single item tuples
-            out.append(result[0])
-        return out
+        # These are single item tuples
+        return [result[0] for result in typing.cast(typing.Iterator[typing.List[bytes]],
+                                                    self.execute("SELECT public_key FROM Tokens", fetch_all=True))]
 
     def get_schema(self, version: int) -> str:
         """
@@ -178,15 +182,17 @@ class IdentityDatabase(Database):
 
                  PRIMARY KEY (public_key, metadata_pointer)
                  );
-                 """
-        schema += """
-                  CREATE TABLE IF NOT EXISTS option(key TEXT PRIMARY KEY, value BLOB);
-                  DELETE FROM option WHERE key = 'database_version';
-                  INSERT INTO option(key, value) VALUES('database_version', '%s');
-                  """ % str(self.LATEST_DB_VERSION)
-        return schema
 
-    def check_database(self, database_version: str) -> int:
+                 CREATE TABLE IF NOT EXISTS option(key TEXT PRIMARY KEY, value BLOB);
+                 DELETE FROM option WHERE key = 'database_version';
+                 INSERT INTO option(key, value) VALUES('database_version', '%s');
+                 """
+        return schema % str(self.LATEST_DB_VERSION)
+
+    def check_database(self, database_version: bytes) -> int:
+        """
+        Check if we need to upgrade.
+        """
         assert database_version.isdigit()
         assert int(database_version) >= 0
         database_version_num = int(database_version) or self.LATEST_DB_VERSION

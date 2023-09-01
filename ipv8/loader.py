@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any, Callable, Iterable, Type, cast
 
 from .keyvault.crypto import default_eccrypto
 from .peer import Peer
-from .types import Community, Overlay
+from .types import Community
 
 if TYPE_CHECKING:
     from .bootstrapping.bootstrapper_interface import Bootstrapper
@@ -62,7 +62,7 @@ class CommunityLauncher:
         Perform setup tasks before the community is loaded.
         """
 
-    def finalize(self, ipv8: IPv8, session: object, community: Overlay) -> None:
+    def finalize(self, ipv8: IPv8, session: object, community: Community) -> None:
         """
         Perform cleanup tasks after the community has been loaded.
         """
@@ -82,7 +82,7 @@ class CommunityLauncher:
         return ret
 
     @abc.abstractmethod
-    def get_overlay_class(self) -> type[Overlay]:
+    def get_overlay_class(self) -> type[Community]:
         """
         Get the overlay class this launcher wants to load.
 
@@ -312,19 +312,19 @@ def precondition(str_condition: str) -> Callable[[type[CommunityLauncher]], type
     return decorator
 
 
-def _get_class(class_or_function: type[Overlay] | Callable[[Any], type[Overlay]]) -> type[Overlay]:
+def _get_class(class_or_function: type[Community] | Callable[[Any], type[Community]]) -> type[Community]:
     """
     Return the class by processing incoming argument either as a function or as
     a class.
 
     :param class_or_function: the class, or the function that represents this class.
     """
-    return (cast(Type[Overlay], class_or_function())  # type: ignore[call-arg, method-assign]
+    return (cast(Type[Community], class_or_function())  # type: ignore[call-arg, method-assign]
             if isinstance(class_or_function, types.FunctionType)
-            else cast(Type[Overlay], class_or_function))
+            else cast(Type[Community], class_or_function))
 
 
-def overlay(str_module_or_class: str | type[Overlay],
+def overlay(str_module_or_class: str | type[Community],
             str_definition: str | None = None) -> Callable[[type[CommunityLauncher]], type[CommunityLauncher]]:
     """
     Specify, as strings, a module and Community class object defined therein to lazy-load.
@@ -360,19 +360,19 @@ def overlay(str_module_or_class: str | type[Overlay],
                 setattr(instance, "hiddenimports", set())  # noqa: B010
             instance.hiddenimports.add(str_module_or_class)  # type: ignore[attr-defined]
 
-            def get_overlay_class(self: CommunityLauncher) -> type[Overlay]:
+            def get_overlay_class(self: CommunityLauncher) -> type[Community]:
                 return getattr(__import__(cast(str, str_module_or_class), fromlist=[cast(str, str_definition)]),
                                cast(str, str_definition))
         else:
-            def get_overlay_class(self: CommunityLauncher) -> type[Overlay]:
-                return _get_class(cast(Type[Overlay], str_module_or_class))
+            def get_overlay_class(self: CommunityLauncher) -> type[Community]:
+                return _get_class(cast(Type[Community], str_module_or_class))
 
         instance.get_overlay_class = get_overlay_class  # type: ignore[method-assign]
         return instance
     return decorator
 
 
-def walk_strategy(str_module_or_class: str | type[Overlay],
+def walk_strategy(str_module_or_class: str | type[Community],
                   str_definition: str | None = None,
                   target_peers: int = 20,
                   kw_args: dict | None = None) -> Callable[[type[CommunityLauncher]], type[CommunityLauncher]]:
@@ -421,7 +421,7 @@ def walk_strategy(str_module_or_class: str | type[Overlay],
                                                 fromlist=[cast(str, str_definition)]),
                                      cast(str, str_definition))
         else:
-            strategy_class = _get_class(cast(Type[Overlay], str_module_or_class))
+            strategy_class = _get_class(cast(Type[Community], str_module_or_class))
 
         def new_get_walk_strategies(self: CommunityLauncher) -> list[tuple[type[DiscoveryStrategy], dict, int]]:
             return [*old_get_walk_strategies(self), (strategy_class, kw_args or {}, target_peers)]
@@ -431,7 +431,7 @@ def walk_strategy(str_module_or_class: str | type[Overlay],
     return decorator
 
 
-def bootstrapper(str_module_or_class: str | type[Overlay],
+def bootstrapper(str_module_or_class: str | type[Community],
                  str_definition: str | None = None,
                  kw_args: dict | None  = None) -> Callable[[type[CommunityLauncher]], type[CommunityLauncher]]:
     """
@@ -478,7 +478,7 @@ def bootstrapper(str_module_or_class: str | type[Overlay],
                                                     fromlist=[cast(str, str_definition)]),
                                          cast(str, str_definition))
         else:
-            bootstrapper_class = _get_class(cast(Type[Overlay], str_module_or_class))
+            bootstrapper_class = _get_class(cast(Type[Community], str_module_or_class))
 
         def new_get_bootstrappers(self: CommunityLauncher, session: object) -> list[tuple[type[Bootstrapper], dict]]:
             return [*old_get_bootstrappers(self, session), (bootstrapper_class, kw_args or {})]
@@ -505,7 +505,7 @@ def set_in_session(attribute_name: str) -> Callable[[type[CommunityLauncher]], t
     def decorator(instance: type[CommunityLauncher]) -> type[CommunityLauncher]:
         old_finalize = instance.finalize
 
-        def new_finalize(self: CommunityLauncher, ipv8: IPv8, session: object, community: Overlay) -> None:
+        def new_finalize(self: CommunityLauncher, ipv8: IPv8, session: object, community: Community) -> None:
             out = old_finalize(self, ipv8, session, community)
             setattr(session, attribute_name, community)
             return out

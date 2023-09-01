@@ -1,11 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from .payload import Payload
-
-if TYPE_CHECKING:
-    from .serialization import Serializable
 
 
 class BinMemberAuthenticationPayload(Payload):
@@ -29,7 +24,8 @@ class BinMemberAuthenticationPayload(Payload):
         return [('varlenH', self.public_key_bin)]
 
     @classmethod
-    def from_unpack_list(cls: type[BinMemberAuthenticationPayload], public_key_bin: bytes) -> Serializable:
+    def from_unpack_list(cls: type[BinMemberAuthenticationPayload],
+                         public_key_bin: bytes) -> BinMemberAuthenticationPayload:
         """
         Read the serialized key material into a payload.
         """

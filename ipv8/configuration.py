@@ -44,7 +44,7 @@ DISPERSY_BOOTSTRAPPER: dict[Any, Any] = {
     }
 }
 
-default = {
+default: dict[Any, Any] = {
     'interfaces': [
         {
             'interface': "UDPIPv4",
@@ -147,13 +147,26 @@ default = {
         }
     ]
 }
+"""
+The GLOBAL default values for IPv8 configuration. If you modify these, your interpreter will apply these defaults to
+all following IPv8 instances. You're most likely looking for ``get_default_configuration()`` instead.
+"""
 
 
-def get_default_configuration():
+def get_default_configuration() -> dict[Any, Any]:
+    """
+    Get a COPY of the default configuration.
+
+    You should always use this method instead of accesesing the global default directly.
+    """
     return copy.deepcopy(default)
 
 
 class Strategy(enum.Enum):
+    """
+    ConfigBuilder enum to request default DiscoveryStrategies to be instantiated.
+    """
+
     RandomWalk = "RandomWalk"
     RandomChurn = "RandomChurn"
     PeriodicSimilarity = "PeriodicSimilarity"
@@ -161,36 +174,69 @@ class Strategy(enum.Enum):
     PingChurn = "PingChurn"
 
     @classmethod
-    def values(cls):
-        return [name for name, _ in cls.__members__.items()]
+    def values(cls: type[Strategy]) -> list[str]:
+        """
+        Get the known default DiscoveryStrategy names.
+        """
+        return list(typing.cast(typing.Dict[str, Any], cls.__members__))
 
 
 class WalkerDefinition(typing.NamedTuple):
+    """
+    ConfigBuilder directive to request a given strategy to run below a given peer count.
+
+    The strategy instance is created with the keyword arguments given in ``init``.
+    If the ``peers`` are set to ``-1``, the strategy will always be invoked, regardless of the number of peers.
+    """
+
     strategy: Strategy
     peers: int
     init: dict
 
 
 class Bootstrapper(enum.Enum):
+    """
+    ConfigBuilder enum to request a community to use a given bootstrapping method.
+    """
+
     DispersyBootstrapper = "DispersyBootstrapper"
     UDPBroadcastBootstrapper = "UDPBroadcastBootstrapper"
 
     @classmethod
-    def values(cls):
-        return [name for name, _ in cls.__members__.items()]
+    def values(cls: type[Bootstrapper]) -> list[str]:
+        """
+        Get the known default Bootstrapper names.
+        """
+        return list(typing.cast(typing.Dict[str, Any], cls.__members__))
 
 
 class BootstrapperDefinition(typing.NamedTuple):
+    """
+    ConfigBuilder directive to specify how Bootstrapper instances should be instantiated.
+
+    The bootstrapper instance is created with the keyword arguments given in ``init``.
+    """
+
     bootstrapper: Bootstrapper
     init: dict
 
 
 default_bootstrap_defs = [BootstrapperDefinition(Bootstrapper.DispersyBootstrapper, DISPERSY_BOOTSTRAPPER['init'])]
+"""
+Shortcut for the most common ConfigBuilder default bootstrapper settings.
+"""
 
 
 class ConfigBuilder:
+    """
+    Factory class to create IPv8 configurations.
+    """
 
-    def __init__(self, clean: bool = False):
+    def __init__(self, clean: bool = False) -> None:
+        """
+        Create new ConfigBuilder with either the default settings (``clean=False``) or a completely empty configuration
+        dict (``clean=True``).
+        """
         self.config = {} if clean else get_default_configuration()
 
     def finalize(self) -> dict:
@@ -219,7 +265,7 @@ class ConfigBuilder:
             assert overlay.get('on_start') is not None, f"Missing on_start in overlay config of {overlay['class']}!"
             assert any(key['alias'] == overlay['key'] for key in self.config['keys']),\
                 f"Unknown key alias {overlay['key']} in overlay config of {overlay['class']}!"
-            assert all(isinstance(key, str) for key in overlay['initialize'].keys()),\
+            assert all(isinstance(key, str) for key in overlay['initialize']),\
                 f"Keyword argument mapping keys must be strings in overlay config of {overlay['class']}!"
             assert all(isinstance(entry[0], str) for entry in overlay['on_start']),\
                 f"Start methods must be strings in overlay config of {overlay['class']}!"
@@ -374,7 +420,7 @@ class ConfigBuilder:
         eph_key = default_eccrypto.generate_key("curve25519").key_to_bin()
         return self.add_key_from_bin(alias, base64.b64encode(eph_key).decode(), "")
 
-    def add_overlay(self,
+    def add_overlay(self,  # noqa: PLR0913
                     overlay_class: str,
                     key_alias: str,
                     walkers: list[WalkerDefinition],

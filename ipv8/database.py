@@ -12,14 +12,26 @@ import os
 import sqlite3
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
+from sqlite3 import Connection, Cursor, OperationalError
 from threading import RLock
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, Mapping, Tuple, Union, cast
 
+if TYPE_CHECKING:
+    from types import TracebackType
+
+    from _typeshed import SupportsLenAndGetItem
+    from typing_extensions import Self
+
+DB_TYPES = Union[int, float, str, bytes, None]
 
 db_locks: dict[str, RLock] = defaultdict(RLock)
 
 
-def db_call(f):
-    def wrapper(self, *args, **kwargs):
+def db_call(f: Callable[..., Any]) -> Callable[..., Any | None]:
+    """
+    Wait for the database lock before calling a function and return None if the cursor could not be acquired.
+    """
+    def wrapper(self: Database, *args: Any, **kwargs) -> Any | None:  # noqa: ANN401
         with db_locks[self._file_path]:
             if self._cursor:
                 return f(self, *args, **kwargs)
@@ -27,13 +39,12 @@ def db_call(f):
     return wrapper
 
 
-def _thread_safe_result_it(result, fetch_all=True):
+def _thread_safe_result_it(result: Cursor, fetch_all: bool = True) -> Iterator[DB_TYPES]:
     rows = (result.fetchall() if fetch_all else result.fetchone()) or []
     return (row for row in rows)
 
 
 class IgnoreCommits(Exception):
-
     """
     Ignore all commits made within the body of a 'with database:' clause.
 
@@ -44,17 +55,26 @@ class IgnoreCommits(Exception):
        # raising IgnoreCommits causes all commits to be ignored
        raise IgnoreCommits()
     """
-    def __init__(self):
+
+    def __init__(self) -> None:
+        """
+        Create a new exception instance.
+        """
         super().__init__("Ignore all commits made within __enter__ and __exit__")
 
 
 class DatabaseException(RuntimeError):
-    pass
+    """
+    Exception for database integrity violations.
+    """
 
 
 class Database(metaclass=ABCMeta):
+    """
+    Wrapper for SQLite 3 calls.
+    """
 
-    def __init__(self, file_path):
+    def __init__(self, file_path: str) -> None:
         """
         Initialize a new Database instance.
 
@@ -71,29 +91,33 @@ class Database(metaclass=ABCMeta):
         self._file_path = file_path
 
         # _CONNECTION, _CURSOR, AND _DATABASE_VERSION are set during open(...)
-        self._connection = None
-        self._cursor = None
+        self._connection: Connection | None = None
+        self._cursor: Cursor | None = None
         self._database_version = 0
 
         # Database.commit() is enabled when _pending_commits == 0.  Database.commit() is disabled
         # when _pending_commits > 0.  A commit is required when _pending_commits > 1.
         self._pending_commits = 0
 
-    def _assert(self, condition, message=""):
+    def _assert(self, condition: bool, message: str = "") -> None:
         """
         Check if condition is True, or raise a DatabaseException with a message.
         """
         if not condition:
             raise DatabaseException(str(message))
 
-    def open(self, initial_statements=True, prepare_visioning=True):
+    def open(self, initial_statements: bool = True, prepare_visioning: bool = True) -> bool:  # noqa: A003
+        """
+        Open a connection to the underlying database file.
+        """
         self._assert(self._cursor is None, "Database.open() has already been called")
         self._assert(self._connection is None, "Database.open() has already been called")
 
         self._logger.debug("open database [%s]", self._file_path)
-        if (not self._file_path.startswith(':')) and (not os.path.isfile(self._file_path)):
-            if not os.path.exists(os.path.dirname(self._file_path)):
-                os.makedirs(os.path.dirname(self._file_path))
+        if (not self._file_path.startswith(':')
+                and not os.path.isfile(self._file_path)
+                and not os.path.exists(os.path.dirname(self._file_path))):
+            os.makedirs(os.path.dirname(self._file_path))
         self._connect()
         if initial_statements:
             self._initial_statements()
@@ -102,7 +126,10 @@ class Database(metaclass=ABCMeta):
         return True
 
     @db_call
-    def close(self, commit=True):
+    def close(self, commit: bool = True) -> bool:
+        """
+        Close the connection to the database.
+        """
         self._assert(self._cursor is not None,
                      "Database.close() has been called or Database.open() has not been called")
         self._assert(self._connection is not None,
@@ -110,29 +137,30 @@ class Database(metaclass=ABCMeta):
         if commit:
             self.commit(exiting=True)
         self._logger.debug("close database [%s]", self._file_path)
-        self._cursor.close()
+        cast(Cursor, self._cursor).close()
         self._cursor = None
-        self._connection.close()
+        cast(Connection, self._connection).close()
         self._connection = None
         return True
 
-    def _connect(self):
+    def _connect(self) -> None:
         self._connection = sqlite3.connect(self._file_path, check_same_thread=False)
         self._connection.text_factory = bytes
         self._cursor = self._connection.cursor()
 
         assert self._cursor
 
-    def _initial_statements(self):
+    def _initial_statements(self) -> None:
         self._assert(self._cursor is not None,
                      "Database.close() has been called or Database.open() has not been called")
         self._assert(self._connection is not None,
                      "Database.close() has been called or Database.open() has not been called")
 
         # collect current database configuration
-        page_size = int(next(self._cursor.execute("PRAGMA page_size"))[0])
-        journal_mode = next(self._cursor.execute("PRAGMA journal_mode"))[0].decode().upper()
-        synchronous = next(self._cursor.execute("PRAGMA synchronous"))[0]
+        cursor = cast(Cursor, self._cursor)
+        page_size = int(next(cursor.execute("PRAGMA page_size"))[0])
+        journal_mode = next(cursor.execute("PRAGMA journal_mode"))[0].decode().upper()
+        synchronous = next(cursor.execute("PRAGMA synchronous"))[0]
         synchronous = synchronous.decode().upper() if isinstance(synchronous, bytes) else synchronous
 
         #
@@ -147,10 +175,10 @@ class Database(metaclass=ABCMeta):
 
             # it is not possible to change page_size when WAL is enabled
             if journal_mode == "WAL":
-                self._cursor.executescript("PRAGMA journal_mode = DELETE")
+                cursor.executescript("PRAGMA journal_mode = DELETE")
                 journal_mode = "DELETE"
-            self._cursor.execute("PRAGMA page_size = 8192")
-            self._cursor.execute("VACUUM")
+            cursor.execute("PRAGMA page_size = 8192")
+            cursor.execute("VACUUM")
             page_size = 8192
 
         else:
@@ -162,8 +190,8 @@ class Database(metaclass=ABCMeta):
         #
         if not (journal_mode == "WAL" or self._file_path == ":memory:"):
             self._logger.debug("PRAGMA journal_mode = WAL (previously: %s) [%s]", journal_mode, self._file_path)
-            self._cursor.execute("PRAGMA locking_mode = EXCLUSIVE")
-            self._cursor.execute("PRAGMA journal_mode = WAL")
+            cursor.execute("PRAGMA locking_mode = EXCLUSIVE")
+            cursor.execute("PRAGMA journal_mode = WAL")
         else:
             self._logger.debug("PRAGMA journal_mode = %s (no change) [%s]", journal_mode, self._file_path)
 
@@ -173,11 +201,11 @@ class Database(metaclass=ABCMeta):
         #
         if synchronous not in ("NORMAL", 1):
             self._logger.debug("PRAGMA synchronous = NORMAL (previously: %s) [%s]", synchronous, self._file_path)
-            self._cursor.execute("PRAGMA synchronous = NORMAL")
+            cursor.execute("PRAGMA synchronous = NORMAL")
         else:
             self._logger.debug("PRAGMA synchronous = %s (no change) [%s]", synchronous, self._file_path)
 
-    def _prepare_version(self):
+    def _prepare_version(self) -> None:
         self._assert(self._cursor is not None,
                      "Database.close() has been called or Database.open() has not been called")
         self._assert(self._connection is not None,
@@ -185,15 +213,18 @@ class Database(metaclass=ABCMeta):
 
         # check is the database contains an 'option' table
         try:
-            count, = next(self.execute("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'option'"))
-        except StopIteration:
-            raise RuntimeError()
+            count = next(cast(Iterator[int], self.execute("SELECT COUNT(*) FROM sqlite_master "
+                                                          "WHERE type = 'table' AND name = 'option'")))
+        except OperationalError as e:
+            raise RuntimeError from e
 
         if count:
             # get version from required 'option' table
             try:
-                version, = next(self.execute("SELECT value FROM option WHERE key == 'database_version' LIMIT 1"))
-            except StopIteration:
+                version, = next(cast(Iterator[Tuple[bytes]], self.execute("SELECT value FROM option "
+                                                                          "WHERE key == 'database_version' "
+                                                                          "LIMIT 1")))
+            except OperationalError:
                 # the 'database_version' key was not found
                 version = b"0"
         else:
@@ -205,17 +236,20 @@ class Database(metaclass=ABCMeta):
                      "expected databse version to be int or long, but was type %s" % str(type(self._database_version)))
 
     @property
-    def database_version(self):
+    def database_version(self) -> int:
+        """
+        The current (expected) version of the database.
+        """
         return self._database_version
 
     @property
-    def file_path(self):
+    def file_path(self) -> str:
         """
         The database filename including path.
         """
         return self._file_path
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         """
         Enters a no-commit state.  The commit will be performed by __exit__.
 
@@ -230,7 +264,8 @@ class Database(metaclass=ABCMeta):
         self._pending_commits = max(1, self._pending_commits)
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(self, exc_type: type[BaseException] | None, exc_value: BaseException | None,
+                 traceback: TracebackType | None) -> bool:
         """
         Leaves a no-commit state.  A commit will be performed if Database.commit() was called while
         in the no-commit state.
@@ -249,17 +284,18 @@ class Database(metaclass=ABCMeta):
                 self.commit()
             return True
 
-        elif isinstance(exc_value, IgnoreCommits):
+        if isinstance(exc_value, IgnoreCommits):
             self._logger.debug("enabling commit without committing now [%s]", self._file_path)
             return True
 
-        else:
-            # Niels 23-01-2013, an exception happened from within the with database block
-            # returning False to let Python reraise the exception.
-            return False
+        # Niels 23-01-2013, an exception happened from within the with database block
+        # returning False to let Python reraise the exception.
+        return False
 
     @db_call
-    def execute(self, statement, bindings=(), get_lastrowid=False, fetch_all=True):
+    def execute(self, statement: str, bindings: SupportsLenAndGetItem | Mapping[str, Any] = (),
+                get_lastrowid: bool = False,
+                fetch_all: bool = True) -> int | Iterator[DB_TYPES] | Iterator[list[DB_TYPES]] | None:
         """
         Execute one SQL statement.
 
@@ -284,13 +320,17 @@ class Database(metaclass=ABCMeta):
         @raise sqlite.Error: unknown
         """
         self._logger.log(logging.NOTSET, "%s <-- %s [%s]", statement, bindings, self._file_path)
-        result = self._cursor.execute(statement, bindings)
+        cursor = cast(Cursor, self._cursor)
+        result = cursor.execute(statement, bindings)
         if get_lastrowid:
-            return self._cursor.lastrowid
+            return cursor.lastrowid
         return _thread_safe_result_it(result, fetch_all)
 
     @db_call
-    def executescript(self, statements, fetch_all=True):
+    def executescript(self, statements: str, fetch_all: bool = True) -> Iterator[DB_TYPES]:
+        """
+        Execute multiple SQL statements at once.
+        """
         self._assert(self._cursor is not None,
                      "Database.close() has been called or Database.open() has not been called")
         self._assert(self._connection is not None,
@@ -299,11 +339,12 @@ class Database(metaclass=ABCMeta):
 
         self._logger.log(logging.NOTSET, "%s [%s]", statements, self._file_path)
 
-        result = self._cursor.executescript(statements)
+        result = cast(Cursor, self._cursor).executescript(statements)
         return _thread_safe_result_it(result, fetch_all)
 
     @db_call
-    def executemany(self, statement, sequenceofbindings, fetch_all=True):
+    def executemany(self, statement: str, sequenceofbindings: Iterable[SupportsLenAndGetItem | Mapping[str, Any]],
+                    fetch_all: bool = True) -> Iterator[DB_TYPES]:
         """
         Execute one SQL statement several times.
 
@@ -336,11 +377,14 @@ class Database(metaclass=ABCMeta):
                      "Database.close() has been called or Database.open() has not been called")
 
         self._logger.log(logging.NOTSET, "%s [%s]", statement, self._file_path)
-        result = self._cursor.executemany(statement, sequenceofbindings)
+        result = cast(Cursor, self._cursor).executemany(statement, sequenceofbindings)
         return _thread_safe_result_it(result, fetch_all)
 
     @db_call
-    def commit(self, exiting=False):
+    def commit(self, exiting: bool = False) -> bool:
+        """
+        Attempt to commit the current transaction and return False when the commit needs to wait for pending commits.
+        """
         self._assert(self._cursor is not None,
                      "Database.close() has been called or Database.open() has not been called")
         self._assert(self._connection is not None,
@@ -352,12 +396,12 @@ class Database(metaclass=ABCMeta):
             self._pending_commits += 1
             return False
 
-        else:
-            self._logger.debug("commit [%s]", self._file_path)
-            return self._connection.commit()
+        self._logger.debug("commit [%s]", self._file_path)
+        cast(Connection, self._connection).commit()
+        return True
 
     @abstractmethod
-    def check_database(self, database_version):
+    def check_database(self, database_version: bytes) -> int:
         """
         Check the database and upgrade if required.
 
@@ -373,4 +417,3 @@ class Database(metaclass=ABCMeta):
          value reverts to u'0' when the table could not be accessed.
         @type database_version: unicode
         """
-        pass

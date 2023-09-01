@@ -17,13 +17,13 @@ from typing import TYPE_CHECKING, Callable, Coroutine, Type, cast
 from ..lazy_community import PacketDecodingError, lazy_wrapper, lazy_wrapper_unsigned
 from ..messaging.serialization import PackError
 from ..peer import Peer
-from ..types import Community
+from ..types import Community, Payload
 from .mocking.endpoint import MockEndpointListener, internet
 from .mocking.ipv8 import MockIPv8
 
 if TYPE_CHECKING:
     from ..peerdiscovery.network import Network
-    from ..types import Address, AnyPayload, AnyPayloadType, Endpoint, Overlay, PrivateKey, PublicKey
+    from ..types import Address, Endpoint, Overlay, PrivateKey, PublicKey
 
 try:
     get_event_loop().set_debug(True)
@@ -56,8 +56,8 @@ class TranslatedMockEndpointListener(MockEndpointListener):
      - The requested overlay messages follow the ``lazy_wrapper_*`` standard.
     """
 
-    def __init__(self, overlay: Community, message_classes: list[AnyPayloadType],
-                 message_filter: list[AnyPayloadType] | None, main_thread: bool = False) -> None:
+    def __init__(self, overlay: Community, message_classes: list[type[Payload]],
+                 message_filter: list[type[Payload]] | None, main_thread: bool = False) -> None:
         """
         Create a new TranslatedMockEndpointListener.
         """
@@ -94,7 +94,7 @@ class TranslatedMockEndpointListener(MockEndpointListener):
         assert requested_class is not None, f"assertReceivedBy received message with unknown id {msg_id}!"
 
         # Create a fake message handler.
-        def trap(_: Community, sender: Peer, *payloads: AnyPayload) -> None:
+        def trap(_: Community, sender: Peer, *payloads: Payload) -> None:
             trap.sender = sender
             trap.payloads = payloads
         trap.sender = None
@@ -489,8 +489,8 @@ class TestBase(TestCaseClass):
         return self.nodes[i].my_peer.public_key
 
     @contextmanager
-    def assertReceivedBy(self, i: int, message_classes: list[AnyPayloadType], ordered: bool = True,  # noqa: N802
-                         message_filter: list[AnyPayloadType] | None = None) -> list[AnyPayload]:
+    def assertReceivedBy(self, i: int, message_classes: list[type[Payload]], ordered: bool = True,  # noqa: N802
+                         message_filter: list[type[Payload]] | None = None) -> list[Payload]:
         """
         Assert that a node i receives messages of a given type, potentially unordered or while ignoring other messages.
 

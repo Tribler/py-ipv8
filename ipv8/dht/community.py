@@ -36,7 +36,12 @@ from .storage import Storage
 
 if TYPE_CHECKING:
     from ..messaging.lazy_payload import VariablePayload
-    from ..messaging.payload import IntroductionRequestPayload, IntroductionResponsePayload
+    from ..messaging.payload import (
+        IntroductionRequestPayload,
+        IntroductionResponsePayload,
+        NewIntroductionRequestPayload,
+        NewIntroductionResponsePayload,
+    )
     from ..messaging.payload_headers import GlobalTimeDistributionPayload
     from ..peerdiscovery.discovery import DiscoveryStrategy
     from ..types import Address, Endpoint, Peer
@@ -332,14 +337,14 @@ class DHTCommunity(Community):
         return node
 
     def introduction_request_callback(self, peer: Peer, dist: GlobalTimeDistributionPayload,
-                                      payload: IntroductionRequestPayload) -> None:
+                                      payload: IntroductionRequestPayload | NewIntroductionRequestPayload) -> None:
         """
         Call our node discovery logic when an introduction request is received from it.
         """
         self.on_node_discovered(peer.public_key.key_to_bin(), peer.address)
 
     def introduction_response_callback(self, peer: Peer, dist: GlobalTimeDistributionPayload,
-                                       payload: IntroductionResponsePayload) -> None:
+                                       payload: IntroductionResponsePayload | NewIntroductionResponsePayload) -> None:
         """
         Call our node discovery logic when an introduction response is received from it.
         """
@@ -419,8 +424,8 @@ class DHTCommunity(Community):
         Unserialize data from the given serialized value.
         """
         if value[0] == DHT_ENTRY_STR:
-            payload, _ = self.serializer.unpack_serializable(StrPayload, value, offset=1)
-            return payload.data, None, 0
+            strpayload, _ = self.serializer.unpack_serializable(StrPayload, value, offset=1)
+            return strpayload.data, None, 0
 
         if value[0] == DHT_ENTRY_STR_SIGNED:
             payload, _ = self.serializer.unpack_serializable(SignedStrPayload, value, offset=1)

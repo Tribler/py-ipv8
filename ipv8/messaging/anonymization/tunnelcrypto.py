@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import collections.abc
 import struct
-from dataclasses import astuple, dataclass, fields
-from typing import TYPE_CHECKING, Iterable, Iterator, MutableSequence, cast, overload
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, cast
 
 import libnacl
 from cryptography.hazmat.backends import default_backend
@@ -25,7 +24,7 @@ class CryptoException(Exception):
 
 
 @dataclass
-class SessionKeys(collections.abc.MutableSequence):
+class SessionKeys:
     """
     Session keys to communicate between hops.
     """
@@ -36,73 +35,6 @@ class SessionKeys(collections.abc.MutableSequence):
     salt_backward: bytes
     salt_explicit_forward: int
     salt_explicit_backward: int
-
-    def __iter__(self) -> Iterator:
-        """
-        Make this dataclass iterable.
-        """
-        for field in fields(self):
-            yield getattr(self, field.name)
-
-    @overload
-    def __getitem__(self, item: int) -> bytes | int:
-        pass
-
-    @overload
-    def __getitem__(self, item: slice) -> MutableSequence[bytes | int]:
-        pass
-
-    def __getitem__(self, item: int | slice) -> bytes | int | MutableSequence[bytes | int]:
-        """
-        Get the attribute at a certain index or slice.
-        """
-        if isinstance(item, int):
-            return astuple(self)[item]
-        return list(astuple(self))[item]
-
-    @overload
-    def __setitem__(self, key: int, value: bytes | int) -> None:
-        pass
-
-    @overload
-    def __setitem__(self, key: slice, value: Iterable[bytes | int]) -> None:
-        pass
-
-    def __setitem__(self, key: int | slice, value: bytes | int | Iterable[bytes | int]) -> None:
-        """
-        Set an item by index or slice.
-        """
-        if isinstance(key, int):
-            setattr(self, list(fields(self))[key].name, value)
-        else:
-            enumerator = enumerate(range(*[p for p in [key.start, key.stop, key.step] if p is not None]))
-            if isinstance(value, (bytes, int)):
-                for _, k in enumerator:
-                    setattr(self, list(fields(self))[k].name, value)
-            else:
-                for i, k in enumerator:
-                    lv = list(value)
-                    setattr(self, list(fields(self))[k].name, lv[i])
-
-    def insert(self, index: int, value: bytes | int) -> None:
-        """
-        Attempt to insert at an index: ILLEGAL!
-        """
-        msg = "SessionKeys is fixed size, insertion is not supported!"
-        raise RuntimeError(msg)
-
-    def __delitem__(self, index: int | slice) -> None:
-        """
-        Attempt to delete from a given index: ILLEGAL!
-        """
-        msg = "SessionKeys is fixed size, deletion is not supported!"
-        raise RuntimeError(msg)
-
-    def __len__(self) -> int:
-        """
-        Get the number of items (6).
-        """
-        return len(astuple(self))
 
 
 class TunnelCrypto(ECCrypto):

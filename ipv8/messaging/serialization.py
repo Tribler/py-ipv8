@@ -5,9 +5,12 @@ import socket
 import typing
 from binascii import hexlify
 from struct import Struct, pack, unpack_from
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from .interfaces.udp.endpoint import DomainAddress, UDPv4Address, UDPv6Address
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 ADDRESS_TYPE_IPV4 = 0x01
 ADDRESS_TYPE_DOMAIN_NAME = 0x02
@@ -434,7 +437,7 @@ class Serializer:
         """
         return self._packers[fmt].pack(item)
 
-    def unpack(self, fmt: str, data: bytes, offset: int = 0) -> tuple[object, int]:
+    def unpack(self, fmt: FormatListType, data: bytes, offset: int = 0) -> tuple[object, int]:
         """
         Unpack data without using a Serializable. Using a Serializable is the preferred method.
 
@@ -468,7 +471,7 @@ class Serializer:
                 raise PackError(msg) from e
         return packed
 
-    def pack_serializable_list(self, serializables: list[Serializable]) -> bytes:
+    def pack_serializable_list(self, serializables: Sequence[Serializable]) -> bytes:
         """
         Serialize a list of Serializable instances.
 
@@ -479,9 +482,9 @@ class Serializer:
         return b''.join(self.pack_serializable(serializable) for serializable in serializables)
 
     def unpack_serializable(self,
-                            serializable: type[Serializable],
+                            serializable: type[S],
                             data: bytes,
-                            offset: int = 0) -> tuple[Serializable, int]:
+                            offset: int = 0) -> tuple[S, int]:
         """
         Use the formats specified in a serializable object and unpack to it.
 
@@ -494,7 +497,7 @@ class Serializer:
             try:
                 offset = self._packers[fmt].unpack(data, offset, unpack_list)  # type: ignore[index]
             except KeyError:
-                fmt = cast(type, fmt)  # If this is not a type, we'll crash
+                fmt = cast(typing.Type, fmt)  # If this is not a type, we'll crash
                 if not issubclass(fmt, Serializable):
                     raise
                 offset = self._packers['payload'].unpack(data, offset, unpack_list, fmt)
@@ -508,7 +511,7 @@ class Serializer:
         return serializable.from_unpack_list(*unpack_list), offset
 
     def unpack_serializable_list(self,
-                                 serializables: list[type[Serializable]],
+                                 serializables: Sequence[type[Serializable]],
                                  data: bytes,
                                  offset: int = 0,
                                  consume_all: bool = True) -> list[Serializable | bytes]:
@@ -537,6 +540,9 @@ class Serializer:
         return unpacked
 
 
+SelfS = typing.TypeVar('SelfS', bound='Serializable')
+
+
 class Serializable(metaclass=abc.ABCMeta):
     """
     Interface for serializable objects.
@@ -555,10 +561,13 @@ class Serializable(metaclass=abc.ABCMeta):
 
     @classmethod
     @abc.abstractmethod
-    def from_unpack_list(cls: type[Serializable], *args: typing.Any, **kwargs) -> Serializable:  # noqa: ANN401
+    def from_unpack_list(cls: type[SelfS], *args: typing.Any, **kwargs) -> SelfS:  # noqa: ANN401
         """
         Create a new Serializable object from a list of unpacked variables.
         """
+
+
+S = typing.TypeVar('S', bound=Serializable)
 
 
 class Payload(Serializable, abc.ABC):
