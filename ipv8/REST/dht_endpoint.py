@@ -3,7 +3,7 @@ from __future__ import annotations
 from base64 import b64encode
 from binascii import hexlify, unhexlify
 from timeit import default_timer
-from typing import TYPE_CHECKING, Optional, Sequence, cast
+from typing import TYPE_CHECKING, List, Optional, Sequence, Tuple, cast
 
 from aiohttp import web
 from aiohttp_apispec import docs, json_schema
@@ -95,7 +95,7 @@ class DHTEndpoint(BaseEndpoint[IPv8]):
         for address_cls, routing_table in self.dht.routing_tables.items():
             buckets = routing_table.trie.values()
             address = self.dht.my_peer.addresses.get(address_cls, self.dht.my_estimated_wan)
-            endpoints = cast(list, stats["endpoints"])
+            endpoints = cast(List, stats["endpoints"])
             endpoints.append({
                 "endpoint": FAST_ADDR_TO_INTERFACE[address_cls],
                 "node_id": hexlify(calc_node_id(address, self.dht.my_peer.mid)).decode('utf-8'),
@@ -209,7 +209,7 @@ class DHTEndpoint(BaseEndpoint[IPv8]):
         key = unhexlify(request.match_info['key'])
 
         start = default_timer()
-        values, crawls = cast(tuple[Sequence[tuple[bytes, Optional[bytes]]], list[Crawl]],
+        values, crawls = cast(Tuple[Sequence[Tuple[bytes, Optional[bytes]]], List[Crawl]],
                               await self.dht.find_values(key, debug=True))
         nodes_tried = set().union(*[crawl.nodes_tried for crawl in crawls])
         responses: list[tuple[Node, dict]] = sum([crawl.responses for crawl in crawls], [])

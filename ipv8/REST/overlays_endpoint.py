@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from binascii import hexlify
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Callable, cast
 
 from aiohttp import web
 from aiohttp_apispec import docs, json_schema
@@ -126,7 +126,7 @@ class OverlaysEndpoint(BaseEndpoint[IPv8]):
         named_statistics: dict[str, dict[str, int | float]] = {}
         for message_id, network_stats in statistics.items():
             if overlay.decode_map[message_id]:
-                mapped_name = str(message_id) + ":" + overlay.decode_map[message_id].__name__
+                mapped_name = str(message_id) + ":" + cast(Callable, overlay.decode_map[message_id]).__name__
             else:
                 mapped_name = str(message_id) + ":unknown"
             mapped_value = network_stats.to_dict()

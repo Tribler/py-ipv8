@@ -408,8 +408,8 @@ class Hop:
         """
         self.peer = peer
         self.session_keys: SessionKeys | None = None
-        self.dh_first_part = None
-        self.dh_secret = None
+        self.dh_first_part: LibNaCLPK | None = None
+        self.dh_secret: LibNaCLSK | None = None
         self.flags: list[int] = [] if flags is None else flags
 
     @property

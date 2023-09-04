@@ -437,7 +437,7 @@ class TunnelEndpoint(BaseEndpoint[IPv8]):
                 ips_by_infohash[key] = []
                 for value in dht.post_process_values([v.data for v in raw_values]):
                     try:
-                        payload, _ = dht.serializer.unpack_serializable(DHTIntroPointPayload, value[0])
+                        payload, __ = dht.serializer.unpack_serializable(DHTIntroPointPayload, value[0])
                     except PackError:
                         continue
                     peer = Peer(b'LibNaCLPK:' + payload.intro_pk, payload.address)

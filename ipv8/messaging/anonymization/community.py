@@ -9,9 +9,10 @@ import random
 from asyncio import iscoroutine, sleep
 from binascii import unhexlify
 from collections import defaultdict
-from typing import TYPE_CHECKING, Awaitable, Iterable, Optional, Set, cast
+from typing import TYPE_CHECKING, Awaitable, Iterable, List, Optional, Set, cast
 
 from ...community import DEFAULT_MAX_PEERS, Community
+from ...keyvault.private.libnaclkey import LibNaCLSK
 from ...lazy_community import lazy_wrapper
 from ...messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from ...peer import Peer
@@ -31,7 +32,12 @@ if TYPE_CHECKING:
     from ...peerdiscovery.network import Network
     from ...types import Endpoint
     from ..lazy_payload import VariablePayloadWID
-    from ..payload import IntroductionRequestPayload, IntroductionResponsePayload
+    from ..payload import (
+        IntroductionRequestPayload,
+        IntroductionResponsePayload,
+        NewIntroductionRequestPayload,
+        NewIntroductionResponsePayload,
+    )
     from ..serialization import Serializable, Serializer
 
 
@@ -123,7 +129,7 @@ class TunnelCommunity(Community):
     community_id = unhexlify('81ded07332bdc775aa5a46f96de9f8f390bbc9f3')
 
     def __init__(self, my_peer: Peer, endpoint: Endpoint, network: Network,  # noqa: PLR0913
-                 max_peers: int = DEFAULT_MAX_PEERS, anonymize: bool = False, *, settings: TunnelSettings | None = None,
+                 max_peers: int = DEFAULT_MAX_PEERS, anonymize: bool = False, *, settings: TunnelSettings | dict | None = None,
                  dht_provider: DHTCommunityProvider | None = None) -> None:
         """
         Create a new TunnelCommunity.
@@ -141,7 +147,7 @@ class TunnelCommunity(Community):
                                            | Callable[[Address, bytes, int | None], None]] = {}
 
         # Messages that can arrive from the socket
-        self.add_message_handler(CellPayload, self.on_cell)
+        self.add_message_handler(CellPayload.msg_id, self.on_cell)
         self.add_message_handler(DestroyPayload, self.on_destroy)
 
         # Messages that can arrive from a circuit (i.e., they are wrapped in a cell)
@@ -163,13 +169,13 @@ class TunnelCommunity(Community):
         self.circuits_needed: dict[int, int] = defaultdict(int)
         self.candidates: dict[Peer, list[int]] = {}  # Keeps track of the candidates that want to be a relay/exit node
 
-        self.crypto = self.settings.crypto
+        self.crypto: TunnelCrypto = self.settings.crypto
 
         self.logger.info("Exit settings: BT=%s, IPv8=%s",
                          PEER_FLAG_EXIT_BT in self.settings.peer_flags,
                          PEER_FLAG_EXIT_IPV8 in self.settings.peer_flags)
 
-        self.crypto.initialize(self.my_peer.key)
+        self.crypto.initialize(cast(LibNaCLSK, self.my_peer.key))
 
         if isinstance(self.endpoint, TunnelEndpoint):
             self.endpoint.set_tunnel_community(self)
@@ -383,12 +389,11 @@ class TunnelCommunity(Community):
 
         self.logger.info("Adding first hop %s:%d to circuit %d", *((*first_hop.address, circuit.circuit_id)))
 
-        try:
+        with contextlib.suppress(KeyError):
             self.request_cache.pop("retry", circuit.circuit_id)
             self.logger.info("Overwriting existing retry attempt for initial creation of circuit %d",
                              circuit.circuit_id)
-        except KeyError:
-            pass  # All is good if there was no pending retry cache for this circuit: continue.
+        # All is good if there was no pending retry cache for this circuit: continue.
 
         cache = RetryRequestCache(self, circuit, alt_first_hops, max_tries - 1,
                                   self.send_initial_create, self.settings.next_hop_timeout)
@@ -621,7 +626,7 @@ class TunnelCommunity(Community):
         hop = cast(Hop, circuit.unverified_hop)
 
         try:
-            shared_secret = self.crypto.verify_and_generate_shared_secret(hop.dh_secret, payload.key,
+            shared_secret = self.crypto.verify_and_generate_shared_secret(cast(LibNaCLSK, hop.dh_secret), payload.key,
                                                                           payload.auth, hop.public_key.key.pk)
             session_keys = self.crypto.generate_session_keys(shared_secret)
             hop.session_keys = session_keys
@@ -641,7 +646,7 @@ class TunnelCommunity(Community):
             candidate_list, _ = self.serializer.unpack('varlenH-list', candidate_list_bin)
 
             cache = cast(RetryRequestCache, self.request_cache.pop("retry", circuit.circuit_id))
-            self.send_extend(circuit, candidate_list, cache.max_tries if cache else 1)
+            self.send_extend(circuit, cast(List[bytes], candidate_list), cache.max_tries if cache else 1)
 
         elif circuit.state == CIRCUIT_STATE_READY:
             self.request_cache.pop("retry", circuit.circuit_id)
@@ -718,21 +723,21 @@ class TunnelCommunity(Community):
         return payload.flags
 
     def introduction_request_callback(self, peer: Peer, dist: GlobalTimeDistributionPayload,
-                                      payload: IntroductionRequestPayload) -> None:
+                                      payload: IntroductionRequestPayload | NewIntroductionRequestPayload) -> None:
         """
         Try to extract piggybacked data from the introduction request.
         """
         self.candidates[peer] = self.extract_peer_flags(payload.extra_bytes)
 
     def introduction_response_callback(self, peer: Peer, dist: GlobalTimeDistributionPayload,
-                                       payload: IntroductionResponsePayload) -> None:
+                                       payload: IntroductionResponsePayload | NewIntroductionResponsePayload) -> None:
         """
         Try to extract piggybacked data from the introduction response.
         """
         self.candidates[peer] = self.extract_peer_flags(payload.extra_bytes)
 
     def create_introduction_request(self, socket_address: Address, extra_bytes: bytes = b'',
-                                    new_style: bool = False, prefix: bytes | None = None) -> IntroductionRequestPayload:
+                                    new_style: bool = False, prefix: bytes | None = None) -> bytes:
         """
         Add peer flags to our introduction requests.
         """
@@ -743,7 +748,7 @@ class TunnelCommunity(Community):
     def create_introduction_response(self, lan_socket_address: Address, socket_address: Address,  # noqa: PLR0913
                                      identifier: int, introduction: Peer | None = None, extra_bytes: bytes = b'',
                                      prefix: bytes | None = None,
-                                     new_style: bool = False) -> IntroductionResponsePayload:
+                                     new_style: bool = False) -> bytes:
         """
         Add peer flags to our introduction responses.
         """
@@ -921,9 +926,9 @@ class TunnelCommunity(Community):
         if payload.node_public_key in request.candidates:
             extend_candidate = request.candidates[payload.node_public_key]
         else:
-            extend_candidate = self.network.get_verified_by_public_key_bin(payload.node_public_key)
-            if not extend_candidate:
-                extend_candidate = Peer(payload.node_public_key, payload.node_addr)
+            known_candidate = self.network.get_verified_by_public_key_bin(payload.node_public_key)
+            extend_candidate = (Peer(payload.node_public_key, payload.node_addr) if known_candidate is None
+                                else known_candidate)
 
             # Ensure that we are able to contact this peer
             if extend_candidate.last_response + 57.5 < time.time():

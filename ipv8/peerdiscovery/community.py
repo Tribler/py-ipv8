@@ -3,13 +3,13 @@ from __future__ import annotations
 from binascii import unhexlify
 from random import sample
 from time import time
-from typing import TYPE_CHECKING, Iterable, Union, cast
+from typing import TYPE_CHECKING, Sequence, Union, cast
 
 from ..community import DEFAULT_MAX_PEERS, Community
 from ..keyvault.crypto import default_eccrypto
 from ..keyvault.keys import PrivateKey
 from ..lazy_community import PacketDecodingError, lazy_wrapper, lazy_wrapper_unsigned, retrieve_cache
-from ..messaging.payload import IntroductionRequestPayload, IntroductionResponsePayload
+from ..messaging.payload import IntroductionRequestPayload, IntroductionResponsePayload, NewIntroductionResponsePayload
 from ..messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from ..messaging.serialization import PackError, Serializable
 from ..peer import Peer
@@ -136,6 +136,7 @@ class DiscoveryCommunity(Community):
                               source_address[0], source_address[1])
             return
 
+        payload: IntroductionRequestPayload | DiscoveryIntroductionRequestPayload
         try:
             auth, dist, payload = self._ez_unpack_auth(DiscoveryIntroductionRequestPayload, data)
         except (PacketDecodingError, PackError):
@@ -157,7 +158,7 @@ class DiscoveryCommunity(Community):
         self.endpoint.send(source_address, packet)
 
     def introduction_response_callback(self, peer: Peer, dist: GlobalTimeDistributionPayload,
-                                       payload: IntroductionResponsePayload) -> None:
+                                       payload: IntroductionResponsePayload | NewIntroductionResponsePayload) -> None:
         """
         If a peer sent us a response, send them a request for similarity.
         """
@@ -230,7 +231,7 @@ class DiscoveryCommunity(Community):
         return [service_id for service_id, overlay in self.network.service_overlays.items()
                 if overlay.my_peer == peer]
 
-    def custom_pack(self, peer: Peer, msg_num: int, payloads: Iterable[Serializable]) -> bytes:
+    def custom_pack(self, peer: Peer, msg_num: int, payloads: Sequence[Serializable]) -> bytes:
         """
         You can have different key material for different communities. So, in order for you to cross-communicate,
         you should sign messages with the key material that is used by a particular community.

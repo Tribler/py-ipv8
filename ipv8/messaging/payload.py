@@ -120,8 +120,22 @@ class NewIntroductionRequestPayload(VariablePayloadWID):
 
     msg_id = 234
     format_list = ['ip_address', 'ip_address', 'ip_address', 'H', 'bits', 'raw']
-    names = ["destination_address", "source_lan_address", "source_wan_address", "identifier", "flag0", "flag1",
-             "flag2", "flag3", "flag4", "flag5", "flag6", "flag7", "extra_bytes"]
+    names = ["destination_address", "source_lan_address", "source_wan_address", "identifier", "connection_type_0",
+             "connection_type_1", "supports_new_style", "dflag1", "dflag2", "tunnel", "sync", "advice", "extra_bytes"]
+
+    destination_address: Address
+    source_lan_address: Address
+    source_wan_address: Address
+    identifier: int
+    connection_type_0: int
+    connection_type_1: int
+    supports_new_style: int
+    dflag1: int
+    dflag2: int
+    tunnel: int
+    sync: int
+    advice: int
+    extra_bytes: bytes
 
 
 class IntroductionResponsePayload(Payload):
@@ -234,6 +248,22 @@ class NewIntroductionResponsePayload(VariablePayloadWID):
              "wan_introduction_address", "identifier", "intro_supports_new_style", "flag1", "flag2", "flag3",
              "flag4", "flag5", "flag6", "flag7", "extra_bytes"]
 
+    destination_address: Address
+    source_lan_address: Address
+    source_wan_address: Address
+    lan_introduction_address: Address
+    wan_introduction_address: Address
+    identifier: int
+    intro_supports_new_style: bool
+    flag1: int
+    flag2: int
+    flag3: int
+    flag4: int
+    flag5: int
+    flag6: int
+    flag7: int
+    extra_bytes: bytes
+
 
 class PunctureRequestPayload(Payload):
     """
@@ -290,6 +320,10 @@ class NewPunctureRequestPayload(VariablePayloadWID):
     format_list = ['ip_address', 'ip_address', 'H']
     names = ["lan_walker_address", "wan_walker_address", "identifier"]
 
+    lan_walker_address: Address
+    wan_walker_address: Address
+    identifier: int
+
 
 class PuncturePayload(Payload):
     """
@@ -344,3 +378,7 @@ class NewPuncturePayload(VariablePayloadWID):
     msg_id = 231
     format_list = ['ip_address', 'ip_address', 'H']
     names = ["source_lan_address", "source_wan_address", "identifier"]
+
+    source_lan_address: Address
+    source_wan_address: Address
+    identifier: int

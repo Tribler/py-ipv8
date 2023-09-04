@@ -284,7 +284,7 @@ class RequestCache(TaskManager):
     def _create_identifier(self, number: int, prefix: str) -> str:
         return f"{prefix}:{number}"
 
-    def clear(self) -> list[Future | None]:
+    def clear(self) -> list[Future]:
         """
         Clear the cache, canceling all pending tasks.
         """

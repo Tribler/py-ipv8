@@ -208,7 +208,7 @@ class PeersRequestCache(RandomNumberCache):
         We remove the introduction point if we don't get a response.
         """
         swarm = self.community.swarms.get(self.info_hash)
-        if swarm and self.target is not None:
+        if swarm is not None and self.target is not None:
             # This introduction point did not respond in time, so drop it.
             swarm.remove_intro_point(self.target)
 

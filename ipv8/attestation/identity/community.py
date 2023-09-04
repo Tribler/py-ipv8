@@ -4,11 +4,12 @@ import json
 import os
 from binascii import hexlify, unhexlify
 from time import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from ...bootstrapping.dispersy.bootstrapper import DispersyBootstrapper
 from ...community import DEFAULT_MAX_PEERS, Community
 from ...configuration import DISPERSY_BOOTSTRAPPER
+from ...keyvault.keys import PrivateKey, PublicKey
 from ...lazy_community import lazy_wrapper
 from ...peer import Peer
 from ...peerdiscovery.discovery import RandomWalk
@@ -18,7 +19,7 @@ from .manager import IdentityManager
 from .payload import AttestPayload, DiclosePayload, MissingResponsePayload, RequestMissingPayload
 
 if TYPE_CHECKING:
-    from ...types import Credential, Endpoint, IPv8, Metadata, PrivateKey, PseudonymManager, Token
+    from ...types import Credential, Endpoint, IPv8, Metadata, PseudonymManager, Token
 
 SAFE_UDP_PACKET_LENGTH = 1296
 
@@ -50,7 +51,7 @@ class IdentityCommunity(Community):
         self.known_attestation_hashes: dict[bytes, tuple[str, float, bytes, dict[str, str] | None]] = {}
 
         self.identity_manager = identity_manager
-        self.pseudonym_manager = identity_manager.get_pseudonym(self.my_peer.key)
+        self.pseudonym_manager = identity_manager.get_pseudonym(cast(PrivateKey, self.my_peer.key))
 
         # We assume other people try to cheat us with trees.
         # We don't attack ourselves though and just maintain a chain of attributes per pseudonym.
@@ -154,7 +155,7 @@ class IdentityCommunity(Community):
         This comes down to stripping tokens until the serialization fits in a UDP packet, as tokens can be shown
         to be missing from a disclosure and will be retrieved on demand
         """
-        token_size = 64 + self.crypto.get_signature_length(self.my_peer.key)
+        token_size = 64 + self.crypto.get_signature_length(cast(PublicKey, self.my_peer.key))
         metadata, tokens, attestations, authorities = disclosure
         meta_len = len(metadata) + len(attestations) + len(authorities)
         if meta_len + len(tokens) > SAFE_UDP_PACKET_LENGTH:
@@ -182,7 +183,8 @@ class IdentityCommunity(Community):
                 for credential in pseudonym.get_credentials():
                     if self.should_sign(pseudonym, credential.metadata):
                         self.logger.info("Attesting to %s", str(credential.metadata))
-                        attestation = pseudonym.create_attestation(credential.metadata, self.my_peer.key)
+                        attestation = pseudonym.create_attestation(credential.metadata,
+                                                                   cast(PrivateKey, self.my_peer.key))
                         pseudonym.add_attestation(self.my_peer.public_key, attestation)
                         self.ez_send(peer, AttestPayload(attestation.get_plaintext_signed()))
             for attribute_hash in required_attributes:

@@ -10,7 +10,7 @@ import random
 import socket
 import struct
 from asyncio import CancelledError, gather, iscoroutine
-from typing import TYPE_CHECKING, Any, Coroutine, Set, cast
+from typing import TYPE_CHECKING, Any, Coroutine, Set, Tuple, cast
 
 from ...bootstrapping.dispersy.bootstrapper import DispersyBootstrapper
 from ...community import DEFAULT_MAX_PEERS
@@ -35,7 +35,6 @@ from .tunnel import (
     DESTROY_REASON_LEAVE_SWARM,
     DESTROY_REASON_UNNEEDED,
     EXIT_NODE,
-    EXIT_NODE_SALT,
     PEER_SOURCE_DHT,
     PEER_SOURCE_PEX,
     Hop,
@@ -77,9 +76,13 @@ class HiddenTunnelCommunity(TunnelCommunity):
         self.rendezvous_point_for: dict[bytes, TunnelExitSocket] = {}  # {cookie: TunnelExitSocket}
 
         # Messages that can arrive from the socket
-        self.add_message_handler(CreateE2EPayload, self.on_create_e2e)
-        self.add_message_handler(PeersRequestPayload, self.on_peers_request)
-        self.add_message_handler(PeersResponsePayload, self.on_peers_response)
+        # The circuit id is optional, so we can safely cast these handlers.
+        self.add_message_handler(CreateE2EPayload, cast(Callable[[Tuple[str, int], bytes], None],
+                                                        self.on_create_e2e))
+        self.add_message_handler(PeersRequestPayload, cast(Callable[[Tuple[str, int], bytes], None],
+                                                           self.on_peers_request))
+        self.add_message_handler(PeersResponsePayload, cast(Callable[[Tuple[str, int], bytes], None],
+                                                            self.on_peers_response))
 
         # Messages that can arrive from a circuit (i.e., they are wrapped in a cell)
         self.add_cell_handler(EstablishIntroPayload, self.on_establish_intro)
@@ -112,7 +115,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
             self.leave_swarm(info_hash)
 
         self.swarms[info_hash] = Swarm(info_hash, hops, self.send_peers_request,
-                                       self.crypto.generate_key("curve25519") if seeding else None)
+                                       cast(LibNaCLSK, self.crypto.generate_key("curve25519")) if seeding else None)
         self.e2e_callbacks[info_hash] = callback
 
     def leave_swarm(self, info_hash: bytes) -> None:
@@ -485,15 +488,15 @@ class HiddenTunnelCommunity(TunnelCommunity):
             return
 
         cache = cast(E2ERequestCache, self.request_cache.pop("e2e-request", payload.identifier))
-        shared_secret = self.crypto.verify_and_generate_shared_secret(cache.hop.dh_secret,
+        shared_secret = self.crypto.verify_and_generate_shared_secret(cast(LibNaCLSK, cache.hop.dh_secret),
                                                                       payload.key,
                                                                       payload.auth,
                                                                       cache.hop.public_key.key.pk)
         session_keys = self.crypto.generate_session_keys(shared_secret)
 
         rp_info_enc = payload.rp_info_enc
-        rp_info_bin = self.crypto.decrypt_str(rp_info_enc, session_keys[EXIT_NODE], session_keys[EXIT_NODE_SALT])
-        rp_info, _ = self.serializer.unpack(RendezvousInfo, rp_info_bin)
+        rp_info_bin = self.crypto.decrypt_str(rp_info_enc, session_keys.key_backward, session_keys.salt_backward)
+        rp_info, _ = cast(Tuple[RendezvousInfo, int], self.serializer.unpack(RendezvousInfo, rp_info_bin))
 
         required_exit = Peer(rp_info.key, rp_info.address)
         circuit = self.create_circuit_for_infohash(cache.info_hash, CIRCUIT_TYPE_RP_DOWNLOADER,
@@ -605,7 +608,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         circuit = self.exit_sockets[circuit_id]
         self.intro_point_for[payload.public_key] = circuit, payload.info_hash
 
-        if not self.ipv8:
+        if self.ipv8 is None:
             self.logger.error('No IPv8 service object available, cannot start PEXCommunity')
         elif payload.info_hash not in self.pex:
             community = PexCommunity(self.my_peer, self.endpoint, Network(), info_hash=payload.info_hash)

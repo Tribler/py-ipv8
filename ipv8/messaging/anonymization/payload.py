@@ -38,7 +38,7 @@ class ExtraIntroductionPayload(VariablePayload):
     names = ['flags']
     format_list = ['flags']
 
-    flags: int
+    flags: list[int]
 
 
 @vp_compile

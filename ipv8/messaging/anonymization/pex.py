@@ -3,7 +3,7 @@ from __future__ import annotations
 import random
 import time
 from collections import deque
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List, cast
 
 from ...community import DEFAULT_MAX_PEERS, Community
 from ...messaging.anonymization.tunnel import PEER_SOURCE_PEX, IntroductionPoint
@@ -12,7 +12,12 @@ from ...peer import Peer
 if TYPE_CHECKING:
     from ...peerdiscovery.network import Network
     from ...types import Address, Endpoint
-    from ..payload import IntroductionRequestPayload, IntroductionResponsePayload
+    from ..payload import (
+        IntroductionRequestPayload,
+        IntroductionResponsePayload,
+        NewIntroductionRequestPayload,
+        NewIntroductionResponsePayload,
+    )
     from ..payload_headers import GlobalTimeDistributionPayload
 
 PEX_VERSION = 1
@@ -81,7 +86,7 @@ class PexCommunity(Community):
         if not extra_bytes:
             return
 
-        for seeder_pk in self.serializer.unpack('varlenH-list', extra_bytes)[0]:
+        for seeder_pk in cast(List[bytes], self.serializer.unpack('varlenH-list', extra_bytes)[0]):
             ip = IntroductionPoint(peer, seeder_pk, PEER_SOURCE_PEX)
             if ip in self.intro_points:
                 # Remove first to put introduction point at front of the deque.
@@ -90,30 +95,30 @@ class PexCommunity(Community):
             self.intro_points.appendleft(ip)
 
     def introduction_request_callback(self, peer: Peer, dist: GlobalTimeDistributionPayload,
-                                      payload: IntroductionRequestPayload) -> None:
+                                      payload: IntroductionRequestPayload | NewIntroductionRequestPayload) -> None:
         """
         Callback for when an introduction request comes in.
         """
         self.process_extra_bytes(peer, payload.extra_bytes)
 
     def introduction_response_callback(self, peer: Peer, dist: GlobalTimeDistributionPayload,
-                                       payload: IntroductionResponsePayload) -> None:
+                                       payload: IntroductionResponsePayload | NewIntroductionResponsePayload) -> None:
         """
         Callback for when an introduction response comes in.
         """
         self.process_extra_bytes(peer, payload.extra_bytes)
 
     def create_introduction_request(self, socket_address: Address, extra_bytes: bytes = b'', new_style: bool = False,
-                                    prefix: bytes | None = None) -> IntroductionRequestPayload:
+                                    prefix: bytes | None = None) -> bytes:
         """
         Piggyback introduction points onto introduction requests.
         """
         return super().create_introduction_request(socket_address, self.get_seeder_pks(), new_style)
 
     def create_introduction_response(self, lan_socket_address: Address, socket_address: Address,  # noqa: PLR0913
-                                     identifier: int, introduction: Address | None = None, extra_bytes: bytes = b'',
+                                     identifier: int, introduction: Peer | None = None, extra_bytes: bytes = b'',
                                      prefix: bytes | None = None,
-                                     new_style: bool = False) -> IntroductionResponsePayload:
+                                     new_style: bool = False) -> bytes:
         """
         Piggyback introduction points onto introduction responses.
         """
