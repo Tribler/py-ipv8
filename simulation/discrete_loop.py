@@ -41,7 +41,19 @@ class DiscreteLoop(asyncio.AbstractEventLoop):
                 raise self._exc
 
     def run_until_complete(self, future):
-        raise NotImplementedError
+        future = asyncio.tasks.ensure_future(future, loop=self)
+        future.add_done_callback(lambda _: self.stop())
+        self.run_forever()
+        return future.result()
+
+    async def shutdown_asyncgens(self):
+        pass
+
+    async def shutdown_default_executor(self, timeout=None):
+        pass
+
+    def set_debug(self, _):
+        pass
 
     def _timer_handle_cancelled(self, handle):
         pass
@@ -92,3 +104,8 @@ class DiscreteLoop(asyncio.AbstractEventLoop):
 
     def create_future(self):
         return asyncio.Future(loop=self)
+
+
+class DiscreteEventLoopPolicy(asyncio.events.BaseDefaultEventLoopPolicy):
+    def _loop_factory(self):
+        return DiscreteLoop()

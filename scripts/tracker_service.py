@@ -3,11 +3,9 @@ Common classes for tracker_plugin.py and tracker_reporter_plugin.py scripts
 """
 import os
 import random
-import signal
 import ssl
 import time
 import traceback
-from asyncio import ensure_future, get_event_loop
 from binascii import hexlify
 
 from aiohttp import web
@@ -167,7 +165,6 @@ class TrackerService:
         Initialize the variables of the TrackerServiceMaker and the logger.
         """
         self.endpoint = None
-        self.stopping = False
         self.overlay = None
         self.site = None
 
@@ -181,19 +178,6 @@ class TrackerService:
         self.endpoint = UDPEndpoint(listen_port)
         await self.endpoint.open()
         self.overlay = self.create_endpoint_server()
-
-        async def signal_handler(sig):
-            print("Received shut down signal %s" % sig)
-            if not self.stopping:
-                self.stopping = True
-                await self.overlay.unload()
-                self.endpoint.close()
-                if self.site:
-                    await self.site.stop()
-                get_event_loop().stop()
-
-        signal.signal(signal.SIGINT, lambda sig, _: ensure_future(signal_handler(sig)))
-        signal.signal(signal.SIGTERM, lambda sig, _: ensure_future(signal_handler(sig)))
 
         print("Started tracker")
 
@@ -219,3 +203,15 @@ class TrackerService:
         await self.site.start()
 
         print("Started API server")
+
+    async def shutdown(self):
+        if self.site:
+            await self.site.stop()
+            print("Stopped API server")
+
+        if self.endpoint:
+            self.endpoint.close()
+
+        if self.overlay:
+            await self.overlay.unload()
+            print("Stopped tracker")

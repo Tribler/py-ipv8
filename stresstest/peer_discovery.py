@@ -1,6 +1,6 @@
 import os
 import time
-from asyncio import ensure_future, get_event_loop
+from asyncio import run
 from random import randint
 
 # Check if we are running from the root directory
@@ -13,31 +13,25 @@ except ImportError:
 
 from ipv8.community import Community
 from ipv8.configuration import DISPERSY_BOOTSTRAPPER, get_default_configuration
-
+from ipv8.util import create_event_with_signals
 from ipv8_service import IPv8, _COMMUNITIES
 
 
 START_TIME = time.time()
 LOW_EDGE = 0
 LOW_EDGE_PEER = None
-INSTANCES = []
 
 
 class MyCommunity(Community):
     community_id = os.urandom(20)
 
-    def started(self):
+    def started(self, event):
         async def check_peers():
-            global INSTANCES, LOW_EDGE, LOW_EDGE_PEER, START_TIME
+            global LOW_EDGE, LOW_EDGE_PEER, START_TIME
             if self.get_peers():
                 if LOW_EDGE and self.my_peer != LOW_EDGE_PEER:
                     print(f"{LOW_EDGE:.4f},{(time.time() - START_TIME):.4f}")
-
-                    async def shutdown():
-                        for instance in INSTANCES:
-                            await instance.stop(False)
-                        get_event_loop().stop()
-                    ensure_future(shutdown())
+                    event.set()
                 else:
                     LOW_EDGE = time.time() - START_TIME
                     LOW_EDGE_PEER = self.my_peer
@@ -56,6 +50,9 @@ _COMMUNITIES['MyCommunity'] = MyCommunity
 
 
 async def start_communities():
+    event = create_event_with_signals()
+
+    instances = []
     for i in [1, 2]:
         configuration = get_default_configuration()
         configuration['keys'] = [{
@@ -76,12 +73,16 @@ async def start_communities():
             }],
             'bootstrappers': [DISPERSY_BOOTSTRAPPER],
             'initialize': {},
-            'on_start': [('started', )]
+            'on_start': [('started', event)]
         }]
         ipv8 = IPv8(configuration)
         await ipv8.start()
-        INSTANCES.append(ipv8)
+        instances.append(ipv8)
+
+    await event.wait()
+
+    for ipv8 in instances:
+        await ipv8.stop()
 
 
-ensure_future(start_communities())
-get_event_loop().run_forever()
+run(start_communities())

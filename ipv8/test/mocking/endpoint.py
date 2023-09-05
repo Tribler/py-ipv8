@@ -1,5 +1,5 @@
 import random
-from asyncio import get_event_loop
+from asyncio import get_running_loop
 
 from ...messaging.interfaces.endpoint import Endpoint, EndpointListener
 from ...messaging.interfaces.udp.endpoint import UDPv4Address, UDPv6Address
@@ -50,11 +50,11 @@ class MockEndpoint(Endpoint):
         if socket_address in internet:
             # For the unit tests we handle messages in separate asyncio tasks to prevent infinite recursion.
             ep = internet[socket_address]
-            get_event_loop().call_soon(ep.notify_listeners, (self.wan_address, packet))
+            get_running_loop().call_soon(ep.notify_listeners, (self.wan_address, packet))
         else:
             e = AssertionError("Attempted to send data to unregistered address %s" % repr(socket_address))
             if self.SEND_INET_EXCEPTION_TO_LOOP:
-                get_event_loop().create_task(crash_event_loop(e))
+                get_running_loop().create_task(crash_event_loop(e))
             raise e
 
     def open(self):

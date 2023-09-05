@@ -1,4 +1,4 @@
-from asyncio import Future, ensure_future, get_event_loop, sleep
+from asyncio import Future, ensure_future, get_running_loop, sleep
 from contextlib import suppress
 
 from .base import TestBase
@@ -118,7 +118,7 @@ class TestTaskManager(TestBase):
             exception_handler.called = True
         exception_handler.called = False
 
-        get_event_loop().set_exception_handler(exception_handler)
+        get_running_loop().set_exception_handler(exception_handler)
         with suppress(ZeroDivisionError):
             await self.tm.register_task('test', lambda: 1 / 0)
         self.assertTrue(exception_handler.called)
@@ -128,7 +128,7 @@ class TestTaskManager(TestBase):
             exception_handler.called = True
         exception_handler.called = False
 
-        get_event_loop().set_exception_handler(exception_handler)
+        get_running_loop().set_exception_handler(exception_handler)
         with suppress(ZeroDivisionError):
             await self.tm.register_task('test', lambda: 1 / 0, ignore=(ZeroDivisionError,))
         self.assertFalse(exception_handler.called)

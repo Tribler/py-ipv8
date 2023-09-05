@@ -5,7 +5,7 @@ import logging
 import socket
 import sys
 import time
-from asyncio import CancelledError, DatagramProtocol, DatagramTransport, Future, ensure_future, gather, get_event_loop
+from asyncio import CancelledError, DatagramProtocol, DatagramTransport, Future, ensure_future, gather, get_running_loop
 from binascii import hexlify
 from collections import deque
 from struct import unpack_from
@@ -201,7 +201,7 @@ class TunnelExitSocket(Tunnel[Peer], DatagramProtocol, TaskManager):
             self.enabled = True
 
             async def create_transport() -> None:
-                self.transport, _ = await get_event_loop().create_datagram_endpoint(lambda: self,
+                self.transport, _ = await get_running_loop().create_datagram_endpoint(lambda: self,
                                                                                     local_addr=('0.0.0.0', 0))
                 # Send any packets that have been waiting while the transport was being created
                 while self.queue:
@@ -248,7 +248,7 @@ class TunnelExitSocket(Tunnel[Peer], DatagramProtocol, TaskManager):
         Using asyncio's getaddrinfo since the aiodns resolver seems to have issues.
         Returns [(family, type, proto, canonname, sockaddr)].
         """
-        infos = await get_event_loop().getaddrinfo(host, 0, family=socket.AF_INET)
+        infos = await get_running_loop().getaddrinfo(host, 0, family=socket.AF_INET)
         return infos[0][-1][0]
 
     def datagram_received(self, data: bytes, source: Address) -> None:

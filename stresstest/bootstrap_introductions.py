@@ -1,4 +1,4 @@
-from asyncio import Future, TimeoutError as AsyncTimeoutError, get_event_loop, sleep, wait_for
+from asyncio import Future, TimeoutError as AsyncTimeoutError, run, sleep, wait_for
 from binascii import unhexlify
 from os import environ
 from random import randint
@@ -15,6 +15,7 @@ except ImportError:
 from ipv8.community import Community
 from ipv8.configuration import DISPERSY_BOOTSTRAPPER, get_default_configuration
 from ipv8.requestcache import NumberCache, RequestCache
+from ipv8.util import create_event_with_signals
 
 from ipv8_service import IPv8
 
@@ -45,8 +46,49 @@ class MyCommunity(Community):
             if not cache.future.done():
                 cache.future.set_result(payload)
 
+    async def run_test(self, event):
+        self.introductions = {}
+        ips = {}
+        for _ in range(count):
+            for dns_addr in DISPERSY_BOOTSTRAPPER['init']['dns_addresses']:
+                if 'tribler.org' not in dns_addr[0] and 'ip-v8.org' not in dns_addr[0]:
+                    continue
+
+                try:
+                    ip = ips.get(dns_addr[0], gethostbyname(dns_addr[0]))
+                except OSError:
+                    continue
+
+                try:
+                    response = await wait_for(self.send_intro_request((ip, dns_addr[1])), timeout=5)
+                except AsyncTimeoutError:
+                    continue
+
+                reachable = False
+                try:
+                    if response.wan_introduction_address != ('0.0.0.0', 0):
+                        # Wait some time for puncture to be sent
+                        await sleep(.1)
+                        await wait_for(self.send_intro_request(response.wan_introduction_address), timeout=5)
+                        reachable = True
+                except AsyncTimeoutError:
+                    pass
+
+                self.introductions[dns_addr] = self.introductions.get(dns_addr, [])
+                self.introductions[dns_addr].append([response.wan_introduction_address,
+                                                     response.lan_introduction_address,
+                                                     reachable])
+
+            await sleep(delay)
+        event.set()
+
+    async def unload(self):
+        await self.request_cache.shutdown()
+        await super().unload()
+
 
 async def main():
+    event = create_event_with_signals()
     configuration = get_default_configuration()
     configuration['keys'] = [{
         'alias': "my peer",
@@ -55,47 +97,18 @@ async def main():
     }]
     configuration['port'] = 12000 + randint(0, 10000)
     configuration['overlays'] = []
+
     ipv8 = IPv8(configuration)
     await ipv8.start()
-
     overlay = MyCommunity(ipv8.keys['my peer'], ipv8.endpoint, ipv8.network)
-    introductions = {}
-    ips = {}
-    for _ in range(count):
-        for dns_addr in DISPERSY_BOOTSTRAPPER['init']['dns_addresses']:
-            if 'tribler.org' not in dns_addr[0] and 'ip-v8.org' not in dns_addr[0]:
-                continue
-
-            try:
-                ip = ips.get(dns_addr[0], gethostbyname(dns_addr[0]))
-            except OSError:
-                continue
-
-            try:
-                response = await wait_for(overlay.send_intro_request((ip, dns_addr[1])), timeout=5)
-            except AsyncTimeoutError:
-                continue
-
-            reachable = False
-            try:
-                if response.wan_introduction_address != ('0.0.0.0', 0):
-                    # Wait some time for puncture to be sent
-                    await sleep(.1)
-                    await wait_for(overlay.send_intro_request(response.wan_introduction_address), timeout=5)
-                    reachable = True
-            except AsyncTimeoutError:
-                pass
-
-            introductions[dns_addr] = introductions.get(dns_addr, [])
-            introductions[dns_addr].append([response.wan_introduction_address,
-                                            response.lan_introduction_address,
-                                            reachable])
-
-        await sleep(delay)
+    overlay.register_task('run_test', overlay.run_test, event)
+    ipv8.overlays.append(overlay)
+    await event.wait()
+    await ipv8.stop()
 
     with open('bootstrap_introductions.txt', 'w') as f:
         f.write('Address Peers Type')
-        for dns_addr, responses in introductions.items():
+        for dns_addr, responses in overlay.introductions.items():
             f.write(f"\n{dns_addr[0]}:{dns_addr[1]} {len([wan for wan, _, _ in responses if wan != ('0.0.0.0', 0)])} 0")
             f.write(f"\n{dns_addr[0]}:{dns_addr[1]} {len({wan for wan, _, _ in responses if wan != ('0.0.0.0', 0)})} 1")
             f.write(f"\n{dns_addr[0]}:{dns_addr[1]} {len({lan for _, lan, _ in responses if lan != ('0.0.0.0', 0)})} 3")
@@ -103,5 +116,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    loop = get_event_loop()
-    loop.run_until_complete(main())
+    run(main())

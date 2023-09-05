@@ -1,7 +1,7 @@
 from binascii import hexlify, unhexlify
 import json
 import os
-from asyncio import ensure_future, get_event_loop
+from asyncio import Event, run
 
 from pyipv8.ipv8.community import Community
 from pyipv8.ipv8.configuration import ConfigBuilder, Strategy, WalkerDefinition, default_bootstrap_defs
@@ -13,6 +13,7 @@ class MyCommunity(Community):
 
     def __init__(self, my_peer, endpoint, network):
         super().__init__(my_peer, endpoint, network)
+        self.event = None
         self.add_message_handler(1, self.on_message)
 
     def send_message(self, peer):
@@ -36,9 +37,12 @@ class MyCommunity(Community):
         self.logger.info(f"Received message {received['message']} from {source_address},"
                          f"the signature is {valid}!")
 
-        get_event_loop().stop()
+        if self.event:
+            self.event.set()
 
-    def started(self, peer_id):
+    def started(self, event, peer_id):
+        self.event = event
+
         async def send_message():
             for p in self.get_peers():
                 self.send_message(p)
@@ -48,14 +52,17 @@ class MyCommunity(Community):
 
 
 async def start_communities():
+    event = Event()
+
     for i in [1, 2]:
         builder = ConfigBuilder().clear_keys().clear_overlays()
         builder.add_key("my peer", "medium", f"ec{i}.pem")
         builder.add_overlay("MyCommunity", "my peer", [WalkerDefinition(Strategy.RandomWalk, 10, {'timeout': 3.0})],
-                            default_bootstrap_defs, {}, [("started", i)])
+                            default_bootstrap_defs, {}, [("started", event, i)])
         ipv8 = IPv8(builder.finalize(), extra_communities={'MyCommunity': MyCommunity})
         await ipv8.start()
 
+    await event.wait()
 
-ensure_future(start_communities())
-get_event_loop().run_forever()
+
+run(start_communities())

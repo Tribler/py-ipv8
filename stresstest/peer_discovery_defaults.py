@@ -1,7 +1,7 @@
 import os
 import sys
 import time
-from asyncio import ensure_future, get_event_loop, sleep
+from asyncio import Event, create_task, run, sleep
 from os import chdir, getcwd, mkdir, path
 from random import randint
 
@@ -19,6 +19,7 @@ except ImportError:
 
 from ipv8.configuration import get_default_configuration  # noqa: I001
 from ipv8.types import Community, Peer
+from ipv8.util import create_event_with_signals
 
 from ipv8_service import IPv8, _COMMUNITIES, _WALKERS
 
@@ -30,7 +31,8 @@ RESULTS = {}
 def custom_intro_response_cb(self: Community,
                              peer: Peer,
                              dist: GlobalTimeDistributionPayload,
-                             payload: IntroductionResponsePayload) -> None:
+                             payload: IntroductionResponsePayload,
+                             event: Event) -> None:
     """
     Wait until we get a non-tracker response.
     Once all overlays have finished, stop the script.
@@ -39,10 +41,10 @@ def custom_intro_response_cb(self: Community,
         RESULTS[self.__class__.__name__] = time.time() - START_TIME
         print(self.__class__.__name__, "found a peer!", file=sys.stderr)  # noqa: T201
         if len(get_default_configuration()['overlays']) == len(RESULTS):
-            get_event_loop().stop()
+            event.set()
 
 
-async def on_timeout() -> None:
+async def on_timeout(event: Event) -> None:
     """
     If it takes longer than 30 seconds to find anything, abort the experiment and set the intro time to -1.0.
     """
@@ -51,7 +53,7 @@ async def on_timeout() -> None:
         if definition['class'] not in RESULTS:
             RESULTS[definition['class']] = -1.0
             print(definition['class'], "found no peers at all!", file=sys.stderr)  # noqa: T201
-    get_event_loop().stop()
+    event.set()
 
 
 async def start_communities() -> None:
@@ -59,11 +61,19 @@ async def start_communities() -> None:
     Override the Community master peers so we don't interfere with the live network.
     Also hook in our custom logic for introduction responses.
     """
+
+    event = create_event_with_signals()
+
+    create_task(on_timeout(event))
+
+    # Override the Community master peers so we don't interfere with the live network
+    # Also hook in our custom logic for introduction responses
     for community_cls in _COMMUNITIES.values():
         community_cls.community_id = os.urandom(20)
-        community_cls.introduction_response_callback = custom_intro_response_cb
+        community_cls.introduction_response_callback = lambda *args, e=event: custom_intro_response_cb(*args, e)
 
     # Create two peers with separate working directories
+    instances = []
     previous_workdir = getcwd()
     for i in [1, 2]:
         configuration = get_default_configuration()
@@ -75,13 +85,19 @@ async def start_communities() -> None:
         if not path.exists(workdir):
             mkdir(workdir)
         chdir(workdir)
-        await IPv8(configuration).start()
+        ipv8 = IPv8(configuration)
+        await ipv8.start()
         chdir(previous_workdir)
+        instances.append(ipv8)
+
+    await event.wait()
+
+    for ipv8 in instances:
+        await ipv8.stop()
+
 
 # Actually start running everything, this blocks until the experiment finishes
-ensure_future(on_timeout())  # noqa: RUF006
-ensure_future(start_communities())  # noqa: RUF006
-get_event_loop().run_forever()
+run(start_communities())
 
 # Print the introduction times for all default Communities, sorted alphabetically.
 print(','.join(['%.4f' % RESULTS[key] for key in sorted(RESULTS)]))  # noqa: T201

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from asyncio import BaseTransport, DatagramProtocol, get_event_loop
+from asyncio import BaseTransport, DatagramProtocol, get_running_loop
 from binascii import hexlify
 from socket import AF_INET, SO_BROADCAST, SO_REUSEADDR, SOCK_DGRAM, SOL_SOCKET, socket
 from time import time
@@ -41,7 +41,7 @@ class BroadcastBootstrapEndpoint(DatagramProtocol):
         """
         Open the broadcast socket.
         """
-        loop = get_event_loop()
+        loop = get_running_loop()
 
         try:
             self._socket = socket(AF_INET, SOCK_DGRAM)

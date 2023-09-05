@@ -1,11 +1,12 @@
 import os
-from asyncio import ensure_future, get_event_loop
+from asyncio import run
 
 from pyipv8.ipv8.community import Community
 from pyipv8.ipv8.configuration import (ConfigBuilder, Strategy, WalkerDefinition,
                                        default_bootstrap_defs)
 from pyipv8.ipv8.peerdiscovery.network import PeerObserver
 from pyipv8.ipv8.types import Peer
+from pyipv8.ipv8.util import run_forever
 from pyipv8.ipv8_service import IPv8
 
 
@@ -35,7 +36,7 @@ async def start_communities():
                             default_bootstrap_defs, {}, [('started',)])
         await IPv8(builder.finalize(),
                    extra_communities={'MyCommunity': MyCommunity}).start()
+    await run_forever()
 
 
-ensure_future(start_communities())
-get_event_loop().run_forever()
+run(start_communities())
