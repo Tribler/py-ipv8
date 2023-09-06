@@ -74,7 +74,7 @@ Next to simply adding tasks, the ``TaskManager`` also allows you to invoke calls
 The following example will add the value ``1`` to the ``COMPLETED`` list periodically and inject a single value of ``2`` after half a second:
 
 .. literalinclude:: tasks_tutorial_5.py
-   :lines: 8-26
+   :lines: 8-25
 
 This example prints ``[1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]``.
 
