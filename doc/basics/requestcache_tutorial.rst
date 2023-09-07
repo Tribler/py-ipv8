@@ -45,7 +45,7 @@ Both the ``identifier`` fields for the messages and the ``name`` for the cache a
 Please attentively read through this code:
 
 .. literalinclude:: requestcache_tutorial_3.py
-   :lines: 12-93
+   :lines: 12-91
 
 You are encouraged to play around with this code.
 Also, take notice of the fact that this example includes a replay attack (try removing the cache and see what happens).

@@ -20,14 +20,14 @@ Enabling anonymization
 In the basic identity tutorial we created the following configuration:
 
 .. literalinclude:: ../basics/identity_tutorial_1.py
-   :lines: 10-15
+   :lines: 11-16
    :dedent: 4
 
 To enable anonymization of all traffic through the identity layer we need to load the anonymization overlay.
 This is done by editing the loaded overlays through ``configuration['overlays']``, as follows:
 
 .. literalinclude:: advanced_identity_1.py
-   :lines: 10-16
+   :lines: 11-17
    :dedent: 4
 
 Inclusion of the ``'HiddenTunnelCommunity'`` overlay automatically enables anonymization of identity traffic.
@@ -44,13 +44,13 @@ Setting a REST API key
 In the basic identity tutorial we started the REST API as follows:
 
 .. literalinclude:: ../basics/identity_tutorial_1.py
-   :lines: 17-21
+   :lines: 18-22
    :dedent: 4
 
 To set a REST API key, we will have to pass it to the ``RESTManager`` constructor, as follows (replacing ``"my secret key"`` with your key):
 
 .. literalinclude:: advanced_identity_1.py
-   :lines: 18-22
+   :lines: 19-23
    :dedent: 4
 
 All requests to the core will then have to use either:
@@ -68,13 +68,13 @@ Using a REST API X509 certificate
 In the basic identity tutorial we started the REST API as follows:
 
 .. literalinclude:: ../basics/identity_tutorial_1.py
-   :lines: 17-21
+   :lines: 18-22
    :dedent: 4
 
 To use a certificate file, we will have to pass it to the ``RESTManager`` constructor, as follows (replacing ``cert_fileX`` with the file path of your certificate file for the particular IPv8 instance):
 
 .. literalinclude:: advanced_identity_2.py
-   :lines: 25-31
+   :lines: 26-32
    :dedent: 4
 
 This can (and should) be combined with an API key.

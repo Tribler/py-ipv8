@@ -66,8 +66,6 @@ async def start_communities() -> None:
 
     create_task(on_timeout(event))
 
-    # Override the Community master peers so we don't interfere with the live network
-    # Also hook in our custom logic for introduction responses
     for community_cls in _COMMUNITIES.values():
         community_cls.community_id = os.urandom(20)
         community_cls.introduction_response_callback = lambda *args, e=event: custom_intro_response_cb(*args, e)

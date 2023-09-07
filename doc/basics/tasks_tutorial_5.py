@@ -22,6 +22,6 @@ async def main():
     await task_manager.wait_for_tasks()
 
     await task_manager.shutdown_task_manager()
+    print(COMPLETED)
 
 asyncio.run(main())
-print(COMPLETED)
