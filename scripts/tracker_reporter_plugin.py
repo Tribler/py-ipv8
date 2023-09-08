@@ -7,6 +7,8 @@ import argparse
 import sys
 from asyncio import run
 
+from trackermetricsreporter import MetricsReporter
+
 # Check if we are running from the root directory
 # If not, modify our path so that we can import IPv8
 try:
@@ -15,33 +17,54 @@ try:
 except ImportError:
     import __scriptpath__  # noqa: F401
 
-from ipv8.util import run_forever
-
-from trackermetricsreporter import MetricsReporter
-
 from tracker_service import EndpointServer, TrackerService
+
+from ipv8.types import Address, Endpoint, Peer
+from ipv8.util import run_forever
 
 
 class ReportingEndpointServer(EndpointServer):
-    def __init__(self, endpoint, reporter):
+    """
+    Extend the tracker community by adding a reporter that listens in on all incoming introduction requests.
+    """
+
+    def __init__(self, endpoint: Endpoint, reporter: MetricsReporter) -> None:
+        """
+        Create a new server that notifies the given reporter.
+        """
         super().__init__(endpoint)
         self.reporter = reporter
 
-    def on_peer_introduction_request(self, peer, source_address, service_id):
+    def on_peer_introduction_request(self, peer: Peer, source_address: Address, service_id: bytes) -> None:
+        """
+        Callback for when a peer has sent an introduction request.
+        """
         self.reporter.count_peer(peer.mid, source_address, service_id)
 
 
 class ReportingTrackerService(TrackerService):
+    """
+    Extend the tracker service by adding a reporter that listens in on all incoming introduction requests.
+    """
 
-    def __init__(self, reporter):
+    def __init__(self, reporter: MetricsReporter) -> None:
+        """
+        Create a new service that notifies the given reporter.
+        """
         super().__init__()
         self.reporter = reporter
 
-    def create_endpoint_server(self):
+    def create_endpoint_server(self) -> EndpointServer:
+        """
+        Instantiate our reporting Community.
+        """
         return ReportingEndpointServer(self.endpoint, self.reporter)
 
 
-async def main():
+async def main() -> None:
+    """
+    Start an reporting tracker service with some given commandline arguments.
+    """
     parser = argparse.ArgumentParser(
         add_help=False,
         description='IPv8 tracker plugin which reports anonymized stats')

@@ -18,6 +18,8 @@ Configuring Sentry:
         SETX SENTRY_URL <sentry_url>
     ```
 """
+from __future__ import annotations
+
 import argparse
 import os
 import sys
@@ -31,17 +33,19 @@ try:
 except ImportError:
     import __scriptpath__  # noqa: F401
 
-from ipv8.REST.rest_manager import RESTManager
 from ipv8.configuration import get_default_configuration
 from ipv8.messaging.anonymization.tunnel import PEER_FLAG_EXIT_IPV8
+from ipv8.REST.rest_manager import RESTManager
 from ipv8.util import run_forever
-
 from ipv8_service import IPv8
 
 
 class ExitnodeIPv8Service:
+    """
+    Exit node service that only allows IPv8 community data to be exited.
+    """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Initialize the variables of the IPV8Service and the logger.
         """
@@ -49,7 +53,7 @@ class ExitnodeIPv8Service:
         self.restapi = None
         self.tc_persistence = None
 
-    async def start_ipv8(self, statedir, listen_port, statistics, no_rest_api):
+    async def start_ipv8(self, statedir: str | None, listen_port: int, statistics: bool, no_rest_api: bool) -> None:
         """
         Main method to startup IPv8.
         """
@@ -69,10 +73,10 @@ class ExitnodeIPv8Service:
             if overlay['class'] == 'HiddenTunnelCommunity':
                 overlay['initialize']['settings']['min_circuits'] = 0
                 overlay['initialize']['settings']['max_circuits'] = 0
-                overlay['initialize']['settings']['max_relays_or_exits'] = 1000
+                overlay['initialize']['settings']['max_joined_circuits'] = 1000
                 overlay['initialize']['settings']['peer_flags'] = {PEER_FLAG_EXIT_IPV8}
 
-        print("Starting IPv8")
+        print("Starting IPv8")  # noqa: T201
 
         self.ipv8 = IPv8(configuration, enable_statistics=statistics)
         await self.ipv8.start()
@@ -81,8 +85,11 @@ class ExitnodeIPv8Service:
             self.restapi = RESTManager(self.ipv8)
             await self.restapi.start()
 
-    async def stop_ipv8(self):
-        print("Stopping IPv8")
+    async def stop_ipv8(self) -> None:
+        """
+        Stop IPv8 and its REST API.
+        """
+        print("Stopping IPv8")  # noqa: T201
 
         if self.restapi:
             await self.restapi.stop()
@@ -90,7 +97,10 @@ class ExitnodeIPv8Service:
             await self.ipv8.stop()
 
 
-async def main(argv):
+async def main(argv: list[str]) -> None:
+    """
+    Start an IPv8 exit service with some given commandline arguments.
+    """
     parser = argparse.ArgumentParser(add_help=False, description=('IPv8-only exit node plugin'))
     parser.add_argument('--help', '-h', action='help', default=argparse.SUPPRESS, help='Show this help message and exit')
     parser.add_argument('--listen_port', '-p', default=8090, type=int, help='Use an alternative port')
@@ -112,6 +122,6 @@ if __name__ == "__main__":
         # If no SENTRY_URL is defined, then no reports are sent
         sentry_sdk.init(os.environ.get('SENTRY_URL'), traces_sample_rate=1.0)
     except ImportError:
-        print('sentry-sdk is not installed. To install sentry-sdk run `pip install sentry-sdk`')
+        print('sentry-sdk is not installed. To install sentry-sdk run `pip install sentry-sdk`')  # noqa: T201
 
     run(main(sys.argv[1:]))
