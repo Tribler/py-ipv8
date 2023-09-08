@@ -15,12 +15,15 @@ try:
 except ImportError:
     import __scriptpath__  # noqa: F401
 
-from ipv8.util import run_forever
-
 from tracker_service import TrackerService
 
+from ipv8.util import run_forever
 
-async def main():
+
+async def main() -> None:
+    """
+    Start a tracker service with some given commandline arguments.
+    """
     parser = argparse.ArgumentParser(add_help=False,
                                      description='IPv8 tracker plugin')
     parser.add_argument('--help', '-h', action='help',

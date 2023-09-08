@@ -3,11 +3,18 @@ import json
 
 import marshmallow
 
-from .base import TestBase
-from ..configuration import (Bootstrapper, BootstrapperDefinition, ConfigBuilder, DISPERSY_BOOTSTRAPPER, Strategy,
-                             WalkerDefinition, get_default_configuration)
+from ..configuration import (
+    DISPERSY_BOOTSTRAPPER,
+    Bootstrapper,
+    BootstrapperDefinition,
+    ConfigBuilder,
+    Strategy,
+    WalkerDefinition,
+    get_default_configuration,
+)
 from ..keyvault.crypto import default_eccrypto
 from ..keyvault.private.libnaclkey import LibNaCLSK
+from .base import TestBase
 
 
 class IPv8ConfigurationSchema(marshmallow.Schema):
@@ -16,21 +23,40 @@ class IPv8ConfigurationSchema(marshmallow.Schema):
     """
 
     class LoggerSchema(marshmallow.Schema):
+        """
+        The expected JSON schema for the logger configuration.
+        """
+
         level = marshmallow.fields.Str()
 
     class InterfaceSchema(marshmallow.Schema):
+        """
+        The expected JSON schema for the interfaces configuration.
+        """
+
         interface = marshmallow.fields.Str()
         ip = marshmallow.fields.Str()
         port = marshmallow.fields.Int()
 
     class KeySchema(marshmallow.Schema):
+        """
+        The expected JSON schema for the keys configuration.
+        """
+
         alias = marshmallow.fields.Str()
         generation = marshmallow.fields.Str()
         file = marshmallow.fields.Str()
 
     class OverlaySchema(marshmallow.Schema):
+        """
+        The expected JSON schema for an overlay's configuration.
+        """
 
         class WalkerSchema(marshmallow.Schema):
+            """
+            The expected JSON schema for walker configuration.
+            """
+
             strategy = marshmallow.fields.Str()
             peers = marshmallow.fields.Int()
             init = marshmallow.fields.Dict()
@@ -52,13 +78,19 @@ class IPv8ConfigurationSchema(marshmallow.Schema):
 
 
 class TestConfiguration(TestBase):
+    """
+    Tests related to IPv8 configuration.
+    """
 
-    def assertDictInDict(self, expected: dict, container: dict):
-        self.assertTrue(any(all(entry.get(key) == expected[key] for key in expected.keys())
+    def assertDictInDict(self, expected: dict, container: dict) -> None:  # noqa: N802
+        """
+        Check if a dictionary exists in another dictionary.
+        """
+        self.assertTrue(any(all(entry.get(key) == expected[key] for key in expected)
                             and len(entry) == len(expected)
                             for entry in container))
 
-    def test_clear_keys(self):
+    def test_clear_keys(self) -> None:
         """
         Check if all keys are cleared when requested.
         """
@@ -66,7 +98,7 @@ class TestConfiguration(TestBase):
 
         self.assertEqual(0, len(builder.config['keys']))
 
-    def test_clear_overlays(self):
+    def test_clear_overlays(self) -> None:
         """
         Check if all overlays are cleared when requested.
         """
@@ -74,7 +106,7 @@ class TestConfiguration(TestBase):
 
         self.assertEqual(0, len(builder.finalize()['overlays']))
 
-    def test_change_port(self):
+    def test_change_port(self) -> None:
         """
         Check if changes to the port are finalized.
         """
@@ -82,7 +114,7 @@ class TestConfiguration(TestBase):
 
         self.assertEqual(1000, builder.finalize()['interfaces'][0]['port'])
 
-    def test_change_address(self):
+    def test_change_address(self) -> None:
         """
         Check if changes to the address are finalized.
         """
@@ -90,7 +122,7 @@ class TestConfiguration(TestBase):
 
         self.assertEqual("1.1.1.1", builder.finalize()['interfaces'][0]['ip'])
 
-    def test_set_illegal_log_level(self):
+    def test_set_illegal_log_level(self) -> None:
         """
         Check if wrong log levels raise an error immediately.
         """
@@ -98,7 +130,7 @@ class TestConfiguration(TestBase):
 
         self.assertRaises(AssertionError, builder.set_log_level, "I don't exist")
 
-    def test_change_log_level(self):
+    def test_change_log_level(self) -> None:
         """
         Check if changes to the log level are finalized.
         """
@@ -106,7 +138,7 @@ class TestConfiguration(TestBase):
 
         self.assertEqual("CRITICAL", builder.finalize()['logger']['level'])
 
-    def test_set_illegal_walk_interval(self):
+    def test_set_illegal_walk_interval(self) -> None:
         """
         Check if negative walk intervals raise an error on finalization.
         """
@@ -114,7 +146,7 @@ class TestConfiguration(TestBase):
 
         self.assertRaises(AssertionError, builder.finalize)
 
-    def test_change_walk_interval(self):
+    def test_change_walk_interval(self) -> None:
         """
         Check if changes to the walk interval are finalized.
         """
@@ -122,7 +154,7 @@ class TestConfiguration(TestBase):
 
         self.assertEqual(3.14, builder.finalize()['walker_interval'])
 
-    def test_add_key_illegal_curve(self):
+    def test_add_key_illegal_curve(self) -> None:
         """
         Check if wrong key curves raise an error immediately.
         """
@@ -130,7 +162,7 @@ class TestConfiguration(TestBase):
 
         self.assertRaises(AssertionError, builder.add_key, "my key", "I don't exist", "some file")
 
-    def test_add_key(self):
+    def test_add_key(self) -> None:
         """
         Check if changes to the keys are finalized.
         """
@@ -146,7 +178,7 @@ class TestConfiguration(TestBase):
         self.assertEqual(1 + len(get_default_configuration()['keys']), len(keys))
         self.assertTrue(any(set(entry.items()) == set(expected.items()) for entry in keys))
 
-    def test_add_key_from_bin(self):
+    def test_add_key_from_bin(self) -> None:
         """
         Check if changes to the keys are finalized in bin mode.
         """
@@ -163,7 +195,7 @@ class TestConfiguration(TestBase):
         self.assertEqual(1 + len(get_default_configuration()['keys']), len(keys))
         self.assertTrue(any(set(entry.items()) == set(expected.items()) for entry in keys))
 
-    def test_add_key_from_bin_file(self):
+    def test_add_key_from_bin_file(self) -> None:
         """
         Check if changes to the keys are finalized in bin mode with a file.
         """
@@ -181,7 +213,7 @@ class TestConfiguration(TestBase):
         self.assertEqual(1 + len(get_default_configuration()['keys']), len(keys))
         self.assertTrue(any(set(entry.items()) == set(expected.items()) for entry in keys))
 
-    def test_add_ephemeral_key(self):
+    def test_add_ephemeral_key(self) -> None:
         """
         Check if ephemeral keys are created correctly.
         """
@@ -196,7 +228,7 @@ class TestConfiguration(TestBase):
         self.assertEqual("", keys[-1]["file"])
         self.assertIsInstance(default_eccrypto.key_from_private_bin(base64.b64decode(keys[-1]["bin"])), LibNaCLSK)
 
-    def test_add_overlay_overwrite(self):
+    def test_add_overlay_overwrite(self) -> None:
         """
         Check if the allow duplicate flag does not introduce duplicates.
         """
@@ -215,7 +247,7 @@ class TestConfiguration(TestBase):
         self.assertEqual(len(get_default_configuration()['overlays']), len(builder.finalize()['overlays']))
         self.assertDictInDict(expected, builder.finalize()['overlays'])
 
-    def test_add_overlay_append(self):
+    def test_add_overlay_append(self) -> None:
         """
         Check if the duplicate overlays are simply appended.
         """
@@ -234,7 +266,7 @@ class TestConfiguration(TestBase):
         self.assertEqual(1 + len(get_default_configuration()['overlays']), len(builder.finalize()['overlays']))
         self.assertDictInDict(expected, builder.finalize()['overlays'])
 
-    def test_add_overlay_complex(self):
+    def test_add_overlay_complex(self) -> None:
         """
         Check if a complex overlay is correctly added.
         """
@@ -270,7 +302,7 @@ class TestConfiguration(TestBase):
 
         self.assertDictInDict(expected, builder.finalize()['overlays'])
 
-    def test_correct_random_churn_strategy(self):
+    def test_correct_random_churn_strategy(self) -> None:
         """
         The DiscoveryCommunity may use the RandomChurn strategy.
         """
@@ -297,7 +329,7 @@ class TestConfiguration(TestBase):
         self.assertEqual(len(get_default_configuration()['overlays']), len(builder.finalize()['overlays']))
         self.assertDictInDict(expected, builder.finalize()['overlays'])
 
-    def test_correct_periodic_similarity_strategy(self):
+    def test_correct_periodic_similarity_strategy(self) -> None:
         """
         The DiscoveryCommunity may use the PeriodicSimilarity strategy.
         """
@@ -324,7 +356,7 @@ class TestConfiguration(TestBase):
         self.assertEqual(len(get_default_configuration()['overlays']), len(builder.finalize()['overlays']))
         self.assertDictInDict(expected, builder.finalize()['overlays'])
 
-    def test_default_configuration(self):
+    def test_default_configuration(self) -> None:
         """
         Check if we can reconstruct the default configuration.
         """
@@ -356,7 +388,7 @@ class TestConfiguration(TestBase):
                                                   {'settings': {
                                                       'min_circuits': 1,
                                                       'max_circuits': 1,
-                                                      'max_relays_or_exits': 100,
+                                                      'max_joined_circuits': 100,
                                                       'max_time': 10 * 60,
                                                       'max_time_inactive': 20,
                                                       'max_traffic': 250 * 1024 * 1024,
@@ -374,7 +406,7 @@ class TestConfiguration(TestBase):
 
         self.assertDictEqual(get_default_configuration(), builder.finalize())
 
-    def test_default_schema(self):
+    def test_default_schema(self) -> None:
         """
         Check if the default configuration is JSON-serializable and follows the expected schema.
         """
