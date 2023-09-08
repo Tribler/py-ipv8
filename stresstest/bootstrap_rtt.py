@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 import time
-from asyncio import run
+from asyncio import Event, run
 from random import randint
 from socket import gethostbyname
 from typing import TYPE_CHECKING, cast
@@ -14,7 +14,6 @@ try:
     del ipv8
 except ImportError:
     import __scriptpath__  # noqa: F401
-
 
 from ipv8.community import Community  # noqa: I001
 from ipv8.configuration import DISPERSY_BOOTSTRAPPER, get_default_configuration
@@ -29,7 +28,6 @@ if TYPE_CHECKING:
     from ipv8.messaging.payload_headers import GlobalTimeDistributionPayload
     from ipv8.types import Address, Peer
 
-CHECK_QUEUE = []
 RESULTS = {}
 
 CONST_REQUESTS = 10
@@ -100,9 +98,9 @@ class MyCommunity(Community):
     def started(self, event: Event) -> None:
         """
         Perform DNS name resolution and start sending pings.
-        """
-        global CHECK_QUEUE
 
+        :param event: The termination event.
+        """
         self.event = event
 
         dnsmap = {}

@@ -5,9 +5,6 @@ from asyncio import Event, create_task, run, sleep
 from os import chdir, getcwd, mkdir, path
 from random import randint
 
-from ipv8.messaging.payload import IntroductionResponsePayload
-from ipv8.messaging.payload_headers import GlobalTimeDistributionPayload
-
 # Check if we are running from the root directory
 # If not, modify our path so that we can import IPv8
 try:
@@ -16,8 +13,9 @@ try:
 except ImportError:
     import __scriptpath__  # noqa: F401
 
-
 from ipv8.configuration import get_default_configuration  # noqa: I001
+from ipv8.messaging.payload import IntroductionResponsePayload
+from ipv8.messaging.payload_headers import GlobalTimeDistributionPayload
 from ipv8.types import Community, Peer
 from ipv8.util import create_event_with_signals
 
@@ -61,10 +59,9 @@ async def start_communities() -> None:
     Override the Community master peers so we don't interfere with the live network.
     Also hook in our custom logic for introduction responses.
     """
-
     event = create_event_with_signals()
 
-    create_task(on_timeout(event))
+    timeout_task = create_task(on_timeout(event))
 
     for community_cls in _COMMUNITIES.values():
         community_cls.community_id = os.urandom(20)
@@ -89,6 +86,7 @@ async def start_communities() -> None:
         instances.append(ipv8)
 
     await event.wait()
+    timeout_task.cancel()
 
     for ipv8 in instances:
         await ipv8.stop()
