@@ -1,15 +1,20 @@
+from __future__ import annotations
+
 import contextlib
 import io
 import sys
 from importlib.abc import MetaPathFinder
 
-from ....base import TestBase
 from .....messaging.interfaces.lan_addresses.importshield import Platform, conditional_import_shield
+from ....base import TestBase
 
 
 class SegfaultingImporter(MetaPathFinder):
+    """
+    Importer that causes segfaults, scary!
+    """
 
-    def find_module(self, fullname, path):
+    def find_module(self, fullname: str, path: str) -> SegfaultingImporter | None:
         """
         Only serve imports from this class called "killer_import", as a safety feature.
         """
@@ -17,7 +22,7 @@ class SegfaultingImporter(MetaPathFinder):
             return self
         return None
 
-    def load_module(self, _):
+    def load_module(self, _: str) -> None:
         """
         Cause a segfault when the module is actually loaded.
 
@@ -29,8 +34,11 @@ class SegfaultingImporter(MetaPathFinder):
 
 
 class TestImportShield(TestBase):
+    """
+    Tests relating to the import shield.
+    """
 
-    def test_stop_import(self):
+    def test_stop_import(self) -> None:
         """
         Check that segfaulting imports are properly ignored when the platform does not match.
         """
@@ -46,7 +54,7 @@ class TestImportShield(TestBase):
 
         self.assertEqual(42.0, result)
 
-    def test_allow_import(self):
+    def test_allow_import(self) -> None:
         """
         Check that allowed imports are actually imported.
         """
@@ -58,14 +66,13 @@ class TestImportShield(TestBase):
 
         self.assertEqual(42.0, result)
 
-    def test_allow_import_log_exception(self):
+    def test_allow_import_log_exception(self) -> None:
         """
         Check that allowed imports are actually imported.
         """
         log = io.StringIO()
-        with contextlib.redirect_stderr(log):
-            with conditional_import_shield(Platform.ANY, True):
-                import math
-                print(math.factorial(-1))  # This leads to an error that we should print.
+        with contextlib.redirect_stderr(log), conditional_import_shield(Platform.ANY, True):
+            import math
+            print(math.factorial(-1))  # This leads to an error that we should print.  # noqa: T201
 
         self.assertNotEqual("", log.getvalue())

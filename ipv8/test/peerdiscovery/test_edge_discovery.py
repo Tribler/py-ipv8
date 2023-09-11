@@ -1,11 +1,17 @@
+from ...peerdiscovery.discovery import EdgeWalk
 from ..base import TestBase
 from ..mocking.community import MockCommunity
-from ...peerdiscovery.discovery import EdgeWalk
 
 
 class TestEdgeWalk(TestBase):
+    """
+    Tests related to the edge walker.
+    """
 
-    def setUp(self):
+    def setUp(self) -> None:
+        """
+        Set up three nodes that are not managed by TestBase.
+        """
         super().setUp()
 
         node_count = 3
@@ -16,12 +22,15 @@ class TestEdgeWalk(TestBase):
         for overlay in self.overlays:
             overlay.address_is_lan = lambda _: False
 
-    async def tearDown(self):
+    async def tearDown(self) -> None:
+        """
+        We made our own unmanaged overlays: tear them down.
+        """
         for overlay in self.overlays:
             await overlay.unload()
         return await super().tearDown()
 
-    async def test_take_step(self):
+    async def test_take_step(self) -> None:
         """
         Check if we will walk to a random other node.
 
@@ -43,7 +52,7 @@ class TestEdgeWalk(TestBase):
 
         self.assertEqual(len(self.overlays[0].network.verified_peers), 2)
 
-    async def test_take_step_into(self):
+    async def test_take_step_into(self) -> None:
         """
         Check if we will walk to an introduced node.
         """
@@ -74,7 +83,7 @@ class TestEdgeWalk(TestBase):
         self.assertEqual(len(self.overlays[0].network.verified_peers), 2)
         self.assertEqual(len(self.strategies[0].complete_edges), 1)
 
-    async def test_fail_step_into(self):
+    async def test_fail_step_into(self) -> None:
         """
         Check if we drop an unreachable introduced node.
         """
@@ -103,7 +112,7 @@ class TestEdgeWalk(TestBase):
         self.assertEqual(len(self.overlays[0].network.verified_peers), 1)
         self.assertEqual(len(self.strategies[0].complete_edges), 0)
 
-    async def test_complete_edge(self):
+    async def test_complete_edge(self) -> None:
         """
         Check if we can complete an edge.
         """

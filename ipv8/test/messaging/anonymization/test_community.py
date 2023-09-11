@@ -1,21 +1,31 @@
+from __future__ import annotations
+
 from asyncio import Future, ensure_future, iscoroutine
 from functools import partial
+from typing import TYPE_CHECKING, Awaitable, cast
 from unittest.mock import Mock
 
-from .mock import MockDHTProvider
+from ....messaging.anonymization.community import TunnelCommunity, TunnelSettings
+from ....messaging.anonymization.endpoint import TunnelEndpoint
+from ....messaging.anonymization.tunnel import (
+    CIRCUIT_STATE_EXTENDING,
+    PEER_FLAG_EXIT_BT,
+    PEER_FLAG_EXIT_IPV8,
+    PEER_FLAG_SPEED_TEST,
+)
+from ....messaging.interfaces.udp.endpoint import DomainAddress, UDPEndpoint
+from ....util import succeed
 from ...base import TestBase
 from ...mocking.endpoint import MockEndpointListener
 from ...mocking.exit_socket import MockTunnelExitSocket
 from ...mocking.ipv8 import MockIPv8
-from ....messaging.anonymization.community import TunnelCommunity, TunnelSettings
-from ....messaging.anonymization.endpoint import TunnelEndpoint
-from ....messaging.anonymization.tunnel import (CIRCUIT_STATE_EXTENDING, PEER_FLAG_EXIT_BT,
-                                                PEER_FLAG_EXIT_IPV8, PEER_FLAG_SPEED_TEST)
-from ....messaging.interfaces.udp.endpoint import DomainAddress, UDPEndpoint
-from ....util import succeed
+from .mock import MockDHTProvider
+
+if TYPE_CHECKING:
+    from ....types import Address, Overlay
 
 
-def _on_packet_fragile_cb(self, source_address, data, circuit_id):
+def _on_packet_fragile_cb(self: TunnelCommunity, source_address: Address, data: bytes, circuit_id: int | None) -> None:
     """
     A fragile version of on_packet that crashes on message handling failures.
 
@@ -26,27 +36,38 @@ def _on_packet_fragile_cb(self, source_address, data, circuit_id):
     """
     result = self.decode_map_private[data[22]](source_address, data, circuit_id)
     if iscoroutine(result):
-        self.register_anonymous_task('on_packet_from_circuit', ensure_future(result))
+        aw_result = cast(Awaitable, result)
+        self.register_anonymous_task('on_packet_from_circuit', ensure_future(aw_result))
 
 
-class TestTunnelCommunity(TestBase):
+class TestTunnelCommunity(TestBase[TunnelCommunity]):
+    """
+    Tests related to the TunnelCommunity.
+    """
 
-    def setUp(self):
+    def setUp(self) -> None:
+        """
+        Create two nodes and allocate a variable for a possible exit node endpoint.
+        """
         super().setUp()
         self.initialize(TunnelCommunity, 2)
 
         # An actual UDPEndpoint, if needed by the test (for catching exited data)
         self.public_endpoint = None
 
-    async def tearDown(self):
-        # If an endpoint was used, close it
+    async def tearDown(self) -> None:
+        """
+        If an endpoint was used, close it.
+        """
         if self.public_endpoint:
             self.public_endpoint.close()
 
         return await super().tearDown()
 
-    def create_node(self):
-        # Initialize a TunnelCommunity without circuits or exit node functionality
+    def create_node(self) -> MockIPv8:
+        """
+        Initialize a TunnelCommunity without circuits or exit node functionality.
+        """
         settings = TunnelSettings()
         settings.min_circuits = 0
         settings.max_circuits = 0
@@ -60,24 +81,27 @@ class TestTunnelCommunity(TestBase):
         ipv8.overlay.dht_provider = MockDHTProvider(ipv8.overlay.my_peer)
         return ipv8
 
-    def _patch_overlay(self, overlay):
+    def _patch_overlay(self, overlay: Overlay) -> None:
         super()._patch_overlay(overlay)
         if overlay and overlay.__class__ not in self.production_overlay_classes:
             overlay.on_packet_from_circuit = partial(_on_packet_fragile_cb, overlay)
 
-    def assert_no_more_tunnels(self):
+    def assert_no_more_tunnels(self) -> None:
         """
-        Utility method to check whether there are no more tunnels left
+        Utility method to check whether there are no more tunnels left.
         """
         for node in self.nodes:
             self.assertFalse(node.overlay.exit_sockets)
             self.assertFalse(node.overlay.relay_from_to)
             self.assertFalse(node.overlay.circuits)
 
-    def settings(self, i):
+    def settings(self, i: int) -> TunnelSettings:
+        """
+        Shortcut for the tunnel settings of a particular node.
+        """
         return self.overlay(i).settings
 
-    async def test_introduction_as_exit(self):
+    async def test_introduction_as_exit(self) -> None:
         """
         Check if introduction requests share the fact that nodes are exit nodes.
         """
@@ -88,7 +112,7 @@ class TestTunnelCommunity(TestBase):
         self.assertIn(self.my_peer(0), self.overlay(1).get_candidates(PEER_FLAG_EXIT_BT))
         self.assertNotIn(self.my_peer(1), self.overlay(0).get_candidates(PEER_FLAG_EXIT_BT))
 
-    async def test_introduction_as_exit_twoway(self):
+    async def test_introduction_as_exit_twoway(self) -> None:
         """
         Check if two nodes can have each other as exit nodes.
         """
@@ -100,7 +124,7 @@ class TestTunnelCommunity(TestBase):
         self.assertIn(self.my_peer(0), self.overlay(1).get_candidates(PEER_FLAG_EXIT_BT))
         self.assertIn(self.my_peer(1), self.overlay(0).get_candidates(PEER_FLAG_EXIT_BT))
 
-    async def test_introduction_as_exit_noway(self):
+    async def test_introduction_as_exit_noway(self) -> None:
         """
         Check if two nodes don't advertise themselves as exit node incorrectly.
         """
@@ -109,7 +133,7 @@ class TestTunnelCommunity(TestBase):
         self.assertEqual(len(self.overlay(0).get_candidates(PEER_FLAG_EXIT_BT)), 0)
         self.assertEqual(len(self.overlay(1).get_candidates(PEER_FLAG_EXIT_BT)), 0)
 
-    async def test_create_circuit(self):
+    async def test_create_circuit(self) -> None:
         """
         Check if 1 hop circuit creation works.
         """
@@ -128,7 +152,7 @@ class TestTunnelCommunity(TestBase):
         # Node 1 has an exit socket open
         self.assertEqual(len(self.overlay(1).exit_sockets), 1)
 
-    async def test_create_circuit_destruct_initializing(self):
+    async def test_create_circuit_destruct_initializing(self) -> None:
         """
         Check if a circuit is destructed and cleaned correctly while still initializing.
         """
@@ -150,7 +174,7 @@ class TestTunnelCommunity(TestBase):
         # Node 1 has an exit socket open
         self.assertEqual(len(self.overlay(1).exit_sockets), 1)
 
-    async def test_create_circuit_no_exit(self):
+    async def test_create_circuit_no_exit(self) -> None:
         """
         Check if 1 hop circuit creation fails without exit nodes.
         """
@@ -165,7 +189,7 @@ class TestTunnelCommunity(TestBase):
         # Node 1 should not have an exit socket open
         self.assertEqual(len(self.overlay(1).exit_sockets), 0)
 
-    async def test_create_circuit_too_many_hops(self):
+    async def test_create_circuit_too_many_hops(self) -> None:
         """
         Check if creating a circuit that is too long fails.
         """
@@ -182,7 +206,7 @@ class TestTunnelCommunity(TestBase):
 
         self.assertEqual(self.overlay(0).tunnels_ready(5), 0.0)
 
-    async def test_create_circuit_relay_early_fail_hop1(self):
+    async def test_create_circuit_relay_early_fail_hop1(self) -> None:
         """
         Check if extending a circuit using a cell with a bad relay_early flag fails at the first hop.
         """
@@ -200,7 +224,7 @@ class TestTunnelCommunity(TestBase):
 
         self.assertEqual(self.overlay(0).tunnels_ready(2), 0.0)
 
-    async def test_create_circuit_relay_early_fail_hop2(self):
+    async def test_create_circuit_relay_early_fail_hop2(self) -> None:
         """
         Check if extending a circuit using a cell with a bad relay_early flag fails at the second hop.
         """
@@ -219,7 +243,7 @@ class TestTunnelCommunity(TestBase):
 
         self.assertEqual(self.overlay(0).tunnels_ready(3), 0.0)
 
-    async def test_create_circuit_multiple_calls(self):
+    async def test_create_circuit_multiple_calls(self) -> None:
         """
         Check if circuit creation is aborted when it's already building the requested circuit.
         """
@@ -237,9 +261,9 @@ class TestTunnelCommunity(TestBase):
         self.overlay(0).build_tunnels(1)
         self.assertEqual(len(self.overlay(0).find_circuits(state=CIRCUIT_STATE_EXTENDING)), 1)
 
-    async def test_destroy_circuit_from_originator(self):
+    async def test_destroy_circuit_from_originator(self) -> None:
         """
-        Check if a 2 hop circuit can be destroyed (by the exit node)
+        Check if a 2 hop circuit can be destroyed (by the exit node).
         """
         self.add_node_to_experiment(self.create_node())
         self.settings(2).peer_flags.add(PEER_FLAG_EXIT_BT)
@@ -248,14 +272,14 @@ class TestTunnelCommunity(TestBase):
         await self.deliver_messages()
 
         # Destroy the circuit we just created using a destroy message
-        await self.overlay(0).remove_circuit(list(self.overlay(0).circuits.keys())[0], destroy=1)
+        await self.overlay(0).remove_circuit(next(iter(self.overlay(0).circuits.keys())), destroy=1)
         await self.deliver_messages()
 
         self.assert_no_more_tunnels()
 
-    async def test_destroy_circuit_from_exit(self):
+    async def test_destroy_circuit_from_exit(self) -> None:
         """
-        Check if a 2 hop circuit can be destroyed (by the exit node)
+        Check if a 2 hop circuit can be destroyed (by the exit node).
         """
         self.add_node_to_experiment(self.create_node())
         self.settings(2).peer_flags.add(PEER_FLAG_EXIT_BT)
@@ -263,14 +287,14 @@ class TestTunnelCommunity(TestBase):
         self.overlay(0).build_tunnels(2)
         await self.deliver_messages()
 
-        await self.overlay(2).remove_exit_socket(list(self.overlay(2).exit_sockets.keys())[0], destroy=1)
+        await self.overlay(2).remove_exit_socket(next(iter(self.overlay(2).exit_sockets.keys())), destroy=1)
         await self.deliver_messages()
 
         self.assert_no_more_tunnels()
 
-    async def test_destroy_circuit_from_relay(self):
+    async def test_destroy_circuit_from_relay(self) -> None:
         """
-        Check if a 2 hop circuit can be destroyed (by the relay node)
+        Check if a 2 hop circuit can be destroyed (by the relay node).
         """
         self.add_node_to_experiment(self.create_node())
         self.settings(2).peer_flags.add(PEER_FLAG_EXIT_BT)
@@ -278,12 +302,12 @@ class TestTunnelCommunity(TestBase):
         self.overlay(0).build_tunnels(2)
         await self.deliver_messages()
 
-        self.overlay(1).remove_relay(list(self.overlay(1).relay_from_to.keys())[0], destroy=1)
+        self.overlay(1).remove_relay(next(iter(self.overlay(1).relay_from_to.keys())), destroy=1)
         await self.deliver_messages()
 
         self.assert_no_more_tunnels()
 
-    async def test_destroy_circuit_bad_id(self):
+    async def test_destroy_circuit_bad_id(self) -> None:
         """
         Check if the correct circuit gets destroyed.
         """
@@ -294,7 +318,7 @@ class TestTunnelCommunity(TestBase):
 
         # Destroy a circuit which does not exist (circuit_id + 1)
         # This should not affect other circuits
-        await self.overlay(0).remove_circuit(list(self.overlay(0).circuits.keys())[0] + 1, destroy=1)
+        await self.overlay(0).remove_circuit(next(iter(self.overlay(0).circuits.keys())) + 1, destroy=1)
         await self.deliver_messages()
 
         # Node 0 should still have all of its required 1 hop circuits (1.0/100%)
@@ -302,7 +326,7 @@ class TestTunnelCommunity(TestBase):
         # Node 1 still has an exit socket open
         self.assertEqual(len(self.overlay(1).exit_sockets), 1)
 
-    async def test_tunnel_data(self):
+    async def test_tunnel_data(self) -> None:
         """
         Check if data is correctly exited.
         """
@@ -324,7 +348,7 @@ class TestTunnelCommunity(TestBase):
         self.public_endpoint.assert_open()
 
         # Tunnel the data to the endpoint
-        circuit = list(self.overlay(0).circuits.values())[0]
+        circuit = next(iter(self.overlay(0).circuits.values()))
         self.overlay(0).send_data(circuit.peer, circuit.circuit_id,
                                   DomainAddress('localhost', self.public_endpoint.get_address()[1]),
                                   ('0.0.0.0', 0), data)
@@ -336,7 +360,7 @@ class TestTunnelCommunity(TestBase):
         self.assertEqual(len(ep_listener.received_packets), 1)
         self.assertEqual(ep_listener.received_packets[0][1], data)
 
-    async def test_two_hop_circuit(self):
+    async def test_two_hop_circuit(self) -> None:
         """
         Check if a two hop circuit is correctly created.
 
@@ -352,7 +376,7 @@ class TestTunnelCommunity(TestBase):
 
         self.assertEqual(self.overlay(0).tunnels_ready(2), 1.0)
 
-    async def test_three_hop_circuit(self):
+    async def test_three_hop_circuit(self) -> None:
         """
         Check if a three hop circuit is correctly created.
 
@@ -369,7 +393,7 @@ class TestTunnelCommunity(TestBase):
 
         self.assertEqual(self.overlay(0).tunnels_ready(3), 1.0)
 
-    async def test_create_two_circuit(self):
+    async def test_create_two_circuit(self) -> None:
         """
         Check if multiple 1 hop circuit creation works.
         """
@@ -393,7 +417,7 @@ class TestTunnelCommunity(TestBase):
         # Two exit sockets are open between node 1 and 2 (NOT evenly spread)
         self.assertEqual(len(self.overlay(1).exit_sockets) + len(self.overlay(2).exit_sockets), 2)
 
-    async def test_reuse_partial_circuit(self):
+    async def test_reuse_partial_circuit(self) -> None:
         """
         Check if we can change the unverified hop of a circuit.
         """
@@ -406,7 +430,7 @@ class TestTunnelCommunity(TestBase):
         await self.deliver_messages()
 
         # We wanted to create circuit 0 -> 1 -> 2, but node 2 is not responding
-        circuit = list(self.overlay(0).circuits.values())[0]
+        circuit = next(iter(self.overlay(0).circuits.values()))
         self.assertEqual([h.mid for h in circuit.hops], [self.mid(1)])
         self.assertEqual(circuit.unverified_hop.mid, self.mid(2))
 
@@ -428,7 +452,7 @@ class TestTunnelCommunity(TestBase):
         self.assertEqual(circuit.unverified_hop, None)
         self.assertEqual(self.overlay(0).tunnels_ready(2), 1.0)
 
-    async def test_reuse_partial_circuit_first_hop(self):
+    async def test_reuse_partial_circuit_first_hop(self) -> None:
         """
         Check if we can change the first unverified hop of a circuit.
         """
@@ -441,7 +465,7 @@ class TestTunnelCommunity(TestBase):
         await self.deliver_messages()
 
         # Adding the first hop fails, since hop 1 is not responding
-        circuit = list(self.overlay(0).circuits.values())[0]
+        circuit = next(iter(self.overlay(0).circuits.values()))
         self.assertEqual(circuit.hops, ())
         self.assertEqual(circuit.unverified_hop.mid, self.mid(1))
 
@@ -458,7 +482,7 @@ class TestTunnelCommunity(TestBase):
         self.assertEqual(circuit.unverified_hop, None)
         self.assertEqual(self.overlay(0).tunnels_ready(2), 1.0)
 
-    async def test_tunnel_endpoint_anon(self):
+    async def test_tunnel_endpoint_anon(self) -> None:
         """
         Check if the tunnel endpoint is routing traffic correctly with anonymity enabled.
         """
@@ -468,11 +492,11 @@ class TestTunnelCommunity(TestBase):
         self.overlay(0).create_circuit(1, exit_flags=[PEER_FLAG_EXIT_IPV8])
         await self.deliver_messages()
 
-        exit_socket = list(self.overlay(2).exit_sockets.values())[0]
+        exit_socket = next(iter(self.overlay(2).exit_sockets.values()))
         self.overlay(2).exit_sockets[exit_socket.circuit_id] = MockTunnelExitSocket(exit_socket)
 
-        send_data = self.overlay(0).send_data
-        self.overlay(0).send_data = Mock(wraps=send_data)
+        send_data = Mock(wraps=self.overlay(0).send_data)
+        self.overlay(0).send_data = send_data
 
         prefix = b'\x00\x01' + b'\x00' * 20
         self.overlay(0).endpoint = endpoint = TunnelEndpoint(self.endpoint(0))
@@ -484,22 +508,21 @@ class TestTunnelCommunity(TestBase):
         await self.deliver_messages()
         self.assertEqual(len(ep_listener.received_packets), 1)
         self.assertEqual(ep_listener.received_packets[0][1], prefix + b'DATA')
-        self.overlay(0).send_data.assert_called_once()
+        send_data.assert_called_once()
 
         # When a circuit closes, sending data should fail
-        self.overlay(0).send_data = Mock(wraps=send_data)
+        send_data = Mock(wraps=send_data)
         circuit = self.overlay(0).find_circuits(exit_flags=[PEER_FLAG_EXIT_IPV8])[0]
         await self.overlay(0).remove_circuit(circuit.circuit_id)
         endpoint.send(self.overlay(1).my_estimated_wan, prefix + b'DATA')
         await self.deliver_messages()
         self.assertEqual(len(ep_listener.received_packets), 1)
-        self.overlay(0).send_data.assert_not_called()
+        send_data.assert_not_called()
 
-    async def test_tunnel_endpoint_no_anon(self):
+    async def test_tunnel_endpoint_no_anon(self) -> None:
         """
         Check if the tunnel endpoint is routing traffic correctly with anonymity disabled.
         """
-
         prefix = b'\x00' * 22
         self.overlay(0).endpoint = endpoint = TunnelEndpoint(self.endpoint(0))
         endpoint.set_tunnel_community(self.overlay(0))
@@ -512,7 +535,7 @@ class TestTunnelCommunity(TestBase):
         self.assertEqual(len(ep_listener.received_packets), 1)
         self.assertEqual(ep_listener.received_packets[0][1], prefix + b'DATA')
 
-    async def test_tunnel_unicode_destination(self):
+    async def test_tunnel_unicode_destination(self) -> None:
         """
         Check if the encoding/decoding a unicode hostname works.
         """
@@ -521,7 +544,7 @@ class TestTunnelCommunity(TestBase):
         circuit = self.overlay(0).create_circuit(1)
         await circuit.ready
 
-        exit_socket = list(self.overlay(1).exit_sockets.values())[0]
+        exit_socket = next(iter(self.overlay(1).exit_sockets.values()))
         mock_exit = self.overlay(1).exit_sockets[exit_socket.circuit_id] = MockTunnelExitSocket(exit_socket)
         mock_exit.sendto = Mock()
 
@@ -531,7 +554,7 @@ class TestTunnelCommunity(TestBase):
 
         mock_exit.sendto.assert_called_with(b'', unicode_destination)
 
-    async def test_test_request(self):
+    async def test_test_request(self) -> None:
         """
         Check if sending test-request messages works as expected.
         """
@@ -541,8 +564,8 @@ class TestTunnelCommunity(TestBase):
         circuit = self.overlay(0).create_circuit(2, exit_flags=[PEER_FLAG_SPEED_TEST])
         await circuit.ready
 
-        send_cell = self.overlay(0).send_cell
-        self.overlay(0).send_cell = Mock(wraps=send_cell)
+        send_cell = Mock(wraps=self.overlay(0).send_cell)
+        self.overlay(0).send_cell = send_cell
         data, _ = await self.overlay(0).send_test_request(circuit, 3, 6)
-        self.assertEqual(len(self.overlay(0).send_cell.call_args[0][1].data), 3)
+        self.assertEqual(len(send_cell.call_args[0][1].data), 3)
         self.assertEqual(len(data), 6)

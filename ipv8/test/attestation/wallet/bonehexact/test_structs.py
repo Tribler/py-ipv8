@@ -1,12 +1,15 @@
-from ....base import TestBase
 from .....attestation.wallet.bonehexact.structs import BitPairAttestation, BonehAttestation
 from .....attestation.wallet.primitives.structs import BonehPrivateKey, BonehPublicKey, pack_pair, unpack_pair
 from .....attestation.wallet.primitives.value import FP2Value
+from ....base import TestBase
 
 
 class TestStructs(TestBase):
+    """
+    Tests related to boneh attestation structs.
+    """
 
-    def test_pack_pair(self):
+    def test_pack_pair(self) -> None:
         """
         Check if a pair of integers can be packed and unpacked correctly.
         """
@@ -20,7 +23,7 @@ class TestStructs(TestBase):
         self.assertEqual(b, unpacked_b)
         self.assertEqual(b'', remainder)
 
-    def test_pack_pair_with_remainder(self):
+    def test_pack_pair_with_remainder(self) -> None:
         """
         Check if a pair of integers can be packed and unpacked correctly with a remainder.
         """
@@ -35,7 +38,7 @@ class TestStructs(TestBase):
         self.assertEqual(b, unpacked_b)
         self.assertEqual(remainder, unpacked_remainder)
 
-    def test_serialize_boneh_pk(self):
+    def test_serialize_boneh_pk(self) -> None:
         """
         Check if a BonehPublicKey can be serialized and unserialized correctly.
         """
@@ -51,7 +54,7 @@ class TestStructs(TestBase):
         self.assertEqual(g, unserialized.g)
         self.assertEqual(h, unserialized.h)
 
-    def test_serialize_boneh_pk_garbage(self):
+    def test_serialize_boneh_pk_garbage(self) -> None:
         """
         Check if a BonehPublicKey returns None when unserializing garbage data.
         """
@@ -59,7 +62,7 @@ class TestStructs(TestBase):
 
         self.assertEqual(None, unserialized)
 
-    def test_serialize_boneh_pk_with_remainder(self):
+    def test_serialize_boneh_pk_with_remainder(self) -> None:
         """
         Check if a BonehPublicKey can be serialized and unserialized correctly with remainder.
         """
@@ -75,7 +78,7 @@ class TestStructs(TestBase):
         self.assertEqual(g, unserialized.g)
         self.assertEqual(h, unserialized.h)
 
-    def test_serialize_boneh_sk(self):
+    def test_serialize_boneh_sk(self) -> None:
         """
         Check if a BonehPrivateKey can be serialized and unserialized correctly.
         """
@@ -95,7 +98,7 @@ class TestStructs(TestBase):
         self.assertEqual(h, unserialized.h)
         self.assertEqual(t1, unserialized.t1)
 
-    def test_serialize_boneh_sk_with_remainder(self):
+    def test_serialize_boneh_sk_with_remainder(self) -> None:
         """
         Check if a BonehPrivateKey can be serialized and unserialized correctly with remainder.
         """
@@ -115,7 +118,7 @@ class TestStructs(TestBase):
         self.assertEqual(h, unserialized.h)
         self.assertEqual(t1, unserialized.t1)
 
-    def test_serialize_boneh_sk_garbage(self):
+    def test_serialize_boneh_sk_garbage(self) -> None:
         """
         Check if a BonehPrivateKey returns None when unserializing garbage data.
         """
@@ -123,7 +126,7 @@ class TestStructs(TestBase):
 
         self.assertEqual(None, unserialized)
 
-    def test_serialize_bitpair_attestation(self):
+    def test_serialize_bitpair_attestation(self) -> None:
         """
         Check if a BitPairAttestation can be serialized and unserialized correctly.
         """
@@ -140,7 +143,7 @@ class TestStructs(TestBase):
         self.assertEqual(b, unserialized.b)
         self.assertEqual(c, unserialized.complement)
 
-    def test_serialize_bitpair_attestation_with_remainder(self):
+    def test_serialize_bitpair_attestation_with_remainder(self) -> None:
         """
         Check if a BitPairAttestation can be serialized and unserialized correctly with remainder.
         """
@@ -157,7 +160,7 @@ class TestStructs(TestBase):
         self.assertEqual(b, unserialized.b)
         self.assertEqual(c, unserialized.complement)
 
-    def test_serialize_bitpair_compress(self):
+    def test_serialize_bitpair_compress(self) -> None:
         """
         Check if a BitPairAttestation can be compressed for proofing.
         """
@@ -169,7 +172,7 @@ class TestStructs(TestBase):
 
         self.assertEqual(a * b * c, attest.compress())
 
-    def test_serialize_attestation_empty(self):
+    def test_serialize_attestation_empty(self) -> None:
         """
         Check if an Attestation can be serialized and unserialized correctly with no bitpairs.
         """
@@ -188,7 +191,7 @@ class TestStructs(TestBase):
         self.assertEqual(h, unserialized.PK.h)
         self.assertListEqual(bitpairs, unserialized.bitpairs)
 
-    def test_serialize_attestation_one(self):
+    def test_serialize_attestation_one(self) -> None:
         """
         Check if an Attestation can be serialized and unserialized correctly with one bitpair.
         """
@@ -214,7 +217,7 @@ class TestStructs(TestBase):
             self.assertEqual(bitpair.b, bp.b)
             self.assertEqual(bitpair.complement, bp.complement)
 
-    def test_serialize_attestation_many(self):
+    def test_serialize_attestation_many(self) -> None:
         """
         Check if an Attestation can be serialized and unserialized correctly with twenty bitpairs.
         """

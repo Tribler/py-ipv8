@@ -5,23 +5,39 @@ All rights reserved.
 This source code has been ported from https://github.com/privacybydesign/gabi
 The authors of this file are not -in any way- affiliated with the original authors or organizations.
 """
+from __future__ import annotations
 
 import random
 import time
 
-from ....base import TestBase
 from .....attestation.wallet.irmaexact.gabi.attributes import make_attribute_list
-from .....attestation.wallet.irmaexact.gabi.builder import (BuildDistributedProofList, BuildProofList, Challenge,
-                                                            CredentialBuilder, IssueCommitmentMessage, Issuer, Verify)
+from .....attestation.wallet.irmaexact.gabi.builder import (
+    BuildDistributedProofList,
+    BuildProofList,
+    Challenge,
+    CredentialBuilder,
+    IssueCommitmentMessage,
+    Issuer,
+    Verify,
+)
 from .....attestation.wallet.irmaexact.gabi.credential import Credential
 from .....attestation.wallet.irmaexact.gabi.keys import DefaultSystemParameters, PrivateKey, PublicKey, SignMessageBlock
 from .....attestation.wallet.irmaexact.gabi.proofs import ProofP, ProofPCommitment, createChallenge
 from .....attestation.wallet.primitives.value import FP2Value
+from ....base import TestBase
+
+# ruff: noqa: N806
 
 
 class TestCredential(TestBase):
+    """
+    Tests related to IRMA credentials.
+    """
 
-    def setUp(self):
+    def setUp(self) -> None:
+        """
+        Set up proof constants.
+        """
         super().setUp()
         self.testAttributes1 = [1, 2, 3, 4]
         self.testAttributes2 = [5, 6, 7, 8]
@@ -74,7 +90,10 @@ class TestCredential(TestBase):
         self.testPubK2 = PublicKey(n, Z, S, R, 0, time.time() + 365 * 24 * 3600)
         self.testPrivK2 = PrivateKey(p, q, 0, time.time() + 365 * 24 * 3600)
 
-    def _createCredential(self, context, secret, issuer):
+    def _createCredential(self, context: int, secret: int, issuer: Issuer) -> Credential | None:  # noqa: N802
+        """
+        Have an issuer construct a credential for the given context and secret.
+        """
         keylength = 1024
         nonce1 = random.randint(0, DefaultSystemParameters[keylength].Lstatzk)
         nonce2 = random.randint(0, DefaultSystemParameters[keylength].Lstatzk)
@@ -83,7 +102,7 @@ class TestCredential(TestBase):
         ism = issuer.IssueSignature(commitMsg.U, self.testAttributes1, nonce2)
         return cb.ConstructCredential(ism, self.testAttributes1)
 
-    def test_show_proof(self):
+    def test_show_proof(self) -> None:
         """
         Test showing a partial proof.
         """
@@ -99,7 +118,7 @@ class TestCredential(TestBase):
 
         self.assertTrue(proof.Verify(self.testPubK, context, nonce1, False))
 
-    def test_construct_credential(self):
+    def test_construct_credential(self) -> None:
         """
         Test constructing a credential.
         """
@@ -116,7 +135,7 @@ class TestCredential(TestBase):
 
         self.assertIsNotNone(cb.ConstructCredential(msg, self.testAttributes1))
 
-    def test_construct_credential_challenge(self):
+    def test_construct_credential_challenge(self) -> None:
         """
         Test constructing a credential with Challenge.
         """
@@ -137,7 +156,7 @@ class TestCredential(TestBase):
 
         self.assertIsNotNone(cb.ConstructCredential(msg, self.testAttributes1))
 
-    def test_construct_credential_challenge_pcommit(self):
+    def test_construct_credential_challenge_pcommit(self) -> None:
         """
         Test constructing a credential with Challenge and PCommit.
         """
@@ -208,7 +227,7 @@ class TestCredential(TestBase):
         reconstructed_challenge = createChallenge(challenge_verif, challenge_verif, [Ap, Zp], False)
         self.assertTrue(p.VerifyWithChallenge(issuer.Pk, reconstructed_challenge))
 
-    def test_show_proof_list(self):
+    def test_show_proof_list(self) -> None:
         """
         Test showing a list of proofs.
         """
@@ -227,7 +246,7 @@ class TestCredential(TestBase):
 
         self.assertTrue(Verify(prooflist, [issuer1.Pk, issuer2.Pk], context, nonce1, False))
 
-    def test_issue_and_show(self):
+    def test_issue_and_show(self) -> None:
         """
         Test the full stack of issuance and showing.
         """
@@ -263,7 +282,7 @@ class TestCredential(TestBase):
 
         self.assertTrue(proof.Verify(self.testPubK, context, nonce1s, False))
 
-    def test_issue_show_random(self):
+    def test_issue_show_random(self) -> None:
         """
         Test the full stack of issuance, deriving and showing.
         """
@@ -295,7 +314,7 @@ class TestCredential(TestBase):
 
         self.assertTrue(proof.Verify(issuer2.Pk, context, nonce1s, False))
 
-    def test_big_attribute(self):
+    def test_big_attribute(self) -> None:
         """
         Test if a big attribute value still works.
         """

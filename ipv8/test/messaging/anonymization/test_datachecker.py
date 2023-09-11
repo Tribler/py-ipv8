@@ -1,7 +1,7 @@
 from binascii import unhexlify
 
-from ...base import TestBase
 from ....messaging.anonymization.tunnel import DataChecker
+from ...base import TestBase
 
 tracker_pkt = unhexlify('00000417271019800000000012345678')
 dht_pkt = b'd1:ad2:id20:abcdefghij01234567899:info_hash20:mnopqrstuvwxyz123456e1:q9:get_peers1:t2:aa1:y1:qe'
@@ -12,8 +12,11 @@ tunnel_pkt = unhexlify('000281ded07332bdc775aa5a46f96de9f8f390bbc9f300000001')
 
 
 class TestDataChecker(TestBase):
+    """
+    Tests related to the DataChecker.
+    """
 
-    def test_could_be_dht(self):
+    def test_could_be_dht(self) -> None:
         """
         Check if a DHT packet is correctly identified.
         """
@@ -23,7 +26,7 @@ class TestDataChecker(TestBase):
         self.assertFalse(DataChecker.could_be_dht(ipv8_pkt))
         self.assertFalse(DataChecker.could_be_dht(tunnel_pkt))
 
-    def test_could_be_udp_tracker(self):
+    def test_could_be_udp_tracker(self) -> None:
         """
         Check if a UDP tracker packet is correctly identified.
         """
@@ -33,7 +36,7 @@ class TestDataChecker(TestBase):
         self.assertFalse(DataChecker.could_be_udp_tracker(ipv8_pkt))
         self.assertFalse(DataChecker.could_be_udp_tracker(tunnel_pkt))
 
-    def test_could_be_utp(self):
+    def test_could_be_utp(self) -> None:
         """
         Check if a UTP packet is correctly identified.
         """
@@ -44,7 +47,7 @@ class TestDataChecker(TestBase):
         self.assertFalse(DataChecker.could_be_utp(ipv8_pkt))
         self.assertFalse(DataChecker.could_be_utp(tunnel_pkt))
 
-    def test_could_be_ipv8(self):
+    def test_could_be_ipv8(self) -> None:
         """
         Check if a IPv8 packet is correctly identified.
         """
@@ -54,7 +57,7 @@ class TestDataChecker(TestBase):
         self.assertTrue(DataChecker.could_be_ipv8(ipv8_pkt))
         self.assertTrue(DataChecker.could_be_ipv8(tunnel_pkt))
 
-    def test_could_be_bt(self):
+    def test_could_be_bt(self) -> None:
         """
         Check if a BitTorrent packet is correctly identified.
         """

@@ -1,10 +1,13 @@
-from ...base import TestBase
 from ....messaging.interfaces.network_stats import NetworkStat
+from ...base import TestBase
 
 
 class TestNetworkStat(TestBase):
+    """
+    Tests related to the network stat object.
+    """
 
-    async def test_initialize(self):
+    async def test_initialize(self) -> None:
         """
         Check if the starting values of NetworkStat are sane.
         """
@@ -20,7 +23,7 @@ class TestNetworkStat(TestBase):
         self.assertEqual(0, stats.last_measured_up)
         self.assertEqual(0, stats.last_measured_down)
 
-    async def test_add_sent_stat(self):
+    async def test_add_sent_stat(self) -> None:
         """
         Check if an added sent statistic is correctly registered.
         """
@@ -33,7 +36,7 @@ class TestNetworkStat(TestBase):
         self.assertEqual(1492, stats.first_measured_up)
         self.assertEqual(1492, stats.last_measured_up)
 
-    async def test_add_sent_stat_first_up(self):
+    async def test_add_sent_stat_first_up(self) -> None:
         """
         Check if the first_measured_up is correctly registered on send.
         """
@@ -44,7 +47,7 @@ class TestNetworkStat(TestBase):
 
         self.assertEqual(1492, stats.first_measured_up)
 
-    async def test_add_received_stat(self):
+    async def test_add_received_stat(self) -> None:
         """
         Check if an added received statistic is correctly registered.
         """
@@ -57,7 +60,7 @@ class TestNetworkStat(TestBase):
         self.assertEqual(1492, stats.first_measured_down)
         self.assertEqual(1492, stats.last_measured_down)
 
-    async def test_add_received_stat_first_down(self):
+    async def test_add_received_stat_first_down(self) -> None:
         """
         Check if the first_measured_up is correctly registered on receive.
         """
@@ -68,7 +71,7 @@ class TestNetworkStat(TestBase):
 
         self.assertEqual(1492, stats.first_measured_down)
 
-    async def test_to_dict(self):
+    async def test_to_dict(self) -> None:
         """
         Check if the dictionary form of the NetworkStat is correct.
         """
@@ -90,7 +93,7 @@ class TestNetworkStat(TestBase):
             "last_measured_down": 1789
         }, stats.to_dict())
 
-    async def test_to_str(self):
+    async def test_to_str(self) -> None:
         """
         Check if a NetworkStat is correctly formatted as a str.
         """

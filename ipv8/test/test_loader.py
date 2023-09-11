@@ -1,11 +1,38 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Iterable
+
+from ..bootstrapping.bootstrapper_interface import Bootstrapper
+from ..community import Community
+from ..loader import (
+    CommunityLauncher,
+    IPv8CommunityLoader,
+    after,
+    bootstrapper,
+    kwargs,
+    name,
+    overlay,
+    precondition,
+    set_in_session,
+    walk_strategy,
+)
+from ..peerdiscovery.discovery import DiscoveryStrategy
 from .base import TestBase
-from ..loader import (CommunityLauncher, IPv8CommunityLoader, after, bootstrapper, kwargs, name, overlay, precondition,
-                      set_in_session, walk_strategy)
+
+if TYPE_CHECKING:
+    from ..peerdiscovery.network import Network
+    from ..types import Address, Endpoint, IPv8, Peer
 
 
-class MockCommunity:
+class MockCommunity(Community):
+    """
+    Empty community implementation.
+    """
 
-    def __init__(self, peer, endpoint, network, *args, **kw_args):
+    def __init__(self, peer: Peer, endpoint: Endpoint, network: Network, *args: Any, **kw_args) -> None:  # noqa: ANN401
+        """
+        Fake creation, simply store all init args.
+        """
         self.peer = peer
         self.endpoint = endpoint
         self.network = network
@@ -14,28 +41,111 @@ class MockCommunity:
         self.bootstrappers = []
 
 
-class MockWalk:
+class MockWalk(DiscoveryStrategy):
+    """
+    Empty walker with an init parameter.
+    """
 
-    def __init__(self, community, some_attribute):
+    def __init__(self, community: MockCommunity, some_attribute: int) -> None:
+        """
+        Create a mock walk with some attribute set.
+        """
         self.overlay = community
         self.some_attribute = some_attribute
 
+    def take_step(self) -> None:
+        """
+        Do nothing.
+        """
 
-class MockWalk2:
-    pass
+
+class MockWalk2(DiscoveryStrategy):
+    """
+    Empty walker.
+    """
+
+    def take_step(self) -> None:
+        """
+        Do nothing.
+        """
 
 
-class MockBootstrapper:
+class MockBootstrapper(Bootstrapper):
+    """
+    Empty bootstrapper with an init parameter.
+    """
 
-    def __init__(self, some_attribute):
+    def __init__(self, some_attribute: int) -> None:
+        """
+        Create a mock bootstrapper with some attribute set.
+        """
         self.some_attribute = some_attribute
 
+    async def initialize(self, overlay: Community) -> None:
+        """
+        Initialize nothing.
+        """
 
-class MockBootstrapper2:
-    pass
+    async def get_addresses(self, overlay: Community, timeout: float) -> Iterable[Address]:
+        """
+        Return no addresses.
+        """
+        return []
+
+    def keep_alive(self, overlay: Community) -> None:
+        """
+        Ping nothing.
+        """
+
+    def blacklist(self) -> Iterable[Address]:
+        """
+        Return no blacklist.
+        """
+        return []
+
+    def unload(self) -> None:
+        """
+        Unload nothing.
+        """
+
+
+class MockBootstrapper2(Bootstrapper):
+    """
+    Empty bootstrapper.
+    """
+
+    async def initialize(self, overlay: Community) -> None:
+        """
+        Initialize nothing.
+        """
+
+    async def get_addresses(self, overlay: Community, timeout: float) -> Iterable[Address]:
+        """
+        Return no addresses.
+        """
+        return []
+
+    def keep_alive(self, overlay: Community) -> None:
+        """
+        Ping nothing.
+        """
+
+    def blacklist(self) -> Iterable[Address]:
+        """
+        Return no blacklist.
+        """
+        return []
+
+    def unload(self) -> None:
+        """
+        Unload nothing.
+        """
 
 
 class MockSession:
+    """
+    Fake session object.
+    """
 
     launch_condition1 = True
     launch_condition2 = False
@@ -45,49 +155,86 @@ class MockSession:
 
 
 class MockOverlayProvider:
+    """
+    Fake overlay provider.
+    """
+
     endpoint = None
     network = None
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """
+        Create a list of overlays and a list of strategies.
+        """
         self.overlays = []
         self.strategies = []
 
 
 class StagedCommunityLauncher(CommunityLauncher):
+    """
+    Community launcher with some fake data.
+    """
 
-    def not_before(self):
+    def not_before(self) -> list[str]:
+        """
+        Should wait for CommunityLauncher1 and CommunityLauncher2.
+        """
         return ['CommunityLauncher1', 'CommunityLauncher2']
 
-    def should_launch(self, session: MockSession):
+    def should_launch(self, session: MockSession) -> bool:
+        """
+        Pull the launch conditions from our session.
+        """
         return session.launch_condition1 and not session.launch_condition2
 
-    def get_overlay_class(self):
+    def get_overlay_class(self) -> type[MockCommunity]:
+        """
+        We run on the MockCommunity.
+        """
         return MockCommunity
 
-    def get_kwargs(self, session: MockSession):
+    def get_kwargs(self, session: MockSession) -> dict[str, Any]:
+        """
+        The keyword args to launch our community with.
+        """
         return {
             'kw1': session.some_attribute1,
             'kw2': session.some_attribute2
         }
 
-    def get_walk_strategies(self):
+    def get_walk_strategies(self) -> list[tuple[type[DiscoveryStrategy], dict, int]]:
+        """
+        Get our walkers.
+        """
         return [(MockWalk, {'some_attribute': 4}, 20)]
 
-    def get_bootstrappers(self, session):
+    def get_bootstrappers(self, session: MockSession) -> list[tuple[type[Bootstrapper], dict]]:
+        """
+        Get the bootstrappers for our community.
+        """
         return [(MockBootstrapper, {'some_attribute': 4})]
 
-    def finalize(self, ipv8, session: MockSession, community: MockCommunity):
+    def finalize(self, ipv8: IPv8, session: MockSession, community: MockCommunity) -> None:
+        """
+        Finish off our launching procedure.
+        """
         session.community = community
         super().finalize(ipv8, session, community)
 
 
 class TestCommunityLauncher(TestBase):
+    """
+    Tests related to the community launcher.
+    """
 
-    def setUp(self):
+    def setUp(self) -> None:
+        """
+        Create a staged launcher to run tests with.
+        """
         self.staged_launcher = StagedCommunityLauncher()
         super().setUp()
 
-    def test_not_before_list(self):
+    def test_not_before_list(self) -> None:
         """
         Check that the not_before decorator with multiple arguments equals the not_before() definition.
         """
@@ -97,7 +244,7 @@ class TestCommunityLauncher(TestBase):
 
         self.assertListEqual(self.staged_launcher.not_before(), DecoratedCommunityLauncher().not_before())
 
-    def test_not_before_multiple(self):
+    def test_not_before_multiple(self) -> None:
         """
         Check that multiple not_before decorators with an argument equals the not_before() definition.
         """
@@ -108,7 +255,7 @@ class TestCommunityLauncher(TestBase):
 
         self.assertListEqual(self.staged_launcher.not_before(), DecoratedCommunityLauncher().not_before())
 
-    def test_should_launch_single(self):
+    def test_should_launch_single(self) -> None:
         """
         Check that a validated single launch condition causes should_launch() to return True.
         """
@@ -118,7 +265,7 @@ class TestCommunityLauncher(TestBase):
 
         self.assertTrue(DecoratedCommunityLauncher().should_launch(MockSession()))
 
-    def test_shouldnt_launch_single(self):
+    def test_shouldnt_launch_single(self) -> None:
         """
         Check that an invalid single launch condition causes should_launch() to return False.
         """
@@ -128,7 +275,7 @@ class TestCommunityLauncher(TestBase):
 
         self.assertFalse(DecoratedCommunityLauncher().should_launch(MockSession()))
 
-    def test_should_launch_multiple(self):
+    def test_should_launch_multiple(self) -> None:
         """
         Check that a validated multiple launch conditions causes should_launch() to return True.
         """
@@ -140,7 +287,7 @@ class TestCommunityLauncher(TestBase):
         self.assertTrue(DecoratedCommunityLauncher().should_launch(MockSession()))
         self.assertTrue(self.staged_launcher.should_launch(MockSession()))
 
-    def test_shouldnt_launch_multiple(self):
+    def test_shouldnt_launch_multiple(self) -> None:
         """
         Check that an invalid condition for multiple launch conditions causes should_launch() to return False.
         """
@@ -151,7 +298,7 @@ class TestCommunityLauncher(TestBase):
 
         self.assertFalse(DecoratedCommunityLauncher().should_launch(MockSession()))
 
-    def test_overlay_class_from_str(self):
+    def test_overlay_class_from_str(self) -> None:
         """
         Check if a Community string specification can be lazy-loaded through the overlay_class decorator.
         """
@@ -162,7 +309,7 @@ class TestCommunityLauncher(TestBase):
         self.assertEqual(self.staged_launcher.get_overlay_class(), DecoratedCommunityLauncher().get_overlay_class())
         self.assertSetEqual({self.__class__.__module__}, DecoratedCommunityLauncher.hiddenimports)
 
-    def test_overlay_class_from_class(self):
+    def test_overlay_class_from_class(self) -> None:
         """
         Check if a Community class can be lazy-loaded through the overlay_class decorator.
         """
@@ -172,23 +319,23 @@ class TestCommunityLauncher(TestBase):
 
         self.assertEqual(self.staged_launcher.get_overlay_class(), DecoratedCommunityLauncher().get_overlay_class())
 
-    def test_overlay_class_from_function(self):
+    def test_overlay_class_from_function(self) -> None:
         """
         Check if a Community class (functional representation) can be lazy-loaded
         through the overlay_class decorator.
         """
 
-        def MockCommunityFunction():
+        def mock_community_function() -> type[MockCommunity]:
             return MockCommunity
 
-        @overlay(MockCommunityFunction)
+        @overlay(mock_community_function)
         class DecoratedCommunityLauncher(CommunityLauncher):
             pass
 
         self.assertEqual(self.staged_launcher.get_overlay_class(),
                          DecoratedCommunityLauncher().get_overlay_class())
 
-    def test_walk_strategy_from_str(self):
+    def test_walk_strategy_from_str(self) -> None:
         """
         Check if adding a walk strategy string specification is successful.
         """
@@ -200,7 +347,7 @@ class TestCommunityLauncher(TestBase):
                              DecoratedCommunityLauncher().get_walk_strategies())
         self.assertSetEqual({self.__class__.__module__}, DecoratedCommunityLauncher.hiddenimports)
 
-    def test_walk_strategy_from_class(self):
+    def test_walk_strategy_from_class(self) -> None:
         """
         Check if adding a walk strategy from a DiscoveryStrategy class is successful.
         """
@@ -211,22 +358,22 @@ class TestCommunityLauncher(TestBase):
         self.assertListEqual(self.staged_launcher.get_walk_strategies(),
                              DecoratedCommunityLauncher().get_walk_strategies())
 
-    def test_walk_strategy_from_function(self):
+    def test_walk_strategy_from_function(self) -> None:
         """
         Check if adding a walk strategy from a function is successful.
         """
 
-        def MockWalkFunction():
+        def mock_walk_function() -> type[DiscoveryStrategy]:
             return MockWalk
 
-        @walk_strategy(MockWalkFunction, kw_args={'some_attribute': 4})
+        @walk_strategy(mock_walk_function, kw_args={'some_attribute': 4})
         class DecoratedCommunityLauncher(CommunityLauncher):
             pass
 
         self.assertListEqual(self.staged_launcher.get_walk_strategies(),
                              DecoratedCommunityLauncher().get_walk_strategies())
 
-    def test_walk_strategy_multiple(self):
+    def test_walk_strategy_multiple(self) -> None:
         """
         Check if adding multiple walk strategies is successful.
         """
@@ -239,7 +386,7 @@ class TestCommunityLauncher(TestBase):
                              DecoratedCommunityLauncher().get_walk_strategies())
         self.assertSetEqual({self.__class__.__module__}, DecoratedCommunityLauncher.hiddenimports)
 
-    def test_bootstrapper_from_str(self):
+    def test_bootstrapper_from_str(self) -> None:
         """
         Check if adding a bootstrapper string specification is successful.
         """
@@ -251,7 +398,7 @@ class TestCommunityLauncher(TestBase):
                              DecoratedCommunityLauncher().get_bootstrappers(MockSession()))
         self.assertSetEqual({self.__class__.__module__}, DecoratedCommunityLauncher.hiddenimports)
 
-    def test_bootstrapper_from_class(self):
+    def test_bootstrapper_from_class(self) -> None:
         """
         Check if adding a bootstrapper from a Bootstrapper class is successful.
         """
@@ -262,12 +409,12 @@ class TestCommunityLauncher(TestBase):
         self.assertListEqual(self.staged_launcher.get_bootstrappers(MockSession()),
                              DecoratedCommunityLauncher().get_bootstrappers(MockSession()))
 
-    def test_bootstrapper_from_function(self):
+    def test_bootstrapper_from_function(self) -> None:
         """
         Check if adding a bootstrapper from a function is successful.
         """
 
-        def mock_bootstrapper():
+        def mock_bootstrapper() -> type[MockBootstrapper]:
             return MockBootstrapper
 
         @bootstrapper(mock_bootstrapper, kw_args={'some_attribute': 4})
@@ -277,7 +424,7 @@ class TestCommunityLauncher(TestBase):
         self.assertListEqual(self.staged_launcher.get_bootstrappers(MockSession()),
                              DecoratedCommunityLauncher().get_bootstrappers(MockSession()))
 
-    def test_bootstrapper_multiple(self):
+    def test_bootstrapper_multiple(self) -> None:
         """
         Check if adding multiple bootstrappers is successful.
         """
@@ -290,7 +437,7 @@ class TestCommunityLauncher(TestBase):
                              DecoratedCommunityLauncher().get_bootstrappers(MockSession()))
         self.assertSetEqual({self.__class__.__module__}, DecoratedCommunityLauncher.hiddenimports)
 
-    def test_set_in_session(self):
+    def test_set_in_session(self) -> None:
         """
         Check if set_in_session correctly sets the attribute of the session.
         """
@@ -304,7 +451,7 @@ class TestCommunityLauncher(TestBase):
 
         self.assertEqual(community, session.community)
 
-    def test_kwargs(self):
+    def test_kwargs(self) -> None:
         """
         Check if the kwargs decorator correctly passes keyword arguments.
         """
@@ -315,7 +462,7 @@ class TestCommunityLauncher(TestBase):
         session = MockSession()
         self.assertDictEqual(self.staged_launcher.get_kwargs(session), DecoratedCommunityLauncher().get_kwargs(session))
 
-    def test_name(self):
+    def test_name(self) -> None:
         """
         Check if the name of a launcher can be set, using the name decorator.
         """
@@ -325,7 +472,7 @@ class TestCommunityLauncher(TestBase):
 
         self.assertEqual('Some Name', DecoratedCommunityLauncher().get_name())
 
-    def test_no_name(self):
+    def test_no_name(self) -> None:
         """
         Check if the name of a launcher is equal to the Community class name by default.
         """
@@ -337,13 +484,19 @@ class TestCommunityLauncher(TestBase):
 
 
 class TestCommunityLoader(TestBase):
+    """
+    Tests related to the community loader.
+    """
 
-    def setUp(self):
+    def setUp(self) -> None:
+        """
+        Create a loader and a community provider to test with.
+        """
         self.community_loader = IPv8CommunityLoader()
         self.overlay_provider = MockOverlayProvider()
         self.session = MockSession()
 
-    def test_load_community(self):
+    def test_load_community(self) -> None:
         """
         Check if a CommunityLauncher is launched correctly.
         """
@@ -363,7 +516,7 @@ class TestCommunityLoader(TestBase):
         self.assertEqual(4, loaded_strategy[0].some_attribute)
         self.assertEqual(20, loaded_strategy[1])
 
-    def test_protect_infinite_loop(self):
+    def test_protect_infinite_loop(self) -> None:
         """
         Check if the CommunityLoader raises an error when it encounters a circular dependency.
         """

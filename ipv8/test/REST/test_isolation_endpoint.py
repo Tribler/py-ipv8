@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from ...bootstrapping.dispersy.bootstrapper import DispersyBootstrapper
 from ...configuration import DISPERSY_BOOTSTRAPPER
@@ -72,7 +72,7 @@ class TestIsolationEndpoint(RESTTestBase):
         """
         Get the bootstrapper ip addresses.
         """
-        return self.ipv8.overlay.bootstrappers[0].ip_addresses
+        return cast(MockTunnelCommunity, self.ipv8.overlay).bootstrappers[0].ip_addresses
 
     async def test_no_ip(self) -> None:
         """

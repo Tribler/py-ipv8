@@ -1,11 +1,17 @@
-from ....base import TestBase
 from .....attestation.default_identity_formats import FORMATS
 from .....attestation.wallet.irmaexact.algorithm import IRMAExactAlgorithm
+from ....base import TestBase
 
 
 class TestAlgorithm(TestBase):
+    """
+    Tests related to the IRMA algorithm definition.
+    """
 
-    def setUp(self):
+    def setUp(self) -> None:
+        """
+        Create a dummy blob for testing.
+        """
         super().setUp()
         self.blob = """
         {
@@ -15,7 +21,10 @@ class TestAlgorithm(TestBase):
         }
         """
 
-    def test_integration(self):
+    def test_integration(self) -> None:
+        """
+        Test whether blobs can be imported and challenged.
+        """
         id_format = "id_irma_nijmegen_ageLimits_1568208470"
         algorithm = IRMAExactAlgorithm(id_format, FORMATS)
         attestation_blob, _ = algorithm.import_blob(self.blob)
@@ -31,7 +40,10 @@ class TestAlgorithm(TestBase):
         value = '{"over16": "Yes", "over12": "Yes", "over21": "Yes", "over65": "No", "over18": "Yes"}'
         self.assertEqual(1.0, algorithm.certainty(value, aggregate))
 
-    def test_integration_incomplete(self):
+    def test_integration_incomplete(self) -> None:
+        """
+        Check whether blobs can be imported and partially challenged.
+        """
         id_format = "id_irma_nijmegen_ageLimits_1568208470"
         algorithm = IRMAExactAlgorithm(id_format, FORMATS)
 
@@ -48,7 +60,10 @@ class TestAlgorithm(TestBase):
         value = '{"over16": "Yes", "over12": "Yes", "over21": "Yes", "over65": "No", "over18": "Yes"}'
         self.assertEqual((algorithm.challenge_count - 1.0) / len(challenges), algorithm.certainty(value, aggregate))
 
-    def test_integration_wrong(self):
+    def test_integration_wrong(self) -> None:
+        """
+        Check whether bad responses lead to 0% certainty.
+        """
         id_format = "id_irma_nijmegen_ageLimits_1568208470"
         algorithm = IRMAExactAlgorithm(id_format, FORMATS)
 

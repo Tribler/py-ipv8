@@ -1,18 +1,30 @@
-from ...base import TestBase
-from ...mocking.endpoint import AutoMockEndpoint
 from ....messaging.interfaces.network_stats import NetworkStat
 from ....messaging.interfaces.statistics_endpoint import StatisticsEndpoint
+from ....types import Address
+from ...base import TestBase
+from ...mocking.endpoint import AutoMockEndpoint
 
 
 class NoSendEndpoint(AutoMockEndpoint):
+    """
+    Endpoint that drops all sent data immediately.
+    """
 
-    def send(self, socket_address, packet):
-        pass
+    def send(self, socket_address: Address, packet: bytes) -> None:
+        """
+        When called, this doesn't do anything.
+        """
 
 
 class TestStatisticsEndpoint(TestBase):
+    """
+    Tests related to the statistics endpoint.
+    """
 
-    def setUp(self):
+    def setUp(self) -> None:
+        """
+        Create a statistics endpoint that drops all sent data.
+        """
         super().setUp()
         self.raw_ep = NoSendEndpoint()
         self.stats_ep = StatisticsEndpoint(self.raw_ep)
@@ -22,7 +34,7 @@ class TestStatisticsEndpoint(TestBase):
         self.msg_num = self.msg_id[0]
         self.fake_addr = ("0.0.0.0", 0)
 
-    async def test_getattribute(self):
+    async def test_getattribute(self) -> None:
         """
         Check if calls to the underlying Endpoint are forwarded.
 
@@ -30,7 +42,7 @@ class TestStatisticsEndpoint(TestBase):
         """
         self.assertEqual(self.raw_ep.wan_address, self.stats_ep.wan_address)
 
-    async def test_capture_send_enabled(self):
+    async def test_capture_send_enabled(self) -> None:
         """
         Check if send calls are registered when the prefix is enabled.
         """
@@ -44,7 +56,7 @@ class TestStatisticsEndpoint(TestBase):
         self.assertEqual(1, statistics[self.msg_num].num_up)
         self.assertEqual(0, statistics[self.msg_num].num_down)
 
-    async def test_no_capture_send_disabled(self):
+    async def test_no_capture_send_disabled(self) -> None:
         """
         Check if send calls are not registered when the prefix is disabled.
         """
@@ -56,7 +68,7 @@ class TestStatisticsEndpoint(TestBase):
         self.assertIsNotNone(statistics)
         self.assertFalse(statistics)
 
-    async def test_capture_receive_enabled(self):
+    async def test_capture_receive_enabled(self) -> None:
         """
         Check if receive calls are registered when the prefix is enabled.
         """
@@ -70,7 +82,7 @@ class TestStatisticsEndpoint(TestBase):
         self.assertEqual(0, statistics[self.msg_num].num_up)
         self.assertEqual(1, statistics[self.msg_num].num_down)
 
-    async def test_no_capture_receive_disabled(self):
+    async def test_no_capture_receive_disabled(self) -> None:
         """
         Check if receive calls are not registered when the prefix is disabled.
         """
@@ -82,7 +94,7 @@ class TestStatisticsEndpoint(TestBase):
         self.assertIsNotNone(statistics)
         self.assertFalse(statistics)
 
-    async def test_get_sent(self):
+    async def test_get_sent(self) -> None:
         """
         Check if sent messages are correctly logged for an unknown and known prefix.
         """
@@ -97,7 +109,7 @@ class TestStatisticsEndpoint(TestBase):
         self.assertEqual(0, self.stats_ep.get_bytes_sent(unknown_prefix))
         self.assertEqual(42, self.stats_ep.get_bytes_sent(self.prefix))
 
-    async def test_get_received(self):
+    async def test_get_received(self) -> None:
         """
         Check if received messages are correctly logged for an unknown and known prefix.
         """
@@ -112,7 +124,7 @@ class TestStatisticsEndpoint(TestBase):
         self.assertEqual(0, self.stats_ep.get_bytes_received(unknown_prefix))
         self.assertEqual(42, self.stats_ep.get_bytes_received(self.prefix))
 
-    async def test_get_sent_excluded(self):
+    async def test_get_sent_excluded(self) -> None:
         """
         Check if excluded sent messages are not counted.
         """
@@ -126,7 +138,7 @@ class TestStatisticsEndpoint(TestBase):
         self.assertEqual(1, self.stats_ep.get_message_sent(self.prefix, include_puncture=True))
         self.assertEqual(1, self.stats_ep.get_message_sent(self.prefix, include_deprecated=True))
 
-    async def test_get_received_excluded(self):
+    async def test_get_received_excluded(self) -> None:
         """
         Check if excluded received messages are not counted.
         """
@@ -140,7 +152,7 @@ class TestStatisticsEndpoint(TestBase):
         self.assertEqual(1, self.stats_ep.get_message_received(self.prefix, include_puncture=True))
         self.assertEqual(1, self.stats_ep.get_message_received(self.prefix, include_deprecated=True))
 
-    async def test_aggregate_statistics_sum(self):
+    async def test_aggregate_statistics_sum(self) -> None:
         """
         Check if network stats are correctly summed.
         """
@@ -159,7 +171,7 @@ class TestStatisticsEndpoint(TestBase):
         self.assertEqual(14, statistics['bytes_down'])
         self.assertEqual(0, statistics['diff_time'])
 
-    async def test_aggregate_statistics_diff_one(self):
+    async def test_aggregate_statistics_diff_one(self) -> None:
         """
         Check if the time diff is correctly calculated, with one positive stat.
         """
@@ -176,7 +188,7 @@ class TestStatisticsEndpoint(TestBase):
         self.assertIsNotNone(statistics)
         self.assertEqual(4, statistics['diff_time'])
 
-    async def test_aggregate_statistics_diff_two(self):
+    async def test_aggregate_statistics_diff_two(self) -> None:
         """
         Check if the time diff is correctly calculated, with two positive stats.
         """
@@ -193,7 +205,7 @@ class TestStatisticsEndpoint(TestBase):
         self.assertIsNotNone(statistics)
         self.assertEqual(5, statistics['diff_time'])
 
-    async def test_aggregate_statistics_diff_many(self):
+    async def test_aggregate_statistics_diff_many(self) -> None:
         """
         Check if the time diff is correctly calculated, with four positive stats.
         """

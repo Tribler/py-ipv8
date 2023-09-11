@@ -1,23 +1,29 @@
 import base64
 import random
 
-from ..REST.rest_base import RESTTestBase
 from ...keyvault.crypto import default_eccrypto
 from ...peer import Peer
+from ..REST.rest_base import RESTTestBase
 
 
 class TestNetworkEndpoint(RESTTestBase):
+    """
+    Tests related to the network REST endpoint.
+    """
 
     mock_peer = Peer(default_eccrypto.generate_key("curve25519"), address=("1.2.3.4", 5))
     mock_b64mid = base64.b64encode(mock_peer.mid).decode()
     mock_b64pubkey = base64.b64encode(mock_peer.public_key.key_to_bin()).decode()
 
-    async def setUp(self):
+    async def setUp(self) -> None:
+        """
+        Create a single node.
+        """
         super().setUp()
         await self.initialize([], 1)
         self.ipv8 = self.node(0)
 
-    async def test_no_peers(self):
+    async def test_no_peers(self) -> None:
         """
         Check if the network endpoint returns no peers if it has no peers.
         """
@@ -26,7 +32,7 @@ class TestNetworkEndpoint(RESTTestBase):
         self.assertIn("peers", peer_response)
         self.assertDictEqual({}, peer_response["peers"])
 
-    async def test_one_peer_no_services(self):
+    async def test_one_peer_no_services(self) -> None:
         """
         Check if the network endpoint returns its one known peer with no services.
         """
@@ -41,7 +47,7 @@ class TestNetworkEndpoint(RESTTestBase):
         self.assertEqual(self.mock_b64pubkey, peer_response["peers"][self.mock_b64mid]["public_key"])
         self.assertListEqual([], peer_response["peers"][self.mock_b64mid]["services"])
 
-    async def test_one_peer_one_service(self):
+    async def test_one_peer_one_service(self) -> None:
         """
         Check if the network endpoint returns its one known peer with one service.
         """
@@ -59,7 +65,7 @@ class TestNetworkEndpoint(RESTTestBase):
         self.assertEqual(self.mock_b64pubkey, peer_response["peers"][self.mock_b64mid]["public_key"])
         self.assertListEqual([mock_b64service], peer_response["peers"][self.mock_b64mid]["services"])
 
-    async def test_one_peer_multiple_services(self):
+    async def test_one_peer_multiple_services(self) -> None:
         """
         Check if the network endpoint returns its one known peer with multiple services.
         """
@@ -77,7 +83,7 @@ class TestNetworkEndpoint(RESTTestBase):
         self.assertEqual(self.mock_b64pubkey, peer_response["peers"][self.mock_b64mid]["public_key"])
         self.assertSetEqual(set(mock_b64services), set(peer_response["peers"][self.mock_b64mid]["services"]))
 
-    async def test_multiple_peers_multiple_services(self):
+    async def test_multiple_peers_multiple_services(self) -> None:
         """
         Check if the network endpoint returns multiple peers with distinct services.
         """

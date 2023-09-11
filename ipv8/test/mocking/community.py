@@ -1,13 +1,19 @@
-from .endpoint import AutoMockEndpoint
 from ...keyvault.crypto import default_eccrypto
 from ...peer import Peer
 from ...peerdiscovery.community import DiscoveryCommunity
 from ...peerdiscovery.network import Network
+from .endpoint import AutoMockEndpoint
 
 
 class MockCommunity(DiscoveryCommunity):
+    """
+    Semi-inert version of the DiscoveryCommunity for testing.
+    """
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """
+        Create a new MockCommunity.
+        """
         endpoint = AutoMockEndpoint()
         endpoint.open()
         network = Network()
@@ -17,7 +23,3 @@ class MockCommunity(DiscoveryCommunity):
         self._use_main_thread = False
         self.my_estimated_lan = endpoint.lan_address
         self.my_estimated_wan = endpoint.wan_address
-
-    def bootstrap(self):
-        super().bootstrap()
-        self.last_bootstrap = 0

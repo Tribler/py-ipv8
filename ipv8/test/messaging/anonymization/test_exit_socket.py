@@ -1,19 +1,24 @@
 from binascii import unhexlify
 from unittest.mock import Mock
 
-from .test_datachecker import dht_pkt, ipv8_pkt, tracker_pkt, tunnel_pkt, utp_pkt
-from ...base import TestBase
+from ....keyvault.private.libnaclkey import LibNaCLSK
 from ....messaging.anonymization.tunnel import PEER_FLAG_EXIT_BT, PEER_FLAG_EXIT_IPV8, TunnelExitSocket
+from ....peer import Peer
+from ...base import TestBase
+from .test_datachecker import dht_pkt, ipv8_pkt, tracker_pkt, tunnel_pkt, utp_pkt
 
 
 class TestExitSocket(TestBase):
+    """
+    Tests related to the exit socket.
+    """
 
-    async def test_is_allowed(self):
+    async def test_is_allowed(self) -> None:
         """
         Check if the ExitSocket correctly detects forbidden packets.
         """
         overlay = Mock(_prefix=unhexlify('000281ded07332bdc775aa5a46f96de9f8f390bbc9f3'))
-        exit_socket = TunnelExitSocket(0, None, overlay)
+        exit_socket = TunnelExitSocket(0, Peer(LibNaCLSK(b"\x00" * 64)), overlay)
 
         overlay.settings.peer_flags = {}
         self.assertFalse(exit_socket.is_allowed(tracker_pkt))

@@ -1,35 +1,57 @@
+from __future__ import annotations
+
 import contextlib
 import io
 from asyncio import sleep
+from typing import Set
 
-from ....base import TestBase
 from .....messaging.interfaces.lan_addresses.addressprovider import AddressProvider
+from ....base import TestBase
 
 
 class ErroringProvider(AddressProvider):
+    """
+    A provider that errors out when getting addresses.
+    """
 
-    def get_addresses(self):
+    def get_addresses(self) -> Set[str]:
+        """
+        Raise and set an exception.
+        """
         try:
-            raise RuntimeError("Force exception into log entry.")
+            msg = "Force exception into log entry."
+            raise RuntimeError(msg)
         except:
             self.on_exception()
         return set()
 
 
 class InvocationCountingProvider(AddressProvider):
+    """
+    Provider that counts the number of address getter invocations.
+    """
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """
+        Create a new counting provider.
+        """
         super().__init__()
         self.invocations = 0
 
-    def get_addresses(self):
+    def get_addresses(self) -> Set[str]:
+        """
+        Add to the count and return no addresses.
+        """
         self.invocations += 1
         return set()
 
 
 class TestAddressProvider(TestBase):
+    """
+    Tests related to address providers.
+    """
 
-    def test_log_verbose(self):
+    def test_log_verbose(self) -> None:
         """
         Check if a verbose provider logs its exceptions.
         """
@@ -41,7 +63,7 @@ class TestAddressProvider(TestBase):
 
         self.assertNotEqual("", log.getvalue())
 
-    def test_log_non_verbose(self):
+    def test_log_non_verbose(self) -> None:
         """
         Check if a non-verbose provider does not log its exceptions.
         """
@@ -53,7 +75,7 @@ class TestAddressProvider(TestBase):
 
         self.assertEqual("", log.getvalue())
 
-    def test_get_addresses_buffered(self):
+    def test_get_addresses_buffered(self) -> None:
         """
         Check if the buffer of a provider is used if called within the valid buffer time.
         """
@@ -65,7 +87,7 @@ class TestAddressProvider(TestBase):
 
         self.assertEqual(1, provider.invocations)
 
-    async def test_get_addresses_buffered_timeout(self):
+    async def test_get_addresses_buffered_timeout(self) -> None:
         """
         Check if the buffer of a provider is used if called within the valid buffer time.
         """
