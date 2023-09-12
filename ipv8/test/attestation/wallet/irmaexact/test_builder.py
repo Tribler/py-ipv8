@@ -9,16 +9,24 @@ The authors of this file are not -in any way- affiliated with the original autho
 import random
 import time
 
-from ....base import TestBase
 from .....attestation.wallet.irmaexact.gabi.builder import CredentialBuilder, Issuer, Verify
 from .....attestation.wallet.irmaexact.gabi.keys import DefaultSystemParameters, PrivateKey, PublicKey
 from .....attestation.wallet.irmaexact.gabi.proofs import createChallenge
 from .....attestation.wallet.primitives.value import FP2Value
+from ....base import TestBase
+
+# ruff: noqa: N806
 
 
 class TestBuilder(TestBase):
+    """
+    Tests related to the IRMA proof builder.
+    """
 
-    def setUp(self):
+    def setUp(self) -> None:
+        """
+        Set up proof constants.
+        """
         super().setUp()
         p = 10436034022637868273483137633548989700482895839559909621411910579140541345632481969613724849214412062500244238926015929148144084368427474551770487566048119
         q = 9204968012315139729618449685392284928468933831570080795536662422367142181432679739143882888540883909887054345986640656981843559062844656131133512640733759
@@ -37,7 +45,7 @@ class TestBuilder(TestBase):
         self.testPrivK = PrivateKey(p, q, 0, time.time() + 365 * 24 * 3600)
         self.testAttributes1 = [1, 2, 3, 4]
 
-    def test_build_proofu(self):
+    def test_build_proofu(self) -> None:
         """
         Test building a proofU using the credential builder.
         """
@@ -54,7 +62,7 @@ class TestBuilder(TestBase):
                                                    createChallenge(context, nonce1,
                                                                    proofU.ChallengeContribution(self.testPubK), False)))
 
-    def test_build_proof_list(self):
+    def test_build_proof_list(self) -> None:
         """
         Test building a proofList using the credential builder.
         """
@@ -69,7 +77,10 @@ class TestBuilder(TestBase):
 
         self.assertTrue(Verify(msg.Proofs, [self.testPubK], context, nonce1, False, []))
 
-    def test_build_proofs(self):
+    def test_build_proofs(self) -> None:
+        """
+        Check if the proving a signature works.
+        """
         exponent = random.randint(0, self.testPubK.Params.Lm)
         U = FP2Value(self.testPubK.N, self.testPubK.S).intpow(exponent).a
         context = random.randint(0, self.testPubK.Params.Lh)

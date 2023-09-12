@@ -1,13 +1,16 @@
-from ....base import TestBase
 from .....attestation.wallet.primitives.ec import esum, weilpairing
 from .....attestation.wallet.primitives.value import FP2Value
+from ....base import TestBase
 
 
 class TestPairing(TestBase):
+    """
+    Tests related to creating Weil pairings.
+    """
 
-    def test_small_weilpairing(self):
+    def test_small_weilpairing(self) -> None:
         """
-        Check if Weil pairing in E[4] mod 11 of (5, 4) and (5x, 4) with S=(7, 6) equals 9 + 7x
+        Check if Weil pairing in E[4] mod 11 of (5, 4) and (5x, 4) with S=(7, 6) equals 9 + 7x.
         """
         mod = 11
         wp = weilpairing(mod,
@@ -23,9 +26,9 @@ class TestPairing(TestBase):
         self.assertEqual(wp.bC, 0)
         self.assertEqual(wp.cC, 0)
 
-    def test_medium_weilpairing(self):
+    def test_medium_weilpairing(self) -> None:
         """
-        Check if Weil pairing in E[408] mod 1223 of (764, 140) and (18x, 84) with S=(0, 1222) equals 438 + 50x
+        Check if Weil pairing in E[408] mod 1223 of (764, 140) and (18x, 84) with S=(0, 1222) equals 438 + 50x.
         """
         mod = 1223
         wp = weilpairing(mod,
@@ -41,13 +44,13 @@ class TestPairing(TestBase):
         self.assertEqual(wp.bC, 0)
         self.assertEqual(wp.cC, 0)
 
-    def test_oob_esum(self):
+    def test_oob_esum(self) -> None:
         """
         Check if EC sum of the point of infinity with itself is the point at infinity.
         """
         self.assertEqual(esum(11, "O", "O"), "O")
 
-    def test_spob_esum(self):
+    def test_spob_esum(self) -> None:
         """
         Check if EC sum of the point of infinity with another point equals the other point.
         """

@@ -1,12 +1,20 @@
-from ...base import TestBase
+from __future__ import annotations
+
 from ....attestation.tokentree.token import Token
 from ....keyvault.crypto import ECCrypto
+from ...base import TestBase
 
 
 class TestToken(TestBase):
+    """
+    Tests related to tokens.
+    """
 
     @classmethod
-    def setUpClass(cls) -> None:
+    def setUpClass(cls: type[TestToken]) -> None:
+        """
+        Load in test data.
+        """
         cls.test_data = b"1234567890abcdefghijklmnopqrstuvwxyz" * 69
         cls.test_data_hash = b"[B\xc79lC\x07\xc88T\xe4yVN0+\x9e}\xc1\x1e\xfc\x88'm\x8d7\xe1\xa4*5\x06$"
         cls.test_public_key = ECCrypto().key_from_public_bin(b'LibNaCLPK:\xc8\xf38};U\xe4\xd5\xf7\xfd\xbc+J!\xbe\xba'
@@ -18,6 +26,9 @@ class TestToken(TestBase):
                               b'\xf8\x0f')
 
     def setUp(self) -> None:
+        """
+        Create a new private key for testing.
+        """
         super().setUp()
 
         self.private_key = ECCrypto().generate_key("curve25519")

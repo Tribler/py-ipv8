@@ -1,32 +1,47 @@
+from __future__ import annotations
+
 import os
 from binascii import unhexlify
+from typing import TYPE_CHECKING
 from unittest.mock import patch
 
-from ...base import MockIPv8, TestBase
 from ....attestation.wallet.bonehexact.structs import BonehAttestation
 from ....attestation.wallet.community import AttestationCommunity
 from ....attestation.wallet.database import AttestationsDB
 from ....attestation.wallet.pengbaorange.structs import PengBaoAttestation
 from ....attestation.wallet.primitives.structs import BonehPrivateKey
+from ...base import MockIPv8, TestBase
+
+if TYPE_CHECKING:
+    from ....types import Peer
 
 
-class TestCommunity(TestBase):
+class TestCommunity(TestBase[AttestationCommunity]):
+    """
+    Tests related to the attestation community.
+    """
 
     private_key = BonehPrivateKey.unserialize(unhexlify("01064c65dcb113f901064228da3ea57101064793a4f9c77901062b083e"
                                                         "8690fb0106408293c67e9f010601d1a9d3744901030f4243"))
 
-    def setUp(self):
+    def setUp(self) -> None:
+        """
+        Create two nodes.
+        """
         super().setUp()
         self.initialize(AttestationCommunity, 2)
 
-    def create_node(self):
+    def create_node(self) -> MockIPv8:
+        """
+        Create a curve25519 peer with a memory database.
+        """
         return MockIPv8("curve25519", AttestationCommunity, working_directory=":memory:")
 
-    async def test_request_attestation_callback(self):
+    async def test_request_attestation_callback(self) -> None:
         """
         Check if the request_attestation callback is correctly called.
         """
-        def f(peer, attribute_name, metadata):
+        def f(peer: Peer, attribute_name: str, metadata: dict) -> None:
             self.assertEqual(peer.address, self.address(1))
             self.assertEqual(attribute_name, "MyAttribute")
             self.assertDictEqual(metadata, {})
@@ -46,12 +61,12 @@ class TestCommunity(TestBase):
         # Request for attribute attestation goes unanswered
         self.overlay(1).request_cache.clear()
 
-    async def test_request_attestation_twice_callback(self):
+    async def test_request_attestation_twice_callback(self) -> None:
         """
         Check if the request_attestation callback is correctly called twice in a row.
         """
 
-        def f(peer, attribute_name, metadata):
+        def f(peer: Peer, attribute_name: str, metadata: dict) -> None:
             self.assertEqual(peer.address, self.address(1))
             self.assertEqual(attribute_name, "MyAttribute")
             self.assertDictEqual(metadata, {})
@@ -73,12 +88,12 @@ class TestCommunity(TestBase):
         # Request for attribute attestation goes unanswered
         self.overlay(1).request_cache.clear()
 
-    async def test_request_attestation_callback_metadata(self):
+    async def test_request_attestation_callback_metadata(self) -> None:
         """
         Check if the request_attestation callback is correctly called with metadata.
         """
 
-        def f(peer, attribute_name, metadata):
+        def f(peer: Peer, attribute_name: str, metadata: dict) -> None:
             self.assertEqual(peer.address, self.address(1))
             self.assertEqual(attribute_name, "MyAttribute")
             self.assertDictEqual(metadata, {'test': 123})
@@ -99,11 +114,11 @@ class TestCommunity(TestBase):
         # Request for attribute attestation goes unanswered
         self.overlay(1).request_cache.clear()
 
-    async def test_request_attestation(self):
+    async def test_request_attestation(self) -> None:
         """
         Check if the request_attestation callback is correctly called.
         """
-        def f(peer, attribute_name, _, __=None):
+        def f(peer: Peer, attribute_name: str, _: bytes , __: str | None = None) -> None:
             self.assertEqual(peer.address, self.address(1))
             self.assertEqual(attribute_name, "MyAttribute")
 
@@ -123,12 +138,12 @@ class TestCommunity(TestBase):
         self.assertEqual(1, len(db_entries))
         self.assertTrue(f.called)
 
-    async def test_request_attestation_big(self):
+    async def test_request_attestation_big(self) -> None:
         """
         Check if the request_attestation callback is correctly called for id_metadata_big.
         """
 
-        def f(peer, attribute_name, _, __=None):
+        def f(peer: Peer, attribute_name: str, _: bytes , __: str | None = None) -> None:
             self.assertEqual(peer.address, self.address(1))
             self.assertEqual(attribute_name, "MyAttribute")
 
@@ -150,12 +165,12 @@ class TestCommunity(TestBase):
         self.assertEqual(1, len(db_entries))
         self.assertTrue(f.called)
 
-    async def test_request_attestation_range(self):
+    async def test_request_attestation_range(self) -> None:
         """
         Check if the request_attestation callback is correctly called for id_metadata_range_18plus.
         """
 
-        def f(peer, attribute_name, _, __=None):
+        def f(peer: Peer, attribute_name: str, _: bytes , __: str | None = None) -> None:
             self.assertEqual(peer.address, self.address(1))
             self.assertEqual(attribute_name, "MyAttribute")
 
@@ -177,13 +192,13 @@ class TestCommunity(TestBase):
         self.assertEqual(1, len(db_entries))
         self.assertTrue(f.called)
 
-    async def test_verify_attestation(self):
+    async def test_verify_attestation(self) -> None:
         """
         Check if an attestation can be verified.
         """
         serialized = ""
         filename = os.path.join(os.path.dirname(__file__), 'attestation.txt')
-        with open(filename) as f:
+        with open(filename) as f:  # noqa: ASYNC101
             serialized = unhexlify(f.read().strip())
         attestation = BonehAttestation.unserialize(serialized, "id_metadata")
         attestation_hash = unhexlify('9019195eb75c07ec3e86a62c314dcf5ef2bbcc0d')
@@ -191,7 +206,7 @@ class TestCommunity(TestBase):
                                                     "id_metadata")
         self.overlay(0).attestation_keys[attestation_hash] = (TestCommunity.private_key, "id_metadata")
 
-        def callback(rhash, values):
+        def callback(rhash: bytes, values: list[float]) -> None:
             self.assertEqual(attestation_hash, rhash)
             self.assertEqual(1, len(values))
             self.assertLess(0.99, values[0])
@@ -205,10 +220,13 @@ class TestCommunity(TestBase):
         self.assertTrue(callback.called)
         self.overlay(1).request_cache.clear()
 
-    async def test_reqandverif_attestation(self):
+    async def test_reqandverif_attestation(self) -> None:
+        """
+        Check if requesting and verifying an attestation works.
+        """
         attribute_value = b"2168897456"
 
-        def f(peer, attribute_name, attestation_hash, __=None):
+        def f(peer: Peer, attribute_name: str, attestation_hash: bytes, __: str | None = None) -> None:
             self.assertEqual(peer.address, self.address(1))
             self.assertEqual(attribute_name, "MyAttribute")
 
@@ -230,7 +248,7 @@ class TestCommunity(TestBase):
         self.assertEqual(1, len(db_entries))
         self.assertTrue(f.called)
 
-        def callback(rhash, values):
+        def callback(rhash: bytes, values: list[float]) -> None:
             self.assertEqual(f.attestation_hash, rhash)
             self.assertEqual(1, len(values))
             self.assertLess(0.99, values[0])
@@ -244,12 +262,12 @@ class TestCommunity(TestBase):
         self.assertTrue(callback.called)
         self.overlay(0).request_cache.clear()
 
-    async def test_verify_attestation_big(self):
+    async def test_verify_attestation_big(self) -> None:
         """
         Check if an attestation can be verified for id_metadata_big.
         """
         filename = os.path.join(os.path.dirname(__file__), 'attestation_big.txt')
-        with open(filename) as f:
+        with open(filename) as f:  # noqa: ASYNC101
             serialized = unhexlify(f.read().strip())
         attestation = BonehAttestation.unserialize(serialized, "id_metadata_big")
         attestation_hash = unhexlify('113d31c31b626268a16c198cbd58dd5aa8d1d81c')
@@ -257,7 +275,7 @@ class TestCommunity(TestBase):
                                                     "id_metadata_big")
         self.overlay(0).attestation_keys[attestation_hash] = (TestCommunity.private_key, "id_metadata_big")
 
-        def callback(rhash, values):
+        def callback(rhash: bytes, values: list[float]) -> None:
             self.assertEqual(attestation_hash, rhash)
             self.assertEqual(1, len(values))
             self.assertLess(0.99, values[0])
@@ -272,12 +290,12 @@ class TestCommunity(TestBase):
         self.assertTrue(callback.called)
         self.overlay(1).request_cache.clear()
 
-    async def test_verify_attestation_range(self):
+    async def test_verify_attestation_range(self) -> None:
         """
         Check if an attestation can be verified for id_metadata_range_18plus.
         """
         filename = os.path.join(os.path.dirname(__file__), 'attestation_range.txt')
-        with open(filename) as f:
+        with open(filename) as f:  # noqa: ASYNC101
             serialized = unhexlify(f.read().strip())
         attestation = PengBaoAttestation.unserialize_private(self.private_key, serialized, "id_metadata_range_18plus")
         attestation_hash = unhexlify('b40c8734ba6c91a49670c1f0152c7f4dac2a8272')
@@ -285,7 +303,7 @@ class TestCommunity(TestBase):
                                                     "id_metadata_range_18plus")
         self.overlay(0).attestation_keys[attestation_hash] = (TestCommunity.private_key, "id_metadata_range_18plus")
 
-        def callback(rhash, values):
+        def callback(rhash: bytes, values: list[float]) -> None:
             self.assertEqual(attestation_hash, rhash)
             self.assertEqual(1, len(values))
             self.assertLess(0.99, values[0])
@@ -300,7 +318,7 @@ class TestCommunity(TestBase):
         self.assertTrue(callback.called)
         self.overlay(1).request_cache.clear()
 
-    def test_load_key(self):
+    def test_load_key(self) -> None:
         """
         Check if we can load the community correctly after shut down.
         """

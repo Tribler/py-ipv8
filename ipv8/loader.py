@@ -324,7 +324,7 @@ def _get_class(class_or_function: type[Community] | Callable[[Any], type[Communi
             else cast(Type[Community], class_or_function))
 
 
-def overlay(str_module_or_class: str | type[Community],
+def overlay(str_module_or_class: str | type[Community] | Callable[[], type[Community]],
             str_definition: str | None = None) -> Callable[[type[CommunityLauncher]], type[CommunityLauncher]]:
     """
     Specify, as strings, a module and Community class object defined therein to lazy-load.
@@ -372,7 +372,7 @@ def overlay(str_module_or_class: str | type[Community],
     return decorator
 
 
-def walk_strategy(str_module_or_class: str | type[Community],
+def walk_strategy(str_module_or_class: str | type[DiscoveryStrategy] | Callable[[], type[DiscoveryStrategy]],
                   str_definition: str | None = None,
                   target_peers: int = 20,
                   kw_args: dict | None = None) -> Callable[[type[CommunityLauncher]], type[CommunityLauncher]]:
@@ -431,7 +431,7 @@ def walk_strategy(str_module_or_class: str | type[Community],
     return decorator
 
 
-def bootstrapper(str_module_or_class: str | type[Community],
+def bootstrapper(str_module_or_class: str | type[Bootstrapper] | Callable[[], type[Bootstrapper]],
                  str_definition: str | None = None,
                  kw_args: dict | None  = None) -> Callable[[type[CommunityLauncher]], type[CommunityLauncher]]:
     """

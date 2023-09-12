@@ -1,14 +1,20 @@
 import json
 
-from ...base import TestBase
 from ....attestation.identity.database import IdentityDatabase
 from ....attestation.identity.manager import IdentityManager
 from ....keyvault.crypto import ECCrypto
+from ...base import TestBase
 
 
 class TestIdentityManager(TestBase):
+    """
+    Tests related to the identity manager.
+    """
 
     def setUp(self) -> None:
+        """
+        Create a new identity manager for testing.
+        """
         super().setUp()
         self.crypto = ECCrypto()
         self.private_key = self.crypto.generate_key("curve25519")
@@ -17,12 +23,15 @@ class TestIdentityManager(TestBase):
         self.authority_public_key = self.authority_private_key.pub()
         self.manager = IdentityManager()
 
-    def forget_identities(self):
+    def forget_identities(self) -> None:
+        """
+        Drop all identity information from our memory database.
+        """
         self.manager.pseudonyms.clear()
         self.manager.database = IdentityDatabase(":memory:")
         self.manager.database.open()
 
-    def test_create_identity(self):
+    def test_create_identity(self) -> None:
         """
         Test if a new pseudonym is correctly created.
         """
@@ -30,7 +39,7 @@ class TestIdentityManager(TestBase):
 
         self.assertEqual([], pseudonym.get_credentials())
 
-    def test_substantiate_empty(self):
+    def test_substantiate_empty(self) -> None:
         """
         Check if an empty identity disclosure is loaded and valid.
         """
@@ -39,7 +48,7 @@ class TestIdentityManager(TestBase):
         self.assertTrue(valid)
         self.assertEqual([], pseudonym.get_credentials())
 
-    def test_create_credential(self):
+    def test_create_credential(self) -> None:
         """
         Test creating a credential without attestations.
         """
@@ -51,7 +60,7 @@ class TestIdentityManager(TestBase):
         self.assertDictEqual({'some_key': 'some_value'},
                              json.loads(pseudonym.get_credentials()[0].metadata.serialized_json_dict))
 
-    def test_substantiate_credential_update(self):
+    def test_substantiate_credential_update(self) -> None:
         """
         Test substantiating a credential without attestations, with existing metadata.
         """
@@ -70,7 +79,7 @@ class TestIdentityManager(TestBase):
         self.assertDictEqual({'some_key': 'some_value'},
                              json.loads(public_pseudonym.get_credentials()[0].metadata.serialized_json_dict))
 
-    def test_substantiate_credential_no_metadata(self):
+    def test_substantiate_credential_no_metadata(self) -> None:
         """
         Test substantiating a credential without attestations, without metadata.
 
@@ -91,7 +100,7 @@ class TestIdentityManager(TestBase):
         self.assertEqual(0, len(public_pseudonym.get_credentials()))
         self.assertEqual(1, len(public_pseudonym.tree.elements))
 
-    def test_substantiate_credential_with_metadata(self):
+    def test_substantiate_credential_with_metadata(self) -> None:
         """
         Test substantiating a credential without attestations.
         """
@@ -110,7 +119,7 @@ class TestIdentityManager(TestBase):
         self.assertDictEqual({'some_key': 'some_value'},
                              json.loads(public_pseudonym.get_credentials()[0].metadata.serialized_json_dict))
 
-    def test_substantiate_credential_full(self):
+    def test_substantiate_credential_full(self) -> None:
         """
         Test substantiating a typical credential.
         """
@@ -134,7 +143,7 @@ class TestIdentityManager(TestBase):
         self.assertDictEqual({'some_key': 'some_value'},
                              json.loads(public_pseudonym.get_credentials()[0].metadata.serialized_json_dict))
 
-    def test_substantiate_credential_partial(self):
+    def test_substantiate_credential_partial(self) -> None:
         """
         Test substantiating a typical credential, with partial disclosure.
         """

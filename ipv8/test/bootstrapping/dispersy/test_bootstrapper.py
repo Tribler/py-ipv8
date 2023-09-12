@@ -1,12 +1,18 @@
+from ....bootstrapping.dispersy.bootstrapper import DispersyBootstrapper
 from ...base import TestBase
 from ...mocking.community import MockCommunity
 from ...mocking.endpoint import AutoMockEndpoint, MockEndpointListener
-from ....bootstrapping.dispersy.bootstrapper import DispersyBootstrapper
 
 
 class TestDispersyBootstrapper(TestBase):
+    """
+    Tests related to Dispersy-style bootstrapping.
+    """
 
-    def setUp(self):
+    def setUp(self) -> None:
+        """
+        Create a fake bootstrap server and create a bootstrapper definition for it.
+        """
         super().setUp()
 
         self.bootstrap_node = AutoMockEndpoint()
@@ -16,7 +22,7 @@ class TestDispersyBootstrapper(TestBase):
         self.bootstrapper = DispersyBootstrapper([self.bootstrap_node.wan_address], [], 60.0)
         self.overlay = MockCommunity()
 
-    async def test_initialize(self):
+    async def test_initialize(self) -> None:
         """
         Check if the special bootstrap addresses are added to the overlay's blacklist upon initialization.
 
@@ -27,7 +33,7 @@ class TestDispersyBootstrapper(TestBase):
         self.assertIn(self.bootstrap_node.wan_address, self.overlay.network.blacklist)
         self.assertTrue(result)
 
-    async def test_get_addresses(self):
+    async def test_get_addresses(self) -> None:
         """
         Check if the bootstrapper contacts the registered bootstrap nodes and doesn't return manual addresses.
         """
@@ -35,12 +41,12 @@ class TestDispersyBootstrapper(TestBase):
         await self.deliver_messages()
 
         # There should be no manually walkable addresses.
-        self.assertListEqual([], addresses)
+        self.assertListEqual([], list(addresses))
 
         # However, the bootstrap node should have been contacted using the IPv8 protocol.
         self.assertEqual(1, len(self.bs_ep_listener.received_packets))
 
-    async def test_get_addresses_timeout(self):
+    async def test_get_addresses_timeout(self) -> None:
         """
         Check if a second call within the timeout gets dropped.
         """
@@ -52,7 +58,7 @@ class TestDispersyBootstrapper(TestBase):
 
         self.assertEqual(1, len(self.bs_ep_listener.received_packets))
 
-    async def test_get_addresses_blacklist(self):
+    async def test_get_addresses_blacklist(self) -> None:
         """
         Check if the get_addresses ensures bootstrap nodes are in the blacklist.
         """
@@ -63,7 +69,7 @@ class TestDispersyBootstrapper(TestBase):
 
         self.assertIn(self.bootstrap_node.wan_address, self.overlay.network.blacklist)
 
-    async def test_keep_alive(self):
+    async def test_keep_alive(self) -> None:
         """
         Check if the keep_alive tries to walk to a bootstrap node to keepe the connection alive.
         """
@@ -72,7 +78,7 @@ class TestDispersyBootstrapper(TestBase):
 
         self.assertEqual(1, len(self.bs_ep_listener.received_packets))
 
-    async def test_keep_alive_blacklist(self):
+    async def test_keep_alive_blacklist(self) -> None:
         """
         Check if the keep_alive adds walked nodes into the blacklist.
         """
@@ -83,8 +89,8 @@ class TestDispersyBootstrapper(TestBase):
 
         self.assertIn(self.bootstrap_node.wan_address, self.overlay.network.blacklist)
 
-    async def test_blacklist(self):
+    async def test_blacklist(self) -> None:
         """
         Check if the blacklist returns the added nodes in the blacklist.
         """
-        self.assertListEqual([self.bootstrap_node.wan_address], self.bootstrapper.blacklist())
+        self.assertListEqual([self.bootstrap_node.wan_address], list(self.bootstrapper.blacklist()))

@@ -1,23 +1,35 @@
+from typing import cast
+
+from ...peerdiscovery.discovery import RandomWalk
 from ..base import TestBase
 from ..mocking.community import MockCommunity
-from ...peerdiscovery.discovery import RandomWalk
+from ..mocking.endpoint import AutoMockEndpoint
 
 
 class TestRandomWalk(TestBase):
+    """
+    Tests related to the random walker.
+    """
 
-    def setUp(self):
+    def setUp(self) -> None:
+        """
+        Set up three nodes that are not managed by TestBase.
+        """
         super().setUp()
 
         node_count = 3
         self.overlays = [MockCommunity() for _ in range(node_count)]
         self.strategies = [RandomWalk(self.overlays[i], reset_chance=0) for i in range(node_count)]
 
-    async def tearDown(self):
+    async def tearDown(self) -> None:
+        """
+        We made our own unmanaged overlays: tear them down.
+        """
         for overlay in self.overlays:
             await overlay.unload()
         return await super().tearDown()
 
-    async def test_take_step(self):
+    async def test_take_step(self) -> None:
         """
         Check if we will walk to a random other node.
 
@@ -36,7 +48,7 @@ class TestRandomWalk(TestBase):
 
         self.assertEqual(len(self.overlays[0].network.verified_peers), 2)
 
-    async def test_take_step_into(self):
+    async def test_take_step_into(self) -> None:
         """
         Check if we will walk to an introduced node.
 
@@ -45,7 +57,8 @@ class TestRandomWalk(TestBase):
           NODE0 -> NODE2
         """
         self.overlays[0].network.add_verified_peer(self.overlays[1].my_peer)
-        self.overlays[0].network.discover_address(self.overlays[1].my_peer, self.overlays[2].endpoint.wan_address,
+        self.overlays[0].network.discover_address(self.overlays[1].my_peer,
+                                                  cast(AutoMockEndpoint, self.overlays[2].endpoint).wan_address,
                                                   MockCommunity.community_id)
         self.overlays[0].network.discover_services(self.overlays[1].my_peer, [self.overlays[1].community_id, ])
         # We expect NODE0 to visit NODE2
@@ -56,7 +69,7 @@ class TestRandomWalk(TestBase):
 
         self.assertEqual(len(self.overlays[0].network.verified_peers), 2)
 
-    async def test_fail_step_into(self):
+    async def test_fail_step_into(self) -> None:
         """
         Check if we drop an unreachable introduced node.
 
@@ -65,7 +78,8 @@ class TestRandomWalk(TestBase):
           NODE0 -> NODE2
         """
         self.overlays[0].network.add_verified_peer(self.overlays[1].my_peer)
-        self.overlays[0].network.discover_address(self.overlays[1].my_peer, self.overlays[2].endpoint.wan_address,
+        self.overlays[0].network.discover_address(self.overlays[1].my_peer,
+                                                  cast(AutoMockEndpoint, self.overlays[2].endpoint).wan_address,
                                                   MockCommunity.community_id)
         self.overlays[0].network.discover_services(self.overlays[1].my_peer, [self.overlays[1].community_id, ])
         # Fail immediately when unreachable
@@ -85,7 +99,7 @@ class TestRandomWalk(TestBase):
         self.assertEqual(len(self.overlays[0].network.get_walkable_addresses()), 0)
         self.assertEqual(len(self.overlays[0].network.verified_peers), 1)
 
-    async def test_retry_step_into(self):
+    async def test_retry_step_into(self) -> None:
         """
         Check if we don't drop an introduced node immediately.
 
@@ -94,7 +108,8 @@ class TestRandomWalk(TestBase):
           NODE0 -> NODE2
         """
         self.overlays[0].network.add_verified_peer(self.overlays[1].my_peer)
-        self.overlays[0].network.discover_address(self.overlays[1].my_peer, self.overlays[2].endpoint.wan_address,
+        self.overlays[0].network.discover_address(self.overlays[1].my_peer,
+                                                  cast(AutoMockEndpoint, self.overlays[2].endpoint).wan_address,
                                                   MockCommunity.community_id)
         self.overlays[0].network.discover_services(self.overlays[1].my_peer, [self.overlays[1].community_id, ])
         self.strategies[0].node_timeout = 100000.0

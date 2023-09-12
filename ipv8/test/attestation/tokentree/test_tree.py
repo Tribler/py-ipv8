@@ -1,13 +1,19 @@
-from ...base import TestBase
 from ....attestation.tokentree.token import Token
 from ....attestation.tokentree.tree import TokenTree
 from ....keyvault.crypto import ECCrypto
 from ....keyvault.keys import PublicKey
+from ...base import TestBase
 
 
 class TestTree(TestBase):
+    """
+    Tests related to the token tree.
+    """
 
     def setUp(self) -> None:
+        """
+        Set up a new private key for testing.
+        """
         super().setUp()
         self.crypto = ECCrypto()
         self.private_key = self.crypto.generate_key("curve25519")
@@ -34,7 +40,7 @@ class TestTree(TestBase):
         self.assertEqual(0, len(tree.unchained))
         self.assertEqual(0, len(tree.get_missing()))
 
-    def test_own_add(self):
+    def test_own_add(self) -> None:
         """
         Check if content is correctly added to the tree.
         """
@@ -48,7 +54,7 @@ class TestTree(TestBase):
         self.assertTrue(tree.verify(token))
         self.assertEqual(content, token.content)
 
-    def test_other_add_insequence(self):
+    def test_other_add_insequence(self) -> None:
         """
         Check if content is correctly added to another's tree, in order.
         """
@@ -63,7 +69,7 @@ class TestTree(TestBase):
         self.assertTrue(tree.verify(pub_token))
         self.assertIsNone(token.content)
 
-    def test_other_add_outsequence(self):
+    def test_other_add_outsequence(self) -> None:
         """
         Check if content is not added to another's tree if it is not linked to existing data.
         """
@@ -78,7 +84,7 @@ class TestTree(TestBase):
         self.assertFalse(tree.verify(pub_token))
         self.assertIsNone(token)
 
-    def test_other_add_outsequence_overflow(self):
+    def test_other_add_outsequence_overflow(self) -> None:
         """
         Check if content is not added to another's tree if it is not linked to existing data.
         Remove the oldest data when too much data is pending.
@@ -98,7 +104,7 @@ class TestTree(TestBase):
         self.assertFalse(tree.verify(pub_token1))
         self.assertFalse(tree.verify(pub_token2))
 
-    def test_other_add_duplicate(self):
+    def test_other_add_duplicate(self) -> None:
         """
         Check if tokens are not added twice (by branch position and content hash).
         """
@@ -114,7 +120,7 @@ class TestTree(TestBase):
         self.assertTrue(tree.verify(pub_token))
         self.assertIsNone(token.content)
 
-    def test_other_add_duplicate_wcontent(self):
+    def test_other_add_duplicate_wcontent(self) -> None:
         """
         Check if a token passes on its content to a duplicate entry without content.
         """
@@ -131,7 +137,7 @@ class TestTree(TestBase):
         self.assertTrue(tree.verify(token))
         self.assertEqual(b"some data", token.content)
 
-    def test_serialize_public(self):
+    def test_serialize_public(self) -> None:
         """
         Check if the public tree data is serialized correctly.
         """
@@ -142,7 +148,7 @@ class TestTree(TestBase):
 
         self.assertEqual(128 * 3, len(tree.serialize_public()))
 
-    def test_serialize_public_partial(self):
+    def test_serialize_public_partial(self) -> None:
         """
         Check if the public tree data is partially serialized correctly.
         """
@@ -153,7 +159,7 @@ class TestTree(TestBase):
 
         self.assertEqual(128 * 2, len(tree.serialize_public(second_token)))
 
-    def test_unserialize_public(self):
+    def test_unserialize_public(self) -> None:
         """
         Check if serialized public tree data can be paired with its source data.
         """
@@ -183,4 +189,4 @@ class TestTree(TestBase):
         # By design, the TokenTree does not keep the mapping between content and Tokens.
         # But we can show the three different values are captured by the three Tokens.
         for content in [b"data1", b"data2", b"data3"]:
-            self.assertTrue(any([token.receive_content(content) for token in tree.elements.values()]))
+            self.assertTrue(any(token.receive_content(content) for token in tree.elements.values()))

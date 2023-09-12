@@ -1,26 +1,32 @@
 from base64 import b64encode
 
-from .base import TestBase
 from ..keyvault.crypto import default_eccrypto
 from ..messaging.interfaces.udp.endpoint import UDPv4Address, UDPv6Address
 from ..peer import Peer
+from .base import TestBase
 
 
 class TestPeer(TestBase):
+    """
+    Tests related to the peer class.
+    """
 
     test_key = default_eccrypto.generate_key("very-low")
 
-    def setUp(self):
+    def setUp(self) -> None:
+        """
+        Set up a peer to test with.
+        """
         super().setUp()
         self.peer = Peer(TestPeer.test_key, ("1.2.3.4", 5))
 
-    def test_default_timestamp(self):
+    def test_default_timestamp(self) -> None:
         """
         Check if the default Lamport timestamp of a Peer is 0.
         """
         self.assertEqual(self.peer.get_lamport_timestamp(), 0)
 
-    def test_increment_timestamp(self):
+    def test_increment_timestamp(self) -> None:
         """
         Check if the Lamport timestamp of a Peer can be incremented.
         """
@@ -28,7 +34,7 @@ class TestPeer(TestBase):
 
         self.assertEqual(self.peer.get_lamport_timestamp(), 1)
 
-    def test_increase_timestamp(self):
+    def test_increase_timestamp(self) -> None:
         """
         Check if the Lamport timestamp of a Peer can be increased arbitrarily.
         """
@@ -36,7 +42,7 @@ class TestPeer(TestBase):
 
         self.assertEqual(self.peer.get_lamport_timestamp(), 42)
 
-    def test_decrease_timestamp(self):
+    def test_decrease_timestamp(self) -> None:
         """
         Check if the Lamport timestamp of a Peer cannot be decreased.
         """
@@ -44,7 +50,7 @@ class TestPeer(TestBase):
 
         self.assertEqual(self.peer.get_lamport_timestamp(), 0)
 
-    def test_peer_equality(self):
+    def test_peer_equality(self) -> None:
         """
         Check if peers with the same key and address are equal.
         """
@@ -53,7 +59,7 @@ class TestPeer(TestBase):
         self.assertTrue(self.peer == other)
         self.assertFalse(self.peer != other)
 
-    def test_peer_inequality_key(self):
+    def test_peer_inequality_key(self) -> None:
         """
         Check if peers with a different key and same address are not equal.
         """
@@ -61,19 +67,19 @@ class TestPeer(TestBase):
 
         self.assertNotEqual(self.peer, other)
 
-    def test_median_ping_none(self):
+    def test_median_ping_none(self) -> None:
         """
         No ping measurements should lead to a None median ping.
         """
         self.assertIsNone(self.peer.get_median_ping())
 
-    def test_avg_ping_none(self):
+    def test_avg_ping_none(self) -> None:
         """
         No ping measurements should lead to a None average ping.
         """
         self.assertIsNone(self.peer.get_average_ping())
 
-    def test_median_ping_odd(self):
+    def test_median_ping_odd(self) -> None:
         """
         Median ping should return the median ping for odd length measurements.
         """
@@ -82,7 +88,7 @@ class TestPeer(TestBase):
         self.peer.pings.append(4.0)
         self.assertEqual(3.0, self.peer.get_median_ping())
 
-    def test_median_ping_even(self):
+    def test_median_ping_even(self) -> None:
         """
         Median ping should return the median ping for even length measurements.
         """
@@ -92,7 +98,7 @@ class TestPeer(TestBase):
         self.peer.pings.append(5.0)
         self.assertEqual(3.5, self.peer.get_median_ping())
 
-    def test_avg_ping(self):
+    def test_avg_ping(self) -> None:
         """
         Average ping should return the average ping.
         """
@@ -100,7 +106,7 @@ class TestPeer(TestBase):
         self.peer.pings.append(4.0)
         self.assertEqual(3.5, self.peer.get_average_ping())
 
-    def test_peer_inequality_address(self):
+    def test_peer_inequality_address(self) -> None:
         """
         Check if peers with the same key and a different address are equal.
         """
@@ -108,13 +114,13 @@ class TestPeer(TestBase):
 
         self.assertEqual(self.peer, other)
 
-    def test_to_string(self):
+    def test_to_string(self) -> None:
         """
         Check if the __str__ method functions properly.
         """
         self.assertEqual(str(self.peer), "Peer<1.2.3.4:5, %s>" % b64encode(self.peer.mid).decode('utf-8'))
 
-    def test_set_address_init(self):
+    def test_set_address_init(self) -> None:
         """
         Check if the address property properly sets from the init.
         """
@@ -123,7 +129,7 @@ class TestPeer(TestBase):
 
         self.assertEqual(peer.address, address)
 
-    def test_set_address_setter(self):
+    def test_set_address_setter(self) -> None:
         """
         Check if the address property properly sets from the setter.
         """
@@ -133,7 +139,7 @@ class TestPeer(TestBase):
 
         self.assertEqual(peer.address, address)
 
-    def test_set_address_add(self):
+    def test_set_address_add(self) -> None:
         """
         Check if the address property properly sets from add_address.
         """
@@ -143,7 +149,7 @@ class TestPeer(TestBase):
 
         self.assertEqual(peer.address, address)
 
-    def test_set_address_addv6(self):
+    def test_set_address_addv6(self) -> None:
         """
         Check if IPv6 addresses are properly returned.
         """
@@ -153,7 +159,7 @@ class TestPeer(TestBase):
 
         self.assertEqual(peer.address, address)
 
-    def test_address_order1(self):
+    def test_address_order1(self) -> None:
         """
         Check if IPv6 is preferred over IPv4 (append out-of-order).
         """
@@ -165,7 +171,7 @@ class TestPeer(TestBase):
 
         self.assertEqual(peer.address, address2)
 
-    def test_address_order2(self):
+    def test_address_order2(self) -> None:
         """
         Check if IPv6 is preferred over IPv4 (append in-order).
         """
@@ -177,13 +183,13 @@ class TestPeer(TestBase):
 
         self.assertEqual(peer.address, address2)
 
-    def test_default_address(self):
+    def test_default_address(self) -> None:
         """
-        Check if the default address is UDPv4Address("0.0.0.0", 0)
+        Check if the default address is UDPv4Address("0.0.0.0", 0).
         """
         self.assertEqual(Peer(TestPeer.test_key).address, UDPv4Address("0.0.0.0", 0))
 
-    def test_manual_update(self):
+    def test_manual_update(self) -> None:
         """
         Check if manual updates to the addresses dictionary are caught.
         """
@@ -193,7 +199,7 @@ class TestPeer(TestBase):
 
         self.assertEqual(peer.address, address)
 
-    def test_manual_updates(self):
+    def test_manual_updates(self) -> None:
         """
         Check if manual updates to the addresses dictionary are caught (double update, out-of-order).
         """
@@ -205,7 +211,7 @@ class TestPeer(TestBase):
 
         self.assertEqual(peer.address, address1)
 
-    def test_manual_update_overwrite(self):
+    def test_manual_update_overwrite(self) -> None:
         """
         Check if manual updates to the addresses dictionary are caught (overwrite same class).
         """

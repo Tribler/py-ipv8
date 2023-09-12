@@ -1,21 +1,27 @@
 import time
 
-from .base import TestDHTBase
 from ...dht.churn import PingChurn
 from ...dht.community import DHTCommunity
+from .base import TestDHTBase
 
 
-class TestPingChurn(TestDHTBase):
+class TestPingChurn(TestDHTBase[DHTCommunity]):
+    """
+    Tests for pinging nodes in the DHT community.
+    """
 
-    def setUp(self):
+    def setUp(self) -> None:
+        """
+        Create two nodes with a ping churn strategy.
+        """
         super().setUp()
         self.initialize(DHTCommunity, 2)
+        self.strategies = [PingChurn(self.overlay(i), ping_interval=0.0) for i in range(2)]
 
-        self.strategies = []
-        for i in range(2):
-            self.strategies.append(PingChurn(self.overlay(i), ping_interval=0.0))
-
-    async def test_ping_all(self):
+    async def test_ping_all(self) -> None:
+        """
+        Check if a failed node without a previous response is pinged and if it responds.
+        """
         await self.introduce_nodes()
         bucket = self.routing_table(0).trie['']
 
@@ -29,7 +35,10 @@ class TestPingChurn(TestDHTBase):
         self.assertTrue(node1.failed == 0)
         self.assertNotEqual(node1.last_response, 0)
 
-    async def test_ping_all_skip(self):
+    async def test_ping_all_skip(self) -> None:
+        """
+        Check if a failed node that recently responded is not spammed with a ping.
+        """
         await self.introduce_nodes()
         bucket = self.routing_table(0).trie['']
         node1 = bucket.get(self.my_node_id(1))

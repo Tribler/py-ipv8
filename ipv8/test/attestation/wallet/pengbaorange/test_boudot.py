@@ -1,12 +1,15 @@
 from binascii import unhexlify
 
-from ....base import TestBase
 from .....attestation.wallet.pengbaorange.boudot import EL, SQR
 from .....attestation.wallet.primitives.structs import BonehPrivateKey
 from .....attestation.wallet.primitives.value import FP2Value
+from ....base import TestBase
 
 
 class TestBoudot(TestBase):
+    """
+    Tests related to Boudot proofs.
+    """
 
     pk = BonehPrivateKey.unserialize(unhexlify("0109649b2a7d7992b008d1010958f4d560346bb392330109117572cef25"
                                                "23be2fe0109264c97f1868fd4b18b010908792e2bf8bcaa077f0108baa1"
@@ -25,7 +28,7 @@ class TestBoudot(TestBase):
                                     "949e012102af10fec9115c85e85cd7d7aef94a65d3cc6c7357642706e8a37bb0ecd804845b0120ab"
                                     "c43fb24457217a1735f5ebbe529974f31b1cd5d909c1ba28deec3b36011fa3"))[0]
 
-    def test_el_serialize(self):
+    def test_el_serialize(self) -> None:
         """
         Check if Boudot equality checks are correctly serialized.
         """
@@ -35,7 +38,7 @@ class TestBoudot(TestBase):
                 204522353217145204955971194131510520759695735886996774897791958142625032430719)
         self.assertEqual(self.el, el)
 
-    def test_el_equal(self):
+    def test_el_equal(self) -> None:
         """
         Check if the Boudot commitment equality holds.
         """
@@ -52,7 +55,7 @@ class TestBoudot(TestBase):
         # Check
         self.assertTrue(self.el.check(self.pk.g, self.pk.h, c1, self.pk.h, c2, ca))
 
-    def test_el_modify_commitment(self):
+    def test_el_modify_commitment(self) -> None:
         """
         Check if the Boudot commitment equality fails if the commitment message changes.
         """
@@ -70,7 +73,7 @@ class TestBoudot(TestBase):
         # Check
         self.assertFalse(self.el.check(self.pk.g, self.pk.h, c1, self.pk.h, c2, ca))
 
-    def test_el_modify_shadow_commitment(self):
+    def test_el_modify_shadow_commitment(self) -> None:
         """
         Check if the Boudot commitment equality fails if the shadow commitment message changes.
         """
@@ -88,7 +91,7 @@ class TestBoudot(TestBase):
         # Check
         self.assertFalse(self.el.check(self.pk.g, self.pk.h, c1, self.pk.h, c2, ca))
 
-    def test_el_modify_commitments(self):
+    def test_el_modify_commitments(self) -> None:
         """
         Check if the Boudot commitment equality fails if the shadow+commitment messages change.
         """
@@ -105,28 +108,28 @@ class TestBoudot(TestBase):
         # Check
         self.assertFalse(self.el.check(self.pk.g, self.pk.h, c1, self.pk.h, c2, ca))
 
-    def test_sqr(self):
+    def test_sqr(self) -> None:
         """
         Check if the Boudot commitment-is-square holds.
         """
         sqr = SQR.create(4, 81, self.pk.g, self.pk.h, self.b, self.bitspace)
         self.assertTrue(sqr.check(self.pk.g, self.pk.h, self.pk.g.intpow(16) * self.pk.h.intpow(81)))
 
-    def test_sqr_modify_commitment(self):
+    def test_sqr_modify_commitment(self) -> None:
         """
         Check if the Boudot commitment-is-square fails if the commitment message changes.
         """
         sqr = SQR.create(9, 81, self.pk.g, self.pk.h, self.b, self.bitspace)
         self.assertFalse(sqr.check(self.pk.g, self.pk.h, self.pk.g.intpow(16) * self.pk.h.intpow(81)))
 
-    def test_sqr_modify_shadow_commitment(self):
+    def test_sqr_modify_shadow_commitment(self) -> None:
         """
         Check if the Boudot commitment-is-square fails if the shadow commitment message changes.
         """
         sqr = SQR.create(4, 81, self.pk.g, self.pk.h, self.b, self.bitspace)
         self.assertFalse(sqr.check(self.pk.g, self.pk.h, self.pk.g.intpow(9) * self.pk.h.intpow(81)))
 
-    def test_sqr_serialize(self):
+    def test_sqr_serialize(self) -> None:
         """
         Check if Boudot commitment-is-square checks are correctly serialized.
         """

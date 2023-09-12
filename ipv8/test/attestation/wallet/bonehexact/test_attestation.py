@@ -1,19 +1,29 @@
 from binascii import unhexlify
 
-from ....base import TestBase
-from .....attestation.wallet.bonehexact.attestation import (attest, binary_relativity, binary_relativity_certainty,
-                                                            binary_relativity_match, create_challenge,
-                                                            create_challenge_response, create_empty_relativity_map,
-                                                            decode, generate_modular_additive_inverse,
-                                                            process_challenge_response)
+from .....attestation.wallet.bonehexact.attestation import (
+    attest,
+    binary_relativity,
+    binary_relativity_certainty,
+    binary_relativity_match,
+    create_challenge,
+    create_challenge_response,
+    create_empty_relativity_map,
+    decode,
+    generate_modular_additive_inverse,
+    process_challenge_response,
+)
 from .....attestation.wallet.primitives.structs import BonehPrivateKey
+from ....base import TestBase
 
 
 class TestAttestation(TestBase):
+    """
+    Tests related to boneh attestations.
+    """
 
     private_key = BonehPrivateKey.unserialize(unhexlify('01011d01011401011101011c01011c01010f010103'))
 
-    def test_generate_minverse_group(self):
+    def test_generate_minverse_group(self) -> None:
         """
         Check if additive inverse group generation modulo (p + 1) is correct.
         """
@@ -24,7 +34,7 @@ class TestAttestation(TestBase):
         self.assertEqual(20, len(group))
         self.assertEqual(0, sum(group) % (p + 1))
 
-    def test_attest(self):
+    def test_attest(self) -> None:
         """
         Check if Attestations can be created correctly.
         """
@@ -38,7 +48,7 @@ class TestAttestation(TestBase):
         self.assertListEqual([0, 1, 1, 2],
                              [decode(self.private_key, [0, 1, 2, 3], a.bitpairs[0].compress()) for a in attestations])
 
-    def test_empty_relativity_map(self):
+    def test_empty_relativity_map(self) -> None:
         """
         Check if a new relativity map is empty.
         """
@@ -47,7 +57,7 @@ class TestAttestation(TestBase):
         self.assertSetEqual({0, 1, 2, 3}, set(relativity_map.keys()))
         self.assertEqual(0, sum(relativity_map.values()))
 
-    def test_binary_relativity(self):
+    def test_binary_relativity(self) -> None:
         """
         Check if the binary relativity of several numbers is calculated correctly.
         """
@@ -60,7 +70,7 @@ class TestAttestation(TestBase):
         for expected, value, bitspace in values:
             self.assertDictEqual(expected, binary_relativity(value, bitspace))
 
-    def test_binary_relativity_match(self):
+    def test_binary_relativity_match(self) -> None:
         """
         Check if matching percentages between maps are relatively correct.
         """
@@ -77,7 +87,7 @@ class TestAttestation(TestBase):
         self.assertEqual(0, binary_relativity_match(b, c))
         self.assertEqual(0, binary_relativity_match(c, b))
 
-    def test_binary_relativity_certainty(self):
+    def test_binary_relativity_certainty(self) -> None:
         """
         Check if matching certainties between maps are relatively correct.
         """
@@ -87,7 +97,7 @@ class TestAttestation(TestBase):
         # (1 * 1 * .5 * 1)*(1 - .25) = .5 * .75 = .375
         self.assertEqual(0.375, binary_relativity_certainty(b, a))
 
-    def test_create_challenge(self):
+    def test_create_challenge(self) -> None:
         """
         Check if challenges can be created and are properly responded to.
         """
@@ -101,7 +111,7 @@ class TestAttestation(TestBase):
 
         self.assertListEqual([0, 1, 1, 2], [create_challenge_response(self.private_key, c) for c in challenges])
 
-    def test_process_challenge_response(self):
+    def test_process_challenge_response(self) -> None:
         """
         Check if a map is properly updates when a challenge response comes in.
         """

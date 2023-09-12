@@ -4,15 +4,13 @@ from typing import Iterable
 
 from ...dht import DHTError
 from ...dht.community import DHTCommunity
-from ...dht.provider import DHTCommunityProvider
 from ...dht.routing import NODE_LIMIT_QUERIES, Node, RoutingTable, distance
-from ...messaging.anonymization.tunnel import IntroductionPoint
 from ...util import succeed
 from ..mocking.ipv8 import MockIPv8
 from .base import TestDHTBase
 
 
-class TestDHTCommunity(TestDHTBase):
+class TestDHTCommunity(TestDHTBase[DHTCommunity]):
     """
     Tests for the DHT Community.
     """
@@ -133,8 +131,8 @@ class TestDHTCommunity(TestDHTBase):
         # Sort nodes based on distance to target
         self.nodes.sort(key=lambda n: distance(n.overlay.get_my_node_id(n.overlay.my_peer), self.key), reverse=True)
 
-        self.overlay(0).on_node_discovered(self.public_key(1), self.address(1))
-        self.overlay(1).on_node_discovered(self.public_key(2), self.address(2))
+        self.overlay(0).on_node_discovered(self.key_bin(1), self.address(1))
+        self.overlay(1).on_node_discovered(self.key_bin(2), self.address(2))
 
         self.storage(2).put(self.key, self.value_in_store)
         await self.overlay(0).find_values(self.key)
@@ -197,33 +195,6 @@ class TestDHTCommunity(TestDHTBase):
             await self.overlay(0).store_on_nodes(self.key, [self.value_in_store], [dht_node])
         self.assertEqual(self.storage(1).get(self.key), [])
 
-    async def test_provider(self) -> None:
-        """
-        Test the DHT provider (used to fetch peers in the hidden services).
-        """
-        self.add_node_to_experiment(self.create_node())
-
-        await self.introduce_nodes()
-        dht_provider_1 = DHTCommunityProvider(self.overlay(0), 1337)
-        dht_provider_2 = DHTCommunityProvider(self.overlay(1), 1338)
-        dht_provider_3 = DHTCommunityProvider(self.overlay(2), 1338)
-        await dht_provider_1.announce(b'a' * 20, IntroductionPoint(self.my_peer(0), b'\x01' * 20))
-        await dht_provider_2.announce(b'a' * 20, IntroductionPoint(self.my_peer(1), b'\x02' * 20))
-
-        await self.deliver_messages(.5)
-
-        peers = await dht_provider_3.lookup(b'a' * 20)
-        self.assertEqual(len(peers[1]), 2)
-
-    async def test_provider_invalid_data(self) -> None:
-        """
-        Test the DHT provider when invalid data arrives.
-        """
-        self.overlay(0).find_values = lambda _: succeed([('invalid_data', None)])
-        dht_provider = DHTCommunityProvider(self.overlay(0), 1337)
-        peers = await dht_provider.lookup(b'a' * 20)
-        self.assertEqual(len(peers[1]), 0)
-
     async def test_rate_limit(self) -> None:
         """
         Test that the rate limit is respected.
@@ -256,7 +227,7 @@ class TestDHTCommunity(TestDHTBase):
         self.assertTrue(self.overlay(0)._shutdown)  # noqa: SLF001
 
 
-class TestDHTCommunityXL(TestDHTBase):
+class TestDHTCommunityXL(TestDHTBase[DHTCommunity]):
     """
     Fat tests for the DHT Community.
     """

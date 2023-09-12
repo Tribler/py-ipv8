@@ -1,9 +1,11 @@
 from base64 import decodebytes
+from typing import cast
 
-from ..base import TestBase
 from ...keyvault.crypto import default_eccrypto
+from ...keyvault.private.libnaclkey import LibNaCLSK
 from ...keyvault.private.m2crypto import M2CryptoSK
 from ...keyvault.public.m2crypto import M2CryptoPK
+from ..base import TestBase
 
 
 class TestSerialization(TestBase):
@@ -11,13 +13,16 @@ class TestSerialization(TestBase):
     Test whether keys can be serialized and unserialized correctly.
     """
 
-    def setUp(self):
+    def setUp(self) -> None:
+        """
+        Create a M2Crypto private key and a LibNaCL private key.
+        """
         super().setUp()
         self.ec = default_eccrypto
-        self.key = self.ec.generate_key("very-low")
-        self.key_nacl = self.ec.generate_key("curve25519")
+        self.key = cast(M2CryptoSK, self.ec.generate_key("very-low"))
+        self.key_nacl = cast(LibNaCLSK, self.ec.generate_key("curve25519"))
 
-    def test_private_to_bin(self):
+    def test_private_to_bin(self) -> None:
         """
         Check if M2Crypto derived key bins are valid.
         """
@@ -25,7 +30,7 @@ class TestSerialization(TestBase):
 
         self.assertTrue(self.ec.is_valid_private_bin(private_bin))
 
-    def test_private_nacl_to_bin(self):
+    def test_private_nacl_to_bin(self) -> None:
         """
         Check if libnacl derived key bins are valid.
         """
@@ -33,7 +38,7 @@ class TestSerialization(TestBase):
 
         self.assertTrue(self.ec.is_valid_private_bin(private_bin))
 
-    def test_private_to_pem(self):
+    def test_private_to_pem(self) -> None:
         """
         Check if keys can be serialized and loaded correctly in PEM format.
         """
@@ -49,7 +54,7 @@ class TestSerialization(TestBase):
 
         self.assertEqual(private_pem, key.key_to_pem())
 
-    def test_public_to_bin(self):
+    def test_public_to_bin(self) -> None:
         """
         Check if M2Crypto derived public key bins are valid.
         """
@@ -57,7 +62,7 @@ class TestSerialization(TestBase):
 
         self.assertTrue(self.ec.is_valid_public_bin(public_bin))
 
-    def test_public_nacl_to_bin(self):
+    def test_public_nacl_to_bin(self) -> None:
         """
         Check if libnacl derived public key bins are valid.
         """
@@ -65,7 +70,7 @@ class TestSerialization(TestBase):
 
         self.assertTrue(self.ec.is_valid_public_bin(public_bin))
 
-    def test_public_to_pem(self):
+    def test_public_to_pem(self) -> None:
         """
         Check if public keys can be serialized and loaded correctly in PEM format.
         """

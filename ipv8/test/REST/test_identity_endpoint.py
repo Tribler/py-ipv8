@@ -3,14 +3,18 @@ from __future__ import annotations
 import base64
 import json
 import urllib.parse
+from typing import TYPE_CHECKING, Any, cast
 
-from ..REST.rest_base import RESTTestBase, partial_cls
-from ...attestation.communication_manager import CommunicationChannel, PseudonymFolderManager, CommunicationManager
+from ...attestation.communication_manager import CommunicationChannel, CommunicationManager, PseudonymFolderManager
 from ...attestation.default_identity_formats import FORMATS
 from ...attestation.identity.community import IdentityCommunity
 from ...attestation.identity.manager import IdentityManager
 from ...attestation.wallet.community import AttestationCommunity
-from ...types import PrivateKey
+from ..mocking.endpoint import AutoMockEndpoint
+from ..REST.rest_base import MockRestIPv8, RESTTestBase, partial_cls
+
+if TYPE_CHECKING:
+    from ...types import PrivateKey
 
 
 class MockPseudonymFolderManager(PseudonymFolderManager):
@@ -18,30 +22,45 @@ class MockPseudonymFolderManager(PseudonymFolderManager):
     Mock the OS file system using a dictionary as to mock files in a folder.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """
+        Create a new mocked pseudonym folder manager.
+        """
         super().__init__(".")
         self.folder_contents: dict[str, bytes] = {}
 
     def get_or_create_private_key(self, name: str) -> PrivateKey:
+        """
+        Generate or load a new key in memory.
+        """
         if name in self.folder_contents:
             return self.crypto.key_from_private_bin(self.folder_contents[name])
         private_key = self.crypto.generate_key("curve25519")
         self.folder_contents[name] = private_key
         return private_key
 
-    def remove_pseudonym_file(self, name: str):
+    def remove_pseudonym_file(self, name: str) -> None:
+        """
+        Remove the given "folder" in the dictionary, i.e., a key.
+        """
         self.folder_contents.pop(name, None)
 
     def list_pseudonym_files(self) -> list[str]:
-        return [key for key in self.folder_contents]
+        """
+        Retrieve the "folders", i.e., keys, in the fake file structure.
+        """
+        return list(self.folder_contents)
 
 
 class TestIdentityEndpoint(RESTTestBase):
     """
-    Class for testing the REST API of the IdentityEndpoint
+    Class for testing the REST API of the IdentityEndpoint.
     """
 
-    async def setUp(self):
+    async def setUp(self) -> None:
+        """
+        Set up an identity community, memory identity manager and memory pseudonym folder manager.
+        """
         super().setUp()
 
         self.pseudonym_directories: dict[str, bytes] = {}  # Pseudonym to key-bytes mapping
@@ -50,7 +69,7 @@ class TestIdentityEndpoint(RESTTestBase):
         await self.initialize([partial_cls(IdentityCommunity, identity_manager=identity_manager,
                                            working_directory=':memory:')], 2)
 
-    async def create_node(self, *args, **kwargs):
+    async def create_node(self, *args: Any, **kwargs) -> MockRestIPv8:  # noqa: ANN401
         """
         We load each node i with a pseudonym `my_peer{i}`, which is the default IPv8 `my_peer` key.
         """
@@ -61,7 +80,7 @@ class TestIdentityEndpoint(RESTTestBase):
         communication_manager.pseudonym_folder_manager = MockPseudonymFolderManager()
         communication_manager.pseudonym_folder_manager.get_or_create_private_key(key_file_name)
 
-        identity_overlay = ipv8.get_overlay(IdentityCommunity)
+        identity_overlay = cast(IdentityCommunity, ipv8.get_overlay(IdentityCommunity))
         attestation_overlay = AttestationCommunity(identity_overlay.my_peer, identity_overlay.endpoint,
                                                    identity_overlay.network, working_directory=':memory:')
         channel = CommunicationChannel(attestation_overlay, identity_overlay)
@@ -72,13 +91,17 @@ class TestIdentityEndpoint(RESTTestBase):
         return ipv8
 
     def communication_manager(self, i: int) -> CommunicationManager:
+        """
+        Shortcut to the communication manager of node i.
+        """
         return self.node(i).rest_manager.root_endpoint.endpoints['/identity'].communication_manager
 
-    async def introduce_pseudonyms(self):
-        all_interfaces = []
-        for node in self.nodes:
-            all_interfaces.append([overlay.endpoint.wan_address for overlay in node.overlays
-                                   if isinstance(overlay, IdentityCommunity)])
+    async def introduce_pseudonyms(self) -> None:
+        """
+        Figure out the ephemeral communities of each node and introduce them to each other.
+        """
+        all_interfaces = [[cast(AutoMockEndpoint, overlay.endpoint).wan_address for overlay in node.overlays
+                           if isinstance(overlay, IdentityCommunity)] for node in self.nodes]
         for i in range(len(self.nodes)):
             other_addresses = list(range(len(self.nodes)))
             other_addresses.remove(i)
@@ -89,14 +112,20 @@ class TestIdentityEndpoint(RESTTestBase):
                             overlay.walk_to(address)
             await self.deliver_messages()
 
-    async def wait_for(self, *args, **kwargs):
+    async def wait_for(self, *args: Any, **kwargs) -> Any:  # noqa: ANN401
+        """
+        Fire a make request and keep repeating this request until a non-empty response is returned.
+        """
         output = []
         while not output:
             output = await self.make_request(*args)
             await self.deliver_messages()
         return output
 
-    async def wait_for_requests(self, *args, **kwargs):
+    async def wait_for_requests(self, *args: Any, **kwargs) -> Any:  # noqa: ANN401
+        """
+        Fire a make request and keep repeating this request until a response with the key "requests" is returned.
+        """
         requests = []
         while not requests:
             output = await self.wait_for(*args)
@@ -106,7 +135,7 @@ class TestIdentityEndpoint(RESTTestBase):
                 await self.deliver_messages()
         return requests
 
-    async def test_list_pseudonyms_empty(self):
+    async def test_list_pseudonyms_empty(self) -> None:
         """
         Check that we do not start with any pseudonyms.
         """
@@ -115,7 +144,7 @@ class TestIdentityEndpoint(RESTTestBase):
 
         self.assertDictEqual({'names': []}, result)
 
-    async def test_list_schemas(self):
+    async def test_list_schemas(self) -> None:
         """
         Check that the endpoint reports the available schemas correctly.
         """
@@ -123,7 +152,7 @@ class TestIdentityEndpoint(RESTTestBase):
 
         self.assertSetEqual(set(FORMATS.keys()), set(schemas['schemas']))
 
-    async def test_list_pseudonyms_one(self):
+    async def test_list_pseudonyms_one(self) -> None:
         """
         Check that a loaded pseudonym is reported as such.
         """
@@ -131,7 +160,7 @@ class TestIdentityEndpoint(RESTTestBase):
 
         self.assertDictEqual({'names': ['my_peer0']}, result)
 
-    async def test_list_pseudonyms_many(self):
+    async def test_list_pseudonyms_many(self) -> None:
         """
         Check that all loaded pseudonyms are reported as such.
         """
@@ -143,7 +172,7 @@ class TestIdentityEndpoint(RESTTestBase):
 
         self.assertSetEqual(set(pseudonyms) | {'my_peer0'}, set(result['names']))
 
-    async def test_list_public_key_one(self):
+    async def test_list_public_key_one(self) -> None:
         """
         Check that we retrieve the pseudonym public key correctly.
         """
@@ -155,7 +184,7 @@ class TestIdentityEndpoint(RESTTestBase):
 
         self.assertEqual(private_key.pub().key_to_bin(), decoded_public_key)
 
-    async def test_list_public_key_many(self):
+    async def test_list_public_key_many(self) -> None:
         """
         Check that we retrieve the pseudonym public key correctly.
         """
@@ -172,7 +201,7 @@ class TestIdentityEndpoint(RESTTestBase):
 
             self.assertEqual(private_key.pub().key_to_bin(), decoded_public_key)
 
-    async def test_list_peers(self):
+    async def test_list_peers(self) -> None:
         """
         Check if peers are correctly listed.
         """
@@ -190,7 +219,7 @@ class TestIdentityEndpoint(RESTTestBase):
         self.assertEqual(1, len(result1['peers']))
         self.assertEqual(1, len(result2['peers']))
 
-    async def test_list_unload(self):
+    async def test_list_unload(self) -> None:
         """
         Check if a pseudonym stops communicating on unload.
         """
@@ -200,7 +229,7 @@ class TestIdentityEndpoint(RESTTestBase):
         self.assertListEqual([], self.node(0).overlays)
         self.assertListEqual([], self.node(1).overlays)
 
-    async def test_list_credentials_empty(self):
+    async def test_list_credentials_empty(self) -> None:
         """
         Check that we retrieve credentials correctly, if none exist.
         """
@@ -208,7 +237,7 @@ class TestIdentityEndpoint(RESTTestBase):
 
         self.assertListEqual([], result['names'])
 
-    async def test_request_attestation(self):
+    async def test_request_attestation(self) -> None:
         """
         Check that requesting an attestation works.
         """
@@ -232,7 +261,7 @@ class TestIdentityEndpoint(RESTTestBase):
         self.assertEqual("My attribute", outstanding['requests'][0]['attribute_name'])
         self.assertDictEqual({}, json.loads(outstanding['requests'][0]['metadata']))
 
-    async def test_request_attestation_metadata(self):
+    async def test_request_attestation_metadata(self) -> None:
         """
         Check that requesting an attestation with metadata works.
         """
@@ -256,7 +285,7 @@ class TestIdentityEndpoint(RESTTestBase):
         self.assertEqual("My attribute", outstanding['requests'][0]['attribute_name'])
         self.assertDictEqual({"Some key": "Some value"}, json.loads(outstanding['requests'][0]['metadata']))
 
-    async def test_attest(self):
+    async def test_attest(self) -> None:
         """
         Check that attesting to an attestation request with metadata works.
         """
@@ -295,7 +324,7 @@ class TestIdentityEndpoint(RESTTestBase):
             self.assertIn(k, result['names'][0]['metadata'])
             self.assertEqual(v, result['names'][0]['metadata'][k])
 
-    async def test_verify(self):
+    async def test_verify(self) -> None:
         """
         Check that verifying a credential works.
         """
@@ -345,7 +374,7 @@ class TestIdentityEndpoint(RESTTestBase):
         self.assertEqual(base64.b64encode(b'Some value').decode(), output['outputs'][0]['reference'])
         self.assertGreaterEqual(output['outputs'][0]['match'], 0.98)
 
-    async def test_disallow_verify(self):
+    async def test_disallow_verify(self) -> None:
         """
         Check that no verification is performed, if not allowed.
         """

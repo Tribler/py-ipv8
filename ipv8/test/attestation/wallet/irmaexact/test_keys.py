@@ -7,14 +7,17 @@ The authors of this file are not -in any way- affiliated with the original autho
 """
 import unittest
 
-from ....base import TestBase
 from .....attestation.wallet.irmaexact.gabi.keys import DefaultSystemParameters, GenerateKeyPair, SignMessageBlock
+from ....base import TestBase
 
 
 class TestKeys(TestBase):
+    """
+    Tests related to IRMA keys.
+    """
 
     @unittest.SkipTest  # Too slow and unused.
-    def test_generate_and_sign(self):
+    def test_generate_and_sign(self) -> None:
         """
         Generate a new key and sign a message, see if the signature verifies.
         """

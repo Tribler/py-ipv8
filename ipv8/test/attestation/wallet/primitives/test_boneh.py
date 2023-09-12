@@ -1,12 +1,23 @@
 from binascii import unhexlify
 
-from ....base import TestBase
-from .....attestation.wallet.primitives.boneh import (FP2Value, bilinear_group, decode, encode, generate_keypair,
-                                                      generate_prime, get_good_wp, is_good_wp)
+from .....attestation.wallet.primitives.boneh import (
+    FP2Value,
+    bilinear_group,
+    decode,
+    encode,
+    generate_keypair,
+    generate_prime,
+    get_good_wp,
+    is_good_wp,
+)
 from .....attestation.wallet.primitives.structs import BonehPrivateKey
+from ....base import TestBase
 
 
 class TestBoneh(TestBase):
+    """
+    Tests related to boneh paper constructions.
+    """
 
     private_key = BonehPrivateKey.unserialize(unhexlify("0142018eceb3e03820006219a5c5a959abfd40b042c381ff894f7c3d62"
                                                         "5ee9a02302dcdeda322aa8372b66c8d9b4df981e96eb1e4f7dacda5bca"
@@ -25,39 +36,39 @@ class TestBoneh(TestBase):
                                                         "8489a2b149edce500b4357aa9ed0b6c220d7a7c16706531671e30d0334"
                                                         "2ef3"))
 
-    def test_generate_prime(self):
+    def test_generate_prime(self) -> None:
         """
         Check if the next prime (= l * n - 1 = 2 mod 3) after 10 is 29.
         """
         self.assertEqual(generate_prime(10), 29)
 
-    def test_bilinear_group(self):
+    def test_bilinear_group(self) -> None:
         """
         Check if a bilinear group can be created.
         """
         self.assertEqual(bilinear_group(10, 29, 4, 5, 4, 5), FP2Value(29, 19, 5))
 
-    def test_bilinear_group_torsion_point(self):
+    def test_bilinear_group_torsion_point(self) -> None:
         """
         Check if a bilinear group returns 0 if there is no possible pairing.
         """
         self.assertEqual(bilinear_group(10, 29, 2, 3, 2, 3), FP2Value(29))
 
-    def test_is_good_weil_pairing(self):
+    def test_is_good_weil_pairing(self) -> None:
         """
-        Check if is_good_wp returns True for 26 + 17x with n = 10
+        Check if is_good_wp returns True for 26 + 17x with n = 10.
         """
         self.assertTrue(is_good_wp(10, FP2Value(29, 26, 17)))
 
-    def test_is_bad_weil_pairing(self):
+    def test_is_bad_weil_pairing(self) -> None:
         """
-        Check if is_good_wp returns False for 0, 1 and x with n = 10
+        Check if is_good_wp returns False for 0, 1 and x with n = 10.
         """
         self.assertFalse(is_good_wp(10, FP2Value(29)))
         self.assertFalse(is_good_wp(10, FP2Value(29, 1)))
         self.assertFalse(is_good_wp(10, FP2Value(29, b=1)))
 
-    def test_get_good_weil_pairing(self):
+    def test_get_good_weil_pairing(self) -> None:
         """
         Check if get_good_wp returns a proper Weil pairing for n = 10, p = 29.
         """
@@ -65,7 +76,7 @@ class TestBoneh(TestBase):
 
         self.assertTrue(is_good_wp(10, wp))
 
-    def test_encoding_random(self):
+    def test_encoding_random(self) -> None:
         """
         Check if the same value is encoded with a random masking.
         """
@@ -73,7 +84,7 @@ class TestBoneh(TestBase):
 
         self.assertNotEqual(encode(pk, 0), encode(pk, 0))
 
-    def test_decoding_same(self):
+    def test_decoding_same(self) -> None:
         """
         Check if values are encoded with a random masking.
         """
@@ -83,7 +94,7 @@ class TestBoneh(TestBase):
 
         self.assertEqual(decode(TestBoneh.private_key, [0], a), decode(TestBoneh.private_key, [0], b))
 
-    def test_decoding_after_homomorphic_add(self):
+    def test_decoding_after_homomorphic_add(self) -> None:
         """
         Check if values can still be decrypted after a homomorphic add.
         """
@@ -93,7 +104,7 @@ class TestBoneh(TestBase):
 
         self.assertEqual(decode(TestBoneh.private_key, [4], a * b), 4)
 
-    def test_decoding_out_of_space(self):
+    def test_decoding_out_of_space(self) -> None:
         """
         Check if decode return None if the message is outside of the allowed space.
         """
@@ -101,7 +112,7 @@ class TestBoneh(TestBase):
 
         self.assertIsNone(decode(TestBoneh.private_key, [0], encode(pk, 1)))
 
-    def test_generate_keypair(self):
+    def test_generate_keypair(self) -> None:
         """
         Check if we can create a new keypair.
         """

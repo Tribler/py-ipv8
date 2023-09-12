@@ -11,10 +11,11 @@ import uuid
 from asyncio import AbstractEventLoop, Task, all_tasks, ensure_future, get_running_loop, iscoroutine, sleep
 from contextlib import contextmanager
 from functools import partial
-from typing import TYPE_CHECKING, Callable, Coroutine, Type, cast
+from typing import TYPE_CHECKING, Awaitable, Callable, Coroutine, Generic, Type, TypeVar, cast
 
 from ..lazy_community import PacketDecodingError, lazy_wrapper, lazy_wrapper_unsigned
 from ..messaging.serialization import PackError
+from ..overlay import Overlay
 from ..peer import Peer
 from ..types import Community, Payload
 from .mocking.endpoint import MockEndpointListener, internet
@@ -22,7 +23,7 @@ from .mocking.ipv8 import MockIPv8
 
 if TYPE_CHECKING:
     from ..peerdiscovery.network import Network
-    from ..types import Address, Endpoint, Overlay, PrivateKey, PublicKey
+    from ..types import Address, Endpoint, PrivateKey, PublicKey
 
 
 def _on_packet_fragile_cb(self: Community, packet: tuple[Address, bytes], warn_unknown: bool = True) -> None:
@@ -36,7 +37,8 @@ def _on_packet_fragile_cb(self: Community, packet: tuple[Address, bytes], warn_u
     """
     result = self.decode_map[packet[1][22]](*packet)
     if iscoroutine(result):
-        self.register_anonymous_task('on_packet', ensure_future(result))
+        aw_result = cast(Awaitable, result)
+        self.register_anonymous_task('on_packet', ensure_future(aw_result))
 
 
 class TranslatedMockEndpointListener(MockEndpointListener):
@@ -120,8 +122,10 @@ else:
     TestCaseClass = unittest.IsolatedAsyncioTestCase
     USE_ASYNC_TEST = False
 
+OT = TypeVar("OT", bound=Overlay)
 
-class TestBase(TestCaseClass):
+
+class TestBase(TestCaseClass, Generic[OT]):
     """
     Base TestCase to allow easy testing of IPv8 overlays.
     """
@@ -254,7 +258,7 @@ class TestBase(TestCaseClass):
 
     async def tearDown(self) -> None:
         """
-        Tear down all of the overlays, remove all files and check if any errors "escaped" the unit test scope.
+        Tear down all the overlays, remove all files and check if any errors "escaped" the unit test scope.
         Always call this after your own tearDown!
         """
         try:
@@ -457,7 +461,7 @@ class TestBase(TestCaseClass):
         """
         return self.nodes[i]
 
-    def overlay(self, i: int) -> Overlay:
+    def overlay(self, i: int) -> OT:
         """
         The overlay belonging to node i.
         """

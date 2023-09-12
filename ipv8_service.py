@@ -3,13 +3,13 @@ from __future__ import annotations
 import logging
 import sys
 import time
-from asyncio import CancelledError, Future, ensure_future, gather, sleep
+from asyncio import CancelledError, ensure_future, gather, sleep
 from base64 import b64decode
 from contextlib import suppress
 from os.path import isfile
 from threading import RLock
 from traceback import format_exception
-from typing import Any, Coroutine, Generator
+from typing import Any, Awaitable, Generator
 
 if hasattr(sys.modules['__main__'], "IPv8"):
     sys.modules[__name__] = sys.modules['__main__']
@@ -207,7 +207,7 @@ else:
                     self.overlays.append(overlay)
                 self.strategies.append((strategy, target_peers))
 
-        def unload_overlay(self, instance: Overlay) -> Future | Coroutine:
+        def unload_overlay(self, instance: Overlay) -> Awaitable:
             """
             Unregister and unload a given overlay instance.
             """

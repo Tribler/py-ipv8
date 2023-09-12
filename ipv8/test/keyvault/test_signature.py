@@ -1,5 +1,5 @@
-from ..base import TestBase
 from ...keyvault.crypto import default_eccrypto
+from ..base import TestBase
 
 
 class TestSignatures(TestBase):
@@ -7,12 +7,15 @@ class TestSignatures(TestBase):
     Test whether signatures can be created and then decoded correctly.
     """
 
-    def setUp(self):
+    def setUp(self) -> None:
+        """
+        Generate fake data to test with.
+        """
         super().setUp()
         self.ec = default_eccrypto
         self.data = bytes(range(256))
 
-    def test_vlow(self):
+    def test_vlow(self) -> None:
         """
         Check if very-low security keys generate a valid signature.
         """
@@ -22,7 +25,7 @@ class TestSignatures(TestBase):
 
         self.assertTrue(self.ec.is_valid_signature(key.pub(), self.data, signature))
 
-    def test_low(self):
+    def test_low(self) -> None:
         """
         Check if low security keys generate a valid signature.
         """
@@ -32,7 +35,7 @@ class TestSignatures(TestBase):
 
         self.assertTrue(self.ec.is_valid_signature(key.pub(), self.data, signature))
 
-    def test_medium(self):
+    def test_medium(self) -> None:
         """
         Check if medium security keys generate a valid signature.
         """
@@ -42,7 +45,7 @@ class TestSignatures(TestBase):
 
         self.assertTrue(self.ec.is_valid_signature(key.pub(), self.data, signature))
 
-    def test_high(self):
+    def test_high(self) -> None:
         """
         Check if high security keys generate a valid signature.
         """
@@ -52,7 +55,7 @@ class TestSignatures(TestBase):
 
         self.assertTrue(self.ec.is_valid_signature(key.pub(), self.data, signature))
 
-    def test_curve25519(self):
+    def test_curve25519(self) -> None:
         """
         Check if curve25519 keys generate a valid signature.
         """
@@ -62,7 +65,7 @@ class TestSignatures(TestBase):
 
         self.assertTrue(self.ec.is_valid_signature(key.pub(), self.data, signature))
 
-    def test_invalid_m2crypto(self):
+    def test_invalid_m2crypto(self) -> None:
         """
         Check if an M2Crypto key detects an invalid signature.
         """
@@ -72,7 +75,7 @@ class TestSignatures(TestBase):
 
         self.assertFalse(self.ec.is_valid_signature(key.pub(), self.data, signature))
 
-    def test_invalid_nacl(self):
+    def test_invalid_nacl(self) -> None:
         """
         Check if an libnacl key detects an invalid signature.
         """
