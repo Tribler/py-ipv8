@@ -5,21 +5,38 @@ All rights reserved.
 This source code has been ported from https://github.com/privacybydesign/gabi
 The authors of this file are not -in any way- affiliated with the original authors or organizations.
 """
+from __future__ import annotations
 
-from .proofs import ProofD, hashCommit
-from .. import secure_randint
+from typing import TYPE_CHECKING
+
 from ...primitives.attestation import sha256_as_int
 from ...primitives.value import FP2Value
+from .. import secure_randint
+from .proofs import ProofD, ProofPCommitment, hashCommit
+
+if TYPE_CHECKING:
+    from .keys import CLSignature, PublicKey
+
+# ruff: noqa: N802,N803,N806
 
 
 class Credential:
+    """
+    A credential (attributes + public key + signature).
+    """
 
-    def __init__(self, Pk, Attributes, Signature):
+    def __init__(self, Pk: PublicKey, Attributes: list[int], Signature: CLSignature) -> None:
+        """
+        Create a new credential.
+        """
         self.Signature = Signature
         self.Pk = Pk
         self.Attributes = Attributes
 
-    def CreateDisclosureProof(self, disclosedAttributes, context, nonce1):
+    def CreateDisclosureProof(self, disclosedAttributes: dict[int, int], context: int, nonce1: int) -> ProofD:
+        """
+        Create a disclosure proof for the specified attributes and their values.
+        """
         undisclosedAttributes = getUndisclosedAttributes(disclosedAttributes, len(self.Attributes))
 
         randSig = self.Signature.Randomize(self.Pk)
@@ -59,7 +76,10 @@ class Credential:
 
         return ProofD(c, randSig.A, eResponse, vResponse, aResponses, aDisclosed)
 
-    def CreateDisclosureProofBuilder(self, disclosedAttributes):
+    def CreateDisclosureProofBuilder(self, disclosedAttributes: dict[int, int]) -> DisclosureProofBuilder:
+        """
+        Create a disclosure proof builder for the specified attributes and their values.
+        """
         return DisclosureProofBuilder(self.Signature.Randomize(self.Pk),
                                       secure_randint(self.Pk.Params.LeCommit),
                                       secure_randint(self.Pk.Params.LvCommit),
@@ -73,9 +93,19 @@ class Credential:
 
 
 class DisclosureProofBuilder:
+    """
+    Helper to create disclosure proofs.
+    """
 
-    def __init__(self, randomizedSignature, eCommit, vCommit, attrRandomizers, z, disclosedAttributes,
-                 undisclosedAttributes, pk, attributes):
+    def __init__(self, randomizedSignature: CLSignature,  # noqa: PLR0913
+                 eCommit: int, vCommit: int,
+                 attrRandomizers: dict[int, int],
+                 z: int,
+                 disclosedAttributes: dict[int, int], undisclosedAttributes: list[int],
+                 pk: PublicKey, attributes: list[int]) -> None:
+        """
+        Create a new helper for the given information.
+        """
         self.randomizedSignature = randomizedSignature
         self.eCommit = eCommit
         self.vCommit = vCommit
@@ -86,13 +116,22 @@ class DisclosureProofBuilder:
         self.pk = pk
         self.attributes = attributes
 
-    def MergeProofPCommitment(self, commitment):
+    def MergeProofPCommitment(self, commitment: ProofPCommitment) -> None:
+        """
+        Merge in a partial proof to reconstruct Z.
+        """
         self.z = (self.z * commitment.Pcommit) % self.pk.N
 
-    def PublicKey(self):
+    def PublicKey(self) -> PublicKey:
+        """
+        Get the public key.
+        """
         return self.pk
 
-    def Commit(self, skRandomizer):
+    def Commit(self, skRandomizer: int) -> list[int]:
+        """
+        Get A and Z for the given randomizer.
+        """
         self.attrRandomizers[0] = skRandomizer
 
         Ae = FP2Value(self.pk.N, self.randomizedSignature.A).intpow(self.eCommit).a
@@ -104,7 +143,10 @@ class DisclosureProofBuilder:
 
         return [self.randomizedSignature.A, self.z]
 
-    def CreateProof(self, challenge):
+    def CreateProof(self, challenge: int) -> ProofD:
+        """
+        Create a disclosure proof for the given challange.
+        """
         ePrime = self.randomizedSignature.E - (1 << (self.pk.Params.Le - 1))
         eResponse = challenge * ePrime + self.eCommit
         vResponse = challenge * self.randomizedSignature.V + self.vCommit
@@ -120,12 +162,18 @@ class DisclosureProofBuilder:
 
         return ProofD(challenge, self.randomizedSignature.A, eResponse, vResponse, aResponses, aDisclosed)
 
-    def TimestampRequestContributions(self):
+    def TimestampRequestContributions(self) -> tuple[int, list[int]]:
+        """
+        Fill in the disclosed attributes into a complete list (0 when undisclosed).
+        """
         disclosed = [0] * len(self.attributes)
         for i in self.disclosedAttributes:
             disclosed[i] = self.attributes[i]
         return self.randomizedSignature.A, disclosed
 
 
-def getUndisclosedAttributes(disclosedAttributes, numAttributes):
+def getUndisclosedAttributes(disclosedAttributes: dict[int, int], numAttributes: int) -> list[int]:
+    """
+    Get the keys of undisclosed attributes.
+    """
     return list(set(range(numAttributes)) - set(disclosedAttributes))

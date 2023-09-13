@@ -2,7 +2,10 @@ import os
 from functools import reduce
 
 
-def secure_randint(bitspace):
+def secure_randint(bitspace: int) -> int:
+    """
+    Generate an integer in a given bitspace using the OS rng.
+    """
     delbits = 8 - (bitspace % 8)
     bytez = os.urandom(bitspace // 8)
     if delbits > 0:
