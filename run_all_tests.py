@@ -6,14 +6,21 @@ import importlib
 import inspect
 import io
 import multiprocessing
+import os
 import pathlib
 import platform
 import sys
 import threading
 import time
-import types
 import unittest
 from concurrent.futures import ProcessPoolExecutor
+from typing import TYPE_CHECKING, Generator, TextIO, cast
+from unittest import TestCase
+
+if TYPE_CHECKING:
+    import types
+
+    from typing_extensions import Self
 
 DEFAULT_PROCESS_COUNT = multiprocessing.cpu_count() * 2
 if platform.system() == 'Windows':
@@ -26,21 +33,33 @@ if platform.system() == 'Windows':
 
 
 class ProgrammerDistractor(contextlib.AbstractContextManager):
+    """
+    Rotating + sign while waiting for the test results.
+    """
 
-    def __init__(self, enabled: bool):
+    def __init__(self, enabled: bool) -> None:
+        """
+        Create our distractor, without starting rotation.
+        """
         self.enabled = enabled
         self.starttime = time.time()
         self.timer = None
         self.crashed = False
 
-    def programmer_distractor(self):
+    def programmer_distractor(self) -> None:
+        """
+        Start rotating.
+        """
         distraction = str(int(time.time() - self.starttime))
-        print('\033[u\033[K' + distraction + " seconds and counting "
+        print('\033[u\033[K' + distraction + " seconds and counting "  # noqa: T201
               + ("x" if int(time.time() * 10) % 2 else "+"), end="", flush=True)
         self.timer = threading.Timer(0.1, self.programmer_distractor)
         self.timer.start()
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
+        """
+        Start rotating if we are enabled, otherwise do nothing.
+        """
         if self.enabled:
             self.timer = threading.Timer(0.1, self.programmer_distractor)
             self.timer.start()
@@ -50,6 +69,9 @@ class ProgrammerDistractor(contextlib.AbstractContextManager):
                  exc_type: type[BaseException] | None,
                  exc: BaseException | None,
                  exc_tb: types.TracebackType | None) -> bool:
+        """
+        Exit our context manager. We consume exceptions.
+        """
         if self.timer:
             self.timer.cancel()
         if exc_type is not None or exc is not None:
@@ -59,47 +81,77 @@ class ProgrammerDistractor(contextlib.AbstractContextManager):
 
 
 class CustomTestResult(unittest.TextTestResult):
+    """
+    Custom test results that include the running time of each unit test.
+    """
 
-    def __init__(self, stream, descriptions, verbosity):
+    def __init__(self, stream: TextIO, descriptions: bool, verbosity: int) -> None:
+        """
+        Create a new text test result and reset our timers for the next unit.
+        """
         super().__init__(stream, descriptions, verbosity)
         self.start_time = 0
         self.end_time = 0
         self.last_test = 0
 
-    def getDescription(self, test):
+    def getDescription(self, test: TestCase) -> str:  # noqa: N802
+        """
+        Get the textual representation of a given test case.
+        """
         return str(test)
 
-    def startTestRun(self) -> None:
+    def startTestRun(self) -> None:  # noqa: N802
+        """
+        Start up the test case.
+        """
         super().startTestRun()
         self.start_time = time.time()
         self.end_time = self.start_time
 
-    def startTest(self, test: unittest.case.TestCase) -> None:
+    def startTest(self, test: TestCase) -> None:  # noqa: N802
+        """
+        Start a unit test.
+        """
         super().startTest(test)
         self.last_test = time.time()
 
-    def addSuccess(self, test):
+    def addSuccess(self, test: TestCase) -> None:  # noqa: N802
+        """
+        We finished a unit without failing!
+        """
         super(unittest.TextTestResult, self).addSuccess(test)
         if self.showAll:
-            self.stream.writeln(f"ok [{round((time.time() - self.last_test) * 1000, 2)} ms]")
+            self.stream.write(f"ok [{round((time.time() - self.last_test) * 1000, 2)} ms]{os.linesep}")
         elif self.dots:
             self.stream.write('.')
             self.stream.flush()
 
-    def stopTestRun(self) -> None:
+    def stopTestRun(self) -> None:  # noqa: N802
+        """
+        Stop the entire test run.
+        """
         super().stopTestRun()
         self.end_time = time.time()
 
 
 class CustomLinePrint(io.StringIO):
+    """
+    Interceptor for all prints and logging that stores the calls in a list with timestamps.
+    """
 
-    def __init__(self, delegated, prefix):
+    def __init__(self, delegated: TextIO, prefix: str) -> None:
+        """
+        Forward calls to a given ``TextIO`` and tag each line with a given prefix.
+        """
         super().__init__()
         self.prefix = prefix
         self.delegated = delegated
         self.raw_lines = []
 
     def write(self, __text: str) -> int:
+        """
+        Write text that is not necessarily newline terminated.
+        """
         wtime = time.time()
         if self.raw_lines and not self.raw_lines[-1][2].endswith('\n'):
             self.raw_lines[-1] = (self.raw_lines[-1][0], self.raw_lines[-1][1], self.raw_lines[-1][2] + __text)
@@ -108,7 +160,10 @@ class CustomLinePrint(io.StringIO):
         return self.delegated.write(__text)
 
 
-def task_test(*test_names):
+def task_test(*test_names: str) -> tuple[bool, int, float, list[tuple[str, str, str]], str]:
+    """
+    We're a subprocess that has been assigned some test names to execute.
+    """
     import logging
 
     print_stream = io.StringIO()
@@ -136,10 +191,11 @@ def task_test(*test_names):
     try:
         test_result = reporter.run(suite)
         tests_failed = len(test_result.errors) > 0 or len(test_result.failures) > 0
-        start_time = test_result.start_time
-        end_time = test_result.end_time
-        last_test = test_result.last_test
-        tests_run_count = test_result.testsRun
+        real_result = cast(CustomTestResult, test_result)
+        start_time = real_result.start_time
+        end_time = real_result.end_time
+        last_test = real_result.last_test
+        tests_run_count = real_result.testsRun
     except BaseException:
         tests_failed = True
         end_time = time.time()
@@ -156,13 +212,20 @@ def task_test(*test_names):
     return tests_failed, tests_run_count, end_time - start_time, combined_event_log, print_stream.getvalue()
 
 
-def scan_for_test_files(directory=pathlib.Path('./ipv8/test')):
+def scan_for_test_files(directory: pathlib.Path | str = pathlib.Path('./ipv8/test')) -> Generator[pathlib.Path,
+                                                                                                  None, None]:
+    """
+    Find Python files starting with ``test_`` in a given directory.
+    """
     if not isinstance(directory, pathlib.Path):
         directory = pathlib.Path(directory)
     return directory.glob('**/test_*.py')
 
 
-def derive_test_class_names(test_file_path):
+def derive_test_class_names(test_file_path: pathlib.Path) -> list[str]:
+    """
+    Derive the module names from the given test file path.
+    """
     module_name = '.'.join(test_file_path.relative_to(pathlib.Path('.')).parts)[:-3]
     module_instance = importlib.import_module(module_name)
     test_class_names = []
@@ -172,7 +235,10 @@ def derive_test_class_names(test_file_path):
     return test_class_names
 
 
-def find_all_test_class_names(directory=pathlib.Path('./ipv8/test')):
+def find_all_test_class_names(directory: pathlib.Path | str = pathlib.Path('./ipv8/test')) -> list[str]:
+    """
+    Get all the modules for all the files that look like test files in a given path.
+    """
     if not isinstance(directory, pathlib.Path):
         directory = pathlib.Path(directory)
     test_class_names = []
@@ -195,13 +261,14 @@ if __name__ == "__main__":
     test_class_names = find_all_test_class_names()
 
     total_start_time = time.time()
+    total_end_time = time.time()
     global_event_log = []
     total_time_taken = 0
     total_tests_run = 0
     total_fail = False
     print_output = ''
 
-    print(f"Launching in {process_count} processes ... awaiting results ... \033[s", end="", flush=True)
+    print(f"Launching in {process_count} processes ... awaiting results ... \033[s", end="", flush=True)  # noqa: T201
 
     with ProgrammerDistractor(not args.noanimation) as programmer_distractor:
         with ProcessPoolExecutor(max_workers=process_count) as executor:
@@ -220,25 +287,25 @@ if __name__ == "__main__":
 
     if programmer_distractor.crashed:
         # The printed test results won't show any errors. We need to give some more info.
-        print("\033[u\033[Ktest suite process crash! Segfault?", end="\r\n\r\n", flush=True)
+        print("\033[u\033[Ktest suite process crash! Segfault?", end="\r\n\r\n", flush=True)  # noqa: T201
     else:
-        print("\033[u\033[Kdone!", end="\r\n\r\n", flush=True)
+        print("\033[u\033[Kdone!", end="\r\n\r\n", flush=True)  # noqa: T201
 
     if total_fail or not args.quiet:
-        print(unittest.TextTestResult.separator1)
+        print(unittest.TextTestResult.separator1)  # noqa: T201
         global_event_log.sort(key=lambda x: x[0])
         for event in global_event_log:
-            print(('\033[91m' if event[1] == "ERR" else ('\033[94m' if event[1] == "LOG" else '\033[0m'))
+            print(('\033[91m' if event[1] == "ERR" else ('\033[94m' if event[1] == "LOG" else '\033[0m'))  # noqa: T201
                   + event[2] + '\033[0m',
                   end='')
-        print("\r\n" + unittest.TextTestResult.separator1)
+        print("\r\n" + unittest.TextTestResult.separator1)  # noqa: T201
 
-    print("Summary:")
+    print("Summary:")  # noqa: T201
     if total_fail:
-        print("[\033[91mFAILED\033[0m", end="")
+        print("[\033[91mFAILED\033[0m", end="")  # noqa: T201
     else:
-        print("[\033[32mSUCCESS\033[0m", end="")
-    print(f"] Ran {total_tests_run} tests "
+        print("[\033[32mSUCCESS\033[0m", end="")  # noqa: T201
+    print(f"] Ran {total_tests_run} tests "  # noqa: T201
           f"in {round(total_end_time-total_start_time, 2)} seconds "
           f"({round(total_time_taken, 2)} seconds total in tests).")
 

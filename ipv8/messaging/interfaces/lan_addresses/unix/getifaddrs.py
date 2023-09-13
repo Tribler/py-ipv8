@@ -85,7 +85,7 @@ class ifaddrs(Structure):
     """
 
 
-ifaddrs._fields_ = [
+ifaddrs._fields_ = [  # noqa: SLF001
     ('ifa_next', POINTER(ifaddrs)),
     ('ifa_name', c_char_p),
     ('ifa_flags', c_uint),

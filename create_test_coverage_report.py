@@ -16,7 +16,7 @@ from coverage.results import Analysis
 from run_all_tests import find_all_test_class_names
 
 if __name__ != '__main__':
-    print(__file__, "should be run stand-alone! Instead, it is being imported!", file=sys.stderr)
+    print(__file__, "should be run stand-alone! Instead, it is being imported!", file=sys.stderr)  # noqa: T201
     sys.exit(1)
 
 data_file = os.path.join('coverage', 'raw', 'coverage_file')
@@ -24,7 +24,10 @@ logging.basicConfig(level=logging.CRITICAL)
 logging.disable(logging.CRITICAL)
 
 
-def clean_directory(prepare=False):
+def clean_directory(prepare: bool = False) -> None:
+    """
+    Remove all files in the ``coverage/raw`` directory.
+    """
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'coverage', 'raw')
     if os.path.isdir(path):
         shutil.rmtree(path)
@@ -41,10 +44,7 @@ test_paths = find_all_test_class_names()
 # We remove them again to get the correct coverage.
 # We also remove the singleton entries for the REST API to avoid double binding to names.
 for module_name in list(sys.modules.keys()):
-    if (module_name.startswith('ipv8')
-            or module_name.startswith('marshmallow')
-            or module_name.startswith('apispec')
-            or module_name.startswith('aiohttp')):
+    if module_name.startswith(('ipv8', 'marshmallow', 'apispec', 'aiohttp')):
         del sys.modules[module_name]
 
 cov = coverage.Coverage(data_file=data_file, data_suffix=True, config_file=False,
@@ -53,7 +53,7 @@ cov.exclude('pass')
 cov.start()
 
 for test_path in test_paths:
-    print("Measuring coverage for", test_path)
+    print("Measuring coverage for", test_path)  # noqa: T201
 
     output_stream = StringIO()
 
@@ -68,10 +68,10 @@ for test_path in test_paths:
     output_stream.close()
 
 cov.stop()
-print("Generating HTML report")
+print("Generating HTML report")  # noqa: T201
 cov.html_report(directory='coverage')
 
-print("Aggregating package stats")
+print("Aggregating package stats")  # noqa: T201
 total_numbers = {}  # Package name -> (Numbers: package coverage stats, dict: files per coverage bin)
 for filename in cov.get_data().measured_files():
     file_reporter = PythonFileReporter(filename, cov)
@@ -97,7 +97,7 @@ for filename in cov.get_data().measured_files():
         package_buckets[individual_coverage] = 1 + package_buckets.get(individual_coverage, 0)
         total_numbers[package] = (package_numbers + analysis.numbers, package_buckets)
 
-print("Generating R barplot script")
+print("Generating R barplot script")  # noqa: T201
 with open(os.path.join('coverage', 'plotbars.R'), 'w') as barplot_script:
     package_count = len(total_numbers)
     barplot_script.write(f"""
@@ -108,9 +108,9 @@ par(mfrow=c({package_count},1))\n""")
         barplot_script.write(f"""
 barplot(c({",".join([str(buckets.get(k, 0)) for k in range(5)])}),
     names.arg=c("0-19", "20-39", "40-59", "60-79", "80-100"),
-    main="{package_name} (total coverage: {str(round(numbers.pc_covered, 2))})")\n""")
+    main="{package_name} (total coverage: {round(numbers.pc_covered, 2)!s})")\n""")
     barplot_script.write("\ndev.off()\n")
 
-print("Cleaning up..")
+print("Cleaning up..")  # noqa: T201
 cov.erase()
 clean_directory()
