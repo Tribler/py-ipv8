@@ -325,7 +325,7 @@ class TestBase(TestCaseClass, Generic[OT]):
                 # But sometimes it just flat out refuses to die (sys.exit will also not work in this case).
                 # So we double kill ourselves:
                 time.sleep(5.0)  # Just in case anyone is listening to our signal and wishes to log some stats quickly.
-                os._exit(1)  # noqa: SLF001
+                os._exit(1)
             t = threading.Thread(target=check_loop)
             t.daemon = True
             t.start()

@@ -146,7 +146,7 @@ else:
                     target_peers = walker['peers']
                     self.strategies.append((strategy_class(overlay_instance, **args), target_peers))
                 for config in overlay['on_start']:
-                    self.on_start.append((getattr(overlay_instance, config[0]), config[1:]))  # noqa: PERF401
+                    self.on_start.append((getattr(overlay_instance, config[0]), config[1:]))
                 for bootstrapper in overlay['bootstrappers']:
                     bootstrapper_class = _BOOTSTRAPPERS.get(bootstrapper['class'])
                     if bootstrapper_class:
