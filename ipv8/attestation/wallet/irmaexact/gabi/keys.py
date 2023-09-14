@@ -5,24 +5,34 @@ All rights reserved.
 This source code has been ported from https://github.com/privacybydesign/gabi
 The authors of this file are not -in any way- affiliated with the original authors or organizations.
 """
+from __future__ import annotations
 
 from binascii import hexlify
 from os import urandom
+from typing import cast
 
-from cryptography.hazmat.primitives.asymmetric.rsa import _modinv  # type:ignore
+from cryptography.hazmat.primitives.asymmetric.rsa import _modinv
 
-from .. import secure_randint
+from .....util import byte2int, int2byte
 from ...primitives.attestation import sha256_as_int
 from ...primitives.cryptography_wrapper import generate_safe_prime, is_prime
 from ...primitives.value import FP2Value
-from .....util import byte2int, int2byte
+from .. import secure_randint
 
 DefaultEpochLength = 432000
 
+# ruff: noqa: N802,N803,N806,N816
+
 
 class BaseParameters:
+    """
+    Algorithm parameters for Gabi.
+    """
 
-    def __init__(self, LePrime, Lh, Lm, Ln, Lstatzk):
+    def __init__(self, LePrime: int, Lh: int, Lm: int, Ln: int, Lstatzk: int) -> None:  # noqa: PLR0913
+        """
+        Create new base parameters.
+        """
         self.LePrime = LePrime
         self.Lh = Lh
         self.Lm = Lm
@@ -48,8 +58,14 @@ DefaultSystemParameters = {
 
 
 class PrivateKey:
+    """
+    Gabi private key.
+    """
 
-    def __init__(self, p, q, counter, expiryDate):
+    def __init__(self, p: int, q: int, counter: int, expiryDate: int) -> None:
+        """
+        Create a new private key.
+        """
         self.Counter = counter
         self.ExpiryData = expiryDate
         self.P = p
@@ -59,8 +75,15 @@ class PrivateKey:
 
 
 class PublicKey:
+    """
+    Gabi public key.
+    """
 
-    def __init__(self, N, Z, S, R, counter, expiryDate, param=None):
+    def __init__(self, N: int, Z: int, S: int, R: list[int], counter: int, expiryDate: int,  # noqa: PLR0913
+                 param: BaseParameters | None = None) -> None:
+        """
+        Create a new Gabi public key.
+        """
         self.Counter = counter
         self.ExpiryDate = expiryDate
         self.N = N
@@ -68,20 +91,27 @@ class PublicKey:
         self.S = S
         self.R = R
         self.EpochLength = DefaultEpochLength
-        self.Params = param or DefaultSystemParameters[N.bit_length()]
+        self.Params: BaseParameters = param or DefaultSystemParameters[N.bit_length()]
         self.Issuer = "-"
 
 
-def findMatch(safeprimes, param, p):
+def findMatch(safeprimes: list[int], param: BaseParameters, p: int) -> int | None:
+    """
+    Select a safe prime from the given list that fits the Gabi protocol's requirements.
+    """
     for q in safeprimes:
         if (p * q).bit_length() == param.Ln and (p % 8) != 0 and (q % 8) != 0:
             return q
     return None
 
 
-def generateSafePrimePair(param):
+def generateSafePrimePair(param: BaseParameters) -> tuple[int, int]:
+    """
+    Generate a prime pair that fits Gabi's protocol requirements.
+    """
     primeSize = param.Ln // 2
-    safeprimes = []
+    safeprimes: list[int] = []
+    q = None
     while True:
         p = generate_safe_prime(primeSize)
         pPrime = p >> 1
@@ -89,14 +119,17 @@ def generateSafePrimePair(param):
         if pPrimeMod8 == 1:
             continue
         q = findMatch(safeprimes, param, p)
-        if not safeprimes or not q:
+        if not safeprimes or q is None:
             safeprimes.append(p)
             continue
         break
-    return p, q
+    return p, cast(int, q)
 
 
-def legendreSymbol(a, p):
+def legendreSymbol(a: int, p: int) -> int:
+    """
+    Calculate the Legendre Symbol for numbner a and prime p.
+    """
     j = 1
     n = a % p
     m = p
@@ -106,7 +139,7 @@ def legendreSymbol(a, p):
             n >>= 1
             t += 1
         tmp = m % 8
-        if (t & 1) == 1 and (tmp == 3 or tmp == 5):
+        if (t & 1) == 1 and tmp in {3, 5}:
             j = -j
         if (m % 4) == 3 or (n % 4) == 3:
             j = -j
@@ -117,7 +150,11 @@ def legendreSymbol(a, p):
     return 0
 
 
-def GenerateKeyPair(param, numAttributes, counter, expiryDate):
+def GenerateKeyPair(param: BaseParameters, numAttributes: int, counter: int,
+                    expiryDate: int) -> tuple[PrivateKey, PublicKey]:
+    """
+    Generate a new key pair for a given number of attributes.
+    """
     p, q = generateSafePrimePair(param)
     priv = PrivateKey(p, q, counter, expiryDate)
 
@@ -140,7 +177,7 @@ def GenerateKeyPair(param, numAttributes, counter, expiryDate):
 
     R = []
 
-    for i in range(numAttributes):
+    for _i in range(numAttributes):
         while True:
             x = secure_randint(primeSize)
             if x > 2 and x < N:
@@ -151,24 +188,32 @@ def GenerateKeyPair(param, numAttributes, counter, expiryDate):
 
     if not SignMessageBlock(priv, pubk, [1]).Verify(pubk, [1]):
         return GenerateKeyPair(param, numAttributes, counter, expiryDate)
-    else:
-        return priv, pubk
+    return priv, pubk
 
 
 class CLSignature:
+    """
+    A Camenisch-Lysyanskaya signature.
+    """
 
-    def __init__(self, A, E, V, KeyshareP=None):
+    def __init__(self, A: int, E: int, V: int, KeyshareP: int | None = None) -> None:
+        """
+        Represent the given signature data.
+        """
         self.A = A
         self.E = E
         self.V = V
         self.KeyshareP = KeyshareP
 
-    def Verify(self, pk, ms):
+    def Verify(self, pk: PublicKey, ms: list[int]) -> bool:
+        """
+        Verify the signature for the given public key.
+        """
         start = 1 << (pk.Params.Le - 1)
         end = 1 << (pk.Params.LePrime - 1)
         end = end + start
 
-        if self.E < start or self.E > end:
+        if start > self.E or end < self.E:
             return False
 
         Ae = FP2Value(pk.N, self.A).intpow(self.E).a
@@ -183,7 +228,10 @@ class CLSignature:
 
         return pk.Z == Q
 
-    def Randomize(self, pk):
+    def Randomize(self, pk: PublicKey) -> CLSignature:
+        """
+        Mask the signature without changing its underlying data.
+        """
         r = secure_randint(pk.Params.LRA)
         APrime = (FP2Value(pk.N, self.A) * FP2Value(pk.N, pk.S).intpow(r)).a
         t = self.E * r
@@ -191,7 +239,10 @@ class CLSignature:
         return CLSignature(APrime, self.E, VPrime, None)
 
 
-def representToBases(bases, exps, modulus, maxMessageLength):
+def representToBases(bases: list[int], exps: list[int], modulus: int, maxMessageLength: int) -> int:
+    """
+    CRT the given exponents (or their hashes if they are bigger than the max length).
+    """
     r = 1
     for i in range(len(exps)):
         exp = exps[i]
@@ -202,7 +253,10 @@ def representToBases(bases, exps, modulus, maxMessageLength):
     return r
 
 
-def RepresentToPublicKey(pk, exps):
+def RepresentToPublicKey(pk: PublicKey, exps: list[int]) -> int:
+    """
+    CRT the given exponents using public key information.
+    """
     return representToBases(pk.R, exps, pk.N, pk.Params.Lm)
 
 
@@ -210,7 +264,10 @@ smallPrimes = [3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53]
 smallPrimesProduct = 16294579238595022365
 
 
-def randomPrimeInRange(start, length):
+def randomPrimeInRange(start: int, length: int) -> int:
+    """
+    Generate a prime in a given range.
+    """
     b = length % 8
     if b == 0:
         b = 8
@@ -240,7 +297,10 @@ def randomPrimeInRange(start, length):
             return p
 
 
-def signMessageBlockAndCommitment(sk, pk, U, ms):
+def signMessageBlockAndCommitment(sk: PrivateKey, pk: PublicKey, U: int, ms: list[int]) -> CLSignature:
+    """
+    Sign a bunch of messages using our key material.
+    """
     R = RepresentToPublicKey(pk, ms)
     vTilde = secure_randint(pk.Params.Lv)
     twoLv = 1 << (pk.Params.Lv - 1)
@@ -261,5 +321,8 @@ def signMessageBlockAndCommitment(sk, pk, U, ms):
     return CLSignature(A, e, v, None)
 
 
-def SignMessageBlock(sk, pk, ms):
+def SignMessageBlock(sk: PrivateKey, pk: PublicKey, ms: list[int]) -> CLSignature:
+    """
+    Sign a bunch of messages using our key material.
+    """
     return signMessageBlockAndCommitment(sk, pk, 1, ms)
