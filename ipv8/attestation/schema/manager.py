@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import typing
 
-from ...types import IdentityAlgorithmClass
+if typing.TYPE_CHECKING:
+    from ...types import IdentityAlgorithm
 
 
 class SchemaManager:
@@ -16,12 +17,13 @@ class SchemaManager:
         """
         super().__init__()
 
-        self.formats: dict[str, dict[str, typing.Any]] = dict()
-        self.algorithms: dict[str, IdentityAlgorithmClass] = dict()
+        self.formats: dict[str, dict[str, typing.Any]] = {}
+        self.algorithms: dict[str, type[IdentityAlgorithm]] = {}
 
-    def get_algorithm_class(self, algorithm_name: str) -> IdentityAlgorithmClass:
+    def get_algorithm_class(self, algorithm_name: str) -> type[IdentityAlgorithm]:
         """
         Get the implementation belonging to a certain algorithm name.
+
         These are bound to either:
 
          - bonehexact: for exact value matches using "Evaluating 2-DNF Formulas on Ciphertexts" by Boneh et al.
@@ -35,7 +37,7 @@ class SchemaManager:
         # Lazy load
         if algorithm_name == "bonehexact":
             from ..wallet.bonehexact.algorithm import BonehExactAlgorithm
-            algorithm: IdentityAlgorithmClass = BonehExactAlgorithm
+            algorithm: type[IdentityAlgorithm] = BonehExactAlgorithm
         elif algorithm_name == "pengbaorange":
             from ..wallet.pengbaorange.algorithm import PengBaoRangeAlgorithm
             algorithm = PengBaoRangeAlgorithm
@@ -43,7 +45,8 @@ class SchemaManager:
             from ..wallet.irmaexact.algorithm import IRMAExactAlgorithm
             algorithm = IRMAExactAlgorithm
         else:
-            raise RuntimeError(f"Attempted to load unknown proof algorithm {algorithm_name}!")
+            msg = f"Attempted to load unknown proof algorithm {algorithm_name}!"
+            raise RuntimeError(msg)
         self.algorithms[algorithm_name] = algorithm
         return algorithm
 
@@ -63,6 +66,7 @@ class SchemaManager:
     def register_default_schemas(self) -> None:
         """
         Register all default formats to this SchemaManager.
+
         You will load:
 
             - id_metadata: 1024 bit space "exact" value match
@@ -76,9 +80,9 @@ class SchemaManager:
         """
         from ..default_identity_formats import FORMATS
         for schema in FORMATS:
-            self.register_schema(schema, FORMATS[schema]["algorithm"], FORMATS[schema])  # type:ignore
+            self.register_schema(schema, typing.cast(str, FORMATS[schema]["algorithm"]), FORMATS[schema])
 
-    def get_algorithm_instance(self, schema_name: str):
+    def get_algorithm_instance(self, schema_name: str) -> IdentityAlgorithm:
         """
         Get an algorithm instance from a schema name.
 

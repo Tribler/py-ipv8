@@ -23,8 +23,6 @@ if typing.TYPE_CHECKING:
     from ipv8.peer import Peer
     from ipv8.requestcache import NumberCache
     from ipv8_service import IPv8
-
-    IdentityAlgorithmClass = typing.Type[IdentityAlgorithm]
 else:
     Attestation = 'ipv8.attestation.identity.attestation.Attestation'
     AttestationCommunity = 'ipv8.attestation.wallet.community.AttestationCommunity'
@@ -35,7 +33,6 @@ else:
     DHTCommunity = 'ipv8.dht.community.DHTCommunity'
     Endpoint = 'ipv8.messaging.interfaces.endpoint.Endpoint'
     IdentityAlgorithm = 'ipv8.attestation.identity_formats.IdentityAlgorithm'
-    IdentityAlgorithmClass = 'ipv8.attestation.identity_formats.IdentityAlgorithm.__class__'
     IPv8 = 'ipv8_service.IPv8'
     Key = 'ipv8.keyvault.keys.Key'
     Metadata = 'ipv8.attestation.identity.metadata.Metadata'
@@ -47,3 +44,65 @@ else:
     PseudonymManager = 'ipv8.attestation.identity.manager.PseudonymManager'
     PublicKey = 'ipv8.keyvault.keys.PublicKey'
     Token = 'ipv8.attestation.tokentree.token.Token'
+
+
+MessageHandlerFunction = typing.Union[typing.Callable[[Overlay, Address, bytes],
+                                                      None],
+                                      typing.Callable[[Address, bytes],
+                                                      None],
+                                      typing.Callable[[Overlay, Address, bytes],
+                                                      typing.Coroutine[typing.Any, typing.Any, None]],
+                                      typing.Callable[[Address, bytes],
+                                                      typing.Coroutine[typing.Any, typing.Any, None]]]
+
+LazyWrappedHandler = typing.Union[typing.Callable[..., None],
+                                  typing.Callable[..., typing.Coroutine[typing.Any, typing.Any, None]]]
+"""
+ ..
+ typing.Union[
+    typing.Callable[[Overlay, Peer, *list[Payload]], None],
+    typing.Callable[[Peer, *list[Payload]], None],
+    typing.Callable[[Overlay, Peer, *list[Payload]],
+                    typing.Coroutine[typing.Any, typing.Any, None]],
+    typing.Callable[[Peer, *list[Payload]],
+                    typing.Coroutine[typing.Any, typing.Any, None]]
+ ]"""
+
+LazyWrappedUnsignedHandler = typing.Union[typing.Callable[..., None],
+                                          typing.Callable[..., typing.Coroutine[typing.Any, typing.Any, None]]]
+"""
+ ..
+ typing.Union[
+    typing.Callable[[Overlay, Address, *list[Payload]], None],
+    typing.Callable[[Address, *list[Payload]], None],
+    typing.Callable[[Overlay, Address, *list[Payload]],
+                    typing.Coroutine[typing.Any, typing.Any, None]],
+    typing.Callable[[Address, *list[Payload]],
+                    typing.Coroutine[typing.Any, typing.Any, None]]
+ ]"""
+
+LazyWrappedWDataHandler = typing.Union[typing.Callable[..., None],
+                                       typing.Callable[..., typing.Coroutine[typing.Any, typing.Any, None]]]
+"""
+ ..
+ typing.Union[
+    typing.Callable[[Overlay, Peer, *list[Payload], KwArg(bytes, "data")], None],
+    typing.Callable[[Peer, *list[Payload], KwArg(bytes, "data")], None],
+    typing.Callable[[Overlay, Peer, *list[Payload], KwArg(bytes, "data")],
+                    typing.Coroutine[typing.Any, typing.Any, None]],
+    typing.Callable[[Peer, *list[Payload], KwArg(bytes, "data")],
+                    typing.Coroutine[typing.Any, typing.Any, None]]
+ ]"""
+
+LazyWrappedWDataUnsignedHandler = typing.Union[typing.Callable[..., None],
+                                               typing.Callable[..., typing.Coroutine[typing.Any, typing.Any, None]]]
+"""
+ ..
+ typing.Union[
+    typing.Callable[[Overlay, Address, *list[Payload], KwArg(bytes, "data")], None],
+    typing.Callable[[Address, *list[Payload], KwArg(bytes, "data")], None],
+    typing.Callable[[Overlay, Address, *list[Payload], KwArg(bytes, "data")],
+                    typing.Coroutine[typing.Any, typing.Any, None]],
+    typing.Callable[[Address, *list[Payload], KwArg(bytes, "data")],
+                    typing.Coroutine[typing.Any, typing.Any, None]]
+ ]"""

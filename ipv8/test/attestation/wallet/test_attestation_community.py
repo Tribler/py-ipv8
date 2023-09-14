@@ -10,6 +10,7 @@ from ....attestation.wallet.community import AttestationCommunity
 from ....attestation.wallet.database import AttestationsDB
 from ....attestation.wallet.pengbaorange.structs import PengBaoAttestation
 from ....attestation.wallet.primitives.structs import BonehPrivateKey
+from ....util import succeed
 from ...base import MockIPv8, TestBase
 
 if TYPE_CHECKING:
@@ -118,7 +119,7 @@ class TestCommunity(TestBase[AttestationCommunity]):
         """
         Check if the request_attestation callback is correctly called.
         """
-        def f(peer: Peer, attribute_name: str, _: bytes , __: str | None = None) -> None:
+        def f(peer: Peer, attribute_name: str, _: bytes , __: str, ___: Peer | None = None) -> None:
             self.assertEqual(peer.address, self.address(1))
             self.assertEqual(attribute_name, "MyAttribute")
 
@@ -127,7 +128,7 @@ class TestCommunity(TestBase[AttestationCommunity]):
 
         await self.introduce_nodes()
 
-        self.overlay(0).set_attestation_request_callback(lambda x, y, z: b"AttributeValue")
+        self.overlay(0).set_attestation_request_callback(lambda x, y, z: succeed(b"AttributeValue"))
         self.overlay(0).set_attestation_request_complete_callback(f)
 
         self.overlay(1).request_attestation(self.my_peer(0), "MyAttribute", TestCommunity.private_key)
@@ -143,7 +144,7 @@ class TestCommunity(TestBase[AttestationCommunity]):
         Check if the request_attestation callback is correctly called for id_metadata_big.
         """
 
-        def f(peer: Peer, attribute_name: str, _: bytes , __: str | None = None) -> None:
+        def f(peer: Peer, attribute_name: str, _: bytes , __: str, ___: Peer | None = None) -> None:
             self.assertEqual(peer.address, self.address(1))
             self.assertEqual(attribute_name, "MyAttribute")
 
@@ -153,7 +154,7 @@ class TestCommunity(TestBase[AttestationCommunity]):
 
         await self.introduce_nodes()
 
-        self.overlay(0).set_attestation_request_callback(lambda x, y, z: b"AttributeValue")
+        self.overlay(0).set_attestation_request_callback(lambda x, y, z: succeed(b"AttributeValue"))
         self.overlay(0).set_attestation_request_complete_callback(f)
 
         self.overlay(1).request_attestation(self.my_peer(0), "MyAttribute", TestCommunity.private_key,
@@ -170,7 +171,7 @@ class TestCommunity(TestBase[AttestationCommunity]):
         Check if the request_attestation callback is correctly called for id_metadata_range_18plus.
         """
 
-        def f(peer: Peer, attribute_name: str, _: bytes , __: str | None = None) -> None:
+        def f(peer: Peer, attribute_name: str, _: bytes , __: str, ___: Peer | None = None) -> None:
             self.assertEqual(peer.address, self.address(1))
             self.assertEqual(attribute_name, "MyAttribute")
 
@@ -180,7 +181,7 @@ class TestCommunity(TestBase[AttestationCommunity]):
 
         await self.introduce_nodes()
 
-        self.overlay(0).set_attestation_request_callback(lambda x, y, z: b"\x13")
+        self.overlay(0).set_attestation_request_callback(lambda x, y, z: succeed(b"\x13"))
         self.overlay(0).set_attestation_request_complete_callback(f)
 
         self.overlay(1).request_attestation(self.my_peer(0), "MyAttribute", TestCommunity.private_key,
@@ -226,7 +227,7 @@ class TestCommunity(TestBase[AttestationCommunity]):
         """
         attribute_value = b"2168897456"
 
-        def f(peer: Peer, attribute_name: str, attestation_hash: bytes, __: str | None = None) -> None:
+        def f(peer: Peer, attribute_name: str, attestation_hash: bytes, __: str, ___: Peer | None = None) -> None:
             self.assertEqual(peer.address, self.address(1))
             self.assertEqual(attribute_name, "MyAttribute")
 
@@ -237,7 +238,7 @@ class TestCommunity(TestBase[AttestationCommunity]):
 
         await self.introduce_nodes()
 
-        self.overlay(0).set_attestation_request_callback(lambda x, y, z: attribute_value)
+        self.overlay(0).set_attestation_request_callback(lambda x, y, z: succeed(attribute_value))
         self.overlay(0).set_attestation_request_complete_callback(f)
 
         self.overlay(1).request_attestation(self.my_peer(0), "MyAttribute", TestCommunity.private_key)

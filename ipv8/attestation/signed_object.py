@@ -6,7 +6,9 @@ import struct
 import typing
 
 from ..keyvault.crypto import ECCrypto
-from ..types import PrivateKey, PublicKey
+
+if typing.TYPE_CHECKING:
+    from ..types import PrivateKey, PublicKey
 
 T = typing.TypeVar('T')
 
@@ -21,7 +23,7 @@ class AbstractSignedObject(metaclass=abc.ABCMeta):
 
     def __init__(self,
                  private_key: PrivateKey | None = None,
-                 signature: bytes | None = None):
+                 signature: bytes | None = None) -> None:
         """
         Create a new object that can be serialized and signed.
         Call this after the data has been established for the `get_plaintext()` method.
@@ -59,7 +61,8 @@ class AbstractSignedObject(metaclass=abc.ABCMeta):
         elif private_key is None and signature is not None:
             self.signature = signature
         else:
-            raise RuntimeError("Specify either private_key or signature!")
+            msg = "Specify either private_key or signature!"
+            raise RuntimeError(msg)
         self._hash = hashlib.sha3_256(self.get_plaintext_signed()).digest()
 
     @abc.abstractmethod
@@ -67,7 +70,6 @@ class AbstractSignedObject(metaclass=abc.ABCMeta):
         """
         Retrieve the content that needs to be signed, in serialized form (bytes).
         """
-        pass
 
     def get_plaintext_signed(self) -> bytes:
         """
@@ -77,18 +79,29 @@ class AbstractSignedObject(metaclass=abc.ABCMeta):
 
     @classmethod
     @abc.abstractmethod
-    def unserialize(cls: T, data: bytes, public_key: PublicKey, offset: int = 0) -> T:
-        pass
+    def unserialize(cls: type[T], data: bytes, public_key: PublicKey, offset: int = 0) -> T:
+        """
+        Read this signed object from its serialized form.
+        """
 
     def __hash__(self) -> int:
+        """
+        The hash of this signed object.
+        """
         return struct.unpack(">Q", self._hash[:8])[0]
 
     def __eq__(self, other: object) -> bool:
+        """
+        Signed objects are equal if their signed plaintext is equal.
+        """
         if not isinstance(other, self.__class__):
             return False
         return self.get_plaintext_signed() == other.get_plaintext_signed()
 
     def __ne__(self, other: object) -> bool:
+        """
+        Signed objects are not equal if their signed plaintext is not equal.
+        """
         if not isinstance(other, self.__class__):
             return True
         return self.get_plaintext_signed() != other.get_plaintext_signed()

@@ -1,6 +1,8 @@
 """
 Implementation of the Boneh 2-DNF scheme ("Evaluating 2-DNF Formulas on Ciphertexts" by Boneh et al.).
 """
+from __future__ import annotations
+
 from random import randint
 
 from .cryptography_wrapper import generate_safe_prime, is_prime
@@ -9,12 +11,12 @@ from .structs import BonehPrivateKey, BonehPublicKey
 from .value import FP2Value
 
 
-def generate_prime(n):
+def generate_prime(n: int) -> int:
     """
     Generate p = l * n - 1 such that:
      - p is "prime"
      - p mod 3 = 2
-     - l is an as small as possible positive integer
+     - l is an as small as possible positive integer.
     """
     p = 1
     l = 0
@@ -24,22 +26,21 @@ def generate_prime(n):
     return p
 
 
-def bilinear_group(n, p, g1x, g1y, g2x, g2y):
+def bilinear_group(n: int, p: int, g1x: int, g1y: int, g2x: int, g2y: int) -> FP2Value:  # noqa: PLR0913
     """
     Generate a bilinear group for two generators.
     """
     try:
-        wp = weilpairing(p,
+        return weilpairing(p,
                          n,
                          (FP2Value(p, g1x), FP2Value(p, g1y)),
                          (FP2Value(p, b=g2x), FP2Value(p, g2y)),
                          (FP2Value(p), FP2Value(p)))
-        return wp
     except Exception:
         return FP2Value(p)
 
 
-def get_random_exponentiation(p, n):
+def get_random_exponentiation(p: FP2Value, n: int) -> FP2Value:
     """
     Create a random exponentiation of p in message space n.
     """
@@ -50,7 +51,7 @@ def get_random_exponentiation(p, n):
     return test
 
 
-def get_random_base(n):
+def get_random_base(n: int) -> tuple[int, int]:
     """
     Create a generator for the EC.
     """
@@ -59,7 +60,7 @@ def get_random_base(n):
     return x, y
 
 
-def is_good_wp(n, wp):
+def is_good_wp(n: int, wp: FP2Value) -> bool:
     """
     A good pairing is not 0 and has order n.
     """
@@ -69,11 +70,12 @@ def is_good_wp(n, wp):
     return good_order and not is_zero and not is_one
 
 
-def get_good_wp(n, p=None):
+def get_good_wp(n: int, p: int | None = None) -> tuple[int, FP2Value]:
     """
     Instead of inspecting torsion points and checking for co-primality:
-    just brute force generate pairings until we a get a good one.
-    :return: modulus, weilparing
+    just brute force generate pairings until we get a good one.
+
+    :return: modulus, weilparing.
     """
     wp = None
     if not p:
@@ -86,7 +88,7 @@ def get_good_wp(n, p=None):
     return p, wp
 
 
-def generate_primes(key_size=128):
+def generate_primes(key_size: int = 128) -> tuple[int, int]:
     """
     Generate some primes. Key size in bits.
     """
@@ -101,7 +103,7 @@ def generate_primes(key_size=128):
     return min(p, q), max(p, q)
 
 
-def generate_keypair(key_size=32):
+def generate_keypair(key_size: int = 32) -> tuple[BonehPublicKey, BonehPrivateKey]:
     """
     Generate a keypair for a certain prime bit space.
     """
@@ -115,14 +117,14 @@ def generate_keypair(key_size=32):
     return BonehPublicKey(p, g, h), BonehPrivateKey(p, g, h, t1 * t2, t1)
 
 
-def encode(pubkey, m):
+def encode(pubkey: BonehPublicKey, m: int) -> FP2Value:
     """
     Encode a message m given a public key.
     """
     return pubkey.g.intpow(m) * get_random_exponentiation(pubkey.h, pubkey.p)
 
 
-def decode(privkey, msgspace, c):
+def decode(privkey: BonehPrivateKey, msgspace: list[int], c: FP2Value) -> int | None:
     """
     Decode a ciphertext c given a private key and the possible source messages.
     """

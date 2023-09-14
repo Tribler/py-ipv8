@@ -98,7 +98,7 @@ class CommunicationChannel:
         if not metadata:
             return succeed(None)
         attribute_name = json.loads(metadata.serialized_json_dict)["name"]
-        future: asyncio.Future = asyncio.Future()
+        future: asyncio.Future[bool] = asyncio.Future()
         self.verify_requests[(peer, attribute_name)] = future
         return future
 

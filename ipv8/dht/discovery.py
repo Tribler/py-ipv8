@@ -3,10 +3,11 @@ from __future__ import annotations
 import time
 from binascii import hexlify
 from collections import defaultdict
-from typing import TYPE_CHECKING, List, cast
+from typing import TYPE_CHECKING, Callable, List, cast
 
 from ..community import DEFAULT_MAX_PEERS
 from ..lazy_community import lazy_wrapper, lazy_wrapper_wd
+from ..types import Address
 from . import DHTError
 from .community import MAX_NODES_IN_FIND, PING_INTERVAL, TARGET_NODES, DHTCommunity, Request, gather_without_errors
 from .payload import (
@@ -52,7 +53,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
         """
         When a ping comes in and we store it, update its metrics.
         """
-        super().on_ping_request(peer.address, data)
+        cast(Callable[[Address, bytes], None], super().on_ping_request)(peer.address, data)
         node = self.find_node_in_dict(peer.key.key_to_bin(), self.store)
         if node:
             node.last_queries.append(time.time())
@@ -62,7 +63,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
         """
         When a ping response comes in and we store it, update its metrics.
         """
-        super().on_ping_response(peer.address, data)
+        cast(Callable[[Address, bytes], None], super().on_ping_response)(peer.address, data)
         node = self.find_node_in_dict(peer.key.key_to_bin(), self.store_for_me)
         if node:
             node.last_response = time.time()

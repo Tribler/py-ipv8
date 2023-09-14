@@ -1,17 +1,25 @@
+from __future__ import annotations
+
 import struct
 from binascii import hexlify
 from os import urandom
+from typing import TYPE_CHECKING, Any, cast
 
+from ...identity_formats import IdentityAlgorithm
 from ..pengbaorange.attestation import create_attest_pair
-from ..pengbaorange.structs import PengBaoAttestation
+from ..pengbaorange.structs import PengBaoAttestation, PengBaoCommitmentPrivate
 from ..primitives.boneh import generate_keypair
 from ..primitives.structs import BonehPrivateKey, BonehPublicKey, pack_pair, unpack_pair
-from ...identity_formats import IdentityAlgorithm
+
+if TYPE_CHECKING:
+    from ..database import SecretKeyProtocol
 
 LARGE_INTEGER = 32765
 
+# ruff: noqa: N803
 
-def _safe_rndint(key_size, mod):
+
+def _safe_rndint(key_size: int, mod: int) -> int:
     """
     Generate a urandom number which is larger than LARGE_INTEGER.
 
@@ -27,23 +35,31 @@ def _safe_rndint(key_size, mod):
 
 
 class PengBaoRangeAlgorithm(IdentityAlgorithm):
+    """
+    IPv8 wrapper around Peng and Bao's efficient range proof scheme.
+    """
 
-    def __init__(self, id_format, formats):
+    def __init__(self, id_format: str, formats: dict[str, dict[str, Any]]) -> None:
+        """
+        Create a new algorithm wrapper for range proofs.
+        """
         super().__init__(id_format, formats)
 
         # Check algorithm match
         if formats[id_format]["algorithm"] != "pengbaorange":
-            raise RuntimeError("Identity format linked to wrong algorithm")
+            msg = "Identity format linked to wrong algorithm"
+            raise RuntimeError(msg)
 
         # Check key size match
         self.key_size = formats[self.id_format]["key_size"]
         if self.key_size < 32 or self.key_size > 512:
-            raise RuntimeError("Illegal key size specified")
+            msg = "Illegal key size specified"
+            raise RuntimeError(msg)
 
         self.a = formats[self.id_format]["min"]
         self.b = formats[self.id_format]["max"]
 
-    def generate_secret_key(self):
+    def generate_secret_key(self) -> BonehPrivateKey:
         """
         Generate a secret key.
 
@@ -51,7 +67,7 @@ class PengBaoRangeAlgorithm(IdentityAlgorithm):
         """
         return generate_keypair(self.key_size)[1]
 
-    def load_secret_key(self, serialized):
+    def load_secret_key(self, serialized: bytes) -> BonehPrivateKey | None:
         """
         Unserialize a secret key from the key material.
 
@@ -60,7 +76,7 @@ class PengBaoRangeAlgorithm(IdentityAlgorithm):
         """
         return BonehPrivateKey.unserialize(serialized)
 
-    def load_public_key(self, serialized):
+    def load_public_key(self, serialized: bytes) -> BonehPublicKey | None:
         """
         Unserialize a public key from the key material.
 
@@ -69,16 +85,16 @@ class PengBaoRangeAlgorithm(IdentityAlgorithm):
         """
         return BonehPublicKey.unserialize(serialized)
 
-    def get_attestation_class(self):
+    def get_attestation_class(self) -> type[PengBaoAttestation]:
         """
-        Return the Attestation (sub)class for serialization
+        Return the Attestation (sub)class for serialization.
 
         :return: the Attestation object
         :rtype: PengBaoAttestation
         """
         return PengBaoAttestation
 
-    def attest(self, PK, value):
+    def attest(self, PK: BonehPublicKey, value: bytes) -> bytes:
         """
         Attest to a value for a certain public key.
 
@@ -92,7 +108,7 @@ class PengBaoRangeAlgorithm(IdentityAlgorithm):
         ivalue = int(hexlify(value), 16)
         return create_attest_pair(PK, ivalue, self.a, self.b, self.key_size).serialize_private(PK)
 
-    def certainty(self, value, aggregate):
+    def certainty(self, value: bytes, aggregate: dict) -> float:
         """
         The current certainty of the aggregate object representing a certain value.
 
@@ -112,7 +128,7 @@ class PengBaoRangeAlgorithm(IdentityAlgorithm):
         match = 1.0 if in_range else 0.0
         return match if struct.unpack('>?', value)[0] else 1.0 - match
 
-    def create_challenges(self, PK, attestation):
+    def create_challenges(self, PK: BonehPublicKey, attestation: PengBaoAttestation) -> list[bytes]:
         """
         Create challenges for a certain counterparty.
 
@@ -124,10 +140,10 @@ class PengBaoRangeAlgorithm(IdentityAlgorithm):
         :rtype: [str]
         """
         mod = PK.g.mod - 1
-        challenges = [pack_pair(_safe_rndint(self.key_size, mod), _safe_rndint(self.key_size, mod)) for _ in range(1)]
-        return challenges
+        return [pack_pair(_safe_rndint(self.key_size, mod), _safe_rndint(self.key_size, mod)) for _ in range(1)]
 
-    def create_challenge_response(self, SK, attestation, challenge):
+    def create_challenge_response(self, SK: BonehPrivateKey, attestation: PengBaoAttestation,
+                                  challenge: bytes) -> bytes:
         """
         Create an honest response to a challenge of our value.
 
@@ -144,10 +160,10 @@ class PengBaoRangeAlgorithm(IdentityAlgorithm):
         if s < LARGE_INTEGER or t < LARGE_INTEGER:
             return (pack_pair(_safe_rndint(self.key_size, SK.g.mod), _safe_rndint(self.key_size, SK.g.mod))
                     + pack_pair(_safe_rndint(self.key_size, SK.g.mod), _safe_rndint(self.key_size, SK.g.mod)))
-        x, y, u, v = attestation.privatedata.generate_response(s, t)
+        x, y, u, v = cast(PengBaoCommitmentPrivate, attestation.privatedata).generate_response(s, t)
         return pack_pair(x, y) + pack_pair(u, v)
 
-    def create_certainty_aggregate(self, attestation):
+    def create_certainty_aggregate(self, attestation: PengBaoAttestation | None) -> dict:
         """
         Create an empty aggregate object, for matching to values.
 
@@ -156,7 +172,7 @@ class PengBaoRangeAlgorithm(IdentityAlgorithm):
         """
         return {'attestation': attestation}
 
-    def create_honesty_challenge(self, PK, value):
+    def create_honesty_challenge(self, PK: BonehPublicKey, value: int) -> bytes:
         """
         Use a known value to check for honesty.
 
@@ -167,9 +183,9 @@ class PengBaoRangeAlgorithm(IdentityAlgorithm):
         :return: the challenge to send
         :rtype: str
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
-    def process_honesty_challenge(self, value, response):
+    def process_honesty_challenge(self, value: int, response: bytes) -> bool:
         """
         Given a response, check if it matches the expected value.
 
@@ -180,9 +196,9 @@ class PengBaoRangeAlgorithm(IdentityAlgorithm):
         :return: if the value matches the response
         :rtype: bool
         """
-        raise NotImplementedError()
+        raise NotImplementedError
 
-    def process_challenge_response(self, aggregate, challenge, response):
+    def process_challenge_response(self, aggregate: dict, challenge: bytes, response: bytes) -> dict:
         """
         Given a response, update the current aggregate.
 
@@ -201,6 +217,12 @@ class PengBaoRangeAlgorithm(IdentityAlgorithm):
         attestation = aggregate['attestation']
         aggregate[challenge] = attestation.publicdata.check(self.a, self.b, s, t, x, y, u, v)
         return aggregate
+
+    def import_blob(self, blob: bytes) -> tuple[bytes, SecretKeyProtocol]:
+        """
+        Not supported.
+        """
+        raise NotImplementedError
 
 
 __all__ = ["PengBaoAttestation", "PengBaoRangeAlgorithm"]

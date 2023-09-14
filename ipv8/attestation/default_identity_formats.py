@@ -1,6 +1,5 @@
 from .wallet.irmaexact.keydump import nijmegen_pk_1568208470
 
-
 FORMATS = {
     "id_metadata": {
         "algorithm": "bonehexact",

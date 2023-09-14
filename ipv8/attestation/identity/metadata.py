@@ -2,9 +2,13 @@ from __future__ import annotations
 
 import binascii
 import json
+from typing import TYPE_CHECKING
 
 from ..signed_object import AbstractSignedObject
-from ...types import PrivateKey, Token
+
+if TYPE_CHECKING:
+    from ...keyvault.keys import PublicKey
+    from ...types import PrivateKey, Token
 
 
 class Metadata(AbstractSignedObject):
@@ -19,7 +23,7 @@ class Metadata(AbstractSignedObject):
                  token_pointer: bytes,
                  serialized_json_dict: bytes,
                  private_key: PrivateKey | None = None,
-                 signature: bytes | None = None):
+                 signature: bytes | None = None) -> None:
         """
         Create a new Metadata object, always specify the token it belongs to and its contents as a JSON dictionary.
 
@@ -44,14 +48,21 @@ class Metadata(AbstractSignedObject):
         return self.token_pointer + self.serialized_json_dict
 
     @classmethod
-    def unserialize(cls, data, public_key, offset=0) -> Metadata:
+    def unserialize(cls: type[Metadata], data: bytes, public_key: PublicKey, offset: int = 0) -> Metadata:
+        """
+        Unserialize metadata from the given bytes.
+        """
         if offset != 0:
-            raise RuntimeError("Offset is not supported for Metadata!")
+            msg = "Offset is not supported for Metadata!"
+            raise RuntimeError(msg)
         sig_len = public_key.get_signature_length()
         return Metadata(data[:32], data[32:-sig_len], signature=data[-sig_len:])
 
     @classmethod
-    def create(cls, token: Token, json_dict: dict, private_key: PrivateKey) -> Metadata:
+    def create(cls: type[Metadata], token: Token, json_dict: dict, private_key: PrivateKey) -> Metadata:
+        """
+        Create new metadata for a token from a JSON dict, signed using our key.
+        """
         return Metadata(token.get_hash(), json.dumps(json_dict).encode(), private_key=private_key)
 
     def to_database_tuple(self) -> tuple[bytes, bytes, bytes]:
@@ -63,7 +74,7 @@ class Metadata(AbstractSignedObject):
         return self.token_pointer, self.signature, self.serialized_json_dict
 
     @classmethod
-    def from_database_tuple(cls,
+    def from_database_tuple(cls: type[Metadata],
                             token_pointer: bytes,
                             signature: bytes,
                             serialized_json_dict: bytes) -> Metadata:
@@ -77,5 +88,8 @@ class Metadata(AbstractSignedObject):
         return Metadata(token_pointer, serialized_json_dict, signature=signature)
 
     def __str__(self) -> str:
+        """
+        Convert this Metadata to human-readable format.
+        """
         return (f"Metadata({binascii.hexlify(self.token_pointer).decode()},\n"
                 f"{self.serialized_json_dict.decode()})")

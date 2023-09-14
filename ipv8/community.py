@@ -33,7 +33,7 @@ from .messaging.payload import (
     PunctureRequestPayload,
 )
 from .messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
-from .types import Address
+from .types import Address, MessageHandlerFunction
 
 if TYPE_CHECKING:
     from .bootstrapping.bootstrapper_interface import Bootstrapper
@@ -99,9 +99,7 @@ class Community(EZPackOverlay):
         self.bootstrappers: list[Bootstrapper] = []
         self._bootstrappers_initialized = False
 
-        self.decode_map: list[Callable[[Community, Address, bytes], None] |
-                              Callable[[Address, bytes], None] |
-                              None] = [None] * 256
+        self.decode_map: list[MessageHandlerFunction | None] = [None] * 256
 
         self.add_message_handler(PunctureRequestPayload, self.on_old_puncture_request)
         self.add_message_handler(PuncturePayload, self.on_puncture)
@@ -172,9 +170,7 @@ class Community(EZPackOverlay):
             bootstrapper.unload()
         await super().unload()
 
-    def add_message_handler(self, msg_num: int | type[Payload],
-                            callback: Callable[[Community, Address, bytes], None] |
-                                      Callable[[Address, bytes], None]) -> None:
+    def add_message_handler(self, msg_num: int | type[Payload], callback: MessageHandlerFunction) -> None:
         """
         Add a handler for a message identifier. Any messages coming in with this identifier will be delivered to
         the specified callback function.

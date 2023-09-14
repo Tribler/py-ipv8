@@ -6,13 +6,15 @@ import logging
 import struct
 import typing
 
+from ...keyvault.crypto import ECCrypto
+from ...keyvault.keys import PrivateKey
+from ..tokentree.tree import TokenTree
 from .attestation import Attestation
 from .database import Credential, IdentityDatabase
 from .metadata import Metadata
-from ..tokentree.tree import TokenTree
-from ...keyvault.crypto import ECCrypto
-from ...keyvault.keys import PrivateKey
-from ...types import PublicKey, Token
+
+if typing.TYPE_CHECKING:
+    from ...types import PublicKey, Token
 
 
 class PseudonymManager:
@@ -24,7 +26,10 @@ class PseudonymManager:
 
     def __init__(self, database: IdentityDatabase,
                  public_key: PublicKey | None = None,
-                 private_key: PrivateKey | None = None):
+                 private_key: PrivateKey | None = None) -> None:
+        """
+        Create a new pseudonym manager.
+        """
         super().__init__()
 
         self.database = database
@@ -32,16 +37,20 @@ class PseudonymManager:
         self.tree = TokenTree(public_key=public_key, private_key=private_key)
         self.credentials = []
 
-        logging.info(f"Loading public key {binascii.hexlify(self.public_key.key_to_hash()).decode()} from database")
+        logging.info("Loading public key %s from database", binascii.hexlify(self.public_key.key_to_hash()).decode())
         for token in self.database.get_tokens_for(self.public_key):
             self.tree.elements[token.get_hash()] = token
         self.credentials = self.database.get_credentials_for(self.public_key)
 
     @property
     def public_key(self) -> PublicKey:
+        """
+        Get our associated public key.
+        """
         return self.tree.public_key
 
-    def add_credential(self, token: Token, metadata: Metadata, attestations=set()) -> Credential | None:
+    def add_credential(self, token: Token, metadata: Metadata,
+                       attestations: typing.Set[tuple[PublicKey, Attestation]] | None = None) -> Credential | None:
         """
         Add a credential to this pseudonym.
 
@@ -49,6 +58,8 @@ class PseudonymManager:
         """
         # If this token belongs to this chain, insert it.
         # Note: if the given metadata is invalid, the token is still inserted!
+        if attestations is None:
+            attestations = set()
         if self.tree.gather_token(token) is not None:
             self.database.insert_token(self.public_key, token)
 
@@ -100,14 +111,14 @@ class PseudonymManager:
     def create_credential(self,
                           attestation_hash: bytes,
                           metadata_json: dict,
-                          after: Metadata | None = None) -> Credential:
+                          after: Metadata | None = None) -> Credential | None:
         """
         Create a credential and add it to this pseudonym.
         """
         preceding = None if after is None else self.tree.elements.get(after.token_pointer, None)
         token = self.tree.add_by_hash(attestation_hash, preceding)
         metadata = Metadata(token.get_hash(), json.dumps(metadata_json).encode(), self.tree.private_key)
-        return self.add_credential(token, metadata, set())  # type:ignore
+        return self.add_credential(token, metadata, set())
 
     def get_credential(self, metadata: Metadata) -> Credential:
         """
@@ -170,7 +181,8 @@ class PseudonymManager:
             root_token = self.tree.elements[required_token_hash]  # Throws a KeyError if the hash is unknown.
             # Avoid infinite loops and broken disclosures.
             if not self.tree.verify(root_token):
-                raise RuntimeError("Attempted to create disclosure for undisclosable Token!")
+                msg = "Attempted to create disclosure for undisclosable Token!"
+                raise RuntimeError(msg)
             tokens.add(root_token)
             current_token = root_token
             while current_token.previous_token_hash != self.tree.genesis_hash:
@@ -184,12 +196,15 @@ class IdentityManager:
     Manager of our own pseudonyms and those of others.
     """
 
-    def __init__(self, database_path=":memory:"):
+    def __init__(self, database_path: str = ":memory:") -> None:
+        """
+        Create a new identity manager.
+        """
         super().__init__()
 
         self.database = IdentityDatabase(database_path)
         self.database.open()
-        self.pseudonyms = {}
+        self.pseudonyms: dict[bytes, PseudonymManager] = {}
 
         self.crypto = ECCrypto()
 
@@ -206,7 +221,7 @@ class IdentityManager:
                 self.pseudonyms[public_key_material] = PseudonymManager(self.database, public_key=key)
         return self.pseudonyms[public_key_material]
 
-    def substantiate(self,
+    def substantiate(self,  # noqa: PLR0913
                      public_key: PublicKey,
                      serialized_metadata: bytes,
                      serialized_tokens: bytes,

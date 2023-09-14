@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from binascii import hexlify, unhexlify
 from struct import pack, unpack
+from typing import cast
 
 from ...identity_formats import Attestation
 from ..pengbaorange.boudot import EL, SQR
@@ -158,7 +159,7 @@ class PengBaoCommitmentPrivate:
         rem = s[1:]
         for _ in range(count):
             unpacked, rem = _unserialize_fp2value(SK.g.mod, rem)
-            hexed = hex(decode(SK, cls.MSGSPACE, unpacked))[2:]
+            hexed = hex(cast(int, decode(SK, cls.MSGSPACE, unpacked)))[2:]
             if hexed.endswith('L'):
                 hexed = hexed[:-1]
             if len(hexed) % 2 == 1:
@@ -243,7 +244,7 @@ class PengBaoPublicData:
         :rtype: PengBaoPublicData
         """
         rem = s
-        pk = BonehPublicKey.unserialize(rem)
+        pk = cast(BonehPublicKey, BonehPublicKey.unserialize(rem))
         rem = rem[len(pk.serialize()):]
         bitspace, rem = iunpack(rem)
         commitment, rem = PengBaoCommitment.unserialize(rem)

@@ -3,10 +3,12 @@ from __future__ import annotations
 import logging
 from collections import OrderedDict
 from hashlib import sha3_256
-from typing import Set
+from typing import TYPE_CHECKING, Set
 
 from .token import Token
-from ...types import PrivateKey, PublicKey
+
+if TYPE_CHECKING:
+    from ...types import PrivateKey, PublicKey
 
 
 class TokenTree:
@@ -45,7 +47,8 @@ class TokenTree:
             self.private_key = private_key
             self.public_key = private_key.pub()
         else:
-            raise RuntimeError("Specify either public_key or private_key!")
+            msg = "Specify either public_key or private_key!"
+            raise RuntimeError(msg)
 
         self.genesis_hash = sha3_256(self.public_key.key_to_bin()).digest()
 
@@ -58,7 +61,8 @@ class TokenTree:
         :returns: the newly added Token.
         """
         if self.private_key is None:
-            raise RuntimeError("Attempted to create token without a key!")
+            msg = "Attempted to create token without a key!"
+            raise RuntimeError(msg)
         previous_hash = self.genesis_hash if not after else after.get_hash()
         return self._append(Token(previous_hash, content=content, private_key=self.private_key))
 
@@ -71,7 +75,8 @@ class TokenTree:
         :returns: the newly added Token.
         """
         if self.private_key is None:
-            raise RuntimeError("Attempted to create token without a key!")
+            msg = "Attempted to create token without a key!"
+            raise RuntimeError(msg)
         previous_hash = self.genesis_hash if not after else after.get_hash()
         return self._append(Token(previous_hash, content_hash=content_hash, private_key=self.private_key))
 
@@ -88,15 +93,14 @@ class TokenTree:
                 self.unchained[token] = None
                 if len(self.unchained) > self.unchained_max_size:
                     self.unchained.popitem(False)
-                self._logger.info(f"Delaying unchained token {token}!")
+                self._logger.info("Delaying unchained token %s!", token)
                 return None
-            elif token.get_hash() in self.elements:
+            if token.get_hash() in self.elements:
                 shadow_token = self.elements[token.get_hash()]
                 if shadow_token.content is None and token.content is not None:
                     shadow_token.receive_content(token.content)
                 return shadow_token
-            else:
-                self._append_chain_reaction_token(token)
+            self._append_chain_reaction_token(token)
             return token
         return None
 
@@ -154,8 +158,7 @@ class TokenTree:
             steps += 1
         if steps < maxdepth:
             return path
-        else:
-            return []
+        return []
 
     def serialize_public(self, up_to: Token | None = None) -> bytes:
         """
@@ -172,9 +175,8 @@ class TokenTree:
                 out += token.get_plaintext_signed()
                 next_token = token.previous_token_hash
             return out
-        else:
-            # Do the full tree dump.
-            return b''.join(token.get_plaintext_signed() for token in self.elements.values())
+        # Do the full tree dump.
+        return b''.join(token.get_plaintext_signed() for token in self.elements.values())
 
     def unserialize_public(self, s: bytes) -> bool:
         """
@@ -215,4 +217,4 @@ class TokenTree:
         if retry_token is not None:
             self.unchained.pop(retry_token)
             if self.gather_token(retry_token) is None:
-                self._logger.warning(f"Dropped illegal token {retry_token}!")
+                self._logger.warning("Dropped illegal token %s!", retry_token)

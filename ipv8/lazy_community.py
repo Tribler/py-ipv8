@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from functools import wraps
-from typing import TYPE_CHECKING, Callable, Sequence, Tuple, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, Sequence, Tuple, TypeVar, cast
 
 from .keyvault.crypto import default_eccrypto
 from .messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
@@ -10,12 +10,22 @@ from .messaging.serialization import Payload
 from .overlay import Overlay
 from .peer import Peer
 from .requestcache import RequestCache
-from .types import Address, NumberCache, PrivateKey
+from .types import (
+    Address,
+    LazyWrappedHandler,
+    LazyWrappedUnsignedHandler,
+    LazyWrappedWDataHandler,
+    LazyWrappedWDataUnsignedHandler,
+    MessageHandlerFunction,
+    NumberCache,
+    PrivateKey,
+)
 
 if TYPE_CHECKING:
     from .messaging.serialization import Serializable
 
 UT = TypeVar("UT", bound=Payload)
+CTF = TypeVar("CTF", bound=Callable)
 
 
 def cache_retrieval_failed(overlay: Overlay, cache_class: type[NumberCache]) -> None:
@@ -25,7 +35,7 @@ def cache_retrieval_failed(overlay: Overlay, cache_class: type[NumberCache]) -> 
     overlay.logger.debug("Failed to match %s: was answered late or did not exist.", repr(cache_class))
 
 
-def retrieve_cache(cache_class: type[NumberCache]) -> Callable[[Callable[..., None]], Callable[..., None]]:
+def retrieve_cache(cache_class: type[NumberCache]) -> Callable[[CTF], CTF]:
     """
     This function wrapper match a payload to a registered cache for you.
 
@@ -50,9 +60,10 @@ def retrieve_cache(cache_class: type[NumberCache]) -> Callable[[Callable[..., No
     :param cache_class: the cache to fetch.
     """
 
-    def decorator(func: Callable[..., None]) -> Callable[..., None]:
+    def decorator(func: CTF) -> CTF:
         @wraps(func)
-        def wrapper(self: Overlay, peer_or_addr: Address | Peer, *payloads: Payload) -> None:
+        def wrapper(self: Overlay, peer_or_addr: Address | Peer,
+                    *payloads: Payload) -> Coroutine[Any, Any, None] | None:
             try:
                 # For the ``_wd`` decorators, the last argument is the data and not the Payload.
                 payload = payloads[-2 if isinstance(payloads[-1], bytes) else -1]
@@ -60,14 +71,15 @@ def retrieve_cache(cache_class: type[NumberCache]) -> Callable[[Callable[..., No
                                                                    payload.identifier)  # type: ignore[attr-defined]
                 return func(self, peer_or_addr, *payloads, cache=cache)
             except KeyError:
-                return cache_retrieval_failed(self, cache_class)
+                cache_retrieval_failed(self, cache_class)
+                return None
 
-        return wrapper
+        return cast(CTF, wrapper)
 
     return decorator
 
 
-def lazy_wrapper(*payloads: type[Payload]) -> Callable[[Callable[..., None]], Callable[..., None]]:
+def lazy_wrapper(*payloads: type[Payload]) -> Callable[[LazyWrappedHandler], MessageHandlerFunction]:
     """
     This function wrapper will unpack the BinMemberAuthenticationPayload for you.
 
@@ -81,9 +93,9 @@ def lazy_wrapper(*payloads: type[Payload]) -> Callable[[Callable[..., None]], Ca
                        payload2: IntroductionResponsePayload):
             pass
     """
-    def decorator(func: Callable[..., None]) -> Callable[..., None]:
+    def decorator(func: LazyWrappedHandler) -> MessageHandlerFunction:
         @wraps(func)
-        def wrapper(self: EZPackOverlay, source_address: Address, data: bytes) -> None:
+        def wrapper(self: EZPackOverlay, source_address: Address, data: bytes) -> Coroutine[Any, Any, None] | None:
             # UNPACK
             auth, _ = self.serializer.unpack_serializable(BinMemberAuthenticationPayload, data, offset=23)
             signature_valid, remainder = self._verify_signature(auth, data)
@@ -95,12 +107,12 @@ def lazy_wrapper(*payloads: type[Payload]) -> Callable[[Callable[..., None]], Ca
             # PRODUCE
             peer = (self.network.verified_by_public_key_bin.get(auth.public_key_bin)
                     or Peer(auth.public_key_bin, source_address))
-            return func(self, peer, *unpacked)
-        return wrapper
+            return func(self, peer, *unpacked)  # type: ignore[arg-type]
+        return cast(MessageHandlerFunction, wrapper)
     return decorator
 
 
-def lazy_wrapper_wd(*payloads: type[Payload]) -> Callable[[Callable[..., None]], Callable[..., None]]:
+def lazy_wrapper_wd(*payloads: type[Payload]) -> Callable[[LazyWrappedWDataHandler], MessageHandlerFunction]:
     """
     This function wrapper will unpack the BinMemberAuthenticationPayload for you, as well as pass the raw data to the
     decorated function.
@@ -116,9 +128,9 @@ def lazy_wrapper_wd(*payloads: type[Payload]) -> Callable[[Callable[..., None]],
                        data: bytes):
             pass
     """
-    def decorator(func: Callable[..., None]) -> Callable[..., None]:
+    def decorator(func: LazyWrappedWDataHandler) -> MessageHandlerFunction:
         @wraps(func)
-        def wrapper(self: EZPackOverlay, source_address: Address, data: bytes) -> None:
+        def wrapper(self: EZPackOverlay, source_address: Address, data: bytes) -> Coroutine[Any, Any, None] | None:
             # UNPACK
             auth, _ = self.serializer.unpack_serializable(BinMemberAuthenticationPayload, data, offset=23)
             signature_valid, remainder = self._verify_signature(auth, data)
@@ -131,12 +143,12 @@ def lazy_wrapper_wd(*payloads: type[Payload]) -> Callable[[Callable[..., None]],
             output = [*unpacked, data]
             peer = (self.network.verified_by_public_key_bin.get(auth.public_key_bin)
                     or Peer(auth.public_key_bin, source_address))
-            return func(self, peer, *output)
-        return wrapper
+            return func(self, peer, *output)  # type: ignore[arg-type]
+        return cast(MessageHandlerFunction, wrapper)
     return decorator
 
 
-def lazy_wrapper_unsigned(*payloads: type[Payload]) -> Callable[[Callable[..., None]], Callable[..., None]]:
+def lazy_wrapper_unsigned(*payloads: type[Payload]) -> Callable[[LazyWrappedUnsignedHandler], MessageHandlerFunction]:
     """
     This function wrapper will unpack just the normal payloads for you.
 
@@ -150,17 +162,17 @@ def lazy_wrapper_unsigned(*payloads: type[Payload]) -> Callable[[Callable[..., N
                        payload2: IntroductionResponsePayload):
             pass
     """
-    def decorator(func: Callable[..., None]) -> Callable[..., None]:
+    def decorator(func: LazyWrappedUnsignedHandler) -> MessageHandlerFunction:
         @wraps(func)
-        def wrapper(self: EZPackOverlay, source_address: Address, data: bytes) -> None:
+        def wrapper(self: EZPackOverlay, source_address: Address, data: bytes) -> Coroutine[Any, Any, None] | None:
             # UNPACK
             unpacked = self.serializer.unpack_serializable_list(payloads, data, offset=23)
             return func(self, source_address, *unpacked)
-        return wrapper
+        return cast(MessageHandlerFunction, wrapper)
     return decorator
 
 
-def lazy_wrapper_unsigned_wd(*payloads: type[Payload]) -> Callable[[Callable[..., None]], Callable[..., None]]:
+def lazy_wrapper_unsigned_wd(*payloads: type[Payload]) -> Callable[[LazyWrappedWDataUnsignedHandler], MessageHandlerFunction]:
     """
     This function wrapper will unpack just the normal payloads for you, as well as pass the raw data to the decorated
     function.
@@ -176,17 +188,17 @@ def lazy_wrapper_unsigned_wd(*payloads: type[Payload]) -> Callable[[Callable[...
                        data: bytes):
             pass
     """
-    def decorator(func: Callable[..., None]) -> Callable[..., None]:
+    def decorator(func: LazyWrappedWDataUnsignedHandler) -> MessageHandlerFunction:
         @wraps(func)
-        def wrapper(self: EZPackOverlay, source_address: Address, data: bytes) -> None:
+        def wrapper(self: EZPackOverlay, source_address: Address, data: bytes) -> Coroutine[Any, Any, None] | None:
 
-            @lazy_wrapper_unsigned(*payloads)
-            def inner_wrapper(inner_self: EZPackOverlay, inner_source_address: Address, *pyls: Payload) -> None:
-                combo = [*list(pyls), data]
-                return func(inner_self, inner_source_address, *combo)
+            @lazy_wrapper_unsigned(*payloads)  # type: ignore[arg-type]
+            def inner_wrapper(inner_self: EZPackOverlay, inner_source_address: Address,
+                              *pyls: Payload) -> Coroutine[Any, Any, None] | None:
+                return func(inner_self, inner_source_address, *pyls, data=data)
 
-            return inner_wrapper(self, source_address, data)
-        return wrapper
+            return inner_wrapper(self, source_address, data)  # type: ignore[arg-type, call-arg]
+        return cast(MessageHandlerFunction, wrapper)
     return decorator
 
 

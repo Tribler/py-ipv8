@@ -3,9 +3,13 @@ from __future__ import annotations
 import binascii
 import hashlib
 import struct
+from typing import TYPE_CHECKING
 
 from ..signed_object import AbstractSignedObject
-from ...types import PrivateKey
+
+if TYPE_CHECKING:
+    from ...keyvault.keys import PublicKey
+    from ...types import PrivateKey
 
 
 class Token(AbstractSignedObject):
@@ -17,7 +21,7 @@ class Token(AbstractSignedObject):
     Tokens do not and should not contain a reference to the public key (but are signed by one).
     """
 
-    def __init__(self,
+    def __init__(self,  # noqa: PLR0913
                  previous_token_hash: bytes,
                  content: bytes | None = None,
                  content_hash: bytes | None = None,
@@ -43,7 +47,8 @@ class Token(AbstractSignedObject):
             self.content = None
             self.content_hash = content_hash
         else:
-            raise RuntimeError("Specify either content or content_hash!")
+            msg = "Specify either content or content_hash!"
+            raise RuntimeError(msg)
 
         self.previous_token_hash = previous_token_hash
 
@@ -56,7 +61,10 @@ class Token(AbstractSignedObject):
         return self.previous_token_hash + self.content_hash
 
     @classmethod
-    def unserialize(cls, data, public_key, offset=0) -> Token:
+    def unserialize(cls: type[Token], data: bytes, public_key: PublicKey, offset: int = 0) -> Token:
+        """
+        Unserialize a token from the given binary data.
+        """
         sig_len = public_key.get_signature_length()
         previous_token_hash, content_hash, signature = struct.unpack_from(f">32s32s{sig_len}s", data, offset=offset)
         return Token(previous_token_hash, content_hash=content_hash, signature=signature)
@@ -75,7 +83,10 @@ class Token(AbstractSignedObject):
         return False
 
     @classmethod
-    def create(cls, previous_token: Token, content: bytes, private_key: PrivateKey) -> Token:
+    def create(cls: type[Token], previous_token: Token, content: bytes, private_key: PrivateKey) -> Token:
+        """
+        Create an sign a token that exists in a token tree.
+        """
         return Token(previous_token.get_hash(), content, private_key=private_key)
 
     def to_database_tuple(self) -> tuple[bytes, bytes, bytes, bytes | None]:
@@ -87,7 +98,7 @@ class Token(AbstractSignedObject):
         return self.previous_token_hash, self.signature, self.content_hash, self.content
 
     @classmethod
-    def from_database_tuple(cls,
+    def from_database_tuple(cls: type[Token],
                             previous_token_hash: bytes,
                             signature: bytes,
                             content_hash: bytes,
@@ -106,6 +117,9 @@ class Token(AbstractSignedObject):
         return token
 
     def __str__(self) -> str:
+        """
+        Represent this token as a human-readable string.
+        """
         return (f"Token[{binascii.hexlify(self.get_hash()).decode()}]"
                 f"({binascii.hexlify(self.previous_token_hash).decode()}, "
                 f"{binascii.hexlify(self.content_hash).decode()})")
