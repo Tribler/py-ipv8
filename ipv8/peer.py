@@ -85,8 +85,8 @@ class Peer:
             self.key: Key = default_eccrypto.key_from_public_bin(key)
         else:
             self.key = cast(Key, key)
-        self.mid = self.key.key_to_hash()
         self.public_key = self.key.pub()
+        self.mid = self.public_key.key_to_hash()
         self._addresses = DirtyDict()
         if address is not None:
             self._addresses[address.__class__] = address
