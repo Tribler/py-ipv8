@@ -38,7 +38,7 @@ class IRMAAttestation(Attestation):
         """
         We don't use a base key for serialization.
         """
-        return ipack(self.z) + ipack(self.sign_date) + serialize_proof_d(self.proofd)
+        return ipack(cast(int, self.z)) + ipack(self.sign_date) + serialize_proof_d(self.proofd)
 
     @classmethod
     def unserialize(cls: type[IRMAAttestation], s: bytes, id_format: str) -> IRMAAttestation:  # noqa: ARG003
@@ -137,13 +137,13 @@ class IRMAExactAlgorithm(IdentityAlgorithm):
         """
         return IRMAAttestation
 
-    def attest(self, PK: KeyStub, value: str) -> IRMAAttestation:
+    def attest(self, PK: KeyStub, value: bytes) -> bytes:
         """
         Not implemented.
         """
         raise NotImplementedError("Only import_blob is supported (now) for IRMA.")
 
-    def certainty(self, value: str, aggregate: dict) -> float:
+    def certainty(self, value: bytes, aggregate: dict) -> float:
         """
         Get the certainty that the given value is equal to the attestation in the aggregate.
         """
@@ -186,32 +186,32 @@ class IRMAExactAlgorithm(IdentityAlgorithm):
         """
         return challenge_response(attestation.proofd, cast(int, attestation.z), challenge)
 
-    def create_certainty_aggregate(self, attestation: IRMAAttestation) -> dict:
+    def create_certainty_aggregate(self, attestation: IRMAAttestation | None) -> dict:
         """
         Create the aggregation dictionary (just one key with the attestation).
         """
         return {'attestation': attestation}
 
-    def create_honesty_challenge(self, PK: KeyStub, value: bytes) -> bytes:
+    def create_honesty_challenge(self, PK: KeyStub, value: int) -> bytes:
         """
         Not implemented.
         """
         raise NotImplementedError
 
-    def process_honesty_challenge(self, value: bytes, response: bytes) -> bool:
+    def process_honesty_challenge(self, value: int, response: bytes) -> bool:
         """
         Not implemented.
         """
         raise NotImplementedError
 
-    def process_challenge_response(self, aggregate: dict,
-                                   challenge: bytes, response: bytes) -> None:
+    def process_challenge_response(self, aggregate: dict, challenge: bytes, response: bytes) -> dict:
         """
         Process the response to our challenge.
         """
         aggregate[challenge] = response
+        return aggregate
 
-    def import_blob(self, blob: bytes) -> tuple[bytes, None]:
+    def import_blob(self, blob: bytes) -> tuple[bytes, KeyStub]:
         """
         Import raw data needed to construct an attestation for this algorithm.
         """
@@ -223,4 +223,4 @@ class IRMAExactAlgorithm(IdentityAlgorithm):
 
         inst = self.get_attestation_class()(sign_date, proofd, z)
 
-        return inst.serialize_private(None), None
+        return inst.serialize_private(None), KeyStub()

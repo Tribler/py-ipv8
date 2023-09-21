@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import binascii
 import struct
+from typing import TYPE_CHECKING
 
 from ..signed_object import AbstractSignedObject
-from ...types import Metadata, PrivateKey, PublicKey
+
+if TYPE_CHECKING:
+    from ...types import Metadata, PrivateKey, PublicKey
 
 
 class Attestation(AbstractSignedObject):
@@ -18,21 +21,33 @@ class Attestation(AbstractSignedObject):
     def __init__(self,
                  metadata_pointer: bytes,
                  private_key: PrivateKey | None = None,
-                 signature: bytes | None = None):
+                 signature: bytes | None = None) -> None:
+        """
+        Create a new business-layer attestation (not the actual crypto attestation).
+        """
         self.metadata_pointer = metadata_pointer
         super().__init__(private_key, signature)
 
     def get_plaintext(self) -> bytes:
+        """
+        Convert to bytes.
+        """
         return self.metadata_pointer
 
     @classmethod
-    def unserialize(cls, data: bytes, public_key: PublicKey, offset: int = 0) -> Attestation:
+    def unserialize(cls: type[Attestation], data: bytes, public_key: PublicKey, offset: int = 0) -> Attestation:
+        """
+        Read from bytes.
+        """
         sig_len = public_key.get_signature_length()
         metadata_pointer, signature = struct.unpack_from(f">32s{sig_len}s", data, offset=offset)
         return Attestation(metadata_pointer, signature=signature)
 
     @classmethod
-    def create(cls, metadata: Metadata, private_key: PrivateKey) -> Attestation:
+    def create(cls: type[Attestation], metadata: Metadata, private_key: PrivateKey) -> Attestation:
+        """
+        Create an attestation for given metadata using our key.
+        """
         return Attestation(metadata.get_hash(), private_key=private_key)
 
     def to_database_tuple(self) -> tuple[bytes, bytes]:
@@ -44,7 +59,7 @@ class Attestation(AbstractSignedObject):
         return self.metadata_pointer, self.signature
 
     @classmethod
-    def from_database_tuple(cls,
+    def from_database_tuple(cls: type[Attestation],
                             metadata_pointer: bytes,
                             signature: bytes) -> Attestation:
         """
@@ -56,4 +71,7 @@ class Attestation(AbstractSignedObject):
         return Attestation(metadata_pointer, signature=signature)
 
     def __str__(self) -> str:
+        """
+        Convert this attestation to a human-readable string.
+        """
         return f"Attestation({binascii.hexlify(self.metadata_pointer).decode()})"

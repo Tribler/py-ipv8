@@ -1,8 +1,12 @@
-from ...messaging.lazy_payload import VariablePayload, vp_compile
+from ...messaging.lazy_payload import VariablePayloadWID, vp_compile
 
 
 @vp_compile
-class DiclosePayload(VariablePayload):
+class DiclosePayload(VariablePayloadWID):
+    """
+    A payload used for disclosure of identity meta information.
+    """
+
     msg_id = 1
     format_list = ['varlenH', 'varlenH', 'varlenH', 'varlenH']
     names = ['metadata', 'tokens', 'attestations', 'authorities']
@@ -14,7 +18,11 @@ class DiclosePayload(VariablePayload):
 
 
 @vp_compile
-class AttestPayload(VariablePayload):
+class AttestPayload(VariablePayloadWID):
+    """
+    A payload used for attestation.
+    """
+
     msg_id = 2
     format_list = ['varlenH']
     names = ['attestation']
@@ -23,7 +31,11 @@ class AttestPayload(VariablePayload):
 
 
 @vp_compile
-class RequestMissingPayload(VariablePayload):
+class RequestMissingPayload(VariablePayloadWID):
+    """
+    A payload used to request missing identity meta information.
+    """
+
     msg_id = 3
     format_list = ['I']
     names = ['known']
@@ -32,7 +44,11 @@ class RequestMissingPayload(VariablePayload):
 
 
 @vp_compile
-class MissingResponsePayload(VariablePayload):
+class MissingResponsePayload(VariablePayloadWID):
+    """
+    A payload to respond with missing identity meta information.
+    """
+
     msg_id = 4
     format_list = ['raw']
     names = ['tokens']

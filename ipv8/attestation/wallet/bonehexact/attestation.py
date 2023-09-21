@@ -1,15 +1,23 @@
+from __future__ import annotations
+
 from random import randint, shuffle
 from threading import Lock
+from typing import TYPE_CHECKING
 
-from .structs import BitPairAttestation, BonehAttestation
 from ..primitives.attestation import sha256_4_as_int, sha256_as_int, sha512_as_int
 from ..primitives.boneh import decode, encode
 from ..primitives.value import FP2Value
+from .structs import BitPairAttestation, BonehAttestation
+
+if TYPE_CHECKING:
+    from ..primitives.structs import BonehPrivateKey, BonehPublicKey
 
 multithread_update_lock = Lock()
 
+# ruff: noqa: N803,N806
 
-def generate_modular_additive_inverse(p, n):
+
+def generate_modular_additive_inverse(p: int, n: int) -> list[int]:
     """
     Generate a group of size n which is its own modular additive inverse modulo p + 1.
     """
@@ -19,22 +27,20 @@ def generate_modular_additive_inverse(p, n):
     return R
 
 
-def attest(PK, value, bitspace):
+def attest(PK: BonehPublicKey, value: int, bitspace: int) -> BonehAttestation:
     """
     Create an attestation for a public key's value lying within a certain bitspace.
     """
-    A = list([int(c) for c in str(bin(value))[2:]])
+    A = [int(c) for c in str(bin(value))[2:]]
     while len(A) < bitspace:
         A.insert(0, 0)
     R = generate_modular_additive_inverse(PK.p, bitspace)
-    t_out_public = [encode(PK, a + b) for (a, b) in zip(A, R)]
-    t_out_private = []
-    for i in range(0, len(A) - 1, 2):
-        t_out_private.append((i, encode(PK, PK.p - ((R[i] + R[i + 1]) % (PK.p + 1)) + 1)))
+    t_out_public_v = [encode(PK, a + b) for (a, b) in zip(A, R)]
+    t_out_private = [(i, encode(PK, PK.p - ((R[i] + R[i + 1]) % (PK.p + 1)) + 1)) for i in range(0, len(A) - 1, 2)]
     # Shuffle:
-    t_out_public = [(i, t_out_public[i], t_out_public[i + 1]) for i in range(0, len(t_out_public), 2)]
+    t_out_public = [(i, t_out_public_v[i], t_out_public_v[i + 1]) for i in range(0, len(t_out_public_v), 2)]
     shuffle(t_out_public)
-    out_public = []
+    out_public: list[FP2Value] = []
     out_private = []
     shuffle_map = {}
     for (i, v1, v2) in t_out_public:
@@ -51,61 +57,61 @@ def attest(PK, value, bitspace):
     return BonehAttestation(PK, bitpairs)
 
 
-def attest_sha512(PK, value):
+def attest_sha512(PK: BonehPublicKey, value: bytes) -> BonehAttestation:
     """
     Create an attestation for a value using a SHA512 hash.
     """
     return attest(PK, sha512_as_int(value), 512)
 
 
-def binary_relativity_sha512(value):
+def binary_relativity_sha512(value: bytes) -> dict[int, int]:
     """
     Create the inter-bitpair relativity map of a value using the SHA512 hash.
     """
     return binary_relativity(sha512_as_int(value), 512)
 
 
-def attest_sha256(PK, value):
+def attest_sha256(PK: BonehPublicKey, value: bytes) -> BonehAttestation:
     """
     Create an attestation for a value using a SHA256 hash.
     """
     return attest(PK, sha256_as_int(value), 256)
 
 
-def binary_relativity_sha256(value):
+def binary_relativity_sha256(value: bytes) -> dict[int, int]:
     """
     Create the inter-bitpair relativity map of a value using the SHA256 hash.
     """
     return binary_relativity(sha256_as_int(value), 256)
 
 
-def attest_sha256_4(PK, value):
+def attest_sha256_4(PK: BonehPublicKey, value: bytes) -> BonehAttestation:
     """
     Create an attestation for a value using a SHA256 4 byte hash.
     """
     return attest(PK, sha256_4_as_int(value), 32)
 
 
-def binary_relativity_sha256_4(value):
+def binary_relativity_sha256_4(value: bytes) -> dict[int, int]:
     """
     Create the inter-bitpair relativity map of a value using the SHA256 4 byte hash.
     """
     return binary_relativity(sha256_4_as_int(value), 32)
 
 
-def create_empty_relativity_map():
+def create_empty_relativity_map() -> dict[int, int]:
     """
     Construct a map of possible challenge responses.
     """
     return {0: 0, 1: 0, 2: 0, 3: 0}
 
 
-def binary_relativity(value, bitspace):
+def binary_relativity(value: int, bitspace: int) -> dict[int, int]:
     """
     Create the inter-bitpair relativity map of a value.
     """
     out = {0: 0, 1: 0, 2: 0}
-    A = list([int(c) for c in str(bin(value))[2:]])
+    A = [int(c) for c in str(bin(value))[2:]]
     while len(A) < bitspace:
         A.insert(0, 0)
     for i in range(0, bitspace - 1, 2):
@@ -114,7 +120,7 @@ def binary_relativity(value, bitspace):
     return out
 
 
-def binary_relativity_match(expected, value):
+def binary_relativity_match(expected: dict[int, int], value: dict[int, int]) -> float:
     """
     Get the matching percentage between relativity maps.
     Mismatches result in 0.0.
@@ -129,7 +135,7 @@ def binary_relativity_match(expected, value):
     return match
 
 
-def binary_relativity_certainty(expected, value):
+def binary_relativity_certainty(expected: dict[int, int], value: dict[int, int]) -> float:
     """
     Give the chance of a current relativity map being the expected one.
     """
@@ -137,28 +143,29 @@ def binary_relativity_certainty(expected, value):
     return binary_relativity_match(expected, value) * cert
 
 
-def create_challenge(PK, bitpair):
+def create_challenge(PK: BonehPublicKey, bitpair: BitPairAttestation) -> FP2Value:
     """
     Create a challenge for a bitpair attestation of a certain public key.
     """
     return bitpair.compress() * encode(PK, 0)
 
 
-def create_honesty_check(PK, value):
+def create_honesty_check(PK: BonehPublicKey, value: int) -> FP2Value:
     """
     Create a honesty check challenge.
     """
     return encode(PK, value)
 
 
-def create_challenge_response_from_pair(SK, pair):
+def create_challenge_response_from_pair(SK: BonehPrivateKey,
+                                        pair: tuple[int, int] | tuple[int, int, bytes]) -> int:
     """
     Respond to a bitpair challenge.
     """
     return create_challenge_response(SK, FP2Value(SK.p, pair[0], pair[1]))
 
 
-def create_challenge_response(SK, challenge):
+def create_challenge_response(SK: BonehPrivateKey, challenge: FP2Value) -> int:
     """
     Respond to a bitpair challenge.
     """
@@ -166,7 +173,7 @@ def create_challenge_response(SK, challenge):
     return 3 if decoded is None else decoded
 
 
-def process_challenge_response(relativity_map, response):
+def process_challenge_response(relativity_map: dict[int, int], response: int) -> None:
     """
     Process a challenge response in a relativity map.
     """

@@ -1,10 +1,17 @@
 """
 Ported from "The Weil Pairing on Elliptic Curves and Its Cryptographic Applications" - Appendix D by Alex Edward Aftuk.
 """
+from __future__ import annotations
+
+from typing import Tuple, cast
+
 from .value import FP2Value
 
+# ruff: noqa: N802,N803,N806
 
-def esum(mod, p, q):
+
+def esum(mod: int, p: str | tuple[FP2Value, FP2Value],
+         q: str | tuple[FP2Value, FP2Value]) -> str | tuple[FP2Value, FP2Value]:
     """
     Perform Elliptic Curve addition of points P and Q over Fp^2.
     """
@@ -14,8 +21,8 @@ def esum(mod, p, q):
         return q
     if q == "O":
         return p
-    x1, y1 = p
-    x2, y2 = q
+    x1, y1 = cast(Tuple[FP2Value, FP2Value], p)
+    x2, y2 = cast(Tuple[FP2Value, FP2Value], q)
     if x1 == x2 and y1 == FP2Value(mod, -1) * y2:
         return "O"
     if x1 == x2:
@@ -27,12 +34,12 @@ def esum(mod, p, q):
     return x3.normalize(), (FP2Value(mod, -1) * y3).normalize()
 
 
-def H(mod, p, q, x, y):
+def H(mod: int, p: str | tuple[FP2Value, FP2Value], q: str | tuple[FP2Value, FP2Value], x: FP2Value, y: FP2Value) -> FP2Value:
     """
     Perform the h_{T,T} function for the Miller calculation with divisors P and Q for coordinate (x,y).
     """
-    x1, y1 = p
-    x2, y2 = q
+    x1, y1 = cast(Tuple[FP2Value, FP2Value], p)
+    x2, y2 = cast(Tuple[FP2Value, FP2Value], q)
     if x1 == x2 and y1 == FP2Value(mod, -1) * y2:
         return (x - x1).normalize()
     if x1 == x2 and y1 == y2:
@@ -42,12 +49,12 @@ def H(mod, p, q, x, y):
     return ((y - y1 - l * (x - x1)) // (x + (x1 + x2) - l * l)).normalize()
 
 
-def millercalc(mod, M, p, R):
+def millercalc(mod: int, M: int, p: tuple[FP2Value, FP2Value], R: tuple[FP2Value, FP2Value]) -> FP2Value:
     """
     Perform the Miller calculation for message M point P and coordinates given by R.
     """
     mlist = list(reversed([int(c) for c in str(bin(M))[2:]]))
-    T = p
+    T: str | tuple[FP2Value, FP2Value] = p
     f = FP2Value(mod, 1)
     for i in reversed(list(range(len(mlist) - 1))):
         f = (f * f * H(mod, T, T, R[0], R[1])).normalize()
@@ -58,14 +65,15 @@ def millercalc(mod, M, p, R):
     return f
 
 
-def weilpairing(mod, m, P, Q, S):
+def weilpairing(mod: int, m: int, P: tuple[FP2Value, FP2Value], Q: tuple[FP2Value, FP2Value],
+                S: tuple[FP2Value, FP2Value]) -> FP2Value:
     """
     Create a Weil pairing for message m, points P and Q and DH secret S.
     """
-    nS = [S[0], FP2Value(mod, -1) * S[1]]
-    A = millercalc(mod, m, P, esum(mod, Q, S))
+    nS = (S[0], FP2Value(mod, -1) * S[1])
+    A = millercalc(mod, m, P, cast(Tuple[FP2Value, FP2Value], esum(mod, Q, S)))
     B = millercalc(mod, m, P, S)
-    C = millercalc(mod, m, Q, esum(mod, P, nS))
+    C = millercalc(mod, m, Q, cast(Tuple[FP2Value, FP2Value], esum(mod, P, nS)))
     D = millercalc(mod, m, Q, nS)
     wp = ((A * D) // (B * C))
     return wp.wp_nominator() * wp.wp_denom_inverse()

@@ -1,7 +1,11 @@
-from cryptography.hazmat.primitives.asymmetric.rsa import _modinv  # type:ignore
+from __future__ import annotations
+
+from cryptography.hazmat.primitives.asymmetric.rsa import _modinv
+
+# ruff: noqa: N803,N806
 
 
-def format_polynomial(a, b, c):
+def format_polynomial(a: int, b: int, c: int) -> str:
     """
     Formats a polynomial cx^2 + bx + a into non-zero/non-one form.
 
@@ -27,7 +31,8 @@ class FP2Value:
     Defines a rational value (a + bx + cx^2)/(aC + bCx + cCx^2)(mod 1 + x + x^2, mod p).
     """
 
-    def __init__(self, mod, a=0, b=0, c=0, aC=1, bC=0, cC=0):
+    def __init__(self, mod: int, a: int = 0, b: int = 0, c: int = 0,  # noqa: PLR0913
+                 aC: int = 1, bC: int = 0, cC: int = 0) -> None:
         """
         Intialize a value mod 'mod' of two quadratic polynomials divided by each other modulo (x^2 + x + 1).
 
@@ -42,7 +47,7 @@ class FP2Value:
         self.mod = mod
         self.a, self.b, self.c, self.aC, self.bC, self.cC = a % mod, b % mod, c % mod, aC % mod, bC % mod, cC % mod
 
-    def __str__(self):
+    def __str__(self) -> str:
         """
         Format this value as a string.
         """
@@ -50,10 +55,9 @@ class FP2Value:
         denominator = format_polynomial(self.aC, self.bC, self.cC)
         if denominator == '1':
             return numerator
-        else:
-            return f"({numerator})/({denominator})"
+        return f"({numerator})/({denominator})"
 
-    def __add__(self, other):
+    def __add__(self, other: FP2Value) -> FP2Value:
         """
         Add this value to another value and return a new FP2Value.
         """
@@ -70,7 +74,7 @@ class FP2Value:
               - self.bC * other.bC - self.aC * other.cC + self.cC * other.cC)
         return FP2Value(self.mod, a=a, b=b, aC=aC, bC=bC)
 
-    def __sub__(self, other):
+    def __sub__(self, other: FP2Value) -> FP2Value:
         """
         Subtract another value from this value and return a new FP2Value.
         """
@@ -87,7 +91,7 @@ class FP2Value:
               - self.bC * other.bC - self.aC * other.cC + self.cC * other.cC)
         return FP2Value(self.mod, a=a, b=b, aC=aC, bC=bC)
 
-    def __mul__(self, other):
+    def __mul__(self, other: FP2Value) -> FP2Value:
         """
         Multiply this value with another value and return a new FP2Value.
         """
@@ -102,7 +106,7 @@ class FP2Value:
               - self.bC * other.bC - self.aC * other.cC + self.cC * other.cC)
         return FP2Value(self.mod, a=a, b=b, aC=aC, bC=bC)
 
-    def __floordiv__(self, other):
+    def __floordiv__(self, other: FP2Value) -> FP2Value:
         """
         Divide this value by another value and return a new FP2Value.
         """
@@ -117,7 +121,7 @@ class FP2Value:
               - self.bC * other.b - self.aC * other.c + self.cC * other.c)
         return FP2Value(self.mod, a=a, b=b, aC=aC, bC=bC)
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         """
         Check equality with another value.
         """
@@ -126,13 +130,13 @@ class FP2Value:
         divd = (self // other).normalize()
         return all([divd.a == divd.aC, divd.b == divd.bC, divd.c == divd.cC])
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         """
         Equality is not trivial. We hash everything to 0 for the full equality check.
         """
         return 0
 
-    def intpow(self, power):
+    def intpow(self, power: int) -> FP2Value:
         """
         Raise this value by a given power (int).
 
@@ -149,7 +153,7 @@ class FP2Value:
             n = n // 2
         return R.inverse().normalize() if power < 0 else R
 
-    def normalize(self):
+    def normalize(self) -> FP2Value:
         """
         Normalize to aC = 1: this is the best human-readable form.
 
@@ -167,19 +171,19 @@ class FP2Value:
             return FP2Value(self.mod, a, b, c, aC, bC, cC)
         return FP2Value(self.mod, self.a, self.b, self.c, self.aC, self.bC, self.cC)
 
-    def inverse(self):
+    def inverse(self) -> FP2Value:
         """
         Return the inverse of this value.
         """
         return FP2Value(self.mod, a=self.aC, b=self.bC, c=self.cC, aC=self.a, bC=self.b, cC=self.c)
 
-    def wp_nominator(self):
+    def wp_nominator(self) -> FP2Value:
         """
         Return the '1' and 'x' coefficients as a new value.
         """
         return FP2Value(self.mod, self.a, self.b)
 
-    def wp_denom_inverse(self):
+    def wp_denom_inverse(self) -> FP2Value:
         """
         Return the '1^-1' and 'x^-1' coefficients modular inverse.
         """
@@ -188,7 +192,7 @@ class FP2Value:
         b = FP2Value(self.mod, -self.bC) // iq
         return FP2Value(self.mod, a.normalize().a, b.normalize().a)
 
-    def wp_compress(self):
+    def wp_compress(self) -> FP2Value:
         """
         Compress this FP2 value into an FP2Value only containing `a` and `b` values.
 

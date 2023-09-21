@@ -211,19 +211,22 @@ class IdentityCommunity(Community):
         :param metadata: custom additional metadata
         """
         credential = self.self_advertise(attribute_hash, name, block_type, metadata)
-        self.permissions[peer] = len(self.token_chain)
-        disclosure = self.pseudonym_manager.disclose_credentials([credential], set())
-        self.ez_send(peer, DiclosePayload(*self._fit_disclosure(disclosure)))
+        if credential is None:
+            self.logger.exception("Failed to create credential %s: aborting!", name)
+        else:
+            self.permissions[peer] = len(self.token_chain)
+            disclosure = self.pseudonym_manager.disclose_credentials([credential], set())
+            self.ez_send(peer, DiclosePayload(*self._fit_disclosure(disclosure)))
 
     def self_advertise(self,
                        attribute_hash: bytes,
                        name: str,
                        block_type: str = "id_metadata",
-                       metadata: dict | None = None) -> Credential:
+                       metadata: dict | None = None) -> Credential | None:
         """
         Self-sign an attribute.
 
-        :param attribute_hash: he hash of the attestation
+        :param attribute_hash: the hash of the attestation
         :param name: the name of the attribute (metadata)
         :param block_type: the type of block (from identity_formats.py)
         :param metadata: custom additional metadata
@@ -243,6 +246,9 @@ class IdentityCommunity(Community):
         # Create credential
         credential = self.pseudonym_manager.create_credential(attribute_hash, extended_metadata,
                                                               self.metadata_chain[-1] if self.metadata_chain else None)
+
+        if credential is None:
+            return None
 
         # Construct chain data view
         self.attestation_chain.append(credential.attestations)

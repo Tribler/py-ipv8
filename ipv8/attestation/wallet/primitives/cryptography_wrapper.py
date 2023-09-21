@@ -1,7 +1,10 @@
 from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.backends.openssl.backend import Backend
+
+# ruff: noqa: SLF001
 
 
-def generate_safe_prime(bit_length, backend=default_backend()):
+def generate_safe_prime(bit_length: int, backend: Backend = default_backend()) -> int:  # noqa: B008
     """
     Generate a 'safe' prime p ((p-1)/2 is also prime).
 
@@ -18,7 +21,8 @@ def generate_safe_prime(bit_length, backend=default_backend()):
     # If the return value is 0, the generation failed
     if err == 0:
         backend._lib.BN_clear_free(generated)
-        raise RuntimeError("Failed to generate prime!")
+        msg = "Failed to generate prime!"
+        raise RuntimeError(msg)
     # We cannot simply convert the output to int (too long), use the hex representation and port that to int
     generated_hex = backend._lib.BN_bn2hex(generated)
     out = int(backend._ffi.string(generated_hex), 16)
@@ -28,7 +32,7 @@ def generate_safe_prime(bit_length, backend=default_backend()):
     return out
 
 
-def is_prime(number, backend=default_backend()):
+def is_prime(number: int, backend: Backend = default_backend()) -> bool:  # noqa: B008
     """
     Check a number for primality.
 
@@ -44,15 +48,16 @@ def is_prime(number, backend=default_backend()):
     if hex_n.endswith('L'):
         hex_n = hex_n[:-1]
     # hex() outputs a unicode string in Python 3
-    hex_n = hex_n.encode()
+    bhex_n = hex_n.encode()
     generated = backend._lib.BN_new()
     bn_pp = backend._ffi.new("BIGNUM **", generated)
-    err = backend._lib.BN_hex2bn(bn_pp, hex_n)
+    err = backend._lib.BN_hex2bn(bn_pp, bhex_n)
     # If the return value is 0, the conversion to hex failed
     if err == 0:
         backend._lib.BN_clear_free(generated)
-        raise RuntimeError("Failed to read BIGNUM from hex string!")
-    result = backend._lib.BN_is_prime_ex(generated, backend._lib.BN_prime_checks_for_size(int(len(hex_n) * 8)),
+        msg = "Failed to read BIGNUM from hex string!"
+        raise RuntimeError(msg)
+    result = backend._lib.BN_is_prime_ex(generated, backend._lib.BN_prime_checks_for_size(int(len(bhex_n) * 8)),
                                          backend._ffi.NULL, backend._ffi.NULL)
     backend._lib.BN_clear_free(generated)
-    return True if result == 1 else False
+    return result == 1
