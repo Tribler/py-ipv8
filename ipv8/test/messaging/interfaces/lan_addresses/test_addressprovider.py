@@ -80,11 +80,13 @@ class TestAddressProvider(TestBase):
         Check if the buffer of a provider is used if called within the valid buffer time.
         """
         provider = InvocationCountingProvider()
-        provider.get_addresses_buffered(10.0)
 
-        # This call should happen well within 10 seconds, so the buffer should be used
-        provider.get_addresses_buffered(10.0)
+        # This call shouldn't use the buffer
+        provider.get_addresses_buffered()
+        self.assertEqual(1, provider.invocations)
 
+        # The second call should use the buffer
+        provider.get_addresses_buffered()
         self.assertEqual(1, provider.invocations)
 
     async def test_get_addresses_buffered_timeout(self) -> None:
@@ -92,11 +94,18 @@ class TestAddressProvider(TestBase):
         Check if the buffer of a provider is used if called within the valid buffer time.
         """
         provider = InvocationCountingProvider()
-        provider.get_addresses_buffered(0.01)
+        provider.get_addresses_buffered()
 
         await sleep(0.02)
 
-        # 0.01 seconds should have passed, so the buffer should NOT be used
-        provider.get_addresses_buffered(0.01)
+        # 0.01 seconds should have passed, so the addresses should be re-discovered
+        provider.discover_addresses(0.01)
+        self.assertEqual(2, provider.invocations)
 
+        # Multiple calls to discover_addresses shouldn't do anything
+        provider.discover_addresses(0.01)
+        self.assertEqual(2, provider.invocations)
+
+        # the buffer should be used
+        provider.get_addresses_buffered()
         self.assertEqual(2, provider.invocations)

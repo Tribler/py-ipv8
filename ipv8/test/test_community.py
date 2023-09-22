@@ -169,12 +169,14 @@ class TestCommunityBootstrapping(TestBase):
         # Initialize bootstrapper and get the bootstrapping task
         community.bootstrap()
         tasks = community.get_tasks()
+        bootstrap_task = tasks[1]
         # Unload the Community after the bootstrapping task has completed.
-        await tasks[0]
+        await bootstrap_task
         await community.unload()
 
-        self.assertEqual(1, len(tasks), msg="Precondition failed. Only the bootstrap task should be running!")
-        self.assertFalse(tasks[0].cancelled())
+        self.assertEqual(2, len(tasks),
+                         msg="Precondition failed. Only the bootstrap/LAN discovery tasks should be running!")
+        self.assertFalse(bootstrap_task.cancelled())
 
     async def test_cancel_bootstrap(self) -> None:
         """
@@ -186,8 +188,10 @@ class TestCommunityBootstrapping(TestBase):
         # Initialize bootstrapper and get the bootstrapping task
         community.bootstrap()
         tasks = community.get_tasks()
+        bootstrap_task = tasks[1]
         # Cancel the bootstrapping task before it can complete.
         await community.unload()
 
-        self.assertEqual(1, len(tasks), msg="Precondition failed. Only the bootstrap task should be running!")
-        self.assertTrue(tasks[0].cancelled())
+        self.assertEqual(2, len(tasks),
+                         msg="Precondition failed. Only the bootstrap/LAN discovery tasks should be running!")
+        self.assertTrue(bootstrap_task.cancelled())

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import abc
+import asyncio
 import logging
 from typing import TYPE_CHECKING
 
 from .keyvault.crypto import default_eccrypto
 from .messaging.interfaces.endpoint import EndpointListener
+from .messaging.interfaces.lan_addresses.interfaces import get_providers
 from .messaging.serialization import Serializer
 from .taskmanager import TaskManager
 
@@ -42,6 +44,16 @@ class Overlay(EndpointListener, TaskManager, metaclass=abc.ABCMeta):
         self.logger = logging.getLogger(self.__class__.__name__)
 
         self.network = network
+
+        self.register_task('discover_lan_addresses', self.discover_lan_addresses, interval=10, delay=0)
+
+    async def discover_lan_addresses(self) -> None:
+        """
+        Called for discovering LAN addresses.
+        """
+        loop = asyncio.get_running_loop()
+        for provider in get_providers():
+            await loop.run_in_executor(None, provider.discover_addresses)
 
     async def unload(self) -> None:
         """
