@@ -3,7 +3,6 @@ from __future__ import annotations
 import traceback
 import typing
 from abc import ABC, abstractmethod
-from functools import lru_cache
 from time import time
 
 
@@ -19,10 +18,8 @@ class AddressProvider(ABC):
         :param verbose: Log any errors that are encountered while fetching addresses.
         """
         self.verbose = verbose
-
-        # This needs to be instance-unique.
-        # A "normal" method would give one entry for all ``AddressProvider`` implementations.
-        self._get_addresses_buffered = lru_cache(maxsize=1)(lambda t: self.get_addresses())
+        self.addresses: typing.Set[str] = set()
+        self.addresses_ts = 0.0
 
     def on_exception(self) -> None:
         """
@@ -31,16 +28,32 @@ class AddressProvider(ABC):
         if self.verbose:
             traceback.print_exc()
 
+    def discover_addresses(self, min_interval: float = 10.0) -> None:
+        """
+        Discovers the LAN addresses using this provider. The addresses are only discovered if
+        the previous call was more than ``min_interval`` seconds ago. The most recent results
+        can be retrieved through ``get_addresses_buffered()``.
+
+        :param min_interval: Minimum time in seconds between discoveries.
+        """
+        if time() - self.addresses_ts > min_interval:
+            # Set the timestamp immediately to avoid concurrent calls
+            self.addresses_ts = time()
+            self.addresses = self.get_addresses()
+            # Since get_addresses may take a while, we set the timestamp for a second time
+            self.addresses_ts = time()
+
     @abstractmethod
     def get_addresses(self) -> typing.Set[str]:
         """
         Get a set of LAN addresses using this provider.
         """
 
-    def get_addresses_buffered(self, buffer_time_secs: float = 10.0) -> typing.Set[str]:
+    def get_addresses_buffered(self) -> typing.Set[str]:
         """
-        Return a buffered view of the last known addresses from ``get_addresses()``.
-
-        :param buffer_time_secs: The time span in seconds that the last values stay valid.
+        Return the known addresses from when ``discover_addresses()`` was last successfully called.
+        If discovery hasn't been performed yet, do so now.
         """
-        return self._get_addresses_buffered(time() // buffer_time_secs)
+        if not self.addresses:
+            self.discover_addresses()
+        return self.addresses
