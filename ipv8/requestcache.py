@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import abc
 import logging
+from abc import ABC
 from asyncio import CancelledError, Future, gather
 from contextlib import contextmanager, suppress
 from random import random
 from threading import Lock
-from typing import Generator, Iterable
+from typing import Generator, Iterable, TypeVar, overload
+
+from typing_extensions import Protocol
 
 from .taskmanager import TaskManager
 
@@ -111,6 +114,29 @@ class RandomNumberCache(NumberCache):
         return number
 
 
+class CacheWithName(Protocol):
+    """
+    All caches with a ``name`` attribute.
+    """
+
+    name: str
+
+
+CacheTypeVar = TypeVar("CacheTypeVar", bound=CacheWithName)
+
+
+class NumberCacheWithName(NumberCache, CacheWithName, ABC):
+    """
+    A NumberCache with a ``name`` attribute.
+    """
+
+
+class RandomNumberCacheWithName(RandomNumberCache, CacheWithName, ABC):
+    """
+    A RandomNumberCache with a ``name`` attribute.
+    """
+
+
 class RequestCache(TaskManager):
     """
     Manager for NumberCache caches.
@@ -181,27 +207,57 @@ class RequestCache(TaskManager):
             self.register_task(cache, self._on_timeout, cache, delay=timeout_delay)
             return cache
 
+    @overload
     def has(self, prefix: str, number: int) -> bool:
+        pass
+
+    @overload
+    def has(self, prefix: type[CacheTypeVar], number: int) -> bool:
+        pass
+
+    def has(self, prefix: str | type[CacheTypeVar], number: int) -> bool:
         """
         Returns True when IDENTIFIER is part of this RequestCache.
         """
-        return self._create_identifier(number, prefix) in self._identifiers
+        if isinstance(prefix, str):
+            return self._create_identifier(number, prefix) in self._identifiers
+        return self.has(prefix.name, number)
 
+    @overload
     def get(self, prefix: str, number: int) -> NumberCache | None:
+        pass
+
+    @overload
+    def get(self, prefix: type[CacheTypeVar], number: int) -> CacheTypeVar | None:
+        pass
+
+    def get(self, prefix: str | type[CacheTypeVar], number: int) -> NumberCache | CacheTypeVar | None:
         """
         Returns the Cache associated with IDENTIFIER when it exists, otherwise returns None.
         """
-        return self._identifiers.get(self._create_identifier(number, prefix))
+        if isinstance(prefix, str):
+            return self._identifiers.get(self._create_identifier(number, prefix))
+        return self.get(prefix.name, number)
 
+    @overload
     def pop(self, prefix: str, number: int) -> NumberCache:
+        pass
+
+    @overload
+    def pop(self, prefix: type[CacheTypeVar], number: int) -> CacheTypeVar:
+        pass
+
+    def pop(self, prefix: str | type[CacheTypeVar], number: int) -> NumberCache | CacheTypeVar:
         """
         Returns the Cache associated with IDENTIFIER, and removes it from this RequestCache, when it exists, otherwise
         raises a KeyError exception.
         """
-        identifier = self._create_identifier(number, prefix)
-        cache = self._identifiers.pop(identifier)
-        self.cancel_pending_task(cache)
-        return cache
+        if isinstance(prefix, str):
+            identifier = self._create_identifier(number, prefix)
+            cache = self._identifiers.pop(identifier)
+            self.cancel_pending_task(cache)
+            return cache
+        return self.pop(prefix.name, number)
 
     @contextmanager
     def passthrough(self,

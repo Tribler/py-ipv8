@@ -29,7 +29,7 @@ from ipv8.messaging.payload import IntroductionRequestPayload, IntroductionRespo
 from ipv8.peer import Peer
 from ipv8.peerdiscovery.churn import RandomChurn
 from ipv8.peerdiscovery.network import Network
-from ipv8.requestcache import NumberCache, RequestCache
+from ipv8.requestcache import NumberCacheWithName, RequestCache
 from ipv8.REST.base_endpoint import Response
 from ipv8.REST.rest_manager import ApiKeyMiddleware
 
@@ -64,19 +64,19 @@ class TrackerChurn(RandomChurn):
                 self.overlay.network.remove_peer(peer)
 
 
-class TrackerPing(NumberCache):
+class TrackerPing(NumberCacheWithName):
     """
     Cache to store the state of a liveness ping.
     """
 
     name = "tracker-ping"
 
-    def __init__(self, request_cache: RequestCache, identifier: int, network: Network,  # noqa: PLR0913
+    def __init__(self, request_cache: RequestCache, identifier: int, network: Network,
                  peer: Peer, service: bytes) -> None:
         """
         Create a new cache for the given peer and service.
         """
-        super().__init__(request_cache, TrackerPing.name, identifier)
+        super().__init__(request_cache, self.name, identifier)
         self.network = network
         self.peer = peer
         self.service = service
@@ -179,10 +179,10 @@ class EndpointServer(Community):
         If the peer IS responsive but flags that it already has too many peers, remove it.
         """
         auth, dist, payload = self._ez_unpack_auth(IntroductionResponsePayload, data)
-        if not self.request_cache.has('tracker-ping', payload.identifier):
+        if not self.request_cache.has(TrackerPing, payload.identifier):
             return
 
-        self.request_cache.pop('tracker-ping', payload.identifier)
+        self.request_cache.pop(TrackerPing, payload.identifier)
         if payload.peer_limit_reached:
             peer = Peer(auth.public_key_bin, source_address)
             services = self.network.get_services_for_peer(peer)

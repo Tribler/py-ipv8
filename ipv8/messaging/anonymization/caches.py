@@ -7,7 +7,7 @@ from asyncio import Future
 from functools import reduce
 from typing import TYPE_CHECKING, Callable
 
-from ...requestcache import NumberCache, RandomNumberCache
+from ...requestcache import NumberCacheWithName, RandomNumberCacheWithName
 from .tunnel import CIRCUIT_STATE_CLOSING, CIRCUIT_STATE_READY
 
 if TYPE_CHECKING:
@@ -18,17 +18,19 @@ if TYPE_CHECKING:
     from .tunnelcrypto import SessionKeys
 
 
-class CreateRequestCache(RandomNumberCache):
+class CreateRequestCache(RandomNumberCacheWithName):
     """
     Used to track outstanding create messages.
     """
+
+    name = "create"
 
     def __init__(self, community: TunnelCommunity, identifier: int, to_circuit_id: int,  # noqa: PLR0913
                  from_circuit_id: int, peer: Peer, to_peer: Peer) -> None:
         """
         Create a new cache.
         """
-        super().__init__(community.request_cache, "create")
+        super().__init__(community.request_cache, self.name)
         self.community = community
         self.extend_identifier = identifier
         self.to_circuit_id = to_circuit_id
@@ -45,17 +47,19 @@ class CreateRequestCache(RandomNumberCache):
             self.community.remove_relay(self.to_circuit_id)
 
 
-class CreatedRequestCache(NumberCache):
+class CreatedRequestCache(NumberCacheWithName):
     """
     Used to track outstanding created messages.
     """
+
+    name = "created"
 
     def __init__(self, community: TunnelCommunity, circuit_id: int, candidate: Peer,
                  candidates: dict[bytes, Peer], timeout: float) -> None:
         """
         Create a new cache.
         """
-        super().__init__(community.request_cache, "created", circuit_id)
+        super().__init__(community.request_cache, self.name, circuit_id)
         self.circuit_id = circuit_id
         self.candidate = candidate
         self.candidates = candidates
@@ -74,10 +78,12 @@ class CreatedRequestCache(NumberCache):
         """
 
 
-class RetryRequestCache(NumberCache):
+class RetryRequestCache(NumberCacheWithName):
     """
     Used to track adding additional hops to the circuit.
     """
+
+    name = "retry"
 
     def __init__(self, community: TunnelCommunity, circuit: Circuit,  # noqa: PLR0913
                  candidates: list[bytes] | list[Peer], max_tries: int,
@@ -86,7 +92,7 @@ class RetryRequestCache(NumberCache):
         """
         Create the cache.
         """
-        super().__init__(community.request_cache, "retry", circuit.circuit_id)
+        super().__init__(community.request_cache, self.name, circuit.circuit_id)
         self.community = community
         self.circuit = circuit
         self.packet_identifier = reduce(lambda v, e: (v << 8) + e, os.urandom(2), 0)
@@ -122,16 +128,18 @@ class RetryRequestCache(NumberCache):
         self.community.request_cache.register_anonymous_task("retry-later", retry_later, delay=0)
 
 
-class PingRequestCache(RandomNumberCache):
+class PingRequestCache(RandomNumberCacheWithName):
     """
     Manage a ping to a peer.
     """
+
+    name = "ping"
 
     def __init__(self, community: TunnelCommunity) -> None:
         """
         Create a new cache.
         """
-        super().__init__(community.request_cache, "ping")
+        super().__init__(community.request_cache, self.name)
 
     def on_timeout(self) -> None:
         """
@@ -139,16 +147,18 @@ class PingRequestCache(RandomNumberCache):
         """
 
 
-class IPRequestCache(RandomNumberCache):
+class IPRequestCache(RandomNumberCacheWithName):
     """
     Manage introduction point establishment.
     """
+
+    name = "establish-intro"
 
     def __init__(self, community: TunnelCommunity, circuit: Circuit) -> None:
         """
         Create a new cache.
         """
-        super().__init__(community.request_cache, "establish-intro")
+        super().__init__(community.request_cache, self.name)
         self.logger = logging.getLogger(__name__)
         self.circuit = circuit
         self.community = community
@@ -161,16 +171,18 @@ class IPRequestCache(RandomNumberCache):
         self.community.remove_circuit(self.circuit.circuit_id, 'establish-intro timeout')
 
 
-class RPRequestCache(RandomNumberCache):
+class RPRequestCache(RandomNumberCacheWithName):
     """
     Manage rendezvous point establishment.
     """
+
+    name = "establish-rendezvous"
 
     def __init__(self, community: TunnelCommunity, rp: RendezvousPoint) -> None:
         """
         Create a new cache.
         """
-        super().__init__(community.request_cache, "establish-rendezvous")
+        super().__init__(community.request_cache, self.name)
         self.logger = logging.getLogger(__name__)
         self.community = community
         self.rp = rp
@@ -185,17 +197,19 @@ class RPRequestCache(RandomNumberCache):
         self.community.remove_circuit(self.rp.circuit.circuit_id, 'establish-rendezvous timeout')
 
 
-class PeersRequestCache(RandomNumberCache):
+class PeersRequestCache(RandomNumberCacheWithName):
     """
     Request peers for the given swarm (info hash).
     """
+
+    name = "peers-request"
 
     def __init__(self, community: HiddenTunnelCommunity, circuit: Circuit, info_hash: bytes,
                  target: IntroductionPoint | None) -> None:
         """
         Create a new cache, exposes the ``future`` attribute to track completion.
         """
-        super().__init__(community.request_cache, "peers-request")
+        super().__init__(community.request_cache, self.name)
         self.community = community
         self.circuit = circuit
         self.info_hash = info_hash
@@ -213,16 +227,18 @@ class PeersRequestCache(RandomNumberCache):
             swarm.remove_intro_point(self.target)
 
 
-class E2ERequestCache(RandomNumberCache):
+class E2ERequestCache(RandomNumberCacheWithName):
     """
     Cache to track e2e circuit creation.
     """
+
+    name = "e2e-request"
 
     def __init__(self, community: TunnelCommunity, info_hash: bytes, hop: Hop, intro_point: IntroductionPoint) -> None:
         """
         Create a new cache.
         """
-        super().__init__(community.request_cache, "e2e-request")
+        super().__init__(community.request_cache, self.name)
         self.info_hash = info_hash
         self.hop = hop
         self.intro_point = intro_point
@@ -233,17 +249,19 @@ class E2ERequestCache(RandomNumberCache):
         """
 
 
-class LinkRequestCache(RandomNumberCache):
+class LinkRequestCache(RandomNumberCacheWithName):
     """
     Cache to track circuit linking.
     """
+
+    name = "link-request"
 
     def __init__(self, community: TunnelCommunity, circuit: Circuit, info_hash: bytes,
                  hs_session_keys: SessionKeys) -> None:
         """
         Create a new cache.
         """
-        super().__init__(community.request_cache, "link-request")
+        super().__init__(community.request_cache, self.name)
         self.circuit = circuit
         self.info_hash = info_hash
         self.hs_session_keys = hs_session_keys
@@ -253,16 +271,19 @@ class LinkRequestCache(RandomNumberCache):
         We don't need to do anything on timeout.
         """
 
-class TestRequestCache(RandomNumberCache):
+
+class TestRequestCache(RandomNumberCacheWithName):
     """
     Cache to track circuit speed tests.
     """
+
+    name = "test-request"
 
     def __init__(self, community: TunnelCommunity, circuit: Circuit) -> None:
         """
         Create a new cache, exposes the ``future`` attribute to track completion.
         """
-        super().__init__(community.request_cache, "test-request")
+        super().__init__(community.request_cache, self.name)
         self.circuit = circuit
         self.ts = time.time()
         self.future: Future[tuple[bytes, float]] = Future()
