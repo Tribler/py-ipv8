@@ -163,7 +163,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
                 break
 
             # Issue as many requests as possible in parallel
-            ips = random.sample(not_tried, min(len(not_tried), max_requests - len(tried)))
+            ips = random.sample(list(not_tried), min(len(not_tried), max_requests - len(tried)))
             responses = await gather(*[swarm.lookup(ip) for ip in ips], return_exceptions=True)
 
             # Collect responses

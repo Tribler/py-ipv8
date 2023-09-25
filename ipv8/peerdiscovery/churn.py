@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from ..types import Address, Peer
 
 
-class RandomChurn(DiscoveryStrategy):
+class RandomChurn(DiscoveryStrategy[Overlay]):
     """
     Select random peers, ping them if inactive, remove them if unresponsive.
     """
@@ -54,7 +54,6 @@ class RandomChurn(DiscoveryStrategy):
         """
         Select a new (set of) peer(s) to investigate liveness for.
         """
-        self.overlay = cast(Overlay, self.overlay)
         with self.walk_lock:
             # Find an inactive or droppable peer
             sample_size = min(len(self.overlay.network.verified_peers), self.sample_size)
