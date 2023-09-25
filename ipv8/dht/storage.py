@@ -60,7 +60,7 @@ class Storage:
         """
         self.items: dict[bytes, list[Value]] = defaultdict(list)
 
-    def put(self, key: bytes, data: bytes,  # noqa: PLR0913
+    def put(self, key: bytes, data: bytes,
             id_: bytes | None = None, max_age: float = 86400, version: int = 0) -> None:
         """
         Store the given data under a certain key.

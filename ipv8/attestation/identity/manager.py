@@ -221,7 +221,7 @@ class IdentityManager:
                 self.pseudonyms[public_key_material] = PseudonymManager(self.database, public_key=key)
         return self.pseudonyms[public_key_material]
 
-    def substantiate(self,  # noqa: PLR0913
+    def substantiate(self,
                      public_key: PublicKey,
                      serialized_metadata: bytes,
                      serialized_tokens: bytes,

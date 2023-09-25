@@ -43,7 +43,7 @@ class OldCommunity(Community):
         """
         return super().create_puncture(lan_walker, wan_walker, identifier)
 
-    def create_puncture_request(self, lan_walker: Address, wan_walker: Address, identifier: int,  # noqa: PLR0913
+    def create_puncture_request(self, lan_walker: Address, wan_walker: Address, identifier: int,
                                 prefix: bytes | None = None, new_style: bool = False) -> bytes:
         """
         Make sure all sent puncture requests are flagged as old style.

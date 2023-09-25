@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from .community import TunnelCommunity
 
 
-async def run_speed_test(tc: TunnelCommunity, circuit: Circuit, request_size: int, response_size: int,  # noqa: PLR0913
+async def run_speed_test(tc: TunnelCommunity, circuit: Circuit, request_size: int, response_size: int,
                          num_requests: int, window: int = 50) -> dict[str, int | float]:
     """
     Test a circuit's speed.

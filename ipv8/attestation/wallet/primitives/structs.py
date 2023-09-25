@@ -124,7 +124,7 @@ class BonehPrivateKey(BonehPublicKey):
 
     FIELDS = 7
 
-    def __init__(self, p: int, g: FP2Value, h: FP2Value, n: int, t1: int) -> None:  # noqa: PLR0913
+    def __init__(self, p: int, g: FP2Value, h: FP2Value, n: int, t1: int) -> None:
         """
         Create a new private key container.
         """

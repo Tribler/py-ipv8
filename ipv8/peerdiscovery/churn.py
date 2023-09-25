@@ -16,7 +16,7 @@ class RandomChurn(DiscoveryStrategy):
     Select random peers, ping them if inactive, remove them if unresponsive.
     """
 
-    def __init__(self, overlay: Overlay, sample_size: int = 8,  # noqa: PLR0913
+    def __init__(self, overlay: Overlay, sample_size: int = 8,
                  ping_interval: float = 10.0, inactive_time: float = 27.5, drop_time: float = 57.5) -> None:
         """
         Random peer removal strategy.

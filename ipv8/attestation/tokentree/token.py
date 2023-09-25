@@ -21,7 +21,7 @@ class Token(AbstractSignedObject):
     Tokens do not and should not contain a reference to the public key (but are signed by one).
     """
 
-    def __init__(self,  # noqa: PLR0913
+    def __init__(self,
                  previous_token_hash: bytes,
                  content: bytes | None = None,
                  content_hash: bytes | None = None,

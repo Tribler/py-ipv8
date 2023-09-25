@@ -18,7 +18,7 @@ class SimilarityRequestPayload(Payload):
     msg_id = 1
     format_list = ['H', '4SH', '4SH', 'bits', 'raw']
 
-    def __init__(self, identifier: int, lan_address: Address, wan_address: Address,  # noqa: PLR0913
+    def __init__(self, identifier: int, lan_address: Address, wan_address: Address,
                  connection_type: str, preference_list: list[bytes]) -> None:
         """
         Create a new similarity request payload.

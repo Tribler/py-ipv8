@@ -105,7 +105,7 @@ def challengeContributions(pl: list, publicKeys: list[PublicKey], context: int, 
     return contributions
 
 
-def Verify(pl: list, publicKeys: list[PublicKey], context: int, nonce: int, issig: bool,  # noqa: PLR0913
+def Verify(pl: list, publicKeys: list[PublicKey], context: int, nonce: int, issig: bool,
            keyshareServers: list | None = None) -> bool:
     """
     Verify a list of proofs for a list of public keys.
@@ -181,7 +181,7 @@ class IssueCommitmentMessage:
     JWT commitment information.
     """
 
-    def __init__(self, U: int | None, Proofs: list[ProofU] | None, Nonce2: int,  # noqa: PLR0913
+    def __init__(self, U: int | None, Proofs: list[ProofU] | None, Nonce2: int,
                  ProofPjwt: None = None, ProofPjwts: None = None) -> None:
         """
         Create a new issued commitment message container.

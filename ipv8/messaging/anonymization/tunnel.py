@@ -306,7 +306,7 @@ class Circuit(Tunnel[Optional[Peer]]):
     A peer-to-peer encrypted communication channel, consisting of 0 or more hops (intermediate peers).
     """
 
-    def __init__(self, circuit_id: int , goal_hops: int = 0, ctype: str = CIRCUIT_TYPE_DATA,  # noqa: PLR0913
+    def __init__(self, circuit_id: int , goal_hops: int = 0, ctype: str = CIRCUIT_TYPE_DATA,
                  required_exit: Peer | None = None, info_hash: bytes | None = None) -> None:
         """
         Create a new circuit instance.

@@ -97,7 +97,7 @@ class DiscoveryCommunity(Community):
     version = b'\x02'
     community_id = unhexlify('7e313685c1912a141279f8248fc8db5899c5df5a')
 
-    def __init__(self, my_peer: Peer, endpoint: Endpoint, network: Network,  # noqa: PLR0913
+    def __init__(self, my_peer: Peer, endpoint: Endpoint, network: Network,
                  max_peers: int = DEFAULT_MAX_PEERS, anonymize: bool = False) -> None:
         """
         Create a new community with similarity and ping functionality.

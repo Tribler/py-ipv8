@@ -72,7 +72,7 @@ class CommunicationChannel:
         self.attestation_metadata[(peer, attribute_name)] = metadata
         return future
 
-    def on_attestation_complete(self, for_peer: Peer, attribute_name: str, attribute_hash: bytes,  # noqa: PLR0913
+    def on_attestation_complete(self, for_peer: Peer, attribute_name: str, attribute_hash: bytes,
                                 id_format: str, from_peer: Peer | None = None) -> None:
         """
         Callback for when an attestation has been completed for another peer.

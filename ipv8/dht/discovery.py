@@ -30,7 +30,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
     Community for discovering peers that are behind NAT.
     """
 
-    def __init__(self, my_peer: Peer, endpoint: Endpoint, network: Network,  # noqa: PLR0913
+    def __init__(self, my_peer: Peer, endpoint: Endpoint, network: Network,
                  max_peers: int = DEFAULT_MAX_PEERS, anonymize: bool = False) -> None:
         """
         Create a new dht-based discovery community.

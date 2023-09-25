@@ -237,7 +237,7 @@ class DHTCommunity(Community):
 
     community_id = unhexlify('8d0be1845d74d175f178197cad001591d04d73cc')
 
-    def __init__(self, my_peer: Peer, endpoint: Endpoint, network: Network,  # noqa: PLR0913
+    def __init__(self, my_peer: Peer, endpoint: Endpoint, network: Network,
                  max_peers: int = DEFAULT_MAX_PEERS, anonymize: bool = False) -> None:
         """
         Create a new DHT overlay, ignoring the given network instance.
@@ -516,7 +516,7 @@ class DHTCommunity(Community):
         node = self.get_requesting_node(peer)
         if not node:
             return
-        if any(len(value) > MAX_ENTRY_SIZE for value in payload.values):  # noqa: PD011
+        if any(len(value) > MAX_ENTRY_SIZE for value in payload.values):
             self.logger.warning('Maximum length of value exceeded, dropping packet.')
             return
         if len(payload.values) > MAX_VALUES_IN_STORE:
@@ -537,7 +537,7 @@ class DHTCommunity(Community):
         # To prevent over-caching, the expiration time of an entry depends on the number
         # of nodes that are closer than us.
         max_age = MAX_ENTRY_AGE // 2 ** max(0, num_closer - TARGET_NODES + 1)
-        for value in payload.values:  # noqa: PD011
+        for value in payload.values:
             self.add_value(payload.target, value, self.get_storage(node), max_age)
 
         self.ez_send(peer, StoreResponsePayload(payload.identifier))
@@ -590,7 +590,7 @@ class DHTCommunity(Community):
             return crawl.nodes
 
         cache_candidate = crawl.cache_candidate
-        values = crawl.values  # noqa: PD011
+        values = crawl.values
 
         if cache_candidate and values:
             # Store the key-value pair on the most recently visited node that
@@ -707,7 +707,7 @@ class DHTCommunity(Community):
         if cast(List[bool], cache.params)[0]:
             cache.future.set_result({'nodes': payload.nodes})
         else:
-            cache.future.set_result({'values': payload.values} if payload.values  # noqa: PD011
+            cache.future.set_result({'values': payload.values} if payload.values
                                     else {'nodes': payload.nodes})
 
     async def node_maintenance(self) -> None:

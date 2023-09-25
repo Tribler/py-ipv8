@@ -254,7 +254,7 @@ class AttestationCommunity(Community):
         self.database.insert_attestation(unserialized, attestation_hash, secret_key, id_format)
         self.attestation_request_complete_callback(self.my_peer, name, attestation_hash, id_format, peer)
 
-    def verify_attestation_values(self, socket_address: Address, attestation_hash: bytes,  # noqa: PLR0913
+    def verify_attestation_values(self, socket_address: Address, attestation_hash: bytes,
                                   values: list[bytes], callback: Callable[[bytes, list[float]], None],
                                   id_format: str) -> None:
         """
