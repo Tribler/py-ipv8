@@ -29,7 +29,7 @@ class BaseParameters:
     Algorithm parameters for Gabi.
     """
 
-    def __init__(self, LePrime: int, Lh: int, Lm: int, Ln: int, Lstatzk: int) -> None:  # noqa: PLR0913
+    def __init__(self, LePrime: int, Lh: int, Lm: int, Ln: int, Lstatzk: int) -> None:
         """
         Create new base parameters.
         """

@@ -42,7 +42,7 @@ class RandomWalk(DiscoveryStrategy):
     Walk randomly through the network.
     """
 
-    def __init__(self, overlay: Overlay, timeout: float = 3.0,  # noqa: PLR0913
+    def __init__(self, overlay: Overlay, timeout: float = 3.0,
                  window_size: int = 5, reset_chance: int = 50, target_interval: int = 0) -> None:
         """
         Create a new walk strategy.

@@ -319,7 +319,7 @@ class TunnelCommunity(Community):
                 and (exit_flags is None or set(exit_flags) <= set(c.exit_flags))
                 and (hops is None or hops == c.goal_hops)]
 
-    def create_circuit(self, goal_hops: int, ctype: str = CIRCUIT_TYPE_DATA,  # noqa: PLR0913
+    def create_circuit(self, goal_hops: int, ctype: str = CIRCUIT_TYPE_DATA,
                        exit_flags: Collection[int] | None = None, required_exit: Peer | None = None,
                        info_hash: bytes | None = None) -> Circuit | None:
         """
@@ -566,7 +566,7 @@ class TunnelCommunity(Community):
         if tunnel_obj:
             tunnel_obj.bytes_up += packet_len
 
-    def send_data(self, peer: Address | Peer, circuit_id: int, dest_address: Address,  # noqa: PLR0913
+    def send_data(self, peer: Address | Peer, circuit_id: int, dest_address: Address,
                   source_address: Address, data: bytes) -> None:
         """
         Pack the given binary data and forward it to the given peer.

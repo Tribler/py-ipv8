@@ -99,7 +99,7 @@ class ReceiveAttestationRequestCache(PeerCache):
     Stores one-time key for this attribute attestation.
     """
 
-    def __init__(self, community: AttestationCommunity, mid: bytes, key: Any,  # noqa: ANN401, PLR0913
+    def __init__(self, community: AttestationCommunity, mid: bytes, key: Any,  # noqa: ANN401
                  name: str, id_format: str) -> None:
         """
         Create a new cache for a pending attestation transfer reception.
@@ -121,7 +121,7 @@ class ProvingAttestationCache(HashCache):
     Pending attestation verification, stores expected relmap, hashed challenges and completion callback.
     """
 
-    def __init__(self, community: AttestationCommunity, cache_hash: bytes, id_format: str,  # noqa: PLR0913
+    def __init__(self, community: AttestationCommunity, cache_hash: bytes, id_format: str,
                  public_key: Any | None =None,  # noqa: ANN401
                  on_complete: Callable[[bytes, dict], None] = lambda x, y: None) -> None:
         """
@@ -154,7 +154,7 @@ class PendingChallengeCache(HashCache):
     Single pending challenge for a ProvingAttestationCache.
     """
 
-    def __init__(self, community: AttestationCommunity, cache_hash: bytes,  # noqa: PLR0913
+    def __init__(self, community: AttestationCommunity, cache_hash: bytes,
                  proving_cache: ProvingAttestationCache, id_format: str, honesty_check: int = -1) -> None:
         """
         Create a new cache for a pending challenge.

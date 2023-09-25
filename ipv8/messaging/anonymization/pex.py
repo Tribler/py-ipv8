@@ -28,7 +28,7 @@ class PexCommunity(Community):
     New on-the-fly overlay for the PEX protocol.
     """
 
-    def __init__(self, my_peer: Peer, endpoint: Endpoint, network: Network,  # noqa: PLR0913
+    def __init__(self, my_peer: Peer, endpoint: Endpoint, network: Network,
                  max_peers: int = DEFAULT_MAX_PEERS, anonymize: bool = False, **kwargs) -> None:
         """
         Create a new PEX community by deriving the community id from the given SHA-1 hash.

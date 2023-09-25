@@ -32,6 +32,7 @@ ignore = [
     "INP001",
     "N818",
     "N999",
+    "PD",
     "PERF203",
     "PLR2004",
     "PT",
@@ -90,8 +91,8 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 target-version = "py37"
 
 [pylint]
-max-args = 5
-max-returns=8
-max-branches=12
-max-statements=50
+max-args = 6
+max-returns = 8
+max-branches = 12
+max-statements = 50
 

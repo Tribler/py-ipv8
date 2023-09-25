@@ -50,7 +50,7 @@ class CreatedRequestCache(NumberCache):
     Used to track outstanding created messages.
     """
 
-    def __init__(self, community: TunnelCommunity, circuit_id: int, candidate: Peer,  # noqa: PLR0913
+    def __init__(self, community: TunnelCommunity, circuit_id: int, candidate: Peer,
                  candidates: dict[bytes, Peer], timeout: float) -> None:
         """
         Create a new cache.

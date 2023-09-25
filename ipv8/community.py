@@ -58,7 +58,7 @@ class Community(EZPackOverlay):
     version = b'\x02'
     community_id: bytes
 
-    def __init__(self, my_peer: Peer, endpoint: Endpoint, network: Network,  # noqa: PLR0913
+    def __init__(self, my_peer: Peer, endpoint: Endpoint, network: Network,
                  max_peers: int = DEFAULT_MAX_PEERS, anonymize: bool = False) -> None:
         """
         Create a new (still inert) community.
@@ -382,7 +382,7 @@ class Community(EZPackOverlay):
 
         return self._ez_pack(self._prefix, payload.msg_id, [auth, dist, payload])
 
-    def create_puncture_request(self, lan_walker: Address, wan_walker: Address, identifier: int,  # noqa: PLR0913
+    def create_puncture_request(self, lan_walker: Address, wan_walker: Address, identifier: int,
                                 prefix: bytes | None = None, new_style: bool = False) -> bytes:
         """
         Create a request for another peer to puncture a given LAN/WAN address pair.

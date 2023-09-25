@@ -94,7 +94,7 @@ class TaskManager:
         old_task.add_done_callback(cancel_cb)
         return new_task
 
-    def register_task(self, name: Hashable, task: Callable | Coroutine | Future,  # noqa: C901, PLR0913
+    def register_task(self, name: Hashable, task: Callable | Coroutine | Future,  # noqa: C901
                       *args: Any, delay: float | None = None,  # noqa: ANN401
                       interval: float | None = None, ignore: Sequence[type | BaseException] = ()) -> Future:
         """

@@ -26,7 +26,7 @@ def generate_prime(n: int) -> int:
     return p
 
 
-def bilinear_group(n: int, p: int, g1x: int, g1y: int, g2x: int, g2y: int) -> FP2Value:  # noqa: PLR0913
+def bilinear_group(n: int, p: int, g1x: int, g1y: int, g2x: int, g2y: int) -> FP2Value:
     """
     Generate a bilinear group for two generators.
     """

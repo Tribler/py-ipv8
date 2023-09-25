@@ -195,7 +195,7 @@ class IdentityCommunity(Community):
         else:
             self.logger.warning("Received unsolicited disclosure from %s, dropping!", str(peer))
 
-    def request_attestation_advertisement(self,  # noqa: PLR0913
+    def request_attestation_advertisement(self,
                                           peer: Peer,
                                           attribute_hash: bytes,
                                           name: str,
