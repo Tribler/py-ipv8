@@ -411,10 +411,10 @@ class HiddenTunnelCommunity(TunnelCommunity):
         """
         Callback for when someone performed a DHT lookup for us.
         """
-        if not self.request_cache.has("peers-request", payload.identifier):
+        if not self.request_cache.has(PeersRequestCache, payload.identifier):
             self.logger.warning('Got a peers-response with an unknown identifier')
             return
-        cache = cast(PeersRequestCache, self.request_cache.pop("peers-request", payload.identifier))
+        cache = self.request_cache.pop(PeersRequestCache, payload.identifier)
 
         self.logger.info("Received peers-response containing %d peers", len(payload.peers))
         ips = [IntroductionPoint(Peer(peer.key, address=peer.address), peer.seeder_pk, peer.source)
@@ -483,11 +483,11 @@ class HiddenTunnelCommunity(TunnelCommunity):
         """
         Callback for when peers signal that they have created an e2e circuit.
         """
-        if not self.request_cache.has("e2e-request", payload.identifier):
+        if not self.request_cache.has(E2ERequestCache, payload.identifier):
             self.logger.warning("Invalid created-e2e identifier")
             return
 
-        cache = cast(E2ERequestCache, self.request_cache.pop("e2e-request", payload.identifier))
+        cache = self.request_cache.pop(E2ERequestCache, payload.identifier)
         shared_secret = self.crypto.verify_and_generate_shared_secret(cast(LibNaCLSK, cache.hop.dh_secret),
                                                                       payload.key,
                                                                       payload.auth,
@@ -548,11 +548,11 @@ class HiddenTunnelCommunity(TunnelCommunity):
         """
         Callback for when a sender and receiver circuit have been linked up.
         """
-        if not self.request_cache.has("link-request", payload.identifier):
+        if not self.request_cache.has(LinkRequestCache, payload.identifier):
             self.logger.warning("Invalid linked-e2e identifier")
             return
 
-        cache = cast(LinkRequestCache, self.request_cache.pop("link-request", payload.identifier))
+        cache = self.request_cache.pop(LinkRequestCache, payload.identifier)
         circuit = cache.circuit
         circuit.e2e = True
         circuit.hs_session_keys = cache.hs_session_keys
@@ -635,11 +635,11 @@ class HiddenTunnelCommunity(TunnelCommunity):
         """
         Callback for when a peer signals that an introduction point has been created for us.
         """
-        if not self.request_cache.has("establish-intro", payload.identifier):
+        if not self.request_cache.has(IPRequestCache, payload.identifier):
             self.logger.warning("Invalid intro-established request identifier")
             return
 
-        self.request_cache.pop("establish-intro", payload.identifier)
+        self.request_cache.pop(IPRequestCache, payload.identifier)
         self.logger.info("Got intro-established from %s", source_address)
 
     async def create_rendezvous_point(self, info_hash: bytes) -> RendezvousPoint | None:
@@ -681,11 +681,11 @@ class HiddenTunnelCommunity(TunnelCommunity):
         """
         Callback for when a peer signals that they act as a rendezvous point for us.
         """
-        if not self.request_cache.has("establish-rendezvous", payload.identifier):
+        if not self.request_cache.has(RPRequestCache, payload.identifier):
             self.logger.warning("Invalid rendezvous-established request identifier")
             return
 
-        rp = cast(RPRequestCache, self.request_cache.pop("establish-rendezvous", payload.identifier)).rp
+        rp = self.request_cache.pop(RPRequestCache, payload.identifier).rp
         rp.address = payload.rendezvous_point_addr
         rp.ready.set_result(rp)
 

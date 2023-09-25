@@ -5,7 +5,7 @@ import time
 from asyncio import Event, run
 from random import randint
 from socket import gethostbyname
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 # Check if we are running from the root directory
 # If not, modify our path so that we can import IPv8
@@ -18,7 +18,7 @@ except ImportError:
 from ipv8.community import Community  # noqa: I001
 from ipv8.configuration import DISPERSY_BOOTSTRAPPER, get_default_configuration
 from ipv8.messaging.interfaces.udp.endpoint import UDPv4Address
-from ipv8.requestcache import NumberCache, RequestCache
+from ipv8.requestcache import RequestCache, NumberCacheWithName
 from ipv8.util import create_event_with_signals
 
 from ipv8_service import IPv8, _COMMUNITIES
@@ -91,9 +91,8 @@ class MyCommunity(Community):
         """
         Got a response. Finish of any ping we might have sent to this peer.
         """
-        if self.request_cache.has("introping", payload.identifier):
-            cache = self.request_cache.pop("introping", payload.identifier)
-            self.finish_ping(cast(PingCache, cache))
+        if self.request_cache.has(PingCache, payload.identifier):
+            self.finish_ping(self.request_cache.pop(PingCache, payload.identifier))
 
     def started(self, event: Event) -> None:
         """
@@ -125,16 +124,18 @@ class MyCommunity(Community):
         self.next_ping()
 
 
-class PingCache(NumberCache):
+class PingCache(NumberCacheWithName):
     """
     Cache for a single ping to a bootstrap server.
     """
+
+    name = "introping"
 
     def __init__(self, community: MyCommunity, hostname: str, address: Address, starttime: float) -> None:
         """
         Create a new cache for the ping information.
         """
-        super().__init__(community.request_cache, "introping", community.global_time)
+        super().__init__(community.request_cache, self.name, community.global_time)
         self.hostname = hostname
         self.address = address
         self.starttime = starttime

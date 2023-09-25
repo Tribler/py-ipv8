@@ -1,6 +1,6 @@
 from asyncio import Future, all_tasks, sleep
 
-from ..requestcache import NumberCache, RandomNumberCache, RequestCache
+from ..requestcache import NumberCache, RandomNumberCache, RandomNumberCacheWithName, RequestCache
 from .base import TestBase
 
 CACHE_TIMEOUT = 0.01
@@ -82,6 +82,25 @@ class MockInfiniteCache(RandomNumberCache):
         Flag the ``timed_out`` value as timed out.
         """
         self.timed_out = True
+
+
+class MockNamedCache(RandomNumberCacheWithName):
+    """
+    A cache with a name.
+    """
+
+    name = "my-cache-name"
+
+    def __init__(self, request_cache: RequestCache) -> None:
+        """
+        A typical named cache initializer.
+        """
+        super().__init__(request_cache, self.name)
+
+    def on_timeout(self) -> None:
+        """
+        We do nothing.
+        """
 
 
 class TestRequestCache(TestBase):
@@ -275,5 +294,39 @@ class TestRequestCache(TestBase):
             await sleep(0.0)
 
         self.assertFalse(cache.timed_out)
+
+        await self.request_cache.shutdown()
+
+    async def test_has_by_class(self) -> None:
+        """
+        Check if we can call ``.has()`` by cache class.
+        """
+        cache = MockNamedCache(self.request_cache)
+
+        added = self.request_cache.add(cache)
+
+        self.assertTrue(self.request_cache.has(MockNamedCache, added.number))
+
+        await self.request_cache.shutdown()
+
+    async def test_get_by_class(self) -> None:
+        """
+        Check if we can call ``.get()`` by cache class.
+        """
+        cache = MockNamedCache(self.request_cache)
+        added = self.request_cache.add(cache)
+
+        self.assertEqual(added, self.request_cache.get(MockNamedCache, added.number))
+
+        await self.request_cache.shutdown()
+
+    async def test_pop_by_class(self) -> None:
+        """
+        Check if we can call ``.pop()`` by cache class.
+        """
+        cache = MockNamedCache(self.request_cache)
+        added = self.request_cache.add(cache)
+
+        self.assertEqual(added, self.request_cache.pop(MockNamedCache, added.number))
 
         await self.request_cache.shutdown()

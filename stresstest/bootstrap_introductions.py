@@ -37,7 +37,7 @@ class MyCommunity(Community):
 
     community_id = community_id
 
-    def __init__(self, my_peer: Peer, endpoint: Endpoint, network: Network,  # noqa: PLR0913
+    def __init__(self, my_peer: Peer, endpoint: Endpoint, network: Network,
                  max_peers: int = DEFAULT_MAX_PEERS, anonymize: bool = False) -> None:
         """
         Create a new community for testing.

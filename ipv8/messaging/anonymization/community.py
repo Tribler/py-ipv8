@@ -390,7 +390,7 @@ class TunnelCommunity(Community):
         self.logger.info("Adding first hop %s:%d to circuit %d", *((*first_hop.address, circuit.circuit_id)))
 
         with contextlib.suppress(KeyError):
-            self.request_cache.pop("retry", circuit.circuit_id)
+            self.request_cache.pop(RetryRequestCache, circuit.circuit_id)
             self.logger.info("Overwriting existing retry attempt for initial creation of circuit %d",
                              circuit.circuit_id)
         # All is good if there was no pending retry cache for this circuit: continue.
@@ -411,7 +411,7 @@ class TunnelCommunity(Community):
         Remove a circuit and optionally send a destroy message.
         """
         with contextlib.suppress(KeyError):
-            self.request_cache.pop("retry", circuit_id)
+            self.request_cache.pop(RetryRequestCache, circuit_id)
         # All is good if there was no pending retry cache for this circuit: continue.
 
         circuit_to_remove = self.circuits.get(circuit_id, None)
@@ -645,11 +645,11 @@ class TunnelCommunity(Community):
                                                          session_keys.salt_backward)
             candidate_list, _ = self.serializer.unpack('varlenH-list', candidate_list_bin)
 
-            cache = cast(RetryRequestCache, self.request_cache.pop("retry", circuit.circuit_id))
+            cache = self.request_cache.pop(RetryRequestCache, circuit.circuit_id)
             self.send_extend(circuit, cast(List[bytes], candidate_list), cache.max_tries if cache else 1)
 
         elif circuit.state == CIRCUIT_STATE_READY:
-            self.request_cache.pop("retry", circuit.circuit_id)
+            self.request_cache.pop(RetryRequestCache, circuit.circuit_id)
 
     def send_extend(self, circuit: Circuit, candidate_list: list[bytes], max_tries: int) -> None:  # noqa: PLR0912
         """
@@ -695,7 +695,7 @@ class TunnelCommunity(Community):
                 alt_candidates = []
 
             try:
-                self.request_cache.pop("retry", circuit.circuit_id)
+                self.request_cache.pop(RetryRequestCache, circuit.circuit_id)
             except KeyError:
                 self.logger.info("Overwriting existing retry attempt for circuit %d", circuit.circuit_id)
 
@@ -882,8 +882,8 @@ class TunnelCommunity(Community):
         circuit_id = payload.circuit_id
         self.directions[circuit_id] = ORIGINATOR
 
-        if self.request_cache.has("create", payload.identifier):
-            request = cast(CreateRequestCache, self.request_cache.pop("create", payload.identifier))
+        if self.request_cache.has(CreateRequestCache, payload.identifier):
+            request = self.request_cache.pop(CreateRequestCache, payload.identifier)
 
             self.logger.info("Got CREATED message forward as EXTENDED to origin.")
 
@@ -897,7 +897,7 @@ class TunnelCommunity(Community):
             self.send_cell(relay.peer,
                            ExtendedPayload(relay.circuit_id, request.extend_identifier,
                                            payload.key, payload.auth, payload.candidate_list_enc))
-        elif self.request_cache.has("retry", payload.circuit_id):
+        elif self.request_cache.has(RetryRequestCache, payload.circuit_id):
             circuit = self.circuits[circuit_id]
             self._ours_on_created_extended(circuit, payload)
         else:
@@ -912,13 +912,14 @@ class TunnelCommunity(Community):
             self.logger.warning("Ignoring create for circuit %d", payload.circuit_id)
             return
 
-        if not self.request_cache.has("created", payload.circuit_id):
+        circuit_id = payload.circuit_id
+        # Leave the RequestCache in case the circuit owner wants to reuse the tunnel for a different next-hop
+        request = self.request_cache.get(CreatedRequestCache, circuit_id)
+
+        if request is None:
             self.logger.warning("Received unexpected extend for circuit %d", payload.circuit_id)
             return
 
-        circuit_id = payload.circuit_id
-        # Leave the RequestCache in case the circuit owner wants to reuse the tunnel for a different next-hop
-        request = cast(CreatedRequestCache, self.request_cache.get("created", circuit_id))
         if payload.node_addr == ('0.0.0.0', 0) and payload.node_public_key not in request.candidates:
             self.logger.warning("Node public key not in request candidates and no ip specified")
             return
@@ -963,7 +964,7 @@ class TunnelCommunity(Community):
         """
         Callback for when a peer signals that they have extended our circuit.
         """
-        if not self.request_cache.has("retry", payload.circuit_id):
+        if not self.request_cache.has(RetryRequestCache, payload.circuit_id):
             self.logger.warning("Received unexpected extended for circuit %s", payload.circuit_id)
             return
 
@@ -1044,11 +1045,11 @@ class TunnelCommunity(Community):
         """
         Callback for when we received a tunneled pong (response) message.
         """
-        if not self.request_cache.has("ping", payload.identifier):
+        if not self.request_cache.has(PingRequestCache, payload.identifier):
             self.logger.warning("Invalid ping circuit_id")
             return
 
-        self.request_cache.pop("ping", payload.identifier)
+        self.request_cache.pop(PingRequestCache, payload.identifier)
         self.logger.debug("Got pong from %s", source_address)
 
     def do_ping(self, exclude: list[int] | None = None) -> None:
@@ -1171,10 +1172,10 @@ class TunnelCommunity(Community):
         if circuit is None:
             self.logger.error("Dropping test-response with unknown circuit_id")
             return
-        if not self.request_cache.has("test-request", payload.identifier):
+        if not self.request_cache.has(TestRequestCache, payload.identifier):
             self.logger.error("Dropping unexpected test-response")
             return
 
         self.logger.debug("Got test-response (%d) from %s", circuit_id, source_address)
-        cache = cast(TestRequestCache, self.request_cache.pop("test-request", payload.identifier))
+        cache = self.request_cache.pop(TestRequestCache, payload.identifier)
         cache.future.set_result((payload.data, time.time() - cache.ts))
