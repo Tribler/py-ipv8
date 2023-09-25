@@ -4,24 +4,26 @@ import abc
 from random import choice, randint
 from threading import Lock
 from time import time
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Generic, Optional, TypeVar
 
 from ..types import Overlay
 
 if TYPE_CHECKING:
     from ..types import Address, Peer
 
+_OT = TypeVar("_OT", bound=Optional[Overlay])
 
-class DiscoveryStrategy(metaclass=abc.ABCMeta):
+
+class DiscoveryStrategy(Generic[_OT], metaclass=abc.ABCMeta):
     """
     Strategy for discovering peers in a network.
     """
 
-    def __init__(self, overlay: Overlay | None) -> None:
+    def __init__(self, overlay: _OT) -> None:
         """
-        Create a new strategy instance for a particular overlay.
+        Create a new strategy instance for a particular overlay (or ``None``).
         """
-        self.overlay = overlay
+        self.overlay: _OT = overlay
         self.walk_lock = Lock()
 
     @abc.abstractmethod
@@ -33,11 +35,13 @@ class DiscoveryStrategy(metaclass=abc.ABCMeta):
     def get_peer_count(self) -> int:
         """
         Determine the current number of peers. This is used by IPv8 to determine whether to call this strategy.
+
+        If ``self.overlay`` is not ``None``, we expect it to have a ``get_peers() -> list[Peer]`` method.
         """
-        return 0 if self.overlay is None else len(self.overlay.get_peers())
+        return 0 if self.overlay is None else len(self.overlay.get_peers())  # type: ignore[union-attr]
 
 
-class RandomWalk(DiscoveryStrategy):
+class RandomWalk(DiscoveryStrategy[Overlay]):
     """
     Walk randomly through the network.
     """
@@ -67,7 +71,6 @@ class RandomWalk(DiscoveryStrategy):
         """
         Walk to random walkable peer.
         """
-        self.overlay = cast(Overlay, self.overlay)
         with self.walk_lock:
             # Sanitize unreachable nodes
             to_remove = [node for node in self.intro_timeouts if self.intro_timeouts[node] + self.node_timeout < time()]
@@ -95,7 +98,7 @@ class RandomWalk(DiscoveryStrategy):
             self.last_step = time()
 
 
-class EdgeWalk(DiscoveryStrategy):
+class EdgeWalk(DiscoveryStrategy[Overlay]):
     """
     Walk through the network by using edges.
 
@@ -130,7 +133,6 @@ class EdgeWalk(DiscoveryStrategy):
         """
         Attempt to grow an edge.
         """
-        self.overlay = cast(Overlay, self.overlay)
         with self.walk_lock:
             if not self._neighborhood or len(self._neighborhood) < self.neighborhood_size:
                 # Wait for our immediate neighborhood to be discovered
