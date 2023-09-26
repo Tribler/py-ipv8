@@ -3,13 +3,12 @@ from base64 import b64encode
 from binascii import unhexlify
 from sys import argv
 
-from ipv8.REST.rest_manager import RESTManager
 from ipv8.attestation.identity.community import IdentityCommunity
 from ipv8.attestation.wallet.community import AttestationCommunity
 from ipv8.configuration import DISPERSY_BOOTSTRAPPER, get_default_configuration
 from ipv8.peerdiscovery.community import DiscoveryCommunity
+from ipv8.REST.rest_manager import RESTManager
 from ipv8.util import run_forever
-
 from ipv8_service import IPv8
 
 
@@ -25,7 +24,7 @@ class IsolatedDiscoveryCommunity(DiscoveryCommunity):
     community_id = unhexlify(argv[3])
 
 
-async def start_communities():
+async def start_communities() -> None:
     # Launch two IPv8 services.
     # We run REST endpoints for these services on:
     #  - http://localhost:14411/

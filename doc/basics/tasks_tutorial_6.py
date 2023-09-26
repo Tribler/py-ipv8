@@ -1,28 +1,30 @@
 import os
+from typing import Any
 
-from pyipv8.ipv8.community import Community
-from pyipv8.ipv8.test.base import TestBase
+from ipv8.community import Community
+from ipv8.test.base import TestBase
+from ipv8.test.mocking.ipv8 import MockIPv8
 
 
 class MyCommunity(Community):
     community_id = os.urandom(20)
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.register_task("error out :-(", self.error)
 
-    def error(self):
-        raise RuntimeError()
+    def error(self) -> None:
+        raise RuntimeError
 
 
 class TestMyCommunity(TestBase):
 
-    def create_node(self, *args, **kwargs):
+    def create_node(self, *args: Any, **kwargs) -> MockIPv8:
         mock_ipv8 = super().create_node(*args, **kwargs)
         mock_ipv8.overlay.cancel_all_pending_tasks()
         return mock_ipv8
 
-    async def test_something(self):
+    async def test_something(self) -> None:
         self.initialize(MyCommunity, 1)  # Will not run tasks
 
 

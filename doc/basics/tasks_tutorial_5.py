@@ -1,18 +1,18 @@
 import asyncio
 
-from pyipv8.ipv8.taskmanager import TaskManager
+from ipv8.taskmanager import TaskManager
 
 COMPLETED = []
 
 
-async def execute_me_too(i, task_manager):
+async def execute_me_too(i: int, task_manager: TaskManager) -> None:
     if len(COMPLETED) == 20:
         task_manager.cancel_pending_task("keep adding 1")
         return
     COMPLETED.append(i)
 
 
-async def main():
+async def main() -> None:
     task_manager = TaskManager()
 
     task_manager.register_task("keep adding 1", execute_me_too,

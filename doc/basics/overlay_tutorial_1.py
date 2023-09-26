@@ -1,11 +1,11 @@
 from asyncio import run
 
-from pyipv8.ipv8.configuration import get_default_configuration
-from pyipv8.ipv8.util import run_forever
-from pyipv8.ipv8_service import IPv8
+from ipv8.configuration import get_default_configuration
+from ipv8.util import run_forever
+from ipv8_service import IPv8
 
 
-async def start_ipv8():
+async def start_ipv8() -> None:
     # Create an IPv8 object with the default settings.
     ipv8 = IPv8(get_default_configuration())
     await ipv8.start()

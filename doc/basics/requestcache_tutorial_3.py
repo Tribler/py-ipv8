@@ -1,13 +1,13 @@
 import os
 from asyncio import run, sleep
 
-from pyipv8.ipv8.community import Community
-from pyipv8.ipv8.configuration import ConfigBuilder, Strategy, WalkerDefinition, default_bootstrap_defs
-from pyipv8.ipv8.lazy_community import lazy_wrapper, retrieve_cache
-from pyipv8.ipv8.messaging.lazy_payload import VariablePayload, vp_compile
-from pyipv8.ipv8.requestcache import RandomNumberCache, RequestCache
-from pyipv8.ipv8_service import IPv8
-
+from ipv8.community import Community
+from ipv8.configuration import ConfigBuilder, Strategy, WalkerDefinition, default_bootstrap_defs
+from ipv8.lazy_community import lazy_wrapper, retrieve_cache
+from ipv8.messaging.lazy_payload import VariablePayload, vp_compile
+from ipv8.requestcache import RandomNumberCacheWithName, RequestCache
+from ipv8.types import Endpoint, Network, Peer
+from ipv8_service import IPv8
 
 # We'll use this global variable to keep track of the IPv8 instances that finished.
 DONE = []
@@ -27,18 +27,18 @@ class MyResponse(VariablePayload):
     names = ["value", "identifier"]
 
 
-class MyCache(RandomNumberCache):
+class MyCache(RandomNumberCacheWithName):
     name = "my-cache"
 
-    def __init__(self, request_cache, value):
-        super().__init__(request_cache, MyCache.name)
+    def __init__(self, request_cache: RequestCache, value: int) -> None:
+        super().__init__(request_cache, self.name)
         self.value = value
 
 
 class MyCommunity(Community):
     community_id = os.urandom(20)
 
-    def __init__(self, my_peer, endpoint, network):
+    def __init__(self, my_peer: Peer, endpoint: Endpoint, network: Network) -> None:
         super().__init__(my_peer, endpoint, network)
         self.add_message_handler(1, self.on_request)
         self.add_message_handler(2, self.on_response)
@@ -46,15 +46,15 @@ class MyCommunity(Community):
         # This is where the magic starts: add a ``request_cache`` variable.
         self.request_cache = RequestCache()
 
-    async def unload(self):
+    async def unload(self) -> None:
         # Don't forget to shut down the RequestCache when you unload the Community!
         await self.request_cache.shutdown()
         await super().unload()
 
-    def started(self):
+    def started(self) -> None:
         self.register_task("wait for peers and send a request", self.send)
 
-    async def send(self):
+    async def send(self) -> None:
         # Wait for our local peers to connect to eachother.
         while not self.get_peers():
             await sleep(0.1)
@@ -67,13 +67,13 @@ class MyCommunity(Community):
                 self.ez_send(peer, MyRequest(cache.value, cache.number))
 
     @lazy_wrapper(MyRequest)
-    def on_request(self, peer, payload):
+    def on_request(self, peer: Peer, payload: MyRequest) -> None:
         # Our service is to increment the value of the request and send this in the response.
         self.ez_send(peer, MyResponse(payload.value + 1, payload.identifier))
 
     @lazy_wrapper(MyResponse)
     @retrieve_cache(MyCache)
-    def on_response(self, peer, payload, cache):
+    def on_response(self, peer: Peer, payload: MyResponse, cache: MyCache) -> None:
         print(peer, "responded to:", cache.value, "with:", payload.value)
 
         # Stop the experiment if both peers reach a value of 10.
@@ -91,7 +91,7 @@ class MyCommunity(Community):
                 self.ez_send(peer, MyRequest(payload.value, cache.number))
 
 
-async def start_communities():
+async def start_communities() -> None:
     for i in [1, 2]:
         builder = ConfigBuilder().clear_keys().clear_overlays()
         builder.add_key("my peer", "medium", f"ec{i}.pem")

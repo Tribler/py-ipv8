@@ -143,7 +143,7 @@ class TestBase(TestCaseClass, Generic[OT]):
         """
         super().__init__(methodName)
         self.nodes = []
-        self.overlay_class: Overlay | None = None
+        self.overlay_class: type[OT] | None = None
         internet.clear()
         self._tempdirs = []
         self.production_overlay_classes = []

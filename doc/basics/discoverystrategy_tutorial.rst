@@ -39,7 +39,7 @@ You can also load your strategy through the ``configuration`` or ``loader``.
 First, an example of how to do this with the ``configuration``:
 
 .. literalinclude:: discoverystrategy_tutorial_2.py
-   :lines: 14-35
+   :lines: 16-37
 
 Note that you can add as many strategies as you want to an overlay.
 Also note that for IPv8 to link the name ``"MyDiscoveryStrategy"`` to a class, you need to define it in your ``Community``'s ``get_available_strategies()`` dictionary.

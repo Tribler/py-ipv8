@@ -1,9 +1,12 @@
-from dataclasses import dataclass
-import json
+from __future__ import annotations
 
-from pyipv8.ipv8.messaging.payload_dataclass import overwrite_dataclass
-from pyipv8.ipv8.messaging.lazy_payload import VariablePayload, vp_compile
-from pyipv8.ipv8.messaging.serialization import default_serializer
+import json
+from dataclasses import dataclass
+from typing import cast
+
+from ipv8.messaging.lazy_payload import VariablePayload, vp_compile
+from ipv8.messaging.payload_dataclass import overwrite_dataclass
+from ipv8.messaging.serialization import default_serializer
 
 dataclass = overwrite_dataclass(dataclass)
 
@@ -18,7 +21,8 @@ class VPMessageKeepDict(VariablePayload):
         return json.dumps(the_dictionary).encode()
 
     @classmethod
-    def fix_unpack_dictionary(cls, serialized_dictionary: bytes) -> dict:
+    def fix_unpack_dictionary(cls: type[VPMessageKeepDict],
+                              serialized_dictionary: bytes) -> dict:
         return json.loads(serialized_dictionary.decode())
 
 
@@ -30,7 +34,8 @@ class DCMessageKeepDict:
         return json.dumps(the_dictionary)
 
     @classmethod
-    def fix_unpack_dictionary(cls, serialized_dictionary: str) -> dict:
+    def fix_unpack_dictionary(cls: type[DCMessageKeepDict],
+                              serialized_dictionary: str) -> dict:
         return json.loads(serialized_dictionary)
 
 
@@ -41,8 +46,8 @@ message2 = DCMessageKeepDict(data)
 
 assert message1.dictionary["1"] == 1
 assert message1.dictionary["key"] == "value"
-assert message2.dictionary["1"] == 1
-assert message2.dictionary["key"] == "value"
+assert cast(dict, message2.dictionary)["1"] == 1
+assert cast(dict, message2.dictionary)["key"] == "value"
 
 serialized1 = default_serializer.pack_serializable(message1)
 serialized2 = default_serializer.pack_serializable(message2)

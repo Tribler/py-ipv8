@@ -38,14 +38,14 @@ If the ``dataclass`` had used normal ``int`` types, these would have been two si
 Each instance will have two fields: ``field1`` and ``field2`` corresponding to the integer and short.
 
 .. literalinclude:: serialization_1.py
-   :lines: 11-61
+   :lines: 13-65
 
 
 To show some of the differences, let's check out the output of the following script using these definitions:
 
 
 .. literalinclude:: serialization_1.py
-   :lines: 64-75
+   :lines: 68-79
 
 
 .. code-block:: bash
@@ -155,12 +155,12 @@ In practice, given a ``COMMUNITY_ID`` and the payload definitions ``MyMessagePay
 
 
 .. literalinclude:: serialization_2.py
-   :lines: 23-39
+   :lines: 25-41
 
 It is recommended (but not obligatory) to have single payload messages store the message identifier inside the ``Payload.msg_id`` field, as this improves readability:
 
 .. literalinclude:: serialization_3.py
-   :lines: 31,32,53,56
+   :lines: 33,34,55,58
    :dedent: 4
 
 If you are using the ``@dataclass`` wrapper you can specify the message identifier through an argument instead.
@@ -192,7 +192,7 @@ This method involves implementing the methods ``fix_pack_<your field name>`` and
 Check out the following example:
 
 .. literalinclude:: serialization_4.py
-   :lines: 11-34
+   :lines: 14-39
 
 In both classes we create a message with a single field ``dictionary``.
 To pack this field, we use ``json.dumps()`` to create a string representation of the dictionary.
@@ -211,7 +211,7 @@ This ``Serializer`` is sandboxed per ``Community`` instance, so you don't have t
 Check out the following example and note that the message is now much smaller at the expense of having to define a custom (complicated) packing format.
 
 .. literalinclude:: serialization_5.py
-   :lines: 13-44
+   :lines: 16-48
 
 The line ``serializer.add_packer('json', PackerJSON())`` adds the new format ``json`` that is used in ``Message``.
 In fact, any further message added to this ``Community`` can now use the ``json`` format.
@@ -235,7 +235,7 @@ The following example shows how to use JSON serialization without any IPv8 seria
 Note that we need to do our own signature checks now.
 
 .. literalinclude:: serialization_6.py
-   :lines: 11-37
+   :lines: 16-47
 
 
 Nested Payloads

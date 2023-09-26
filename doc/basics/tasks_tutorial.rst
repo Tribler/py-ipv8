@@ -93,7 +93,7 @@ If you do end up in a situation where you absolutely must schedule a task from t
 This is an example of how to deal with this in your unit tests:
 
 .. literalinclude:: tasks_tutorial_6.py
-   :lines: 18-26
+   :lines: 20-28
 
 Futures and caches
 ^^^^^^^^^^^^^^^^^^

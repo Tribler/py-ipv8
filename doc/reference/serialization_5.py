@@ -2,12 +2,15 @@ import json
 import os
 import struct
 from asyncio import Event, run
+from typing import Any
 
-from pyipv8.ipv8.community import Community
-from pyipv8.ipv8.configuration import ConfigBuilder, Strategy, WalkerDefinition, default_bootstrap_defs
-from pyipv8.ipv8.lazy_community import lazy_wrapper
-from pyipv8.ipv8.messaging.lazy_payload import VariablePayload, vp_compile
-from pyipv8.ipv8_service import IPv8
+from ipv8.community import Community
+from ipv8.configuration import ConfigBuilder, Strategy, WalkerDefinition, default_bootstrap_defs
+from ipv8.lazy_community import lazy_wrapper
+from ipv8.messaging.lazy_payload import VariablePayload, vp_compile
+from ipv8.messaging.serialization import Packer, Serializer
+from ipv8.types import Endpoint, Network, Peer
+from ipv8_service import IPv8
 
 
 @vp_compile
@@ -17,14 +20,15 @@ class Message(VariablePayload):
     names = ["d1", "d2", "d3", "d4"]
 
 
-class PackerJSON:
+class PackerJSON(Packer):
 
-    def pack(self, data) -> bytes:
+    def pack(self, data: Any) -> bytes:
         packed = json.dumps(data).encode()
         size = struct.pack(">H", len(packed))
         return size + packed
 
-    def unpack(self, data, offset, unpack_list):
+    def unpack(self, data: bytes, offset: int,
+               unpack_list: list, *args: Any) -> int:
         size, = struct.unpack_from(">H", data, offset)
 
         json_data_start = offset + 2
@@ -38,20 +42,20 @@ class PackerJSON:
 
 class MyCommunity(Community):
 
-    def get_serializer(self):
+    def get_serializer(self) -> Serializer:
         serializer = super().get_serializer()
         serializer.add_packer('json', PackerJSON())
         return serializer
 
     community_id = os.urandom(20)
 
-    def __init__(self, my_peer, endpoint, network):
+    def __init__(self, my_peer: Peer, endpoint: Endpoint, network: Network) -> None:
         super().__init__(my_peer, endpoint, network)
         self.event = None
         self.add_message_handler(Message, self.on_message)
 
     @lazy_wrapper(Message)
-    def on_message(self, peer, message):
+    def on_message(self, peer: Peer, message: Message) -> None:
         self.logger.info(str(peer))
         self.logger.info(str(message))
 
@@ -60,10 +64,10 @@ class MyCommunity(Community):
         if self.event:
             self.event.set()
 
-    def started(self, event, peer_id):
+    def started(self, event: Event, peer_id: int) -> None:
         self.event = event
 
-        async def send_message():
+        async def send_message() -> None:
             for p in self.get_peers():
                 message = Message(
                     {"a": "b", "c": "d"},
@@ -78,7 +82,7 @@ class MyCommunity(Community):
             self.register_task("Start Sending Messages", send_message, interval=2.0, delay=0)
 
 
-async def start_communities():
+async def start_communities() -> None:
     event = Event()
 
     for i in [1, 2]:

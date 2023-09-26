@@ -3,10 +3,11 @@ import unittest
 from dataclasses import dataclass
 from random import random, shuffle
 
-from pyipv8.ipv8.community import Community, DEFAULT_MAX_PEERS
-from pyipv8.ipv8.lazy_community import lazy_wrapper, lazy_wrapper_unsigned
-from pyipv8.ipv8.messaging.payload_dataclass import overwrite_dataclass
-from pyipv8.ipv8.test.base import TestBase
+from ipv8.community import DEFAULT_MAX_PEERS, Community
+from ipv8.lazy_community import lazy_wrapper, lazy_wrapper_unsigned
+from ipv8.messaging.payload_dataclass import overwrite_dataclass
+from ipv8.test.base import TestBase
+from ipv8.types import Endpoint, Network, Peer
 
 dataclass = overwrite_dataclass(dataclass)
 
@@ -29,7 +30,8 @@ class Message3:
 class MyCommunity(Community):
     community_id = os.urandom(20)
 
-    def __init__(self, my_peer, endpoint, network, max_peers=DEFAULT_MAX_PEERS, anonymize=False):
+    def __init__(self, my_peer: Peer, endpoint: Endpoint, network: Network,
+                 max_peers: int = DEFAULT_MAX_PEERS, anonymize: bool = False) -> None:
         super().__init__(my_peer, endpoint, network, max_peers, anonymize)
 
         self.add_message_handler(Message1, self.on_message1)
@@ -37,18 +39,18 @@ class MyCommunity(Community):
         self.add_message_handler(Message3, self.on_message3)
 
     @lazy_wrapper(Message1)
-    def on_message1(self, peer, payload):
+    def on_message1(self, peer: Peer, payload: Message1) -> None:
         pass
 
     @lazy_wrapper_unsigned(Message2)
-    def on_message2(self, peer, payload):
+    def on_message2(self, peer: Peer, payload: Message2) -> None:
         pass
 
     @lazy_wrapper(Message3)
-    def on_message3(self, peer, payload):
+    def on_message3(self, peer: Peer, payload: Message3) -> None:
         pass
 
-    def send_msg_to(self, peer, message_number):
+    def send_msg_to(self, peer: Peer, message_number: int) -> None:
         if message_number == 1:
             self.ez_send(peer, Message1(1), sig=True)
         elif message_number == 2:
@@ -59,18 +61,18 @@ class MyCommunity(Community):
 
 class TestMyCommunity(TestBase):
 
-    def setUp(self):
+    def setUp(self) -> None:
         super().setUp()
         self.initialize(MyCommunity, 2)
 
-    async def test_received_default(self):
+    async def test_received_default(self) -> None:
         with self.assertReceivedBy(1, [Message1, Message2]):
             self.overlay(0).send_msg_to(self.peer(1), 1)
             self.overlay(0).send_msg_to(self.peer(1), 2)
             await self.deliver_messages()
 
-    async def test_received_no_order(self):
-        with self.assertReceivedBy(1, [Message1] + 2 * [Message2], ordered=False):
+    async def test_received_no_order(self) -> None:
+        with self.assertReceivedBy(1, [Message1, Message2, Message2], ordered=False):
             messages = [2, 1, 2]
             shuffle(messages)
             self.overlay(0).send_msg_to(self.peer(1), messages[0])
@@ -78,7 +80,7 @@ class TestMyCommunity(TestBase):
             self.overlay(0).send_msg_to(self.peer(1), messages[2])
             await self.deliver_messages()
 
-    async def test_received_filter(self):
+    async def test_received_filter(self) -> None:
         with self.assertReceivedBy(1, [Message1, Message2], message_filter=[Message1, Message2]):
             self.overlay(0).send_msg_to(self.peer(1), 1)
             if random() > 0.5:
@@ -86,7 +88,7 @@ class TestMyCommunity(TestBase):
             self.overlay(0).send_msg_to(self.peer(1), 2)
             await self.deliver_messages()
 
-    async def test_received_result(self):
+    async def test_received_result(self) -> None:
         with self.assertReceivedBy(1, [Message1, Message2]) as received_messages:
             self.overlay(0).send_msg_to(self.peer(1), 1)
             self.overlay(0).send_msg_to(self.peer(1), 2)

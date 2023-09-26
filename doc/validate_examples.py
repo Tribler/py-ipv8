@@ -1,12 +1,16 @@
 """
-This script runs through all of the .py files in the subfolders of the ``/doc`` folder and runs them.
+This script runs through all the .py files in the subfolders of the ``/doc`` folder and runs them.
 If any of the scripts has tracebacks during their execution, this file exits with status 1.
 """
+from __future__ import annotations
+
 import contextlib
+import importlib
 import multiprocessing
 import os
 import sys
 import threading
+from multiprocessing import connection
 from typing import TextIO
 
 TOP_DIRECTORY = os.path.dirname(os.path.dirname(os.path.realpath('__file__')))
@@ -15,28 +19,16 @@ TOP_DIRECTORY = os.path.dirname(os.path.dirname(os.path.realpath('__file__')))
 def validate_run(stdout: multiprocessing.Pipe, stderr: multiprocessing.Pipe, module_path: str) -> None:
     """
     Run the example from ``module_path`` isolated in a process.
-
-    This fakes the subfolder execution of the example scripts by loading them into the TOP_DIRECTORY path and
-    replaces all of the ``from pyipv8`` imports in the example scripts.
     """
     os.dup2(stdout.fileno(), 1)  # Forward all stdout (1) calls to the stdout argument
     os.dup2(stderr.fileno(), 2)  # Forward all stderr (2) calls to the stdout argument
 
     sys.path.insert(0, TOP_DIRECTORY)
 
-    with open(module_path) as module_file_h:
-        module_contents = ""
-        line = module_file_h.readline()
-        while line:
-            if line.startswith("from pyipv8."):
-                line = "from " + line[len("from pyipv8."):]
-            module_contents += line
-            line = module_file_h.readline()
-
-    exec(compile(module_contents, module_path, 'exec', dont_inherit=True, optimize=0), {})  # noqa: S102
+    importlib.import_module(module_path[:-3].replace(os.sep, "."))
 
 
-def safe_close(stream: TextIO) -> None:
+def safe_close(stream: connection.Connection | TextIO) -> None:
     """
     Always works, even if stream is already closed.
     """
@@ -63,7 +55,7 @@ for path in os.listdir("."):
     if os.path.isdir(path):
         for subfile in os.listdir(path):
             if subfile.endswith(".py"):
-                absfile_path = os.path.abspath(os.path.join(TOP_DIRECTORY, "doc", path, subfile))
+                absfile_path = os.path.join(path, subfile)
 
                 # Open the stderr and stdio redirection Pipes.
                 r_stdout, w_stdout = multiprocessing.Pipe()
@@ -74,7 +66,7 @@ for path in os.listdir("."):
                 reader_stderr = os.fdopen(r_stderr.fileno(), 'r')
                 output_stderr = []
 
-                # Run in isolation, so scripts don't inherit each others mess.
+                # Run in isolation, so scripts don't inherit each other's mess.
                 p = multiprocessing.Process(target=validate_run, args=(w_stdout, w_stderr, absfile_path))
                 p.start()
 
@@ -86,7 +78,7 @@ for path in os.listdir("."):
 
                 p.join(30.0)
                 if p.is_alive():
-                    print(f"Killed {subfile} after 30 seconds!")  # noqa: T201
+                    print(f"Killed {subfile} after 30 seconds!")
                     p.kill()
 
                 captured_stdout = "".join(output_stdout)
@@ -102,13 +94,13 @@ for path in os.listdir("."):
 
                 # Finally, check if the word "Traceback" occurs in any output.
                 if "Traceback" in captured_stdout or "Traceback" in captured_stderr:
-                    print(f"[FAILED] Traceback detected in {subfile}")  # noqa: T201
-                    print("=== stdout ===")  # noqa: T201
-                    print(captured_stdout)  # noqa: T201
-                    print("=== stderr ===")  # noqa: T201
-                    print(captured_stderr)  # noqa: T201
+                    print(f"[FAILED] Traceback detected in {subfile}")
+                    print("=== stdout ===")
+                    print(captured_stdout)
+                    print("=== stderr ===")
+                    print(captured_stderr)
                     success = False
                 else:
-                    print(f"[SUCCESS] No tracebacks detected in {subfile}")  # noqa: T201
+                    print(f"[SUCCESS] No tracebacks detected in {subfile}")
 
 sys.exit(0 if success else 1)

@@ -1,11 +1,10 @@
 import os
 from asyncio import run
 
-from pyipv8.ipv8.community import Community
-from pyipv8.ipv8.configuration import (ConfigBuilder, Strategy, WalkerDefinition,
-                                       default_bootstrap_defs)
-from pyipv8.ipv8.util import run_forever
-from pyipv8.ipv8_service import IPv8
+from ipv8.community import Community
+from ipv8.configuration import ConfigBuilder, Strategy, WalkerDefinition, default_bootstrap_defs
+from ipv8.util import run_forever
+from ipv8_service import IPv8
 
 
 class MyCommunity(Community):
@@ -14,7 +13,7 @@ class MyCommunity(Community):
     community_id = os.urandom(20)
 
 
-async def start_communities():
+async def start_communities() -> None:
     for i in [1, 2]:
         builder = ConfigBuilder().clear_keys().clear_overlays()
         # If we actually want to communicate between two different peers

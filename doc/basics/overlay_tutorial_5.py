@@ -2,13 +2,13 @@ import os
 from asyncio import run
 from dataclasses import dataclass
 
-from pyipv8.ipv8.community import Community
-from pyipv8.ipv8.configuration import (ConfigBuilder, Strategy, WalkerDefinition,
-                                       default_bootstrap_defs)
-from pyipv8.ipv8.lazy_community import lazy_wrapper
-from pyipv8.ipv8.messaging.payload_dataclass import overwrite_dataclass
-from pyipv8.ipv8.util import run_forever
-from pyipv8.ipv8_service import IPv8
+from ipv8.community import Community
+from ipv8.configuration import ConfigBuilder, Strategy, WalkerDefinition, default_bootstrap_defs
+from ipv8.lazy_community import lazy_wrapper
+from ipv8.messaging.payload_dataclass import overwrite_dataclass
+from ipv8.types import Endpoint, Network, Peer
+from ipv8.util import run_forever
+from ipv8_service import IPv8
 
 # Enhance normal dataclasses for IPv8 (see the serialization documentation)
 dataclass = overwrite_dataclass(dataclass)
@@ -22,7 +22,7 @@ class MyMessage:
 class MyCommunity(Community):
     community_id = os.urandom(20)
 
-    def __init__(self, my_peer, endpoint, network):
+    def __init__(self, my_peer: Peer, endpoint: Endpoint, network: Network) -> None:
         super().__init__(my_peer, endpoint, network)
         # Register the message handler for messages (with the identifier "1").
         self.add_message_handler(MyMessage, self.on_message)
@@ -30,8 +30,8 @@ class MyCommunity(Community):
         # This is for the example of global clock synchronization.
         self.lamport_clock = 0
 
-    def started(self):
-        async def start_communication():
+    def started(self) -> None:
+        async def start_communication() -> None:
             if not self.lamport_clock:
                 # If we have not started counting, try boostrapping
                 # communication with our other known peers.
@@ -46,7 +46,7 @@ class MyCommunity(Community):
         self.register_task("start_communication", start_communication, interval=5.0, delay=0)
 
     @lazy_wrapper(MyMessage)
-    def on_message(self, peer, payload):
+    def on_message(self, peer: Peer, payload: MyMessage) -> None:
         # Update our Lamport clock.
         self.lamport_clock = max(self.lamport_clock, payload.clock) + 1
         print(self.my_peer, "current clock:", self.lamport_clock)
@@ -54,7 +54,7 @@ class MyCommunity(Community):
         self.ez_send(peer, MyMessage(self.lamport_clock))
 
 
-async def start_communities():
+async def start_communities() -> None:
     for i in [1, 2, 3]:
         builder = ConfigBuilder().clear_keys().clear_overlays()
         builder.add_key("my peer", "medium", f"ec{i}.pem")
