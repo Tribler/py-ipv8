@@ -1,8 +1,10 @@
 import os
+from typing import Any
 
-from pyipv8.ipv8.community import Community
-from pyipv8.ipv8.lazy_community import lazy_wrapper
-from pyipv8.ipv8.messaging.lazy_payload import VariablePayload, vp_compile
+from ipv8.community import Community
+from ipv8.lazy_community import lazy_wrapper
+from ipv8.messaging.lazy_payload import VariablePayload, vp_compile
+from ipv8.types import Peer
 
 
 @vp_compile
@@ -23,17 +25,18 @@ COMMUNITY_ID = os.urandom(20)
 class MyCommunity(Community):
     community_id = COMMUNITY_ID
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         self.add_message_handler(1, self.on_message)
 
     @lazy_wrapper(MyMessagePayload1, MyMessagePayload2)
-    def on_message(self, peer, payload1, payload2):
+    def on_message(self, peer: Peer, payload1: MyMessagePayload1,
+                   payload2: MyMessagePayload2) -> None:
         print("Got a message from:", peer)
         print("The message includes the first payload:\n", payload1)
         print("The message includes the second payload:\n", payload2)
 
-    def send_message(self, peer):
+    def send_message(self, peer: Peer) -> None:
         packet = self.ezr_pack(1, MyMessagePayload1(), MyMessagePayload2())
         self.endpoint.send(peer.address, packet)

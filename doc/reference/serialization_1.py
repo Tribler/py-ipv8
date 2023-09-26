@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 
-from pyipv8.ipv8.messaging.lazy_payload import VariablePayload, vp_compile
-from pyipv8.ipv8.messaging.payload import Payload
-from pyipv8.ipv8.messaging.payload_dataclass import overwrite_dataclass, type_from_format
-from pyipv8.ipv8.messaging.serialization import Serializable
+from ipv8.messaging.lazy_payload import VariablePayload, vp_compile
+from ipv8.messaging.payload import Payload
+from ipv8.messaging.payload_dataclass import overwrite_dataclass, type_from_format
+from ipv8.messaging.serialization import Serializable
 
 dataclass = overwrite_dataclass(dataclass)
 
@@ -11,33 +13,35 @@ dataclass = overwrite_dataclass(dataclass)
 class MySerializable(Serializable):
     format_list = ['I', 'H']
 
-    def __init__(self, field1, field2):
+    def __init__(self, field1: int, field2: int) -> None:
         self.field1 = field1
         self.field2 = field2
 
-    def to_pack_list(self):
+    def to_pack_list(self) -> list[tuple]:
         return [('I', self.field1),
                 ('H', self.field2)]
 
     @classmethod
-    def from_unpack_list(cls, *args):
-        return cls(*args)
+    def from_unpack_list(cls: type[MySerializable],
+                         field1: int, field2: int) -> MySerializable:
+        return cls(field1, field2)
 
 
 class MyPayload(Payload):
     format_list = ['I', 'H']
 
-    def __init__(self, field1, field2):
+    def __init__(self, field1: int, field2: int) -> None:
         self.field1 = field1
         self.field2 = field2
 
-    def to_pack_list(self):
+    def to_pack_list(self) -> list[tuple]:
         return [('I', self.field1),
                 ('H', self.field2)]
 
     @classmethod
-    def from_unpack_list(cls, *args):
-        return cls(*args)
+    def from_unpack_list(cls: type[MyPayload],
+                         field1: int, field2: int) -> MyPayload:
+        return cls(field1, field2)
 
 
 class MyVariablePayload(VariablePayload):

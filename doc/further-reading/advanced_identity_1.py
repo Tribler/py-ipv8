@@ -1,13 +1,13 @@
 from asyncio import run
 from base64 import b64encode
 
-from pyipv8.ipv8.REST.rest_manager import RESTManager
-from pyipv8.ipv8.configuration import get_default_configuration
-from pyipv8.ipv8.util import run_forever
-from pyipv8.ipv8_service import IPv8
+from ipv8.configuration import get_default_configuration
+from ipv8.REST.rest_manager import RESTManager
+from ipv8.util import run_forever
+from ipv8_service import IPv8
 
 
-async def start_community():
+async def start_community() -> None:
     for peer_id in [1, 2]:
         configuration = get_default_configuration()
         configuration['keys'] = [

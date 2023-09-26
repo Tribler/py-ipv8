@@ -9,33 +9,6 @@ This tutorial will use ``curl`` to perform HTTP ``GET`` and ``POST`` requests.
 This document will cover the basic flows of identification.
 If you plan on using real identity data, you will need to familiarize yourself with the `the advanced identity controls <../further-reading/advanced_identity.html>`_.
 
-Files
------
-
-This tutorial will follow the same file structure as `the overlay tutorial <../basics/overlay_tutorial.html>`_.
-In this tutorial all of the files are placed in the ``~/Documents/ipv8_tutorial`` directory.
-
-
-#.
-   In the working directory, we clone IPv8 through ``git``\ :
-
-   .. code-block:: bash
-
-      git clone https://github.com/Tribler/py-ipv8.git pyipv8
-
-   You should see a folder called ``pyipv8`` appear in the working directory.
-
-#.
-   Then, we need an empty ``__init__.py`` file and a ``main.py`` file, which we will fill with our tutorial code.
-
-At the end of this setup step you should have the following files in your working directory:
-
-.. code-block:: console
-
-   (folder) pyipv8
-   (file) __init__.py
-   (file) main.py
-
 Running the IPv8 service
 ------------------------
 

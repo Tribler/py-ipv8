@@ -5,34 +5,6 @@ Creating your first overlay
 This document assumes you have installed all of the dependencies as instructed in the `README.md <https://github.com/Tribler/py-ipv8/blob/master/README.md>`_.
 You will learn how to construct a *network overlay* using IPv8.
 
-Files
------
-
-First we will setup a working directory to run our overlay in.
-This tutorial will place all of its files in the ``~/Documents/ipv8_tutorial`` directory.
-You are free to choose whatever directory you want, to place your files in.
-
-
-#. 
-   In the working directory, we will now clone IPv8 through ``git``\ :
-
-   .. code-block:: bash
-
-      git clone https://github.com/Tribler/py-ipv8.git pyipv8
-
-   You should see a folder called ``pyipv8`` appear in the working directory.
-
-#. 
-   Then, we need an empty ``__init__.py`` file and a ``main.py`` file, which we will fill with our tutorial code.
-
-At the end of this setup step you should have the following files in your working directory:
-
-.. code-block:: console
-
-   (folder) pyipv8
-   (file) __init__.py
-   (file) main.py
-
 Running the IPv8 service
 ------------------------
 

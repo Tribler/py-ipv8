@@ -1,20 +1,22 @@
+from __future__ import annotations
+
 import os
 
-from pyipv8.ipv8.community import Community
-from pyipv8.ipv8.configuration import DISPERSY_BOOTSTRAPPER, get_default_configuration
-from pyipv8.ipv8.peerdiscovery.discovery import DiscoveryStrategy
+from ipv8.community import Community
+from ipv8.configuration import DISPERSY_BOOTSTRAPPER, get_default_configuration
+from ipv8.peerdiscovery.discovery import DiscoveryStrategy
 
 
 class MyDiscoveryStrategy(DiscoveryStrategy):
 
-    def take_step(self):
+    def take_step(self) -> None:
         pass
 
 
 class MyCommunity(Community):
     community_id = os.urandom(20)
 
-    def get_available_strategies(self):
+    def get_available_strategies(self) -> dict[str, type[DiscoveryStrategy]]:
         return {"MyDiscoveryStrategy": MyDiscoveryStrategy}
 
 

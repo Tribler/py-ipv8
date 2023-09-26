@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import base64
 import json
 import os
@@ -6,36 +8,38 @@ import subprocess
 import time
 import urllib.parse
 import urllib.request
+from typing import Any, cast
 
 PROCESS = None
 BASE_HEADERS = {"X-Rendezvous": base64.b64encode(os.urandom(20)).decode()}
 
 
-def http_get(url):
+def http_get(url: str) -> Any:
     """
     Perform an HTTP GET request to the given URL.
     """
-    return json.loads(urllib.request.urlopen(urllib.request.Request(url)).read().decode())
+    return json.loads(urllib.request.urlopen(urllib.request.Request(url)).read().decode())  # noqa: S310
 
 
-def http_post(url, headers=None, data=None):
+def http_post(url: str, headers: dict[str, str] | None = None, data: bytes | None = None) -> Any:
     """
     Perform an HTTP POST request to the given URL.
     """
     if headers:
         headers.update(BASE_HEADERS)
-    return json.loads(urllib.request.urlopen(urllib.request.Request(url, method="PUT", headers=headers, data=data))
+    return json.loads(urllib.request.urlopen(urllib.request.Request(url,  # noqa: S310
+                                                                    method="PUT", headers=headers, data=data))
                       .read().decode())
 
 
-def urlstr(s):
+def urlstr(s: str) -> str:
     """
     Make the given string URL safe.
     """
     return urllib.parse.quote(s, safe='')
 
 
-def wait_for_list(url, element=None):
+def wait_for_list(url: str, element: str | None = None) -> list:
     """
     Poll an endpoint until output (a list) is available.
     """
@@ -48,20 +52,20 @@ def wait_for_list(url, element=None):
     return out
 
 
-def start():
+def start() -> None:
     """
     Run the main.py script and wait for it to finish initializing.
     """
-    global PROCESS
-    PROCESS = subprocess.Popen('python3 main.py', shell=True, preexec_fn=os.setsid)
+    global PROCESS  # noqa: PLW0603
+    PROCESS = subprocess.Popen('python3 main.py', shell=True, preexec_fn=os.setsid)  # noqa: PLW1509,S602,S607
     os.waitpid(PROCESS.pid, os.P_NOWAITO)
     time.sleep(5.0)
 
 
-def finish():
+def finish() -> None:
     """
     Kill our two IPv8 instances (running in the same process).
     """
-    global PROCESS
-    os.killpg(os.getpgid(PROCESS.pid), signal.SIGTERM)
-    PROCESS.communicate()
+    process = cast(subprocess.Popen, PROCESS)
+    os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+    process.communicate()

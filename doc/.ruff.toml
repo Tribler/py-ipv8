@@ -1,0 +1,10 @@
+extend = "../.ruff.toml"
+
+extend-ignore = [
+    "ANN401",  # We want ``Any`` in some cases.
+    "D",  # Documentation happens in the RST, not in the code.
+    "T201"  # We print things for clarity: this is not production code.
+]
+
+[pylint]
+max-args = 7

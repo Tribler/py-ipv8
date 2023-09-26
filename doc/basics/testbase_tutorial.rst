@@ -9,40 +9,17 @@ Files
 
 This tutorial will place all of its files in the ``~/Documents/ipv8_tutorial`` directory.
 You are free to choose whatever directory you want, to place your files in.
-
-
-#.
-   In the working directory, we will now clone IPv8 through ``git``\ :
-
-   .. code-block:: bash
-
-      git clone https://github.com/Tribler/py-ipv8.git pyipv8
-
-   You should see a folder called ``pyipv8`` appear in the working directory.
-
-#.
-   Then, we need an empty ``__init__.py`` file, a ``community.py`` file and a ``test_community.py`` file.
-
-At the end of this setup step you should have the following files in your working directory:
+This tutorial uses the following files in the working directory:
 
 .. code-block:: console
 
-   (folder) pyipv8
-   (file) __init__.py
-   (file) community.py
-   (file) test_community.py
+   community.py
+   test_community.py
 
 We will use the following ``community.py`` in this tutorial:
 
-.. code-block:: python
-
-    import os
-
-    from pyipv8.ipv8.community import Community, DEFAULT_MAX_PEERS
-    from pyipv8.ipv8.requestcache import NumberCache, RequestCache
-
 .. literalinclude:: testbase_tutorial_1.py
-   :lines: 10-42
+   :lines: 7-53
 
 You're encouraged to fill ``test_community.py`` yourself as you read through this tutorial.
 
@@ -69,7 +46,7 @@ If you have custom logic in your subclass, please make sure to call your ``super
 Here's an example of custom ``setUp`` and ``tearDown`` methods:
 
 .. literalinclude:: testbase_tutorial_1.py
-   :lines: 45-53
+   :lines: 56-64
 
 Deadlock Detection
 ------------------
@@ -96,7 +73,7 @@ The ``initialize()`` method takes care of initializing your ``Community`` subcla
 It's as easy as this:
 
 .. literalinclude:: testbase_tutorial_1.py
-   :lines: 64-74
+   :lines: 75-85
 
 What happened here?
 First, we instructed ``TestBase`` to create 1 instance of ``MyCommunity`` using ``initialize()``.
@@ -111,14 +88,14 @@ In some cases, you might need to give additional parameters to your ``Community`
 In these cases, you can simply add additional keyword arguments to ``initialize()``.
 
 .. literalinclude:: testbase_tutorial_1.py
-   :lines: 76-84
+   :lines: 87-95
 
 In yet more advanced use cases, you may want to provide your own ``MockIPv8`` instances.
 This will usually be the case if your ``Community`` instance only supports specific keys.
 Commonly, ``Community`` instances may choose to **only** support ``curve25519`` keys, which you can do as follows:
 
 .. literalinclude:: testbase_tutorial_1.py
-   :lines: 55-56
+   :lines: 66-67
 
 Communication
 -------------
@@ -128,13 +105,13 @@ However, these instances are not communicating with each other yet.
 Take note of this code in our ``Community`` instance that stores the last peer that sent us an introduction request:
 
 .. literalinclude:: testbase_tutorial_1.py
-   :lines: 38-39
+   :lines: 47-50
 
 This code simply stores whatever ``Peer`` object last sent us a request.
 We'll create a unit test to test whether this happened:
 
 .. literalinclude:: testbase_tutorial_1.py
-   :lines: 86-99
+   :lines: 97-110
 
 Let's run through this example.
 First we create two instances of ``MyCommunity`` using ``initialize()``.
@@ -165,7 +142,7 @@ The ``introduce_nodes()`` method allows you to send these introductions anyway, 
 (note the absence of ``deliver_messages()``):
 
 .. literalinclude:: testbase_tutorial_1.py
-   :lines: 101-110
+   :lines: 112-121
 
 Using the RequestCache
 ----------------------
@@ -175,7 +152,7 @@ To make it easier to trigger these timeouts in the ``RequestCache``, we use the 
 Here's an example:
 
 .. literalinclude:: testbase_tutorial_1.py
-   :lines: 112-122
+   :lines: 123-133
 
 In this example we use the ``passthrough()`` contextmanager while we invoke a function that adds a cache.
 This causes the timeout of the ``MyCache`` cache we add inside ``add_cache`` to be nullified and instantly fire.
@@ -188,7 +165,7 @@ In these cases you can add a filter to ``passthrough()`` to make it only nullify
 (simply add these classes as arguments to ``passthrough()``):
 
 .. literalinclude:: testbase_tutorial_1.py
-   :lines: 124-134
+   :lines: 135-145
 
 Fragile Packet Handling
 -----------------------
@@ -201,7 +178,7 @@ If you want to enable the general exception handler again, you can either add yo
 For example:
 
 .. literalinclude:: testbase_tutorial_1.py
-   :lines: 58-62
+   :lines: 69-73
 
 Temporary Files
 ---------------
@@ -229,28 +206,28 @@ In the following example peer 0 first sends message 1 and then sends message 2 t
 The following construction asserts this:
 
 .. literalinclude:: testbase_tutorial_2.py
-   :lines: 67-70
+   :lines: 69-72
    :dedent: 4
 
 Sometimes, you can't be sure in what order messages are sent.
 In these cases you can use ``ordered=False``:
 
 .. literalinclude:: testbase_tutorial_2.py
-   :lines: 73-79
+   :lines: 75-81
    :dedent: 4
 
 In other cases, your overlay may be sending messages which you cannot control and/or which you don't care about.
 In these cases you can set a filter to only include the messages you want:
 
 .. literalinclude:: testbase_tutorial_2.py
-   :lines: 82-87
+   :lines: 84-89
    :dedent: 4
 
 It may also be helpful to inspect the contents of each payload.
 You can simply use the return value of the assert function to perform further inspection:
 
 .. literalinclude:: testbase_tutorial_2.py
-   :lines: 90-97
+   :lines: 92-99
    :dedent: 4
 
 If you want to use ``assertReceivedBy()``, make sure that:

@@ -71,7 +71,7 @@ In the basic identity tutorial we started the REST API as follows:
    :lines: 18-22
    :dedent: 4
 
-To use a certificate file, we will have to pass it to the ``RESTManager`` constructor, as follows (replacing ``cert_fileX`` with the file path of your certificate file for the particular IPv8 instance):
+To use a certificate file, we will have to pass it to the ``RESTManager`` constructor, as follows (replacing ``cert_file`` with the file path of your certificate file for the particular IPv8 instance):
 
 .. literalinclude:: advanced_identity_2.py
    :lines: 26-32

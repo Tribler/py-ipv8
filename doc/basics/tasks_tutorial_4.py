@@ -1,16 +1,16 @@
 import asyncio
 
-from pyipv8.ipv8.taskmanager import TaskManager
+from ipv8.taskmanager import TaskManager
 
 COMPLETED = []
 
 
-async def execute_me_too(i):
+async def execute_me_too(i: int) -> None:
     await asyncio.sleep(0.5)
     COMPLETED.append(i)
 
 
-async def main():
+async def main() -> None:
     task_manager = TaskManager()
 
     for i in range(20):

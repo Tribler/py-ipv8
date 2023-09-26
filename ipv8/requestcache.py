@@ -123,6 +123,7 @@ class CacheWithName(Protocol):
 
 
 CacheTypeVar = TypeVar("CacheTypeVar", bound=CacheWithName)
+ACT = TypeVar("ACT", bound=NumberCache)
 
 
 class NumberCacheWithName(NumberCache, CacheWithName, ABC):
@@ -168,7 +169,7 @@ class RequestCache(TaskManager):
         This is used internally for ``passthrough()``, don't modify this directly!
         """
 
-    def add(self, cache: NumberCache) -> NumberCache | None:
+    def add(self, cache: ACT) -> ACT | None:
         """
         Add CACHE into this RequestCache instance.
 

@@ -1,13 +1,12 @@
 import os
 from asyncio import run
 
-from pyipv8.ipv8.community import Community
-from pyipv8.ipv8.configuration import (ConfigBuilder, Strategy, WalkerDefinition,
-                                       default_bootstrap_defs)
-from pyipv8.ipv8.peerdiscovery.network import PeerObserver
-from pyipv8.ipv8.types import Peer
-from pyipv8.ipv8.util import run_forever
-from pyipv8.ipv8_service import IPv8
+from ipv8.community import Community
+from ipv8.configuration import ConfigBuilder, Strategy, WalkerDefinition, default_bootstrap_defs
+from ipv8.peerdiscovery.network import PeerObserver
+from ipv8.types import Peer
+from ipv8.util import run_forever
+from ipv8_service import IPv8
 
 
 class MyCommunity(Community, PeerObserver):
@@ -19,11 +18,11 @@ class MyCommunity(Community, PeerObserver):
     def on_peer_removed(self, peer: Peer) -> None:
         pass
 
-    def started(self):
+    def started(self) -> None:
         self.network.add_peer_observer(self)
 
 
-async def start_communities():
+async def start_communities() -> None:
     for i in [1, 2]:
         builder = ConfigBuilder().clear_keys().clear_overlays()
         builder.add_key("my peer", "medium", f"ec{i}.pem")

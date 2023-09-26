@@ -7,34 +7,7 @@ You will learn how to use the IPv8 attestation *HTTP REST API*.
 This tutorial will use ``curl`` to perform HTTP ``GET`` and ``POST`` requests.
 
 Note that this tutorial will make use of the Python IPv8 service.
-`An Android binding <https://github.com/Tribler/ipv8-android-app>`_ is also available (\ `including demo app <https://github.com/Tribler/ipv8-android-app/tree/demo_app>`_\ ). 
-
-Files
------
-
-This tutorial will follow the same file structure as `the overlay tutorial <../basics/overlay_tutorial.html>`_.
-In this tutorial all of the files are placed in the ``~/Documents/ipv8_tutorial`` directory.
-
-
-#. 
-   In the working directory, we clone IPv8 through ``git``\ :
-
-   .. code-block:: bash
-
-      git clone https://github.com/Tribler/py-ipv8.git pyipv8
-
-   You should see a folder called ``pyipv8`` appear in the working directory.
-
-#. 
-   Then, we need an empty ``__init__.py`` file and a ``main.py`` file, which we will fill with our tutorial code.
-
-At the end of this setup step you should have the following files in your working directory:
-
-.. code-block:: console
-
-   (folder) pyipv8
-   (file) __init__.py
-   (file) main.py
+`An Android binding <https://github.com/Tribler/ipv8-android-app>`_ is also available (\ `including demo app <https://github.com/Tribler/ipv8-android-app/tree/demo_app>`_\ ).
 
 Running the IPv8 service
 ------------------------

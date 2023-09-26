@@ -1,11 +1,11 @@
 from asyncio import run
 
-from pyipv8.ipv8.configuration import get_default_configuration
-from pyipv8.ipv8.util import run_forever
-from pyipv8.ipv8_service import IPv8
+from ipv8.configuration import get_default_configuration
+from ipv8.util import run_forever
+from ipv8_service import IPv8
 
 
-async def start_ipv8():
+async def start_ipv8() -> None:
     # The first IPv8 will attempt to claim a port.
     await IPv8(get_default_configuration()).start()
     # The second IPv8 will attempt to claim a port.

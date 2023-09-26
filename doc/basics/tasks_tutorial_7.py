@@ -1,26 +1,30 @@
 import asyncio
 
-from pyipv8.ipv8.requestcache import NumberCache, RequestCache
+from ipv8.requestcache import NumberCacheWithName, RequestCache
 
 
-class MyCache(NumberCache):
+class MyCache(NumberCacheWithName):
 
-    def __init__(self, request_cache, number):
-        super().__init__(request_cache, "my cache", number)
+    name = "my cache"
+
+    def __init__(self,
+                 request_cache: RequestCache,
+                 number: int) -> None:
+        super().__init__(request_cache, self.name, number)
 
         self.awaitable = asyncio.Future()
 
         self.register_future(self.awaitable, on_timeout=False)
 
     @property
-    def timeout_delay(self):
+    def timeout_delay(self) -> float:
         return 1.0
 
-    def finish(self):
+    def finish(self) -> None:
         self.awaitable.set_result(True)
 
 
-async def main():
+async def main() -> None:
     rq = RequestCache()
 
     rq.add(MyCache(rq, 0))
@@ -28,14 +32,14 @@ async def main():
         rq.add(MyCache(rq, 1))  # Overwritten timeout = 0.0
     rq.add(MyCache(rq, 2))
 
-    future0 = rq.get("my cache", 0).awaitable
-    future1 = rq.get("my cache", 1).awaitable
-    future2 = rq.get("my cache", 2).awaitable
+    future0 = rq.get(MyCache, 0).awaitable
+    future1 = rq.get(MyCache, 1).awaitable
+    future2 = rq.get(MyCache, 2).awaitable
 
-    rq.get("my cache", 0).finish()
+    rq.get(MyCache, 0).finish()
     await future0
     print(f"future0.result()={future0.result()}")
-    rq.pop("my cache", 0)
+    rq.pop(MyCache, 0)
 
     await future1
     print(f"future1.result()={future1.result()}")
