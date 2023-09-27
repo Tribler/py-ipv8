@@ -70,7 +70,6 @@ class DHTCommunityProvider:
         for value, _ in cast(Tuple[List[bytes], List[bytes]], values):
             try:
                 payload, _ = default_serializer.unpack_serializable(DHTIntroPointPayload, value)
-                payload = cast(DHTIntroPointPayload, payload)
                 intro_peer = Peer(b'LibNaCLPK:' + payload.intro_pk, payload.address)
                 results.append(IntroductionPoint(intro_peer, b'LibNaCLPK:' + payload.seeder_pk,
                                                  PEER_SOURCE_DHT, payload.last_seen))
