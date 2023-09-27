@@ -46,6 +46,8 @@ if TYPE_CHECKING:
     from ..peerdiscovery.discovery import DiscoveryStrategy
     from ..types import Address, Endpoint, Peer
 
+DHTValue = Tuple[bytes, Optional[bytes]]
+
 PING_INTERVAL = 25
 
 # Maximum number of seconds a token can remain valid
@@ -571,9 +573,8 @@ class DHTCommunity(Community):
             crawl.routing_table.add(node)
             crawl.add_response(node, result)
 
-    async def _find(self, crawl: Crawl, debug: bool = False) -> list[Node] | \
-                                                                list[tuple[bytes, bytes | None]] | \
-                                                                tuple[list[tuple[bytes, bytes | None]], Crawl]:
+    async def _find(self, crawl: Crawl, debug: bool = False) -> list[Node] | list[DHTValue] | \
+                                                                tuple[list[DHTValue], Crawl]:
         tasks: Set[Future | Task] = set()
         while True:
             # Keep running tasks until work is done.
@@ -601,7 +602,7 @@ class DHTCommunity(Community):
             return self.post_process_values(values), crawl
         return self.post_process_values(values)
 
-    def post_process_values(self, values: list[bytes]) -> list[tuple[bytes, bytes | None]]:
+    def post_process_values(self, values: list[bytes]) -> list[DHTValue]:
         """
         Unpack signed and unsigned values and filter out duplicates.
         """
@@ -612,7 +613,7 @@ class DHTCommunity(Community):
                 data, public_key, version = unserialized
                 unpacked[public_key].append((version, data))
 
-        results: list[tuple[bytes, bytes | None]] = []
+        results: list[DHTValue] = []
 
         # Signed data
         for public_key, data_list in unpacked.items():
@@ -623,29 +624,28 @@ class DHTCommunity(Community):
         return [*results, *((data[1], None) for data in unpacked[None])]
 
     async def find(self, target: bytes, force_nodes: bool, offset: int,
-                   debug: bool) -> Sequence[tuple[bytes, bytes | None]] | \
-                                   tuple[Sequence[tuple[bytes, bytes | None]], list[Crawl]] | \
+                   debug: bool) -> Sequence[DHTValue] | \
+                                   tuple[Sequence[DHTValue], list[Crawl]] | \
                                    Sequence[Node]:
         """
         Get the values belonging to the given target key.
         """
         futures: list[Coroutine[Any, Any, list[Node] | \
-                                          list[tuple[bytes, bytes | None]] | \
-                                          tuple[list[tuple[bytes, bytes | None]], Crawl]]] = []
+                                          list[DHTValue] | \
+                                          tuple[list[DHTValue], Crawl]]] = []
         for routing_table in self.routing_tables.values():
             crawl = Crawl(target, routing_table, force_nodes=force_nodes, offset=offset)
             futures.append(self._find(crawl, debug=debug))
         results: list[list[Node]] | \
-                 list[list[tuple[bytes, bytes | None]]] | \
-                 list[tuple[list[tuple[bytes, bytes | None]], Crawl]] = await gather(*futures)
+                 list[list[DHTValue]] | \
+                 list[tuple[list[DHTValue], Crawl]] = await gather(*futures)
         if debug:
             results = cast(List[Tuple[List[Tuple[bytes, Optional[bytes]]], Crawl]], results)
             return tuple(*[r[0] for r in results]), [r[1] for r in results]
         return tuple(*results)
 
     async def find_values(self, target: bytes, offset: int = 0,
-                          debug: bool = False) -> Sequence[tuple[bytes, bytes | None]] | \
-                                                  tuple[Sequence[tuple[bytes, bytes | None]], list[Crawl]]:
+                          debug: bool = False) -> Sequence[DHTValue] | tuple[Sequence[DHTValue], list[Crawl]]:
         """
         Find the values belonging to the target key.
         """
