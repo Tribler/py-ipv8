@@ -19,7 +19,7 @@ This tutorial uses the following files in the working directory:
 We will use the following ``community.py`` in this tutorial:
 
 .. literalinclude:: testbase_tutorial_1.py
-   :lines: 7-53
+   :lines: 3-55
 
 You're encouraged to fill ``test_community.py`` yourself as you read through this tutorial.
 
@@ -46,7 +46,7 @@ If you have custom logic in your subclass, please make sure to call your ``super
 Here's an example of custom ``setUp`` and ``tearDown`` methods:
 
 .. literalinclude:: testbase_tutorial_1.py
-   :lines: 56-64
+   :lines: 58-66
 
 Deadlock Detection
 ------------------
@@ -73,7 +73,7 @@ The ``initialize()`` method takes care of initializing your ``Community`` subcla
 It's as easy as this:
 
 .. literalinclude:: testbase_tutorial_1.py
-   :lines: 75-85
+   :lines: 77-87
 
 What happened here?
 First, we instructed ``TestBase`` to create 1 instance of ``MyCommunity`` using ``initialize()``.
@@ -88,14 +88,14 @@ In some cases, you might need to give additional parameters to your ``Community`
 In these cases, you can simply add additional keyword arguments to ``initialize()``.
 
 .. literalinclude:: testbase_tutorial_1.py
-   :lines: 87-95
+   :lines: 89-97
 
 In yet more advanced use cases, you may want to provide your own ``MockIPv8`` instances.
 This will usually be the case if your ``Community`` instance only supports specific keys.
 Commonly, ``Community`` instances may choose to **only** support ``curve25519`` keys, which you can do as follows:
 
 .. literalinclude:: testbase_tutorial_1.py
-   :lines: 66-67
+   :lines: 68-69
 
 Communication
 -------------
@@ -105,13 +105,13 @@ However, these instances are not communicating with each other yet.
 Take note of this code in our ``Community`` instance that stores the last peer that sent us an introduction request:
 
 .. literalinclude:: testbase_tutorial_1.py
-   :lines: 47-50
+   :lines: 49-52
 
 This code simply stores whatever ``Peer`` object last sent us a request.
 We'll create a unit test to test whether this happened:
 
 .. literalinclude:: testbase_tutorial_1.py
-   :lines: 97-110
+   :lines: 99-112
 
 Let's run through this example.
 First we create two instances of ``MyCommunity`` using ``initialize()``.
@@ -142,7 +142,7 @@ The ``introduce_nodes()`` method allows you to send these introductions anyway, 
 (note the absence of ``deliver_messages()``):
 
 .. literalinclude:: testbase_tutorial_1.py
-   :lines: 112-121
+   :lines: 114-123
 
 Using the RequestCache
 ----------------------
@@ -152,7 +152,7 @@ To make it easier to trigger these timeouts in the ``RequestCache``, we use the 
 Here's an example:
 
 .. literalinclude:: testbase_tutorial_1.py
-   :lines: 123-133
+   :lines: 125-135
 
 In this example we use the ``passthrough()`` contextmanager while we invoke a function that adds a cache.
 This causes the timeout of the ``MyCache`` cache we add inside ``add_cache`` to be nullified and instantly fire.
@@ -165,7 +165,7 @@ In these cases you can add a filter to ``passthrough()`` to make it only nullify
 (simply add these classes as arguments to ``passthrough()``):
 
 .. literalinclude:: testbase_tutorial_1.py
-   :lines: 135-145
+   :lines: 137-147
 
 Fragile Packet Handling
 -----------------------
@@ -178,7 +178,7 @@ If you want to enable the general exception handler again, you can either add yo
 For example:
 
 .. literalinclude:: testbase_tutorial_1.py
-   :lines: 69-73
+   :lines: 71-75
 
 Temporary Files
 ---------------
