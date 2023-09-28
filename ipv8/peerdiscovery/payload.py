@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from socket import inet_aton, inet_ntoa
 from struct import pack, unpack
 from typing import TYPE_CHECKING
 
@@ -16,7 +15,7 @@ class SimilarityRequestPayload(Payload):
     """
 
     msg_id = 1
-    format_list = ['H', '4SH', '4SH', 'bits', 'raw']
+    format_list = ['H', 'ipv4', 'ipv4', 'bits', 'raw']
 
     def __init__(self, identifier: int, lan_address: Address, wan_address: Address,
                  connection_type: str, preference_list: list[bytes]) -> None:
@@ -36,15 +35,15 @@ class SimilarityRequestPayload(Payload):
         """
         encoded_connection_type = encode_connection_type(self.connection_type)
         return [('H', self.identifier),
-                ('4SH', inet_aton(self.lan_address[0]), self.lan_address[1]),
-                ('4SH', inet_aton(self.wan_address[0]), self.wan_address[1]),
+                ('ipv4', self.lan_address),
+                ('ipv4', self.wan_address),
                 ('bits', encoded_connection_type[0], encoded_connection_type[1], 0, 0, 0, 0, 0, 0),
                 ('raw', b"".join(self.preference_list))]
 
 
     @classmethod
     def from_unpack_list(cls: type[SimilarityRequestPayload], identifier: int,  # noqa: PLR0913
-                         lan_address: tuple[bytes, int], wan_address: tuple[bytes, int],
+                         lan_address: Address, wan_address: Address,
                          connection_type_0: int, connection_type_1: int,
                          dflag0: int, dflag1: int, dflag2: int, dflag3: int, dflag4: int, dflag5: int,  # noqa: ARG003
                          preference_list: bytes) -> SimilarityRequestPayload:
@@ -52,8 +51,8 @@ class SimilarityRequestPayload(Payload):
         Unpack a SimilarityRequestPayload.
         """
         return SimilarityRequestPayload(identifier,
-                                        (inet_ntoa(lan_address[0]), lan_address[1]),
-                                        (inet_ntoa(wan_address[0]), wan_address[1]),
+                                        lan_address,
+                                        wan_address,
                                         decode_connection_type(connection_type_0, connection_type_1),
                                         [preference_list[i:i + 20] for i in range(0, len(preference_list), 20)])
 
@@ -138,7 +137,7 @@ class DiscoveryIntroductionRequestPayload(IntroductionRequestPayload):
     Custom introduction request override for Dispersy backward compatibility.
     """
 
-    format_list = ['c20s', '4SH', '4SH', '4SH', 'bits', 'H', 'raw']
+    format_list = ['c20s', 'ipv4', 'ipv4', 'ipv4', 'bits', 'H', 'raw']
 
     def __init__(self, introduce_to: bytes, destination_address: Address, source_lan_address: Address,  # noqa: PLR0913
                  source_wan_address: Address, advice: bool, connection_type: str, identifier: int,
@@ -161,17 +160,17 @@ class DiscoveryIntroductionRequestPayload(IntroductionRequestPayload):
     @classmethod
     def from_unpack_list(cls: type[DiscoveryIntroductionRequestPayload],  # type: ignore[override]  # noqa: PLR0913
                          introduce_to: bytes,
-                         destination_address: tuple[bytes, int], source_lan_address: tuple[bytes, int],
-                         source_wan_address: tuple[bytes, int], connection_type_0: int, connection_type_1: int,
+                         destination_address: Address, source_lan_address: Address,
+                         source_wan_address: Address, connection_type_0: int, connection_type_1: int,
                          dflag0: bool, dflag1: bool, dflag2: bool, tunnel: bool, _: bool, advice: bool,  # noqa: ARG003
                          identifier: bool, extra_bytes: bytes) -> DiscoveryIntroductionRequestPayload:
         """
         Unpack a DiscoveryIntroductionRequestPayload.
         """
         return DiscoveryIntroductionRequestPayload(introduce_to[1:],
-                                                   (inet_ntoa(destination_address[0]), destination_address[1]),
-                                                   (inet_ntoa(source_lan_address[0]), source_lan_address[1]),
-                                                   (inet_ntoa(source_wan_address[0]), source_wan_address[1]),
+                                                   destination_address,
+                                                   source_lan_address,
+                                                   source_wan_address,
                                                    [True, False][advice],
                                                    decode_connection_type(connection_type_0, connection_type_1),
                                                    identifier,
