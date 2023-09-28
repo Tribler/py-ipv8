@@ -436,7 +436,7 @@ class Community(EZPackOverlay):
         We don't answer if we are at our peer capacity, triggering peer churn for the other peer. Otherwise,
         we respond with an introduction response.
         """
-        if self.max_peers >= 0 and len(self.get_peers()) > self.max_peers:
+        if 0 <= self.max_peers < len(self.get_peers()):
             self.logger.debug("Dropping introduction request from (%s, %d): too many peers!",
                               peer.address[0], peer.address[1])
             return
