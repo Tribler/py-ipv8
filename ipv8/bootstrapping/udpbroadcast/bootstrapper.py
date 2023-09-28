@@ -5,14 +5,11 @@ from asyncio import BaseTransport, DatagramProtocol, get_running_loop
 from binascii import hexlify
 from socket import AF_INET, SO_BROADCAST, SO_REUSEADDR, SOCK_DGRAM, SOL_SOCKET, socket
 from time import time
-from typing import TYPE_CHECKING, Coroutine, Iterable
+from typing import TYPE_CHECKING, Iterable
 
-from ...util import succeed
 from ..bootstrapper_interface import Bootstrapper
 
 if TYPE_CHECKING:
-    from asyncio.futures import Future
-
     from ...types import Address, Community
 
 PROTOCOL_VERSION = b'\x00\x00'
@@ -98,6 +95,8 @@ class UDPBroadcastBootstrapper(Bootstrapper):
         """
         Create a new bootstrapper instance.
         """
+        super().__init__()
+
         self.endpoint: BroadcastBootstrapEndpoint | None = None
         self.overlay: Community | None = None
 
@@ -105,23 +104,27 @@ class UDPBroadcastBootstrapper(Bootstrapper):
 
         self.last_bootstrap: float = 0
 
-    async def initialize(self, overlay: Community) -> Future | Coroutine:
+    async def initialize(self, overlay: Community) -> bool:
         """
         Initialize this bootstrapper for the given overlay.
         """
+        if self.initialized:
+            return True
+        self.initialized = True
+
         self.overlay = overlay
 
         # Open the socket
         endpoint = BroadcastBootstrapEndpoint(overlay)
         success = await endpoint.open()
         if not success:
-            return succeed(False)
+            return False
         self.endpoint = endpoint
 
         # Start sending
         self.beacon(overlay.get_prefix())
 
-        return succeed(True)
+        return True
 
     def beacon(self, service_prefix: bytes) -> None:
         """

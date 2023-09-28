@@ -1,19 +1,16 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from random import choice
 from socket import gethostbyname
-from threading import Thread
 from time import time
 from typing import TYPE_CHECKING, Iterable
 
 from ...messaging.interfaces.udp.endpoint import UDPv4Address
-from ...util import succeed
 from ..bootstrapper_interface import Bootstrapper
 
 if TYPE_CHECKING:
-    from asyncio import Future
-
     from ...community import Community
     from ...types import Address
 
@@ -33,6 +30,8 @@ class DispersyBootstrapper(Bootstrapper):
         """
         Create a new bootstrapper without resolving DNS addresses or initializing the blacklist.
         """
+        super().__init__()
+
         self.ip_addresses = [UDPv4Address(*addr) for addr in ip_addresses]
         self.dns_addresses = dns_addresses
 
@@ -40,34 +39,32 @@ class DispersyBootstrapper(Bootstrapper):
 
         self.last_bootstrap: float = 0
 
-    def resolve_dns_bootstrap_addresses(self) -> None:
+    async def resolve_dns_bootstrap_addresses(self) -> None:
         """
         Resolve the bootstrap server DNS names defined in ``dns_addresses`` and insert them into ``ip_addresses``.
         """
-        def resolve_addresses(dns_names: Iterable[Address], ip_addresses: list[Address]) -> None:
-            current_addresses = ip_addresses[:]  # Copy the existing addresses (don't loop through our additions)
-            for (address, port) in dns_names:
-                try:
-                    resolved_address = UDPv4Address(gethostbyname(address), port)
-                    if resolved_address not in current_addresses:
-                        # NOTE: append() is thread-safe. Don't call remove() here!
-                        ip_addresses.append(resolved_address)
-                except OSError:
-                    logging.info("Unable to resolve bootstrap DNS address (%s, %d)", address, port)
+        loop = asyncio.get_running_loop()
 
-        resolution_thread = Thread(name="resolve_dns_bootstrap_addresses",
-                                   target=resolve_addresses,
-                                   args=(self.dns_addresses, self.ip_addresses),
-                                   daemon=True)
-        resolution_thread.start()
+        async def resolve_address(host: str, port: int) -> None:
+            try:
+                ip = await loop.run_in_executor(None, gethostbyname, host)
+                address = UDPv4Address(ip, port)
+                if address not in self.ip_addresses:
+                    self.ip_addresses.append(address)
+            except OSError:
+                logging.info("Unable to resolve bootstrap DNS address (%s, %d)", host, port)
 
-    def initialize(self, overlay: Community) -> Future:
+        await asyncio.gather(*[resolve_address(*address) for address in self.dns_addresses])
+
+    async def initialize(self, overlay: Community) -> bool:
         """
         Initialize this bootstrapper for the given Community, settings its blacklist.
         """
-        overlay.network.blacklist.extend(self.ip_addresses)
-        self.resolve_dns_bootstrap_addresses()
-        return succeed(True)
+        if not self.initialized:
+            self.initialized = True
+            overlay.network.blacklist.extend(self.ip_addresses)
+            await self.resolve_dns_bootstrap_addresses()
+        return True
 
     async def get_addresses(self, overlay: Community, timeout: float) -> Iterable[Address]:
         """

@@ -22,6 +22,12 @@ class Bootstrapper(ABC):
      - Initializing this module subclass when missing dependencies.
     """
 
+    def __init__(self) -> None:
+        """
+        Create a new ``Bootstrapper``.
+        """
+        self.initialized = False
+
     @abstractmethod
     def initialize(self, overlay: Community) -> Future | Coroutine:
         """

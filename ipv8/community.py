@@ -10,13 +10,13 @@ Community instance.
 from __future__ import annotations
 
 import sys
-from asyncio import Future, ensure_future, iscoroutine
+from asyncio import ensure_future, iscoroutine
 from binascii import hexlify
-from functools import partial
+from itertools import islice
 from random import choice, random
 from time import time
 from traceback import format_exception
-from typing import TYPE_CHECKING, Awaitable, Callable, Iterable, cast
+from typing import TYPE_CHECKING, Awaitable, Callable, cast
 
 from .lazy_community import EZPackOverlay, lazy_wrapper, lazy_wrapper_unsigned
 from .messaging.anonymization.endpoint import TunnelEndpoint
@@ -97,7 +97,6 @@ class Community(EZPackOverlay):
         self.network.blacklist_mids.append(my_peer.mid)
 
         self.bootstrappers: list[Bootstrapper] = []
-        self._bootstrappers_initialized = False
 
         self.decode_map: list[MessageHandlerFunction | None] = [None] * 256
 
@@ -201,45 +200,24 @@ class Community(EZPackOverlay):
         self.logger.warning("Received deprecated message: %s from (%s, %d)",
                             self.deprecated_message_names[data[22]], *source_address)
 
-    def _append_bootstrapper_later(self, bootstrapper: Bootstrapper, future: Future[bool]) -> None:
-        if future.result():
-            self.bootstrappers.append(bootstrapper)
-
-    def _initialize_bootstrappers(self) -> None:
-        """
-        Wipes all Bootstrapper instances in ``self.bootstrappers``.
-        Adds all the aforementioned instances back into ``self.bootstrappers`` if/when ``initialize()`` succeeded.
-        """
-        to_initialize = self.bootstrappers[:]
-        self.bootstrappers = []
-        for bootstrapper in to_initialize:
-            future = cast(Future, ensure_future(bootstrapper.initialize(self)))
-            # If the bootstrapper.initialize() is not async, we would like to add the bootstrapper immediately.
-            # Note that add_done_callback() will also add the bootstrapper, but in the next asyncio event (slow!).
-            if future.done():
-                self._append_bootstrapper_later(bootstrapper, future)
-            else:
-                task = self.register_anonymous_task(f"wait for bootstrap init {bootstrapper!r}", future)
-                task.add_done_callback(partial(self._append_bootstrapper_later, bootstrapper))
-        self._bootstrappers_initialized = True
-
     def bootstrap(self) -> None:
         """
         Contact the bootstrappers for new peers, initialize the bootstrappers if necessary.
         """
-        if not self._bootstrappers_initialized:
-            self._initialize_bootstrappers()
         for bootstrapper in self.bootstrappers:
-            task = self.register_anonymous_task(f"bootstrap {bootstrapper!r}", bootstrapper.get_addresses, self, 60.0)
-            task.add_done_callback(self.received_bootstrapped_addresses)
+            self.register_anonymous_task(f'bootstrap {bootstrapper!r}', self._bootstrap, bootstrapper)
 
-    def received_bootstrapped_addresses(self, addresses: Future[Iterable[Address]]) -> None:
+    async def _bootstrap(self, bootstrapper: Bootstrapper) -> None:
         """
-        Callback for when we learn of certain addresses acting as bootstrap nodes.
+        Contact a single bootstrapper for new peers and initialize if necessary.
         """
-        if addresses and not addresses.cancelled() and addresses.result():
-            for address in list(addresses.result())[:self.max_peers]:
-                self.walk_to(address)
+        task = ensure_future(bootstrapper.initialize(self))
+
+        addresses = await bootstrapper.get_addresses(self, 60.0)
+        for address in islice(addresses, self.max_peers):
+            self.walk_to(address)
+
+        await task
 
     def ensure_blacklisted(self, address: Address) -> None:
         """
@@ -643,7 +621,8 @@ class Community(EZPackOverlay):
             available = self.get_peers()
             if available:
                 # With a small chance, try to remedy any disconnected network phenomena.
-                if self._bootstrappers_initialized and random() < 0.05:
+                bootstrappers_ready = any(b.initialized for b in self.bootstrappers)
+                if bootstrappers_ready and random() < 0.05:
                     for bootstrapper in self.bootstrappers:
                         bootstrapper.keep_alive(self)
                     return
