@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import sys
 import time
-from asyncio import CancelledError, ensure_future, gather, sleep
+from asyncio import CancelledError, ensure_future, gather, run, sleep
 from base64 import b64decode
 from contextlib import suppress
 from os.path import isfile
@@ -258,4 +258,4 @@ else:
 
 if __name__ == '__main__':
     from scripts.ipv8_plugin import main
-    main(sys.argv[1:])
+    run(main(sys.argv[1:]))
