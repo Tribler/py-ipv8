@@ -8,7 +8,7 @@ from __future__ import annotations
 import abc
 import logging
 import types
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Type, cast
+from typing import TYPE_CHECKING, Any, Callable, Type, cast
 
 from .keyvault.crypto import default_eccrypto
 from .peer import Peer
@@ -66,12 +66,6 @@ class CommunityLauncher:
         """
         Perform cleanup tasks after the community has been loaded.
         """
-
-    def get_args(self, session: object) -> Iterable:
-        """
-        Get the args to load the community with.
-        """
-        return self.community_args
 
     def get_kwargs(self, session: object) -> dict:
         """
@@ -208,9 +202,10 @@ class IPv8CommunityLoader(CommunityLoader):
         self._logger.info("Loading overlay %s", overlay_class)
         walk_strategies = launcher.get_walk_strategies()
         peer = launcher.get_my_peer(ipv8, session)
-        args = launcher.get_args(session)
         kwargs = launcher.get_kwargs(session)
-        overlay = overlay_class(peer, ipv8.endpoint, ipv8.network, *args, **kwargs)
+
+        settings = overlay_class.settings_class(my_peer=peer, endpoint=ipv8.endpoint, network=ipv8.network, **kwargs)
+        overlay = overlay_class(settings)
         bootstrappers = launcher.get_bootstrappers(session)
 
         ipv8.overlays.append(overlay)

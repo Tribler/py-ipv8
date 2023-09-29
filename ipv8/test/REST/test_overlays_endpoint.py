@@ -34,7 +34,7 @@ class TestOverlaysEndpoint(RESTTestBase):
         Set up a single node.
         """
         super().setUp()
-        await self.initialize([], 1)
+        await self.initialize([], 1, [])
         self.ipv8 = self.node(0)
 
     def mount_statistics(self, i: int, add_mock_community: bool = True) -> None:

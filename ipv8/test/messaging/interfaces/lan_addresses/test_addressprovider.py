@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 import io
 from asyncio import sleep
+from time import time
 from typing import Set
 
 from .....messaging.interfaces.lan_addresses.addressprovider import AddressProvider
@@ -96,7 +97,8 @@ class TestAddressProvider(TestBase):
         provider = InvocationCountingProvider()
         provider.get_addresses_buffered()
 
-        await sleep(0.02)
+        while time() - provider.addresses_ts <= 0.01:
+            await sleep(0.01)
 
         # 0.01 seconds should have passed, so the addresses should be re-discovered
         provider.discover_addresses(0.01)

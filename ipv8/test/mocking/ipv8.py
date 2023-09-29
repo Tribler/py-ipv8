@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Awaitable, Generator
 
+from ...community import CommunitySettings
 from ...dht.discovery import DHTDiscoveryCommunity
 from ...keyvault.crypto import default_eccrypto
 from ...messaging.interfaces.statistics_endpoint import StatisticsEndpoint
@@ -27,9 +28,9 @@ class MockIPv8:
     def __init__(self,
                  crypto_curve_or_peer: str | Peer,
                  overlay_class: type[Community],
+                 settings: CommunitySettings | None = None,
                  create_dht: bool = False,
-                 enable_statistics: bool = False,
-                 **kwargs) -> None:
+                 enable_statistics: bool = False) -> None:
         """
         Create a new MockIPv8 instance.
         """
@@ -47,13 +48,19 @@ class MockIPv8:
         else:
             self.my_peer = Peer(default_eccrypto.generate_key(crypto_curve_or_peer), self.endpoint.wan_address)
 
+        fwd_settings = overlay_class.settings_class(my_peer=self.my_peer, endpoint=self.endpoint, network=self.network)
+        if settings is not None:
+            settings.__dict__.update(fwd_settings.__dict__)
+            fwd_settings = settings
+
         # Load a DHT community if specified
         self.dht = None
         if create_dht:
-            self.dht = DHTDiscoveryCommunity(self.my_peer, self.endpoint, self.network)
-            kwargs.update({'dht': self.dht})
+            self.dht = DHTDiscoveryCommunity(CommunitySettings(my_peer=self.my_peer, endpoint=self.endpoint,
+                                                               network=self.network))
+            fwd_settings.dht = self.dht
 
-        self.overlay = overlay_class(self.my_peer, self.endpoint, self.network, **kwargs)
+        self.overlay = overlay_class(fwd_settings)
         self.discovery = MockWalk(self.overlay)
 
         self.overlay.my_estimated_wan = self.endpoint.wan_address

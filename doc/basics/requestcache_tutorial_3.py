@@ -1,12 +1,12 @@
 import os
 from asyncio import run, sleep
 
-from ipv8.community import Community
+from ipv8.community import Community, CommunitySettings
 from ipv8.configuration import ConfigBuilder, Strategy, WalkerDefinition, default_bootstrap_defs
 from ipv8.lazy_community import lazy_wrapper, retrieve_cache
 from ipv8.messaging.lazy_payload import VariablePayload, vp_compile
 from ipv8.requestcache import RandomNumberCacheWithName, RequestCache
-from ipv8.types import Endpoint, Network, Peer
+from ipv8.types import Peer
 from ipv8_service import IPv8
 
 # We'll use this global variable to keep track of the IPv8 instances that finished.
@@ -38,8 +38,8 @@ class MyCache(RandomNumberCacheWithName):
 class MyCommunity(Community):
     community_id = os.urandom(20)
 
-    def __init__(self, my_peer: Peer, endpoint: Endpoint, network: Network) -> None:
-        super().__init__(my_peer, endpoint, network)
+    def __init__(self, settings: CommunitySettings) -> None:
+        super().__init__(settings)
         self.add_message_handler(1, self.on_request)
         self.add_message_handler(2, self.on_response)
 

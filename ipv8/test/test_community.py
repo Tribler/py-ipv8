@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from ..bootstrapping.dispersy.bootstrapper import DispersyBootstrapper
-from ..community import Community
+from ..community import Community, CommunitySettings
 from ..peer import Peer
 from ..peerdiscovery.network import Network
 from .base import TestBase
@@ -142,14 +142,17 @@ class TestCommunityInit(TestBase):
         """
         Check that attempting to create a Community without an id raises an error.
         """
-        self.assertRaises(RuntimeError, NoIDCommunity, Peer(b'LibNaCLPK:' + b'0' * 32), AutoMockEndpoint(), Network())
+        settings = CommunitySettings(my_peer=Peer(b'LibNaCLPK:' + b'0' * 32), endpoint=AutoMockEndpoint(),
+                                     network=Network())
+        self.assertRaises(RuntimeError, NoIDCommunity, settings)
 
     async def test_init_strange_id(self) -> None:
         """
         Check that attempting to create a Community with an id that is not ```bytes`` raises an error.
         """
-        self.assertRaises(RuntimeError, StrangeIDCommunity, Peer(b'LibNaCLPK:' + b'0' * 32), AutoMockEndpoint(),
-                          Network())
+        settings = CommunitySettings(my_peer=Peer(b'LibNaCLPK:' + b'0' * 32), endpoint=AutoMockEndpoint(),
+                                     network=Network())
+        self.assertRaises(RuntimeError, StrangeIDCommunity, settings)
 
 
 class TestCommunityBootstrapping(TestBase):
@@ -163,7 +166,9 @@ class TestCommunityBootstrapping(TestBase):
         """
         Check if unloading a Community after waiting for bootstrapping results exits cleanly.
         """
-        community = NewCommunity(Peer(b'LibNaCLPK:' + b'0' * 32), AutoMockEndpoint(), Network())
+        settings = CommunitySettings(my_peer=Peer(b'LibNaCLPK:' + b'0' * 32), endpoint=AutoMockEndpoint(),
+                                     network=Network())
+        community = NewCommunity(settings)
         community.bootstrappers = [DispersyBootstrapper([], [])]
 
         # Initialize bootstrapper and get the bootstrapping task
@@ -182,7 +187,9 @@ class TestCommunityBootstrapping(TestBase):
         """
         Check if unloading a Community while waiting for bootstrapping results exits cleanly.
         """
-        community = NewCommunity(Peer(b'LibNaCLPK:' + b'0' * 32), AutoMockEndpoint(), Network())
+        settings = CommunitySettings(my_peer=Peer(b'LibNaCLPK:' + b'0' * 32), endpoint=AutoMockEndpoint(),
+                                     network=Network())
+        community = NewCommunity(settings)
         community.bootstrappers = [DispersyBootstrapper([], [])]
 
         # Initialize bootstrapper and get the bootstrapping task

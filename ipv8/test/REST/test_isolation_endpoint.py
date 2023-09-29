@@ -62,7 +62,7 @@ class TestIsolationEndpoint(RESTTestBase):
         self.fake_endpoint_listener = MockEndpointListener(self.fake_endpoint)
         self.fake_endpoint.add_listener(self.fake_endpoint_listener)
 
-        await self.initialize([], 1)
+        await self.initialize([], 1, [])
         self.ipv8 = self.node(0)
         self.ipv8.overlay = MockTunnelCommunity()
         self.ipv8.overlay.network = self.ipv8.network

@@ -9,13 +9,12 @@ import random
 from asyncio import iscoroutine, sleep
 from binascii import unhexlify
 from collections import defaultdict
-from typing import TYPE_CHECKING, Awaitable, Iterable, List, Optional, Set, cast
+from typing import TYPE_CHECKING, Awaitable, Iterable, List, Set
 
-from ...community import DEFAULT_MAX_PEERS, Community
+from ...community import Community, CommunitySettings
 from ...keyvault.private.libnaclkey import LibNaCLSK
 from ...lazy_community import lazy_wrapper
 from ...messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
-from ...peer import Peer
 from ...requestcache import RequestCache
 from ...taskmanager import task
 from ...types import Address
@@ -29,8 +28,6 @@ if TYPE_CHECKING:
     from collections.abc import Collection
 
     from ...dht.provider import DHTCommunityProvider
-    from ...peerdiscovery.network import Network
-    from ...types import Endpoint
     from ..lazy_payload import VariablePayloadWID
     from ..payload import (
         IntroductionRequestPayload,
@@ -66,58 +63,46 @@ def unpack_cell(payload_cls: type[Serializable]) -> Callable[...,  # User functi
     return decorator
 
 
-class TunnelSettings:
+class TunnelSettings(CommunitySettings):
     """
     Settings to forward to the TunnelCommunity.
     """
 
-    def __init__(self) -> None:
-        """
-        Create a new settings manager.
-        """
-        self.crypto = TunnelCrypto()
+    crypto: TunnelCrypto
 
-        self.min_circuits = 1
-        self.max_circuits = 8
-        self.max_joined_circuits = 100
+    min_circuits = 1
+    max_circuits = 8
+    max_joined_circuits = 100
 
-        # Maximum number of seconds that a circuit should exist
-        self.max_time = 10 * 60
-        # Maximum number of seconds that an introduction point should exist
-        self.max_time_ip = 24 * 60 * 60
-        # Maximum number of seconds before a circuit is considered inactive (and is removed)
-        self.max_time_inactive = 20
-        self.max_traffic = 250 * 1024 * 1024
+    # Maximum number of seconds that a circuit should exist
+    max_time = 10 * 60
+    # Maximum number of seconds that an introduction point should exist
+    max_time_ip = 24 * 60 * 60
+    # Maximum number of seconds before a circuit is considered inactive (and is removed)
+    max_time_inactive = 20
+    max_traffic = 250 * 1024 * 1024
 
-        # Maximum number of seconds circuit creation is allowed to take. Within this time period, the unverified hop
-        # of the circuit can still change in case it is unresponsive.
-        self.circuit_timeout = 60
-        # Maximum number of seconds that a hop allows us to change the next hop
-        self.unstable_timeout = 60
-        # Maximum number of seconds adding a single hop to a circuit is allowed to take.
-        self.next_hop_timeout = 10
+    # Maximum number of seconds circuit creation is allowed to take. Within this time period, the unverified hop
+    # of the circuit can still change in case it is unresponsive.
+    circuit_timeout = 60
+    # Maximum number of seconds that a hop allows us to change the next hop
+    unstable_timeout = 60
+    # Maximum number of seconds adding a single hop to a circuit is allowed to take.
+    next_hop_timeout = 10
 
-        self.swarm_lookup_interval = 30
-        self.swarm_connection_limit = 15
+    swarm_lookup_interval = 30
+    swarm_connection_limit = 15
 
-        # We have a small delay when removing circuits/relays/exit nodes. This is to allow some post-mortem data
-        # to flow over the circuit (i.e. bandwidth payouts to intermediate nodes in a circuit).
-        self.remove_tunnel_delay = 5
+    # We have a small delay when removing circuits/relays/exit nodes. This is to allow some post-mortem data
+    # to flow over the circuit (i.e. bandwidth payouts to intermediate nodes in a circuit).
+    remove_tunnel_delay = 5
 
-        self.peer_flags = {PEER_FLAG_RELAY, PEER_FLAG_SPEED_TEST}
+    peer_flags: Set[int]
 
-        # Maximum number of relay_early cells that are allowed to pass a relay.
-        self.max_relay_early = 8
+    # Maximum number of relay_early cells that are allowed to pass a relay.
+    max_relay_early = 8
 
-    @classmethod
-    def from_dict(cls: type[TunnelSettings], d: dict[str, int | Set[int]]) -> TunnelSettings:
-        """
-        Convert a dict into a TunnelSettings object.
-        """
-        result = cls()
-        for k, v in d.items():
-            setattr(result, k, v)
-        return result
+    dht_provider: DHTCommunityProvider | None = None
 
 
 class TunnelCommunity(Community):
@@ -127,20 +112,18 @@ class TunnelCommunity(Community):
 
     version = b'\x02'
     community_id = unhexlify('81ded07332bdc775aa5a46f96de9f8f390bbc9f3')
+    settings_class = TunnelSettings
 
-    def __init__(self, my_peer: Peer, endpoint: Endpoint, network: Network,  # noqa: PLR0913
-                 max_peers: int = DEFAULT_MAX_PEERS, anonymize: bool = False, *, settings: TunnelSettings | dict | None = None,
-                 dht_provider: DHTCommunityProvider | None = None) -> None:
+    def __init__(self, settings: TunnelSettings) -> None:
         """
         Create a new TunnelCommunity.
         """
-        self.settings: TunnelSettings = (TunnelSettings() if settings is None
-                                         else cast(TunnelSettings,
-                                                   TunnelSettings.from_dict(settings) if isinstance(settings, dict)
-                                                   else settings))
-        self.dht_provider = dht_provider
+        settings.crypto = TunnelCrypto()
+        settings.peer_flags = {PEER_FLAG_RELAY, PEER_FLAG_SPEED_TEST}
+        self.settings = settings
+        self.dht_provider = settings.dht_provider
 
-        super().__init__(my_peer, endpoint, network, max_peers, anonymize)
+        super().__init__(settings)
 
         self.request_cache = RequestCache()
         self.decode_map_private: dict[int, Callable[[TunnelCommunity, Address, bytes, int | None], None]

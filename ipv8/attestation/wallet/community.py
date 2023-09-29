@@ -10,7 +10,7 @@ from random import choice
 from threading import RLock
 from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar, cast
 
-from ...community import DEFAULT_MAX_PEERS, Community
+from ...community import Community, CommunitySettings
 from ...lazy_community import lazy_wrapper
 from ...messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from ...requestcache import RequestCache
@@ -36,8 +36,7 @@ from .payload import (
 if TYPE_CHECKING:
     from asyncio import Future
 
-    from ...peerdiscovery.network import Network
-    from ...types import Address, Endpoint, IdentityAlgorithm, Peer
+    from ...types import Address, IdentityAlgorithm, Peer
     from ..identity_formats import Attestation
 
 # ruff: noqa: N806
@@ -72,6 +71,16 @@ def _default_verify_callback(peer: Peer, attr_hash: bytes) -> Future[bool]:
     return succeed(True)
 
 
+class AttestationSettings(CommunitySettings):
+    """
+    Settings for the Attestation community.
+    """
+
+    working_directory: str = ""
+
+    db_name: str = "attestations"
+
+
 class AttestationCommunity(Community):
     """
     Community for sharing Attestations.
@@ -80,14 +89,13 @@ class AttestationCommunity(Community):
     """
 
     community_id = unhexlify('b42c93d167a0fc4a0843f917d4bf1e9ebb340ec4')
+    settings_class = AttestationSettings
 
-    def __init__(self, my_peer: Peer, endpoint: Endpoint, network: Network,  # noqa: PLR0913
-                 max_peers: int = DEFAULT_MAX_PEERS, anonymize: bool = False, working_directory: str = "",
-                 db_name: str = "attestations") -> None:
+    def __init__(self, settings: AttestationSettings) -> None:
         """
         Create a new community to transfer and verify attestations.
         """
-        super().__init__(my_peer, endpoint, network, max_peers, anonymize)
+        super().__init__(settings)
 
         self.receive_block_lock = RLock()
 
@@ -102,7 +110,7 @@ class AttestationCommunity(Community):
 
         # Map of attestation hash -> (PrivateKey, id_format)
         self.attestation_keys: dict[bytes, tuple[SecretKeyProtocol, str]] = {}
-        self.database = AttestationsDB(working_directory, db_name)
+        self.database = AttestationsDB(settings.working_directory, settings.db_name)
         for attribute_hash, _, key, id_format in self.database.get_all():
             self.attestation_keys[attribute_hash] = (self.get_id_algorithm(id_format.decode()).load_secret_key(key),
                                                      id_format.decode())

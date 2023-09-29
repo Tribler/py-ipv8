@@ -29,7 +29,7 @@ class TunnelEndpoint:
         self.settings: dict[bytes, bool] = {}
         self.send_queue: deque[tuple[Address, bytes]] = deque(maxlen=100)
 
-    def set_tunnel_community(self, tunnel_community: TunnelCommunity, hops: int = 1) -> None:
+    def set_tunnel_community(self, tunnel_community: TunnelCommunity | None, hops: int = 1) -> None:
         """
         Configure this endpoint to create tunnels of a given number of hops over the given community.
         """

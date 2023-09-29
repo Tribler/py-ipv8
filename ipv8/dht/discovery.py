@@ -5,7 +5,6 @@ from binascii import hexlify
 from collections import defaultdict
 from typing import TYPE_CHECKING, Callable, List, cast
 
-from ..community import DEFAULT_MAX_PEERS
 from ..lazy_community import lazy_wrapper, lazy_wrapper_wd
 from ..types import Address
 from . import DHTError
@@ -21,8 +20,8 @@ from .payload import (
 from .routing import NODE_STATUS_BAD, Node
 
 if TYPE_CHECKING:
-    from ..peerdiscovery.network import Network
-    from ..types import Endpoint, Peer
+    from ..community import CommunitySettings
+    from ..types import Peer
 
 
 class DHTDiscoveryCommunity(DHTCommunity):
@@ -30,12 +29,11 @@ class DHTDiscoveryCommunity(DHTCommunity):
     Community for discovering peers that are behind NAT.
     """
 
-    def __init__(self, my_peer: Peer, endpoint: Endpoint, network: Network,
-                 max_peers: int = DEFAULT_MAX_PEERS, anonymize: bool = False) -> None:
+    def __init__(self, settings: CommunitySettings) -> None:
         """
         Create a new dht-based discovery community.
         """
-        super().__init__(my_peer, endpoint, network, max_peers, anonymize)
+        super().__init__(settings)
 
         self.store: dict[bytes, list[Node]]  = defaultdict(list)
         self.store_for_me: dict[bytes, list[Node]] = defaultdict(list)

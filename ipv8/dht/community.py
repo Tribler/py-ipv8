@@ -11,7 +11,7 @@ from collections import defaultdict, deque
 from itertools import zip_longest
 from typing import TYPE_CHECKING, Any, Coroutine, Iterator, List, Optional, Sequence, Set, Tuple, cast
 
-from ..community import DEFAULT_MAX_PEERS, Community
+from ..community import Community, CommunitySettings
 from ..lazy_community import lazy_wrapper, lazy_wrapper_wd
 from ..messaging.interfaces.udp.endpoint import UDPv4Address, UDPv6Address
 from ..messaging.serialization import ListOf, Serializer
@@ -44,7 +44,7 @@ if TYPE_CHECKING:
     )
     from ..messaging.payload_headers import GlobalTimeDistributionPayload
     from ..peerdiscovery.discovery import DiscoveryStrategy
-    from ..types import Address, Endpoint, Peer
+    from ..types import Address, Peer
 
 DHTValue = Tuple[bytes, Optional[bytes]]
 
@@ -239,15 +239,14 @@ class DHTCommunity(Community):
 
     community_id = unhexlify('8d0be1845d74d175f178197cad001591d04d73cc')
 
-    def __init__(self, my_peer: Peer, endpoint: Endpoint, network: Network,
-                 max_peers: int = DEFAULT_MAX_PEERS, anonymize: bool = False) -> None:
+    def __init__(self, settings: CommunitySettings) -> None:
         """
         Create a new DHT overlay, ignoring the given network instance.
         """
-        super().__init__(my_peer, endpoint, network, max_peers, anonymize)
+        super().__init__(settings)
         self.network = Network()
         self.network.blacklist_mids.append(self.my_peer.mid)
-        self.network.blacklist.extend(network.blacklist)
+        self.network.blacklist.extend(self.network.blacklist)
 
         self.storages: dict[type[Address], Storage] = {}
         self.routing_tables: dict[type[Address], RoutingTable]  = {}

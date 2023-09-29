@@ -2,11 +2,11 @@ import os
 from asyncio import run
 from dataclasses import dataclass
 
-from ipv8.community import Community
+from ipv8.community import Community, CommunitySettings
 from ipv8.configuration import ConfigBuilder, Strategy, WalkerDefinition, default_bootstrap_defs
 from ipv8.lazy_community import lazy_wrapper
 from ipv8.messaging.payload_dataclass import overwrite_dataclass
-from ipv8.types import Endpoint, Network, Peer
+from ipv8.types import Peer
 from ipv8.util import run_forever
 from ipv8_service import IPv8
 
@@ -22,8 +22,8 @@ class MyMessage:
 class MyCommunity(Community):
     community_id = os.urandom(20)
 
-    def __init__(self, my_peer: Peer, endpoint: Endpoint, network: Network) -> None:
-        super().__init__(my_peer, endpoint, network)
+    def __init__(self, settings: CommunitySettings) -> None:
+        super().__init__(settings)
         # Register the message handler for messages (with the identifier "1").
         self.add_message_handler(MyMessage, self.on_message)
         # The Lamport clock this peer maintains.

@@ -4,7 +4,7 @@ import os
 import unittest
 from typing import TYPE_CHECKING, Any
 
-from ipv8.community import DEFAULT_MAX_PEERS, Community
+from ipv8.community import Community, CommunitySettings
 from ipv8.requestcache import NumberCache, RequestCache
 from ipv8.test.base import TestBase
 from ipv8.test.mocking.ipv8 import MockIPv8
@@ -12,13 +12,12 @@ from ipv8.test.mocking.ipv8 import MockIPv8
 if TYPE_CHECKING:
     from ipv8.messaging.payload import IntroductionRequestPayload
     from ipv8.messaging.payload_headers import GlobalTimeDistributionPayload
-    from ipv8.types import Endpoint, Network, Peer
+    from ipv8.types import Peer
 
 
 class MyCache(NumberCache):
 
-    def __init__(self, request_cache: RequestCache,
-                 overlay: MyCommunity) -> None:
+    def __init__(self, request_cache: RequestCache, overlay: MyCommunity) -> None:
         super().__init__(request_cache, "", 0)
         self.overlay = overlay
 
@@ -26,16 +25,19 @@ class MyCache(NumberCache):
         self.overlay.timed_out = True
 
 
+class MyCommunitySettings(CommunitySettings):
+    some_constant: int | None = None
+
+
 class MyCommunity(Community):
     community_id = os.urandom(20)
+    settings_class = MyCommunitySettings
 
-    def __init__(self, my_peer: Peer, endpoint: Endpoint, network: Network,
-                 max_peers: int = DEFAULT_MAX_PEERS, anonymize: bool = False,
-                 some_constant: int | None = None) -> None:
-        super().__init__(my_peer, endpoint, network, max_peers, anonymize)
+    def __init__(self, settings: MyCommunitySettings) -> None:
+        super().__init__(settings)
         self.request_cache = RequestCache()
 
-        self._some_constant = 42 if some_constant is None else some_constant
+        self._some_constant = 42 if settings.some_constant is None else settings.some_constant
         self.last_peer = None
         self.timed_out = False
 
@@ -90,7 +92,7 @@ class MyTests(TestBase[MyCommunity]):
         """
         Create a MyCommunity with a custom some_constant.
         """
-        self.initialize(MyCommunity, 1, some_constant=7)
+        self.initialize(MyCommunity, 1, MyCommunitySettings(some_constant=7))
 
         value = self.overlay(0).some_constant()
 

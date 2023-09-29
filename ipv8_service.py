@@ -81,7 +81,7 @@ else:
                      configuration: dict[str, Any],
                      endpoint_override: Endpoint | None = None,
                      enable_statistics: bool = False,
-                     extra_communities: dict[str, Overlay] | None = None) -> None:
+                     extra_communities: dict[str, type[Overlay]] | None = None) -> None:
             """
             Create a new IPv8 instance, that is yet unstarted.
             """
@@ -136,7 +136,9 @@ else:
             for overlay in configuration['overlays']:
                 overlay_class = _COMMUNITIES.get(overlay['class'], (extra_communities or {}).get(overlay['class']))
                 my_peer = self.keys[overlay['key']]
-                overlay_instance = overlay_class(my_peer, self.endpoint, self.network, **overlay['initialize'])
+                settings = overlay_class.settings_class(my_peer=my_peer, endpoint=self.endpoint, network=self.network,
+                                                        **overlay['initialize'])
+                overlay_instance = overlay_class(settings)
                 self.overlays.append(overlay_instance)
                 for walker in overlay['walkers']:
                     strategy_class: type[DiscoveryStrategy]

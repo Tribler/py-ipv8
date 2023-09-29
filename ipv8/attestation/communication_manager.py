@@ -13,7 +13,7 @@ from ..types import IPv8, Peer, PrivateKey
 from ..util import succeed
 from .identity.community import IdentityCommunity, create_community
 from .identity.manager import IdentityManager
-from .wallet.community import AttestationCommunity
+from .wallet.community import AttestationCommunity, AttestationSettings
 
 AttributePointer = Tuple[Peer, str]  # Backward compatibility: Python >= 3.9 can use ``tuple[Peer, str]``
 MetadataDict = Dict[str, str]  # Backward compatibility: Python >= 3.9 can use ``dict[str, str]``
@@ -334,10 +334,10 @@ class CommunicationManager:
                                                       working_directory=self.working_directory,
                                                       anonymize=tunnel_community is not None,
                                                       rendezvous_token=decoded_rendezvous_token)
-            attestation_overlay = AttestationCommunity(identity_overlay.my_peer, identity_overlay.endpoint,
-                                                       identity_overlay.network,
-                                                       working_directory=self.working_directory,
-                                                       anonymize=tunnel_community is not None)
+            settings = AttestationSettings(my_peer=identity_overlay.my_peer, endpoint=identity_overlay.endpoint,
+                                           network=identity_overlay.network, working_directory=self.working_directory,
+                                           anonymize=tunnel_community is not None)
+            attestation_overlay = AttestationCommunity(settings)
             cast(TunnelEndpoint, identity_overlay.endpoint).set_tunnel_community(tunnel_community)
             self.channels[public_key] = CommunicationChannel(attestation_overlay, identity_overlay)
             self.name_to_channel[name] = self.channels[public_key]

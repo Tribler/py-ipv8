@@ -7,7 +7,7 @@ from time import time
 from typing import TYPE_CHECKING, cast
 
 from ...bootstrapping.dispersy.bootstrapper import DispersyBootstrapper
-from ...community import DEFAULT_MAX_PEERS, Community
+from ...community import Community, CommunitySettings
 from ...configuration import DISPERSY_BOOTSTRAPPER
 from ...keyvault.keys import PrivateKey, PublicKey
 from ...lazy_community import lazy_wrapper
@@ -24,6 +24,16 @@ if TYPE_CHECKING:
 SAFE_UDP_PACKET_LENGTH = 1296
 
 
+class IdentitySettings(CommunitySettings):
+    """
+    Settings for the Identity community.
+    """
+
+    identity_manager: IdentityManager | None = None
+
+    working_directory: str = "."
+
+
 class IdentityCommunity(Community):
     """
     Community for business logic surrounding identities.
@@ -32,26 +42,25 @@ class IdentityCommunity(Community):
     """
 
     community_id = unhexlify('d5889074c1e4c50423cdb6e9307ee0ca5695ead7')
+    settings_class = IdentitySettings
 
-    def __init__(self, my_peer: Peer, endpoint: Endpoint, network: Network | None = None,  # noqa: PLR0913
-                 max_peers: int = DEFAULT_MAX_PEERS, anonymize: bool = True,
-                 identity_manager: IdentityManager | None = None, working_directory: str = ".") -> None:
+    def __init__(self, settings: IdentitySettings) -> None:
         """
         Create a new identity management overlay.
         """
-        if network is None:
-            network = Network()
-        super().__init__(my_peer, endpoint, network, max_peers, anonymize)
-        if identity_manager is None:
-            dbpath = ":memory:" if working_directory == ":memory:" else os.path.join(working_directory, "sqlite",
-                                                                                     "identity.db")
-            identity_manager = IdentityManager(database_path=dbpath)
+        if not hasattr(settings, "network"):
+            settings.network = Network()
+        super().__init__(settings)
+        if settings.identity_manager is None:
+            dbpath = (":memory:" if settings.working_directory == ":memory:"
+                      else os.path.join(settings.working_directory, "sqlite", "identity.db"))
+            settings.identity_manager = IdentityManager(database_path=dbpath)
 
         # Dict of hash -> (attribute_name, date, public_key)
         self.known_attestation_hashes: dict[bytes, tuple[str, float, bytes, dict[str, str] | None]] = {}
 
-        self.identity_manager = identity_manager
-        self.pseudonym_manager = identity_manager.get_pseudonym(cast(PrivateKey, self.my_peer.key))
+        self.identity_manager = settings.identity_manager
+        self.pseudonym_manager = settings.identity_manager.get_pseudonym(cast(PrivateKey, self.my_peer.key))
 
         # We assume other people try to cheat us with trees.
         # We don't attack ourselves though and just maintain a chain of attributes per pseudonym.
@@ -323,8 +332,8 @@ async def create_community(private_key: PrivateKey, ipv8: IPv8, identity_manager
         overlay_cls = type(f"IdentityCommunity-{token_str}", (IdentityCommunity, ), {  # type:ignore[assignment]
             'community_id': rendezvous_id
         })
-    community = overlay_cls(my_peer, endpoint, identity_manager=identity_manager,
-                            working_directory=working_directory_str, anonymize=anonymize)
+    community = overlay_cls(IdentitySettings(my_peer=my_peer, endpoint=endpoint, identity_manager=identity_manager,
+                                             working_directory=working_directory_str, anonymize=anonymize))
     community.bootstrappers = [DispersyBootstrapper(**DISPERSY_BOOTSTRAPPER['init'])]
     ipv8.add_strategy(community, RandomWalk(community), -1)
     return community
