@@ -63,13 +63,12 @@ class TunnelEndpoint:
                 return
 
             circuit_id = circuit.circuit_id
-            peer = cast(Peer, circuit.peer)
-            tunnel_community.send_data(peer, circuit_id, address, ('0.0.0.0', 0), packet)
+            tunnel_community.send_data(circuit.hop.address, circuit_id, address, ('0.0.0.0', 0), packet)
 
             # Any packets still need sending?
             while self.send_queue:
                 address, packet = self.send_queue.popleft()
-                tunnel_community.send_data(peer, circuit_id, address, ('0.0.0.0', 0), packet)
+                tunnel_community.send_data(circuit.hop.address, circuit_id, address, ('0.0.0.0', 0), packet)
 
     def notify_listeners(self, packet: tuple[Address, bytes], from_tunnel: bool = False) -> None:
         """

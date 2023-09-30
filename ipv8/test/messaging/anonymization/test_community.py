@@ -289,7 +289,9 @@ class TestTunnelCommunity(TestBase[TunnelCommunity]):
         self.overlay(0).build_tunnels(2)
         await self.deliver_messages()
 
-        await self.overlay(2).remove_exit_socket(next(iter(self.overlay(2).exit_sockets.keys())), destroy=1)
+        cid = list(self.overlay(2).exit_sockets.keys())[0]
+        await self.overlay(2).remove_exit_socket(cid, destroy=1)
+        #await self.overlay(2).remove_exit_socket(next(iter(self.overlay(2).exit_sockets.keys())), destroy=1)
         await self.deliver_messages()
 
         self.assert_no_more_tunnels()
@@ -353,7 +355,7 @@ class TestTunnelCommunity(TestBase[TunnelCommunity]):
 
         # Tunnel the data to the endpoint
         circuit = next(iter(self.overlay(0).circuits.values()))
-        self.overlay(0).send_data(circuit.peer, circuit.circuit_id,
+        self.overlay(0).send_data(circuit.hop.address, circuit.circuit_id,
                                   DomainAddress('localhost', self.public_endpoint.get_address()[1]),
                                   ('0.0.0.0', 0), data)
 
@@ -553,7 +555,7 @@ class TestTunnelCommunity(TestBase[TunnelCommunity]):
         mock_exit.sendto = Mock()
 
         unicode_destination = DomainAddress('JP納豆.例.jp', 1234)
-        self.overlay(0).send_data(circuit.peer, circuit.circuit_id, unicode_destination, ('0.0.0.0', 0), b'')
+        self.overlay(0).send_data(circuit.hop.address, circuit.circuit_id, unicode_destination, ('0.0.0.0', 0), b'')
         await self.deliver_messages()
 
         mock_exit.sendto.assert_called_with(b'', unicode_destination)

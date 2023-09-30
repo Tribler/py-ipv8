@@ -16,6 +16,7 @@ from asyncio import (
 )
 from binascii import hexlify
 from collections import deque
+from dataclasses import dataclass
 from struct import unpack_from
 from traceback import format_exception
 from typing import TYPE_CHECKING, Callable, Generic, Optional, Sequence, TypeVar, cast
@@ -143,31 +144,59 @@ class DataChecker:
         return len(data) >= 23 and data[0:1] == b'\x00' and data[1:2] in [b'\x01', b'\x02']
 
 
-PT = TypeVar("PT", Peer, Optional[Peer])
+@dataclass
+class Hop:
+    peer: Peer
+    keys: SessionKeys | None = None
+    direction: int = FORWARD
+    flags: list[int] | None = None
+    dh_first_part: LibNaCLPK | None = None
+    dh_secret: LibNaCLSK | None = None
+
+    @property
+    def public_key(self) -> LibNaCLPK:
+        """
+        Get the public key instance of the hop.
+        """
+        return cast(LibNaCLPK, self.peer.public_key)
+
+    @property
+    def public_key_bin(self) -> bytes:
+        """
+        The hop's public_key bytes.
+        """
+        return self.peer.public_key.key_to_bin()
+
+    @property
+    def mid(self) -> bytes:
+        """
+        Get the SHA-1 of the hop's public key.
+        """
+        return self.peer.mid
+
+    @property
+    def verified(self) -> bool:
+        return bool(self.keys)
+
+    @property
+    def address(self) -> Address:
+        return self.peer.address
 
 
-class Tunnel(Generic[PT]):
+class TunnelObject:
     """
     Statistics for a tunnel to a peer over a circuit (base class for circuits, exit sockets, and relay routes).
     """
 
-    def __init__(self, circuit_id: int, peer: PT) -> None:
+    def __init__(self, circuit_id: int) -> None:
         """
-        Maintain the stats of the given circuit id and peer.
+        Maintain the stats of the given object within the tunnel community.
         """
         self.circuit_id = circuit_id
-        self._peer: PT = peer
         self.creation_time = time.time()
         self.last_activity = time.time()
         self.bytes_up = self.bytes_down = 0
         self.logger = logging.getLogger(self.__class__.__name__)
-
-    @property
-    def peer(self) -> PT:
-        """
-        The peer on the other end of this tunnel, if it exists.
-        """
-        return self._peer
 
     def beat_heart(self) -> None:
         """
@@ -207,17 +236,18 @@ class TunnelProtocol(DatagramProtocol):
         self.received_cb(data, addr)
 
 
-class TunnelExitSocket(Tunnel[Peer], TaskManager):
+class TunnelExitSocket(TunnelObject, DatagramProtocol, TaskManager):
     """
     Socket for exit nodes that communicates with the outside world.
     """
 
-    def __init__(self, circuit_id: int, peer: Peer, overlay: TunnelCommunity) -> None:
+    def __init__(self, circuit_id: int, hop: Hop, overlay: TunnelCommunity) -> None:
         """
         Create a new exit socket.
         """
-        Tunnel.__init__(self, circuit_id, peer)
+        TunnelObject.__init__(self, circuit_id)
         TaskManager.__init__(self)
+        self.hop = hop
         self.overlay = overlay
         self.transport_ipv4: DatagramTransport | None = None
         self.transport_ipv6: DatagramTransport | None = None
@@ -340,7 +370,7 @@ class TunnelExitSocket(Tunnel[Peer], TaskManager):
         Send data back over the tunnel that we are exiting for.
         """
         self.logger.debug("Tunnel data to origin %s for circuit %s", ('0.0.0.0', 0), self.circuit_id)
-        self.overlay.send_data(self.peer, self.circuit_id, ('0.0.0.0', 0), source, data)
+        self.overlay.send_data(self.hop.address, self.circuit_id, ('0.0.0.0', 0), source, data)
 
     async def close(self) -> None:
         """
@@ -359,17 +389,18 @@ class TunnelExitSocket(Tunnel[Peer], TaskManager):
             self.transport_ipv6 = None
 
 
-class Circuit(Tunnel[Optional[Peer]]):
+class Circuit(TunnelObject):
     """
     A peer-to-peer encrypted communication channel, consisting of 0 or more hops (intermediate peers).
     """
 
-    def __init__(self, circuit_id: int , goal_hops: int = 0, ctype: str = CIRCUIT_TYPE_DATA,
+    def __init__(self, circuit_id: int, goal_hops: int = 0, ctype: str = CIRCUIT_TYPE_DATA,
                  required_exit: Peer | None = None, info_hash: bytes | None = None) -> None:
         """
         Create a new circuit instance.
         """
-        super().__init__(circuit_id, None)
+        super().__init__(circuit_id)
+        self._hops = []
         self.goal_hops = goal_hops
         self.ctype = ctype
         self.required_exit = required_exit
@@ -385,22 +416,18 @@ class Circuit(Tunnel[Optional[Peer]]):
         self.relay_early_count = 0
 
     @property
-    def peer(self) -> Peer | None:
-        """
-        Get the gateway peer for this tunnel, if it already exists.
-        """
-        if self._hops:
-            return self._hops[0].peer
-        if self.unverified_hop:
-            return self.unverified_hop.peer
-        return None
-
-    @property
     def exit_flags(self) -> list[int]:
         """
         Get the flags of the last hop in our circuit.
         """
         return self.hops[-1].flags if self.hops else []
+
+    @property
+    def hop(self) -> Hop:
+        """
+        To do,.
+        """
+        return self._hops[0] if self._hops else self.unverified_hop
 
     @property
     def hops(self) -> Sequence[Hop]:
@@ -446,59 +473,21 @@ class Circuit(Tunnel[Optional[Peer]]):
             self.ready.set_result(None)
 
 
-class Hop:
-    """
-    Circuit Hop containing the address, its public key and the first part of
-    the Diffie-Hellman handshake.
-    """
-
-    def __init__(self, peer: Peer, flags: list[int] | None = None) -> None:
-        """
-        Create a new hop instance for the given peer.
-        """
-        self.peer = peer
-        self.session_keys: SessionKeys | None = None
-        self.dh_first_part: LibNaCLPK | None = None
-        self.dh_secret: LibNaCLSK | None = None
-        self.flags: list[int] = [] if flags is None else flags
-
-    @property
-    def public_key(self) -> LibNaCLPK:
-        """
-        Get the public key instance of the hop.
-        """
-        return cast(LibNaCLPK, self.peer.public_key)
-
-    @property
-    def public_key_bin(self) -> bytes:
-        """
-        The hop's public_key bytes.
-        """
-        return self.peer.public_key.key_to_bin()
-
-    @property
-    def mid(self) -> bytes:
-        """
-        Get the SHA-1 of the hop's public key.
-        """
-        return self.peer.mid
-
-
-class RelayRoute(Tunnel[Peer]):
+class RelayRoute(TunnelObject):
     """
     Relay object containing the destination circuit, socket address and whether it is online or not.
     """
 
-    def __init__(self, circuit_id: int, peer: Peer, direction: int, rendezvous_relay: bool = False) -> None:
+    def __init__(self, circuit_id: int, hop: Hop, rendezvous_relay: bool = False) -> None:
         """
         Create a new relay route.
         """
-        super().__init__(circuit_id, peer)
+        super().__init__(circuit_id)
+        self.hop = hop
         self.rendezvous_relay = rendezvous_relay
         # Since the creation of a RelayRoute object is triggered by an extend (which was wrapped in a cell
         # that had the early_relay flag set) we start the count at 1.
         self.relay_early_count = 1
-        self.direction = direction
 
 
 class RendezvousPoint:

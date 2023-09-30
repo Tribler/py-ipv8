@@ -328,7 +328,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
             post = destination
         else:
             pre = destination
-        self.send_data(cast(Peer, circuit.peer), circuit.circuit_id, pre, post, packet)
+        self.send_data(circuit.hop.address, circuit.circuit_id, pre, post, packet)
 
     def select_circuit(self, destination: Address | None, hops: int) -> Circuit | None:
         """
@@ -366,7 +366,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
             self.tunnel_data(circuit, target.peer.address, payload)
             self.logger.info("Sending peers request (intro point %s)", target.peer)
         else:
-            self.send_cell(cast(Peer, circuit.peer), payload)
+            self.send_cell(circuit.hop.address, payload)
             self.logger.info("Sending peers request as cell")
         return cache.future
 
@@ -509,7 +509,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
             if await circuit.ready:
                 link_cache = LinkRequestCache(self, circuit, cache.info_hash, session_keys)
                 self.request_cache.add(link_cache)
-                self.send_cell(cast(Peer, circuit.peer),
+                self.send_cell(circuit.hop.address,
                                LinkE2EPayload(circuit.circuit_id, link_cache.number, rp_info.cookie))
 
     @unpack_cell(LinkE2EPayload)
@@ -525,24 +525,24 @@ class HiddenTunnelCommunity(TunnelCommunity):
             self.logger.warning("Attempted link without circuit id")
             return
 
-        if self.exit_sockets[circuit_id].enabled:
+        exit_socket = self.exit_sockets[circuit_id]
+        if exit_socket.enabled:
             self.logger.warning("Exit socket for circuit is enabled, cannot link")
             return
 
         relay_circuit = self.rendezvous_point_for[payload.cookie]
-        if self.exit_sockets[relay_circuit.circuit_id].enabled:
+        exit_socket_rp = self.exit_sockets[relay_circuit.circuit_id]
+        if exit_socket_rp.enabled:
             self.logger.warning("Exit socket for relay_circuit is enabled, cannot link")
             return
 
-        circuit = self.exit_sockets[circuit_id]
+        _ = self.remove_exit_socket(exit_socket.circuit_id, 'linking circuit')
+        _ = self.remove_exit_socket(exit_socket_rp.circuit_id, 'linking circuit')
 
-        _ = self.remove_exit_socket(circuit.circuit_id, 'linking circuit')
-        _ = self.remove_exit_socket(relay_circuit.circuit_id, 'linking circuit')
+        self.relay_from_to[exit_socket.circuit_id] = RelayRoute(exit_socket_rp.circuit_id, exit_socket.hop, True)
+        self.relay_from_to[exit_socket_rp.circuit_id] = RelayRoute(exit_socket.circuit_id, exit_socket_rp.hop, True)
 
-        self.relay_from_to[circuit.circuit_id] = RelayRoute(relay_circuit.circuit_id, relay_circuit.peer, FORWARD, True)
-        self.relay_from_to[relay_circuit.circuit_id] = RelayRoute(circuit.circuit_id, circuit.peer, FORWARD, True)
-
-        self.send_cell(source_address, LinkedE2EPayload(circuit.circuit_id, payload.identifier))
+        self.send_cell(source_address, LinkedE2EPayload(exit_socket.circuit_id, payload.identifier))
 
     @unpack_cell(LinkedE2EPayload)
     def on_linked_e2e(self, source_address: Address, payload: LinkedE2EPayload, circuit_id: int | None) -> None:
@@ -586,8 +586,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
             circuit_id = circuit.circuit_id
             cache = IPRequestCache(self, circuit)
             self.request_cache.add(cache)
-            self.send_cell(cast(Peer, circuit.peer), EstablishIntroPayload(circuit_id, cache.number, info_hash,
-                                                                           seed_pk))
+            self.send_cell(circuit.hop.address, EstablishIntroPayload(circuit_id, cache.number, info_hash, seed_pk))
             self.logger.info("Established introduction tunnel %s", circuit_id)
 
     @unpack_cell(EstablishIntroPayload)
@@ -656,8 +655,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
             rp = RendezvousPoint(circuit, os.urandom(20))
             cache = RPRequestCache(self, rp)
             self.request_cache.add(cache)
-            self.send_cell(cast(Peer, circuit.peer), EstablishRendezvousPayload(circuit.circuit_id, cache.number,
-                                                                                rp.cookie))
+            self.send_cell(circuit.hop.address, EstablishRendezvousPayload(circuit.circuit_id, cache.number, rp.cookie))
             return rp
         return None
 

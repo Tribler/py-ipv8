@@ -18,7 +18,7 @@ class TestExitSocket(TestBase):
         Check if the ExitSocket correctly detects forbidden packets.
         """
         overlay = Mock(_prefix=unhexlify('000281ded07332bdc775aa5a46f96de9f8f390bbc9f3'))
-        exit_socket = TunnelExitSocket(0, Peer(LibNaCLSK(b"\x00" * 64)), overlay)
+        exit_socket = TunnelExitSocket(0, Mock(peer=Peer(LibNaCLSK(b"\x00" * 64))), overlay)
 
         overlay.settings.peer_flags = {}
         self.assertFalse(exit_socket.is_allowed(tracker_pkt))

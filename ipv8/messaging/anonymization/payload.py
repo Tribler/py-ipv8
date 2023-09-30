@@ -10,6 +10,7 @@ from ...messaging.anonymization.tunnel import (
     CIRCUIT_TYPE_RP_SEEDER,
     FORWARD,
     Circuit,
+    RelayRoute,
 )
 from ...messaging.anonymization.tunnelcrypto import CryptoException, SessionKeys, TunnelCrypto
 from ...messaging.lazy_payload import VariablePayload, VariablePayloadWID, vp_compile
@@ -410,7 +411,7 @@ class CellPayload:
 
     msg_id = 0
 
-    def __init__(self, circuit_id: int , message: bytes, plaintext: bool = False, relay_early: bool = False) -> None:
+    def __init__(self, circuit_id: int, message: bytes, plaintext: bool = False, relay_early: bool = False) -> None:
         """
         Prepare the given message for cell encryption (or plaintext).
         """
@@ -420,7 +421,7 @@ class CellPayload:
         self.relay_early = relay_early
 
     def encrypt(self, crypto: TunnelCrypto, circuit: Circuit | None = None,
-                relay_session_keys: SessionKeys | None = None) -> None:
+                relay_route: RelayRoute | None = None) -> None:
         """
         Encrypt this cell.
 
@@ -436,17 +437,17 @@ class CellPayload:
                 self.message = crypto.encrypt_str(self.message, circuit.hs_session_keys, direction)
 
             for hop in reversed(circuit.hops):
-                if hop.session_keys is not None:
-                    self.message = crypto.encrypt_str(self.message, hop.session_keys, FORWARD)
+                if hop.keys is not None:
+                    self.message = crypto.encrypt_str(self.message, hop.keys, FORWARD)
 
-        elif relay_session_keys is not None:
-            self.message = crypto.encrypt_str(self.message, relay_session_keys, BACKWARD)
+        elif relay_route is not None:
+            self.message = crypto.encrypt_str(self.message, relay_route.hop.keys, BACKWARD)
 
         else:
             raise CryptoException("Error encrypting message for unknown circuit %d" % self.circuit_id)
 
     def decrypt(self, crypto: TunnelCrypto, circuit: Circuit | None = None,
-                relay_session_keys: SessionKeys | None = None) -> None:
+                relay_route: RelayRoute | None = None) -> None:
         """
         Decrypt this cell and store the result in ``self.message``.
 
@@ -462,13 +463,13 @@ class CellPayload:
 
             # Remove all the encryption layers
             for layer, hop in enumerate(circuit.hops):
-                if hop.session_keys is None:
+                if hop.keys is None:
                     msg = (f"Missing session keys for {hop} to remove encryption layer {layer} "
                            f"for message: {self.message!r} received for circuit_id: {self.circuit_id}, "
                            f"circuit_hops: {circuit.hops}")
                     raise CryptoException(msg)
                 try:
-                    self.message = crypto.decrypt_str(self.message, hop.session_keys, BACKWARD)
+                    self.message = crypto.decrypt_str(self.message, hop.keys, BACKWARD)
                 except ValueError as e:
                     msg = (f"Got exception {e!r} when trying to remove encryption layer {layer} "
                            f"for message: {self.message!r} received for circuit_id: {self.circuit_id}, "
@@ -480,9 +481,9 @@ class CellPayload:
                 direction = FORWARD if circuit.ctype == CIRCUIT_TYPE_RP_DOWNLOADER else BACKWARD
                 self.message = crypto.decrypt_str(self.message, circuit.hs_session_keys, direction)
 
-        elif relay_session_keys:
+        elif relay_route:
             try:
-                self.message = crypto.decrypt_str(self.message, relay_session_keys, FORWARD)
+                self.message = crypto.decrypt_str(self.message, relay_route.hop.keys, FORWARD)
             except ValueError as e:
                 msg = (f"Got exception {e!r} when trying to decrypt relay message: "
                        f"cell received for circuit_id: {self.circuit_id}")
