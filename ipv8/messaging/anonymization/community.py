@@ -7,19 +7,23 @@ from __future__ import annotations
 
 import os
 import random
-from asyncio import iscoroutine, sleep
+import sys
+from asyncio import ensure_future, iscoroutine, sleep
 from binascii import unhexlify
 from collections import defaultdict
-from typing import TYPE_CHECKING, Awaitable, List, Set
+from traceback import format_exception
+from typing import TYPE_CHECKING, Awaitable, List, Optional, Set
 
 from ...community import Community, CommunitySettings
 from ...keyvault.private.libnaclkey import LibNaCLSK
 from ...lazy_community import lazy_wrapper
+from ...peer import Peer
 from ...requestcache import RequestCache
 from ...taskmanager import task
 from ...types import Address
 from .caches import *
 from .endpoint import TunnelEndpoint
+from .exit_socket import DataChecker, TunnelExitSocket
 from .payload import *
 from .tunnel import *
 from .tunnel import RelayRoute

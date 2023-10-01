@@ -26,6 +26,7 @@ from ...taskmanager import task
 from ...util import fail
 from .caches import *
 from .community import TunnelCommunity, TunnelSettings, unpack_cell
+from .exit_socket import TunnelExitSocket
 from .payload import *
 from .tunnel import (
     CIRCUIT_ID_PORT,
@@ -42,7 +43,6 @@ from .tunnel import (
     RelayRoute,
     RendezvousPoint,
     Swarm,
-    TunnelExitSocket,
 )
 
 if TYPE_CHECKING:
