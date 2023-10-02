@@ -361,7 +361,7 @@ class DHTCommunity(Community):
         # Filter out trackers
         if source_address not in self.network.blacklist:
             node = Node(public_key_bin, source_address)
-            routing_table = self.get_routing_table(Node(public_key_bin, source_address))
+            routing_table = self.get_routing_table(node)
             existed = routing_table.has(node.id)
             rt_node = routing_table.add(node)
 
