@@ -18,8 +18,6 @@ from ..serialization import Packer
 if TYPE_CHECKING:
     from ...types import Address
 
-NO_CRYPTO_PACKETS = [2, 3]
-
 
 class CellablePayload(VariablePayloadWID):
     """
@@ -530,3 +528,6 @@ class CellPayload:
         """
         circuit_id, plaintext, relay_early = unpack_from('!I??', packet, 23)
         return cls(circuit_id, packet[29:], plaintext, relay_early)
+
+
+NO_CRYPTO_PACKETS = [CreatePayload.msg_id, CreatedPayload.msg_id]
