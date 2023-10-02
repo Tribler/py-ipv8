@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import logging
-import os
+import secrets
 import time
 from asyncio import Future
-from functools import reduce
 from typing import TYPE_CHECKING, Callable
 
 from ...requestcache import NumberCacheWithName, RandomNumberCacheWithName
@@ -95,7 +94,7 @@ class RetryRequestCache(NumberCacheWithName):
         super().__init__(community.request_cache, self.name, circuit.circuit_id)
         self.community = community
         self.circuit = circuit
-        self.packet_identifier = reduce(lambda v, e: (v << 8) + e, os.urandom(2), 0)
+        self.packet_identifier = secrets.randbelow(2**16)
         self.candidates = candidates
         self.max_tries = max_tries
         self.retry_func = retry_func

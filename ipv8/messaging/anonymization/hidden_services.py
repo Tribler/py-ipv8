@@ -6,6 +6,7 @@ Author(s): Egbert Bouman
 from __future__ import annotations
 
 import binascii
+import os
 import random
 import socket
 import struct
