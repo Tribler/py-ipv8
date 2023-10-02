@@ -29,6 +29,7 @@ from .community import TunnelCommunity, TunnelSettings, unpack_cell
 from .payload import *
 from .tunnel import (
     CIRCUIT_ID_PORT,
+    CIRCUIT_STATE_READY,
     CIRCUIT_TYPE_IP_SEEDER,
     CIRCUIT_TYPE_RP_DOWNLOADER,
     CIRCUIT_TYPE_RP_SEEDER,

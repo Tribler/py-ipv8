@@ -304,7 +304,9 @@ class TestTunnelCommunity(TestBase[TunnelCommunity]):
         self.overlay(0).build_tunnels(2)
         await self.deliver_messages()
 
-        self.overlay(1).remove_relay(next(iter(self.overlay(1).relay_from_to.keys())), destroy=1)
+        relay = await self.overlay(1).remove_relay(next(iter(self.overlay(1).relay_from_to.keys())), destroy=1)
+        # Also destroy the other direction
+        self.overlay(1).remove_relay(relay.circuit_id, destroy=1)
         await self.deliver_messages()
 
         self.assert_no_more_tunnels()

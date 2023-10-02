@@ -7,7 +7,7 @@ from asyncio import Future
 from typing import TYPE_CHECKING, Callable
 
 from ...requestcache import NumberCacheWithName, RandomNumberCacheWithName
-from .tunnel import CIRCUIT_STATE_CLOSING, CIRCUIT_STATE_READY
+from .tunnel import CIRCUIT_STATE_CLOSING
 
 if TYPE_CHECKING:
     from ...types import Peer
@@ -39,11 +39,8 @@ class CreateRequestCache(RandomNumberCacheWithName):
 
     def on_timeout(self) -> None:
         """
-        If the creation failed, remove the circuit, if it's not removed already.
+        We don't need to do anything on timeout.
         """
-        to_circuit = self.community.circuits.get(self.to_circuit_id)
-        if to_circuit and to_circuit.state != CIRCUIT_STATE_READY:
-            self.community.remove_relay(self.to_circuit_id)
 
 
 class CreatedRequestCache(NumberCacheWithName):

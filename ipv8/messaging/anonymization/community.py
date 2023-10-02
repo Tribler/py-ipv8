@@ -10,7 +10,7 @@ import random
 from asyncio import iscoroutine, sleep
 from binascii import unhexlify
 from collections import defaultdict
-from typing import TYPE_CHECKING, Awaitable, Iterable, List, Set
+from typing import TYPE_CHECKING, Awaitable, List, Set
 
 from ...community import Community, CommunitySettings
 from ...keyvault.private.libnaclkey import LibNaCLSK
@@ -23,6 +23,7 @@ from .caches import *
 from .endpoint import TunnelEndpoint
 from .payload import *
 from .tunnel import *
+from .tunnel import RelayRoute
 from .tunnelcrypto import CryptoException, TunnelCrypto
 
 if TYPE_CHECKING:
@@ -176,8 +177,7 @@ class TunnelCommunity(Community):
             await self.remove_circuit(circuit_id, 'unload', remove_now=True,
                                       destroy=DESTROY_REASON_SHUTDOWN)
         for circuit_id in list(self.relay_from_to.keys()):
-            await self.remove_relay(circuit_id, 'unload', remove_now=True, destroy=DESTROY_REASON_SHUTDOWN,
-                                    both_sides=False)
+            await self.remove_relay(circuit_id, 'unload', remove_now=True, destroy=DESTROY_REASON_SHUTDOWN)
         for circuit_id in list(self.exit_sockets.keys()):
             await self.remove_exit_socket(circuit_id, 'unload', remove_now=True,
                                           destroy=DESTROY_REASON_SHUTDOWN)
@@ -260,9 +260,9 @@ class TunnelCommunity(Community):
         # Remove relays that are inactive / have transferred too many bytes.
         for circuit_id, relay in list(self.relay_from_to.items()):
             if relay.last_activity < time.time() - self.settings.max_time_inactive:
-                self.remove_relay(circuit_id, 'no activity', both_sides=False)
+                self.remove_relay(circuit_id, 'no activity')
             elif relay.bytes_up + relay.bytes_down > self.settings.max_traffic:
-                self.remove_relay(circuit_id, 'traffic limit exceeded', both_sides=False)
+                self.remove_relay(circuit_id, 'traffic limit exceeded')
 
         # Remove exit sockets that are too old / have transferred too many bytes.
         for circuit_id, exit_socket in list(self.exit_sockets.items()):
@@ -418,42 +418,25 @@ class TunnelCommunity(Community):
         self.directions.pop(circuit_id, None)
 
     @task
-    async def remove_relay(self, circuit_id: int, additional_info: str = '', remove_now: bool = False,  # noqa: PLR0913
-                           destroy: bool = False, got_destroy_from: tuple[int, Address] | None = None,
-                           both_sides: bool = True) -> list[RelayRoute]:
+    async def remove_relay(self, circuit_id: int, additional_info: str = '', remove_now: bool = False,
+                           destroy: bool = False) -> RelayRoute | None:
         """
         Remove a relay and all information associated with the relay. Return the relays that have been removed.
         """
-        to_remove = [circuit_id]
-        if both_sides:
-            # Find other side of relay
-            for k, v in self.relay_from_to.items():
-                if circuit_id == v.circuit_id:
-                    to_remove.append(k)
-
         # Send destroy
         if destroy:
-            self.destroy_relay(to_remove, got_destroy_from=got_destroy_from, reason=destroy)
+            self.destroy_relay(circuit_id, reason=destroy)
 
         if not remove_now or self.settings.remove_tunnel_delay > 0:
             await sleep(self.settings.remove_tunnel_delay)
 
-        removed_relays = []
-        for cid in to_remove:
-            # Remove the relay
-            self.logger.info("Removing relay %d %s", cid, additional_info)
+        self.logger.info("Removing relay %d %s", circuit_id, additional_info)
 
-            relay = self.relay_from_to.pop(cid, None)
-            if relay:
-                removed_relays.append(relay)
+        relay = self.relay_from_to.pop(circuit_id, None)
+        self.relay_session_keys.pop(circuit_id, None)
+        self.directions.pop(circuit_id, None)
 
-            # Remove old session key
-            self.relay_session_keys.pop(cid, None)
-
-            # Clean directions dictionary
-            self.directions.pop(cid, None)
-
-        return removed_relays
+        return relay
 
     @task
     async def remove_exit_socket(self, circuit_id: int, additional_info: str = '', remove_now: bool = False,
@@ -468,11 +451,11 @@ class TunnelCommunity(Community):
         if not remove_now or self.settings.remove_tunnel_delay > 0:
             await sleep(self.settings.remove_tunnel_delay)
 
+        self.logger.info("Removing exit socket %d %s", circuit_id, additional_info)
         exit_socket = self.exit_sockets.pop(circuit_id, None)
         if exit_socket:
             # Close socket
             if exit_socket.enabled:
-                self.logger.info("Removing exit socket %d %s", circuit_id, additional_info)
                 await exit_socket.close()
                 # Remove old session key
                 self.relay_session_keys.pop(circuit_id, None)
@@ -489,26 +472,17 @@ class TunnelCommunity(Community):
         self.send_destroy(sock_addr, circuit.circuit_id, reason)
         self.logger.info("destroy_circuit %s %s", circuit.circuit_id, sock_addr)
 
-    def destroy_relay(self, circuit_ids: Iterable[int], reason: int = 0,
-                      got_destroy_from: tuple[int, Address] | None = None) -> None:
+    def destroy_relay(self, circuit_id: int, reason: int = 0) -> None:
         """
         Destroy our relay circuit upon request and forward a destroy message.
 
         Note that the relay route will still exist.
         """
-        relays = {cid_from: (self.relay_from_to[cid_from].circuit_id,
-                             self.relay_from_to[cid_from].peer.address) for cid_from in circuit_ids
-                  if cid_from in self.relay_from_to}
+        relay = self.relay_from_to.get(circuit_id)
 
-        if got_destroy_from is not None and got_destroy_from not in relays.values():
-            self.logger.error("%s not allowed send destroy for circuit %s", *reversed(got_destroy_from))
-            return
-
-        for cid_from, (cid_to, sock_addr) in relays.items():
-            self.logger.info("Found relay %s -> %s (%s)", cid_from, cid_to, sock_addr)
-            if (cid_to, sock_addr) != got_destroy_from:
-                self.send_destroy(sock_addr, cid_to, reason)
-                self.logger.info("Fw destroy to %s %s", cid_to, sock_addr)
+        if relay:
+            self.logger.info("Send destroy for relay %s -> %s (%s)", circuit_id, relay.circuit_id, relay.peer.address)
+            self.send_destroy(relay.peer.address, relay.circuit_id, reason)
 
     def destroy_exit_socket(self, exit_socket: TunnelExitSocket, reason: int = 0) -> None:
         """
@@ -632,7 +606,7 @@ class TunnelCommunity(Community):
         elif circuit.state == CIRCUIT_STATE_READY:
             self.request_cache.pop(RetryRequestCache, circuit.circuit_id)
 
-    def send_extend(self, circuit: Circuit, candidate_list: list[bytes], max_tries: int) -> None:  # noqa: PLR0912
+    def send_extend(self, circuit: Circuit, candidate_list: list[bytes], max_tries: int) -> None:
         """
         Extend a circuit by choosing one of the given candidates.
         """
@@ -841,7 +815,7 @@ class TunnelCommunity(Community):
         if not self.settings.peer_flags:
             self.logger.warning("Ignoring create for circuit %d", payload.circuit_id)
             return
-        if self.request_cache.has("created", payload.circuit_id):
+        if self.request_cache.has(CreatedRequestCache, payload.circuit_id):
             self.logger.warning("Already have a request for circuit %d", payload.circuit_id)
             return
 
@@ -1057,16 +1031,17 @@ class TunnelCommunity(Community):
         circuit_id = payload.circuit_id
         self.logger.info("Got destroy from %s for circuit %s", source_address, circuit_id)
 
-        if circuit_id in self.relay_from_to:
-            self.remove_relay(circuit_id, "got destroy", destroy=DESTROY_REASON_FORWARD,
-                              got_destroy_from=(circuit_id, source_address))
+        # Find the RelayRoute object for the other direction (if any).
+        next_relay = self.relay_from_to.get(circuit_id)
+        prev_relay = self.relay_from_to.get(next_relay.circuit_id) if next_relay else None
+        if prev_relay and peer == prev_relay.peer:
+            self.remove_relay(circuit_id, f"got destroy with reason {payload.reason}", destroy=payload.reason)
+            self.remove_relay(cast(RelayRoute, next_relay).circuit_id, f"got destroy with reason {payload.reason}")
 
         elif circuit_id in self.exit_sockets and peer == self.exit_sockets[circuit_id].peer:
-            self.logger.info("Got an exit socket %s %s", circuit_id, source_address)
             self.remove_exit_socket(circuit_id, f"got destroy with reason {payload.reason}")
 
         elif circuit_id in self.circuits and peer == self.circuits[circuit_id].peer:
-            self.logger.info("Got a circuit %s %s", circuit_id, source_address)
             self.remove_circuit(circuit_id, f"got destroy with reason {payload.reason}")
 
         else:
