@@ -28,7 +28,7 @@ class TestDispersyBootstrapper(TestBase):
 
         We don't test network DNS resolution here, which would contact the Internet.
         """
-        result = self.bootstrapper.initialize(self.overlay)
+        result = await self.bootstrapper.initialize(self.overlay)
 
         self.assertIn(self.bootstrap_node.wan_address, self.overlay.network.blacklist)
         self.assertTrue(result)

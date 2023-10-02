@@ -131,7 +131,7 @@ class DiscoveryCommunity(Community):
         The old logic flow was to first try to unpack the special DiscoveryCommunity intro request and then fall
         back to the actual intro request payload.
         """
-        if self.max_peers >= 0 and len(self.get_peers()) > self.max_peers:
+        if 0 <= self.max_peers < len(self.get_peers()):
             self.logger.debug("Dropping introduction request from (%s, %d): too many peers!",
                               source_address[0], source_address[1])
             return
@@ -194,7 +194,7 @@ class DiscoveryCommunity(Community):
         """
         We received a response to our request for similarity.
         """
-        if self.max_peers >= 0 and len(self.get_peers()) > self.max_peers and node not in self.network.verified_peers:
+        if 0 <= self.max_peers < len(self.get_peers()) and node not in self.network.verified_peers:
             self.logger.debug("Dropping similarity response from (%s, %d): too many peers!",
                               node.address[0], node.address[1])
             return
