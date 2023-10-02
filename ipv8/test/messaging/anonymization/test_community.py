@@ -289,9 +289,7 @@ class TestTunnelCommunity(TestBase[TunnelCommunity]):
         self.overlay(0).build_tunnels(2)
         await self.deliver_messages()
 
-        cid = list(self.overlay(2).exit_sockets.keys())[0]
-        await self.overlay(2).remove_exit_socket(cid, destroy=1)
-        #await self.overlay(2).remove_exit_socket(next(iter(self.overlay(2).exit_sockets.keys())), destroy=1)
+        await self.overlay(2).remove_exit_socket(next(iter(self.overlay(2).exit_sockets.keys())), destroy=1)
         await self.deliver_messages()
 
         self.assert_no_more_tunnels()

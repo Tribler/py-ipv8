@@ -52,12 +52,23 @@ DESTROY_REASON_UNNEEDED = 4
 
 @dataclass
 class Hop:
+    """
+    Hop contains all information needed to add/remove a single layer of
+    onion encryption and send it to the next target.
+    """
+
     peer: Peer
     keys: SessionKeys | None = None
-    direction: int = FORWARD
     flags: list[int] | None = None
     dh_first_part: LibNaCLPK | None = None
     dh_secret: LibNaCLSK | None = None
+
+    @property
+    def address(self) -> Address:
+        """
+        Get the address of this hop.
+        """
+        return self.peer.address
 
     @property
     def public_key(self) -> LibNaCLPK:
@@ -79,14 +90,6 @@ class Hop:
         Get the SHA-1 of the hop's public key.
         """
         return self.peer.mid
-
-    @property
-    def verified(self) -> bool:
-        return bool(self.keys)
-
-    @property
-    def address(self) -> Address:
-        return self.peer.address
 
 
 class TunnelObject:
@@ -137,17 +140,18 @@ class Circuit(TunnelObject):
         self.e2e = False
         self.relay_early_count = 0
 
-    @property
-    def exit_flags(self) -> list[int]:
+    def add_hop(self, hop: Hop) -> None:
         """
-        Get the flags of the last hop in our circuit.
+        Adds a hop to the circuits hop collection.
         """
-        return self.hops[-1].flags if self.hops else []
+        self._hops.append(hop)
+        if self.state == CIRCUIT_STATE_READY:
+            self.ready.set_result(self)
 
     @property
     def hop(self) -> Hop:
         """
-        To do,.
+        Return the first hop of the circuit.
         """
         return self._hops[0] if self._hops else self.unverified_hop
 
@@ -158,13 +162,12 @@ class Circuit(TunnelObject):
         """
         return tuple(self._hops)
 
-    def add_hop(self, hop: Hop) -> None:
+    @property
+    def exit_flags(self) -> list[int]:
         """
-        Adds a hop to the circuits hop collection.
+        Get the flags of the last hop in our circuit.
         """
-        self._hops.append(hop)
-        if self.state == CIRCUIT_STATE_READY:
-            self.ready.set_result(self)
+        return self.hops[-1].flags if self.hops else []
 
     @property
     def state(self) -> str:
@@ -200,12 +203,13 @@ class RelayRoute(TunnelObject):
     Relay object containing the destination circuit, socket address and whether it is online or not.
     """
 
-    def __init__(self, circuit_id: int, hop: Hop, rendezvous_relay: bool = False) -> None:
+    def __init__(self, circuit_id: int, hop: Hop, direction: int, rendezvous_relay: bool = False) -> None:
         """
         Create a new relay route.
         """
         super().__init__(circuit_id)
         self.hop = hop
+        self.direction = direction
         self.rendezvous_relay = rendezvous_relay
         # Since the creation of a RelayRoute object is triggered by an extend (which was wrapped in a cell
         # that had the early_relay flag set) we start the count at 1.
@@ -235,7 +239,7 @@ class IntroductionPoint:
     def __init__(self, peer: Peer, seeder_pk: bytes, source: int = PEER_SOURCE_UNKNOWN,
                  last_seen: float | None = None) -> None:
         """
-        Createa a new introduction point.
+        Creates a new introduction point.
         """
         self.peer = peer
         self.seeder_pk = seeder_pk
@@ -269,7 +273,7 @@ class IntroductionPoint:
 
 class Swarm:
     """
-    A group of circuit exits that organizes around a SHA-1.
+    A group of circuit exits that organizes around an SHA-1.
     """
 
     def __init__(self, info_hash: bytes, hops: int,  # noqa: PLR0913
