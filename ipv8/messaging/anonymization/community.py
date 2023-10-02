@@ -1061,11 +1061,11 @@ class TunnelCommunity(Community):
             self.remove_relay(circuit_id, "got destroy", destroy=DESTROY_REASON_FORWARD,
                               got_destroy_from=(circuit_id, source_address))
 
-        elif circuit_id in self.exit_sockets and source_address == self.exit_sockets[circuit_id].peer.address:
+        elif circuit_id in self.exit_sockets and peer == self.exit_sockets[circuit_id].peer:
             self.logger.info("Got an exit socket %s %s", circuit_id, source_address)
             self.remove_exit_socket(circuit_id, f"got destroy with reason {payload.reason}")
 
-        elif circuit_id in self.circuits and source_address == cast(Peer, self.circuits[circuit_id].peer).address:
+        elif circuit_id in self.circuits and peer == self.circuits[circuit_id].peer:
             self.logger.info("Got a circuit %s %s", circuit_id, source_address)
             self.remove_circuit(circuit_id, f"got destroy with reason {payload.reason}")
 
