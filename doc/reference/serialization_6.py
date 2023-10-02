@@ -3,9 +3,9 @@ import os
 from asyncio import Event, run
 from binascii import hexlify, unhexlify
 
-from ipv8.community import Community
+from ipv8.community import Community, CommunitySettings
 from ipv8.configuration import ConfigBuilder, Strategy, WalkerDefinition, default_bootstrap_defs
-from ipv8.types import Address, Endpoint, Network, Peer
+from ipv8.types import Address, Peer
 from ipv8_service import IPv8
 
 
@@ -16,9 +16,8 @@ def to_hex(bstr: bytes) -> str:
 class MyCommunity(Community):
     community_id = os.urandom(20)
 
-    def __init__(self, my_peer: Peer, endpoint: Endpoint,
-                 network: Network) -> None:
-        super().__init__(my_peer, endpoint, network)
+    def __init__(self, settings: CommunitySettings) -> None:
+        super().__init__(settings)
         self.event = None
         self.add_message_handler(1, self.on_message)
 

@@ -4,12 +4,12 @@ import struct
 from asyncio import Event, run
 from typing import Any
 
-from ipv8.community import Community
+from ipv8.community import Community, CommunitySettings
 from ipv8.configuration import ConfigBuilder, Strategy, WalkerDefinition, default_bootstrap_defs
 from ipv8.lazy_community import lazy_wrapper
 from ipv8.messaging.lazy_payload import VariablePayload, vp_compile
 from ipv8.messaging.serialization import Packer, Serializer
-from ipv8.types import Endpoint, Network, Peer
+from ipv8.types import Peer
 from ipv8_service import IPv8
 
 
@@ -49,8 +49,8 @@ class MyCommunity(Community):
 
     community_id = os.urandom(20)
 
-    def __init__(self, my_peer: Peer, endpoint: Endpoint, network: Network) -> None:
-        super().__init__(my_peer, endpoint, network)
+    def __init__(self, settings: CommunitySettings) -> None:
+        super().__init__(settings)
         self.event = None
         self.add_message_handler(Message, self.on_message)
 

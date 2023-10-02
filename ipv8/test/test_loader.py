@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Iterable
 
 from ..bootstrapping.bootstrapper_interface import Bootstrapper
-from ..community import Community
+from ..community import Community, CommunitySettings
 from ..loader import (
     CommunityLauncher,
     IPv8CommunityLoader,
@@ -20,8 +20,7 @@ from ..peerdiscovery.discovery import DiscoveryStrategy
 from .base import TestBase
 
 if TYPE_CHECKING:
-    from ..peerdiscovery.network import Network
-    from ..types import Address, Endpoint, IPv8, Peer
+    from ..types import Address, IPv8
 
 
 class MockCommunity(Community):
@@ -29,15 +28,14 @@ class MockCommunity(Community):
     Empty community implementation.
     """
 
-    def __init__(self, peer: Peer, endpoint: Endpoint, network: Network, *args: Any, **kw_args) -> None:  # noqa: ANN401
+    def __init__(self, settings: CommunitySettings) -> None:
         """
         Fake creation, simply store all init args.
         """
-        self.peer = peer
-        self.endpoint = endpoint
-        self.network = network
-        self.args = args
-        self.kwargs = kw_args
+        self.peer = settings.my_peer
+        self.endpoint = settings.endpoint
+        self.network = settings.network
+        self.kwargs = {k: v for k, v in settings.__dict__.items() if k not in CommunitySettings().__dict__}
         self.bootstrappers = []
 
 
@@ -446,7 +444,7 @@ class TestCommunityLauncher(TestBase):
             pass
 
         session = MockSession()
-        community = MockCommunity(None, None, None)
+        community = MockCommunity(CommunitySettings(my_peer=None, network=None, endpoint=None))
         DecoratedCommunityLauncher().finalize(None, session, community)
 
         self.assertEqual(community, session.community)

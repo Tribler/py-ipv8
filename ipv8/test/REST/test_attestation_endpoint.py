@@ -4,10 +4,10 @@ from asyncio import sleep
 from base64 import b64encode
 from typing import Collection, Sequence
 
-from ...attestation.identity.community import IdentityCommunity
+from ...attestation.identity.community import IdentityCommunity, IdentitySettings
 from ...attestation.identity.manager import IdentityManager
-from ...attestation.wallet.community import AttestationCommunity
-from ..REST.rest_base import MockRestIPv8, RESTTestBase, partial_cls
+from ...attestation.wallet.community import AttestationCommunity, AttestationSettings
+from ..REST.rest_base import MockRestIPv8, RESTTestBase
 
 
 class TestAttestationEndpoint(RESTTestBase):
@@ -21,8 +21,9 @@ class TestAttestationEndpoint(RESTTestBase):
         """
         super().setUp()
         identity_manager = IdentityManager(":memory:")
-        await self.initialize([partial_cls(AttestationCommunity, working_directory=':memory:'),
-                               partial_cls(IdentityCommunity, identity_manager=identity_manager)], 2)
+        await self.initialize([AttestationCommunity, IdentityCommunity], 2,
+                              settings=[AttestationSettings(working_directory=':memory:'),
+                                        IdentitySettings(identity_manager=identity_manager)])
 
     async def make_outstanding(self, node: MockRestIPv8) -> list[Sequence[str, str, str]]:
         """

@@ -20,7 +20,7 @@ class TestNetworkEndpoint(RESTTestBase):
         Create a single node.
         """
         super().setUp()
-        await self.initialize([], 1)
+        await self.initialize([], 1, [])
         self.ipv8 = self.node(0)
 
     async def test_no_peers(self) -> None:

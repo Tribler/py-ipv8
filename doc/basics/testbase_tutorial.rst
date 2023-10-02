@@ -19,7 +19,7 @@ This tutorial uses the following files in the working directory:
 We will use the following ``community.py`` in this tutorial:
 
 .. literalinclude:: testbase_tutorial_1.py
-   :lines: 3-55
+   :lines: 3-57
 
 You're encouraged to fill ``test_community.py`` yourself as you read through this tutorial.
 
@@ -46,7 +46,7 @@ If you have custom logic in your subclass, please make sure to call your ``super
 Here's an example of custom ``setUp`` and ``tearDown`` methods:
 
 .. literalinclude:: testbase_tutorial_1.py
-   :lines: 58-66
+   :lines: 60-68
 
 Deadlock Detection
 ------------------
@@ -73,7 +73,7 @@ The ``initialize()`` method takes care of initializing your ``Community`` subcla
 It's as easy as this:
 
 .. literalinclude:: testbase_tutorial_1.py
-   :lines: 77-87
+   :lines: 79-89
 
 What happened here?
 First, we instructed ``TestBase`` to create 1 instance of ``MyCommunity`` using ``initialize()``.
@@ -88,14 +88,14 @@ In some cases, you might need to give additional parameters to your ``Community`
 In these cases, you can simply add additional keyword arguments to ``initialize()``.
 
 .. literalinclude:: testbase_tutorial_1.py
-   :lines: 89-97
+   :lines: 91-99
 
 In yet more advanced use cases, you may want to provide your own ``MockIPv8`` instances.
 This will usually be the case if your ``Community`` instance only supports specific keys.
 Commonly, ``Community`` instances may choose to **only** support ``curve25519`` keys, which you can do as follows:
 
 .. literalinclude:: testbase_tutorial_1.py
-   :lines: 68-69
+   :lines: 70-71
 
 Communication
 -------------
@@ -105,13 +105,13 @@ However, these instances are not communicating with each other yet.
 Take note of this code in our ``Community`` instance that stores the last peer that sent us an introduction request:
 
 .. literalinclude:: testbase_tutorial_1.py
-   :lines: 49-52
+   :lines: 51-54
 
 This code simply stores whatever ``Peer`` object last sent us a request.
 We'll create a unit test to test whether this happened:
 
 .. literalinclude:: testbase_tutorial_1.py
-   :lines: 99-112
+   :lines: 101-114
 
 Let's run through this example.
 First we create two instances of ``MyCommunity`` using ``initialize()``.
@@ -142,7 +142,7 @@ The ``introduce_nodes()`` method allows you to send these introductions anyway, 
 (note the absence of ``deliver_messages()``):
 
 .. literalinclude:: testbase_tutorial_1.py
-   :lines: 114-123
+   :lines: 116-125
 
 Using the RequestCache
 ----------------------
@@ -152,7 +152,7 @@ To make it easier to trigger these timeouts in the ``RequestCache``, we use the 
 Here's an example:
 
 .. literalinclude:: testbase_tutorial_1.py
-   :lines: 125-135
+   :lines: 127-137
 
 In this example we use the ``passthrough()`` contextmanager while we invoke a function that adds a cache.
 This causes the timeout of the ``MyCache`` cache we add inside ``add_cache`` to be nullified and instantly fire.
@@ -165,7 +165,7 @@ In these cases you can add a filter to ``passthrough()`` to make it only nullify
 (simply add these classes as arguments to ``passthrough()``):
 
 .. literalinclude:: testbase_tutorial_1.py
-   :lines: 137-147
+   :lines: 139-149
 
 Fragile Packet Handling
 -----------------------
@@ -178,7 +178,7 @@ If you want to enable the general exception handler again, you can either add yo
 For example:
 
 .. literalinclude:: testbase_tutorial_1.py
-   :lines: 71-75
+   :lines: 73-77
 
 Temporary Files
 ---------------
@@ -206,28 +206,28 @@ In the following example peer 0 first sends message 1 and then sends message 2 t
 The following construction asserts this:
 
 .. literalinclude:: testbase_tutorial_2.py
-   :lines: 69-72
+   :lines: 68-71
    :dedent: 4
 
 Sometimes, you can't be sure in what order messages are sent.
 In these cases you can use ``ordered=False``:
 
 .. literalinclude:: testbase_tutorial_2.py
-   :lines: 75-81
+   :lines: 74-80
    :dedent: 4
 
 In other cases, your overlay may be sending messages which you cannot control and/or which you don't care about.
 In these cases you can set a filter to only include the messages you want:
 
 .. literalinclude:: testbase_tutorial_2.py
-   :lines: 84-89
+   :lines: 83-88
    :dedent: 4
 
 It may also be helpful to inspect the contents of each payload.
 You can simply use the return value of the assert function to perform further inspection:
 
 .. literalinclude:: testbase_tutorial_2.py
-   :lines: 92-99
+   :lines: 91-98
    :dedent: 4
 
 If you want to use ``assertReceivedBy()``, make sure that:

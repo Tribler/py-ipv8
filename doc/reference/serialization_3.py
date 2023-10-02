@@ -1,7 +1,6 @@
 import os
-from typing import Any
 
-from ipv8.community import Community
+from ipv8.community import Community, CommunitySettings
 from ipv8.lazy_community import lazy_wrapper
 from ipv8.messaging.lazy_payload import VariablePayload, vp_compile
 from ipv8.types import Peer
@@ -27,8 +26,8 @@ COMMUNITY_ID = os.urandom(20)
 class MyCommunity(Community):
     community_id = COMMUNITY_ID
 
-    def __init__(self, *args: Any, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self, settings: CommunitySettings) -> None:
+        super().__init__(settings)
 
         self.add_message_handler(MyMessage1, self.on_message1)
         self.add_message_handler(MyMessage2, self.on_message2)

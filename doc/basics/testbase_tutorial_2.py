@@ -3,11 +3,11 @@ import unittest
 from dataclasses import dataclass
 from random import random, shuffle
 
-from ipv8.community import DEFAULT_MAX_PEERS, Community
+from ipv8.community import Community, CommunitySettings
 from ipv8.lazy_community import lazy_wrapper, lazy_wrapper_unsigned
 from ipv8.messaging.payload_dataclass import overwrite_dataclass
 from ipv8.test.base import TestBase
-from ipv8.types import Endpoint, Network, Peer
+from ipv8.types import Peer
 
 dataclass = overwrite_dataclass(dataclass)
 
@@ -30,9 +30,8 @@ class Message3:
 class MyCommunity(Community):
     community_id = os.urandom(20)
 
-    def __init__(self, my_peer: Peer, endpoint: Endpoint, network: Network,
-                 max_peers: int = DEFAULT_MAX_PEERS, anonymize: bool = False) -> None:
-        super().__init__(my_peer, endpoint, network, max_peers, anonymize)
+    def __init__(self, settings: CommunitySettings) -> None:
+        super().__init__(settings)
 
         self.add_message_handler(Message1, self.on_message1)
         self.add_message_handler(Message2, self.on_message2)

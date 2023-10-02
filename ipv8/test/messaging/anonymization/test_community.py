@@ -22,6 +22,7 @@ from ...mocking.ipv8 import MockIPv8
 from .mock import MockDHTProvider
 
 if TYPE_CHECKING:
+    from ....community import CommunitySettings
     from ....types import Address, Overlay
 
 
@@ -64,15 +65,16 @@ class TestTunnelCommunity(TestBase[TunnelCommunity]):
 
         return await super().tearDown()
 
-    def create_node(self) -> MockIPv8:
+    def create_node(self, settings: CommunitySettings | None = None, create_dht: bool = False,
+                    enable_statistics: bool = False) -> MockIPv8:
         """
         Initialize a TunnelCommunity without circuits or exit node functionality.
         """
-        settings = TunnelSettings()
-        settings.min_circuits = 0
-        settings.max_circuits = 0
-        settings.remove_tunnel_delay = 0
-        ipv8 = MockIPv8("curve25519", TunnelCommunity, settings=settings)
+        tunnel_settings = TunnelSettings()
+        tunnel_settings.min_circuits = 0
+        tunnel_settings.max_circuits = 0
+        tunnel_settings.remove_tunnel_delay = 0
+        ipv8 = MockIPv8("curve25519", TunnelCommunity, settings=tunnel_settings)
         # Then kill all automated circuit creation
         ipv8.overlay.cancel_all_pending_tasks()
         # Finally, use the proper exitnode and circuit settings for manual creation

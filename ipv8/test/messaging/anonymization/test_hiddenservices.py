@@ -5,8 +5,8 @@ from asyncio import Future, sleep
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
-from ....messaging.anonymization.community import CIRCUIT_TYPE_RP_DOWNLOADER, TunnelSettings
-from ....messaging.anonymization.hidden_services import HiddenTunnelCommunity
+from ....messaging.anonymization.community import CIRCUIT_TYPE_RP_DOWNLOADER
+from ....messaging.anonymization.hidden_services import HiddenTunnelCommunity, HiddenTunnelSettings
 from ....messaging.anonymization.payload import TestRequestPayload
 from ....messaging.anonymization.tunnel import (
     CIRCUIT_TYPE_DATA,
@@ -98,15 +98,15 @@ class TestHiddenServices(TestBase[HiddenTunnelCommunity]):
 
         return path
 
-    def create_node(self) -> MockIPv8:
+    def create_node(self, settings: None = None, create_dht: bool = False, enable_statistics: bool = False) -> MockIPv8:
         """
         Initialize a HiddenTunnelCommunity without circuits or exit node functionality.
         """
-        settings = TunnelSettings()
-        settings.min_circuits = 0
-        settings.max_circuits = 0
-        settings.remove_tunnel_delay = 0
-        ipv8 = MockIPv8("curve25519", HiddenTunnelCommunity, settings=settings)
+        tunnel_settings = HiddenTunnelSettings()
+        tunnel_settings.min_circuits = 0
+        tunnel_settings.max_circuits = 0
+        tunnel_settings.remove_tunnel_delay = 0
+        ipv8 = MockIPv8("curve25519", HiddenTunnelCommunity, settings=tunnel_settings)
         ipv8.overlay.ipv8 = ipv8
 
         # Then kill all automated circuit creation

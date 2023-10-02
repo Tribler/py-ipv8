@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 from ....attestation.wallet.bonehexact.structs import BonehAttestation
-from ....attestation.wallet.community import AttestationCommunity
+from ....attestation.wallet.community import AttestationCommunity, AttestationSettings
 from ....attestation.wallet.database import AttestationsDB
 from ....attestation.wallet.pengbaorange.structs import PengBaoAttestation
 from ....attestation.wallet.primitives.structs import BonehPrivateKey
@@ -14,6 +14,7 @@ from ....util import succeed
 from ...base import MockIPv8, TestBase
 
 if TYPE_CHECKING:
+    from ....community import CommunitySettings
     from ....types import Peer
 
 
@@ -32,11 +33,12 @@ class TestCommunity(TestBase[AttestationCommunity]):
         super().setUp()
         self.initialize(AttestationCommunity, 2)
 
-    def create_node(self) -> MockIPv8:
+    def create_node(self, settings: CommunitySettings | None = None, create_dht: bool = False,
+                    enable_statistics: bool = False) -> MockIPv8:
         """
         Create a curve25519 peer with a memory database.
         """
-        return MockIPv8("curve25519", AttestationCommunity, working_directory=":memory:")
+        return MockIPv8("curve25519", AttestationCommunity, settings=AttestationSettings(working_directory=":memory:"))
 
     async def test_request_attestation_callback(self) -> None:
         """
@@ -332,8 +334,9 @@ class TestCommunity(TestBase[AttestationCommunity]):
 
         # Reload the community with the "same" (mocked) database.
         with patch.object(AttestationsDB, 'get_all', return_value=reloaded):
-            self.overlay(0).__init__(self.my_peer(0), self.endpoint(0), self.network(0), working_directory=":memory:",
-                                     db_name="test")
+            self.overlay(0).__init__(AttestationSettings(my_peer=self.my_peer(0), endpoint=self.endpoint(0),
+                                                         network=self.network(0), working_directory=":memory:",
+                                                         db_name="test"))
 
         # The key should be loaded from the database
         self.assertIn(b"a" * 20, self.overlay(0).attestation_keys)

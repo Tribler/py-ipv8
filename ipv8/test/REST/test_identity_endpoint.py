@@ -7,13 +7,14 @@ from typing import TYPE_CHECKING, Any, cast
 
 from ...attestation.communication_manager import CommunicationChannel, CommunicationManager, PseudonymFolderManager
 from ...attestation.default_identity_formats import FORMATS
-from ...attestation.identity.community import IdentityCommunity
+from ...attestation.identity.community import IdentityCommunity, IdentitySettings
 from ...attestation.identity.manager import IdentityManager
-from ...attestation.wallet.community import AttestationCommunity
+from ...attestation.wallet.community import AttestationCommunity, AttestationSettings
 from ..mocking.endpoint import AutoMockEndpoint
-from ..REST.rest_base import MockRestIPv8, RESTTestBase, partial_cls
+from ..REST.rest_base import MockRestIPv8, RESTTestBase
 
 if TYPE_CHECKING:
+    from ...community import CommunitySettings
     from ...types import PrivateKey
 
 
@@ -64,16 +65,21 @@ class TestIdentityEndpoint(RESTTestBase):
         super().setUp()
 
         self.pseudonym_directories: dict[str, bytes] = {}  # Pseudonym to key-bytes mapping
-        identity_manager = IdentityManager(":memory:")
 
-        await self.initialize([partial_cls(IdentityCommunity, identity_manager=identity_manager,
-                                           working_directory=':memory:')], 2)
 
-    async def create_node(self, *args: Any, **kwargs) -> MockRestIPv8:  # noqa: ANN401
+        await self.initialize([IdentityCommunity], 2, self.create_settings())
+
+    def create_settings(self) -> list[IdentitySettings]:
+        """
+        Create settings for any node.
+        """
+        return [IdentitySettings(identity_manager=IdentityManager(":memory:"), working_directory=':memory:')]
+
+    async def create_node(self, settings: list[CommunitySettings]) -> MockRestIPv8:
         """
         We load each node i with a pseudonym `my_peer{i}`, which is the default IPv8 `my_peer` key.
         """
-        ipv8 = await super().create_node(*args, **kwargs)
+        ipv8 = await super().create_node(settings)
         key_file_name = 'my_peer' + str(len(self.pseudonym_directories))
         communication_manager = ipv8.rest_manager.root_endpoint.endpoints['/identity'].communication_manager
         communication_manager.working_directory = ':memory:'
@@ -81,8 +87,10 @@ class TestIdentityEndpoint(RESTTestBase):
         communication_manager.pseudonym_folder_manager.get_or_create_private_key(key_file_name)
 
         identity_overlay = cast(IdentityCommunity, ipv8.get_overlay(IdentityCommunity))
-        attestation_overlay = AttestationCommunity(identity_overlay.my_peer, identity_overlay.endpoint,
-                                                   identity_overlay.network, working_directory=':memory:')
+        attestation_overlay = AttestationCommunity(AttestationSettings(my_peer=identity_overlay.my_peer,
+                                                                       endpoint=identity_overlay.endpoint,
+                                                                       network=identity_overlay.network,
+                                                                       working_directory=':memory:'))
         channel = CommunicationChannel(attestation_overlay, identity_overlay)
 
         communication_manager.channels[ipv8.my_peer.public_key.key_to_bin()] = channel
@@ -328,7 +336,7 @@ class TestIdentityEndpoint(RESTTestBase):
         """
         Check that verifying a credential works.
         """
-        self.nodes.append(await self.create_node())  # We need a third node for this one
+        self.nodes.append(await self.create_node(self.create_settings()))  # We need a third node for this one
 
         b64_subject_key = (await self.make_request(self.node(0), 'identity/my_peer0/public_key', 'get'))['public_key']
         qb64_subject_key = urllib.parse.quote(b64_subject_key, safe='')
@@ -378,7 +386,7 @@ class TestIdentityEndpoint(RESTTestBase):
         """
         Check that no verification is performed, if not allowed.
         """
-        self.nodes.append(await self.create_node())  # We need a third node for this one
+        self.nodes.append(await self.create_node(self.create_settings()))  # We need a third node for this one
 
         b64_subject_key = (await self.make_request(self.node(0), 'identity/my_peer0/public_key', 'get'))['public_key']
         qb64_subject_key = urllib.parse.quote(b64_subject_key, safe='')

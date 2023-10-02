@@ -155,12 +155,12 @@ In practice, given a ``COMMUNITY_ID`` and the payload definitions ``MyMessagePay
 
 
 .. literalinclude:: serialization_2.py
-   :lines: 25-41
+   :lines: 24-40
 
 It is recommended (but not obligatory) to have single payload messages store the message identifier inside the ``Payload.msg_id`` field, as this improves readability:
 
 .. literalinclude:: serialization_3.py
-   :lines: 33,34,55,58
+   :lines: 32,33,54,57
    :dedent: 4
 
 If you are using the ``@dataclass`` wrapper you can specify the message identifier through an argument instead.
@@ -235,7 +235,7 @@ The following example shows how to use JSON serialization without any IPv8 seria
 Note that we need to do our own signature checks now.
 
 .. literalinclude:: serialization_6.py
-   :lines: 16-47
+   :lines: 16-46
 
 
 Nested Payloads

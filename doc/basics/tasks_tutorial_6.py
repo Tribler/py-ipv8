@@ -1,7 +1,7 @@
 import os
 from typing import Any
 
-from ipv8.community import Community
+from ipv8.community import Community, CommunitySettings
 from ipv8.test.base import TestBase
 from ipv8.test.mocking.ipv8 import MockIPv8
 
@@ -9,8 +9,8 @@ from ipv8.test.mocking.ipv8 import MockIPv8
 class MyCommunity(Community):
     community_id = os.urandom(20)
 
-    def __init__(self, *args: Any, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self, settings: CommunitySettings) -> None:
+        super().__init__(settings)
         self.register_task("error out :-(", self.error)
 
     def error(self) -> None:

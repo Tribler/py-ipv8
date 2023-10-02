@@ -22,6 +22,7 @@ from .mocking.endpoint import MockEndpointListener, internet
 from .mocking.ipv8 import MockIPv8
 
 if TYPE_CHECKING:
+    from ..community import CommunitySettings
     from ..peerdiscovery.network import Network
     from ..types import Address, Endpoint, PrivateKey, PublicKey
 
@@ -189,7 +190,8 @@ class TestBase(TestCaseClass, Generic[OT]):
         else:
             self.__call_internal_in_context(self.tearDown)
 
-    def initialize(self, overlay_class: type[Community], node_count: int, *args: object, **kwargs) -> None:
+    def initialize(self, overlay_class: type[Community], node_count: int, settings: CommunitySettings | None = None,
+                   create_dht: bool = False, enable_statistics: bool = False) -> None:
         """
         Spawn a given number of nodes with a particular overlay class and introduce them to each other.
 
@@ -197,7 +199,7 @@ class TestBase(TestCaseClass, Generic[OT]):
                  HOWEVER, custom logic based on introduction requests and responses may therefore be skipped.
         """
         self.overlay_class = overlay_class
-        self.nodes = [self.create_node(*args, **kwargs) for _ in range(node_count)]
+        self.nodes = [self.create_node(settings, create_dht, enable_statistics) for _ in range(node_count)]
 
         # Add nodes to each other.
         for node in self.nodes:
@@ -339,11 +341,12 @@ class TestBase(TestCaseClass, Generic[OT]):
         """
         cls.__testing__ = False
 
-    def create_node(self, *args: object, **kwargs) -> MockIPv8:
+    def create_node(self, settings: CommunitySettings | None = None, create_dht: bool = False,
+                    enable_statistics: bool = False) -> MockIPv8:
         """
         Create a new IPv8-like container to store node related information.
         """
-        return MockIPv8("low", cast(Type[Community], self.overlay_class), *args, **kwargs)
+        return MockIPv8("low", cast(Type[Community], self.overlay_class), settings, create_dht, enable_statistics)
 
     def add_node_to_experiment(self, node: MockIPv8) -> None:
         """

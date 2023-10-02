@@ -1,9 +1,15 @@
+from __future__ import annotations
+
 import json
 from asyncio import sleep
+from typing import TYPE_CHECKING
 
-from ....attestation.identity.community import IdentityCommunity
+from ....attestation.identity.community import IdentityCommunity, IdentitySettings
 from ....attestation.identity.manager import IdentityManager
 from ...base import MockIPv8, TestBase
+
+if TYPE_CHECKING:
+    from ....community import CommunitySettings
 
 
 class TestIdentityCommunity(TestBase[IdentityCommunity]):
@@ -20,12 +26,13 @@ class TestIdentityCommunity(TestBase[IdentityCommunity]):
         super().setUp()
         self.initialize(IdentityCommunity, 2)
 
-    def create_node(self) -> MockIPv8:
+    def create_node(self, settings: CommunitySettings | None = None, create_dht: bool = False,
+                    enable_statistics: bool = False) -> MockIPv8:
         """
         Use a memory-based identity manager for each community.
         """
         identity_manager = IdentityManager(":memory:")
-        return MockIPv8("curve25519", IdentityCommunity, identity_manager=identity_manager)
+        return MockIPv8("curve25519", IdentityCommunity, settings=IdentitySettings(identity_manager=identity_manager))
 
     async def test_advertise(self) -> None:
         """

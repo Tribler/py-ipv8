@@ -33,19 +33,31 @@ from .messaging.payload import (
     PunctureRequestPayload,
 )
 from .messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
+from .overlay import Settings
 from .types import Address, MessageHandlerFunction
 
 if TYPE_CHECKING:
     from .bootstrapping.bootstrapper_interface import Bootstrapper
     from .peer import Peer
-    from .peerdiscovery.network import Network
-    from .types import Endpoint, Payload
+    from .types import Payload
 
 _UNUSED_FLAGS_REQ = {'connection_type_0': 0, 'connection_type_1': 0, 'supports_new_style': 0, 'dflag1': 0, 'dflag2': 0,
                      'tunnel': 0, 'sync': 0, 'advice': 0}
 _UNUSED_FLAGS_RESP = {'flag1': 0, 'flag2': 0, 'flag3': 0, 'flag4': 0, 'flag5': 0, 'flag6': 0, 'flag7': 0}
 
 DEFAULT_MAX_PEERS = 30
+
+
+class CommunitySettings(Settings):
+    """
+    Community settings, extensible for Community subclasses.
+    """
+
+    max_peers: int = DEFAULT_MAX_PEERS
+    """The number of peers we will grow to before we start rejecting new connections."""
+
+    anonymize: bool = False
+    """Request use of a ``TunnelEndpoint`` to anonymize all our traffic."""
 
 
 class Community(EZPackOverlay):
@@ -57,17 +69,11 @@ class Community(EZPackOverlay):
 
     version = b'\x02'
     community_id: bytes
+    settings_class = CommunitySettings
 
-    def __init__(self, my_peer: Peer, endpoint: Endpoint, network: Network,
-                 max_peers: int = DEFAULT_MAX_PEERS, anonymize: bool = False) -> None:
+    def __init__(self, settings: CommunitySettings) -> None:
         """
         Create a new (still inert) community.
-
-        :param my_peer: The Peer object containing your PRIVATE KEY: NEVER SHARE THIS.
-        :param endpoint: The Endpoint that routes data for us.
-        :param network: The manager for all the Peers we find, potentially shared with other Communities.
-        :param max_peers: The number of peers we will grow to before we start rejecting new connections.
-        :param anonymize: Request use of a ``TunnelEndpoint`` to anonymize all our traffic.
         """
         if not hasattr(self, "community_id") or self.community_id is None:
             msg = f"Attempted to launch {self.__class__.__name__} without a community_id!"
@@ -77,24 +83,25 @@ class Community(EZPackOverlay):
                    f"\n{self.community_id!r}")
             raise RuntimeError(msg)  # noqa: TRY004
 
-        super().__init__(self.community_id, my_peer, endpoint, network)
+        settings.community_id = self.community_id
+        super().__init__(settings)
 
         self._prefix = b'\x00' + self.version + self.community_id
         self.endpoint.remove_listener(self)
         self.endpoint.add_prefix_listener(self, self._prefix)
         self.logger.debug("Launching %s with prefix %s.", self.__class__.__name__, hexlify(self._prefix).decode())
 
-        self.max_peers = max_peers
-        self.anonymize = anonymize
+        self.max_peers = settings.max_peers
+        self.anonymize = settings.anonymize
 
-        if anonymize:
+        if settings.anonymize:
             if isinstance(self.endpoint, TunnelEndpoint):
                 self.endpoint.set_anonymity(self._prefix, True)
             else:
                 self.logger.warning('Cannot anonymize community traffic without TunnelEndpoint')
 
         self.network.register_service_provider(self.community_id, self)
-        self.network.blacklist_mids.append(my_peer.mid)
+        self.network.blacklist_mids.append(settings.my_peer.mid)
 
         self.bootstrappers: list[Bootstrapper] = []
 

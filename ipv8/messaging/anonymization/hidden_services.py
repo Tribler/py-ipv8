@@ -13,11 +13,10 @@ from asyncio import CancelledError, gather, iscoroutine
 from typing import TYPE_CHECKING, Any, Coroutine, Set, Tuple, cast
 
 from ...bootstrapping.dispersy.bootstrapper import DispersyBootstrapper
-from ...community import DEFAULT_MAX_PEERS
 from ...configuration import DISPERSY_BOOTSTRAPPER
 from ...keyvault.private.libnaclkey import LibNaCLSK
 from ...keyvault.public.libnaclkey import LibNaCLPK
-from ...messaging.anonymization.pex import PexCommunity
+from ...messaging.anonymization.pex import PexCommunity, PexSettings
 from ...peer import Peer
 from ...peerdiscovery.churn import RandomChurn
 from ...peerdiscovery.discovery import RandomWalk
@@ -46,8 +45,17 @@ from .tunnel import (
 )
 
 if TYPE_CHECKING:
-    from ...dht.provider import DHTCommunityProvider
-    from ...types import Endpoint, IPv8
+    from ...types import IPv8
+
+
+class HiddenTunnelSettings(TunnelSettings):
+    """
+    Settings for the hidden tunnel community.
+    """
+
+    ipv8: IPv8 | None = None
+
+    e2e_callbacks: dict[bytes, Callable[[Address], None] | None] | None = None
 
 
 class HiddenTunnelCommunity(TunnelCommunity):
@@ -55,21 +63,20 @@ class HiddenTunnelCommunity(TunnelCommunity):
     Extension of TunnelCommunity logic to link up circuits and create closed-loop e2e circuits.
     """
 
-    def __init__(self, my_peer: Peer, endpoint: Endpoint, network: Network,  # noqa: PLR0913
-                 max_peers: int = DEFAULT_MAX_PEERS, anonymize: bool = False, *, settings: TunnelSettings | None = None,
-                 dht_provider: DHTCommunityProvider | None = None, ipv8: IPv8 | None = None,
-                 e2e_callbacks: dict[bytes, Callable[[Address], None] | None] | None = None) -> None:
+    settings_class = HiddenTunnelSettings
+
+    def __init__(self, settings: HiddenTunnelSettings) -> None:
         """
         Create a new e2e-capable tunnel community.
         """
-        self.ipv8 = ipv8
-        self.e2e_callbacks: dict[bytes, Callable[[Address], None] | None] = ({} if e2e_callbacks is None
-                                                                             else e2e_callbacks)
+        self.ipv8 = settings.ipv8
+        self.e2e_callbacks: dict[bytes, Callable[[Address], None] | None] = ({} if settings.e2e_callbacks is None
+                                                                             else settings.e2e_callbacks)
 
         self.swarms: dict[bytes, Swarm] = {}
         self.pex: dict[bytes, PexCommunity] = {}
 
-        super().__init__(my_peer, endpoint, network, max_peers, anonymize, settings=settings, dht_provider=dht_provider)
+        super().__init__(settings)
 
         self.intro_point_for: dict[bytes, tuple[TunnelExitSocket,
                                                 bytes]] = {}  # {seeder_pk: (TunnelExitSocket, info_hash)}
@@ -611,7 +618,8 @@ class HiddenTunnelCommunity(TunnelCommunity):
         if self.ipv8 is None:
             self.logger.error('No IPv8 service object available, cannot start PEXCommunity')
         elif payload.info_hash not in self.pex:
-            community = PexCommunity(self.my_peer, self.endpoint, Network(), info_hash=payload.info_hash)
+            community = PexCommunity(PexSettings(my_peer=self.my_peer, endpoint=self.endpoint, network=Network(),
+                                                 info_hash=payload.info_hash))
             community.bootstrappers = [DispersyBootstrapper(**DISPERSY_BOOTSTRAPPER['init'])]
             # Since IPv8 takes a step every .5s until we have 10 peers, the PexCommunity will generate
             # a lot of traffic in case there are <10 peers in existence. Therefore, we slow the walk down to a 5s/step.

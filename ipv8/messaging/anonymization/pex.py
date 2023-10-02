@@ -5,13 +5,12 @@ import time
 from collections import deque
 from typing import TYPE_CHECKING, List, cast
 
-from ...community import DEFAULT_MAX_PEERS, Community
+from ...community import Community, CommunitySettings
 from ...messaging.anonymization.tunnel import PEER_SOURCE_PEX, IntroductionPoint
 from ...peer import Peer
 
 if TYPE_CHECKING:
-    from ...peerdiscovery.network import Network
-    from ...types import Address, Endpoint
+    from ...types import Address
     from ..payload import (
         IntroductionRequestPayload,
         IntroductionResponsePayload,
@@ -23,20 +22,27 @@ if TYPE_CHECKING:
 PEX_VERSION = 1
 
 
+class PexSettings(CommunitySettings):
+    """
+    Settings for the PexCommunity.
+    """
+
+    info_hash: bytes
+
+
 class PexCommunity(Community):
     """
     New on-the-fly overlay for the PEX protocol.
     """
 
-    def __init__(self, my_peer: Peer, endpoint: Endpoint, network: Network,
-                 max_peers: int = DEFAULT_MAX_PEERS, anonymize: bool = False, **kwargs) -> None:
+    def __init__(self, settings: PexSettings) -> None:
         """
         Create a new PEX community by deriving the community id from the given SHA-1 hash.
         """
-        infohash = kwargs.pop('info_hash')
+        infohash = settings.info_hash
         self.community_id = (int.from_bytes(infohash, 'big') + PEX_VERSION).to_bytes(20, 'big')
         self._prefix = b'\x00' + self.version + self.community_id
-        super().__init__(my_peer, endpoint, network, max_peers, anonymize)
+        super().__init__(settings)
 
         self.intro_points: deque[IntroductionPoint] = deque(maxlen=20)
         self.intro_points_for: list[bytes] = []

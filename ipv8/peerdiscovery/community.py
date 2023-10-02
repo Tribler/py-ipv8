@@ -5,7 +5,7 @@ from random import sample
 from time import time
 from typing import TYPE_CHECKING, Sequence, Union, cast
 
-from ..community import DEFAULT_MAX_PEERS, Community
+from ..community import Community, CommunitySettings
 from ..keyvault.crypto import default_eccrypto
 from ..keyvault.keys import PrivateKey
 from ..lazy_community import PacketDecodingError, lazy_wrapper, lazy_wrapper_unsigned, retrieve_cache
@@ -24,8 +24,7 @@ from .payload import (
 )
 
 if TYPE_CHECKING:
-    from ..types import Address, Endpoint
-    from .network import Network
+    from ..types import Address
 
 
 class PeriodicSimilarity(DiscoveryStrategy):
@@ -97,12 +96,11 @@ class DiscoveryCommunity(Community):
     version = b'\x02'
     community_id = unhexlify('7e313685c1912a141279f8248fc8db5899c5df5a')
 
-    def __init__(self, my_peer: Peer, endpoint: Endpoint, network: Network,
-                 max_peers: int = DEFAULT_MAX_PEERS, anonymize: bool = False) -> None:
+    def __init__(self, settings: CommunitySettings) -> None:
         """
         Create a new community with similarity and ping functionality.
         """
-        super().__init__(my_peer, endpoint, network, max_peers=max_peers, anonymize=anonymize)
+        super().__init__(settings)
 
         self.request_cache = RequestCache()
 

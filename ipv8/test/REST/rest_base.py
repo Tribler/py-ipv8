@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-import functools
 from asyncio import Future, Transport
 from threading import RLock
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, Collection, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, cast
 
 from aiohttp import BaseConnector, ClientRequest, ClientSession, ClientTimeout, web
 from aiohttp.client_proto import ResponseHandler
 from aiohttp.web_protocol import RequestHandler
 
+from ...community import CommunitySettings
 from ...configuration import get_default_configuration
 from ...keyvault.crypto import ECCrypto
 from ...messaging.anonymization.endpoint import TunnelEndpoint
@@ -31,18 +31,6 @@ if TYPE_CHECKING:
 
     from ...peerdiscovery.discovery import DiscoveryStrategy
     from ...types import Address, Community
-
-PCT = TypeVar("PCT")
-
-
-def partial_cls(cls: type[PCT], *args: Any, **kwargs) -> type[PCT]:  # noqa: ANN401
-    """
-    Prefill some args and kwargs of a class constructor to avoid repetition.
-    """
-    class PartialCls(cls):
-        __init__ = functools.partialmethod(cls.__init__, *args, **kwargs)
-    PartialCls.__name__ = cls.__name__
-    return PartialCls
 
 
 class IPv8Transport(Transport, EndpointListener):
@@ -173,8 +161,8 @@ class MockRestIPv8:
     the same functionalities are offered.
     """
 
-    def __init__(self, crypto_curve: str, overlay_classes: Collection[type[Community]],
-                 *args: Any, **kwargs) -> None:  # noqa: ANN401
+    def __init__(self, crypto_curve: str, overlay_classes: list[type[Community]],
+                 settings: list[CommunitySettings]) -> None:
         """
         Create a new MockRestIPv8 and forward arguments to the created overlay classes.
         """
@@ -184,8 +172,10 @@ class MockRestIPv8:
         self.configuration["working_directory"] = ":memory:"
         self.network = Network()
         self.my_peer = Peer(ECCrypto().generate_key(crypto_curve))
-        self.overlays = [overlay_cls(self.my_peer, self.endpoint, self.network, *args, **kwargs)
-                         for overlay_cls in overlay_classes]
+        base_settings = CommunitySettings(my_peer=self.my_peer, endpoint=self.endpoint, network=self.network)
+        for setting in settings:
+            setting.__dict__.update(base_settings.__dict__)
+        self.overlays = [overlay_cls(settings[i]) for i, overlay_cls in enumerate(overlay_classes)]
         self.strategies: list[tuple[DiscoveryStrategy, int]] = [(MockWalk(overlay), 20) for overlay in self.overlays]
         self.rest_manager = None
         self.rest_port = 0
@@ -258,13 +248,13 @@ class RESTTestBase(TestBase):
     HTTP request superclass, which defines the common behavior between the different types of HTTP REST requests.
     """
 
-    async def initialize(self, overlay_classes: Collection[type[Community]], node_count: int,
-                         *args: Any, **kwargs) -> None:  # noqa: ANN401
+    async def initialize(self, overlay_classes: list[type[Community]], node_count: int,
+                         settings: list[CommunitySettings]) -> None:
         """
         Initialize a given number of nodes with instances of the given Community classes.
         """
         self.overlay_classes = overlay_classes
-        self.nodes = [await self.create_node(*args, **kwargs) for _ in range(node_count)]
+        self.nodes = [await self.create_node(settings) for _ in range(node_count)]
 
         for node in self.nodes:
             for other in self.nodes:
@@ -275,11 +265,11 @@ class RESTTestBase(TestBase):
                 for overlay_class in overlay_classes:
                     node.network.discover_services(public_peer, overlay_class.community_id)
 
-    async def create_node(self, *args: Any, **kwargs) -> MockRestIPv8:  # noqa: ANN401
+    async def create_node(self, settings: list[CommunitySettings]) -> MockRestIPv8:
         """
         Create a new MockRestIPv8 and start its REST API.
         """
-        ipv8 = MockRestIPv8("curve25519", overlay_classes=self.overlay_classes, *args, **kwargs)  # noqa: B026
+        ipv8 = MockRestIPv8("curve25519", self.overlay_classes, settings)
         await ipv8.start_api()
         return ipv8
 

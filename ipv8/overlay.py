@@ -3,7 +3,8 @@ from __future__ import annotations
 import abc
 import asyncio
 import logging
-from typing import TYPE_CHECKING
+from types import SimpleNamespace
+from typing import TYPE_CHECKING, Generic, TypeVar
 
 from .keyvault.crypto import default_eccrypto
 from .messaging.interfaces.endpoint import EndpointListener
@@ -17,33 +18,51 @@ if TYPE_CHECKING:
     from .types import Address, Endpoint, Peer
 
 
-class Overlay(EndpointListener, TaskManager, metaclass=abc.ABCMeta):
+class Settings(SimpleNamespace):
+    """
+    Overlay settings, extensible for Overlay subclasses.
+    """
+
+    community_id: bytes
+    """The byte-string used to identify this overlay."""
+
+    my_peer: Peer
+    """The (private key) peer of this peer."""
+
+    endpoint: Endpoint
+    """The endpoint to use for messaging."""
+
+    network: Network
+    """The network graph backend."""
+
+
+SettingsClass = TypeVar("SettingsClass", bound=Settings)
+
+
+class Overlay(EndpointListener, TaskManager, Generic[SettingsClass], metaclass=abc.ABCMeta):
     """
     Interface for an Internet overlay.
     """
 
-    def __init__(self, community_id: bytes, my_peer: Peer, endpoint: Endpoint, network: Network) -> None:
+    settings_class: type[SettingsClass] = Settings  # type: ignore[assignment]
+
+    def __init__(self, settings: SettingsClass) -> None:
         """
         Create a new overlay for the Internet.
-
-        :param community_id: the byte-string used to identify this overlay.
-        :param my_peer: the (private key) peer of this peer
-        :param endpoint: the endpoint to use for messaging
-        :param network: the network graph backend
         """
-        EndpointListener.__init__(self, endpoint)
+        EndpointListener.__init__(self, settings.endpoint)
         TaskManager.__init__(self)
         self.serializer = self.get_serializer()
         self.crypto = default_eccrypto
 
-        self.community_id = community_id
-        self.my_peer = my_peer
+        self.community_id = settings.community_id
+        self.my_peer = settings.my_peer
 
         self.endpoint.add_listener(self)
 
         self.logger = logging.getLogger(self.__class__.__name__)
 
-        self.network = network
+        self.network = settings.network
 
         self.register_task('discover_lan_addresses', self.discover_lan_addresses, interval=10, delay=0)
 
