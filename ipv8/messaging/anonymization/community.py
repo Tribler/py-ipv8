@@ -793,8 +793,8 @@ class TunnelCommunity(Community):
         self.relay_session_keys[circuit_id] = self.crypto.generate_session_keys(shared_secret)
 
         peers_list = [peer for peer in self.get_candidates(PEER_FLAG_RELAY)
-                      if peer not in self.get_candidates(PEER_FLAG_EXIT_BT)][:4]
-        peers_keys = {c.public_key.key_to_bin(): c for c in peers_list}
+                      if PEER_FLAG_EXIT_BT not in self.candidates.get(peer, [])][:4]
+        peers_keys = {peer.public_key.key_to_bin(): peer for peer in peers_list}
 
         peer = Peer(create_payload.node_public_key, previous_node_address)
         self.request_cache.add(CreatedRequestCache(self, circuit_id, peer, peers_keys, self.settings.unstable_timeout))
@@ -804,8 +804,7 @@ class TunnelCommunity(Community):
         candidate_list_enc = self.crypto.encrypt_str(candidate_list_bin,
                                                      *self.crypto.get_session_keys(self.relay_session_keys[circuit_id],
                                                                                    EXIT_NODE))
-        self.send_cell(Peer(create_payload.node_public_key, previous_node_address),
-                       CreatedPayload(circuit_id, create_payload.identifier, key, auth, candidate_list_enc))
+        self.send_cell(peer, CreatedPayload(circuit_id, create_payload.identifier, key, auth, candidate_list_enc))
 
     @unpack_cell(CreatePayload)
     async def on_create(self, source_address: Address, payload: CreatePayload, _: int | None) -> None:
