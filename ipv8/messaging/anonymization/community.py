@@ -759,8 +759,6 @@ class TunnelCommunity(Community):
             cell.decrypt(self.crypto, circuit=circuit, relay_session_keys=self.relay_session_keys.get(circuit_id))
         except CryptoException as e:
             self.logger.debug(str(e))
-            if circuit:
-                self.send_destroy(cast(Peer, circuit.peer), circuit_id, 0)
             return
         self.logger.debug("Got cell(%s) from circuit %d (sender %s, receiver %s)",
                           cell.message[0], circuit_id, source_address, self.my_peer)
