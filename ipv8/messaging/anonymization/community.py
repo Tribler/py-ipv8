@@ -612,7 +612,7 @@ class TunnelCommunity(Community):
             session_keys = self.crypto.generate_session_keys(shared_secret)
             hop.session_keys = session_keys
 
-        except CryptoException:
+        except ValueError:
             self.remove_circuit(circuit.circuit_id, "error while verifying shared secret")
             return
 
