@@ -5,7 +5,7 @@ If any of the scripts has tracebacks during their execution, this file exits wit
 from __future__ import annotations
 
 import contextlib
-import importlib
+import importlib.util
 import multiprocessing
 import os
 import sys
@@ -25,7 +25,18 @@ def validate_run(stdout: multiprocessing.Pipe, stderr: multiprocessing.Pipe, mod
 
     sys.path.insert(0, TOP_DIRECTORY)
 
-    importlib.import_module(module_path[:-3].replace(os.sep, "."))
+    actual_main = sys.modules["__main__"]
+
+    # We swap out the "__main__" module (this file) to the given file.
+    # This is slightly dangerous because the loaded "__main__" module now contains objects that are not in the
+    # currently loaded "__main__" module. In most cases, this is not an issue as (1) no introspection is done on the
+    # "__main__" module and (2) overwriting previously set names does not cause issues.
+    spec = importlib.util.spec_from_file_location("__main__", module_path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["__main__"] = module
+    spec.loader.exec_module(module)
+
+    sys.modules["__main__"] = actual_main
 
 
 def safe_close(stream: connection.Connection | TextIO) -> None:
