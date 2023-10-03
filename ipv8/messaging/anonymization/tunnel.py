@@ -58,10 +58,8 @@ PING_INTERVAL = 7.5
 # Reasons for sending destroy messages. Code 0 must not be used for legacy reasons.
 DESTROY_REASON_UNKNOWN = 1
 DESTROY_REASON_SHUTDOWN = 2
-DESTROY_REASON_FORWARD = 3
 DESTROY_REASON_UNNEEDED = 4
 DESTROY_REASON_LEAVE_SWARM = 5
-DESTROY_REASON_FORBIDDEN = 6
 
 
 class DataChecker:

@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import logging
-import os
+import secrets
 import time
 from asyncio import Future
-from functools import reduce
 from typing import TYPE_CHECKING, Callable
 
 from ...requestcache import NumberCacheWithName, RandomNumberCacheWithName
-from .tunnel import CIRCUIT_STATE_CLOSING, CIRCUIT_STATE_READY
+from .tunnel import CIRCUIT_STATE_CLOSING
 
 if TYPE_CHECKING:
     from ...types import Peer
@@ -40,11 +39,8 @@ class CreateRequestCache(RandomNumberCacheWithName):
 
     def on_timeout(self) -> None:
         """
-        If the creation failed, remove the circuit, if it's not removed already.
+        We don't need to do anything on timeout.
         """
-        to_circuit = self.community.circuits.get(self.to_circuit_id)
-        if to_circuit and to_circuit.state != CIRCUIT_STATE_READY:
-            self.community.remove_relay(self.to_circuit_id)
 
 
 class CreatedRequestCache(NumberCacheWithName):
@@ -95,7 +91,7 @@ class RetryRequestCache(NumberCacheWithName):
         super().__init__(community.request_cache, self.name, circuit.circuit_id)
         self.community = community
         self.circuit = circuit
-        self.packet_identifier = reduce(lambda v, e: (v << 8) + e, os.urandom(2), 0)
+        self.packet_identifier = secrets.randbelow(2**16)
         self.candidates = candidates
         self.max_tries = max_tries
         self.retry_func = retry_func
