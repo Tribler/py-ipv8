@@ -2,10 +2,14 @@ version: 2
 
 formats: all
 
-# Check https://docs.readthedocs.io/en/stable/config-file/v2.html#build-image
-# Current highest stable version is 3.7 (update as needed)
+build:
+  # Check https://docs.readthedocs.io/en/stable/config-file/v2.html#build-os
+  os: ubuntu-22.04
+  tools:
+    # Check https://docs.readthedocs.io/en/stable/config-file/v2.html#build-tools-python
+    python: "3.11"
+
 python:
-  version: "3.7"
   install:
     - requirements: doc/requirements.txt
     - requirements: requirements.txt
