@@ -174,13 +174,11 @@ class TunnelCommunity(Community):
         Remove all circuits/relays/exitsockets.
         """
         for circuit_id in list(self.circuits.keys()):
-            await self.remove_circuit(circuit_id, 'unload', remove_now=True,
-                                      destroy=DESTROY_REASON_SHUTDOWN)
+            self.remove_circuit(circuit_id, 'unload', remove_now=True, destroy=DESTROY_REASON_SHUTDOWN)
         for circuit_id in list(self.relay_from_to.keys()):
-            await self.remove_relay(circuit_id, 'unload', remove_now=True, destroy=DESTROY_REASON_SHUTDOWN)
+            self.remove_relay(circuit_id, 'unload', remove_now=True, destroy=DESTROY_REASON_SHUTDOWN)
         for circuit_id in list(self.exit_sockets.keys()):
-            await self.remove_exit_socket(circuit_id, 'unload', remove_now=True,
-                                          destroy=DESTROY_REASON_SHUTDOWN)
+            self.remove_exit_socket(circuit_id, 'unload', remove_now=True, destroy=DESTROY_REASON_SHUTDOWN)
 
         await self.request_cache.shutdown()
 
