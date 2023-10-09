@@ -67,31 +67,4 @@ def dataclass(cls: type | None = None, *,  # noqa: PLR0913
     return vp_compile(DataClassPayload)
 
 
-def overwrite_dataclass(old_dataclass):  # noqa: ANN001, ANN201
-    """
-    Overwrite the dataclass function.
-
-    In order to get type hinting you have to do the following:
-
-    .. code-block:: python
-
-        from dataclasses import dataclass
-        from ipv8.messaging.payload_dataclass import dataclass
-
-    Linters don't like this. Instead, you can use this function to have a linter friendly alternative:
-
-    .. code-block:: python
-
-        from dataclasses import dataclass
-        from ipv8.messaging.payload_dataclass import overwrite_dataclass
-
-        dataclass = overwrite_dataclass(dataclass)
-
-    :param old_dataclass: the dataclass.dataclass definition.
-    :returns: the new dataclass definition
-    """
-    assert old_dataclass  # Though unused, we reference the variable to placate the linters.
-    return dataclass
-
-
-__all__ = ['overwrite_dataclass', 'type_from_format']
+__all__ = ['dataclass', 'type_from_format']

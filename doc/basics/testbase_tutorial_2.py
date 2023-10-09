@@ -1,15 +1,12 @@
 import os
 import unittest
-from dataclasses import dataclass
 from random import random, shuffle
 
 from ipv8.community import Community, CommunitySettings
 from ipv8.lazy_community import lazy_wrapper, lazy_wrapper_unsigned
-from ipv8.messaging.payload_dataclass import overwrite_dataclass
+from ipv8.messaging.payload_dataclass import dataclass
 from ipv8.test.base import TestBase
 from ipv8.types import Peer
-
-dataclass = overwrite_dataclass(dataclass)
 
 
 @dataclass(msg_id=1)

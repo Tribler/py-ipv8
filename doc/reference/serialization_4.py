@@ -1,14 +1,11 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
 from typing import cast
 
 from ipv8.messaging.lazy_payload import VariablePayload, vp_compile
-from ipv8.messaging.payload_dataclass import overwrite_dataclass
+from ipv8.messaging.payload_dataclass import dataclass
 from ipv8.messaging.serialization import default_serializer
-
-dataclass = overwrite_dataclass(dataclass)
 
 
 @vp_compile

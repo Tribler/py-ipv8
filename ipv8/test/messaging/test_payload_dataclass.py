@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, is_dataclass
+from dataclasses import dataclass as ogdataclass
+from dataclasses import is_dataclass
 from typing import List, TypeVar
 
-from ...messaging.payload_dataclass import overwrite_dataclass, type_from_format
+from ...messaging.payload_dataclass import dataclass, type_from_format
 from ...messaging.serialization import default_serializer
 from ..base import TestBase
 
-ogdataclass = dataclass
-dataclass = overwrite_dataclass(dataclass)
 varlenH = type_from_format('varlenH')  # noqa: N816
 
 T = TypeVar("T")

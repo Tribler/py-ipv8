@@ -1,9 +1,5 @@
-from dataclasses import dataclass
-
 from ipv8.messaging.lazy_payload import VariablePayload
-from ipv8.messaging.payload_dataclass import overwrite_dataclass
-
-dataclass = overwrite_dataclass(dataclass)
+from ipv8.messaging.payload_dataclass import dataclass
 
 
 class A(VariablePayload):
