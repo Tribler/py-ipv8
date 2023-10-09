@@ -206,28 +206,28 @@ In the following example peer 0 first sends message 1 and then sends message 2 t
 The following construction asserts this:
 
 .. literalinclude:: testbase_tutorial_2.py
-   :lines: 68-71
+   :lines: 65-68
    :dedent: 4
 
 Sometimes, you can't be sure in what order messages are sent.
 In these cases you can use ``ordered=False``:
 
 .. literalinclude:: testbase_tutorial_2.py
-   :lines: 74-80
+   :lines: 71-77
    :dedent: 4
 
 In other cases, your overlay may be sending messages which you cannot control and/or which you don't care about.
 In these cases you can set a filter to only include the messages you want:
 
 .. literalinclude:: testbase_tutorial_2.py
-   :lines: 83-88
+   :lines: 80-85
    :dedent: 4
 
 It may also be helpful to inspect the contents of each payload.
 You can simply use the return value of the assert function to perform further inspection:
 
 .. literalinclude:: testbase_tutorial_2.py
-   :lines: 91-98
+   :lines: 88-95
    :dedent: 4
 
 If you want to use ``assertReceivedBy()``, make sure that:

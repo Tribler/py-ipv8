@@ -1,17 +1,13 @@
 import os
 from asyncio import run
-from dataclasses import dataclass
 
 from ipv8.community import Community, CommunitySettings
 from ipv8.configuration import ConfigBuilder, Strategy, WalkerDefinition, default_bootstrap_defs
 from ipv8.lazy_community import lazy_wrapper
-from ipv8.messaging.payload_dataclass import overwrite_dataclass
+from ipv8.messaging.payload_dataclass import dataclass
 from ipv8.types import Peer
 from ipv8.util import run_forever
 from ipv8_service import IPv8
-
-# Enhance normal dataclasses for IPv8 (see the serialization documentation)
-dataclass = overwrite_dataclass(dataclass)
 
 
 @dataclass(msg_id=1)  # The value 1 identifies this message and must be unique per community
