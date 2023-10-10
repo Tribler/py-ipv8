@@ -21,8 +21,8 @@ This may be hard to spot, so let's discuss a practical example:
 
     class MyCommunity(Community):
 
-        def __init__(self, *args, **kwargs):
-            super().__init(*args, **kwargs)
+        def __init__(self, settings: CommunitySettings):
+            super().__init__(settings)
             # ... details omitted ...
             self.last_value = 0
             self.total_value = 0
@@ -49,8 +49,8 @@ The following turns ``MyCommunity`` into a mediator:
 
     class MyCommunity(Community):
 
-        def __init__(self, *args, **kwargs):
-            super().__init(*args, **kwargs)
+        def __init__(self, settings: CommunitySettings):
+            super().__init__(settings)
             # ... details omitted ...
             self.value_manager = ValueManager()
 
@@ -78,8 +78,8 @@ Let's fix that:
 
     class MyCommunity(Community):
 
-        def __init__(self, *args, **kwargs):
-            super().__init(*args, **kwargs)
+        def __init__(self, settings: CommunitySettings):
+            super().__init__(settings)
             # ... details omitted ...
             self.value_manager = ValueManager()
 
@@ -111,21 +111,16 @@ This is an example:
 
  .. code-block:: python
 
+    class MyCommunitySettings(CommunitySettings):
+        value_manager: ValueManager | None = None
+
     class MyCommunity(Community):
+        settings_class = MyCommunitySettings
 
-        def __init__(self, *args, **kwargs):
-
+        def __init__(self, settings: MyCommunitySettings) -> None:
+            super().__init__(settings)
             # Create-if-Missing Pattern
-            settings = kwargs.pop('settings', MyCommunitySettings())
-            if isinstance(settings, dict):
-                # Convert user dict to settings object
-                settings = MyCommunitySettings.from_dict(settings)
-
-            # Create-if-Missing Pattern
-            self.value_manager = kwargs.pop('value_manager',
-                                            ValueManager(settings.value_manager))
-
-            super().__init(*args, **kwargs)
+            self.value_manager = settings.value_manager or ValueManager()
 
 Note that to pass settings to your overlay it is often better to supply a settings object instead of passing every configuration parameter separately (the latter is known as a *Data Clump* code smell).
 Passing your settings as an object avoids passing too many arguments to your ``Community`` (Pylint R0913).
