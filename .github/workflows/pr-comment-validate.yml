@@ -13,6 +13,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/setup-python@v4
-      - with:
+        with:
           python-version: ${{ matrix.version }}
-        run: python --version
+      - run: python --version
