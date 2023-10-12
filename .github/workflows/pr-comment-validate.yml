@@ -1,0 +1,18 @@
+name: PR Validation Checker
+
+on: issue_comment
+
+jobs:
+  pr_commented:
+    name: Validate PR
+    if: ${{ github.event.issue.pull_request && startsWith(github.event.comment.body, 'validate') }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        version: [3.7, 3.8, 3.9, 3.10, 3.11]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.version }}
+        run: python --version
