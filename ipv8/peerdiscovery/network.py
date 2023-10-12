@@ -139,6 +139,8 @@ class Network:
                     intro_cache.append(address)
                 else:
                     self.reverse_intro_lookup[peer] = [address]
+                    if len(self.reverse_intro_lookup) > self.reverse_intro_cache_size:
+                        self.reverse_intro_lookup.popitem(False)  # Pop the oldest cache entry
 
             self.add_verified_peer(peer)
 
@@ -163,6 +165,8 @@ class Network:
                         service_cache.remove(peer)
                     service_cache.append(self.verified_by_public_key_bin.get(key_material, peer))
                     self.reverse_service_lookup[service] = service_cache
+                    if len(self.reverse_service_lookup) > self.reverse_service_cache_size:
+                        self.reverse_service_lookup.popitem(False)  # Pop the oldest cache entry
 
     def add_verified_peer(self, peer: Peer) -> None:
         """
@@ -287,6 +291,8 @@ class Network:
             else:
                 # Refresh the peer in the cache (by popping first, it is now on top of the stack again)
                 self.reverse_ip_lookup[address] = peer
+                if len(self.reverse_ip_lookup) > self.reverse_ip_cache_size:
+                    self.reverse_ip_lookup.popitem(False)  # Pop the oldest cache entry
         return peer
 
     def get_verified_by_public_key_bin(self, public_key_bin: PublicKeyMat) -> Peer | None:
