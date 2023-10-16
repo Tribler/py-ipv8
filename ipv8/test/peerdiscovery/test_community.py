@@ -1,4 +1,5 @@
 import os
+import unittest
 from functools import reduce
 from typing import cast
 
@@ -10,6 +11,7 @@ from ..mocking.community import MockCommunity
 from ..mocking.endpoint import AutoMockEndpoint
 
 
+@unittest.skipIf(AutoMockEndpoint.IPV6_ADDRESSES, "IPv6 not supported")
 class TestDiscoveryCommunity(TestBase):
     """
     Tests related to the DiscoveryCommunity.

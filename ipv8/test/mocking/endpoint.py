@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import random
 from asyncio import get_running_loop
 from typing import TYPE_CHECKING
@@ -142,7 +143,7 @@ class AutoMockEndpoint(MockEndpoint):
     Randomly generate LAN + WAN addresses that are globally unique and register them in the "internet" dictionary.
     """
 
-    ADDRESS_TYPE = "UDPv4Address"
+    IPV6_ADDRESSES = bool(int(os.environ.get("TEST_IPV8_WITH_IPV6", 0)))
 
     def __init__(self) -> None:
         """
@@ -153,7 +154,7 @@ class AutoMockEndpoint(MockEndpoint):
         self._port = 0
 
     def _generate_address(self) -> UDPv4Address | UDPv6Address:
-        if self.ADDRESS_TYPE == "UDPv4Address":
+        if not self.IPV6_ADDRESSES:
             b0 = random.randint(0, 255)
             b1 = random.randint(0, 255)
             b2 = random.randint(0, 255)
@@ -162,20 +163,17 @@ class AutoMockEndpoint(MockEndpoint):
 
             return UDPv4Address('%d.%d.%d.%d' % (b0, b1, b2, b3), port)
 
-        if self.ADDRESS_TYPE == "UDPv6Address":
-            b0 = random.randint(0, 65535)
-            b1 = random.randint(0, 65535)
-            b2 = random.randint(0, 65535)
-            b3 = random.randint(0, 65535)
-            b4 = random.randint(0, 65535)
-            b5 = random.randint(0, 65535)
-            b6 = random.randint(0, 65535)
-            b7 = random.randint(0, 65535)
-            port = random.randint(0, 65535)
+        b0 = random.randint(0, 65535)
+        b1 = random.randint(0, 65535)
+        b2 = random.randint(0, 65535)
+        b3 = random.randint(0, 65535)
+        b4 = random.randint(0, 65535)
+        b5 = random.randint(0, 65535)
+        b6 = random.randint(0, 65535)
+        b7 = random.randint(0, 65535)
+        port = random.randint(0, 65535)
 
-            return UDPv6Address(f"{b0:02x}:{b1:02x}:{b2:02x}:{b3:02x}:{b4:02x}:{b5:02x}:{b6:02x}:{b7:02x}", port)
-
-        raise RuntimeError("Illegal address type specified: " + repr(self.ADDRESS_TYPE))
+        return UDPv6Address(f"{b0:02x}:{b1:02x}:{b2:02x}:{b3:02x}:{b4:02x}:{b5:02x}:{b6:02x}:{b7:02x}", port)
 
     def _is_lan(self, address: Address) -> bool:
         """

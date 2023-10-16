@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import unittest
 from typing import TYPE_CHECKING, cast
 
 from ...bootstrapping.dispersy.bootstrapper import DispersyBootstrapper
 from ...configuration import DISPERSY_BOOTSTRAPPER
 from ...messaging.anonymization.community import TunnelCommunity
 from ..mocking.community import MockCommunity
-from ..mocking.endpoint import MockEndpoint, MockEndpointListener
+from ..mocking.endpoint import AutoMockEndpoint, MockEndpoint, MockEndpointListener
 from ..REST.rest_base import RESTTestBase
 
 if TYPE_CHECKING:
@@ -101,6 +102,7 @@ class TestIsolationEndpoint(RESTTestBase):
 
         self.assertFalse(response["success"])
 
+    @unittest.skipIf(AutoMockEndpoint.IPV6_ADDRESSES, "IPv6 not supported")
     async def test_add_bootstrap(self) -> None:
         """
         Check if bootstrap nodes are correctly added.
@@ -117,6 +119,7 @@ class TestIsolationEndpoint(RESTTestBase):
         self.assertIn(TestIsolationEndpoint.FAKE_BOOTSTRAP_ADDRESS, self.ipv8.network.blacklist)
         self.assertLessEqual(1, len(self.fake_endpoint_listener.received_packets))
 
+    @unittest.skipIf(AutoMockEndpoint.IPV6_ADDRESSES, "IPv6 not supported")
     async def test_add_exit(self) -> None:
         """
         Check if exit nodes are correctly added.

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import unittest
 from typing import TYPE_CHECKING
 
 from ..bootstrapping.dispersy.bootstrapper import DispersyBootstrapper
@@ -102,6 +103,7 @@ class TestCommunityCompatibility(TestBase):
         self.overlay(from_i).walk_to(self.address(to_i))
         await self.deliver_messages()
 
+    @unittest.skipIf(AutoMockEndpoint.IPV6_ADDRESSES, "IPv6 not supported")
     async def test_introduce_old(self) -> None:
         """
         Check that no new-style messages are going to the old-style peer.

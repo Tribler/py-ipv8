@@ -5,7 +5,15 @@ import logging
 import socket
 import sys
 import time
-from asyncio import CancelledError, DatagramProtocol, DatagramTransport, Future, ensure_future, gather, get_running_loop
+from asyncio import (
+    CancelledError,
+    DatagramProtocol,
+    DatagramTransport,
+    Future,
+    ensure_future,
+    gather,
+    get_running_loop,
+)
 from binascii import hexlify
 from collections import deque
 from struct import unpack_from
@@ -15,7 +23,7 @@ from typing import TYPE_CHECKING, Callable, Generic, Optional, Sequence, TypeVar
 from ...keyvault.public.libnaclkey import LibNaCLPK
 from ...peer import Peer
 from ...taskmanager import TaskManager
-from ...util import succeed
+from ..interfaces.udp.endpoint import DomainAddress, UDPv4Address, UDPv6Address
 
 if TYPE_CHECKING:
     from ...keyvault.private.libnaclkey import LibNaCLSK
@@ -173,7 +181,38 @@ class Tunnel(Generic[PT]):
         self.last_activity = time.time()
 
 
-class TunnelExitSocket(Tunnel[Peer], DatagramProtocol, TaskManager):
+class TunnelProtocol(DatagramProtocol):
+    """
+    Protocol used by TunnelExitSocket.
+    """
+
+    def __init__(self, received_cb: Callable, local_addr: Address) -> None:
+        """
+        Create a new TunnelProtocol.
+        """
+        self.received_cb = received_cb
+        self.local_addr = local_addr
+        self.logger = logging.getLogger(self.__class__.__name__)
+
+    async def open(self) -> DatagramTransport:  # noqa: A003
+        """
+        Opens a datagram endpoint and returns the Transport.
+        """
+        transport, _ = await get_running_loop().create_datagram_endpoint(lambda: self,
+                                                                         local_addr=self.local_addr)
+
+        listen_addr = transport.get_extra_info('socket').getsockname()[:2]
+        self.logger.info('Listening on %s:%s', *listen_addr)
+        return cast(DatagramTransport, transport)
+
+    def datagram_received(self, data: bytes, addr: Address) -> None:
+        """
+        Callback for when data is received by the socket.
+        """
+        self.received_cb(data, addr)
+
+
+class TunnelExitSocket(Tunnel[Peer], TaskManager):
     """
     Socket for exit nodes that communicates with the outside world.
     """
@@ -185,7 +224,8 @@ class TunnelExitSocket(Tunnel[Peer], DatagramProtocol, TaskManager):
         Tunnel.__init__(self, circuit_id, peer)
         TaskManager.__init__(self)
         self.overlay = overlay
-        self.transport: DatagramTransport | None = None
+        self.transport_ipv4: DatagramTransport | None = None
+        self.transport_ipv6: DatagramTransport | None = None
         self.queue: deque[tuple[bytes, Address]] = deque(maxlen=10)
         self.enabled = False
 
@@ -193,65 +233,87 @@ class TunnelExitSocket(Tunnel[Peer], DatagramProtocol, TaskManager):
         """
         Allow data to be sent.
 
-        This creates the datagram endpoint that allows us to send messages.
+        This creates the datagram endpoints that allows us to send messages.
         """
         if not self.enabled:
             self.enabled = True
 
-            async def create_transport() -> None:
-                self.transport, _ = await get_running_loop().create_datagram_endpoint(lambda: self,
-                                                                                    local_addr=('0.0.0.0', 0))
-                # Send any packets that have been waiting while the transport was being created
+            async def create_transports() -> None:
+                self.transport_ipv4 = await TunnelProtocol(self.datagram_received_ipv4, ('0.0.0.0', 0)).open()
+                self.transport_ipv6 = await TunnelProtocol(self.datagram_received_ipv6, ('::', 0)).open()
+
+                # Send any packets that have been waiting while the transports were being created
                 while self.queue:
                     self.sendto(*self.queue.popleft())
-            self.register_task("create_transport", create_transport)
+
+            self.register_task("create_transports", create_transports)
 
     def sendto(self, data: bytes, destination: Address) -> None:
         """
         Send o message over our datagram transporter.
         """
-        if not self.transport:
-            self.queue.append((data, destination))
+        if not self.is_allowed(data):
             return
-        transport = cast(DatagramTransport, self.transport)
 
-        self.beat_heart()
-        if self.is_allowed(data):
-            def on_ip_address(future: Future[str]) -> None:
+        # Since this call comes from the TunnelCommunity, we assume the destination
+        # address is either UDPv4Address/UDPv6Address/DomainAddress
+        if isinstance(destination, DomainAddress):
+            def on_address(future: Future[Address]) -> None:
                 try:
                     ip_address = future.result()
                 except (CancelledError, Exception) as e:
                     self.logger.exception("Can't resolve ip address for %s. Failure: %s", destination[0], e)
                     return
+                self.sendto(data, ip_address)
 
-                self.logger.debug("Resolved hostname %s to ip_address %s", destination[0], ip_address)
-                try:
-                    transport.sendto(data, (ip_address, destination[1]))
-                    self.bytes_up += len(data)
-                except OSError as e:
-                    self.logger.exception("Failed to write to transport. Destination: %r error: %r", destination, e)
+            task = ensure_future(self.resolve(destination))
+            # If this fails, the TaskManager logs the packet.
+            self.register_anonymous_task("resolving_%r" % destination[0], task,
+                                         ignore=(OSError, ValueError)).add_done_callback(on_address)
+            return
 
-            try:
-                socket.inet_aton(destination[0])
-                on_ip_address(succeed(destination[0]))
-            except (OSError, ValueError):
-                task = ensure_future(self.resolve(destination[0]))
-                # If this also fails, the TaskManager logs the packet.
-                # The host probably really does not exist.
-                self.register_anonymous_task("resolving_%r" % destination[0], task,
-                                             ignore=(OSError, ValueError)).add_done_callback(on_ip_address)
+        transport = self.transport_ipv6 if isinstance(destination, UDPv6Address) else self.transport_ipv4
 
-    async def resolve(self, host: str) -> str:
+        if not transport:
+            self.queue.append((data, destination))
+            return
+
+        transport.sendto(data, destination)
+        self.bytes_up += len(data)
+        self.beat_heart()
+
+    async def resolve(self, address: Address) -> Address:
         """
         Using asyncio's getaddrinfo since the aiodns resolver seems to have issues.
         Returns [(family, type, proto, canonname, sockaddr)].
         """
-        infos = await get_running_loop().getaddrinfo(host, 0, family=socket.AF_INET)
-        return infos[0][-1][0]
+        info_list = await get_running_loop().getaddrinfo(address[0], 0)
+        # For the time being we prefer dealing with IPv4 addresses.
+        info_list.sort(key=lambda x: x[0])
+        ip = info_list[0][-1][0]
+        family = info_list[0][0]
+        if family == socket.AF_INET6:
+            return UDPv6Address(ip, address[1])
+        return UDPv4Address(ip, address[1])
+
+    def datagram_received_ipv4(self, data: bytes, source: Address) -> None:
+        """
+        Callback for when data is received by the IPv4 socket.
+        """
+        self.datagram_received(data, UDPv4Address(*source))
+
+    def datagram_received_ipv6(self, data: bytes, source: Address) -> None:
+        """
+        Callback for when data is received by the IPv6 socket.
+        """
+        if source[0][:7] == '::ffff:':
+            # We're not processing mapped IPv4, we have a separate endpoint for that.
+            return
+        self.datagram_received(data, UDPv6Address(*source[:2]))
 
     def datagram_received(self, data: bytes, source: Address) -> None:
         """
-        Callback for when data is received by the socket.
+        Callback for when data is received by a IPv4/IPv6 socket.
         """
         self.beat_heart()
         self.bytes_down += len(data)
@@ -294,9 +356,12 @@ class TunnelExitSocket(Tunnel[Peer], DatagramProtocol, TaskManager):
         # The resolution tasks can't be cancelled, so we need to wait for
         # them to finish.
         await self.shutdown_task_manager()
-        if self.transport:
-            self.transport.close()
-            self.transport = None
+        if self.transport_ipv4:
+            self.transport_ipv4.close()
+            self.transport_ipv4 = None
+        if self.transport_ipv6:
+            self.transport_ipv6.close()
+            self.transport_ipv6 = None
 
 
 class Circuit(Tunnel[Optional[Peer]]):
