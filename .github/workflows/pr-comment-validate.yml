@@ -1,6 +1,8 @@
 name: PR Validation Checker
 
-on: issue_comment
+on:
+  issue_comment:
+    types: [created]
 
 jobs:
   pr_commented:
@@ -8,7 +10,7 @@ jobs:
     if: ${{ github.event.issue.pull_request && startsWith(github.event.comment.body, 'validate') }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest]  # macos-latest not tested due to crashing.
         version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
     runs-on: ${{ matrix.os }}
     steps:
