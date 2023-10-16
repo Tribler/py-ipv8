@@ -400,6 +400,7 @@ class Serializer:
             'varlenBx2': VarLen('>B', 2),
             'varlenH': VarLen('>H'),
             'varlenHutf8': VarLenUtf8('>H'),
+            'varlenIutf8': VarLenUtf8('>I'),
             'varlenHx20': VarLen('>H', 20),
             'varlenH-list': ListOf(VarLen('>H')),
             'varlenI': VarLen('>I'),
