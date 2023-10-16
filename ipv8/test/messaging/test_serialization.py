@@ -88,6 +88,60 @@ class Nested(Serializable):
         return Nested(byte_list)
 
 
+class Raw(Serializable):
+    """
+    Single raw value.
+    """
+
+    format_list = ["raw"]
+
+    def __init__(self, byte_string: bytes) -> None:
+        """
+        Create a Raw object from the given byte string.
+        """
+        self.raw = byte_string
+
+    def to_pack_list(self) -> list[tuple]:
+        """
+        Serialize to a Serializer pack list.
+        """
+        return [("raw", self.raw)]
+
+    @classmethod
+    def from_unpack_list(cls: type[Raw], raw_list: list[Raw]) -> Raw:
+        """
+        Create a new Raw object from the unpacked value.
+        """
+        return Raw(raw_list)
+
+
+class NestedWithRaw(Serializable):
+    """
+    Payload that uses multiple raw values.
+    """
+
+    format_list = [[Raw]]
+
+    def __init__(self, raw_list: list[list[Raw]]) -> None:
+        """
+        Create a NestedWithRaw object from the given list of Raw object.
+        """
+        self.raw_list = raw_list
+
+    def to_pack_list(self) -> list[tuple]:
+        """
+        Serialize to a Serializer pack list.
+        """
+        return [('payload-list', self.raw_list)]
+
+    @classmethod
+    def from_unpack_list(cls: type[NestedWithRaw], raw_list: list[list[Raw]]) -> NestedWithRaw:
+        """
+        Create a new NestedWithRaw object from the unpacked Raw objects.
+        """
+        return NestedWithRaw(raw_list)
+
+
 class TestSerializer(TestBase):
     """
     Tests related to the Serializer.
@@ -250,3 +304,13 @@ class TestSerializer(TestBase):
         decoded, _ = self.serializer.unpack_serializable(Nested, data)
         self.assertEqual(serializable.byte_list[0].byte, decoded.byte_list[0].byte)
         self.assertEqual(serializable.byte_list[1].byte, decoded.byte_list[1].byte)
+
+    def test_nested_serializable_raw(self) -> None:
+        """
+        Check if we can unpack multiple nested serializables that end with raw.
+        """
+        instance = NestedWithRaw([Raw(b'123'), Raw(b'456')])
+        data = self.serializer.pack_serializable(instance)
+        output, _ = self.serializer.unpack_serializable(NestedWithRaw, data)
+        self.assertEqual(instance.raw_list[0].raw, output.raw_list[0].raw)
+        self.assertEqual(instance.raw_list[1].raw, output.raw_list[1].raw)

@@ -106,10 +106,12 @@ class NestedPayload(Packer):
         :param args: a list of one Serializable class to unpack to
         :return: the new offset
         """
+        size, = unpack_from('>H', data, offset)
+        offset += 2
         serializable_class = args[0]
-        unpacked, offset = self.serializer.unpack_serializable(serializable_class, data, offset=offset + 2)
+        unpacked, _ = self.serializer.unpack_serializable(serializable_class, data[offset:offset + size])
         unpack_list.append(unpacked)
-        return offset
+        return offset + size
 
 
 class Bits(Packer):
@@ -398,6 +400,7 @@ class Serializer:
             'varlenBx2': VarLen('>B', 2),
             'varlenH': VarLen('>H'),
             'varlenHutf8': VarLenUtf8('>H'),
+            'varlenIutf8': VarLenUtf8('>I'),
             'varlenHx20': VarLen('>H', 20),
             'varlenH-list': ListOf(VarLen('>H')),
             'varlenI': VarLen('>I'),
