@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: refs/pull/${{ github.event.issue.number }}/head
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.version }}
