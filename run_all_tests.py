@@ -280,8 +280,8 @@ def install_libsodium() -> None:
         import zipfile
         fr = zipfile.Path("libsodium.zip", "libsodium/x64/Release/")
         fr = sorted((d for d in fr.iterdir()), key=lambda x: str(x))[-1] / "dynamic" / "libsodium.dll"
-        with fr.open(mode="rb") as stream_fr, open("libsodium.dll", "wb") as fw:
-                fw.write(stream_fr.read())
+        with open("libsodium.dll", "wb") as fw:
+            fw.write(fr.read_bytes())
 
 
 def windows_missing_libsodium() -> bool:
