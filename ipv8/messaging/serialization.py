@@ -4,6 +4,7 @@ import abc
 import socket
 import typing
 from binascii import hexlify
+from contextlib import suppress
 from struct import Struct, pack, unpack_from
 from typing import TYPE_CHECKING, cast
 
@@ -259,17 +260,17 @@ class Address(Packer):
         """
         Pack a generic address as bytes.
         """
-        if isinstance(address, UDPv6Address):
-            address = typing.cast(UDPv6Address, address)
-            return pack('>B16sH', ADDRESS_TYPE_IPV6,
-                        socket.inet_pton(socket.AF_INET6, address.ip), address.port)
-        if not self.ip_only and isinstance(address, DomainAddress):
-            address = typing.cast(DomainAddress, address)
-            host_bytes = address.host.encode()
-            return pack(f'>BH{len(host_bytes)}sH', ADDRESS_TYPE_DOMAIN_NAME,
-                        len(host_bytes), host_bytes, address.port)
-        if isinstance(address, tuple):
+        with suppress(OSError):
             return pack('>B4sH', ADDRESS_TYPE_IPV4, socket.inet_pton(socket.AF_INET, address[0]), address[1])
+        with suppress(OSError):
+            return pack('>B16sH', ADDRESS_TYPE_IPV6,
+                        socket.inet_pton(socket.AF_INET6, address[0]), address[1])
+
+        if not self.ip_only:
+            host_bytes = address[0].encode()
+            return pack(f'>BH{len(host_bytes)}sH', ADDRESS_TYPE_DOMAIN_NAME,
+                        len(host_bytes), host_bytes, address[1])
+
         msg = f"Unexpected address type {address}"
         raise PackError(msg)
 
