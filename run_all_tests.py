@@ -166,6 +166,12 @@ def task_test(*test_names: str) -> tuple[bool, int, float, list[tuple[str, str, 
     """
     import logging
 
+    try:
+        # If we made it here, there is only one option if the import fails and that is a local path dll.
+        import libnacl  # noqa: F401
+    except:
+        os.add_dll_directory(os.path.dirname(__file__))
+
     print_stream = io.StringIO()
     output_stream = CustomLinePrint(print_stream, "OUT")
     stdio_replacement = CustomLinePrint(print_stream, "OUT")
@@ -247,6 +253,54 @@ def find_all_test_class_names(directory: pathlib.Path | str = pathlib.Path('./ip
     return test_class_names
 
 
+def install_libsodium() -> None:
+    """
+    Attempt to install the latest libsodium backend.
+    """
+    # Ensure a libsodium.zip
+    if not pathlib.Path("libsodium.zip").exists():
+        import re
+        from http.client import HTTPSConnection
+        connection = HTTPSConnection("download.libsodium.org")
+
+        connection.request("GET", "/libsodium/releases/", headers={})
+        web_response = connection.getresponse().read().decode()
+
+        # Extract the latest version
+        result = sorted(re.findall("libsodium-[0-9]*\.[0-9]*\.[0-9]*-stable-msvc.zip\"",  # noqa: W605
+                                   web_response))[-1][:-1]
+
+        connection.request("GET", f"/libsodium/releases/{result}", headers={})
+        pathlib.Path("libsodium.zip").write_bytes(connection.getresponse().read())
+
+        connection.close()
+
+    # Unpack just the libsodium.dll
+    if not pathlib.Path("libsodium.dll").exists():
+        import zipfile
+        fr = zipfile.Path("libsodium.zip", "libsodium/x64/Release/")
+        fr = sorted((d for d in fr.iterdir()), key=lambda x: str(x))[-1] / "dynamic" / "libsodium.dll"
+        with fr.open(mode="rb") as stream_fr, open("libsodium.dll", "wb") as fw:
+                fw.write(stream_fr.read())
+
+
+def windows_missing_libsodium() -> bool:
+    """
+    Check if we can NOT find the libsodium backend.
+    """
+    with contextlib.suppress(OSError):
+        import libnacl
+        return False
+
+    # Try to find it in the local directory. This is where we'll download it anyway.
+    os.add_dll_directory(os.path.dirname(__file__))
+    try:
+        import libnacl  # noqa: F401, F811
+        return False
+    except OSError:
+        return True
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run the IPv8 tests.')
     parser.add_argument('-p', '--processes', type=int, default=DEFAULT_PROCESS_COUNT, required=False,
@@ -255,7 +309,13 @@ if __name__ == "__main__":
                         help="Don't show succeeded tests.")
     parser.add_argument('-a', '--noanimation', action='store_true', required=False,
                         help="Don't animate the terminal output.")
+    parser.add_argument('-d', '--nodownload', action='store_true', required=False,
+                        help="Don't attempt to download missing dependencies.")
     args = parser.parse_args()
+
+    if platform.system() == 'Windows' and windows_missing_libsodium() and not args.nodownload:
+        print("Failed to locate libsodium (libnacl requirement), downloading latest dll!")  # noqa: T201
+        install_libsodium()
 
     process_count = args.processes
     test_class_names = find_all_test_class_names()
