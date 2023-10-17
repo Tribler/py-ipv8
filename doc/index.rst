@@ -8,7 +8,7 @@ The documentation will explain the concepts behind IPv8, the architecture, and g
 Why does IPv8 exist?
 ====================
 
-Problems with the very fabric of The Internet, IPv4, are mounting. The approach of IPv6, Mobile IP, and IPSec is hampered by fundamental architectural problems. One solution is moving the intelligence up to a higher layer in the protocol stack and towards the end points. Our endpoints are not dependent on any central infrastructure. Our architecture is academically pure and fully decentralized; to the point of obsession. IPv8 is based on the principle of self-governance. Like Bitcoin and BitTorrent our IPv8 overlays are permissionless and requires no server upkeep costs. 
+Problems with the very fabric of The Internet, IPv4, are mounting. The approach of IPv6, Mobile IP, and IPSec is hampered by fundamental architectural problems. One solution is moving the intelligence up to a higher layer in the protocol stack and towards the end points. Our endpoints are not dependent on any central infrastructure. Our architecture is academically pure and fully decentralized; to the point of obsession. IPv8 is based on the principle of self-governance. Like Bitcoin and BitTorrent, our IPv8 overlays are permissionless and require no server upkeep costs. 
 
 IPv8 aims to help restore the original Internet; for free; owned by nobody; for everyone.
 
