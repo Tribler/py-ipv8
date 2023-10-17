@@ -170,7 +170,7 @@ def task_test(*test_names: str) -> tuple[bool, int, float, list[tuple[str, str, 
         # If we made it here, there is only one option if the import fails and that is a local path dll.
         import libnacl  # noqa: F401
     except:
-        os.add_dll_directory(os.path.dirname(__file__) or '.')
+        os.add_dll_directory(os.path.dirname(__file__) or os.path.abspath('.'))
 
     print_stream = io.StringIO()
     output_stream = CustomLinePrint(print_stream, "OUT")
@@ -280,8 +280,8 @@ def install_libsodium() -> None:
         import zipfile
         fr = zipfile.Path("libsodium.zip", "libsodium/x64/Release/")
         fr = sorted((d for d in fr.iterdir()), key=lambda x: str(x))[-1] / "dynamic" / "libsodium.dll"
-        with fr.open(mode="rb") as stream_fr, open("libsodium.dll", "wb") as fw:
-                fw.write(stream_fr.read())
+        with open("libsodium.dll", "wb") as fw:
+            fw.write(fr.read_bytes())
 
 
 def windows_missing_libsodium() -> bool:
@@ -293,7 +293,7 @@ def windows_missing_libsodium() -> bool:
         return False
 
     # Try to find it in the local directory. This is where we'll download it anyway.
-    os.add_dll_directory(os.path.dirname(__file__) or '.')
+    os.add_dll_directory(os.path.dirname(__file__) or os.path.abspath('.'))
     try:
         import libnacl  # noqa: F401, F811
         return False
