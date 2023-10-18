@@ -105,9 +105,10 @@ def lazy_wrapper(*payloads: type[Payload]) -> Callable[[LazyWrappedHandler], Mes
                 raise PacketDecodingError("Incoming packet %s has an invalid signature" %
                                           str([payload_class.__name__ for payload_class in payloads]))
             # PRODUCE
-            peer = (self.network.verified_by_public_key_bin.get(auth.public_key_bin)
-                    or Peer(auth.public_key_bin, source_address))
-            return func(self, peer, *unpacked)  # type: ignore[arg-type]
+            peer = self.network.verified_by_public_key_bin.get(auth.public_key_bin)
+            if peer:
+                peer.add_address(source_address)
+            return func(self, peer or Peer(auth.public_key_bin, source_address), *unpacked)  # type: ignore[arg-type]
         return cast(MessageHandlerFunction, wrapper)
     return decorator
 
@@ -141,9 +142,10 @@ def lazy_wrapper_wd(*payloads: type[Payload]) -> Callable[[LazyWrappedWDataHandl
                                           str([payload_class.__name__ for payload_class in payloads]))
             # PRODUCE
             output = [*unpacked, data]
-            peer = (self.network.verified_by_public_key_bin.get(auth.public_key_bin)
-                    or Peer(auth.public_key_bin, source_address))
-            return func(self, peer, *output)  # type: ignore[arg-type]
+            peer = self.network.verified_by_public_key_bin.get(auth.public_key_bin)
+            if peer:
+                peer.add_address(source_address)
+            return func(self, peer or Peer(auth.public_key_bin, source_address), *output)  # type: ignore[arg-type]
         return cast(MessageHandlerFunction, wrapper)
     return decorator
 
