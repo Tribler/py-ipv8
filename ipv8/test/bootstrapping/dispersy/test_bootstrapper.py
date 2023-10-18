@@ -1,9 +1,12 @@
+import unittest
+
 from ....bootstrapping.dispersy.bootstrapper import DispersyBootstrapper
 from ...base import TestBase
 from ...mocking.community import MockCommunity
 from ...mocking.endpoint import AutoMockEndpoint, MockEndpointListener
 
 
+@unittest.skipIf(AutoMockEndpoint.IPV6_ADDRESSES, "IPv6 not supported")
 class TestDispersyBootstrapper(TestBase):
     """
     Tests related to Dispersy-style bootstrapping.

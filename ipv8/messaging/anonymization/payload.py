@@ -96,7 +96,7 @@ class ExtendPayload(CellablePayload):
 
     msg_id = 4
     names = ['circuit_id', 'identifier', 'node_public_key', 'key', 'node_addr']
-    format_list = ['I', 'H', 'varlenH', 'varlenH', 'ipv4']
+    format_list = ['I', 'H', 'varlenH', 'varlenH', 'ip_address']
 
     circuit_id: int
     identifier: int
@@ -217,7 +217,7 @@ class RendezvousEstablishedPayload(CellablePayload):
 
     msg_id = 12
     names = ['circuit_id', 'identifier', 'rendezvous_point_addr']
-    format_list = ['I', 'H', 'ipv4']
+    format_list = ['I', 'H', 'ip_address']
 
     circuit_id: int
     identifier: int
@@ -307,7 +307,7 @@ class IntroductionInfo(VariablePayload):
     """
 
     names = ['address', 'key', 'seeder_pk', 'source']
-    format_list = ['ipv4', 'varlenH', 'varlenH', 'B']
+    format_list = ['ip_address', 'varlenH', 'varlenH', 'B']
 
     address: Address
     key: bytes
@@ -338,7 +338,7 @@ class RendezvousInfo(VariablePayload):
     """
 
     names = ['address', 'key', 'cookie']
-    format_list = ['ipv4', 'varlenH', '20s']
+    format_list = ['ip_address', 'varlenH', '20s']
 
     address: Address
     key: bytes

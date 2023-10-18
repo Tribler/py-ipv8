@@ -256,8 +256,7 @@ class EndpointListener(metaclass=abc.ABCMeta):
         Chooses the most likely Interface instance out of INTERFACES to use as our LAN address.
         """
         for address in addresses:
-            if (not (self.is_ipv6_listener and not self._is_ipv6_address(address))
-                    and not (not self.is_ipv6_listener and self._is_ipv6_address(address))):
+            if self.is_ipv6_listener == self._is_ipv6_address(address):
                 return address
 
         return "127.0.0.1"
