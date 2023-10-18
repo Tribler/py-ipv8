@@ -259,6 +259,7 @@ class DHTCommunity(Community):
 
         self.register_task('token_maintenance', self.token_maintenance, interval=300)
         self.register_task('node_maintenance', self.node_maintenance, interval=60)
+        self.register_task('value_maintenance', self.value_maintenance, interval=3600)
 
         # Register messages
         self.add_message_handler(PingRequestPayload, self.on_ping_request)
@@ -730,6 +731,13 @@ class DHTCommunity(Community):
 
             for bucket in buckets:
                 bucket.last_changed = now
+
+    def value_maintenance(self) -> None:
+        """
+        Remove expired values from the storage objects.
+        """
+        for storage in self.storages.values():
+            storage.clean()
 
     def token_maintenance(self) -> None:
         """
