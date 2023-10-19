@@ -3,7 +3,6 @@ import os
 import pathlib
 import shutil
 import sys
-from distutils.version import LooseVersion
 from io import StringIO
 from unittest import TextTestRunner, defaultTestLoader
 from unittest.suite import TestSuite
@@ -12,6 +11,7 @@ import coverage
 from coverage.files import abs_file, relative_filename
 from coverage.python import PythonFileReporter
 from coverage.results import Analysis
+from packaging.version import Version
 
 from run_all_tests import find_all_test_class_names
 
@@ -75,9 +75,9 @@ print("Aggregating package stats")  # noqa: T201
 total_numbers = {}  # Package name -> (Numbers: package coverage stats, dict: files per coverage bin)
 for filename in cov.get_data().measured_files():
     file_reporter = PythonFileReporter(filename, cov)
-    if LooseVersion(coverage.__version__) < LooseVersion("5"):
+    if Version(coverage.__version__) < Version("5"):
         analysis = Analysis(cov.get_data(), file_reporter)
-    elif LooseVersion(coverage.__version__) < LooseVersion("6"):
+    elif Version(coverage.__version__) < Version("6"):
         analysis = Analysis(cov.get_data(), file_reporter, abs_file)
     else:
         analysis = Analysis(cov.get_data(), 0, file_reporter, abs_file)

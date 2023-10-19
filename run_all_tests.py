@@ -17,6 +17,8 @@ from concurrent.futures import ProcessPoolExecutor
 from typing import TYPE_CHECKING, Generator, TextIO, cast
 from unittest import TestCase
 
+import distutils_forwardport  # noqa: F401
+
 if TYPE_CHECKING:
     import types
 
@@ -267,8 +269,8 @@ def install_libsodium() -> None:
         web_response = connection.getresponse().read().decode()
 
         # Extract the latest version
-        result = sorted(re.findall("libsodium-[0-9]*\.[0-9]*\.[0-9]*-stable-msvc.zip\"",  # noqa: W605
-                                   web_response))[-1][:-1]
+        result = sorted(re.findall(r"libsodium-[0-9]*\.[0-9]*\.[0-9]*-stable-msvc.zip\"",
+                                    web_response))[-1][:-1]
 
         connection.request("GET", f"/libsodium/releases/{result}", headers={})
         pathlib.Path("libsodium.zip").write_bytes(connection.getresponse().read())

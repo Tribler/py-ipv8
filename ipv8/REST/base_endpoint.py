@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Awaitable, Callable, Generic, Iterable, TypeVar, Union
+from typing import Any, Awaitable, Callable, Generic, Iterable, TypeVar
 
 from aiohttp import web
-from aiohttp.abc import Application, Request, StreamResponse
+from aiohttp.abc import Request, StreamResponse
 from aiohttp.typedefs import Handler, LooseHeaders
 
 HTTP_BAD_REQUEST = 400
@@ -18,8 +18,7 @@ HTTP_INTERNAL_SERVER_ERROR = 500
 DEFAULT_HEADERS: dict[str, str] = {}
 
 T = TypeVar('T')
-MiddleWaresType = Iterable[Union[Callable[[Request, Handler], Awaitable[StreamResponse]],
-                                 Callable[[Application, Handler], Awaitable[Handler]]]]
+MiddleWaresType = Iterable[Callable[[Request, Handler], Awaitable[StreamResponse]]]
 
 
 class BaseEndpoint(Generic[T]):

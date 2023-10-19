@@ -12,7 +12,7 @@ def type_from_format(fmt: str) -> TypeVar:
     """
     Convert a Serializer format directive to a type usable with @dataclass.
     """
-    out = object.__new__(TypeVar)
+    out = TypeVar.__new__(TypeVar, fmt)  # type: ignore[call-arg]
     TypeVar.__init__(out, fmt)
     return out
 

@@ -3,6 +3,8 @@ from __future__ import annotations
 import unittest
 from typing import TYPE_CHECKING, cast
 
+import distutils_forwardport  # noqa: F401
+
 from ...bootstrapping.dispersy.bootstrapper import DispersyBootstrapper
 from ...configuration import DISPERSY_BOOTSTRAPPER
 from ...messaging.anonymization.community import TunnelCommunity

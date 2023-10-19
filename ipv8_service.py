@@ -11,6 +11,8 @@ from threading import RLock
 from traceback import format_exception
 from typing import Any, Awaitable, Generator
 
+import distutils_forwardport  # noqa: F401
+
 if hasattr(sys.modules['__main__'], "IPv8"):
     sys.modules[__name__] = sys.modules['__main__']
 else:

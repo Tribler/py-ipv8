@@ -1,6 +1,8 @@
 import base64
 import random
 
+import distutils_forwardport  # noqa: F401
+
 from ...keyvault.crypto import default_eccrypto
 from ...peer import Peer
 from ..REST.rest_base import RESTTestBase
