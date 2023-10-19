@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import binascii
 
+import distutils_forwardport  # noqa: F401
+
 from ...keyvault.crypto import default_eccrypto
 from ...messaging.interfaces.statistics_endpoint import StatisticsEndpoint
 from ...peer import Peer

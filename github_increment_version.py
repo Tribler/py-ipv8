@@ -10,10 +10,10 @@ import ast
 import datetime
 import getpass
 import sys
-from distutils.version import LooseVersion
 from typing import cast
 
 from github import Github, InputGitTreeElement
+from packaging.version import Version
 
 
 def parse_setup() -> tuple[str, ast.Expr]:
@@ -129,9 +129,9 @@ def modify_setup(file_contents: str, setup_expression: ast.Expr) -> tuple[str, s
             lineno = keyword.value.lineno
             coloffset = keyword.value.col_offset
             old_version = cast(ast.Name, keyword.value).s
-            version = LooseVersion(old_version)
+            version = Version(old_version)
 
-            new_vstring = version.version
+            new_vstring = str(version)
             old_version_tag = '.'.join(str(s) for s in new_vstring[:2])
             new_vstring[1] += 1
             new_version = '.'.join(str(s) for s in new_vstring)

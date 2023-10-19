@@ -138,6 +138,16 @@ class MockedSite(web.TCPSite):
         self._server = self._runner.server
         await web.BaseSite.start(self)
 
+    async def stop(self) -> None:
+        """
+        The `wait_for` implementation of our super does not work.
+
+        Instead, we perform our own light-weight shutdown.
+        """
+        self._runner._check_site(self)  # noqa: SLF001
+        await self._runner.shutdown()
+        self._runner._unreg_site(self)  # noqa: SLF001
+
 
 class MockedRESTManager(RESTManager):
     """
