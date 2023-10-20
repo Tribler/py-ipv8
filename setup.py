@@ -21,7 +21,9 @@ setup(
         "aiohttp_apispec",
         "pyOpenSSL",
         "pyasn1",
-        "marshmallow"
+        "marshmallow",
+        "typing-extensions",
+        "packaging"
     ],
     extras_require={
         "all": ["asynctest; python_version=='3.7'", "coverage"],
