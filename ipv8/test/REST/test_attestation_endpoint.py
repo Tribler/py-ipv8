@@ -4,8 +4,6 @@ from asyncio import sleep
 from base64 import b64encode
 from typing import Collection, Sequence
 
-import distutils_forwardport  # noqa: F401
-
 from ...attestation.identity.community import IdentityCommunity, IdentitySettings
 from ...attestation.identity.manager import IdentityManager
 from ...attestation.wallet.community import AttestationCommunity, AttestationSettings

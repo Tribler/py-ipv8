@@ -2,10 +2,11 @@ cryptography
 libnacl
 aiohttp==3.8.6; python_version<'3.11'
 aiohttp>=3.9.0b0; python_version>='3.11'
-aiohttp_apispec
+aiohttp_apispec>=3.0.0b1
 pyOpenSSL
 pyasn1
 asynctest; python_version=='3.7'
 marshmallow
 typing-extensions
 packaging
+apispec>=6.0.0
