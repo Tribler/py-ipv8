@@ -5,8 +5,6 @@ import json
 import urllib.parse
 from typing import TYPE_CHECKING, Any, cast
 
-import distutils_forwardport  # noqa: F401
-
 from ...attestation.communication_manager import CommunicationChannel, CommunicationManager, PseudonymFolderManager
 from ...attestation.default_identity_formats import FORMATS
 from ...attestation.identity.community import IdentityCommunity, IdentitySettings

@@ -17,8 +17,6 @@ from concurrent.futures import ProcessPoolExecutor
 from typing import TYPE_CHECKING, Generator, TextIO, cast
 from unittest import TestCase
 
-import distutils_forwardport  # noqa: F401
-
 if TYPE_CHECKING:
     import types
 
