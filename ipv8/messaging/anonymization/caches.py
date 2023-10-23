@@ -12,9 +12,9 @@ from .tunnel import CIRCUIT_STATE_CLOSING
 if TYPE_CHECKING:
     from ...types import Peer
     from .community import TunnelCommunity
+    from .crypto import SessionKeys
     from .hidden_services import HiddenTunnelCommunity
     from .tunnel import Circuit, Hop, IntroductionPoint, RendezvousPoint
-    from .tunnelcrypto import SessionKeys
 
 
 class CreateRequestCache(RandomNumberCacheWithName):

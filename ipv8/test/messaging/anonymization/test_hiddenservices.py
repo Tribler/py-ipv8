@@ -15,7 +15,7 @@ from ....messaging.anonymization.tunnel import (
     PEER_FLAG_SPEED_TEST,
     PEER_SOURCE_DHT,
     IntroductionPoint,
-    TunnelObject,
+    RoutingObject,
 )
 from ....peer import Peer
 from ....util import fail, succeed
@@ -55,7 +55,7 @@ class TestHiddenServices(TestBase[HiddenTunnelCommunity]):
             await node.stop()
         return await super().tearDown()
 
-    def get_e2e_circuit_path(self) -> list[tuple[Address, Tunnel]] | None:
+    def get_e2e_circuit_path(self) -> list[tuple[Address, RoutingObject]] | None:
         """
         Return the e2e circuit information which is extracted from the nodes.
         Useful for debugging purposes or to verify whether the e2e circuit is correctly established.
@@ -108,6 +108,7 @@ class TestHiddenServices(TestBase[HiddenTunnelCommunity]):
         tunnel_settings.remove_tunnel_delay = 0
         ipv8 = MockIPv8("curve25519", HiddenTunnelCommunity, settings=tunnel_settings)
         ipv8.overlay.ipv8 = ipv8
+        ipv8.overlay.crypto_endpoint.setup_tunnels(ipv8.overlay.get_prefix(), ipv8.overlay, tunnel_settings)
 
         # Then kill all automated circuit creation
         ipv8.overlay.cancel_all_pending_tasks()

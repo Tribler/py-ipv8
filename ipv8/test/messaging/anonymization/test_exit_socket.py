@@ -2,8 +2,8 @@ from binascii import unhexlify
 from unittest.mock import Mock
 
 from ....keyvault.private.libnaclkey import LibNaCLSK
-from ....messaging.anonymization.tunnel import PEER_FLAG_EXIT_BT, PEER_FLAG_EXIT_IPV8
 from ....messaging.anonymization.exit_socket import TunnelExitSocket
+from ....messaging.anonymization.tunnel import PEER_FLAG_EXIT_BT, PEER_FLAG_EXIT_IPV8
 from ....peer import Peer
 from ...base import TestBase
 from .test_datachecker import dht_pkt, ipv8_pkt, tracker_pkt, tunnel_pkt, utp_pkt

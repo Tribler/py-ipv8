@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from ...keyvault.private.libnaclkey import LibNaCLSK
     from ...peer import Peer
     from ...types import Address
-    from .tunnelcrypto import SessionKeys
+    from .crypto import SessionKeys
 
 FORWARD = 0
 BACKWARD = 1
@@ -92,7 +92,7 @@ class Hop:
         return self.peer.mid
 
 
-class TunnelObject:
+class RoutingObject:
     """
     Statistics for a tunnel to a peer over a circuit (base class for circuits, exit sockets, and relay routes).
     """
@@ -114,7 +114,7 @@ class TunnelObject:
         self.last_activity = time.time()
 
 
-class Circuit(TunnelObject):
+class Circuit(RoutingObject):
     """
     A peer-to-peer encrypted communication channel, consisting of 0 or more hops (intermediate peers).
     """
@@ -125,7 +125,6 @@ class Circuit(TunnelObject):
         Create a new circuit instance.
         """
         super().__init__(circuit_id)
-        self._hops = []
         self.goal_hops = goal_hops
         self.ctype = ctype
         self.required_exit = required_exit
@@ -136,9 +135,11 @@ class Circuit(TunnelObject):
         self._closing = False
         self._hops: list[Hop] = []
         self.unverified_hop: Hop | None = None
-        self.hs_session_keys: SessionKeys | None = None
+        self._hs_session_keys: SessionKeys | None = None
         self.e2e = False
         self.relay_early_count = 0
+
+        self.dirty = False
 
     def add_hop(self, hop: Hop) -> None:
         """
@@ -147,13 +148,29 @@ class Circuit(TunnelObject):
         self._hops.append(hop)
         if self.state == CIRCUIT_STATE_READY:
             self.ready.set_result(self)
+        self.dirty = True
+
+    @property
+    def hs_session_keys(self) -> SessionKeys | None:
+        """
+        Get the session keys for hidden services (if any).
+        """
+        return self._hs_session_keys
+
+    @hs_session_keys.setter
+    def hs_session_keys(self, value: SessionKeys) -> None:
+        """
+        Set the session keys for hidden services.
+        """
+        self._hs_session_keys = value
+        self.dirty = True
 
     @property
     def hop(self) -> Hop:
         """
         Return the first hop of the circuit.
         """
-        return self._hops[0] if self._hops else self.unverified_hop
+        return cast(Hop, self._hops[0] if self._hops else self.unverified_hop)
 
     @property
     def hops(self) -> Sequence[Hop]:
@@ -167,7 +184,9 @@ class Circuit(TunnelObject):
         """
         Get the flags of the last hop in our circuit.
         """
-        return self.hops[-1].flags if self.hops else []
+        if self.hops:
+            return self.hops[-1].flags or []
+        return []
 
     @property
     def state(self) -> str:
@@ -198,7 +217,7 @@ class Circuit(TunnelObject):
             self.ready.set_result(None)
 
 
-class RelayRoute(TunnelObject):
+class RelayRoute(RoutingObject):
     """
     Relay object containing the destination circuit, socket address and whether it is online or not.
     """

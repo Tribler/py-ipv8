@@ -1,22 +1,9 @@
 from __future__ import annotations
 
-import logging
 from functools import reduce
 from struct import calcsize, pack, unpack_from
 from typing import TYPE_CHECKING
 
-from .exit_socket import TunnelExitSocket
-from ...messaging.anonymization.tunnel import (
-    BACKWARD,
-    CIRCUIT_TYPE_RP_DOWNLOADER,
-    CIRCUIT_TYPE_RP_SEEDER,
-    FORWARD,
-    BACKWARD,
-    Circuit,
-    RelayRoute,
-    Hop,
-)
-from ...messaging.anonymization.tunnelcrypto import CryptoException, SessionKeys, TunnelCrypto
 from ...messaging.lazy_payload import VariablePayload, VariablePayloadWID, vp_compile
 from ..serialization import Packer
 
@@ -423,40 +410,6 @@ class CellPayload:
         self.message = message
         self.plaintext = plaintext
         self.relay_early = relay_early
-
-    def encrypt(self, crypto: TunnelCrypto, direction: int, *hops: Hop) -> None:
-        """
-        Encrypt this cell.
-
-        :raises CryptoException: if encryption failed.
-        """
-        if self.plaintext:
-            return
-
-        for layer, hop in enumerate(reversed(hops)):
-            logging.debug(f'Encrypt message for {self.circuit_id} ({direction}) (layer {layer + 1}/{len(hops)})')
-            self.message = crypto.encrypt_str(self.message, hop.keys, direction)
-
-    def decrypt(self, crypto: TunnelCrypto, direction: int, *hops: Hop) -> None:
-        """
-        Decrypt this cell and store the result in ``self.message``.
-
-        :raises CryptoException: if decryption failed.
-        """
-        if self.plaintext:
-            return
-
-        for layer, hop in enumerate(hops):
-            if hop.keys is None:
-                msg = f'Missing session keys for {self.circuit_id} (layer {layer+1}/{len(hops)})'
-                raise CryptoException(msg)
-
-            try:
-                self.message = crypto.decrypt_str(self.message, hop.keys, direction)
-                logging.debug(f'Decrypt message for {self.circuit_id} ({direction}) (layer {layer+1}/{len(hops)})')
-            except ValueError as e:
-                msg = f'Failed to decrypt message for {self.circuit_id} (layer {layer+1}/{len(hops)}) {direction}'
-                raise CryptoException(msg) from e
 
     def unwrap(self, prefix: bytes) -> bytes:
         """

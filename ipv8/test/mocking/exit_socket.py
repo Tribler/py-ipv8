@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ...messaging.anonymization.exit_socket import TunnelExitSocket, DataChecker
+from ...messaging.anonymization.exit_socket import DataChecker, TunnelExitSocket
 from ...messaging.interfaces.endpoint import EndpointListener
 from ..mocking.endpoint import AutoMockEndpoint
 

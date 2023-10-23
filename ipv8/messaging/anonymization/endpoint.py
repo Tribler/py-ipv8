@@ -3,7 +3,6 @@ from __future__ import annotations
 from collections import deque
 from typing import TYPE_CHECKING, Any, cast
 
-from ...peer import Peer
 from .tunnel import CIRCUIT_STATE_READY, PEER_FLAG_EXIT_IPV8
 
 if TYPE_CHECKING:

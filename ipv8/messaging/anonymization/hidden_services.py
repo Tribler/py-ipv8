@@ -473,6 +473,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         key = self.swarms[payload.info_hash].seeder_sk
         shared_secret, y, auth = self.crypto.generate_diffie_shared_secret(payload.key, key)
         rp.circuit.hs_session_keys = self.crypto.generate_session_keys(shared_secret)
+        self.circuits.get(rp.circuit.circuit_id)  # Needed for notifying the RustEndpoint
 
         rp_info = RendezvousInfo(rp.address, rp.circuit.hops[-1].public_key.key_to_bin(), rp.cookie)
         rp_info_bin = self.serializer.pack('payload', rp_info)
@@ -539,8 +540,12 @@ class HiddenTunnelCommunity(TunnelCommunity):
         _ = self.remove_exit_socket(exit_socket.circuit_id, 'linking circuit')
         _ = self.remove_exit_socket(exit_socket_rp.circuit_id, 'linking circuit')
 
-        self.relay_from_to[exit_socket.circuit_id] = RelayRoute(exit_socket_rp.circuit_id, exit_socket.hop, True)
-        self.relay_from_to[exit_socket_rp.circuit_id] = RelayRoute(exit_socket.circuit_id, exit_socket_rp.hop, True)
+        self.relay_from_to[exit_socket.circuit_id] = RelayRoute(exit_socket_rp.circuit_id,
+                                                                Hop(exit_socket_rp.hop.peer, exit_socket.hop.keys),
+                                                                FORWARD, True)
+        self.relay_from_to[exit_socket_rp.circuit_id] = RelayRoute(exit_socket.circuit_id,
+                                                                   Hop(exit_socket.hop.peer, exit_socket_rp.hop.keys),
+                                                                   FORWARD, True)
 
         self.send_cell(source_address, LinkedE2EPayload(exit_socket.circuit_id, payload.identifier))
 
@@ -557,6 +562,8 @@ class HiddenTunnelCommunity(TunnelCommunity):
         circuit = cache.circuit
         circuit.e2e = True
         circuit.hs_session_keys = cache.hs_session_keys
+        self.circuits.get(circuit.circuit_id)
+
         callback = self.e2e_callbacks.get(cache.info_hash, None)
         if callback:
             result = callback((self.circuit_id_to_ip(circuit.circuit_id), CIRCUIT_ID_PORT))

@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Callable, cast
 
 from ...taskmanager import TaskManager
 from ..interfaces.udp.endpoint import DomainAddress, UDPv4Address, UDPv6Address
-from .tunnel import PEER_FLAG_EXIT_BT, PEER_FLAG_EXIT_IPV8, Hop, TunnelObject
+from .tunnel import PEER_FLAG_EXIT_BT, PEER_FLAG_EXIT_IPV8, Hop, RoutingObject
 
 if TYPE_CHECKING:
     from ipv8.messaging.anonymization.community import TunnelCommunity
@@ -127,7 +127,7 @@ class TunnelProtocol(DatagramProtocol):
         self.received_cb(data, addr)
 
 
-class TunnelExitSocket(TunnelObject, TaskManager):
+class TunnelExitSocket(RoutingObject, TaskManager):
     """
     Socket for exit nodes that communicates with the outside world.
     """
@@ -136,7 +136,7 @@ class TunnelExitSocket(TunnelObject, TaskManager):
         """
         Create a new exit socket.
         """
-        TunnelObject.__init__(self, circuit_id)
+        RoutingObject.__init__(self, circuit_id)
         TaskManager.__init__(self)
         self.hop = hop
         self.overlay = overlay
@@ -231,7 +231,6 @@ class TunnelExitSocket(TunnelObject, TaskManager):
         """
         Callback for when data is received by a IPv4/IPv6 socket.
         """
-        self.beat_heart()
         self.bytes_down += len(data)
         if self.is_allowed(data):
             try:
@@ -251,7 +250,7 @@ class TunnelExitSocket(TunnelObject, TaskManager):
 
         if not (is_bt and PEER_FLAG_EXIT_BT in self.overlay.settings.peer_flags) \
            and not (is_ipv8 and PEER_FLAG_EXIT_IPV8 in self.overlay.settings.peer_flags) \
-           and not (is_ipv8 and self.overlay.get_prefix() == data[:22]):  # noqa: SLF001
+           and not (is_ipv8 and self.overlay.get_prefix() == data[:22]):
             self.logger.warning("Dropping data packets, refusing to be an exit node (BT=%s, IPv8=%s)", is_bt, is_ipv8)
             return False
         return True
