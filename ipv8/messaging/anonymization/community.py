@@ -147,7 +147,6 @@ class TunnelCommunity(Community):
         self.add_cell_handler(TestResponsePayload, self.on_test_response)
 
         self.circuits: dict[int, Circuit] = {}
-        self.directions: dict[int, int | None] = {}
         self.relay_from_to: dict[int, RelayRoute] = {}
         self.relay_session_keys: dict[int, SessionKeys] = {}
         self.exit_sockets: dict[int, TunnelExitSocket] = {}
@@ -412,9 +411,6 @@ class TunnelCommunity(Community):
         if circuit:
             self.logger.info("Removed circuit %d %s", circuit_id, additional_info)
 
-        # Clean up the directions dictionary
-        self.directions.pop(circuit_id, None)
-
     @task
     async def remove_relay(self, circuit_id: int, additional_info: str = '', remove_now: bool = False,
                            destroy: bool = False) -> RelayRoute | None:
@@ -432,7 +428,6 @@ class TunnelCommunity(Community):
 
         relay = self.relay_from_to.pop(circuit_id, None)
         self.relay_session_keys.pop(circuit_id, None)
-        self.directions.pop(circuit_id, None)
 
         return relay
 
@@ -561,11 +556,12 @@ class TunnelCommunity(Community):
                 cell.encrypt(self.crypto, relay_session_keys=self.relay_session_keys[next_relay.circuit_id])
                 cell.relay_early = False
             else:
-                direction = self.directions[cell.circuit_id]
-                if direction == BACKWARD:
-                    cell.encrypt(self.crypto, relay_session_keys=self.relay_session_keys[cell.circuit_id])
-                elif direction == FORWARD:
+                direction = next_relay.direction
+                if direction == FORWARD:
                     cell.decrypt(self.crypto, relay_session_keys=self.relay_session_keys[cell.circuit_id])
+                elif direction == BACKWARD:
+                    cell.encrypt(self.crypto, relay_session_keys=self.relay_session_keys[cell.circuit_id])
+
         except CryptoException as e:
             self.logger.warning(str(e))
             return
@@ -782,7 +778,6 @@ class TunnelCommunity(Community):
         """
         circuit_id = create_payload.circuit_id
 
-        self.directions[circuit_id] = FORWARD
         self.logger.info('We joined circuit %d with neighbour %s', circuit_id, previous_node_address)
 
         shared_secret, key, auth = self.crypto.generate_diffie_shared_secret(create_payload.key)
@@ -824,18 +819,19 @@ class TunnelCommunity(Community):
         Callback for when another peer signals that they have joined our circuit.
         """
         circuit_id = payload.circuit_id
-        self.directions[circuit_id] = BACKWARD
 
         if self.request_cache.has(CreateRequestCache, payload.identifier):
             request = self.request_cache.pop(CreateRequestCache, payload.identifier)
 
             self.logger.info("Got CREATED message forward as EXTENDED to origin.")
 
-            self.relay_from_to[request.to_circuit_id] = relay = RelayRoute(request.from_circuit_id, request.peer)
-            self.relay_from_to[request.from_circuit_id] = RelayRoute(request.to_circuit_id, request.to_peer)
-            self.relay_session_keys[request.to_circuit_id] = self.relay_session_keys[request.from_circuit_id]
+            from_circuit_id = request.from_circuit_id
+            to_circuit_id = request.to_circuit_id
 
-            self.directions[request.from_circuit_id] = FORWARD
+            self.relay_from_to[to_circuit_id] = relay = RelayRoute(from_circuit_id, request.peer, BACKWARD)
+            self.relay_from_to[from_circuit_id] = RelayRoute(to_circuit_id, request.to_peer, FORWARD)
+            self.relay_session_keys[to_circuit_id] = self.relay_session_keys[from_circuit_id]
+
             self.remove_exit_socket(request.from_circuit_id)
 
             self.send_cell(relay.peer,
@@ -850,7 +846,7 @@ class TunnelCommunity(Community):
             circuit = self.circuits[circuit_id]
             self._ours_on_created_extended(circuit, payload)
         else:
-            self.logger.warning("Received unexpected created for circuit %d", payload.circuit_id)
+            self.logger.warning("Received unexpected created for circuit %d", circuit_id)
 
     @unpack_cell(ExtendPayload)
     async def on_extend(self, source_address: Address, payload: ExtendPayload, _: int | None) -> None:

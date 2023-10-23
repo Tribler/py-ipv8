@@ -33,10 +33,6 @@ if TYPE_CHECKING:
 
 FORWARD = 0
 BACKWARD = 1
-ORIGINATOR_SALT = 2
-EXIT_NODE_SALT = 3
-ORIGINATOR_SALT_EXPLICIT = 4
-EXIT_NODE_SALT_EXPLICIT = 5
 
 PEER_SOURCE_UNKNOWN = 0
 PEER_SOURCE_DHT = 1
@@ -502,7 +498,7 @@ class RelayRoute(Tunnel[Peer]):
     Relay object containing the destination circuit, socket address and whether it is online or not.
     """
 
-    def __init__(self, circuit_id: int, peer: Peer, rendezvous_relay: bool = False) -> None:
+    def __init__(self, circuit_id: int, peer: Peer, direction: int, rendezvous_relay: bool = False) -> None:
         """
         Create a new relay route.
         """
@@ -511,6 +507,7 @@ class RelayRoute(Tunnel[Peer]):
         # Since the creation of a RelayRoute object is triggered by an extend (which was wrapped in a cell
         # that had the early_relay flag set) we start the count at 1.
         self.relay_early_count = 1
+        self.direction = direction
 
 
 class RendezvousPoint:
