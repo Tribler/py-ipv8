@@ -15,7 +15,6 @@ from typing import TYPE_CHECKING, Awaitable, List, Set
 from ...community import Community, CommunitySettings
 from ...keyvault.private.libnaclkey import LibNaCLSK
 from ...lazy_community import lazy_wrapper
-from ...messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from ...requestcache import RequestCache
 from ...taskmanager import task
 from ...types import Address
@@ -30,6 +29,7 @@ if TYPE_CHECKING:
     from collections.abc import Collection
 
     from ...dht.provider import DHTCommunityProvider
+    from ...messaging.payload_headers import GlobalTimeDistributionPayload
     from ..lazy_payload import VariablePayloadWID
     from ..payload import (
         IntroductionRequestPayload,
@@ -359,7 +359,7 @@ class TunnelCommunity(Community):
 
         return circuit
 
-    def send_initial_create(self, circuit: Circuit, candidate_list: list[Peer], max_tries: int) -> None:
+    def send_initial_create(self, circuit: Circuit, candidate_peers: list[Peer], max_tries: int) -> None:
         """
         Attempt to establish the first hop in a Circuit.
         """
@@ -367,13 +367,13 @@ class TunnelCommunity(Community):
             self.request_cache.pop(RetryRequestCache, circuit.circuit_id)
             self.logger.info("Retrying first hop for circuit %d", circuit.circuit_id)
 
-        first_hop = random.choice(candidate_list)
-        alt_first_hops = [c for c in candidate_list if c != first_hop]
+        first_hop = random.choice(candidate_peers)
+        alt_first_hops = [c for c in candidate_peers if c != first_hop]
 
         circuit.unverified_hop = Hop(first_hop, flags=self.candidates.get(first_hop))
         circuit.unverified_hop.dh_secret, circuit.unverified_hop.dh_first_part = self.crypto.generate_diffie_secret()
 
-        self.logger.info("Adding first hop %s:%d to circuit %d", *((*first_hop.address, circuit.circuit_id)))
+        self.logger.info("Adding first hop %s:%d to circuit %d", *(*first_hop.address, circuit.circuit_id))
 
         cache = RetryRequestCache(self, circuit, alt_first_hops, max_tries - 1,
                                   self.send_initial_create, self.settings.next_hop_timeout)
@@ -562,9 +562,9 @@ class TunnelCommunity(Community):
                 cell.relay_early = False
             else:
                 direction = self.directions[cell.circuit_id]
-                if direction == ORIGINATOR:
+                if direction == BACKWARD:
                     cell.encrypt(self.crypto, relay_session_keys=self.relay_session_keys[cell.circuit_id])
-                elif direction == EXIT_NODE:
+                elif direction == FORWARD:
                     cell.decrypt(self.crypto, relay_session_keys=self.relay_session_keys[cell.circuit_id])
         except CryptoException as e:
             self.logger.warning(str(e))
@@ -592,19 +592,17 @@ class TunnelCommunity(Community):
         circuit.add_hop(hop)
 
         if circuit.state == CIRCUIT_STATE_EXTENDING:
-            candidate_list_enc = payload.candidate_list_enc
-            candidate_list_bin = self.crypto.decrypt_str(candidate_list_enc,
-                                                         session_keys.key_backward,
-                                                         session_keys.salt_backward)
-            candidate_list, _ = self.serializer.unpack('varlenH-list', candidate_list_bin)
+            candidates_enc = payload.candidates_enc
+            candidates_bin = self.crypto.decrypt_str(candidates_enc, session_keys, FORWARD)
+            candidates, _ = self.serializer.unpack('varlenH-list', candidates_bin)
 
             cache = self.request_cache.pop(RetryRequestCache, circuit.circuit_id)
-            self.send_extend(circuit, cast(List[bytes], candidate_list), cache.max_tries if cache else 1)
+            self.send_extend(circuit, cast(List[bytes], candidates), cache.max_tries if cache else 1)
 
         elif circuit.state == CIRCUIT_STATE_READY:
             self.request_cache.pop(RetryRequestCache, circuit.circuit_id)
 
-    def send_extend(self, circuit: Circuit, candidate_list: list[bytes], max_tries: int) -> None:
+    def send_extend(self, circuit: Circuit, candidates: list[bytes], max_tries: int) -> None:
         """
         Extend a circuit by choosing one of the given candidates.
         """
@@ -621,15 +619,15 @@ class TunnelCommunity(Community):
         else:
             # The next candidate is chosen from the returned list of possible candidates
             for ignore_candidate in ignore_candidates:
-                if ignore_candidate in candidate_list:
-                    candidate_list.remove(ignore_candidate)
+                if ignore_candidate in candidates:
+                    candidates.remove(ignore_candidate)
 
-            for i in range(len(candidate_list) - 1, -1, -1):
-                public_key = self.crypto.key_from_public_bin(candidate_list[i])
+            for i in range(len(candidates) - 1, -1, -1):
+                public_key = self.crypto.key_from_public_bin(candidates[i])
                 if not self.crypto.is_key_compatible(public_key):
-                    candidate_list.pop(i)
+                    candidates.pop(i)
 
-            extend_hop_public_bin = next(iter(candidate_list), b'')
+            extend_hop_public_bin = next(iter(candidates), b'')
             extend_hop_addr = ('0.0.0.0', 0)
 
         if extend_hop_public_bin:
@@ -646,7 +644,7 @@ class TunnelCommunity(Community):
 
             # Only retry if we are allowed to use another node
             if not become_exit or not circuit.required_exit:
-                alt_candidates = [c for c in candidate_list if c != extend_hop_public_bin]
+                alt_candidates = [c for c in candidates if c != extend_hop_public_bin]
             else:
                 alt_candidates = []
 
@@ -784,7 +782,7 @@ class TunnelCommunity(Community):
         """
         circuit_id = create_payload.circuit_id
 
-        self.directions[circuit_id] = EXIT_NODE
+        self.directions[circuit_id] = FORWARD
         self.logger.info('We joined circuit %d with neighbour %s', circuit_id, previous_node_address)
 
         shared_secret, key, auth = self.crypto.generate_diffie_shared_secret(create_payload.key)
@@ -798,11 +796,9 @@ class TunnelCommunity(Community):
         self.request_cache.add(CreatedRequestCache(self, circuit_id, peer, peers_keys, self.settings.unstable_timeout))
         self.exit_sockets[circuit_id] = TunnelExitSocket(circuit_id, peer, self)
 
-        candidate_list_bin = self.serializer.pack('varlenH-list', list(peers_keys.keys()))
-        candidate_list_enc = self.crypto.encrypt_str(candidate_list_bin,
-                                                     *self.crypto.get_session_keys(self.relay_session_keys[circuit_id],
-                                                                                   EXIT_NODE))
-        self.send_cell(peer, CreatedPayload(circuit_id, create_payload.identifier, key, auth, candidate_list_enc))
+        candidates_bin = self.serializer.pack('varlenH-list', list(peers_keys.keys()))
+        candidates_enc = self.crypto.encrypt_str(candidates_bin, self.relay_session_keys[circuit_id], FORWARD)
+        self.send_cell(peer, CreatedPayload(circuit_id, create_payload.identifier, key, auth, candidates_enc))
 
     @unpack_cell(CreatePayload)
     async def on_create(self, source_address: Address, payload: CreatePayload, _: int | None) -> None:
@@ -828,7 +824,7 @@ class TunnelCommunity(Community):
         Callback for when another peer signals that they have joined our circuit.
         """
         circuit_id = payload.circuit_id
-        self.directions[circuit_id] = ORIGINATOR
+        self.directions[circuit_id] = BACKWARD
 
         if self.request_cache.has(CreateRequestCache, payload.identifier):
             request = self.request_cache.pop(CreateRequestCache, payload.identifier)
@@ -839,12 +835,12 @@ class TunnelCommunity(Community):
             self.relay_from_to[request.from_circuit_id] = RelayRoute(request.to_circuit_id, request.to_peer)
             self.relay_session_keys[request.to_circuit_id] = self.relay_session_keys[request.from_circuit_id]
 
-            self.directions[request.from_circuit_id] = EXIT_NODE
+            self.directions[request.from_circuit_id] = FORWARD
             self.remove_exit_socket(request.from_circuit_id)
 
             self.send_cell(relay.peer,
                            ExtendedPayload(relay.circuit_id, request.extend_identifier,
-                                           payload.key, payload.auth, payload.candidate_list_enc))
+                                           payload.key, payload.auth, payload.candidates_enc))
             return
 
         cache = self.request_cache.get(RetryRequestCache, circuit_id)

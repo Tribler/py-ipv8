@@ -5,10 +5,10 @@ from struct import calcsize, pack, unpack_from
 from typing import TYPE_CHECKING
 
 from ...messaging.anonymization.tunnel import (
+    BACKWARD,
     CIRCUIT_TYPE_RP_DOWNLOADER,
     CIRCUIT_TYPE_RP_SEEDER,
-    EXIT_NODE,
-    ORIGINATOR,
+    FORWARD,
     Circuit,
 )
 from ...messaging.anonymization.tunnelcrypto import CryptoException, SessionKeys, TunnelCrypto
@@ -78,14 +78,14 @@ class CreatedPayload(CellablePayload):
     """
 
     msg_id = 3
-    names = ['circuit_id', 'identifier', 'key', 'auth', 'candidate_list_enc']
+    names = ['circuit_id', 'identifier', 'key', 'auth', 'candidates_enc']
     format_list = ['I', 'H', 'varlenH', '32s', 'raw']
 
     circuit_id: int
     identifier: int
     key: bytes
     auth: bytes
-    candidate_list_enc: bytes
+    candidates_enc: bytes
 
 
 @vp_compile
@@ -112,14 +112,14 @@ class ExtendedPayload(CellablePayload):
     """
 
     msg_id = 5
-    names = ['circuit_id', 'identifier', 'key', 'auth', 'candidate_list_enc']
+    names = ['circuit_id', 'identifier', 'key', 'auth', 'candidates_enc']
     format_list = ['I', 'H', 'varlenH', '32s', 'raw']
 
     circuit_id: int
     identifier: int
     key: bytes
     auth: bytes
-    candidate_list_enc: bytes
+    candidates_enc: bytes
 
 
 @vp_compile
@@ -432,22 +432,20 @@ class CellPayload:
         if circuit:
             if (circuit.hs_session_keys is not None
                     and circuit.ctype in [CIRCUIT_TYPE_RP_SEEDER, CIRCUIT_TYPE_RP_DOWNLOADER]):
-                direction = int(circuit.ctype == CIRCUIT_TYPE_RP_SEEDER)
-                self.message = crypto.encrypt_str(self.message,
-                                                  *crypto.get_session_keys(circuit.hs_session_keys, direction))
+                direction = FORWARD if circuit.ctype == CIRCUIT_TYPE_RP_SEEDER else BACKWARD
+                self.message = crypto.encrypt_str(self.message, circuit.hs_session_keys, direction)
 
             for hop in reversed(circuit.hops):
                 if hop.session_keys is not None:
-                    self.message = crypto.encrypt_str(self.message,
-                                                      *crypto.get_session_keys(hop.session_keys, EXIT_NODE))
+                    self.message = crypto.encrypt_str(self.message, hop.session_keys, FORWARD)
 
         elif relay_session_keys is not None:
-            self.message = crypto.encrypt_str(self.message, *crypto.get_session_keys(relay_session_keys, ORIGINATOR))
+            self.message = crypto.encrypt_str(self.message, relay_session_keys, BACKWARD)
 
         else:
             raise CryptoException("Error encrypting message for unknown circuit %d" % self.circuit_id)
 
-    def decrypt(self, crypto: TunnelCrypto, circuit: Circuit | None = None,  # noqa: C901, PLR0912
+    def decrypt(self, crypto: TunnelCrypto, circuit: Circuit | None = None,
                 relay_session_keys: SessionKeys | None = None) -> None:
         """
         Decrypt this cell and store the result in ``self.message``.
@@ -470,9 +468,7 @@ class CellPayload:
                            f"circuit_hops: {circuit.hops}")
                     raise CryptoException(msg)
                 try:
-                    self.message = crypto.decrypt_str(self.message,
-                                                      hop.session_keys.key_forward,
-                                                      hop.session_keys.salt_forward)
+                    self.message = crypto.decrypt_str(self.message, hop.session_keys, BACKWARD)
                 except ValueError as e:
                     msg = (f"Got exception {e!r} when trying to remove encryption layer {layer} "
                            f"for message: {self.message!r} received for circuit_id: {self.circuit_id}, "
@@ -481,20 +477,12 @@ class CellPayload:
 
             if (circuit.hs_session_keys is not None
                     and circuit.ctype in [CIRCUIT_TYPE_RP_SEEDER, CIRCUIT_TYPE_RP_DOWNLOADER]):
-                if circuit.ctype == CIRCUIT_TYPE_RP_DOWNLOADER:
-                    self.message = crypto.decrypt_str(self.message,
-                                                      circuit.hs_session_keys.key_backward,
-                                                      circuit.hs_session_keys.salt_backward)
-                else:
-                    self.message = crypto.decrypt_str(self.message,
-                                                      circuit.hs_session_keys.key_forward,
-                                                      circuit.hs_session_keys.salt_forward)
+                direction = FORWARD if circuit.ctype == CIRCUIT_TYPE_RP_DOWNLOADER else BACKWARD
+                self.message = crypto.decrypt_str(self.message, circuit.hs_session_keys, direction)
 
         elif relay_session_keys:
             try:
-                self.message = crypto.decrypt_str(self.message,
-                                                  relay_session_keys.key_backward,
-                                                  relay_session_keys.salt_backward)
+                self.message = crypto.decrypt_str(self.message, relay_session_keys, FORWARD)
             except ValueError as e:
                 msg = (f"Got exception {e!r} when trying to decrypt relay message: "
                        f"cell received for circuit_id: {self.circuit_id}")

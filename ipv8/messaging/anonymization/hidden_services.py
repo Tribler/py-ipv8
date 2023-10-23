@@ -35,7 +35,7 @@ from .tunnel import (
     CIRCUIT_TYPE_RP_SEEDER,
     DESTROY_REASON_LEAVE_SWARM,
     DESTROY_REASON_UNNEEDED,
-    EXIT_NODE,
+    FORWARD,
     PEER_SOURCE_DHT,
     PEER_SOURCE_PEX,
     Hop,
@@ -477,8 +477,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
 
         rp_info = RendezvousInfo(rp.address, rp.circuit.hops[-1].public_key.key_to_bin(), rp.cookie)
         rp_info_bin = self.serializer.pack('payload', rp_info)
-        rp_info_enc = self.crypto.encrypt_str(rp_info_bin,
-                                              *self.crypto.get_session_keys(rp.circuit.hs_session_keys, EXIT_NODE))
+        rp_info_enc = self.crypto.encrypt_str(rp_info_bin, rp.circuit.hs_session_keys, FORWARD)
 
         circuit = self.circuits[cast(int, circuit_id)]
         self.tunnel_data(circuit, source_address, CreatedE2EPayload(payload.identifier, y, auth, rp_info_enc))
@@ -500,7 +499,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         session_keys = self.crypto.generate_session_keys(shared_secret)
 
         rp_info_enc = payload.rp_info_enc
-        rp_info_bin = self.crypto.decrypt_str(rp_info_enc, session_keys.key_backward, session_keys.salt_backward)
+        rp_info_bin = self.crypto.decrypt_str(rp_info_enc, session_keys, FORWARD)
         rp_info, _ = cast(Tuple[RendezvousInfo, int], self.serializer.unpack(RendezvousInfo, rp_info_bin))
 
         required_exit = Peer(rp_info.key, rp_info.address)

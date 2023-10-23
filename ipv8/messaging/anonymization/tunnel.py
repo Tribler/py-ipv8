@@ -31,8 +31,8 @@ if TYPE_CHECKING:
     from .community import TunnelCommunity
     from .tunnelcrypto import SessionKeys
 
-ORIGINATOR = 0
-EXIT_NODE = 1
+FORWARD = 0
+BACKWARD = 1
 ORIGINATOR_SALT = 2
 EXIT_NODE_SALT = 3
 ORIGINATOR_SALT_EXPLICIT = 4
