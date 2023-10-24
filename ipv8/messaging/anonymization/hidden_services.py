@@ -322,7 +322,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         """
         Send any serializable payload to the next hop in the circuit.
         """
-        packet = self._ez_pack(self._prefix, payload.msg_id, [payload], False)
+        packet = self.ezr_pack(payload.msg_id, payload, sig=False)
         pre = ('0.0.0.0', 0)
         post = ('0.0.0.0', 0)
         if isinstance(circuit, TunnelExitSocket):
@@ -408,7 +408,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
             self.send_cell(target_addr, payload)
         else:
             # Send back to exit node
-            packet = self._ez_pack(self._prefix, payload.msg_id, [payload], False)
+            packet = self.ezr_pack(payload.msg_id, payload, sig=False)
             self.send_packet(target_addr, packet)
 
     @unpack_cell(PeersResponsePayload)

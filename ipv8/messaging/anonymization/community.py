@@ -533,9 +533,7 @@ class TunnelCommunity(Community):
         """
         Send a destroy message directly to the given peer.
         """
-        auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin())
-        payload = DestroyPayload(circuit_id, reason)
-        packet = self._ez_pack(self._prefix, DestroyPayload.msg_id, [auth, payload])
+        packet = self.ezr_pack(DestroyPayload.msg_id, DestroyPayload(circuit_id, reason))
         self.send_packet(peer, packet)
 
     def relay_cell(self, cell: CellPayload) -> None:
