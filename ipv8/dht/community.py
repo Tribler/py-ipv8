@@ -401,7 +401,7 @@ class DHTCommunity(Community):
         When receive a response to our ping, update the node's metrics.
         """
         if not self.request_cache.has('ping', payload.identifier):
-            self.logger.error('Got ping-response with unknown identifier, dropping packet')
+            self.logger.warning('Got ping-response with unknown identifier, dropping packet')
             return
 
         self.logger.debug('Got ping-response from %s', peer.address)
@@ -550,7 +550,7 @@ class DHTCommunity(Community):
         We got confirmation of storage.
         """
         if not self.request_cache.has('store', payload.identifier):
-            self.logger.error('Got store-response with unknown identifier, dropping packet')
+            self.logger.warning('Got store-response with unknown identifier, dropping packet')
             return
 
         self.logger.debug('Got store-response from %s', peer.address)
@@ -691,7 +691,7 @@ class DHTCommunity(Community):
         We got a response for our find requests.
         """
         if not self.request_cache.has('find', payload.identifier):
-            self.logger.error('Got find-response with unknown identifier, dropping packet')
+            self.logger.warning('Got find-response with unknown identifier, dropping packet')
             return
 
         self.logger.debug('Got find-response from %s', peer.address)

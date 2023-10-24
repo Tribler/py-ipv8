@@ -1120,7 +1120,7 @@ class TunnelCommunity(Community):
             self.logger.error("Dropping test-response with unknown circuit_id")
             return
         if not self.request_cache.has(TestRequestCache, payload.identifier):
-            self.logger.error("Dropping unexpected test-response")
+            self.logger.warning("Dropping unexpected test-response")
             return
 
         self.logger.debug("Got test-response (%d) from %s", circuit_id, source_address)

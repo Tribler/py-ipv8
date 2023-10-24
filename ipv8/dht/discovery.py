@@ -193,7 +193,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
         When a peer signals storage is complete, pop it from our cache.
         """
         if not self.request_cache.has('store-peer', payload.identifier):
-            self.logger.error('Got store-peer-response with unknown identifier, dropping packet')
+            self.logger.warning('Got store-peer-response with unknown identifier, dropping packet')
             return
 
         self.logger.debug('Got store-peer-response from %s', peer.address)
@@ -228,7 +228,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
         Handle responses of peers that performed punctures for us.
         """
         if not self.request_cache.has('connect-peer', payload.identifier):
-            self.logger.error('Got connect-peer-response with unknown identifier, dropping packet')
+            self.logger.warning('Got connect-peer-response with unknown identifier, dropping packet')
             return
 
         self.logger.debug('Got connect-peer-response from %s', peer.address)
