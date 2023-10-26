@@ -441,7 +441,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         cache = E2ERequestCache(self, info_hash, hop, intro_point)
         self.request_cache.add(cache)
         self.tunnel_data(circuit, intro_point.peer.address,
-                         CreateE2EPayload(cache.number, info_hash, hop.node_public_key, hop.dh_first_part))
+                         CreateE2EPayload(cache.number, info_hash, hop.public_key_bin, hop.dh_first_part))
 
     @unpack_cell(CreateE2EPayload)
     async def on_create_e2e(self, source_address: Address, payload: CreateE2EPayload,

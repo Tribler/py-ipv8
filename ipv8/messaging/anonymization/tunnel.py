@@ -479,7 +479,7 @@ class Hop:
         return cast(LibNaCLPK, self.peer.public_key)
 
     @property
-    def node_public_key(self) -> bytes:
+    def public_key_bin(self) -> bytes:
         """
         The hop's public_key bytes.
         """

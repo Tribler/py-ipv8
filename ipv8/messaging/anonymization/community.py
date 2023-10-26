@@ -600,7 +600,7 @@ class TunnelCommunity(Community):
         """
         Extend a circuit by choosing one of the given candidates.
         """
-        ignore_candidates = [hop.node_public_key for hop in circuit.hops] + [self.my_peer.public_key.key_to_bin()]
+        ignore_candidates = [hop.public_key_bin for hop in circuit.hops] + [self.my_peer.public_key.key_to_bin()]
         if circuit.required_exit:
             ignore_candidates.append(circuit.required_exit.public_key.key_to_bin())
 
@@ -648,7 +648,7 @@ class TunnelCommunity(Community):
 
             self.send_cell(cast(Peer, circuit.peer), ExtendPayload(circuit.circuit_id,
                                                                    cache.packet_identifier,
-                                                                   circuit.unverified_hop.node_public_key,
+                                                                   circuit.unverified_hop.public_key_bin,
                                                                    circuit.unverified_hop.dh_first_part,
                                                                    extend_hop_addr))
 
