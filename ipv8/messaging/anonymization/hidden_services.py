@@ -537,10 +537,8 @@ class HiddenTunnelCommunity(TunnelCommunity):
 
         circuit = self.exit_sockets[circuit_id]
 
-        self.register_anonymous_task("remove exit circuit after linking circuit",
-                                     self.remove_exit_socket(circuit.circuit_id, 'linking circuit'))
-        self.register_anonymous_task("remove relay circuit after linking circuit",
-                                     self.remove_exit_socket(relay_circuit.circuit_id, 'linking circuit'))
+        _ = self.remove_exit_socket(circuit.circuit_id, 'linking circuit')
+        _ = self.remove_exit_socket(relay_circuit.circuit_id, 'linking circuit')
 
         self.relay_from_to[circuit.circuit_id] = RelayRoute(relay_circuit.circuit_id, relay_circuit.peer, FORWARD, True)
         self.relay_from_to[relay_circuit.circuit_id] = RelayRoute(circuit.circuit_id, circuit.peer, FORWARD, True)
