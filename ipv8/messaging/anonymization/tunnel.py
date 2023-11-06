@@ -446,14 +446,6 @@ class Circuit(Tunnel[Optional[Peer]]):
         if not self.ready.done():
             self.ready.set_result(None)
 
-    def __eq__(self, other: object) -> bool:
-        """
-        Check if the other object is equal to this circuit.
-        """
-        if not isinstance(other, Circuit):
-            return False
-        return self.circuit_id == other.circuit_id
-
 
 class Hop:
     """
