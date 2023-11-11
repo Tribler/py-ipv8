@@ -33,7 +33,6 @@ from .tunnel import (
     CIRCUIT_TYPE_IP_SEEDER,
     CIRCUIT_TYPE_RP_DOWNLOADER,
     CIRCUIT_TYPE_RP_SEEDER,
-    DESTROY_REASON_LEAVE_SWARM,
     DESTROY_REASON_UNNEEDED,
     FORWARD,
     PEER_SOURCE_DHT,
@@ -138,7 +137,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
             if circuit.info_hash == info_hash and circuit.ctype in [CIRCUIT_TYPE_IP_SEEDER,
                                                                     CIRCUIT_TYPE_RP_SEEDER,
                                                                     CIRCUIT_TYPE_RP_DOWNLOADER]:
-                _ = self.remove_circuit(circuit.circuit_id, 'leaving hidden swarm', destroy=DESTROY_REASON_LEAVE_SWARM)
+                _ = self.remove_circuit(circuit.circuit_id, 'leaving hidden swarm', destroy=DESTROY_REASON_UNNEEDED)
         # Remove swarm and callback
         swarm = self.swarms.pop(info_hash, None)
         self.e2e_callbacks.pop(info_hash, None)
