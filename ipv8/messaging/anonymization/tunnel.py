@@ -31,12 +31,8 @@ if TYPE_CHECKING:
     from .community import TunnelCommunity
     from .tunnelcrypto import SessionKeys
 
-ORIGINATOR = 0
-EXIT_NODE = 1
-ORIGINATOR_SALT = 2
-EXIT_NODE_SALT = 3
-ORIGINATOR_SALT_EXPLICIT = 4
-EXIT_NODE_SALT_EXPLICIT = 5
+FORWARD = 0
+BACKWARD = 1
 
 PEER_SOURCE_UNKNOWN = 0
 PEER_SOURCE_DHT = 1
@@ -67,7 +63,6 @@ PING_INTERVAL = 7.5
 DESTROY_REASON_UNKNOWN = 1
 DESTROY_REASON_SHUTDOWN = 2
 DESTROY_REASON_UNNEEDED = 4
-DESTROY_REASON_LEAVE_SWARM = 5
 
 
 class DataChecker:
@@ -450,14 +445,6 @@ class Circuit(Tunnel[Optional[Peer]]):
         if not self.ready.done():
             self.ready.set_result(None)
 
-    def __eq__(self, other: object) -> bool:
-        """
-        Check if the other object is equal to this circuit.
-        """
-        if not isinstance(other, Circuit):
-            return False
-        return self.circuit_id == other.circuit_id
-
 
 class Hop:
     """
@@ -483,7 +470,7 @@ class Hop:
         return cast(LibNaCLPK, self.peer.public_key)
 
     @property
-    def node_public_key(self) -> bytes:
+    def public_key_bin(self) -> bytes:
         """
         The hop's public_key bytes.
         """
@@ -502,7 +489,7 @@ class RelayRoute(Tunnel[Peer]):
     Relay object containing the destination circuit, socket address and whether it is online or not.
     """
 
-    def __init__(self, circuit_id: int, peer: Peer, rendezvous_relay: bool = False) -> None:
+    def __init__(self, circuit_id: int, peer: Peer, direction: int, rendezvous_relay: bool = False) -> None:
         """
         Create a new relay route.
         """
@@ -511,6 +498,7 @@ class RelayRoute(Tunnel[Peer]):
         # Since the creation of a RelayRoute object is triggered by an extend (which was wrapped in a cell
         # that had the early_relay flag set) we start the count at 1.
         self.relay_early_count = 1
+        self.direction = direction
 
 
 class RendezvousPoint:

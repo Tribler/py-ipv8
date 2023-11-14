@@ -12,6 +12,7 @@ from libnacl.aead import AEAD
 
 from ...keyvault.crypto import ECCrypto, LibNaCLPK
 from ...keyvault.private.libnaclkey import LibNaCLSK
+from .tunnel import FORWARD
 
 if TYPE_CHECKING:
     from ...types import PublicKey
@@ -57,7 +58,7 @@ class TunnelCrypto(ECCrypto):
 
     def generate_diffie_secret(self) -> tuple[LibNaCLSK, LibNaCLPK]:
         """
-        Create a a new private-public keypair.
+        Create a new private-public keypair.
         """
         tmp_key = cast(LibNaCLSK, self.generate_key("curve25519"))
         x = tmp_key.key.pk
@@ -97,40 +98,43 @@ class TunnelCrypto(ECCrypto):
         hkdf = HKDFExpand(algorithm=hashes.SHA256(), backend=default_backend(), length=72, info=b"key_generation")
         key = hkdf.derive(shared_secret)
 
-        kf = key[:32]
-        kb = key[32:64]
-        sf = key[64:68]
-        sb = key[68:72]
+        kb = key[:32]
+        kf = key[32:64]
+        sb = key[64:68]
+        sf = key[68:72]
 
         return SessionKeys(kf, kb, sf, sb, 1, 1)
 
-    def get_session_keys(self, keys: SessionKeys, direction: int) -> tuple[bytes, bytes, int]:
-        """
-        Get the session keys for forward (0) or backward (1) communication.
-        """
-        # increment salt_explicit
-        if direction == 1:
-            keys.salt_explicit_backward += 1
-            return keys.key_backward, keys.salt_backward, keys.salt_explicit_backward
-        keys.salt_explicit_forward += 1
-        return keys.key_forward, keys.salt_forward, keys.salt_explicit_forward
-
-    def encrypt_str(self, content: bytes, key: bytes, salt: bytes, salt_explicit: int) -> bytes:
+    def encrypt_str(self, content: bytes, keys: SessionKeys, direction: int) -> bytes:
         """
         Encrypt content using the given key, salt, and incremental session salt.
         """
-        # return the encrypted content prepended with salt_explicit
+        if direction == FORWARD:
+            keys.salt_explicit_forward += 1
+            key = keys.key_forward
+            salt = keys.salt_forward
+            salt_explicit = keys.salt_explicit_forward
+        else:
+            keys.salt_explicit_backward += 1
+            key = keys.key_backward
+            salt = keys.salt_backward
+            salt_explicit = keys.salt_explicit_backward
+
+        # Return the encrypted content prepended with salt_explicit
         aead = AEAD(key)
         _, _, ciphertext = aead.encrypt(content, b'',
                                         nonce=salt + struct.pack('!q', salt_explicit),
                                         pack_nonce_aad=False)
         return struct.pack('!q', salt_explicit) + ciphertext
 
-    def decrypt_str(self, content: bytes, key: bytes, salt: bytes) -> bytes:
+    def decrypt_str(self, content: bytes, keys: SessionKeys, direction: int) -> bytes:
         """
         Decrypt the given content using a key and salt.
         """
-        # content contains the tag and salt_explicit in plaintext
+        # Content contains the tag and salt_explicit in plaintext
+        key = keys.key_forward if direction == FORWARD else keys.key_backward
+        salt = keys.salt_forward if direction == FORWARD else keys.salt_backward
+
         if len(content) < 24:
             msg = "truncated content"
             raise CryptoException(msg)

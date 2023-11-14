@@ -33,9 +33,8 @@ from .tunnel import (
     CIRCUIT_TYPE_IP_SEEDER,
     CIRCUIT_TYPE_RP_DOWNLOADER,
     CIRCUIT_TYPE_RP_SEEDER,
-    DESTROY_REASON_LEAVE_SWARM,
     DESTROY_REASON_UNNEEDED,
-    EXIT_NODE,
+    FORWARD,
     PEER_SOURCE_DHT,
     PEER_SOURCE_PEX,
     Hop,
@@ -138,7 +137,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
             if circuit.info_hash == info_hash and circuit.ctype in [CIRCUIT_TYPE_IP_SEEDER,
                                                                     CIRCUIT_TYPE_RP_SEEDER,
                                                                     CIRCUIT_TYPE_RP_DOWNLOADER]:
-                _ = self.remove_circuit(circuit.circuit_id, 'leaving hidden swarm', destroy=DESTROY_REASON_LEAVE_SWARM)
+                _ = self.remove_circuit(circuit.circuit_id, 'leaving hidden swarm', destroy=DESTROY_REASON_UNNEEDED)
         # Remove swarm and callback
         swarm = self.swarms.pop(info_hash, None)
         self.e2e_callbacks.pop(info_hash, None)
@@ -322,7 +321,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         """
         Send any serializable payload to the next hop in the circuit.
         """
-        packet = self._ez_pack(self._prefix, payload.msg_id, [payload], False)
+        packet = self.ezr_pack(payload.msg_id, payload, sig=False)
         pre = ('0.0.0.0', 0)
         post = ('0.0.0.0', 0)
         if isinstance(circuit, TunnelExitSocket):
@@ -408,7 +407,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
             self.send_cell(target_addr, payload)
         else:
             # Send back to exit node
-            packet = self._ez_pack(self._prefix, payload.msg_id, [payload], False)
+            packet = self.ezr_pack(payload.msg_id, payload, sig=False)
             self.send_packet(target_addr, packet)
 
     @unpack_cell(PeersResponsePayload)
@@ -441,7 +440,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         cache = E2ERequestCache(self, info_hash, hop, intro_point)
         self.request_cache.add(cache)
         self.tunnel_data(circuit, intro_point.peer.address,
-                         CreateE2EPayload(cache.number, info_hash, hop.node_public_key, hop.dh_first_part))
+                         CreateE2EPayload(cache.number, info_hash, hop.public_key_bin, hop.dh_first_part))
 
     @unpack_cell(CreateE2EPayload)
     async def on_create_e2e(self, source_address: Address, payload: CreateE2EPayload,
@@ -477,8 +476,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
 
         rp_info = RendezvousInfo(rp.address, rp.circuit.hops[-1].public_key.key_to_bin(), rp.cookie)
         rp_info_bin = self.serializer.pack('payload', rp_info)
-        rp_info_enc = self.crypto.encrypt_str(rp_info_bin,
-                                              *self.crypto.get_session_keys(rp.circuit.hs_session_keys, EXIT_NODE))
+        rp_info_enc = self.crypto.encrypt_str(rp_info_bin, rp.circuit.hs_session_keys, FORWARD)
 
         circuit = self.circuits[cast(int, circuit_id)]
         self.tunnel_data(circuit, source_address, CreatedE2EPayload(payload.identifier, y, auth, rp_info_enc))
@@ -500,7 +498,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         session_keys = self.crypto.generate_session_keys(shared_secret)
 
         rp_info_enc = payload.rp_info_enc
-        rp_info_bin = self.crypto.decrypt_str(rp_info_enc, session_keys.key_backward, session_keys.salt_backward)
+        rp_info_bin = self.crypto.decrypt_str(rp_info_enc, session_keys, FORWARD)
         rp_info, _ = cast(Tuple[RendezvousInfo, int], self.serializer.unpack(RendezvousInfo, rp_info_bin))
 
         required_exit = Peer(rp_info.key, rp_info.address)
@@ -538,13 +536,11 @@ class HiddenTunnelCommunity(TunnelCommunity):
 
         circuit = self.exit_sockets[circuit_id]
 
-        self.register_anonymous_task("remove exit circuit after linking circuit",
-                                     self.remove_exit_socket(circuit.circuit_id, 'linking circuit'))
-        self.register_anonymous_task("remove relay circuit after linking circuit",
-                                     self.remove_exit_socket(relay_circuit.circuit_id, 'linking circuit'))
+        _ = self.remove_exit_socket(circuit.circuit_id, 'linking circuit')
+        _ = self.remove_exit_socket(relay_circuit.circuit_id, 'linking circuit')
 
-        self.relay_from_to[circuit.circuit_id] = RelayRoute(relay_circuit.circuit_id, relay_circuit.peer, True)
-        self.relay_from_to[relay_circuit.circuit_id] = RelayRoute(circuit.circuit_id, circuit.peer, True)
+        self.relay_from_to[circuit.circuit_id] = RelayRoute(relay_circuit.circuit_id, relay_circuit.peer, FORWARD, True)
+        self.relay_from_to[relay_circuit.circuit_id] = RelayRoute(circuit.circuit_id, circuit.peer, FORWARD, True)
 
         self.send_cell(source_address, LinkedE2EPayload(circuit.circuit_id, payload.identifier))
 

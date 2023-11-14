@@ -107,7 +107,7 @@ class TaskManager:
             msg = "Cannot run Task at an interval or with a delay"
             raise ValueError(msg)
         if not isinstance(ignore, tuple) or not all(issubclass(e, Exception) for e in ignore):
-            msg = "Ignore should be a tuple of Exceptions or None"
+            msg = "Ignore should be a tuple of Exceptions or an empty tuple"
             raise ValueError(msg)
 
         with self._task_lock:
