@@ -81,12 +81,12 @@ class TunnelSettings(CommunitySettings):
     max_joined_circuits = 100
 
     # Maximum number of seconds that a circuit should exist
-    max_time = 10 * 60
+    max_time = 60 * 60
     # Maximum number of seconds that an introduction point should exist
     max_time_ip = 24 * 60 * 60
     # Maximum number of seconds before a circuit is considered inactive (and is removed)
     max_time_inactive = 20
-    max_traffic = 250 * 1024 * 1024
+    max_traffic = 10 * 1024**3
 
     # Maximum number of seconds circuit creation is allowed to take. Within this time period, the unverified hop
     # of the circuit can still change in case it is unresponsive.
@@ -255,14 +255,14 @@ class TunnelCommunity(Community):
             elif circuit.creation_time < time.time() - self.get_max_time(circuit_id):
                 self.remove_circuit(circuit_id, 'too old')
             elif circuit.bytes_up + circuit.bytes_down > self.settings.max_traffic:
-                self.remove_circuit(circuit_id, 'traffic limit exceeded')
+                self.remove_circuit(circuit_id, 'traffic limit exceeded', destroy=True)
 
         # Remove relays that are inactive / have transferred too many bytes.
         for circuit_id, relay in list(self.relay_from_to.items()):
             if relay.last_activity < time.time() - self.settings.max_time_inactive:
                 self.remove_relay(circuit_id, 'no activity')
             elif relay.bytes_up + relay.bytes_down > self.settings.max_traffic:
-                self.remove_relay(circuit_id, 'traffic limit exceeded')
+                self.remove_relay(circuit_id, 'traffic limit exceeded', destroy=True)
 
         # Remove exit sockets that are too old / have transferred too many bytes.
         for circuit_id, exit_socket in list(self.exit_sockets.items()):
@@ -271,7 +271,7 @@ class TunnelCommunity(Community):
             elif exit_socket.creation_time < time.time() - self.get_max_time(circuit_id):
                 self.remove_exit_socket(circuit_id, 'too old')
             elif exit_socket.bytes_up + exit_socket.bytes_down > self.settings.max_traffic:
-                self.remove_exit_socket(circuit_id, 'traffic limit exceeded')
+                self.remove_exit_socket(circuit_id, 'traffic limit exceeded', destroy=True)
 
         # Remove candidates that are not returned as verified peers
         current_peers = self.get_peers()
