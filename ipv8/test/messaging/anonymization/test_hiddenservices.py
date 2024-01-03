@@ -15,7 +15,7 @@ from ....messaging.anonymization.tunnel import (
     PEER_FLAG_SPEED_TEST,
     PEER_SOURCE_DHT,
     IntroductionPoint,
-    Tunnel,
+    RoutingObject,
 )
 from ....peer import Peer
 from ....util import fail, succeed
@@ -55,7 +55,7 @@ class TestHiddenServices(TestBase[HiddenTunnelCommunity]):
             await node.stop()
         return await super().tearDown()
 
-    def get_e2e_circuit_path(self) -> list[tuple[Address, Tunnel]] | None:
+    def get_e2e_circuit_path(self) -> list[tuple[Address, RoutingObject]] | None:
         """
         Return the e2e circuit information which is extracted from the nodes.
         Useful for debugging purposes or to verify whether the e2e circuit is correctly established.
@@ -88,7 +88,7 @@ class TestHiddenServices(TestBase[HiddenTunnelCommunity]):
 
         cur_tunnel = e2e_circuit
         while True:
-            next_node = get_node_with_sock_addr(cur_tunnel.peer.address)
+            next_node = get_node_with_sock_addr(cur_tunnel.hop.address)
             if cur_tunnel.circuit_id not in next_node.overlay.relay_from_to:
                 # We reached the end of our e2e circuit.
                 path.append((next_node.overlay.my_peer.address, cur_tunnel))
@@ -108,6 +108,7 @@ class TestHiddenServices(TestBase[HiddenTunnelCommunity]):
         tunnel_settings.remove_tunnel_delay = 0
         ipv8 = MockIPv8("curve25519", HiddenTunnelCommunity, settings=tunnel_settings)
         ipv8.overlay.ipv8 = ipv8
+        ipv8.overlay.crypto_endpoint.setup_tunnels(ipv8.overlay.get_prefix(), ipv8.overlay, tunnel_settings)
 
         # Then kill all automated circuit creation
         ipv8.overlay.cancel_all_pending_tasks()
@@ -204,7 +205,7 @@ class TestHiddenServices(TestBase[HiddenTunnelCommunity]):
         data = b'PACKET'
         _, circuit = e2e_path[0]
         self.overlay(2).on_raw_data = lambda _, __, rdata: self.received_packets.append(rdata)
-        self.overlay(0).send_data(circuit.peer, circuit.circuit_id, ('0.0.0.0', 0), ('0.0.0.0', 0), data)
+        self.overlay(0).send_data(circuit.hop.address, circuit.circuit_id, ('0.0.0.0', 0), ('0.0.0.0', 0), data)
         await self.deliver_messages()
         self.assertEqual(len(self.received_packets), 1)
         self.assertEqual(self.received_packets[0], data)

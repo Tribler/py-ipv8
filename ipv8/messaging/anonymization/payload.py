@@ -4,14 +4,6 @@ from functools import reduce
 from struct import calcsize, pack, unpack_from
 from typing import TYPE_CHECKING
 
-from ...messaging.anonymization.tunnel import (
-    BACKWARD,
-    CIRCUIT_TYPE_RP_DOWNLOADER,
-    CIRCUIT_TYPE_RP_SEEDER,
-    FORWARD,
-    Circuit,
-)
-from ...messaging.anonymization.tunnelcrypto import CryptoException, SessionKeys, TunnelCrypto
 from ...messaging.lazy_payload import VariablePayload, VariablePayloadWID, vp_compile
 from ..serialization import Packer
 
@@ -410,7 +402,7 @@ class CellPayload:
 
     msg_id = 0
 
-    def __init__(self, circuit_id: int , message: bytes, plaintext: bool = False, relay_early: bool = False) -> None:
+    def __init__(self, circuit_id: int, message: bytes, plaintext: bool = False, relay_early: bool = False) -> None:
         """
         Prepare the given message for cell encryption (or plaintext).
         """
@@ -418,79 +410,6 @@ class CellPayload:
         self.message = message
         self.plaintext = plaintext
         self.relay_early = relay_early
-
-    def encrypt(self, crypto: TunnelCrypto, circuit: Circuit | None = None,
-                relay_session_keys: SessionKeys | None = None) -> None:
-        """
-        Encrypt this cell.
-
-        :raises CryptoException: if encryption failed.
-        """
-        if self.plaintext:
-            return
-
-        if circuit:
-            if (circuit.hs_session_keys is not None
-                    and circuit.ctype in [CIRCUIT_TYPE_RP_SEEDER, CIRCUIT_TYPE_RP_DOWNLOADER]):
-                direction = FORWARD if circuit.ctype == CIRCUIT_TYPE_RP_SEEDER else BACKWARD
-                self.message = crypto.encrypt_str(self.message, circuit.hs_session_keys, direction)
-
-            for hop in reversed(circuit.hops):
-                if hop.session_keys is not None:
-                    self.message = crypto.encrypt_str(self.message, hop.session_keys, FORWARD)
-
-        elif relay_session_keys is not None:
-            self.message = crypto.encrypt_str(self.message, relay_session_keys, BACKWARD)
-
-        else:
-            raise CryptoException("Error encrypting message for unknown circuit %d" % self.circuit_id)
-
-    def decrypt(self, crypto: TunnelCrypto, circuit: Circuit | None = None,
-                relay_session_keys: SessionKeys | None = None) -> None:
-        """
-        Decrypt this cell and store the result in ``self.message``.
-
-        :raises CryptoException: if decryption failed.
-        """
-        if self.plaintext:
-            return
-
-        if circuit:
-            if not circuit.hops:
-                msg = f"Error decrypting message for 0-hop circuit {self.circuit_id}"
-                raise CryptoException(msg)
-
-            # Remove all the encryption layers
-            for layer, hop in enumerate(circuit.hops):
-                if hop.session_keys is None:
-                    msg = (f"Missing session keys for {hop} to remove encryption layer {layer} "
-                           f"for message: {self.message!r} received for circuit_id: {self.circuit_id}, "
-                           f"circuit_hops: {circuit.hops}")
-                    raise CryptoException(msg)
-                try:
-                    self.message = crypto.decrypt_str(self.message, hop.session_keys, BACKWARD)
-                except ValueError as e:
-                    msg = (f"Got exception {e!r} when trying to remove encryption layer {layer} "
-                           f"for message: {self.message!r} received for circuit_id: {self.circuit_id}, "
-                           f"circuit_hops: {circuit.hops}")
-                    raise CryptoException(msg) from e
-
-            if (circuit.hs_session_keys is not None
-                    and circuit.ctype in [CIRCUIT_TYPE_RP_SEEDER, CIRCUIT_TYPE_RP_DOWNLOADER]):
-                direction = FORWARD if circuit.ctype == CIRCUIT_TYPE_RP_DOWNLOADER else BACKWARD
-                self.message = crypto.decrypt_str(self.message, circuit.hs_session_keys, direction)
-
-        elif relay_session_keys:
-            try:
-                self.message = crypto.decrypt_str(self.message, relay_session_keys, FORWARD)
-            except ValueError as e:
-                msg = (f"Got exception {e!r} when trying to decrypt relay message: "
-                       f"cell received for circuit_id: {self.circuit_id}")
-                raise CryptoException(msg) from e
-
-        else:
-            msg = f"Error decrypting message for unknown circuit {self.circuit_id}"
-            raise CryptoException(msg)
 
     def unwrap(self, prefix: bytes) -> bytes:
         """

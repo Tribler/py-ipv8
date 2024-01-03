@@ -3,7 +3,6 @@ from __future__ import annotations
 from collections import deque
 from typing import TYPE_CHECKING, Any, cast
 
-from ...peer import Peer
 from .tunnel import CIRCUIT_STATE_READY, PEER_FLAG_EXIT_IPV8
 
 if TYPE_CHECKING:
@@ -63,13 +62,12 @@ class TunnelEndpoint:
                 return
 
             circuit_id = circuit.circuit_id
-            peer = cast(Peer, circuit.peer)
-            tunnel_community.send_data(peer, circuit_id, address, ('0.0.0.0', 0), packet)
+            tunnel_community.send_data(circuit.hop.address, circuit_id, address, ('0.0.0.0', 0), packet)
 
             # Any packets still need sending?
             while self.send_queue:
                 address, packet = self.send_queue.popleft()
-                tunnel_community.send_data(peer, circuit_id, address, ('0.0.0.0', 0), packet)
+                tunnel_community.send_data(circuit.hop.address, circuit_id, address, ('0.0.0.0', 0), packet)
 
     def notify_listeners(self, packet: tuple[Address, bytes], from_tunnel: bool = False) -> None:
         """

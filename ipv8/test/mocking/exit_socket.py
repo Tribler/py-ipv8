@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ...messaging.anonymization.tunnel import DataChecker, TunnelExitSocket
+from ...messaging.anonymization.exit_socket import DataChecker, TunnelExitSocket
 from ...messaging.interfaces.endpoint import EndpointListener
 from ..mocking.endpoint import AutoMockEndpoint
 
@@ -23,7 +23,7 @@ class MockTunnelExitSocket(TunnelExitSocket, EndpointListener):
         self.endpoint.open()
         self.parent = parent
 
-        TunnelExitSocket.__init__(self, parent.circuit_id, parent.peer, parent.overlay)
+        TunnelExitSocket.__init__(self, parent.circuit_id, parent.hop, parent.overlay)
         EndpointListener.__init__(self, self.endpoint, main_thread=False)
 
         self.endpoint.add_listener(self)

@@ -1,6 +1,6 @@
 from binascii import unhexlify
 
-from ....messaging.anonymization.tunnel import DataChecker
+from ....messaging.anonymization.exit_socket import DataChecker
 from ...base import TestBase
 
 tracker_pkt = unhexlify('00000417271019800000000012345678')
