@@ -3,14 +3,17 @@ from __future__ import annotations
 import logging
 import time
 import traceback
-from asyncio import CancelledError, Future, Task, ensure_future, gather, iscoroutinefunction, sleep
+from asyncio import CancelledError, Future, Task, ensure_future, gather, get_running_loop, iscoroutinefunction, sleep
 from contextlib import suppress
 from functools import wraps
 from threading import RLock
-from typing import Any, Callable, Coroutine, Hashable, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, Hashable, Sequence
 from weakref import WeakValueDictionary
 
 from .util import coroutine, succeed
+
+if TYPE_CHECKING:
+    from concurrent.futures import ThreadPoolExecutor
 
 MAX_TASK_AGE = 600
 
@@ -102,7 +105,7 @@ class TaskManager:
         """
         if not isinstance(task, Task) and not callable(task) and not isinstance(task, Future):
             msg = "Register_task takes a Task/(coroutine)function/Future as a parameter"
-            raise ValueError(msg)
+            raise TypeError(msg)
         if (interval or delay) and not callable(task):
             msg = "Cannot run non-callable at an interval or with a delay"
             raise ValueError(msg)
@@ -163,6 +166,20 @@ class TaskManager:
         """
         self._counter += 1
         return self.register_task(basename + ' ' + str(self._counter), task, *args, **kwargs)
+
+    def register_executor_task(self, name: str, func: Callable, *args: Any,  # noqa: ANN401
+                               executor: ThreadPoolExecutor | None = None, anon: bool = False, **kwargs) -> Future:
+        """
+        Run a synchronous function on the Asyncio threadpool. This function does not work with async functions.
+        """
+        if not callable(func) or iscoroutinefunction(func):
+            msg = "Expected a non-async function as a parameter"
+            raise TypeError(msg)
+
+        future = get_running_loop().run_in_executor(executor, func, *args, **kwargs)
+        if anon:
+            return self.register_anonymous_task(name, future)
+        return self.register_task(name, future)
 
     def cancel_pending_task(self, name: Hashable) -> Future:
         """

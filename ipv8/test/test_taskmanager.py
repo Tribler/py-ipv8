@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 from asyncio import AbstractEventLoop, CancelledError, Future, ensure_future, get_running_loop, sleep
 from contextlib import suppress
 from typing import Any
@@ -65,9 +66,9 @@ class TestTaskManager(TestBase):
 
     async def test_replace_with_error(self) -> None:
         """
-        Check that a task with faulty arguments raises a ValueError when replaced.
+        Check that a task with faulty arguments raises a TypeError when replaced.
         """
-        with self.assertRaises(ValueError):
+        with self.assertRaises(TypeError):
             await self.tm.replace_task("test", "bad argument", delay=10)
 
     def test_looping_call(self) -> None:
@@ -249,6 +250,34 @@ class TestTaskManager(TestBase):
 
         self.assertEqual(0, len(self.tm.get_tasks()))
         self.assertTrue(future.cancelled())
+
+    async def test_register_executor_task(self) -> None:
+        """
+        Check if registering an executor task works.
+        """
+        test = lambda: threading.current_thread().name
+
+        with self.assertRaises(TypeError):
+            _ = self.tm.register_executor_task("test", coroutine(test))
+
+        test_task = self.tm.register_executor_task("test", test)
+        self.assertEqual(1, len(self.tm.get_tasks()))
+        self.assertNotEqual((await test_task), threading.current_thread().name)
+
+    async def test_register_executor_task_anon(self) -> None:
+        """
+        Check if registering anonymous executor tasks work.
+        """
+        test = lambda: None
+
+        _ = self.tm.register_executor_task("test", test)
+        self.assertEqual(1, len(self.tm.get_tasks()))
+
+        with self.assertRaises(RuntimeError):
+            _ = self.tm.register_executor_task("test", test)
+
+        _ = self.tm.register_executor_task("test", test, anon=True)
+        self.assertEqual(2, len(self.tm.get_tasks()))
 
     def count(self) -> None:
         """
