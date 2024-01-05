@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from ipv8.types import Address, Endpoint
 
     from ...types import PublicKey
-    from .community import TunnelSettings
+    from .community import TunnelCommunity, TunnelSettings
     from .exit_socket import TunnelExitSocket
 
 
@@ -71,7 +71,7 @@ class CryptoEndpoint(metaclass=abc.ABCMeta):
         self.logger = logging.getLogger(self.__class__.__name__)
 
     @abc.abstractmethod
-    def setup_tunnels(self, prefix: bytes, listener: EndpointListener, settings: TunnelSettings) -> None:
+    def setup_tunnels(self, tunnel_community: TunnelCommunity, settings: TunnelSettings) -> None:
         """
         Set up the TunnelCommunity.
         """
@@ -94,21 +94,21 @@ class PythonCryptoEndpoint(CryptoEndpoint, EndpointListener):
         """
         EndpointListener.__init__(self, endpoint)
         CryptoEndpoint.__init__(self)
-        self.listener: EndpointListener | None = None
+        self.tunnel_community: TunnelCommunity | None = None
 
-    def setup_tunnels(self, prefix: bytes, listener: EndpointListener, settings: TunnelSettings) -> None:
+    def setup_tunnels(self, tunnel_community: TunnelCommunity, settings: TunnelSettings) -> None:
         """
         Set up the TunnelCommunity.
         """
-        self.prefix = prefix
+        self.prefix = tunnel_community.get_prefix()
         self.settings = settings
 
         # Packets will go through the CryptoEndpoint before they end up in the tunnel community.
-        self.endpoint.remove_listener(listener)
+        self.endpoint.remove_listener(tunnel_community)
         # Ensure multiple calls don't keep adding the same listener.
         self.endpoint.remove_listener(self)
         self.endpoint.add_prefix_listener(self, self.prefix)
-        self.listener = listener
+        self.tunnel_community = tunnel_community
 
     @property
     def max_relay_early(self) -> int:
@@ -124,8 +124,8 @@ class PythonCryptoEndpoint(CryptoEndpoint, EndpointListener):
         source_address, datagram = packet
         if datagram.startswith(self.prefix) and datagram[22] == CellPayload.msg_id:
             self.process_cell(source_address, datagram)
-        elif self.listener:
-            self.listener.on_packet(packet)
+        elif self.tunnel_community:
+            self.tunnel_community.on_packet(packet)
 
     def send_cell(self, target_addr: Address, cell: CellPayload) -> None:
         """
@@ -179,11 +179,11 @@ class PythonCryptoEndpoint(CryptoEndpoint, EndpointListener):
             self.logger.warning('Dropping cell (only create/created can have plaintext flag set)')
             return
 
-        if not self.listener:
+        if not self.tunnel_community:
             self.logger.error("Could not handle cell: no listener set")
             return
 
-        self.listener.on_packet((source_address, cell.to_bin(self.prefix)))
+        self.tunnel_community.on_packet((source_address, cell.to_bin(self.prefix)))
 
         circuit = self.circuits.get(cell.circuit_id)
         if circuit:

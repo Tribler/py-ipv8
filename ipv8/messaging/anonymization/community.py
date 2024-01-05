@@ -190,7 +190,7 @@ class TunnelCommunity(Community):
 
         self.crypto_endpoint = self.endpoint if isinstance(self.endpoint,
                                                            CryptoEndpoint) else PythonCryptoEndpoint(self.endpoint)
-        self.crypto_endpoint.setup_tunnels(self._prefix, self, self.settings)
+        self.crypto_endpoint.setup_tunnels(self, self.settings)
 
         self.circuits = self.crypto_endpoint.circuits
         self.relay_from_to = self.crypto_endpoint.relays
