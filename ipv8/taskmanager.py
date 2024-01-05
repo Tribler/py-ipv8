@@ -100,11 +100,11 @@ class TaskManager:
         """
         Register a Task/(coroutine)function so it can be canceled at shutdown time or by name.
         """
-        if not isinstance(task, Task) and not iscoroutinefunction(task) and not callable(task):
-            msg = "Register_task takes a Task or a (coroutine)function as a parameter"
+        if not isinstance(task, Task) and not callable(task) and not isinstance(task, Future):
+            msg = "Register_task takes a Task/(coroutine)function/Future as a parameter"
             raise ValueError(msg)
-        if (interval or delay) and isinstance(task, Task):
-            msg = "Cannot run Task at an interval or with a delay"
+        if (interval or delay) and not callable(task):
+            msg = "Cannot run non-callable at an interval or with a delay"
             raise ValueError(msg)
         if not isinstance(ignore, tuple) or not all(issubclass(e, Exception) for e in ignore):
             msg = "Ignore should be a tuple of Exceptions or an empty tuple"
@@ -121,7 +121,7 @@ class TaskManager:
             if self.is_pending_task_active(name):
                 raise RuntimeError("Task already exists: '%s'" % name)
 
-            if iscoroutinefunction(task) or callable(task):
+            if callable(task):
                 task = task if iscoroutinefunction(task) else coroutine(task)
                 if interval:
                     # The default delay for looping calls is the same as the interval
@@ -132,7 +132,7 @@ class TaskManager:
                 else:
                     task = ensure_future(task(*args))
             # Since weak references to list/tuple are not allowed, we're not storing start_time/interval
-            # in _pending_tasks. Instead we add them as attributes to the task.
+            # in _pending_tasks. Instead, we add them as attributes to the task.
             task.start_time = time.time()  # type: ignore[attr-defined]
             task.interval = interval  # type: ignore[attr-defined]
             # The set_name function is only available in Python 3.8+
@@ -142,7 +142,7 @@ class TaskManager:
             else:
                 task.name = task_name  # type: ignore[attr-defined]
 
-            assert isinstance(task, Task)
+            assert isinstance(task, (Task, Future))
 
             def done_cb(future: Future) -> None:
                 self._pending_tasks.pop(name, None)
