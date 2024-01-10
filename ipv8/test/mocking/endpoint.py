@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ipaddress
 import os
 import random
 from asyncio import get_running_loop
@@ -173,7 +174,10 @@ class AutoMockEndpoint(MockEndpoint):
         b7 = random.randint(0, 65535)
         port = random.randint(0, 65535)
 
-        return UDPv6Address(f"{b0:02x}:{b1:02x}:{b2:02x}:{b3:02x}:{b4:02x}:{b5:02x}:{b6:02x}:{b7:02x}", port)
+        exploded_ip = f"{b0:02x}:{b1:02x}:{b2:02x}:{b3:02x}:{b4:02x}:{b5:02x}:{b6:02x}:{b7:02x}"
+        # Our tests assume that the valid (exploded) ip is formatted using `ip_address`.
+        # You will get random failures if you fail to normalize (see https://github.com/Tribler/py-ipv8/issues/1243).
+        return UDPv6Address(str(ipaddress.ip_address(exploded_ip)), port)
 
     def _is_lan(self, address: Address) -> bool:
         """
