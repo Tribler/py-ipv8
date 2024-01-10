@@ -22,3 +22,8 @@ jobs:
           python-version: ${{ matrix.version }}
       - run: python -m pip install -r requirements.txt
       - run: python run_all_tests.py -a
+        env:
+          TEST_IPV8_WITH_IPV6: 0
+      - run: python run_all_tests.py -a
+        env:
+          TEST_IPV8_WITH_IPV6: 1
