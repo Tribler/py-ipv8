@@ -8,6 +8,7 @@ jobs:
   pr_commented:
     name: Validate PR
     if: ${{ github.event.issue.pull_request && startsWith(github.event.comment.body, 'validate') }}
+    needs: set_pending_status
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]  # macos-latest not tested due to crashing.
@@ -37,7 +38,8 @@ jobs:
         run: |
           {
             echo 'actual_pull_head<<EOF'
-            git ls-remote origin refs/pull/${{ github.event.issue.number }}/head | grep -o "^\w*\b"
+            git ls-remote https://github.com/Tribler/py-ipv8/ refs/pull/${{ github.event.issue.number }}/head | grep -o "^\w*\b"
+            echo
             echo EOF
           } >> "$GITHUB_ENV"
       - name: Set commit pending status
@@ -48,6 +50,7 @@ jobs:
           description: 'Pending..'
           state: 'pending'
           sha: ${{ env.actual_pull_head }}
+          target_url: https://github.com/Tribler/py-ipv8/actions/runs/${{ github.run_id }}
 
   set_failure_status:
     if: ${{failure() && github.event.issue.pull_request && startsWith(github.event.comment.body, 'validate') }}
@@ -62,6 +65,7 @@ jobs:
           description: 'Failed!'
           state: 'failure'
           sha: ${{ env.actual_pull_head }}
+          target_url: https://github.com/Tribler/py-ipv8/actions/runs/${{ github.run_id }}
 
   set_success_status:
     if: ${{!failure() && github.event.issue.pull_request && startsWith(github.event.comment.body, 'validate') }}
@@ -76,3 +80,4 @@ jobs:
           description: 'Success!'
           state: 'success'
           sha: ${{ env.actual_pull_head }}
+          target_url: https://github.com/Tribler/py-ipv8/actions/runs/${{ github.run_id }}
