@@ -27,3 +27,52 @@ jobs:
       - run: python run_all_tests.py -a
         env:
           TEST_IPV8_WITH_IPV6: 1
+
+  set_pending_status:
+    if: ${{github.event.issue.pull_request && startsWith(github.event.comment.body, 'validate') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Retrieving commit
+        shell: bash
+        run: |
+          {
+            echo 'actual_pull_head<<EOF'
+            git ls-remote origin refs/pull/${{ github.event.issue.number }}/head | grep -o "^\w*\b"
+            echo EOF
+          } >> "$GITHUB_ENV"
+      - name: Set commit pending status
+        uses: guibranco/github-status-action-v2@v1.1.7
+        with:
+          authToken: ${{secrets.GITHUB_TOKEN}}
+          context: 'Cross-env Validation'
+          description: 'Pending..'
+          state: 'pending'
+          sha: ${{ env.actual_pull_head }}
+
+  set_failure_status:
+    if: ${{failure() && github.event.issue.pull_request && startsWith(github.event.comment.body, 'validate') }}
+    needs: [set_pending_status, pr_commented]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set commit failed status
+        uses: guibranco/github-status-action-v2@v1.1.7
+        with:
+          authToken: ${{secrets.GITHUB_TOKEN}}
+          context: 'Cross-env Validation'
+          description: 'Failed!'
+          state: 'failure'
+          sha: ${{ env.actual_pull_head }}
+
+  set_success_status:
+    if: ${{!failure() && github.event.issue.pull_request && startsWith(github.event.comment.body, 'validate') }}
+    needs: [set_pending_status, pr_commented]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set commit success status
+        uses: guibranco/github-status-action-v2@v1.1.7
+        with:
+          authToken: ${{secrets.GITHUB_TOKEN}}
+          context: 'Cross-env Validation'
+          description: 'Success!'
+          state: 'success'
+          sha: ${{ env.actual_pull_head }}
