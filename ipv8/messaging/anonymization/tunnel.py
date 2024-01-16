@@ -3,7 +3,7 @@ from __future__ import annotations
 import contextlib
 import logging
 import time
-from asyncio import CancelledError, Future, gather
+from asyncio import Future, gather
 from binascii import hexlify
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Callable, Sequence, cast
@@ -427,9 +427,9 @@ class Swarm:
             results = []
             tasks = [self.lookup_func(self.info_hash, ip, self.hops) for ip in self.intro_points]
             if tasks:
-                results = [result for result in (await gather(*tasks, return_exceptions=True))
-                           if not isinstance(result, (CancelledError, Exception))]
-                results = sum(results, [])
+                for result in (await gather(*tasks, return_exceptions=True)):
+                    if not isinstance(result, (BaseException, Exception)):
+                        results.extend(result)
             return on_success(results)
         self.logger.info("Skipping lookup for swarm %s", hexlify(self.info_hash))
         return None

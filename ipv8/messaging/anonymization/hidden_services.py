@@ -10,7 +10,7 @@ import os
 import random
 import socket
 import struct
-from asyncio import CancelledError, gather, iscoroutine
+from asyncio import gather, iscoroutine
 from typing import TYPE_CHECKING, Any, Coroutine, Set, Tuple, cast
 
 from ...bootstrapping.dispersy.bootstrapper import DispersyBootstrapper
@@ -171,7 +171,9 @@ class HiddenTunnelCommunity(TunnelCommunity):
             responses = await gather(*[swarm.lookup(ip) for ip in ips], return_exceptions=True)
 
             # Collect responses
-            all_ += [result for result in responses if not isinstance(result, (CancelledError, Exception))]
+            for result in responses:
+                if result and not isinstance(result, (BaseException, Exception)):
+                    all_.extend(result)
             tried |= set(ips)
 
         return len({ip.seeder_pk for ip in all_ if ip is not None and ip.source == PEER_SOURCE_PEX})
