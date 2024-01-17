@@ -636,12 +636,13 @@ class DHTCommunity(Community):
         for routing_table in self.routing_tables.values():
             crawl = Crawl(target, routing_table, force_nodes=force_nodes, offset=offset)
             futures.append(self._find(crawl, debug=debug))
-        results: list[list[Node]] | \
-                 list[list[DHTValue]] | \
-                 list[tuple[list[DHTValue], Crawl]] = await gather(*futures)
+        results: list[list[Any] |
+                      list[DHTValue] |
+                      tuple[list[DHTValue], Crawl]] = await gather(*futures)
+
         if debug:
-            results = cast(List[Tuple[List[Tuple[bytes, Optional[bytes]]], Crawl]], results)
-            return tuple(*[r[0] for r in results]), [r[1] for r in results]
+            results_debug = cast(List[Tuple[List[DHTValue], Crawl]], results)
+            return tuple(*[r[0] for r in results]), [r[1] for r in results_debug]
         return tuple(*results)
 
     async def find_values(self, target: bytes, offset: int = 0,
