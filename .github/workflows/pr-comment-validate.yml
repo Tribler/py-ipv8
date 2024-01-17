@@ -32,6 +32,8 @@ jobs:
   set_pending_status:
     if: ${{github.event.issue.pull_request && startsWith(github.event.comment.body, 'validate') }}
     runs-on: ubuntu-latest
+    outputs:
+      actual_pull_head: ${{ steps.sha_share_step.outputs.actual_pull_head }}
     steps:
       - name: Retrieving commit
         shell: bash
@@ -42,6 +44,9 @@ jobs:
             echo
             echo EOF
           } >> "$GITHUB_ENV"
+      - name: Sharing commit SHA between jobs
+        id: sha_share_step
+        run: echo "actual_pull_head=${{ env.actual_pull_head }}" >> "$GITHUB_OUTPUT"
       - name: Set commit pending status
         uses: guibranco/github-status-action-v2@v1.1.7
         with:
@@ -58,6 +63,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Set commit failed status
+        env:
+          actual_pull_head: ${{needs.set_pending_status.outputs.actual_pull_head}}
         uses: guibranco/github-status-action-v2@v1.1.7
         with:
           authToken: ${{secrets.GITHUB_TOKEN}}
@@ -73,6 +80,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Set commit success status
+        env:
+          actual_pull_head: ${{needs.set_pending_status.outputs.actual_pull_head}}
         uses: guibranco/github-status-action-v2@v1.1.7
         with:
           authToken: ${{secrets.GITHUB_TOKEN}}
