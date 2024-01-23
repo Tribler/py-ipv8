@@ -28,7 +28,8 @@ def generate_safe_prime(bit_length: int, backend: Backend = default_backend()) -
     out = int(backend._ffi.string(generated_hex), 16)
     # Cleanup the memory
     backend._lib.OPENSSL_free(generated_hex)
-    backend._lib.BN_clear_free(generated)
+    backend._lib.BN_set_word(generated, 0)
+    backend._lib.BN_free(generated)
     return out
 
 
@@ -59,5 +60,6 @@ def is_prime(number: int, backend: Backend = default_backend()) -> bool:  # noqa
         raise RuntimeError(msg)
     result = backend._lib.BN_is_prime_ex(generated, backend._lib.BN_prime_checks_for_size(int(len(bhex_n) * 8)),
                                          backend._ffi.NULL, backend._ffi.NULL)
-    backend._lib.BN_clear_free(generated)
+    backend._lib.BN_set_word(generated, 0)
+    backend._lib.BN_free(generated)
     return result == 1
