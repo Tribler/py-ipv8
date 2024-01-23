@@ -790,12 +790,12 @@ class TunnelCommunity(Community):
 
             self.logger.info("Got CREATED message forward as EXTENDED to origin.")
 
-            exit_socket = self.exit_sockets.pop(request.from_circuit_id, None)
-            if exit_socket is None:
+            if request.from_circuit_id not in self.exit_sockets:
                 self.logger.info("Created for unknown exit socket %s", request.from_circuit_id)
                 return
+            session_keys = self.exit_sockets[request.from_circuit_id].hop.keys
+            self.remove_exit_socket(request.from_circuit_id, remove_now=True)
 
-            session_keys = exit_socket.hop.keys
             bw_relay = RelayRoute(request.from_circuit_id, Hop(request.peer, session_keys), BACKWARD)
             fw_relay = RelayRoute(request.to_circuit_id, Hop(request.to_peer, session_keys), FORWARD)
 
