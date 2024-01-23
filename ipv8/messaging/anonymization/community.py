@@ -21,6 +21,8 @@ from ...peer import Peer
 from ...requestcache import RequestCache
 from ...taskmanager import task
 from ...types import Address
+from ..interfaces.dispatcher.endpoint import DispatcherEndpoint
+from ..interfaces.endpoint import Endpoint
 from .caches import *
 from .crypto import CryptoEndpoint, PythonCryptoEndpoint, TunnelCrypto
 from .endpoint import TunnelEndpoint
@@ -188,7 +190,14 @@ class TunnelCommunity(Community):
         self.crypto: TunnelCrypto = TunnelCrypto()
         self.crypto.initialize(cast(LibNaCLSK, self.my_peer.key))
 
-        self.crypto_endpoint = self.endpoint if isinstance(self.endpoint,
+        # For now, the TunnelCommunity only supports IPv4 for control messages.
+        # Data packets can still be sent to IPv6 destinations.
+        if isinstance(self.endpoint, DispatcherEndpoint):
+            ipv4_endpoint = cast(Endpoint, self.endpoint.interfaces["UDPIPv4"])
+        else:
+            ipv4_endpoint = self.endpoint
+
+        self.crypto_endpoint = ipv4_endpoint if isinstance(ipv4_endpoint,
                                                            CryptoEndpoint) else PythonCryptoEndpoint(self.endpoint)
         self.crypto_endpoint.setup_tunnels(self, self.settings)
 
