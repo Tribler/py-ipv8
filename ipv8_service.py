@@ -136,8 +136,9 @@ else:
             for overlay in configuration['overlays']:
                 overlay_class = _COMMUNITIES.get(overlay['class'], (extra_communities or {}).get(overlay['class']))
                 my_peer = self.keys[overlay['key']]
-                settings = overlay_class.settings_class(my_peer=my_peer, endpoint=self.endpoint, network=self.network,
-                                                        **overlay['initialize'])
+                settings = overlay_class.settings_class(my_peer=my_peer, endpoint=self.endpoint, network=self.network)
+                for k, v in overlay['initialize'].items():
+                    setattr(settings, k, v)
                 overlay_instance = overlay_class(settings)
                 self.overlays.append(overlay_instance)
                 for walker in overlay['walkers']:
