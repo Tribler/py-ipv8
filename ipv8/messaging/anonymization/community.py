@@ -103,7 +103,7 @@ class TunnelSettings(CommunitySettings):
     # to flow over the circuit (i.e. bandwidth payouts to intermediate nodes in a circuit).
     remove_tunnel_delay = 5
 
-    _peer_flags: Set[int]
+    _peer_flags: Set[int] = {PEER_FLAG_RELAY, PEER_FLAG_SPEED_TEST}
 
     _max_relay_early = 8
 
@@ -122,7 +122,7 @@ class TunnelSettings(CommunitySettings):
         Set the maximum number of relay_early cells that are allowed to pass a relay.
         """
         self._max_relay_early = value
-        if hasattr(self.endpoint, 'set_max_relay_early'):
+        if hasattr(self, 'endpoint') and hasattr(self.endpoint, 'set_max_relay_early'):
             self.endpoint.set_max_relay_early(value)
 
     @property
@@ -138,7 +138,7 @@ class TunnelSettings(CommunitySettings):
         Set the peer flags.
         """
         self._peer_flags = value
-        if hasattr(self.endpoint, 'set_peer_flags'):
+        if hasattr(self, 'endpoint') and hasattr(self.endpoint, 'set_peer_flags'):
             self.endpoint.set_peer_flags(value)
 
 
@@ -155,7 +155,6 @@ class TunnelCommunity(Community):
         """
         Create a new TunnelCommunity.
         """
-        settings.peer_flags = {PEER_FLAG_RELAY, PEER_FLAG_SPEED_TEST}
         self.settings = settings
         self.dht_provider = settings.dht_provider
 

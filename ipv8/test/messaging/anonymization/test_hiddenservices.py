@@ -12,6 +12,7 @@ from ....messaging.anonymization.tunnel import (
     CIRCUIT_TYPE_DATA,
     CIRCUIT_TYPE_IP_SEEDER,
     PEER_FLAG_EXIT_BT,
+    PEER_FLAG_RELAY,
     PEER_FLAG_SPEED_TEST,
     PEER_SOURCE_DHT,
     IntroductionPoint,
@@ -106,6 +107,8 @@ class TestHiddenServices(TestBase[HiddenTunnelCommunity]):
         tunnel_settings.min_circuits = 0
         tunnel_settings.max_circuits = 0
         tunnel_settings.remove_tunnel_delay = 0
+        # For some reason the exit flag set gets remembered across tests, so create a new set here
+        tunnel_settings.peer_flags = {PEER_FLAG_RELAY, PEER_FLAG_SPEED_TEST}
         ipv8 = MockIPv8("curve25519", HiddenTunnelCommunity, settings=tunnel_settings)
         ipv8.overlay.ipv8 = ipv8
         ipv8.overlay.crypto_endpoint.setup_tunnels(ipv8.overlay, tunnel_settings)
