@@ -72,10 +72,10 @@ class ExitnodeIPv8Service:
 
         for overlay in configuration['overlays']:
             if overlay['class'] == 'HiddenTunnelCommunity':
-                overlay['initialize']['settings']['min_circuits'] = 0
-                overlay['initialize']['settings']['max_circuits'] = 0
-                overlay['initialize']['settings']['max_joined_circuits'] = 1000
-                overlay['initialize']['settings']['peer_flags'] = {PEER_FLAG_EXIT_IPV8}
+                overlay['initialize']['min_circuits'] = 0
+                overlay['initialize']['max_circuits'] = 0
+                overlay['initialize']['max_joined_circuits'] = 1000
+                overlay['initialize']['peer_flags'] = {PEER_FLAG_EXIT_IPV8}
 
         try:
             from ipv8_rust_tunnels.endpoint import RustEndpoint as UDPEndpoint
