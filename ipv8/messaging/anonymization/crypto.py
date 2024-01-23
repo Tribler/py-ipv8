@@ -199,7 +199,6 @@ class PythonCryptoEndpoint(CryptoEndpoint, EndpointListener):
             return
 
         next_relay = self.relays[cell.circuit_id]
-        this_relay = self.relays[next_relay.circuit_id]
 
         if cell.relay_early and next_relay.relay_early_count >= self.max_relay_early:
             self.logger.warning('Dropping cell (too many relay_early cells)')
@@ -208,6 +207,7 @@ class PythonCryptoEndpoint(CryptoEndpoint, EndpointListener):
         try:
             if next_relay.rendezvous_relay:
                 self.decrypt_cell(cell, FORWARD, next_relay.hop)
+                this_relay = self.relays[next_relay.circuit_id]
                 self.encrypt_cell(cell, BACKWARD, this_relay.hop)
                 cell.relay_early = False
             else:
