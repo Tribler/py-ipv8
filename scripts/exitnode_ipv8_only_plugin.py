@@ -35,6 +35,7 @@ except ImportError:
 
 from ipv8.configuration import get_default_configuration
 from ipv8.messaging.anonymization.tunnel import PEER_FLAG_EXIT_IPV8
+from ipv8.messaging.interfaces.dispatcher.endpoint import INTERFACES
 from ipv8.REST.rest_manager import RESTManager
 from ipv8.util import run_forever
 from ipv8_service import IPv8
@@ -71,10 +72,17 @@ class ExitnodeIPv8Service:
 
         for overlay in configuration['overlays']:
             if overlay['class'] == 'HiddenTunnelCommunity':
-                overlay['initialize']['settings']['min_circuits'] = 0
-                overlay['initialize']['settings']['max_circuits'] = 0
-                overlay['initialize']['settings']['max_joined_circuits'] = 1000
-                overlay['initialize']['settings']['peer_flags'] = {PEER_FLAG_EXIT_IPV8}
+                overlay['initialize']['min_circuits'] = 0
+                overlay['initialize']['max_circuits'] = 0
+                overlay['initialize']['max_joined_circuits'] = 1000
+                overlay['initialize']['peer_flags'] = {PEER_FLAG_EXIT_IPV8}
+
+        try:
+            from ipv8_rust_tunnels.endpoint import RustEndpoint as UDPEndpoint
+        except ImportError:
+            from ipv8.messaging.interfaces.udp.endpoint import UDPEndpoint
+
+        INTERFACES["UDPIPv4"] = UDPEndpoint
 
         print("Starting IPv8")  # noqa: T201
 

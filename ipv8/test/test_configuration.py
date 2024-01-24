@@ -385,7 +385,7 @@ class TestConfiguration(TestBase):
                                                   [WalkerDefinition(Strategy.RandomWalk, 20, {'timeout': 3.0})],
                                                   [BootstrapperDefinition(Bootstrapper.DispersyBootstrapper,
                                                                           DISPERSY_BOOTSTRAPPER['init'])],
-                                                  {'settings': {
+                                                  {
                                                       'min_circuits': 1,
                                                       'max_circuits': 1,
                                                       'max_joined_circuits': 100,
@@ -393,7 +393,7 @@ class TestConfiguration(TestBase):
                                                       'max_time_inactive': 20,
                                                       'max_traffic': 250 * 1024 * 1024,
                                                       'dht_lookup_interval': 30
-                                                  }},
+                                                  },
                                                   [('build_tunnels', 1)]) \
                                      .add_overlay("DHTDiscoveryCommunity",
                                                   "anonymous id",

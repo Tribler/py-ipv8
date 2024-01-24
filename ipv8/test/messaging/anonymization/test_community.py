@@ -11,6 +11,7 @@ from ....messaging.anonymization.tunnel import (
     CIRCUIT_STATE_EXTENDING,
     PEER_FLAG_EXIT_BT,
     PEER_FLAG_EXIT_IPV8,
+    PEER_FLAG_RELAY,
     PEER_FLAG_SPEED_TEST,
 )
 from ....messaging.interfaces.udp.endpoint import DomainAddress, UDPEndpoint
@@ -74,6 +75,8 @@ class TestTunnelCommunity(TestBase[TunnelCommunity]):
         tunnel_settings.min_circuits = 0
         tunnel_settings.max_circuits = 0
         tunnel_settings.remove_tunnel_delay = 0
+        # For some reason the exit flag set gets remembered across tests, so create a new set here
+        tunnel_settings.peer_flags = {PEER_FLAG_RELAY, PEER_FLAG_SPEED_TEST}
         ipv8 = MockIPv8("curve25519", TunnelCommunity, settings=tunnel_settings)
         # Then kill all automated circuit creation
         ipv8.overlay.cancel_all_pending_tasks()

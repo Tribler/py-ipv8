@@ -110,15 +110,13 @@ default: dict[Any, Any] = {
             ],
             'bootstrappers': [DISPERSY_BOOTSTRAPPER.copy()],
             'initialize': {
-                'settings': {
-                    'min_circuits': 1,
-                    'max_circuits': 1,
-                    'max_joined_circuits': 100,
-                    'max_time': 10 * 60,
-                    'max_time_inactive': 20,
-                    'max_traffic': 250 * 1024 * 1024,
-                    'dht_lookup_interval': 30
-                }
+                'min_circuits': 1,
+                'max_circuits': 1,
+                'max_joined_circuits': 100,
+                'max_time': 10 * 60,
+                'max_time_inactive': 20,
+                'max_traffic': 250 * 1024 * 1024,
+                'dht_lookup_interval': 30
             },
             'on_start': [
                 ('build_tunnels', 1)

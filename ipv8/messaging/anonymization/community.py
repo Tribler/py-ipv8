@@ -21,6 +21,8 @@ from ...peer import Peer
 from ...requestcache import RequestCache
 from ...taskmanager import task
 from ...types import Address
+from ..interfaces.dispatcher.endpoint import DispatcherEndpoint
+from ..interfaces.endpoint import Endpoint
 from .caches import *
 from .crypto import CryptoEndpoint, PythonCryptoEndpoint, TunnelCrypto
 from .endpoint import TunnelEndpoint
@@ -101,7 +103,7 @@ class TunnelSettings(CommunitySettings):
     # to flow over the circuit (i.e. bandwidth payouts to intermediate nodes in a circuit).
     remove_tunnel_delay = 5
 
-    _peer_flags: Set[int]
+    _peer_flags: Set[int] = {PEER_FLAG_RELAY, PEER_FLAG_SPEED_TEST}
 
     _max_relay_early = 8
 
@@ -120,7 +122,7 @@ class TunnelSettings(CommunitySettings):
         Set the maximum number of relay_early cells that are allowed to pass a relay.
         """
         self._max_relay_early = value
-        if hasattr(self.endpoint, 'set_max_relay_early'):
+        if hasattr(self, 'endpoint') and hasattr(self.endpoint, 'set_max_relay_early'):
             self.endpoint.set_max_relay_early(value)
 
     @property
@@ -136,7 +138,7 @@ class TunnelSettings(CommunitySettings):
         Set the peer flags.
         """
         self._peer_flags = value
-        if hasattr(self.endpoint, 'set_peer_flags'):
+        if hasattr(self, 'endpoint') and hasattr(self.endpoint, 'set_peer_flags'):
             self.endpoint.set_peer_flags(value)
 
 
@@ -153,7 +155,6 @@ class TunnelCommunity(Community):
         """
         Create a new TunnelCommunity.
         """
-        settings.peer_flags = {PEER_FLAG_RELAY, PEER_FLAG_SPEED_TEST}
         self.settings = settings
         self.dht_provider = settings.dht_provider
 
@@ -188,7 +189,14 @@ class TunnelCommunity(Community):
         self.crypto: TunnelCrypto = TunnelCrypto()
         self.crypto.initialize(cast(LibNaCLSK, self.my_peer.key))
 
-        self.crypto_endpoint = self.endpoint if isinstance(self.endpoint,
+        # For now, the TunnelCommunity only supports IPv4 for control messages.
+        # Data packets can still be sent to IPv6 destinations.
+        if isinstance(self.endpoint, DispatcherEndpoint):
+            ipv4_endpoint = cast(Endpoint, self.endpoint.interfaces["UDPIPv4"])
+        else:
+            ipv4_endpoint = self.endpoint
+
+        self.crypto_endpoint = ipv4_endpoint if isinstance(ipv4_endpoint,
                                                            CryptoEndpoint) else PythonCryptoEndpoint(self.endpoint)
         self.crypto_endpoint.setup_tunnels(self, self.settings)
 
@@ -781,12 +789,12 @@ class TunnelCommunity(Community):
 
             self.logger.info("Got CREATED message forward as EXTENDED to origin.")
 
-            exit_socket = self.exit_sockets.pop(request.from_circuit_id, None)
-            if exit_socket is None:
+            if request.from_circuit_id not in self.exit_sockets:
                 self.logger.info("Created for unknown exit socket %s", request.from_circuit_id)
                 return
+            session_keys = self.exit_sockets[request.from_circuit_id].hop.keys
+            self.remove_exit_socket(request.from_circuit_id, remove_now=True)
 
-            session_keys = exit_socket.hop.keys
             bw_relay = RelayRoute(request.from_circuit_id, Hop(request.peer, session_keys), BACKWARD)
             fw_relay = RelayRoute(request.to_circuit_id, Hop(request.to_peer, session_keys), FORWARD)
 
