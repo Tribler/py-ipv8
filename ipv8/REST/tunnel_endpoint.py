@@ -93,8 +93,18 @@ class TunnelEndpoint(BaseEndpoint[IPv8]):
             return Response({"settings": {}})
         self.tunnels = cast(TunnelCommunity, self.tunnels)
 
-        return Response({'settings': {k: list(v) if isinstance(v, set) else v
-                                      for k, v in self.tunnels.settings.__dict__.items() if k != 'crypto'}})
+        settings: dict[str, str | int | list] = {}
+        for name in dir(self.tunnels.settings):
+            if name.startswith('__'):
+                continue
+            key = name.lstrip('_')
+            value = getattr(self.tunnels.settings, name)
+            if isinstance(value, (str, int)):
+                settings[key] = value
+            elif isinstance(value, (set, list, tuple)):
+                settings[key] = list(value)
+
+        return Response({'settings': settings})
 
     @docs(
         tags=["Tunnels"],
