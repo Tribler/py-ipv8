@@ -165,9 +165,9 @@ class TunnelEndpoint(BaseEndpoint[IPv8]):
         }
     )
     @json_schema(schema(SpeedTestExistingCircuitRequest={
-        'request_size*': (Integer, 'Size of the requests to send (0..1500)'),
-        'response_size*': (Integer, 'Size of the responses to send (0..1500)'),
-        'num_packets*': (Integer, 'Number of packets to send'),
+        'request_size*': (Integer, 'Size of the requests to send (0..2000)'),
+        'response_size*': (Integer, 'Size of the responses to send (0..2000)'),
+        'num_requests*': (Integer, 'Number of packets to send'),
     }))
     async def speed_test_existing_circuit(self, request: Request) -> Response:
         """
@@ -192,23 +192,15 @@ class TunnelEndpoint(BaseEndpoint[IPv8]):
         tags=["Tunnels"],
         summary="Test the upload or download speed of a newly created circuit. "
                 "The circuit is destroyed after the test has completed.",
-        parameters=[{
-            'in': 'query',
-            'name': 'direction',
-            'description': 'The direction for which to test the speed.',
-            'type': 'string',
-            'enum': ['upload', 'download'],
-            'default': 'download'
-        }],
         responses={
             200: {"schema": SpeedTestResponseSchema}
         }
     )
     @json_schema(schema(SpeedTestNewCircuitRequest={
         'goals_hops': (Integer, 'Number of hops that the newly created circuit should have'),
-        'request_size*': (Integer, 'Size of the requests to send (0..1500)'),
-        'response_size*': (Integer, 'Size of the responses to send (0..1500)'),
-        'num_packets*': (Integer, 'Number of packets to send'),
+        'request_size*': (Integer, 'Size of the requests to send (0..2000)'),
+        'response_size*': (Integer, 'Size of the responses to send (0..2000)'),
+        'num_requests*': (Integer, 'Number of packets to send'),
     }))
     async def speed_test_new_circuit(self, request: Request) -> Response:
         """
