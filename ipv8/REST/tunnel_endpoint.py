@@ -18,6 +18,7 @@ from ..messaging.anonymization.community import (
     TunnelCommunity,
 )
 from ..messaging.anonymization.hidden_services import HiddenTunnelCommunity
+from ..messaging.anonymization.tunnel import FORWARD
 from ..messaging.anonymization.utils import run_speed_test
 from ..messaging.serialization import PackError
 from ..peer import Peer
@@ -257,6 +258,7 @@ class TunnelEndpoint(BaseEndpoint[IPv8]):
                         "circuit_from": Integer,
                         "circuit_to": Integer,
                         "is_rendezvous": Boolean,
+                        "direction": String,
                         "bytes_up": Integer,
                         "bytes_down": Integer,
                         "creation_time": Integer
@@ -277,6 +279,7 @@ class TunnelEndpoint(BaseEndpoint[IPv8]):
             "circuit_from": circuit_from,
             "circuit_to": relay.circuit_id,
             "is_rendezvous": relay.rendezvous_relay,
+            "direction": "forward" if relay.direction == FORWARD else "backward",
             "bytes_up": relay.bytes_up,
             "bytes_down": relay.bytes_down,
             "creation_time": relay.creation_time
