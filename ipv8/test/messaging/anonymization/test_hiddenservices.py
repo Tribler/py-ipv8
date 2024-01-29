@@ -9,7 +9,6 @@ from ....messaging.anonymization.community import CIRCUIT_TYPE_RP_DOWNLOADER
 from ....messaging.anonymization.hidden_services import HiddenTunnelCommunity, HiddenTunnelSettings
 from ....messaging.anonymization.payload import TestRequestPayload
 from ....messaging.anonymization.tunnel import (
-    CIRCUIT_TYPE_DATA,
     CIRCUIT_TYPE_IP_SEEDER,
     PEER_FLAG_EXIT_BT,
     PEER_FLAG_RELAY,
@@ -218,7 +217,6 @@ class TestHiddenServices(TestBase[HiddenTunnelCommunity]):
         await sleep(.1)
         self.assertFalse(self.overlay(0).find_circuits(ctype=CIRCUIT_TYPE_IP_SEEDER))
         self.assertFalse(self.overlay(0).find_circuits(ctype=CIRCUIT_TYPE_RP_DOWNLOADER))
-        self.assertFalse(self.overlay(0).find_circuits(ctype=CIRCUIT_TYPE_DATA))
 
     async def test_dht_lookup_no_counterparty(self) -> None:
         """

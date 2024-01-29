@@ -260,7 +260,7 @@ class TunnelCommunity(Community):
             self.logger.info("Want %d data circuits of length %d", num_to_build, circuit_length)
             for _ in range(num_to_build):
                 if not self.create_circuit(circuit_length):
-                    self.logger.info("circuit creation of %d circuits failed, no need to continue", num_to_build)
+                    self.logger.info("Circuit creation of %d circuits failed, no need to continue", num_to_build)
                     break
         self.do_remove()
 
@@ -271,8 +271,7 @@ class TunnelCommunity(Community):
         The number of circuits created for this hop count is dictated by the ``max_circuits`` setting.
         """
         if hops > 0:
-            self.circuits_needed[hops] = max(self.settings.max_circuits,
-                                             min(self.settings.max_circuits, self.circuits_needed.get(hops, 0) + 1))
+            self.circuits_needed[hops] = self.settings.max_circuits
             self.do_circuits()
 
     def tunnels_ready(self, hops: int) -> float:
