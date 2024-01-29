@@ -18,6 +18,7 @@ from ..messaging.anonymization.community import (
     TunnelCommunity,
 )
 from ..messaging.anonymization.hidden_services import HiddenTunnelCommunity
+from ..messaging.anonymization.tunnel import FORWARD
 from ..messaging.anonymization.utils import run_speed_test
 from ..messaging.serialization import PackError
 from ..peer import Peer
@@ -93,8 +94,18 @@ class TunnelEndpoint(BaseEndpoint[IPv8]):
             return Response({"settings": {}})
         self.tunnels = cast(TunnelCommunity, self.tunnels)
 
-        return Response({'settings': {k: list(v) if isinstance(v, set) else v
-                                      for k, v in self.tunnels.settings.__dict__.items() if k != 'crypto'}})
+        settings: dict[str, str | int | list] = {}
+        for name in dir(self.tunnels.settings):
+            if name.startswith('__'):
+                continue
+            key = name.lstrip('_')
+            value = getattr(self.tunnels.settings, name)
+            if isinstance(value, (str, int)):
+                settings[key] = value
+            elif isinstance(value, (set, list, tuple)):
+                settings[key] = list(value)
+
+        return Response({'settings': settings})
 
     @docs(
         tags=["Tunnels"],
@@ -154,9 +165,9 @@ class TunnelEndpoint(BaseEndpoint[IPv8]):
         }
     )
     @json_schema(schema(SpeedTestExistingCircuitRequest={
-        'request_size*': (Integer, 'Size of the requests to send (0..1500)'),
-        'response_size*': (Integer, 'Size of the responses to send (0..1500)'),
-        'num_packets*': (Integer, 'Number of packets to send'),
+        'request_size*': (Integer, 'Size of the requests to send (0..2000)'),
+        'response_size*': (Integer, 'Size of the responses to send (0..2000)'),
+        'num_requests*': (Integer, 'Number of packets to send'),
     }))
     async def speed_test_existing_circuit(self, request: Request) -> Response:
         """
@@ -181,23 +192,15 @@ class TunnelEndpoint(BaseEndpoint[IPv8]):
         tags=["Tunnels"],
         summary="Test the upload or download speed of a newly created circuit. "
                 "The circuit is destroyed after the test has completed.",
-        parameters=[{
-            'in': 'query',
-            'name': 'direction',
-            'description': 'The direction for which to test the speed.',
-            'type': 'string',
-            'enum': ['upload', 'download'],
-            'default': 'download'
-        }],
         responses={
             200: {"schema": SpeedTestResponseSchema}
         }
     )
     @json_schema(schema(SpeedTestNewCircuitRequest={
         'goals_hops': (Integer, 'Number of hops that the newly created circuit should have'),
-        'request_size*': (Integer, 'Size of the requests to send (0..1500)'),
-        'response_size*': (Integer, 'Size of the responses to send (0..1500)'),
-        'num_packets*': (Integer, 'Number of packets to send'),
+        'request_size*': (Integer, 'Size of the requests to send (0..2000)'),
+        'response_size*': (Integer, 'Size of the responses to send (0..2000)'),
+        'num_requests*': (Integer, 'Number of packets to send'),
     }))
     async def speed_test_new_circuit(self, request: Request) -> Response:
         """
@@ -247,6 +250,7 @@ class TunnelEndpoint(BaseEndpoint[IPv8]):
                         "circuit_from": Integer,
                         "circuit_to": Integer,
                         "is_rendezvous": Boolean,
+                        "direction": String,
                         "bytes_up": Integer,
                         "bytes_down": Integer,
                         "creation_time": Integer
@@ -267,6 +271,7 @@ class TunnelEndpoint(BaseEndpoint[IPv8]):
             "circuit_from": circuit_from,
             "circuit_to": relay.circuit_id,
             "is_rendezvous": relay.rendezvous_relay,
+            "direction": "forward" if relay.direction == FORWARD else "backward",
             "bytes_up": relay.bytes_up,
             "bytes_down": relay.bytes_down,
             "creation_time": relay.creation_time
