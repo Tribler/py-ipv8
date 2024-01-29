@@ -139,12 +139,8 @@ class HiddenTunnelCommunity(TunnelCommunity):
                                                                     CIRCUIT_TYPE_RP_DOWNLOADER]:
                 _ = self.remove_circuit(circuit.circuit_id, 'leaving hidden swarm', destroy=DESTROY_REASON_UNNEEDED)
         # Remove swarm and callback
-        swarm = self.swarms.pop(info_hash, None)
+        self.swarms.pop(info_hash, None)
         self.e2e_callbacks.pop(info_hash, None)
-        # If there are no other swarms with the same hop count, remove the data circuits
-        if swarm and not [s for s in self.swarms.values() if s != swarm and s.hops == swarm.hops]:
-            for circuit in self.find_circuits(hops=swarm.hops, state=None):
-                _ = self.remove_circuit(circuit.circuit_id, 'not needed', destroy=DESTROY_REASON_UNNEEDED)
 
     async def estimate_swarm_size(self, info_hash: bytes, hops: int = 1, max_requests: int = 10) -> int:
         """
