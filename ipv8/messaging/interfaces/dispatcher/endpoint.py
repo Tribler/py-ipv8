@@ -4,6 +4,8 @@ import ipaddress
 import logging
 import typing
 
+from ipv8.util import maybe_coroutine
+
 from ..endpoint import Endpoint, EndpointListener
 from ..udp.endpoint import UDPEndpoint, UDPv4Address, UDPv6Address, UDPv6Endpoint
 
@@ -167,7 +169,7 @@ class DispatcherEndpoint(Endpoint):
             if ep is not None:
                 ep.send(socket_address, packet)
 
-    async def open(self) -> bool:  # noqa: A003
+    async def open(self) -> bool:
         """
         Open all interfaces.
         """
@@ -176,12 +178,12 @@ class DispatcherEndpoint(Endpoint):
             any_success |= await interface.open()
         return any_success
 
-    def close(self) -> None:
+    async def close(self) -> None:
         """
         Close all interfaces.
         """
         for interface in self.interfaces.values():
-            interface.close()
+            await maybe_coroutine(interface.close)
 
     def reset_byte_counters(self) -> None:
         """
