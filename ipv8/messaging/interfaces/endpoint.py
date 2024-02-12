@@ -6,7 +6,7 @@ import logging
 import socket
 import struct
 import threading
-from typing import TYPE_CHECKING, Iterable
+from typing import TYPE_CHECKING, Awaitable, Iterable
 
 from .lan_addresses.interfaces import get_lan_addresses
 
@@ -115,13 +115,13 @@ class Endpoint(metaclass=abc.ABCMeta):
         """
 
     @abc.abstractmethod
-    async def open(self) -> bool:  # noqa: A003
+    async def open(self) -> bool:
         """
-        Attempt to open this endpoint and return if this was succesful.
+        Attempt to open this endpoint and return if this was successful.
         """
 
     @abc.abstractmethod
-    def close(self) -> None:
+    def close(self) -> None | Awaitable:
         """
         Close this endpoint as quick as possible.
         """

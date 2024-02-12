@@ -105,7 +105,7 @@ class MockIPv8:
         """
         Stop all registered IPv8 strategies, unload all registered overlays and close the endpoint.
         """
-        self.endpoint.close()
+        await maybe_coroutine(self.endpoint.close)
         await self.overlay.unload()
         if self.dht:
             await self.dht.unload()

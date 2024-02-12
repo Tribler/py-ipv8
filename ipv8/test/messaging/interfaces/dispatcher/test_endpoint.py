@@ -77,7 +77,7 @@ class DummyEndpoint(Endpoint):
         self.bytes_up += len(packet)
         self.sent.append((socket_address, packet))
 
-    async def open(self) -> bool:  # noqa: A003
+    async def open(self) -> bool:
         """
         Do a fake open.
         """
@@ -189,7 +189,7 @@ class TestDispatcherEndpoint(TestBase):
         self.assertTrue(endpoint.is_open())
 
         # Close the Dispatcher Endpoint.
-        endpoint.close()
+        await endpoint.close()
 
         # The Child Endpoint is closed and the Dispatcher Endpoint propagates the child's status.
         self.assertFalse(child_endpoint.is_open())

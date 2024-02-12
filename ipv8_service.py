@@ -256,7 +256,7 @@ else:
             with self.overlay_lock:
                 unload_list = [self.unload_overlay(overlay) for overlay in self.overlays[:]]
                 await gather(*unload_list)
-                self.endpoint.close()
+                await maybe_coroutine(self.endpoint.close)
 
 
 if __name__ == '__main__':

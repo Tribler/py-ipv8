@@ -15,7 +15,7 @@ from ....messaging.anonymization.tunnel import (
     PEER_FLAG_SPEED_TEST,
 )
 from ....messaging.interfaces.udp.endpoint import DomainAddress, UDPEndpoint
-from ....util import succeed
+from ....util import maybe_coroutine, succeed
 from ...base import TestBase
 from ...mocking.endpoint import MockEndpointListener
 from ...mocking.exit_socket import MockTunnelExitSocket
@@ -256,7 +256,7 @@ class TestTunnelCommunity(TestBase[TunnelCommunity]):
         await self.introduce_nodes()
 
         # Don't allow the exit node to answer, this keeps peer 0's circuit in EXTENDING state
-        self.endpoint(1).close()
+        await maybe_coroutine(self.endpoint(1).close)
         self.overlay(0).build_tunnels(1)
 
         # Node 0 should have 1 circuit in the CIRCUIT_STATE_EXTENDING state
