@@ -7,7 +7,6 @@ if typing.TYPE_CHECKING:
         """
         Stub for the ioctl call's types.
         """
-        ...
 else:
     from fcntl import ioctl
 
@@ -31,6 +30,7 @@ class Ioctl(AddressProvider):
         """
         out_addresses = []
 
+        s = None
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             for ifspec in socket.if_nameindex():
@@ -39,7 +39,16 @@ class Ioctl(AddressProvider):
                 family, = struct.unpack(FMT_FAMILY, ifreq[16:18])
                 if family == socket.AF_INET:
                     out_addresses.append(socket.inet_ntop(socket.AF_INET, ifreq[20:24]))
+            s.close()
+            s = None
         except OSError:
             self.on_exception()
+        finally:
+            if s is not None:
+                try:
+                    s.close()
+                    s = None
+                except OSError:
+                    self.on_exception()
 
         return set(out_addresses)
