@@ -131,7 +131,7 @@ def modify_setup(file_contents: str, setup_expression: ast.Expr) -> tuple[str, s
             old_version = cast(ast.Name, keyword.value).s
             version = Version(old_version)
 
-            new_vstring = str(version)
+            new_vstring = [version.major, version.minor, version.micro]
             old_version_tag = '.'.join(str(s) for s in new_vstring[:2])
             new_vstring[1] += 1
             new_version = '.'.join(str(s) for s in new_vstring)
@@ -327,16 +327,16 @@ def commit_messages_to_names(commit_msg_list: list[str]) -> list[str]:
     return sorted(out)
 
 
-pr = ipv8_repo.create_pull("Automated Version Update",
-                           "Suggested release message\n---\n"
+pr = ipv8_repo.create_pull(title="Automated Version Update",
+                           body="Suggested release message\n---\n"
                            f"Tag version: {new_version_tag}\n"
                            f"Release title: IPv8 v{new_version_tag}.{total_commits} release\nBody:\n"
                            f"Includes the first {total_commits} commits (+{commits_since_last} since v{old_version_tag}) for IPv8, containing:\n\n - "
                            + ("\n - ".join(commit_messages_to_names([c.commit.message.split('\n')[2]
                                                                      for c in comparison.commits
                                                                      if c.commit.message.startswith('Merge')]))),
-                           'master',
-                           '{}:{}'.format(username, 'automated_version_update'), True)
+                           base='master',
+                           head='{}:{}'.format(username, 'automated_version_update'), draft=True)
 
 pr_labels = next(label for label in ipv8_repo.get_labels() if label.name == "automatedpr")
 pr.add_to_labels(pr_labels)
