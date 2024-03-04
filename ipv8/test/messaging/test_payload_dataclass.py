@@ -75,6 +75,21 @@ class NestedListType:
 
     a: List[NativeInt]  # Backward compatibility: Python >= 3.9 can use ``list[NativeInt]``
 
+@dataclass
+class ListIntType:
+    """
+    A single list of integers.
+    """
+
+    a: List[int]
+
+@dataclass
+class ListBoolType:
+    """
+    A single list of booleans.
+    """
+
+    a: List[bool]
 
 @ogdataclass
 class Unknown:
@@ -161,6 +176,8 @@ class Everything:
     d: EverythingItem
     e: List[EverythingItem]  # Backward compatibility: Python >= 3.9 can use ``list[EverythingItem]``
     f: str
+    g: List[int]
+    h: List[bool]
 
 
 class TestDataclassPayload(TestBase):
@@ -348,6 +365,26 @@ class TestDataclassPayload(TestBase):
         self.assertEqual(payload.a, NativeInt(42))
         self.assertEqual(deserialized.a, NativeInt(42))
 
+    def test_native_intlist_payload(self) -> None:
+        """
+        Check if a list of native types works correctly.
+        """
+        payload = ListIntType([1, 2])
+        deserialized = self._pack_and_unpack(ListIntType, payload)
+
+        self.assertListEqual(payload.a, [1, 2])
+        self.assertListEqual(deserialized.a, [1, 2])
+
+    def test_native_boollist_payload(self) -> None:
+        """
+        Check if a list of native types works correctly.
+        """
+        payload = ListBoolType([True, False])
+        deserialized = self._pack_and_unpack(ListBoolType, payload)
+
+        self.assertListEqual(payload.a, [True, False])
+        self.assertListEqual(deserialized.a, [True, False])
+
     def test_nestedlist_empty_payload(self) -> None:
         """
         Check if an empty list of nested payloads works correctly.
@@ -416,7 +453,9 @@ class TestDataclassPayload(TestBase):
                        b'1337',
                        EverythingItem(True),
                        [EverythingItem(False), EverythingItem(True)],
-                       "hi")
+                       "hi",
+                       [3, 4],
+                       [False, True])
 
         self.assertTrue(is_dataclass(a))
 
@@ -439,3 +478,9 @@ class TestDataclassPayload(TestBase):
 
         self.assertEqual(a.f, "hi")
         self.assertEqual(r.f, "hi")
+
+        self.assertEqual(a.g, [3, 4])
+        self.assertEqual(r.g, [3, 4])
+
+        self.assertEqual(a.h, [False, True])
+        self.assertEqual(r.h, [False, True])

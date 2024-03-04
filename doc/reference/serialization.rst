@@ -114,7 +114,10 @@ A ``Serializer`` can be extended with additional data types by calling ``seriali
    "varlenI", "4 + ?", "str (length < 4294967295)"
    "doublevarlenH", "2 + ?", "str (length ? < 65356)"
    "payload", "2 + ?", "Serializable"
-
+   "payload-list", "?", "[Serializable]"
+   "arrayH-?", "2 + ? * 1", "[bool]"
+   "arrayH-q", "2 + ? * 8", "[int]"
+   "arrayH-d", "2 + ? * 8", "[float]"
 
 Some of these data types represent common usage of serializable classes:
 
