@@ -3,6 +3,7 @@ from __future__ import annotations
 import abc
 import socket
 import typing
+from array import array
 from binascii import hexlify
 from contextlib import suppress
 from struct import Struct, pack, unpack_from
@@ -331,6 +332,40 @@ class ListOf(Packer):
         return offset
 
 
+class DefaultArray(Packer):
+    """
+    A format known to the ``array`` module (like 'I', 'B', etc.).
+
+    Also adds support for '?'.
+    """
+
+    def __init__(self, format_str: str, length_format: str) -> None:
+        """
+        Create a new packer for the given ``array`` format string.
+        """
+        self.format_str = format_str
+        self.real_format_str = "B" if format_str == "?" else format_str
+        self.length_format = length_format
+        self.length_size = Struct(length_format).size
+        self.base = array(self.real_format_str).itemsize
+
+    def pack(self, data: list) -> bytes:
+        """
+        Pack a list of items by forwarding them to ``array``.
+        """
+        return pack(self.length_format, len(data)) + array(self.real_format_str, data).tobytes()
+
+    def unpack(self, data: bytes, offset: int, unpack_list: list, *args: object) -> int:
+        """
+        Unpack a list of items from the known ``array`` format.
+        """
+        str_length = unpack_from(self.length_format, data, offset)[0] * self.base
+        a = array(self.real_format_str)
+        a.frombytes(data[offset + self.length_size: offset + self.length_size + str_length])
+        unpack_list.append([bool(b) for b in a] if self.format_str == "?" else list(a))
+        return offset + self.length_size + str_length
+
+
 class DefaultStruct(Packer):
     """
     A format known to the ``struct`` module (like 'I', '20s', etc.).
@@ -351,7 +386,7 @@ class DefaultStruct(Packer):
 
     def unpack(self, data: bytes, offset: int, unpack_list: list, *args: object) -> int:
         """
-        Unpack a list of items from a the known ``struct`` format.
+        Unpack a list of items from the known ``struct`` format.
         """
         result = unpack_from(self.format_str, data, offset)
         unpack_list.append(result if len(result) > 1 else result[0])
@@ -407,7 +442,10 @@ class Serializer:
             'varlenI': VarLen('>I'),
             'doublevarlenH': VarLen('>H'),
             'payload': NestedPayload(self),
-            'payload-list': ListOf(NestedPayload(self))
+            'payload-list': ListOf(NestedPayload(self)),
+            'arrayH-?': DefaultArray("?", "H"),
+            'arrayH-q': DefaultArray("q", "H"),
+            'arrayH-d': DefaultArray("d", "H"),
         }
 
     def get_available_formats(self) -> list[str]:

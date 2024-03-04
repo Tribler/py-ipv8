@@ -17,11 +17,13 @@ def type_from_format(fmt: str) -> TypeVar:
     return out
 
 
-def type_map(t: Type) -> FormatListType:
+def type_map(t: Type) -> FormatListType:  # noqa: PLR0911
     if t is bool:
         return "?"
     if t is int:
         return "q"
+    if t is float:
+        return "d"
     if t is bytes:
         return "varlenH"
     if t is str:
@@ -29,10 +31,14 @@ def type_map(t: Type) -> FormatListType:
     if isinstance(t, TypeVar):
         return t.__name__
     if getattr(t, '__origin__', None) in (tuple, list, set):
-        return [t.__args__[0]]
+        fmt = t.__args__[0]
+        if issubclass(fmt, Serializable):
+            return [fmt]
+        return f"arrayH-{type_map(t.__args__[0])}"
     if isinstance(t, (tuple, list, set)) or Serializable in getattr(t, "mro", list)():
         return cast(Type[Serializable], t)
     raise NotImplementedError(t, " unknown")
+
 
 def dataclass(cls: type | None = None, *,  # noqa: PLR0913
               init: bool = True,
