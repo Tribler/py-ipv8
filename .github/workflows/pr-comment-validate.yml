@@ -22,7 +22,7 @@ jobs:
         with:
           python-version: ${{ matrix.version }}
           cache: 'pip'
-      - uses: actions/cache/restore@v3
+      - uses: actions/cache/restore@v4
         if: matrix.os == 'windows-latest'
         id: restore_cache
         with:
@@ -35,7 +35,7 @@ jobs:
       - run: python run_all_tests.py -a
         env:
           TEST_IPV8_WITH_IPV6: 1
-      - uses: actions/cache/save@v3
+      - uses: actions/cache/save@v4
         if: matrix.os == 'windows-latest'
         id: save_cache
         with:
@@ -53,7 +53,7 @@ jobs:
         run: |
           {
             echo 'actual_pull_head<<EOF'
-            git ls-remote https://github.com/Tribler/py-ipv8/ refs/pull/${{ github.event.issue.number }}/head | grep -o "^\w*\b"
+            git ls-remote ${{ github.server_url }}/${{ github.repository }}/ refs/pull/${{ github.event.issue.number }}/head | grep -o "^\w*\b"
             echo
             echo EOF
           } >> "$GITHUB_ENV"
@@ -61,14 +61,14 @@ jobs:
         id: sha_share_step
         run: echo "actual_pull_head=${{ env.actual_pull_head }}" >> "$GITHUB_OUTPUT"
       - name: Set commit pending status
-        uses: guibranco/github-status-action-v2@v1.1.7
+        uses: guibranco/github-status-action-v2@v1.1.13
         with:
           authToken: ${{secrets.GITHUB_TOKEN}}
           context: 'Cross-env Validation'
           description: 'Pending..'
           state: 'pending'
           sha: ${{ env.actual_pull_head }}
-          target_url: https://github.com/Tribler/py-ipv8/actions/runs/${{ github.run_id }}
+          target_url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
   set_failure_status:
     if: ${{failure() && github.event.issue.pull_request && startsWith(github.event.comment.body, 'validate') }}
@@ -78,14 +78,14 @@ jobs:
       - name: Set commit failed status
         env:
           actual_pull_head: ${{needs.set_pending_status.outputs.actual_pull_head}}
-        uses: guibranco/github-status-action-v2@v1.1.7
+        uses: guibranco/github-status-action-v2@v1.1.13
         with:
           authToken: ${{secrets.GITHUB_TOKEN}}
           context: 'Cross-env Validation'
           description: 'Failed!'
           state: 'failure'
           sha: ${{ env.actual_pull_head }}
-          target_url: https://github.com/Tribler/py-ipv8/actions/runs/${{ github.run_id }}
+          target_url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
   set_success_status:
     if: ${{!failure() && github.event.issue.pull_request && startsWith(github.event.comment.body, 'validate') }}
@@ -95,11 +95,92 @@ jobs:
       - name: Set commit success status
         env:
           actual_pull_head: ${{needs.set_pending_status.outputs.actual_pull_head}}
-        uses: guibranco/github-status-action-v2@v1.1.7
+        uses: guibranco/github-status-action-v2@v1.1.13
         with:
           authToken: ${{secrets.GITHUB_TOKEN}}
           context: 'Cross-env Validation'
           description: 'Success!'
           state: 'success'
           sha: ${{ env.actual_pull_head }}
-          target_url: https://github.com/Tribler/py-ipv8/actions/runs/${{ github.run_id }}
+          target_url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+  validate_attestation_tutorial:
+    name: Validate attestation tutorial
+    if: ${{github.event.issue.pull_request && startsWith(github.event.comment.body, 'validate') }}
+    needs: set_pending_status
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/pull/${{ github.event.issue.number }}/head
+      - name: Setup Python 3.8
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.8
+      - name: Install dependencies
+        run: |
+          pip install --upgrade setuptools pip
+          pip install -r requirements.txt
+      - name: Run attestation tests
+        run: |
+          export PYTHONPATH="$(pwd)/"
+          cd doc/deprecated/attestation_tutorial_integration
+          python attestation_tutorial_attest.py
+          python attestation_tutorial_verify.py
+
+  validate_identity_tutorial:
+    name: Validate identity tutorial
+    if: ${{github.event.issue.pull_request && startsWith(github.event.comment.body, 'validate') }}
+    needs: set_pending_status
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/pull/${{ github.event.issue.number }}/head
+      - name: Setup Python 3.8
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.8
+      - name: Install dependencies
+        run: |
+          pip install --upgrade setuptools pip
+          pip install -r requirements.txt
+      - name: Run identity tests
+        run: |
+          export PYTHONPATH="$(pwd)/"
+          cd doc/basics/identity_tutorial_integration
+          python attestation_tutorial_attest.py
+          python attestation_tutorial_verify.py
+
+  validate_documentation:
+    name: Validate documentation
+    if: ${{github.event.issue.pull_request && startsWith(github.event.comment.body, 'validate') }}
+    needs: set_pending_status
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/pull/${{ github.event.issue.number }}/head
+      - name: Setup Python 3.8
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.8
+      - name: Install dependencies
+        run: |
+          pip install --upgrade setuptools pip
+          pip install -r requirements.txt
+      - name: Run documentation tests
+        run: |
+          cd doc
+          if [ -f "further-reading/certfile.pem" ]
+          then
+          echo "certfile.pem found"
+          else
+          echo "generating certfile.pem"
+          cd further-reading
+          openssl req -newkey rsa:2048 -nodes -keyout private.key -x509 -days 365 -out certfile.pem -subj "/C=NL/ST=Zuid Holland/L=Delft/O=TU Delft/OU=Distributed Systems Group/CN=Tribler"
+          cat private.key >> certfile.pem
+          rm private.key
+          cd ..
+          fi
+          LD_PRELOAD=libgcc_s.so.1 python3 -X dev ./validate_examples.py
