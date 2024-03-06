@@ -35,6 +35,7 @@ jobs:
           key: cache_libsodium_dll
   macos:
     runs-on: macos-latest
+    timeout-minutes: 2
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
