@@ -295,7 +295,7 @@ def windows_missing_libsodium() -> bool:
     # Try to find it in the local directory. This is where we'll download it anyway.
     os.add_dll_directory(os.path.dirname(__file__) or os.path.abspath('.'))
     try:
-        import libnacl  # noqa: F401, F811
+        import libnacl  # noqa: F401
         return False
     except OSError:
         return True
@@ -331,7 +331,8 @@ if __name__ == "__main__":
     print(f"Launching in {process_count} processes ... awaiting results ... \033[s", end="", flush=True)  # noqa: T201
 
     with ProgrammerDistractor(not args.noanimation) as programmer_distractor:
-        with ProcessPoolExecutor(max_workers=process_count) as executor:
+        with ProcessPoolExecutor(max_workers=process_count,
+                                 mp_context=multiprocessing.get_context("spawn")) as executor:
             result = executor.map(task_test, test_class_names, chunksize=len(test_class_names) // process_count + 1)
             for process_output_handle in result:
                 failed, tests_run, time_taken, event_log, print_output = process_output_handle
