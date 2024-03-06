@@ -72,7 +72,7 @@ jobs:
 
   set_failure_status:
     if: ${{failure() && github.event.issue.pull_request && startsWith(github.event.comment.body, 'validate') }}
-    needs: [set_pending_status, pr_commented]
+    needs: [set_pending_status, pr_commented, validate_attestation_tutorial, validate_identity_tutorial, validate_documentation]
     runs-on: ubuntu-latest
     steps:
       - name: Set commit failed status
@@ -89,7 +89,7 @@ jobs:
 
   set_success_status:
     if: ${{!failure() && github.event.issue.pull_request && startsWith(github.event.comment.body, 'validate') }}
-    needs: [set_pending_status, pr_commented]
+    needs: [set_pending_status, pr_commented, validate_attestation_tutorial, validate_identity_tutorial, validate_documentation]
     runs-on: ubuntu-latest
     steps:
       - name: Set commit success status
