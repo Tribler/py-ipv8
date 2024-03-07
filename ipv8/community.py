@@ -221,7 +221,7 @@ class Community(EZPackOverlay):
         task = ensure_future(bootstrapper.initialize(self))
 
         addresses = await bootstrapper.get_addresses(self, 60.0)
-        for address in islice(addresses, self.max_peers):
+        for address in (addresses if self.max_peers > 0 else islice(addresses, self.max_peers)):
             self.walk_to(address)
 
         await task
