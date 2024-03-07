@@ -221,8 +221,9 @@ class TestDHTCommunity(TestDHTBase[DHTCommunity]):
         Test unloading nodes while contacting them.
         """
         await self.introduce_nodes()
-        ensure_future(self.overlay(0).find_nodes(self.key))  # noqa: RUF006
+        find_task = ensure_future(self.overlay(0).find_nodes(self.key))
         await self.overlay(0).unload()
+        await find_task
         self.assertTrue(self.overlay(0).request_cache._shutdown)  # noqa: SLF001
         self.assertTrue(self.overlay(0)._shutdown)  # noqa: SLF001
 
