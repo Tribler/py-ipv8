@@ -1,0 +1,22 @@
+name: 'Generate coverage report'
+inputs:
+  html_report_name:
+    description: 'Artifact name for storing HTML coverage report. When omitted no report is stored.'
+    required: false
+runs:
+  using: "composite"
+  steps:
+    - name: Generate coverage report
+      shell: bash
+      run: |
+        pip install coverage
+        python create_test_coverage_report.py
+        echo -e "<details><summary>Coverage report</summary>\n" >> $GITHUB_STEP_SUMMARY
+        cat coverage.md >> $GITHUB_STEP_SUMMARY
+        echo '</details>' >> $GITHUB_STEP_SUMMARY
+    - name: Upload coverage report
+      if: ${{ inputs.html_report_name }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.html_report_name }}
+        path: coverage/

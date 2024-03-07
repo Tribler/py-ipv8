@@ -1,5 +1,9 @@
-name: Unittests
-on: [pull_request, workflow_dispatch]
+name: Coverage
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
 jobs:
   linux:
     runs-on: ubuntu-latest
@@ -10,8 +14,9 @@ jobs:
           python-version: '3.7'
           cache: 'pip'
       - run: python -m pip install -r requirements.txt
-      - name: Run unit tests
-        run: python run_all_tests.py -a
+      - uses: ./.github/actions/coverage
+        with:
+          html_report_name: coverage-linux
   windows:
     runs-on: windows-latest
     steps:
@@ -26,8 +31,9 @@ jobs:
           path: libsodium.dll
           key: cache_libsodium_dll
       - run: python -m pip install -r requirements.txt
-      - name: Run unit tests
-        run: python run_all_tests.py -a
+      - uses: ./.github/actions/coverage
+        with:
+          html_report_name: coverage-windows
       - uses: actions/cache/save@v4
         if: steps.restore_cache.outputs.cache-hit != 'true'
         with:
@@ -35,7 +41,6 @@ jobs:
           key: cache_libsodium_dll
   macos:
     runs-on: macos-latest
-    timeout-minutes: 2
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -43,5 +48,6 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
       - run: python -m pip install -r requirements.txt
-      - name: Run unit tests
-        run: python run_all_tests.py -a
+      - uses: ./.github/actions/coverage
+        with:
+          html_report_name: coverage-macos

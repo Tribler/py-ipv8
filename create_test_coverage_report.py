@@ -1,6 +1,7 @@
 import logging
 import os
 import pathlib
+import platform
 import shutil
 import sys
 from io import StringIO
@@ -13,11 +14,15 @@ from coverage.python import PythonFileReporter
 from coverage.results import Analysis
 from packaging.version import Version
 
-from run_all_tests import find_all_test_class_names
+from run_all_tests import find_all_test_class_names, install_libsodium, windows_missing_libsodium
 
 if __name__ != '__main__':
     print(__file__, "should be run stand-alone! Instead, it is being imported!", file=sys.stderr)  # noqa: T201
     sys.exit(1)
+
+if platform.system() == 'Windows' and windows_missing_libsodium():
+    print("Failed to locate libsodium (libnacl requirement), downloading latest dll!")  # noqa: T201
+    install_libsodium()
 
 data_file = os.path.join('coverage', 'raw', 'coverage_file')
 logging.basicConfig(level=logging.CRITICAL)
@@ -70,6 +75,10 @@ for test_path in test_paths:
 cov.stop()
 print("Generating HTML report")  # noqa: T201
 cov.html_report(directory='coverage')
+
+print("Generating markdown report")  # noqa: T201
+with open('coverage.md', 'w') as fp:
+   cov.report(output_format='markdown', file=fp, show_missing=True)
 
 print("Aggregating package stats")  # noqa: T201
 total_numbers = {}  # Package name -> (Numbers: package coverage stats, dict: files per coverage bin)
