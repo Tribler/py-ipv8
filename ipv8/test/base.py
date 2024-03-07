@@ -14,6 +14,7 @@ from functools import partial
 from typing import TYPE_CHECKING, Awaitable, Callable, Coroutine, Generic, Type, TypeVar, cast
 
 from ..lazy_community import PacketDecodingError, lazy_wrapper, lazy_wrapper_unsigned
+from ..messaging.interfaces.lan_addresses.interfaces import get_providers
 from ..messaging.serialization import PackError
 from ..overlay import Overlay
 from ..peer import Peer
@@ -255,6 +256,7 @@ class TestBase(TestCaseClass, Generic[OT]):
         """
         self.loop.set_debug(True)
         self.loop.set_exception_handler(self._cb_exception)
+        get_providers().clear()
         super().setUp()
         TestBase.__lockup_timestamp__ = time.time()
 
