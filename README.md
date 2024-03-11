@@ -3,7 +3,7 @@
 - **Q:** Is this the new official Layer 3 solution for the Internet?
 - **A:** No, the naming is a [10-years-old](https://www.tribler.org/IPv8/) mockery of the deployment failure of IPv6 (which we sincerely hope will be deployed properly at some point in time).
 
-**Linux**: [![](http://jenkins-ci.tribler.org/job/ipv8/job/test_ipv8_linux/badge/icon)](http://jenkins-ci.tribler.org/job/ipv8/job/test_ipv8_linux/) **Windows**: [![](http://jenkins-ci.tribler.org/job/ipv8/job/test_ipv8_windows/badge/icon)](http://jenkins-ci.tribler.org/job/ipv8/job/test_ipv8_windows/) **Mac**: [![](http://jenkins-ci.tribler.org/job/ipv8/job/test_ipv8_mac/badge/icon)](http://jenkins-ci.tribler.org/job/ipv8/job/test_ipv8_mac/)
+**Unit tests**: [![](https://github.com/Tribler/py-ipv8/actions/workflows/coverage.yml/badge.svg)](https://github.com/Tribler/py-ipv8/actions/workflows/coverage.yml)
 
 **Mutation Tests**: [![](https://jenkins-ci.tribler.org/job/ipv8/job/mutation_test_daily/badge/icon)](https://jenkins-ci.tribler.org/job/ipv8/job/mutation_test_daily/HTML_20Report/)
 
