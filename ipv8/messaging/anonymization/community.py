@@ -576,6 +576,7 @@ class TunnelCommunity(Community):
         circuit.unverified_hop = None
         circuit.add_hop(hop)
         self.circuits.get(circuit_id)  # Needed for notifying the RustEndpoint
+        self.logger.info("Added hop %d (%s) to circuit %d", len(circuit.hops), hop.peer, circuit.circuit_id)
 
         if circuit.state == CIRCUIT_STATE_EXTENDING:
             candidates_enc = payload.candidates_enc
@@ -592,10 +593,6 @@ class TunnelCommunity(Community):
         """
         Extend a circuit by choosing one of the given candidates.
         """
-        ignore_candidates = [hop.public_key_bin for hop in circuit.hops] + [self.my_peer.public_key.key_to_bin()]
-        if circuit.required_exit:
-            ignore_candidates.append(circuit.required_exit.public_key.key_to_bin())
-
         become_exit = circuit.goal_hops - 1 == len(circuit.hops)
         if become_exit and circuit.required_exit:
             # Set the required exit according to the circuit setting (e.g. for linking e2e circuits)
@@ -603,18 +600,25 @@ class TunnelCommunity(Community):
             extend_hop_addr = circuit.required_exit.address
 
         else:
-            # The next candidate is chosen from the returned list of possible candidates
-            for ignore_candidate in ignore_candidates:
-                if ignore_candidate in candidates:
-                    candidates.remove(ignore_candidate)
-
-            for i in range(len(candidates) - 1, -1, -1):
-                public_key = self.crypto.key_from_public_bin(candidates[i])
-                if not self.crypto.is_key_compatible(public_key):
-                    candidates.pop(i)
-
+            # Chose the next candidate. Ensure we didn't use this candidate already, and its key is compatible.
+            exclude = [hop.public_key_bin for hop in circuit.hops] + [self.my_peer.public_key.key_to_bin()]
+            if circuit.required_exit:
+                exclude.append(circuit.required_exit.public_key.key_to_bin())
+            candidates = [c for c in candidates if c not in exclude and self.crypto.key_from_public_bin(c)]
             extend_hop_public_bin = next(iter(candidates), b'')
             extend_hop_addr = ('0.0.0.0', 0)
+
+            if not extend_hop_public_bin:
+                # By default, nodes will give a number of relays to which we can extend the circuit (i.e., peers
+                # that have already been punctured). However, it could be that there simply aren't enough relays
+                # available. When this happens, we try to extend to exit nodes (which we assume are connectable).
+                choices = [peer for peer in self.get_candidates(PEER_FLAG_EXIT_BT, PEER_FLAG_RELAY)
+                           if peer.public_key.key_to_bin() not in exclude]
+                if choices:
+                    peer = random.choice(choices)
+                    extend_hop_public_bin = peer.public_key.key_to_bin()
+                    extend_hop_addr = peer.address
+                    self.logger.info('No candidates to extend to, trying exit node %s instead', peer)
 
         if extend_hop_public_bin:
             if self.request_cache.has(RetryRequestCache, circuit.circuit_id):
@@ -751,10 +755,10 @@ class TunnelCommunity(Community):
 
         peer = Peer(create_payload.node_public_key, previous_node_address)
         self.request_cache.add(CreatedRequestCache(self, circuit_id, peer, peers_keys, self.settings.unstable_timeout))
-        self.exit_sockets[circuit_id] = TunnelExitSocket(circuit_id, Hop(peer, session_keys), self)
 
         candidates_bin = self.serializer.pack('varlenH-list', list(peers_keys.keys()))
         candidates_enc = self.crypto.encrypt_str(candidates_bin, session_keys, FORWARD)
+        self.exit_sockets[circuit_id] = TunnelExitSocket(circuit_id, Hop(peer, session_keys), self)
         self.send_cell(previous_node_address,
                        CreatedPayload(circuit_id, create_payload.identifier, key, auth, candidates_enc))
 

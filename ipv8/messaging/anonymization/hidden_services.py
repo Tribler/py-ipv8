@@ -471,12 +471,12 @@ class HiddenTunnelCommunity(TunnelCommunity):
         key = self.swarms[payload.info_hash].seeder_sk
         shared_secret, y, auth = self.crypto.generate_diffie_shared_secret(payload.key, key)
         rp.circuit.hs_session_keys = self.crypto.generate_session_keys(shared_secret)
-        self.circuits.get(rp.circuit.circuit_id)  # Needed for notifying the RustEndpoint
 
         rp_info = RendezvousInfo(rp.address, rp.circuit.hops[-1].public_key.key_to_bin(), rp.cookie)
         rp_info_bin = self.serializer.pack('payload', rp_info)
         rp_info_enc = self.crypto.encrypt_str(rp_info_bin, rp.circuit.hs_session_keys, FORWARD)
 
+        self.circuits.get(rp.circuit.circuit_id)  # Needed for notifying the RustEndpoint
         circuit = self.circuits[cast(int, circuit_id)]
         self.tunnel_data(circuit, source_address, CreatedE2EPayload(payload.identifier, y, auth, rp_info_enc))
 
