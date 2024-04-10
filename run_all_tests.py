@@ -259,21 +259,13 @@ def install_libsodium() -> None:
     """
     # Ensure a libsodium.zip
     if not pathlib.Path("libsodium.zip").exists():
-        import re
-        from http.client import HTTPSConnection
-        connection = HTTPSConnection("download.libsodium.org")
-
-        connection.request("GET", "/libsodium/releases/", headers={})
-        web_response = connection.getresponse().read().decode()
-
-        # Extract the latest version
-        result = sorted(re.findall(r"libsodium-[0-9]*\.[0-9]*\.[0-9]*-stable-msvc.zip\"",
-                                    web_response))[-1][:-1]
-
-        connection.request("GET", f"/libsodium/releases/{result}", headers={})
-        pathlib.Path("libsodium.zip").write_bytes(connection.getresponse().read())
-
-        connection.close()
+        import json
+        import urllib.request as request
+        response = request.urlopen("https://api.github.com/repos/jedisct1/libsodium/releases")
+        release = json.loads(response.read())[0]
+        response.close()
+        asset = [asset for asset in release['assets'] if asset['name'].endswith("-msvc.zip")][0]
+        pathlib.Path("libsodium.zip").write_bytes(request.urlopen(asset['browser_download_url']).read())
 
     # Unpack just the libsodium.dll
     if not pathlib.Path("libsodium.dll").exists():
