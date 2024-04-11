@@ -30,6 +30,18 @@ class TestTaskManager(TestBase):
         await self.tm.shutdown_task_manager()
         return await super().tearDown()
 
+    def count(self) -> None:
+        """
+        A function used to increment the local counter.
+        """
+        self.counter += 1
+
+    def set_counter(self, value: int) -> None:
+        """
+        Set the testing counter to a fixed value.
+        """
+        self.counter = value
+
     def test_call_later(self) -> None:
         """
         Check that tasks can be sheduled for the future.
@@ -147,7 +159,7 @@ class TestTaskManager(TestBase):
         """
         await self.tm.shutdown_task_manager()
         task = self.tm.register_anonymous_task("test", lambda: None)
-        self.assertFalse(self.tm.is_pending_task_active('test'))
+        self.assertFalse(self.tm.is_pending_task_active("test"))
         self.assertFalse(task.cancelled())
 
     async def test_cleanup(self) -> None:
@@ -176,7 +188,7 @@ class TestTaskManager(TestBase):
 
         get_running_loop().set_exception_handler(exception_handler)
         with suppress(ZeroDivisionError):
-            await self.tm.register_task('test', lambda: 1 / 0)
+            await self.tm.register_task("test", lambda: 1 / 0)
         self.assertTrue(exception_handler.called)
 
     async def test_task_with_exception_ignore(self) -> None:
@@ -191,7 +203,7 @@ class TestTaskManager(TestBase):
 
         get_running_loop().set_exception_handler(exception_handler)
         with suppress(ZeroDivisionError):
-            await self.tm.register_task('test', lambda: 1 / 0, ignore=(ZeroDivisionError,))
+            await self.tm.register_task("test", lambda: 1 / 0, ignore=(ZeroDivisionError,))
         self.assertFalse(exception_handler.called)
 
     async def test_task_decorator_coro(self) -> None:
@@ -279,14 +291,66 @@ class TestTaskManager(TestBase):
         _ = self.tm.register_executor_task("test", test, anon=True)
         self.assertEqual(2, len(self.tm.get_tasks()))
 
-    def count(self) -> None:
+    async def test_get_task_existing_pending(self) -> None:
         """
-        A function used to increment the local counter.
+        Check if an existing pending task can be retrieved.
         """
-        self.counter += 1
+        registered = self.tm.register_task("test", lambda: None, delay=10.0)
+        await sleep(0)
 
-    def set_counter(self, value: int) -> None:
+        retrieved = self.tm.get_task("test")
+
+        self.assertEqual(registered, retrieved)
+        self.assertFalse(retrieved.done())
+
+    async def test_get_task_existing_finished(self) -> None:
         """
-        Set the testing counter to a fixed value.
+        Check if an existing finished task can be retrieved.
         """
-        self.counter = value
+        registered = self.tm.register_task("test", lambda: None)
+        await sleep(0)
+
+        retrieved = self.tm.get_task("test")
+
+        self.assertEqual(registered, retrieved)
+        self.assertTrue(retrieved.done())
+
+    def test_get_task_non_existent(self) -> None:
+        """
+        Check if retrieving an unknown task returns None.
+        """
+        retrieved = self.tm.get_task("test")
+
+        self.assertIsNone(retrieved)
+
+    async def test_get_anon_tasks_existing_pending(self) -> None:
+        """
+        Check if existing pending anonymous tasks can be retrieved.
+        """
+        registered = self.tm.register_anonymous_task("test", lambda: None, delay=10.0)
+        await sleep(0)
+
+        retrieved = self.tm.get_anonymous_tasks("test")
+
+        self.assertListEqual([registered], retrieved)
+        self.assertFalse(retrieved[0].done())
+
+    async def test_get_anon_tasks_existing_finished(self) -> None:
+        """
+        Check if existing finished anonymous tasks can be retrieved.
+        """
+        registered = self.tm.register_anonymous_task("test", lambda: None)
+        await sleep(0)
+
+        retrieved = self.tm.get_anonymous_tasks("test")
+
+        self.assertListEqual([registered], retrieved)
+        self.assertTrue(retrieved[0].done())
+
+    def test_get_anon_tasks_non_existent(self) -> None:
+        """
+        Check if retrieving anonymous tasks with an unknown base name returns an empty list.
+        """
+        retrieved = self.tm.get_anonymous_tasks("test")
+
+        self.assertListEqual([], retrieved)

@@ -71,7 +71,7 @@ class TaskManager:
         self._counter = 0
         self._logger = logging.getLogger(self.__class__.__name__)
 
-        self._checker = self.register_task('_check_tasks', self._check_tasks,
+        self._checker = self.register_task("_check_tasks", self._check_tasks,
                                            interval=MAX_TASK_AGE, delay=MAX_TASK_AGE * 1.5)
 
     def _check_tasks(self) -> None:
@@ -139,8 +139,8 @@ class TaskManager:
             task.start_time = time.time()  # type: ignore[attr-defined]
             task.interval = interval  # type: ignore[attr-defined]
             # The set_name function is only available in Python 3.8+
-            task_name = f'{self.__class__.__name__}:{name}'
-            if hasattr(task, 'set_name'):
+            task_name = f"{self.__class__.__name__}:{name}"
+            if hasattr(task, "set_name"):
                 task.set_name(task_name)
             else:
                 task.name = task_name  # type: ignore[attr-defined]
@@ -154,7 +154,7 @@ class TaskManager:
                 except CancelledError:
                     pass
                 except ignore as e:  # type: ignore[misc]
-                    self._logger.exception('Task resulted in error: %s\n%s', e, ''.join(traceback.format_exc()))
+                    self._logger.exception("Task resulted in error: %s\n%s", e, "".join(traceback.format_exc()))
 
             self._pending_tasks[name] = task
             task.add_done_callback(done_cb)
@@ -165,7 +165,7 @@ class TaskManager:
         Wrapper for register_task to derive a unique name from the basename.
         """
         self._counter += 1
-        return self.register_task(basename + ' ' + str(self._counter), task, *args, **kwargs)
+        return self.register_task(basename + " " + str(self._counter), task, *args, **kwargs)
 
     def register_executor_task(self, name: str, func: Callable, *args: Any,  # noqa: ANN401
                                executor: ThreadPoolExecutor | None = None, anon: bool = False, **kwargs) -> Future:
@@ -212,12 +212,28 @@ class TaskManager:
             task = self._pending_tasks.get(name, None)
             return not task.done() if task else False
 
+    def get_task(self, name: Hashable) -> Future | None:
+        """
+        Return a task if it exists. Otherwise, return None.
+        """
+        with self._task_lock:
+            return self._pending_tasks.get(name, None)
+
     def get_tasks(self) -> list[Future]:
         """
         Returns a list of all registered tasks, excluding tasks the are created by the TaskManager itself.
         """
         with self._task_lock:
             return [t for t in self._pending_tasks.values() if t != self._checker]
+
+    def get_anonymous_tasks(self, base_name: str) -> list[Future]:
+        """
+        Return all tasks with a given base name.
+
+        Note that this method will return ALL tasks that start with the given base name, including non-anonymous ones.
+        """
+        with self._task_lock:
+            return [t[1] for t in self._pending_tasks.items() if isinstance(t[0], str) and t[0].startswith(base_name)]
 
     async def wait_for_tasks(self) -> None:
         """
