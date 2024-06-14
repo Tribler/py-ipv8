@@ -2,6 +2,7 @@ from asyncio import run
 from base64 import b64encode
 from binascii import unhexlify
 from sys import argv
+from time import sleep
 
 from ipv8.attestation.identity.community import IdentityCommunity
 from ipv8.attestation.wallet.community import AttestationCommunity
@@ -109,7 +110,15 @@ async def start_communities() -> None:
         })
         await ipv8.start()
         rest_manager = RESTManager(ipv8)
-        await rest_manager.start(14410 + i)
+
+        # We REALLY want this particular port, keep trying
+        keep_trying = True
+        while keep_trying:
+            try:
+                await rest_manager.start(14410 + i)
+                keep_trying = False
+            except OSError:
+                sleep(1.0)  # noqa: ASYNC101
 
         # Print the peer for reference
         print("Starting peer", b64encode(ipv8.keys["anonymous id"].mid))
