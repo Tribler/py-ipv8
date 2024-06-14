@@ -260,12 +260,12 @@ def install_libsodium() -> None:
     # Ensure a libsodium.zip
     if not pathlib.Path("libsodium.zip").exists():
         import json
-        import urllib.request as request
+        from urllib import request
         response = request.urlopen("https://api.github.com/repos/jedisct1/libsodium/releases")
         release = json.loads(response.read())[0]
         response.close()
-        asset = [asset for asset in release['assets'] if asset['name'].endswith("-msvc.zip")][0]
-        pathlib.Path("libsodium.zip").write_bytes(request.urlopen(asset['browser_download_url']).read())
+        asset = next(asset for asset in release['assets'] if asset['name'].endswith("-msvc.zip"))
+        pathlib.Path("libsodium.zip").write_bytes(request.urlopen(asset['browser_download_url']).read())  # noqa: S310
 
     # Unpack just the libsodium.dll
     if not pathlib.Path("libsodium.dll").exists():
@@ -285,7 +285,7 @@ def windows_missing_libsodium() -> bool:
         return False
 
     # Try to find it in the local directory. This is where we'll download it anyway.
-    os.add_dll_directory(os.path.dirname(__file__) or os.path.abspath('.'))
+    os.add_dll_directory(os.path.abspath('.'))
     try:
         import libnacl  # noqa: F401
         return False
