@@ -88,8 +88,11 @@ for filename in cov.get_data().measured_files():
         analysis = Analysis(cov.get_data(), file_reporter)
     elif Version(coverage.__version__) < Version("6"):
         analysis = Analysis(cov.get_data(), file_reporter, abs_file)
-    else:
+    elif Version(coverage.__version__) < Version("7.5"):
         analysis = Analysis(cov.get_data(), 0, file_reporter, abs_file)
+    else:
+        from coverage.results import analysis_from_file_reporter
+        analysis = analysis_from_file_reporter(cov.get_data(), 0, file_reporter, abs_file)
 
     # If the package name does not contain more than 2 parts, it's a top-level file.
     package_path = pathlib.Path(relative_filename(filename))
