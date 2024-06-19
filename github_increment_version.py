@@ -1,19 +1,28 @@
 """
-This script automatically increments the IPv8 setup.py version and creates a PR for it on GitHub.
-The suggested release message is used as the PR body.
+This script automatically increments the IPv8 setup.py version and creates a changelog message for it on GitHub.
+You are tasked with opening a PR from your fork.
 
-This script requires the additional dependency PyGithub.
+IMPORTANT: THIS SCRIPT ASSUMES THAT YOUR LOCAL WORKSPACE IS CLEAN. DO NOT RUN THIS SCRIPT WITH UNCOMMITTED CHANGES!
+
+Other caveats:
+ - Claims the local branchname ``__automated_version_update``, which may not be cleaned on error.
+ - Claims the remote branchname ``automated_version_update`` on your GitHub fork.
+ - Adds the local remote ``__Tribler``, which may not be cleaned on error!
+ - Adds the local remote ``__<username>``, which may not be cleaned on error!
+
+The local branch and local remotes should not exist before running this script.
 """
 from __future__ import annotations
 
 import ast
 import datetime
-import getpass
+import subprocess
 import sys
 from typing import cast
 
-from github import Github, InputGitTreeElement
 from packaging.version import Version
+
+# ruff: noqa: S603,S607,T201
 
 
 def parse_setup() -> tuple[str, ast.Expr]:
@@ -22,7 +31,7 @@ def parse_setup() -> tuple[str, ast.Expr]:
 
     We later update the ``version=...`` parameter.
     """
-    print("[1/8] | Parsing setup.py file")  # noqa: T201
+    print("[1/8] | Parsing setup.py file.")
 
     with open('setup.py') as f:
         file_contents = f.read()
@@ -35,7 +44,7 @@ def parse_setup() -> tuple[str, ast.Expr]:
             setup_expression = element
 
     if not setup_expression:
-        print("No setup() found in setup.py")  # noqa: T201
+        print("No setup() found in setup.py!")
         sys.exit(1)
 
     return file_contents, setup_expression
@@ -46,7 +55,7 @@ def parse_doc_conf() -> tuple[str, tuple[ast.Constant, ast.Constant, ast.Constan
     Search for ``copyright = ...``, ``version = ...``, and ``release = ...`` in ``doc/conf.py``
     and return their AST nodes.
     """
-    print("[1/8] | Parsing doc/conf.py file")  # noqa: T201
+    print("[1/8] | Parsing doc/conf.py file.")
 
     with open('doc/conf.py') as f:
         file_contents = f.read()
@@ -66,13 +75,13 @@ def parse_doc_conf() -> tuple[str, tuple[ast.Constant, ast.Constant, ast.Constan
                 release_element = element.value
 
     if not copyright_element:
-        print("No 'copyright' assignment found in doc/conf.py")  # noqa: T201
+        print("No 'copyright' assignment found in doc/conf.py!")
         sys.exit(1)
     if not version_element:
-        print("No 'version' assignment found in doc/conf.py")  # noqa: T201
+        print("No 'version' assignment found in doc/conf.py!")
         sys.exit(1)
     if not release_element:
-        print("No 'release' assignment found in doc/conf.py")  # noqa: T201
+        print("No 'release' assignment found in doc/conf.py!")
         sys.exit(1)
 
     return file_contents, (copyright_element, version_element, release_element)
@@ -83,7 +92,7 @@ def parse_rest_manager() -> tuple[str, ast.Constant]:
     Search for ``aiohttp_apispec = AiohttpApiSpec(...)`` in ``ipv8/REST/rest_manager.py``
     and return the ``version=...`` parameter AST node.
     """
-    print("[1/8] | Parsing ipv8/REST/rest_manager.py file")  # noqa: T201
+    print("[1/8] | Parsing ipv8/REST/rest_manager.py file.")
 
     with open('ipv8/REST/rest_manager.py') as f:
         file_contents = f.read()
@@ -108,7 +117,7 @@ def parse_rest_manager() -> tuple[str, ast.Constant]:
                                     version_element = setup_arg.value
 
     if not version_element:
-        print("No 'version' assignment found in ipv8/REST/rest_manager.py")  # noqa: T201
+        print("No 'version' assignment found in ipv8/REST/rest_manager.py!")
         sys.exit(1)
 
     return file_contents, cast(ast.Constant, version_element)
@@ -118,7 +127,7 @@ def modify_setup(file_contents: str, setup_expression: ast.Expr) -> tuple[str, s
     """
     Rewrite the ``setup.py`` contents by modifying the ``setup(...)`` AST node.
     """
-    print("[2/8] | Modifying setup.py file")  # noqa: T201
+    print("[2/8] | Modifying setup.py file.")
     new_filecontents = ""
     old_version = ""
     old_version_tag = ""
@@ -152,7 +161,7 @@ def modify_docs(file_contents: str, ast_elements: tuple[ast.Constant, ast.Consta
     """
     Rewrite the ``conf.py`` contents by modifying the ``copyright``, ``version``, and ``release`` values.
     """
-    print("[2/8] | Modifying doc/conf.py file")  # noqa: T201
+    print("[2/8] | Modifying doc/conf.py file.")
 
     to_insert = [f"2017-{datetime.datetime.now().year}, Tribler",  # noqa: DTZ005
                  new_version_tag,
@@ -176,7 +185,7 @@ def modify_rest_manager(file_contents: str, element: ast.Constant, new_version_t
     """
     Rewrite the ``rest_manager.py`` contents by modifying the ``version=`` constructor parameter.
     """
-    print("[2/8] | Modifying ipv8/REST/rest_manager.py file")  # noqa: T201
+    print("[2/8] | Modifying ipv8/REST/rest_manager.py file.")
 
     new_split_filecontents = file_contents.splitlines(True)
 
@@ -192,80 +201,77 @@ def modify_rest_manager(file_contents: str, element: ast.Constant, new_version_t
     return "".join(new_split_filecontents)
 
 
-print("[1/8] Parsing source files.")  # noqa: T201
+print("[1/8] Parsing source files.")
 old_setup_file, setup_ast = parse_setup()
 old_docs_file, docs_ast_elements = parse_doc_conf()
 old_rest_manager_file, rest_manager_ast = parse_rest_manager()
 
-print("[2/8] Modifying source files")  # noqa: T201
+print("[2/8] Modifying source files.")
 old_version, old_version_tag, new_version, new_version_tag, new_setup_file = modify_setup(old_setup_file, setup_ast)
 new_docs_file = modify_docs(old_docs_file, docs_ast_elements, new_version, new_version_tag)
 new_rest_manager_file = modify_rest_manager(old_rest_manager_file, rest_manager_ast, new_version_tag)
 
 # LOGIN
-print("[3/8] Requesting GitHub username and password")  # noqa: T201
+print("[3/8] Requesting GitHub username.")
 
 username = input('Username: ')
-token = getpass.getpass(prompt='Token (needs public_repo access, no token? visit https://github.com/settings/tokens): ', stream=None)
-
-github = Github(token)
 
 # GET REPOSITORY REFERENCES
-print("[4/8] Retrieving Tribler:py-ipv8 and %s:py-ipv8" % username)  # noqa: T201
+print(f"[4/8] Retrieving Tribler:py-ipv8 and {username}:py-ipv8.")
 
-ipv8_fork_repo = github.get_repo("%s/py-ipv8" % username)
+print(subprocess.check_output(f"git remote add __{username} git@github.com:{username}/py-ipv8.git", encoding="utf-8"))
+print(subprocess.check_output("git remote add __Tribler git@github.com:Tribler/py-ipv8.git", encoding="utf-8"))
 
-if not ipv8_fork_repo:
-    print("Could not find your IPv8 repository! Did you fork?")  # noqa: T201
-    sys.exit(1)
-
-ipv8_repo = github.get_repo("Tribler/py-ipv8")
+print(subprocess.check_output("git fetch __Tribler master", encoding="utf-8"))
+print(subprocess.check_output("git checkout -b __automated_version_update __Tribler/master", encoding="utf-8"))
 
 # GET CHANGES
-print("[5/8] Calculating changes since last release")  # noqa: T201
+print("[5/8] Calculating changes since last release.")
 
-known_tags = ipv8_repo.get_tags()
-last_release_commit = None
-release = ipv8_repo.get_latest_release()
-tag_name = release.tag_name
-for t in known_tags:
-    if t.name == tag_name:
-        last_release_commit = t.commit
+known_tags = sorted(Version(t) for t in subprocess.check_output("git tag -l", encoding="utf-8").split())
+last_release_commit, = subprocess.check_output(f"git rev-list -n 1 {known_tags[-1]}", encoding="utf-8").split()
 
-comparison = ipv8_repo.compare(last_release_commit.sha, "Tribler:master")
-commits_since_last = comparison.total_commits + 2
+git_log = subprocess.check_output(f'git log {last_release_commit}..HEAD --pretty=format:"%H"',
+                                  encoding="utf-8").split("\n")
+git_log = [
+    (
+        subprocess.check_output(f"git log --format=%B -n 1  {sha_entry}", encoding="utf-8").split("\n")[0],
+        subprocess.check_output(f"git log --format=%b -n 1  {sha_entry}", encoding="utf-8").split("\n")[0]
+    )
+    for sha_entry in git_log
+]
+commits_since_last = len(git_log) + 2
 
-repo_creation = ipv8_repo.created_at
-first_commit = ipv8_repo.get_commits(until=repo_creation)[0]
-comparison_forever = ipv8_repo.compare(first_commit.sha, last_release_commit.sha)
-total_commits = commits_since_last + comparison_forever.total_commits + 1
+total_commits_str = subprocess.check_output("git rev-list --count HEAD", encoding="utf-8")
+total_commits = int(total_commits_str) + 2
 
-# REMOVE EXISTING FEATURE BRANCH
-print("[6/8] Removing previous branch on fork, if it exists")  # noqa: T201
+# PERFORM FILE REWRITES
+print("[6/8] Rewriting source files.")
 
-for branch in ipv8_fork_repo.get_branches():
-    if branch.name == "automated_version_update":
-        branch_ref = ipv8_fork_repo.get_git_ref('heads/automated_version_update')
-        branch_ref.delete()
+with open("setup.py", "w") as f:
+    f.write(new_setup_file)
+with open("doc/conf.py", "w") as f:
+    f.write(new_docs_file)
+with open("ipv8/REST/rest_manager.py", "w") as f:
+    f.write(new_rest_manager_file)
 
 # CREATE FEATURE BRANCH
-print("[7/8] Pushing changes to branch on fork")  # noqa: T201
+print("[7/8] Pushing changes to branch on fork.")
 
-sb = ipv8_repo.get_branch("master")
-git_commit_base = [ipv8_fork_repo.get_git_commit(sb.commit.sha)]
+print(subprocess.check_output("git add setup.py", encoding="utf-8"))
+print(subprocess.check_output("git add doc/conf.py", encoding="utf-8"))
+print(subprocess.check_output("git add ipv8/REST/rest_manager.py", encoding="utf-8"))
+print(subprocess.check_output('git commit -m "Automated version increment"', encoding="utf-8"))
+print(subprocess.check_output(f"git push -f -u __{username} automated_version_update", encoding="utf-8"))
 
-setup_file_tree_element = InputGitTreeElement("setup.py", "100644", "blob", new_setup_file)
-docs_file_tree_element = InputGitTreeElement("doc/conf.py", "100644", "blob", new_docs_file)
-rest_manager_tree_element = InputGitTreeElement("ipv8/REST/rest_manager.py", "100644", "blob", new_rest_manager_file)
-
-new_tree = ipv8_fork_repo.create_git_tree([setup_file_tree_element, docs_file_tree_element, rest_manager_tree_element],
-                                          ipv8_fork_repo.get_git_tree(sb.commit.sha))
-
-new_commit = ipv8_fork_repo.create_git_commit("Automated version increment", new_tree, git_commit_base)
-ipv8_fork_repo.create_git_ref(ref='refs/heads/automated_version_update', sha=new_commit.sha)
+# > Cleanup
+print(subprocess.check_output("git branch -D __automated_version_update", encoding="utf-8"))
+print(subprocess.check_output("git remote remove __Tribler", encoding="utf-8"))
+print(subprocess.check_output(f"git remote remove __{username}", encoding="utf-8"))
 
 # CREATE PULL REQUEST
-print("[8/8] Creating Pull Request to main repository")  # noqa: T201
+print("[8/8] Formatting Pull Request message")
+print("vv OUTPUT vv")
 
 
 def commit_messages_to_names(commit_msg_list: list[str]) -> list[str]:
@@ -327,16 +333,10 @@ def commit_messages_to_names(commit_msg_list: list[str]) -> list[str]:
     return sorted(out)
 
 
-pr = ipv8_repo.create_pull(title="Automated Version Update",
-                           body="Suggested release message\n---\n"
-                           f"Tag version: {new_version_tag}\n"
-                           f"Release title: IPv8 v{new_version_tag}.{total_commits} release\nBody:\n"
-                           f"Includes the first {total_commits} commits (+{commits_since_last} since v{old_version_tag}) for IPv8, containing:\n\n - "
-                           + ("\n - ".join(commit_messages_to_names([c.commit.message.split('\n')[2]
-                                                                     for c in comparison.commits
-                                                                     if c.commit.message.startswith('Merge')]))),
-                           base='master',
-                           head='{}:{}'.format(username, 'automated_version_update'), draft=True)
-
-pr_labels = next(label for label in ipv8_repo.get_labels() if label.name == "automatedpr")
-pr.add_to_labels(pr_labels)
+print("Title: Automated Version Update")
+print(f"Tag version: {new_version_tag}")
+print(f"Release title: IPv8 v{new_version_tag}.{total_commits} release")
+print(f"Body:\n"
+      f"Includes the first {total_commits} commits (+{commits_since_last} since v{old_version_tag}) "
+      "for IPv8, containing:\n\n - "
+      + ("\n - ".join(commit_messages_to_names([c[1] for c in git_log if c[0].startswith('Merge')]))))
