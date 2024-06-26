@@ -41,9 +41,6 @@ class SchemaManager:
         elif algorithm_name == "pengbaorange":
             from ..wallet.pengbaorange.algorithm import PengBaoRangeAlgorithm
             algorithm = PengBaoRangeAlgorithm
-        elif algorithm_name == "irmaexact":
-            from ..wallet.irmaexact.algorithm import IRMAExactAlgorithm
-            algorithm = IRMAExactAlgorithm
         else:
             msg = f"Attempted to load unknown proof algorithm {algorithm_name}!"
             raise RuntimeError(msg)
@@ -73,10 +70,6 @@ class SchemaManager:
             - id_metadata_big: 4096 bit space "exact" value match
             - id_metadata_huge: 9216 bit space "exact" value match
             - id_metadata_range_18plus: NIZKP over a commitment, showing it lies within [0, 18]
-            - id_irma_nijmegen_address_1568208470: IRMA address data match, valid until 11 Sept 2019 13:27:50 GMT
-            - id_irma_nijmegen_personalData_1568208470: IRMA personal data match, valid until 11 Sept 2019 13:27:50 GMT
-            - id_irma_nijmegen_ageLimits_1568208470: IRMA age data match, valid until 11 Sept 2019 13:27:50 GMT
-            - id_irma_nijmegen_bsn_1568208470: IRMA bsn data match, valid until 11 Sept 2019 13:27:50 GMT
         """
         from ..default_identity_formats import FORMATS
         for schema in FORMATS:
