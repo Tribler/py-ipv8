@@ -140,12 +140,11 @@ class CommunicationChannel:
         if not attestation_hashes:
             return
 
-        self.attestation_overlay.database.execute(("DELETE FROM %s"  # noqa: S608
-                                                   % self.attestation_overlay.database.db_name)
-                                                  + " WHERE hash IN ("
-                                                  + ", ".join(c for c in "?" * len(attestation_hashes))
-                                                  + ")",
-                                                  attestation_hashes)
+        self.attestation_overlay.database.execute(
+            f"DELETE FROM {self.attestation_overlay.database.db_name}"  # noqa: S608
+            " WHERE hash IN (" + ", ".join(c for c in "?" * len(attestation_hashes)) + ")",
+            attestation_hashes
+        )
         self.attestation_overlay.database.commit()
 
     def remove(self) -> None:
@@ -353,7 +352,9 @@ class CommunicationManager:
             self.channels.pop(communication_channel.public_key_bin)
             await self.ipv8_instance.unload_overlay(communication_channel.identity_overlay)
             await communication_channel.attestation_overlay.unload()
-            communication_channel.identity_overlay.endpoint.close()
+            aw_closing = communication_channel.identity_overlay.endpoint.close()
+            if aw_closing is not None:
+                await aw_closing
 
     async def remove(self, name: str) -> None:
         """
