@@ -30,15 +30,7 @@ DISPERSY_BOOTSTRAPPER: dict[Any, Any] = {
             ("dispersy1.tribler.org", 6421), ("dispersy1.st.tudelft.nl", 6421),
             ("dispersy2.tribler.org", 6422), ("dispersy2.st.tudelft.nl", 6422),
             ("dispersy3.tribler.org", 6423), ("dispersy3.st.tudelft.nl", 6423),
-            ("dispersy4.tribler.org", 6424),
-            ("tracker1.ip-v8.org", 6521),
-            ("tracker2.ip-v8.org", 6522),
-            ("tracker3.ip-v8.org", 6523),
-            ("tracker4.ip-v8.org", 6524),
-            ("tracker5.ip-v8.org", 6525),
-            ("tracker6.ip-v8.org", 6526),
-            ("tracker7.ip-v8.org", 6527),
-            ("tracker8.ip-v8.org", 6528)
+            ("dispersy4.tribler.org", 6424)
         ],
         'bootstrap_timeout': 30.0
     }
