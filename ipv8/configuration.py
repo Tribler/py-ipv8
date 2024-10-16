@@ -396,7 +396,7 @@ class ConfigBuilder:
             'alias': alias,
             'bin': key_bin_b64
         }
-        key_config['file'] = file_path
+        key_config['file'] = file_path or ""
         self.config['keys'].append(key_config)
         return self
 

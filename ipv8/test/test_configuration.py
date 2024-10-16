@@ -189,7 +189,7 @@ class TestConfiguration(TestBase):
         expected = {
             'alias': "my new key",
             'bin': key_material,
-            'file': None
+            'file': ""
         }
         keys = builder.finalize()['keys']
 
