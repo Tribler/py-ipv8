@@ -269,7 +269,8 @@ print(subprocess.check_output("git add setup.py", encoding="utf-8"))
 print(subprocess.check_output("git add doc/conf.py", encoding="utf-8"))
 print(subprocess.check_output("git add ipv8/REST/rest_manager.py", encoding="utf-8"))
 print(subprocess.check_output('git commit -m "Automated version increment"', encoding="utf-8"))
-print(subprocess.check_output(f"git push -f -u __{username} automated_version_update", encoding="utf-8"))
+print(subprocess.check_output(f"git push -f -u __{username} __automated_version_update:automated_version_update",
+                              encoding="utf-8"))
 
 # > Cleanup
 print(subprocess.check_output(f"git checkout {original_branch}", encoding="utf-8"))
