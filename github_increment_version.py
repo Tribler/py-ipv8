@@ -219,6 +219,13 @@ username = input('Username: ')
 # GET REPOSITORY REFERENCES
 print(f"[4/8] Retrieving Tribler:py-ipv8 and {username}:py-ipv8.")
 
+# branchname or "HEAD"
+original_branch = subprocess.check_output("git rev-parse --abbrev-ref HEAD", encoding="utf-8").strip()
+if original_branch == "HEAD":
+    # HEAD, origin/main, origin/HEAD
+    detached_details = subprocess.check_output("git show -s --pretty=%D HEAD", encoding="utf-8")
+    original_branch = detached_details.split(", ")[1].strip()
+
 print(subprocess.check_output(f"git remote add __{username} git@github.com:{username}/py-ipv8.git", encoding="utf-8"))
 print(subprocess.check_output("git remote add __Tribler git@github.com:Tribler/py-ipv8.git", encoding="utf-8"))
 
@@ -265,6 +272,7 @@ print(subprocess.check_output('git commit -m "Automated version increment"', enc
 print(subprocess.check_output(f"git push -f -u __{username} automated_version_update", encoding="utf-8"))
 
 # > Cleanup
+print(subprocess.check_output(f"git checkout {original_branch}", encoding="utf-8"))
 print(subprocess.check_output("git branch -D __automated_version_update", encoding="utf-8"))
 print(subprocess.check_output("git remote remove __Tribler", encoding="utf-8"))
 print(subprocess.check_output(f"git remote remove __{username}", encoding="utf-8"))
