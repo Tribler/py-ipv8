@@ -187,17 +187,19 @@ class Community(EZPackOverlay):
         actual_msg_num: int = 256
         if not isinstance(msg_num, int):
             if not hasattr(msg_num, "msg_id"):
-                raise RuntimeError("Attempted to add a handler for Payload %s, which does not specify a msg_id!"
-                                   % msg_num)
+                msg = f"Attempted to add a handler for Payload {msg_num}, which does not specify a msg_id!"
+                raise RuntimeError(msg)
             actual_msg_num = cast(int, msg_num.msg_id)  # type: ignore[attr-defined]
         else:
             if msg_num < 0 or msg_num > 255:
-                raise RuntimeError("Attempted to add a handler for message number %d, which is not a byte!" % msg_num)
+                msg = f"Attempted to add a handler for message number {msg_num}, which is not a byte!"
+                raise RuntimeError(msg)
             actual_msg_num = msg_num
 
         if self.decode_map[actual_msg_num]:
-            raise RuntimeError("Attempted to add a handler for message number %d, already mapped to %s!" %
-                               (actual_msg_num, self.decode_map[actual_msg_num]))
+            msg = (f"Attempted to add a handler for message number {actual_msg_num}, "
+                   f"already mapped to {self.decode_map[actual_msg_num]}!")
+            raise RuntimeError(msg)
         self.decode_map[actual_msg_num] = callback
 
     def on_deprecated_message(self, source_address: Address, data: bytes) -> None:
@@ -221,7 +223,7 @@ class Community(EZPackOverlay):
         task = ensure_future(bootstrapper.initialize(self))
 
         addresses = await bootstrapper.get_addresses(self, 60.0)
-        for address in (addresses if self.max_peers > 0 else islice(addresses, self.max_peers)):
+        for address in (islice(addresses, self.max_peers) if self.max_peers > 0 else addresses):
             self.walk_to(address)
 
         await task
