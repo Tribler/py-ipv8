@@ -1,0 +1,46 @@
+name: Weekly mutation tests (Friday 00:00)
+on:
+  schedule:
+    - cron: '0 0 * * 5'
+
+jobs:
+  mutationtests:
+    runs-on: ubuntu-latest
+    if: ${{ github.repository == 'Tribler/py-ipv8' }}
+    steps:
+      - name: Checkout Tribler/py-ipv8
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          path: 'py-ipv8'
+      - name: Check for changes
+        run: |
+          cd py-ipv8
+          echo "NUM_COMMITS=$(git log --oneline --since '7 days ago' | wc -l)" >> $GITHUB_ENV
+      - name: Setup Python 3.10
+        uses: actions/setup-python@v5
+        if: ${{ env.NUM_COMMITS > 0 }}
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+      - name: Install dependencies
+        if: ${{ env.NUM_COMMITS > 0 }}
+        run: |
+          cd py-ipv8
+          python -m pip install -r requirements.txt
+      - name: Checkout Tribler/mutpy
+        if: ${{ env.NUM_COMMITS > 0 }}
+        uses: actions/checkout@v4
+        with:
+          repository: 'Tribler/mutpy'
+          path: 'mutpy'
+      - name: Run mutation tests
+        if: ${{ env.NUM_COMMITS > 0 }}
+        run: |
+          cd mutpy
+          python3 -m pip install .
+          cd bin
+          python3 github_report.py --codebase ipv8
+      - name: Publish report
+        if: ${{ env.NUM_COMMITS > 0 }}
+        run: cat mutpy/bin/report.md >> $GITHUB_STEP_SUMMARY
