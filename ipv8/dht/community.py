@@ -8,8 +8,9 @@ import time
 from asyncio import FIRST_COMPLETED, Future, Task, gather, wait
 from binascii import hexlify, unhexlify
 from collections import defaultdict, deque
+from collections.abc import Coroutine, Iterator, Sequence
 from itertools import zip_longest
-from typing import TYPE_CHECKING, Any, Coroutine, Iterator, List, Optional, Sequence, Set, Tuple, cast
+from typing import TYPE_CHECKING, Any, Optional, cast
 
 from ..community import Community, CommunitySettings
 from ..lazy_community import lazy_wrapper, lazy_wrapper_wd
@@ -46,7 +47,7 @@ if TYPE_CHECKING:
     from ..peerdiscovery.discovery import DiscoveryStrategy
     from ..types import Address, Peer
 
-DHTValue = Tuple[bytes, Optional[bytes]]
+DHTValue = tuple[bytes, Optional[bytes]]
 
 PING_INTERVAL = 25
 
@@ -87,7 +88,7 @@ class Request(RandomNumberCache):
     This request cache keeps track of all outstanding requests within the DHTCommunity.
     """
 
-    def __init__(self, community: DHTCommunity, msg_type: str, node: Node,  # noqa: PLR0913
+    def __init__(self, community: DHTCommunity, msg_type: str, node: Node,
                  params: list | None = None, consume_errors: bool = False, timeout: float = 5.0) -> None:
         """
         Create a new request state.
@@ -164,7 +165,7 @@ class Crawl:
 
         # Keep a list of nodes that still need to be contacted: [(node_to_contact, node_to_puncture)]
         self.nodes_todo: list[Crawl.TodoNode] = [Crawl.TodoNode(n, None) for n in nodes_closest]
-        self.nodes_tried: Set[Node] = set()
+        self.nodes_tried: set[Node] = set()
         self.responses: list[tuple[Node, dict[str, list[bytes] | list[Node]]]] = []
 
         self.force_nodes = force_nodes
@@ -176,7 +177,7 @@ class Crawl:
         """
         self.responses.append((sender, response))
 
-        for index, node in enumerate(cast(List[Node], response.get('nodes', []))):
+        for index, node in enumerate(cast(list[Node], response.get('nodes', []))):
             if node in self.nodes_tried:
                 continue
 
@@ -215,7 +216,7 @@ class Crawl:
         Get the currently known values for our crawl.
         """
         # Merge all values received into one tuple. First pick the first value from each tuple, then the second, etc.
-        value_responses: list[list[bytes]] = [cast(List[bytes], response['values']) for _, response in self.responses
+        value_responses: list[list[bytes]] = [cast(list[bytes], response['values']) for _, response in self.responses
                                               if 'values' in response]
         values = sum(zip_longest(*value_responses), ())
 
@@ -296,7 +297,7 @@ class DHTCommunity(Community):
         """
         Get the class of the given node's address.
         """
-        return node.address.__class__ if node.address.__class__ != tuple else UDPv4Address
+        return node.address.__class__ if isinstance(node.address, tuple) else UDPv4Address
 
     def get_routing_table(self, node: Peer) -> RoutingTable:
         """
@@ -466,8 +467,8 @@ class DHTCommunity(Community):
             msg = "Maximum length exceeded"
             raise DHTError(msg)
 
-        nodes = cast(List[Node], await self.find_nodes(key))
-        nodes = cast(List[Node], await self.store_on_nodes(key, [value], nodes[:TARGET_NODES]))
+        nodes = cast(list[Node], await self.find_nodes(key))
+        nodes = cast(list[Node], await self.store_on_nodes(key, [value], nodes[:TARGET_NODES]))
         if len(nodes) < 1:
             msg = "Failed to store value on DHT"
             raise DHTError(msg)
@@ -575,7 +576,7 @@ class DHTCommunity(Community):
 
     async def _find(self, crawl: Crawl, debug: bool = False) -> list[Node] | list[DHTValue] | \
                                                                 tuple[list[DHTValue], Crawl]:
-        tasks: Set[Future | Task] = set()
+        tasks: set[Future | Task] = set()
         while True:
             # Keep running tasks until work is done.
             while not crawl.done and len(tasks) < MAX_CRAWL_TASKS:
@@ -641,7 +642,7 @@ class DHTCommunity(Community):
                       tuple[list[DHTValue], Crawl]] = await gather(*futures)
 
         if debug:
-            results_debug = cast(List[Tuple[List[DHTValue], Crawl]], results)
+            results_debug = cast(list[tuple[list[DHTValue], Crawl]], results)
             return tuple(*[r[0] for r in results]), [r[1] for r in results_debug]
         return tuple(*results)
 
@@ -651,8 +652,8 @@ class DHTCommunity(Community):
         Find the values belonging to the target key.
         """
         values = await self.find(target, False, offset, debug)
-        return (cast(Tuple[Sequence[Tuple[bytes, Optional[bytes]]], List[Crawl]], values) if debug
-                else cast(Sequence[Tuple[bytes, Optional[bytes]]], values))
+        return (cast(tuple[Sequence[tuple[bytes, Optional[bytes]]], list[Crawl]], values) if debug
+                else cast(Sequence[tuple[bytes, Optional[bytes]]], values))
 
     async def find_nodes(self, target: bytes, debug: bool = False) -> Sequence[Node]:
         """
@@ -705,7 +706,7 @@ class DHTCommunity(Community):
             # The errback must already have been called (due to a timeout)
             return
 
-        if cast(List[bool], cache.params)[0]:
+        if cast(list[bool], cache.params)[0]:
             cache.future.set_result({'nodes': payload.nodes})
         else:
             cache.future.set_result({'values': payload.values} if payload.values

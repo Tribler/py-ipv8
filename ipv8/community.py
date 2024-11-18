@@ -12,11 +12,12 @@ from __future__ import annotations
 import sys
 from asyncio import ensure_future, iscoroutine
 from binascii import hexlify
+from collections.abc import Awaitable
 from itertools import islice
 from random import choice, random
 from time import time
 from traceback import format_exception
-from typing import TYPE_CHECKING, Awaitable, Callable, cast
+from typing import TYPE_CHECKING, Callable, cast
 
 from .lazy_community import EZPackOverlay, lazy_wrapper, lazy_wrapper_unsigned
 from .messaging.anonymization.endpoint import TunnelEndpoint

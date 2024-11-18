@@ -5,12 +5,14 @@ import logging
 from random import choice
 from socket import gethostbyname
 from time import time
-from typing import TYPE_CHECKING, Iterable
+from typing import TYPE_CHECKING
 
 from ...messaging.interfaces.udp.endpoint import UDPv4Address
 from ..bootstrapper_interface import Bootstrapper
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from ...community import Community
     from ...types import Address
 

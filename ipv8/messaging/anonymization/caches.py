@@ -24,7 +24,7 @@ class CreateRequestCache(RandomNumberCacheWithName):
 
     name = "create"
 
-    def __init__(self, community: TunnelCommunity, identifier: int, to_circuit_id: int,  # noqa: PLR0913
+    def __init__(self, community: TunnelCommunity, identifier: int, to_circuit_id: int,
                  from_circuit_id: int, peer: Peer, to_peer: Peer) -> None:
         """
         Create a new cache.
@@ -81,7 +81,7 @@ class RetryRequestCache(NumberCacheWithName):
 
     name = "retry"
 
-    def __init__(self, community: TunnelCommunity, circuit: Circuit,  # noqa: PLR0913
+    def __init__(self, community: TunnelCommunity, circuit: Circuit,
                  candidates: list[bytes] | list[Peer], max_tries: int,
                  retry_func: Callable[[Circuit, list[bytes], int], None] | Callable[[Circuit, list[Peer], int], None],
                  timeout: float) -> None:

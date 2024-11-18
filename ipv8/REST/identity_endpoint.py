@@ -496,7 +496,7 @@ class IdentityEndpoint(BaseEndpoint[IPv8]):
         if authority is None:
             return Response({"success": False, "error": "failed to find authority"})
 
-        metadata = parameters['metadata'] if 'metadata' in parameters else {}
+        metadata = parameters.get("metadata", {})
         channel.request_attestation(authority, parameters['name'], parameters['schema'], metadata)
 
         return Response({"success": True})

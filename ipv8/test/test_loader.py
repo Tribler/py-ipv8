@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Iterable
+from typing import TYPE_CHECKING, Any
 
 from ..bootstrapping.bootstrapper_interface import Bootstrapper
 from ..community import Community, CommunitySettings
@@ -20,6 +20,8 @@ from ..peerdiscovery.discovery import DiscoveryStrategy
 from .base import TestBase
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from ..types import Address, IPv8
 
 

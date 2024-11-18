@@ -136,7 +136,7 @@ async def main() -> None:
     await event.wait()
     await ipv8.stop()
 
-    with open('bootstrap_introductions.txt', 'w') as f:  # noqa: ASYNC101
+    with open('bootstrap_introductions.txt', 'w') as f:  # noqa: ASYNC230
         f.write('Address Peers Type')
         for dns_addr, responses in overlay.introductions.items():
             f.write(f"\n{dns_addr[0]}:{dns_addr[1]} {len([wan for wan, _, _ in responses if wan != ('0.0.0.0', 0)])} 0")

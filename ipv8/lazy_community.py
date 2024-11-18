@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, Sequence, Tuple, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 
 from .keyvault.crypto import default_eccrypto
 from .messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
@@ -22,6 +22,8 @@ from .types import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Coroutine, Sequence
+
     from .messaging.serialization import Serializable
 
 UT = TypeVar("UT", bound=Payload)
@@ -102,8 +104,9 @@ def lazy_wrapper(*payloads: type[Payload]) -> Callable[[LazyWrappedHandler], Mes
             unpacked = self.serializer.unpack_serializable_list(payloads, remainder, offset=23)
             # ASSERT
             if not signature_valid:
-                raise PacketDecodingError("Incoming packet %s has an invalid signature" %
-                                          str([payload_class.__name__ for payload_class in payloads]))
+                msg = (f"Incoming packet {[payload_class.__name__ for payload_class in payloads]!s}"
+                       " has an invalid signature")
+                raise PacketDecodingError(msg)
             # PRODUCE
             peer = self.network.verified_by_public_key_bin.get(auth.public_key_bin)
             if peer:
@@ -138,8 +141,8 @@ def lazy_wrapper_wd(*payloads: type[Payload]) -> Callable[[LazyWrappedWDataHandl
             unpacked = self.serializer.unpack_serializable_list(payloads, remainder, offset=23)
             # ASSERT
             if not signature_valid:
-                raise PacketDecodingError("Incoming packet %s has an invalid signature" %
-                                          str([payload_class.__name__ for payload_class in payloads]))
+                msg = f"Incoming packet {[payload_class.__name__ for payload_class in payloads]!s} has an invalid signature"
+                raise PacketDecodingError(msg)
             # PRODUCE
             output = [*unpacked, data]
             peer = self.network.verified_by_public_key_bin.get(auth.public_key_bin)
@@ -284,7 +287,8 @@ class EZPackOverlay(Overlay, ABC):
         unpacked = self.serializer.unpack_serializable_list(format, remainder, offset=23)
         # ASSERT
         if not signature_valid:
-            raise PacketDecodingError("Incoming packet %s has an invalid signature" % payload_class.__name__)
+            msg = f"Incoming packet {payload_class.__name__} has an invalid signature"
+            raise PacketDecodingError(msg)
         # PRODUCE
         return auth, cast(GlobalTimeDistributionPayload, unpacked[0]), cast(UT, unpacked[1])
 
@@ -297,7 +301,7 @@ class EZPackOverlay(Overlay, ABC):
                                             else [payload_class])
         unpacked = self.serializer.unpack_serializable_list(format, data, offset=23)
         # PRODUCE
-        return (cast(Tuple[GlobalTimeDistributionPayload, UT], unpacked) if global_time
+        return (cast(tuple[GlobalTimeDistributionPayload, UT], unpacked) if global_time
                 else cast(UT, unpacked[0]))
 
 

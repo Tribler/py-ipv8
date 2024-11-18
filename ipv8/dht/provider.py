@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from binascii import hexlify
-from typing import TYPE_CHECKING, List, Tuple, cast
+from typing import TYPE_CHECKING, cast
 
 from ..messaging.anonymization.tunnel import PEER_SOURCE_DHT, IntroductionPoint
 from ..messaging.lazy_payload import VariablePayload, vp_compile
@@ -67,7 +67,7 @@ class DHTCommunityProvider:
             return None
 
         results = []
-        for value, _ in cast(Tuple[List[bytes], List[bytes]], values):
+        for value, _ in cast(tuple[list[bytes], list[bytes]], values):
             try:
                 payload, _ = default_serializer.unpack_serializable(DHTIntroPointPayload, value)
                 intro_peer = Peer(b'LibNaCLPK:' + payload.intro_pk, payload.address)

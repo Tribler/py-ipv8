@@ -1,6 +1,6 @@
 import typing
 
-Address = typing.Tuple[str, int]
+Address = tuple[str, int]
 
 # ruff: noqa: F401
 

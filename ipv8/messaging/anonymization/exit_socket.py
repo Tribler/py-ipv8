@@ -52,9 +52,7 @@ class DataChecker:
         if not (0 <= (byte1 >> 4) <= 4 and (byte1 & 15) == 1):
             return False
         # Extension
-        if not (0 <= byte2 <= 3):
-            return False
-        return True
+        return 0 <= byte2 <= 3
 
     @staticmethod
     def could_be_udp_tracker(data: bytes) -> bool:
@@ -62,10 +60,7 @@ class DataChecker:
         Check if the data could be a UDP-based tracker.
         """
         # For the UDP tracker protocol the action field is either at position 0 or 8, and should be 0..3
-        if len(data) >= 8 and (0 <= unpack_from('!I', data, 0)[0] <= 3)\
-                or len(data) >= 12 and (0 <= unpack_from('!I', data, 8)[0] <= 3):
-            return True
-        return False
+        return bool(len(data) >= 8 and 0 <= unpack_from('!I', data, 0)[0] <= 3 or len(data) >= 12 and 0 <= unpack_from('!I', data, 8)[0] <= 3)
 
     @staticmethod
     def could_be_dht(data: bytes) -> bool:
@@ -109,7 +104,7 @@ class TunnelProtocol(DatagramProtocol):
         self.local_addr = local_addr
         self.logger = logging.getLogger(self.__class__.__name__)
 
-    async def open(self) -> DatagramTransport:  # noqa: A003
+    async def open(self) -> DatagramTransport:
         """
         Opens a datagram endpoint and returns the Transport.
         """
@@ -184,7 +179,7 @@ class TunnelExitSocket(RoutingObject, TaskManager):
 
             task = ensure_future(self.resolve(destination))
             # If this fails, the TaskManager logs the packet.
-            self.register_anonymous_task("resolving_%r" % destination[0], task,
+            self.register_anonymous_task(f"resolving_{destination[0]!r}", task,
                                          ignore=(OSError, ValueError)).add_done_callback(on_address)
             return
 

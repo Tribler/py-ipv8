@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Any, Iterator, List, Sequence, cast
+from collections.abc import Iterator, Sequence
+from typing import TYPE_CHECKING, Any, cast
 
 from typing_extensions import Protocol
 
@@ -48,7 +49,7 @@ class AttestationsDB(Database):
         :param db_name: The name of the database.
         """
         if working_directory != ":memory:":
-            db_path = os.path.join(working_directory, os.path.join(DATABASE_DIRECTORY, "%s.db" % db_name))
+            db_path = os.path.join(working_directory, os.path.join(DATABASE_DIRECTORY, f"{db_name}.db"))
         else:
             db_path = working_directory
         super().__init__(db_path)
@@ -62,14 +63,14 @@ class AttestationsDB(Database):
         """
         Retrieve a serialized attestation by hash.
         """
-        return self._get("SELECT blob FROM %s WHERE hash = ?" % self.db_name,   # noqa: S608
+        return self._get(f"SELECT blob FROM {self.db_name} WHERE hash = ?",   # noqa: S608
                          (attestation_hash,))
 
     def get_all(self) -> list[Sequence[bytes]]:
         """
         Get all serialized attestations we know of.
         """
-        return list(cast(List[Sequence[bytes]], self.execute("SELECT * FROM %s" % self.db_name,  # noqa: S608
+        return list(cast(list[Sequence[bytes]], self.execute(f"SELECT * FROM {self.db_name}",  # noqa: S608
                                                              (), fetch_all=True)))
 
     def insert_attestation(self, attestation: Attestation, attestation_hash: bytes, secret_key: SecretKeyProtocol,
@@ -79,7 +80,7 @@ class AttestationsDB(Database):
         """
         blob = attestation.serialize_private(secret_key.public_key())
         self.execute(
-            "INSERT INTO %s (hash, blob, key, id_format) VALUES(?,?,?,?)" % self.db_name,
+            f"INSERT INTO {self.db_name} (hash, blob, key, id_format) VALUES(?,?,?,?)",
             (attestation_hash, blob, secret_key.serialize(),
              id_format.encode('utf-8')))
         self.commit()
@@ -90,18 +91,18 @@ class AttestationsDB(Database):
         """
         schema = ""
         if version == 1:
-            schema = """
-                     CREATE TABLE IF NOT EXISTS %s(
+            schema = f"""
+                     CREATE TABLE IF NOT EXISTS {self.db_name}(
                      hash                 BLOB,
                      blob                 LONGBLOB,
                      key                  MEDIUMBLOB
 
                      PRIMARY KEY (hash)
                      );
-                     """ % self.db_name
+                     """
         elif version == 2:
-            schema = """
-                     CREATE TABLE IF NOT EXISTS %s(
+            schema = f"""
+                     CREATE TABLE IF NOT EXISTS {self.db_name}(
                      hash                 BLOB,
                      blob                 LONGBLOB,
                      key                  MEDIUMBLOB,
@@ -109,7 +110,7 @@ class AttestationsDB(Database):
 
                      PRIMARY KEY (hash)
                      );
-                     """ % self.db_name
+                     """
         schema += ("CREATE TABLE IF NOT EXISTS option(key TEXT PRIMARY KEY, value BLOB);\n"
                    "DELETE FROM option WHERE key = 'database_version';\n"
                    f"INSERT INTO option(key, value) VALUES('database_version', '{self.LATEST_DB_VERSION!s}');\n")

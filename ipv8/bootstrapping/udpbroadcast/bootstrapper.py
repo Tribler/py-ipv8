@@ -5,11 +5,13 @@ from asyncio import BaseTransport, DatagramProtocol, get_running_loop
 from binascii import hexlify
 from socket import AF_INET, SO_BROADCAST, SO_REUSEADDR, SOCK_DGRAM, SOL_SOCKET, socket
 from time import time
-from typing import TYPE_CHECKING, Iterable
+from typing import TYPE_CHECKING
 
 from ..bootstrapper_interface import Bootstrapper
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from ...types import Address, Community
 
 PROTOCOL_VERSION = b'\x00\x00'
@@ -34,7 +36,7 @@ class BroadcastBootstrapEndpoint(DatagramProtocol):
         self.overlay = overlay
         self.logger = logging.getLogger(self.__class__.__name__)
 
-    async def open(self) -> bool:  # noqa: A003
+    async def open(self) -> bool:
         """
         Open the broadcast socket.
         """

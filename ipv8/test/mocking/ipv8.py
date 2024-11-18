@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Awaitable, Generator
+from typing import TYPE_CHECKING
 
 from ...community import CommunitySettings
 from ...dht.discovery import DHTDiscoveryCommunity
@@ -13,6 +13,8 @@ from .discovery import MockWalk
 from .endpoint import AutoMockEndpoint
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable, Generator
+
     from ...peerdiscovery.discovery import DiscoveryStrategy
     from ...types import Community, Overlay
 

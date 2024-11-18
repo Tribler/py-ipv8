@@ -1,6 +1,5 @@
-from asyncio import run
+from asyncio import run, sleep
 from base64 import b64encode
-from time import sleep
 
 from ipv8.configuration import get_default_configuration
 from ipv8.REST.rest_manager import RESTManager
@@ -30,7 +29,7 @@ async def start_community() -> None:
                 await rest_manager.start(14410 + peer_id)
                 keep_trying = False
             except OSError:
-                sleep(1.0)  # noqa: ASYNC101
+                await sleep(1.0)
 
         # Print the peer for reference
         print("Starting peer", b64encode(ipv8.keys["anonymous id"].mid))

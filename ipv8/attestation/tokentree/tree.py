@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from collections import OrderedDict
 from hashlib import sha3_256
-from typing import TYPE_CHECKING, Set
+from typing import TYPE_CHECKING
 
 from .token import Token
 
@@ -104,7 +104,7 @@ class TokenTree:
             return token
         return None
 
-    def get_missing(self) -> Set[bytes]:
+    def get_missing(self) -> set[bytes]:
         """
         Gather all the preceding hashes that have been specified but not collected.
 

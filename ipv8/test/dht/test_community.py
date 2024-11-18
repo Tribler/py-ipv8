@@ -1,6 +1,6 @@
 import time
 from asyncio import TimeoutError, ensure_future, wait_for
-from typing import Iterable
+from collections.abc import Iterable
 
 from ...dht import DHTError
 from ...dht.community import DHTCommunity

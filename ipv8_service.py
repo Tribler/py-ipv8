@@ -9,7 +9,11 @@ from contextlib import suppress
 from os.path import isfile
 from threading import RLock
 from traceback import format_exception
-from typing import Any, Awaitable, Generator
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Generator
+    from typing import Any
 
 if hasattr(sys.modules['__main__'], "IPv8"):
     sys.modules[__name__] = sys.modules['__main__']

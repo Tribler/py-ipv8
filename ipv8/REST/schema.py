@@ -60,7 +60,7 @@ class OverlaySchema(Schema):
     The schema to describe overlays.
     """
 
-    id = String()  # noqa: A003
+    id = String()
     my_peer = String()
     global_time = Integer()
     peers = List(Nested(cast(SchemaABC, AddressWithPK)))

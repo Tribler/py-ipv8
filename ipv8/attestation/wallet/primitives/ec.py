@@ -3,7 +3,7 @@ Ported from "The Weil Pairing on Elliptic Curves and Its Cryptographic Applicati
 """
 from __future__ import annotations
 
-from typing import Tuple, cast
+from typing import cast
 
 from .value import FP2Value
 
@@ -21,8 +21,8 @@ def esum(mod: int, p: str | tuple[FP2Value, FP2Value],
         return q
     if q == "O":
         return p
-    x1, y1 = cast(Tuple[FP2Value, FP2Value], p)
-    x2, y2 = cast(Tuple[FP2Value, FP2Value], q)
+    x1, y1 = cast(tuple[FP2Value, FP2Value], p)
+    x2, y2 = cast(tuple[FP2Value, FP2Value], q)
     if x1 == x2 and y1 == FP2Value(mod, -1) * y2:
         return "O"
     if x1 == x2:
@@ -38,8 +38,8 @@ def H(mod: int, p: str | tuple[FP2Value, FP2Value], q: str | tuple[FP2Value, FP2
     """
     Perform the h_{T,T} function for the Miller calculation with divisors P and Q for coordinate (x,y).
     """
-    x1, y1 = cast(Tuple[FP2Value, FP2Value], p)
-    x2, y2 = cast(Tuple[FP2Value, FP2Value], q)
+    x1, y1 = cast(tuple[FP2Value, FP2Value], p)
+    x2, y2 = cast(tuple[FP2Value, FP2Value], q)
     if x1 == x2 and y1 == FP2Value(mod, -1) * y2:
         return (x - x1).normalize()
     if x1 == x2 and y1 == y2:
@@ -71,9 +71,9 @@ def weilpairing(mod: int, m: int, P: tuple[FP2Value, FP2Value], Q: tuple[FP2Valu
     Create a Weil pairing for message m, points P and Q and DH secret S.
     """
     nS = (S[0], FP2Value(mod, -1) * S[1])
-    A = millercalc(mod, m, P, cast(Tuple[FP2Value, FP2Value], esum(mod, Q, S)))
+    A = millercalc(mod, m, P, cast(tuple[FP2Value, FP2Value], esum(mod, Q, S)))
     B = millercalc(mod, m, P, S)
-    C = millercalc(mod, m, Q, cast(Tuple[FP2Value, FP2Value], esum(mod, P, nS)))
+    C = millercalc(mod, m, Q, cast(tuple[FP2Value, FP2Value], esum(mod, P, nS)))
     D = millercalc(mod, m, Q, nS)
     wp = ((A * D) // (B * C))
     return wp.wp_nominator() * wp.wp_denom_inverse()

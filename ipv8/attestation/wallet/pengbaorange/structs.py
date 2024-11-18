@@ -87,7 +87,7 @@ class PengBaoCommitmentPrivate:
 
     MSGSPACE: list[int] = list(range(256))
 
-    def __init__(self, m1: int, m2: int, m3: int, r1: int, r2: int, r3: int) -> None:  # noqa: PLR0913
+    def __init__(self, m1: int, m2: int, m3: int, r1: int, r2: int, r3: int) -> None:
         """
         Private values for to answer challenges for our public range proof.
         """
@@ -173,7 +173,7 @@ class PengBaoPublicData:
     Public data required to verify a Peng Bao proof.
     """
 
-    def __init__(self,  # noqa: PLR0913
+    def __init__(self,
                  PK: BonehPublicKey,  # noqa: N803
                  bitspace: int,
                  commitment: PengBaoCommitment,

@@ -3,7 +3,7 @@ from __future__ import annotations
 from binascii import unhexlify
 from random import sample
 from time import time
-from typing import TYPE_CHECKING, Sequence, Union, cast
+from typing import TYPE_CHECKING, Union, cast
 
 from ..community import Community, CommunitySettings
 from ..keyvault.crypto import default_eccrypto
@@ -24,6 +24,8 @@ from .payload import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from ..types import Address
 
 

@@ -96,4 +96,4 @@ async def start_communities() -> None:
 run(start_communities())
 
 # Print the introduction times for all default Communities, sorted alphabetically.
-print(','.join(['%.4f' % RESULTS[key] for key in sorted(RESULTS)]))  # noqa: T201
+print(','.join([f'{RESULTS[key]:.4f}' for key in sorted(RESULTS)]))  # noqa: T201

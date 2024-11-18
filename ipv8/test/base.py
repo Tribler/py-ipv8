@@ -9,9 +9,10 @@ import time
 import unittest
 import uuid
 from asyncio import AbstractEventLoop, Task, all_tasks, ensure_future, get_running_loop, iscoroutine, sleep
+from collections.abc import Awaitable, Coroutine
 from contextlib import contextmanager
 from functools import partial
-from typing import TYPE_CHECKING, Awaitable, Callable, Coroutine, Generic, Type, TypeVar, cast
+from typing import TYPE_CHECKING, Callable, Generic, TypeVar, cast
 
 from ..lazy_community import PacketDecodingError, lazy_wrapper, lazy_wrapper_unsigned
 from ..messaging.interfaces.lan_addresses.interfaces import get_providers
@@ -115,26 +116,16 @@ class TranslatedMockEndpointListener(MockEndpointListener):
         self.received_messages += list(trap.payloads)
 
 
-if sys.version_info[0] == 3 and sys.version_info[1] <= 7:  # noqa: YTT201, YTT203
-    # unittest.IsolatedAsyncioTestCase does not exist below Python 3.8, use asynctest instead
-    import asynctest
-    TestCaseClass = asynctest.TestCase
-    USE_ASYNC_TEST = True
-else:
-    TestCaseClass = unittest.IsolatedAsyncioTestCase
-    USE_ASYNC_TEST = False
-
 OT = TypeVar("OT", bound=Overlay)
 
 
-class TestBase(TestCaseClass, Generic[OT]):
+class TestBase(unittest.IsolatedAsyncioTestCase, Generic[OT]):
     """
     Base TestCase to allow easy testing of IPv8 overlays.
     """
 
     __testing__ = True
     __lockup_timestamp__ = 0
-    __asynctest_compatibility_mode__ = USE_ASYNC_TEST
 
     # The time after which the whole test suite is os.exited
     MAX_TEST_TIME = 10
@@ -152,29 +143,25 @@ class TestBase(TestCaseClass, Generic[OT]):
         self._uncaught_async_failure = None
 
     @property
-    def __loop(self) -> AbstractEventLoop:
+    def loop(self) -> AbstractEventLoop:
         """
         Return the asyncio event loop used for the test case.
         """
         if hasattr(self, "_asyncioTestLoop"):
-            # Python 3.8, 3.9, and 3.10.
+            # Python 3.9, and 3.10.
             return self._asyncioTestLoop
         # Python 3.11 (and up?).
         return self._asyncioRunner.get_loop()
 
-    loop = getattr(TestCaseClass, "loop", __loop)
-
     def __call_internal_in_context(self, func: Callable | Coroutine) -> None:
         """
         Call setUp or tearDown within the unittest.IsolatedAsyncioTestCase context.
-
-        This is not used for asynctest compatibility mode.
         """
         if hasattr(self, "_asyncioTestContext"):
             # Python 3.11 (and up?).
             self._asyncioTestContext.run(func)
         else:
-            # Python 3.8, 3.9, and 3.10.
+            # Python 3.9, and 3.10.
             self._callTestMethod(func)
 
     def _callSetUp(self) -> None:  # noqa: N802
@@ -273,17 +260,12 @@ class TestBase(TestCaseClass, Generic[OT]):
             while self._tempdirs:
                 shutil.rmtree(self._tempdirs.pop(), ignore_errors=True)
         # Now that everyone has calmed down, sweep up the remaining callbacks and check if they failed.
-        # [port] ``asynctest.helpers.exhaust_callbacks`` no longer works in Python 3.10
-        while self.loop._ready:  # noqa: SLF001
+        while self.loop._ready:  # noqa: SLF001, ASYNC110
             await sleep(0)
-        # [end of ``asynctest.helpers.exhaust_callbacks`` port]
         if self._uncaught_async_failure is not None:
             raise self._uncaught_async_failure["exception"]
         self.loop.set_exception_handler(None)  # None is equivalent to the default handler
-        if self.__asynctest_compatibility_mode__:
-            super().tearDown()
-        else:
-            await super().asyncTearDown()
+        await super().asyncTearDown()
 
     @classmethod
     def setUpClass(cls: TestBase) -> None:  # noqa: C901
@@ -318,7 +300,7 @@ class TestBase(TestCaseClass, Generic[OT]):
                     if tasks:
                         print("Pending tasks:")  # noqa: T201
                         for task in tasks:
-                            print(">     %s" % task)  # noqa: T201
+                            print(f">     {task}")  # noqa: T201
                 except RuntimeError:
                     print("Failed to acquire the pending tasks. Your event loop may already be closed!")  # noqa: T201
 
@@ -348,7 +330,7 @@ class TestBase(TestCaseClass, Generic[OT]):
         """
         Create a new IPv8-like container to store node related information.
         """
-        return MockIPv8("low", cast(Type[Community], self.overlay_class), settings, create_dht, enable_statistics)
+        return MockIPv8("low", cast(type[Community], self.overlay_class), settings, create_dht, enable_statistics)
 
     def add_node_to_experiment(self, node: MockIPv8) -> None:
         """
@@ -366,9 +348,7 @@ class TestBase(TestCaseClass, Generic[OT]):
         """
         Check if the given task is to be ignored.
         """
-        # Only in Python 3.8+ will we have a get_name function
-        name = task.get_name() if hasattr(task, 'get_name') else getattr(task, 'name', f'Task-{id(task)}')
-        return name.endswith('_check_tasks')
+        return task.get_name().endswith('_check_tasks')
 
     async def deliver_messages(self, timeout: float = .1) -> None:
         """

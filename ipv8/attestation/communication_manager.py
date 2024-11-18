@@ -4,7 +4,7 @@ import asyncio
 import base64
 import json
 import os
-from typing import Dict, Tuple, cast
+from typing import cast
 
 from ..keyvault.crypto import ECCrypto
 from ..messaging.anonymization.endpoint import TunnelEndpoint
@@ -15,8 +15,8 @@ from .identity.community import IdentityCommunity, create_community
 from .identity.manager import IdentityManager
 from .wallet.community import AttestationCommunity, AttestationSettings
 
-AttributePointer = Tuple[Peer, str]  # Backward compatibility: Python >= 3.9 can use ``tuple[Peer, str]``
-MetadataDict = Dict[str, str]  # Backward compatibility: Python >= 3.9 can use ``dict[str, str]``
+AttributePointer = tuple[Peer, str]
+MetadataDict = dict[str, str]
 
 
 class CommunicationChannel:

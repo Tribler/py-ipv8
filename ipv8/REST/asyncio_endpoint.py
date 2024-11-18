@@ -4,7 +4,8 @@ import collections
 import logging
 import time
 from asyncio import all_tasks, current_task, get_running_loop
-from typing import TYPE_CHECKING, Iterable, cast
+from collections.abc import Iterable
+from typing import TYPE_CHECKING, cast
 
 from aiohttp import web
 from aiohttp_apispec import docs, json_schema
@@ -193,8 +194,7 @@ class AsyncioEndpoint(BaseEndpoint[IPv8]):
         current = current_task()
         tasks = []
         for task in all_tasks():
-            # Only in Python 3.8+ will we have a get_name function
-            name = task.get_name() if hasattr(task, 'get_name') else getattr(task, 'name', f'Task-{id(task)}')
+            name = task.get_name()
 
             task_dict = {"name": name,
                          "running": task == current,

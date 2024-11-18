@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from asyncio import Future, Transport
 from threading import RLock
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, cast
+from typing import TYPE_CHECKING, Any, Callable, cast
 
 from aiohttp import BaseConnector, ClientRequest, ClientSession, ClientTimeout, web
 from aiohttp.client_proto import ResponseHandler
@@ -23,6 +23,7 @@ from ...util import maybe_coroutine, succeed
 from ..base import TestBase
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable
     from ssl import SSLContext
 
     from aiohttp.tracing import Trace

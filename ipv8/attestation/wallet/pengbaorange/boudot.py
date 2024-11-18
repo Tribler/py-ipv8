@@ -9,14 +9,17 @@ Modified for use with range proofs ("An efficient range proof scheme." by K. Pen
 from __future__ import annotations
 
 from binascii import hexlify
-from math import ceil, log
+from math import ceil, log2
 from os import urandom
 from struct import pack, unpack
-from typing import Iterator
+from typing import TYPE_CHECKING
 
 from ..primitives.attestation import sha256_as_int
 from ..primitives.structs import ipack, iunpack
 from ..primitives.value import FP2Value
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 
 def secure_randint(nmin: int, nmax: int) -> int:
@@ -24,7 +27,7 @@ def secure_randint(nmin: int, nmax: int) -> int:
     Generate a secure random integer.
     """
     normalized_range = nmax - nmin
-    n = int(ceil(log(normalized_range, 2) / 8.0))
+    n = int(ceil(log2(normalized_range) / 8.0))
     rbytes_int = int(hexlify(urandom(n)), 16)
     return nmin + (rbytes_int % normalized_range)
 
@@ -101,7 +104,7 @@ class EL:
         D2 = n2 + c * r2
         return cls(c, D, D1, D2)
 
-    def check(self,  # noqa: PLR0913
+    def check(self,
               g1: FP2Value,
               h1: FP2Value,
               g2: FP2Value,
@@ -167,7 +170,7 @@ class SQR:
         self.el = el
 
     @classmethod
-    def create(cls: type[SQR],  # noqa: PLR0913
+    def create(cls: type[SQR],
                x: int,
                r1: int,
                g: FP2Value,

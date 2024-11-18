@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from struct import unpack
-from typing import TYPE_CHECKING, Any, Callable, Set
+from typing import TYPE_CHECKING, Any, Callable
 
 from ...requestcache import NumberCache, RequestCache
 
@@ -77,7 +77,7 @@ class ReceiveAttestationVerifyCache(HashCache):
         Create a new cache for a pending attestation transfer.
         """
         super().__init__(community.request_cache, "receive-verify-attestation", cache_hash, id_format)
-        self.attestation_map: Set[tuple[int, bytes]] = set()
+        self.attestation_map: set[tuple[int, bytes]] = set()
 
     def on_timeout(self) -> None:
         """
@@ -105,7 +105,7 @@ class ReceiveAttestationRequestCache(PeerCache):
         Create a new cache for a pending attestation transfer reception.
         """
         super().__init__(community.request_cache, "receive-request-attestation", mid, id_format)
-        self.attestation_map: Set[tuple[int, bytes]] = set()
+        self.attestation_map: set[tuple[int, bytes]] = set()
         self.key = key
         self.name = name
 

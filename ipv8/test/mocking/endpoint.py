@@ -80,12 +80,12 @@ class MockEndpoint(Endpoint):
             ep = internet[socket_address]
             get_running_loop().call_soon(ep.notify_listeners, (self.wan_address, packet))
         else:
-            e = AssertionError("Attempted to send data to unregistered address %s" % repr(socket_address))
+            e = AssertionError(f"Attempted to send data to unregistered address {socket_address!r}")
             if self.SEND_INET_EXCEPTION_TO_LOOP:
                 get_running_loop().create_task(crash_event_loop(e))
             raise e
 
-    def open(self) -> None:  # noqa: A003
+    def open(self) -> None:
         """
         Set this endpoint to be open.
         """

@@ -129,7 +129,7 @@ class EdgeWalk(DiscoveryStrategy[Overlay]):
         available = list(set(self._neighborhood) - set(self.under_construction.keys()))
         return choice(available) if available else None
 
-    def take_step(self) -> None:  # noqa: C901
+    def take_step(self) -> None:  # noqa: C901, PLR0912
         """
         Attempt to grow an edge.
         """

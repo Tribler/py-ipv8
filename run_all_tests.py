@@ -14,11 +14,12 @@ import threading
 import time
 import unittest
 from concurrent.futures import ProcessPoolExecutor
-from typing import TYPE_CHECKING, Generator, TextIO, cast
+from typing import TYPE_CHECKING, TextIO, cast
 from unittest import TestCase
 
 if TYPE_CHECKING:
     import types
+    from collections.abc import Generator
 
     from typing_extensions import Self
 
@@ -218,8 +219,7 @@ def task_test(*test_names: str) -> tuple[bool, int, float, list[tuple[str, str, 
     return tests_failed, tests_run_count, end_time - start_time, combined_event_log, print_stream.getvalue()
 
 
-def scan_for_test_files(directory: pathlib.Path | str = pathlib.Path('./ipv8/test')) -> Generator[pathlib.Path,
-                                                                                                  None, None]:
+def scan_for_test_files(directory: pathlib.Path | str = pathlib.Path('./ipv8/test')) -> Generator[pathlib.Path]:
     """
     Find Python files starting with ``test_`` in a given directory.
     """
