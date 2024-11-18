@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from ipv8.messaging.lazy_payload import VariablePayload, vp_compile
 from ipv8.messaging.payload import Payload
-from ipv8.messaging.payload_dataclass import dataclass, type_from_format
+from ipv8.messaging.payload_dataclass import DataClassPayload, type_from_format
 from ipv8.messaging.serialization import Serializable
 
 
@@ -56,7 +58,7 @@ H = type_from_format('H')
 
 
 @dataclass
-class MyDataclassPayload:
+class MyDataclassPayload(DataClassPayload):
     field1: I
     field2: H
 

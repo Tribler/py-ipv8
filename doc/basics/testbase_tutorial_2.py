@@ -1,26 +1,27 @@
 import os
 import unittest
+from dataclasses import dataclass
 from random import random, shuffle
 
 from ipv8.community import Community, CommunitySettings
 from ipv8.lazy_community import lazy_wrapper, lazy_wrapper_unsigned
-from ipv8.messaging.payload_dataclass import dataclass
+from ipv8.messaging.payload_dataclass import DataClassPayload
 from ipv8.test.base import TestBase
 from ipv8.types import Peer
 
 
-@dataclass(msg_id=1)
-class Message1:
+@dataclass
+class Message1(DataClassPayload[1]):
     value: int
 
 
-@dataclass(msg_id=2)
-class Message2:
+@dataclass
+class Message2(DataClassPayload[2]):
     value: int
 
 
-@dataclass(msg_id=3)
-class Message3:
+@dataclass
+class Message3(DataClassPayload[3]):
     value: int
 
 

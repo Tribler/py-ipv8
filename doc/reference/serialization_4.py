@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from typing import cast
 
 from ipv8.messaging.lazy_payload import VariablePayload, vp_compile
-from ipv8.messaging.payload_dataclass import dataclass
+from ipv8.messaging.payload_dataclass import DataClassPayload
 from ipv8.messaging.serialization import default_serializer
 
 
@@ -23,8 +24,8 @@ class VPMessageKeepDict(VariablePayload):
         return json.loads(serialized_dictionary.decode())
 
 
-@dataclass(msg_id=2)
-class DCMessageKeepDict:
+@dataclass
+class DCMessageKeepDict(DataClassPayload[2]):
     dictionary: str
 
     def fix_pack_dictionary(self, the_dictionary: dict) -> str:
