@@ -102,7 +102,7 @@ class UDPEndpoint(Endpoint, asyncio.DatagramProtocol):
         """
         self._logger.log(level, message)
 
-    async def open(self) -> bool:  # noqa: A003
+    async def open(self) -> bool:
         """
         Open the Endpoint.
 

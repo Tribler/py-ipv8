@@ -1,8 +1,11 @@
 from __future__ import annotations
 
-from typing import Generic, Iterator, Tuple, TypeVar, cast
+from typing import TYPE_CHECKING, Generic, TypeVar, cast
 
 from . import DHTError
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 # Sentinel object
 NullType = object
@@ -132,7 +135,7 @@ class Trie(Generic[ValueType]):
         if value:
             return prefix, value
         if default is not Null:
-            return cast(Tuple[str, ValueType], default)
+            return cast(tuple[str, ValueType], default)
         raise KeyError
 
     def longest_prefix(self, key: str, default: str | NullType = Null) -> str:

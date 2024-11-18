@@ -1,10 +1,13 @@
 from __future__ import annotations
 
-from typing import Collection, Set
+from typing import TYPE_CHECKING
 
 from .....messaging.interfaces.lan_addresses.addressprovider import AddressProvider
 from .....messaging.interfaces.lan_addresses.interfaces import get_lan_addresses
 from ....base import TestBase
+
+if TYPE_CHECKING:
+    from collections.abc import Collection
 
 
 class PresetProvider(AddressProvider):
@@ -12,14 +15,14 @@ class PresetProvider(AddressProvider):
     Provider that returns a specific value.
     """
 
-    def __init__(self, return_value: Set[str]) -> None:
+    def __init__(self, return_value: set[str]) -> None:
         """
         Create a new provider with a preset return value.
         """
         super().__init__()
         self.return_value = return_value
 
-    def get_addresses(self) -> Set[str]:
+    def get_addresses(self) -> set[str]:
         """
         Return our preset return value.
         """
@@ -38,7 +41,7 @@ class MockProviders:
         super().__init__()
         self.return_values = []
 
-    def set_return_values(self, return_values: Collection[Set[str]]) -> None:
+    def set_return_values(self, return_values: Collection[set[str]]) -> None:
         """
         Initialize providers for the given return values.
         """

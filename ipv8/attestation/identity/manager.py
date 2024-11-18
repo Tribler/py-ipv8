@@ -50,7 +50,7 @@ class PseudonymManager:
         return self.tree.public_key
 
     def add_credential(self, token: Token, metadata: Metadata,
-                       attestations: typing.Set[tuple[PublicKey, Attestation]] | None = None) -> Credential | None:
+                       attestations: set[tuple[PublicKey, Attestation]] | None = None) -> Credential | None:
         """
         Add a credential to this pseudonym.
 
@@ -134,7 +134,7 @@ class PseudonymManager:
 
     def disclose_credentials(self,
                              credentials: typing.Iterable[Credential],
-                             attestation_selector: typing.Set[bytes]) -> tuple[bytes, bytes, bytes, bytes]:
+                             attestation_selector: set[bytes]) -> tuple[bytes, bytes, bytes, bytes]:
         """
         Create a public disclosure for the given credentials and only include attestations from the given serialized
         public keys.
@@ -148,8 +148,8 @@ class PseudonymManager:
         return self.create_disclosure({credential.metadata for credential in credentials}, attestation_selector)
 
     def create_disclosure(self,
-                          metadata: typing.Set[Metadata],
-                          attestation_selector: typing.Set[bytes]) -> tuple[bytes, bytes, bytes, bytes]:
+                          metadata: set[Metadata],
+                          attestation_selector: set[bytes]) -> tuple[bytes, bytes, bytes, bytes]:
         """
         Create a public disclosure for the given set of metadata and only include attestations from the given serialized
         public keys.

@@ -72,7 +72,8 @@ class ECCrypto:
             if curve[1] == "libnacl":
                 return LibNaCLSK()
 
-        raise RuntimeError("Illegal curve for key generation: %s" % security_level)
+        msg = f"Illegal curve for key generation: {security_level}"
+        raise RuntimeError(msg)
 
     def key_to_bin(self, ec: Key) -> bytes:
         """

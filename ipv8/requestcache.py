@@ -7,11 +7,14 @@ from asyncio import CancelledError, Future, gather
 from contextlib import contextmanager, suppress
 from random import random
 from threading import Lock
-from typing import Generator, Iterable, TypeVar, overload
+from typing import TYPE_CHECKING, TypeVar, overload
 
 from typing_extensions import Protocol
 
 from .taskmanager import TaskManager
+
+if TYPE_CHECKING:
+    from collections.abc import Generator, Iterable
 
 
 class NumberCache:
@@ -27,7 +30,8 @@ class NumberCache:
         self._logger = logging.getLogger(self.__class__.__name__)
 
         if request_cache.has(prefix, number):
-            raise RuntimeError("This number is already in use '%s'" % number)
+            msg = f"This number is already in use '{number}'"
+            raise RuntimeError(msg)
 
         self._prefix = prefix
         self._number = number

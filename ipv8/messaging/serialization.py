@@ -19,7 +19,7 @@ ADDRESS_TYPE_DOMAIN_NAME = 0x02
 ADDRESS_TYPE_IPV6 = 0x03
 
 
-FormatListType = typing.Union[str, typing.Type["Serializable"], typing.List["FormatListType"]]
+FormatListType = typing.Union[str, type["Serializable"], list["FormatListType"]]
 
 
 class PackError(RuntimeError):
@@ -539,7 +539,7 @@ class Serializer:
             try:
                 offset = self._packers[fmt].unpack(data, offset, unpack_list)  # type: ignore[index]
             except KeyError:
-                fmt = cast(typing.Type, fmt)  # If this is not a type, we'll crash
+                fmt = cast(type, fmt)  # If this is not a type, we'll crash
                 if not issubclass(fmt, Serializable):
                     raise
                 offset = self._packers['payload'].unpack(data, offset, unpack_list, fmt)

@@ -4,7 +4,6 @@ import contextlib
 import io
 from asyncio import sleep
 from time import time
-from typing import Set
 
 from .....messaging.interfaces.lan_addresses.addressprovider import AddressProvider
 from ....base import TestBase
@@ -15,7 +14,7 @@ class ErroringProvider(AddressProvider):
     A provider that errors out when getting addresses.
     """
 
-    def get_addresses(self) -> Set[str]:
+    def get_addresses(self) -> set[str]:
         """
         Raise and set an exception.
         """
@@ -39,7 +38,7 @@ class InvocationCountingProvider(AddressProvider):
         super().__init__()
         self.invocations = 0
 
-    def get_addresses(self) -> Set[str]:
+    def get_addresses(self) -> set[str]:
         """
         Add to the count and return no addresses.
         """
@@ -97,7 +96,7 @@ class TestAddressProvider(TestBase):
         provider = InvocationCountingProvider()
         provider.get_addresses_buffered()
 
-        while time() - provider.addresses_ts <= 0.01:
+        while time() - provider.addresses_ts <= 0.01:  # noqa: ASYNC110
             await sleep(0.01)
 
         # 0.01 seconds should have passed, so the addresses should be re-discovered

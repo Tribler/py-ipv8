@@ -26,8 +26,8 @@ setup(
         "packaging"
     ],
     extras_require={
-        "all": ["asynctest; python_version=='3.7'", "coverage"],
-        "tests": ["asynctest; python_version=='3.7'", "coverage"]
+        "all": ["coverage"],
+        "tests": ["coverage"]
     },
     classifiers=[
         "Development Status :: 5 - Production/Stable",
@@ -35,12 +35,12 @@ setup(
         "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
         "Natural Language :: English",
         "Operating System :: OS Independent",
-        "Programming Language :: Python :: 3.7",
-        "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
+        "Programming Language :: Python :: 3.14",
         "Topic :: Scientific/Engineering",
         "Topic :: Software Development :: Libraries :: Python Modules",
         "Topic :: System :: Distributed Computing",

@@ -19,7 +19,7 @@ class PingChurn(DiscoveryStrategy):
         super().__init__(overlay)
         self.ping_interval = ping_interval
 
-    def take_step(self) -> None:  # noqa: C901
+    def take_step(self) -> None:  # noqa: C901, PLR0912
         """
         Every tick (half-second by default), performs maintainence.
 

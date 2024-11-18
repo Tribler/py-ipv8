@@ -56,7 +56,7 @@ def calc_node_id(address: Address | UDPv4Address | UDPv6Address, mid: bytes) -> 
         ip_masked = bytes([ip_bin[i] & ip_mask[i] for i in range(4)])
 
     crc32_unsigned = binascii.crc32(ip_masked) % (2 ** 32)
-    crc32_bin = binascii.unhexlify('%08x' % crc32_unsigned)
+    crc32_bin = binascii.unhexlify(f'{crc32_unsigned:08x}')
 
     return crc32_bin[:3] + mid[:17]
 
@@ -79,7 +79,7 @@ class Node(Peer):
         self.rtt: float = 0
 
     @property
-    def id(self) -> bytes:  # noqa: A003
+    def id(self) -> bytes:
         """
         The id of this node.
         """

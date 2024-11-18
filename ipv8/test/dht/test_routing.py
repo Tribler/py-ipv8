@@ -17,13 +17,13 @@ class FakeNode(Node):
         """
         id_binary = int(binary_prefix + '0' * (160 - len(binary_prefix)), 2)
         super().__init__(LibNaCLSK(b'LibNaCLSK:' + id_binary.to_bytes(64, "big")), ('1.1.1.1', 1))
-        id_hex = '%x' % id_binary
+        id_hex = f'{id_binary:x}'
         id_hex = '0' + id_hex if len(id_hex) % 2 != 0 else id_hex
 
         self._id = unhexlify(id_hex)
 
     @property
-    def id(self) -> bytes:  # noqa: A003
+    def id(self) -> bytes:
         """
         Our fixed testing id.
         """

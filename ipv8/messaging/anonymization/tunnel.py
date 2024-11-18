@@ -6,11 +6,13 @@ import time
 from asyncio import Future, gather
 from binascii import hexlify
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Callable, Sequence, cast
+from typing import TYPE_CHECKING, Callable, cast
 
 from ...keyvault.public.libnaclkey import LibNaCLPK
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from ...keyvault.private.libnaclkey import LibNaCLSK
     from ...peer import Peer
     from ...types import Address

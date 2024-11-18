@@ -168,7 +168,7 @@ class Strategy(enum.Enum):
         """
         Get the known default DiscoveryStrategy names.
         """
-        return list(typing.cast(typing.Dict[str, Any], cls.__members__))
+        return list(typing.cast(dict[str, Any], cls.__members__))
 
 
 class WalkerDefinition(typing.NamedTuple):
@@ -197,7 +197,7 @@ class Bootstrapper(enum.Enum):
         """
         Get the known default Bootstrapper names.
         """
-        return list(typing.cast(typing.Dict[str, Any], cls.__members__))
+        return list(typing.cast(dict[str, Any], cls.__members__))
 
 
 class BootstrapperDefinition(typing.NamedTuple):

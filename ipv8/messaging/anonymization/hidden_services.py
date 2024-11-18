@@ -11,7 +11,7 @@ import random
 import socket
 import struct
 from asyncio import gather, iscoroutine
-from typing import TYPE_CHECKING, Any, Coroutine, Set, Tuple, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from ...bootstrapping.dispersy.bootstrapper import DispersyBootstrapper
 from ...configuration import DISPERSY_BOOTSTRAPPER
@@ -46,6 +46,8 @@ from .tunnel import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Coroutine
+
     from ...types import IPv8
 
 
@@ -85,11 +87,11 @@ class HiddenTunnelCommunity(TunnelCommunity):
 
         # Messages that can arrive from the socket
         # The circuit id is optional, so we can safely cast these handlers.
-        self.add_message_handler(CreateE2EPayload, cast(Callable[[Tuple[str, int], bytes], None],
+        self.add_message_handler(CreateE2EPayload, cast(Callable[[tuple[str, int], bytes], None],
                                                         self.on_create_e2e))
-        self.add_message_handler(PeersRequestPayload, cast(Callable[[Tuple[str, int], bytes], None],
+        self.add_message_handler(PeersRequestPayload, cast(Callable[[tuple[str, int], bytes], None],
                                                            self.on_peers_request))
-        self.add_message_handler(PeersResponsePayload, cast(Callable[[Tuple[str, int], bytes], None],
+        self.add_message_handler(PeersResponsePayload, cast(Callable[[tuple[str, int], bytes], None],
                                                             self.on_peers_response))
 
         # Messages that can arrive from a circuit (i.e., they are wrapped in a cell)
@@ -155,7 +157,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
 
         # None represents a DHT request
         all_: list[IntroductionPoint | None] = [None]
-        tried: Set[IntroductionPoint | None] = set()
+        tried: set[IntroductionPoint | None] = set()
 
         while len(tried) < max_requests:
             not_tried = set(all_) - tried
@@ -185,7 +187,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
 
         return self.select_circuit(None, swarm.hops)
 
-    def create_circuit_for_infohash(self, info_hash: bytes, ctype: str, exit_flags: Set[int] | None = None,
+    def create_circuit_for_infohash(self, info_hash: bytes, ctype: str, exit_flags: set[int] | None = None,
                                     required_exit: Peer | None = None) -> Circuit | None:
         """
         Create a circuit that connects to the swarm given by the SHA-1 (info) hash.
@@ -498,7 +500,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
 
         rp_info_enc = payload.rp_info_enc
         rp_info_bin = self.crypto.decrypt_str(rp_info_enc, session_keys, FORWARD)
-        rp_info, _ = cast(Tuple[RendezvousInfo, int], self.serializer.unpack(RendezvousInfo, rp_info_bin))
+        rp_info, _ = cast(tuple[RendezvousInfo, int], self.serializer.unpack(RendezvousInfo, rp_info_bin))
 
         required_exit = Peer(rp_info.key, rp_info.address)
         circuit = self.create_circuit_for_infohash(cache.info_hash, CIRCUIT_TYPE_RP_DOWNLOADER,

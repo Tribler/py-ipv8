@@ -16,7 +16,7 @@ class Credential:
     Cache for Metadata <- [Attestation] mappings.
     """
 
-    def __init__(self, metadata: Metadata, attestations: typing.Set[Attestation]) -> None:
+    def __init__(self, metadata: Metadata, attestations: set[Attestation]) -> None:
         """
         Create a new credential.
         """
@@ -75,7 +75,7 @@ class IdentityDatabase(Database):
                      (public_key.key_to_bin(), authority_key.key_to_bin(), metadata_pointer, signature))
         self.commit()
 
-    def get_tokens_for(self, public_key: PublicKey) -> typing.Set[Token]:
+    def get_tokens_for(self, public_key: PublicKey) -> set[Token]:
         """
         Get all tokens in the tree of a certain public key.
         """
@@ -84,7 +84,7 @@ class IdentityDatabase(Database):
                                       fetch_all=True))
         return {Token.from_database_tuple(*token) for token in tokens}
 
-    def get_metadata_for(self, public_key: PublicKey) -> typing.Set[Metadata]:
+    def get_metadata_for(self, public_key: PublicKey) -> set[Metadata]:
         """
         Get all known metadata for a certain public key.
         """
@@ -93,7 +93,7 @@ class IdentityDatabase(Database):
                                         fetch_all=True))
         return {Metadata.from_database_tuple(*metadato) for metadato in metadata}
 
-    def get_attestations_for(self, public_key: PublicKey) -> typing.Set[Attestation]:
+    def get_attestations_for(self, public_key: PublicKey) -> set[Attestation]:
         """
         Get all known attestations (made by others) for a certain public key.
         """
@@ -101,7 +101,7 @@ class IdentityDatabase(Database):
                                             (public_key.key_to_bin(),), fetch_all=True))
         return {Attestation.from_database_tuple(*attestation) for attestation in attestations}
 
-    def get_attestations_by(self, public_key: PublicKey) -> typing.Set[Attestation]:
+    def get_attestations_by(self, public_key: PublicKey) -> set[Attestation]:
         """
         Get all attestations made by a certain public key (for others).
 
@@ -112,7 +112,7 @@ class IdentityDatabase(Database):
                                             (public_key.key_to_bin(),), fetch_all=True))
         return {Attestation.from_database_tuple(*attestation) for attestation in attestations}
 
-    def get_attestations_over(self, metadata: Metadata) -> typing.Set[Attestation]:
+    def get_attestations_over(self, metadata: Metadata) -> set[Attestation]:
         """
         Get all known attestations for given metadata.
         """
@@ -147,7 +147,7 @@ class IdentityDatabase(Database):
         List the public keys of all known identity owners.
         """
         # These are single item tuples
-        return [result[0] for result in typing.cast(typing.Iterator[typing.List[bytes]],
+        return [result[0] for result in typing.cast(typing.Iterator[list[bytes]],
                                                     self.execute("SELECT public_key FROM Tokens", fetch_all=True))]
 
     def get_schema(self, version: int) -> str:

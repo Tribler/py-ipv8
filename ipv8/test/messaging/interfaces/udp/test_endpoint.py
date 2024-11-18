@@ -80,7 +80,7 @@ class TestUDPEndpoint(TestBase):
         # range must be in [1, 51), since Asyncio transports discard empty datagrams
         for ind in range(1, 51):
             self.endpoint1.send(self.ep2_address, b'a' * ind)
-        while len(self.endpoint2_listener.incoming) < 50:
+        while len(self.endpoint2_listener.incoming) < 50:  # noqa: ASYNC110
             await sleep(.02)
         self.assertEqual(len(self.endpoint2_listener.incoming), 50)
 

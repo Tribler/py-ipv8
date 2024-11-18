@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass as ogdataclass
 from functools import partial
-from typing import Callable, Iterable, Type, TypeVar, cast, get_type_hints
+from typing import Callable, TypeVar, cast, get_args, get_type_hints
 
 from .lazy_payload import VariablePayload, vp_compile
 from .serialization import FormatListType, Serializable
@@ -17,7 +18,7 @@ def type_from_format(fmt: str) -> TypeVar:
     return out
 
 
-def type_map(t: Type) -> FormatListType:  # noqa: PLR0911
+def type_map(t: type) -> FormatListType:  # noqa: PLR0911
     if t is bool:
         return "?"
     if t is int:
@@ -31,12 +32,12 @@ def type_map(t: Type) -> FormatListType:  # noqa: PLR0911
     if isinstance(t, TypeVar):
         return t.__name__
     if getattr(t, '__origin__', None) in (tuple, list, set):
-        fmt = t.__args__[0]
+        fmt = get_args(t)[0]
         if issubclass(fmt, Serializable):
             return [fmt]
-        return f"arrayH-{type_map(t.__args__[0])}"
+        return f"arrayH-{type_map(fmt)}"
     if isinstance(t, (tuple, list, set)) or Serializable in getattr(t, "mro", list)():
-        return cast(Type[Serializable], t)
+        return cast(type[Serializable], t)
     raise NotImplementedError(t, " unknown")
 
 
@@ -47,7 +48,7 @@ def dataclass(cls: type | None = None, *,  # noqa: PLR0913
               order: bool = False,
               unsafe_hash: bool = False,
               frozen: bool = False,
-              msg_id: int | None = None) -> partial[Type[VariablePayload]] | Type[VariablePayload]:
+              msg_id: int | None = None) -> partial[type[VariablePayload]] | type[VariablePayload]:
     """
     Equivalent to ``@dataclass``, but also makes the wrapped class a ``VariablePayload``.
 
@@ -55,7 +56,7 @@ def dataclass(cls: type | None = None, *,  # noqa: PLR0913
     """
     if cls is None:
         # Forward user parameters. Format: ``@dataclass(foo=bar)``.
-        return partial(cast(Callable[..., Type[VariablePayload]], dataclass), init=init, repr=repr, eq=eq, order=order,
+        return partial(cast(Callable[..., type[VariablePayload]], dataclass), init=init, repr=repr, eq=eq, order=order,
                        unsafe_hash=unsafe_hash, frozen=frozen, msg_id=msg_id)
 
     # Finally, we have the actual class. Format: ``@dataclass`` or forwarded from partial (see above).

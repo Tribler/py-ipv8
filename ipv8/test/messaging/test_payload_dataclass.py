@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass as ogdataclass
 from dataclasses import is_dataclass
-from typing import List, TypeVar
+from typing import TypeVar
 
 from ...messaging.payload_dataclass import dataclass, type_from_format
 from ...messaging.serialization import default_serializer
@@ -73,7 +73,7 @@ class NestedListType:
     A single list of nested payload.
     """
 
-    a: List[NativeInt]  # Backward compatibility: Python >= 3.9 can use ``list[NativeInt]``
+    a: list[NativeInt]
 
 @dataclass
 class ListIntType:
@@ -81,7 +81,7 @@ class ListIntType:
     A single list of integers.
     """
 
-    a: List[int]
+    a: list[int]
 
 @dataclass
 class ListBoolType:
@@ -89,7 +89,7 @@ class ListBoolType:
     A single list of booleans.
     """
 
-    a: List[bool]
+    a: list[bool]
 
 @ogdataclass
 class Unknown:
@@ -174,10 +174,10 @@ class Everything:
     b: bytes
     c: varlenH
     d: EverythingItem
-    e: List[EverythingItem]  # Backward compatibility: Python >= 3.9 can use ``list[EverythingItem]``
+    e: list[EverythingItem]
     f: str
-    g: List[int]
-    h: List[bool]
+    g: list[int]
+    h: list[bool]
 
 
 class TestDataclassPayload(TestBase):

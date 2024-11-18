@@ -12,9 +12,10 @@ import os
 import sqlite3
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
+from collections.abc import Iterable, Iterator, Mapping
 from sqlite3 import Connection, Cursor, OperationalError
 from threading import RLock
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, Mapping, Tuple, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, Union, cast
 
 if TYPE_CHECKING:
     from types import TracebackType
@@ -82,7 +83,7 @@ class Database(metaclass=ABCMeta):
         @type file_path: unicode
         """
         self._assert(isinstance(file_path, str),
-                     "expected file_path to be unicode, but was %s" % str(type(file_path)))
+                     f"expected file_path to be unicode, but was {type(file_path)!s}")
 
         super().__init__()
         self._logger = logging.getLogger(self.__class__.__name__)
@@ -106,7 +107,7 @@ class Database(metaclass=ABCMeta):
         if not condition:
             raise DatabaseException(str(message))
 
-    def open(self, initial_statements: bool = True, prepare_visioning: bool = True) -> bool:  # noqa: A003
+    def open(self, initial_statements: bool = True, prepare_visioning: bool = True) -> bool:
         """
         Open a connection to the underlying database file.
         """
@@ -221,7 +222,7 @@ class Database(metaclass=ABCMeta):
         if count:
             # get version from required 'option' table
             try:
-                version, = next(cast(Iterator[Tuple[bytes]], self.execute("SELECT value FROM option "
+                version, = next(cast(Iterator[tuple[bytes]], self.execute("SELECT value FROM option "
                                                                           "WHERE key == 'database_version' "
                                                                           "LIMIT 1")))
             except OperationalError:
@@ -233,7 +234,7 @@ class Database(metaclass=ABCMeta):
 
         self._database_version = self.check_database(version)
         self._assert(isinstance(self._database_version, int),
-                     "expected databse version to be int or long, but was type %s" % str(type(self._database_version)))
+                     f"expected databse version to be int or long, but was type {type(self._database_version)!s}")
 
     @property
     def database_version(self) -> int:

@@ -44,7 +44,7 @@ class TrackerChurn(RandomChurn):
     Strategy to get rid of unresponsive of superfluous peers.
     """
 
-    def __init__(self, overlay: Overlay, sample_size: int = 8,  # noqa: PLR0913
+    def __init__(self, overlay: Overlay, sample_size: int = 8,
                  ping_interval: float = 10.0, inactive_time: float = 27.5, drop_time: float = 57.5,
                  max_peers: int = 100) -> None:
         """

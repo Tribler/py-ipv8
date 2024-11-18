@@ -78,7 +78,7 @@ if typing.TYPE_CHECKING:
                 """
                 ...  # incomplete
 
-            class _GetAdaptersAddresses(typing.Protocol, typing.SupportsInt):  # noqa: PYI046
+            class _GetAdaptersAddresses(typing.Protocol, typing.SupportsInt):
                 def __call__(self, Family: c_ulong, Flags: c_ulong, Reserved: int,
                              AdapterAddresses: _Pointer, SizePointer: _Pointer) -> int:
                     ...

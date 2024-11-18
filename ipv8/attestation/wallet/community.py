@@ -253,7 +253,7 @@ class AttestationCommunity(Community):
 
         self.send_attestation(peer.address, attestation_blob, dist.global_time)
 
-    def on_attestation_complete(self, unserialized: Attestation, secret_key: SecretKeyProtocol,  # noqa: PLR0913
+    def on_attestation_complete(self, unserialized: Attestation, secret_key: SecretKeyProtocol,
                                 peer: Peer, name: str, attestation_hash: bytes, id_format: str) -> None:
         """
         We got an Attestation delivered to us.
@@ -333,8 +333,7 @@ class AttestationCommunity(Community):
 
         If we want to serve this request, send the attestation in chunks of 800 bytes.
         """
-        sequence_number = 0
-        for i in range(0, len(blob), 800):
+        for sequence_number, i in enumerate(range(0, len(blob), 800)):
             blob_chunk = blob[i:i + 800]
             self.logger.debug("Sending attestation chunk %d to %s", sequence_number, str(socket_address))
             if global_time is None:
@@ -344,8 +343,6 @@ class AttestationCommunity(Community):
             dist = GlobalTimeDistributionPayload(global_time)
             packet = self._ez_pack(self._prefix, 2, [auth, dist, payload])
             self.endpoint.send(socket_address, packet)
-
-            sequence_number += 1
 
     @lazy_wrapper(GlobalTimeDistributionPayload, AttestationChunkPayload)
     def on_attestation_chunk(self, peer: Peer, dist: GlobalTimeDistributionPayload,

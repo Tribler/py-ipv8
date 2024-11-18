@@ -1,5 +1,4 @@
 from .asyncio_endpoint import AsyncioEndpoint
-from .attestation_endpoint import AttestationEndpoint
 from .base_endpoint import BaseEndpoint
 from .dht_endpoint import DHTEndpoint
 from .identity_endpoint import IdentityEndpoint
@@ -21,7 +20,6 @@ class RootEndpoint(BaseEndpoint):
         Register the names to make this endpoint callable.
         """
         endpoints = {'/asyncio': AsyncioEndpoint,
-                     '/attestation': AttestationEndpoint,
                      '/dht': DHTEndpoint,
                      '/identity': IdentityEndpoint,
                      '/isolation': IsolationEndpoint,

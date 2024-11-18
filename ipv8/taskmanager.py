@@ -3,16 +3,18 @@ from __future__ import annotations
 import logging
 import time
 import traceback
+import types
 from asyncio import CancelledError, Future, Task, ensure_future, gather, get_running_loop, iscoroutinefunction, sleep
 from contextlib import suppress
 from functools import wraps
 from threading import RLock
-from typing import TYPE_CHECKING, Any, Callable, Coroutine, Hashable, Sequence
+from typing import TYPE_CHECKING, Any, Callable
 from weakref import WeakValueDictionary
 
 from .util import coroutine, succeed
 
 if TYPE_CHECKING:
+    from collections.abc import Coroutine, Hashable, Sequence
     from concurrent.futures import ThreadPoolExecutor
 
 MAX_TASK_AGE = 600
@@ -53,6 +55,31 @@ def task(func: Callable) -> Callable:
                                             ensure_future(func(self, *args, **kwargs)),
                                             ignore=(Exception,))
     return wrapper
+
+
+def set_name(self: Future, __value: object) -> None:
+    """
+    This method mimics ``Task.set_name`` for non-Task objects. See ``Task.set_name`` for signature description.
+
+    :param self: The ``Future`` instance to set the name of
+    :param __value: The value to set
+
+    .. seealso:: :class:`asyncio.Task`
+    .. seealso:: :func:`asyncio.Task.set_name`
+    """
+    self.name = __value  # type: ignore[attr-defined]
+
+
+def get_name(self: Future) -> object:
+    """
+    This method mimics ``Task.get_name`` for non-Task objects. See ``Task.get_name`` for signature description.
+
+    :param self: The ``Future`` instance to get the name of
+
+    .. seealso:: :class:`asyncio.Task`
+    .. seealso:: :func:`asyncio.Task.get_name`
+    """
+    return self.name  # type: ignore[attr-defined]
 
 
 class TaskManager:
@@ -122,7 +149,8 @@ class TaskManager:
                 return succeed(None)
 
             if self.is_pending_task_active(name):
-                raise RuntimeError("Task already exists: '%s'" % name)
+                msg = f"Task already exists: '{name}'"
+                raise RuntimeError(msg)
 
             if callable(task):
                 task = task if iscoroutinefunction(task) else coroutine(task)
@@ -138,12 +166,10 @@ class TaskManager:
             # in _pending_tasks. Instead, we add them as attributes to the task.
             task.start_time = time.time()  # type: ignore[attr-defined]
             task.interval = interval  # type: ignore[attr-defined]
-            # The set_name function is only available in Python 3.8+
-            task_name = f"{self.__class__.__name__}:{name}"
-            if hasattr(task, "set_name"):
-                task.set_name(task_name)
-            else:
-                task.name = task_name  # type: ignore[attr-defined]
+            if not hasattr(task, "set_name"):
+                task.set_name = types.MethodType(set_name, task)  # type: ignore[attr-defined]
+                task.get_name = types.MethodType(get_name, task)  # type: ignore[attr-defined]
+            task.set_name(f"{self.__class__.__name__}:{name}")  # type: ignore[attr-defined]
 
             assert isinstance(task, (Task, Future))
 

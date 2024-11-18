@@ -6,11 +6,13 @@ import logging
 import socket
 import struct
 import threading
-from typing import TYPE_CHECKING, Awaitable, Iterable
+from typing import TYPE_CHECKING
 
 from .lan_addresses.interfaces import get_lan_addresses
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable, Iterable
+
     from ...types import Address
 
 

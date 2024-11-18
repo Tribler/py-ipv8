@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from asyncio import Future, ensure_future, iscoroutine
+from collections.abc import Awaitable
 from functools import partial
-from typing import TYPE_CHECKING, Awaitable, cast
+from typing import TYPE_CHECKING, cast
 from unittest.mock import Mock
 
 from ....messaging.anonymization.community import TunnelCommunity, TunnelSettings

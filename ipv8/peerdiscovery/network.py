@@ -6,19 +6,21 @@ import logging
 from collections import OrderedDict
 from operator import methodcaller
 from threading import RLock
-from typing import TYPE_CHECKING, Iterable, NamedTuple, Set, cast
+from typing import TYPE_CHECKING, NamedTuple, cast
 
 from ..messaging.serialization import default_serializer
 from ..types import Address
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from ..types import Overlay, Peer
 
 
 MID = bytes
 PublicKeyMat = bytes
 Service = bytes
-ServiceSet = Set[Service]
+ServiceSet = set[Service]
 
 
 class WalkableAddress(NamedTuple):

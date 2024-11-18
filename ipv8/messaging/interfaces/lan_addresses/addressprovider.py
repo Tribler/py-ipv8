@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import traceback
-import typing
 from abc import ABC, abstractmethod
 from time import time
 
@@ -18,7 +17,7 @@ class AddressProvider(ABC):
         :param verbose: Log any errors that are encountered while fetching addresses.
         """
         self.verbose = verbose
-        self.addresses: typing.Set[str] = set()
+        self.addresses: set[str] = set()
         self.addresses_ts = 0.0
 
     def on_exception(self) -> None:
@@ -44,12 +43,12 @@ class AddressProvider(ABC):
             self.addresses_ts = time()
 
     @abstractmethod
-    def get_addresses(self) -> typing.Set[str]:
+    def get_addresses(self) -> set[str]:
         """
         Get a set of LAN addresses using this provider.
         """
 
-    def get_addresses_buffered(self) -> typing.Set[str]:
+    def get_addresses_buffered(self) -> set[str]:
         """
         Return the known addresses from when ``discover_addresses()`` was last successfully called.
         If discovery hasn't been performed yet, do so now.

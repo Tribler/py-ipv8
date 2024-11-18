@@ -201,7 +201,7 @@ class TestCommunity(TestBase[AttestationCommunity]):
         """
         serialized = ""
         filename = os.path.join(os.path.dirname(__file__), 'attestation.txt')
-        with open(filename) as f:  # noqa: ASYNC101
+        with open(filename) as f:  # noqa: ASYNC230
             serialized = unhexlify(f.read().strip())
         attestation = BonehAttestation.unserialize(serialized, "id_metadata")
         attestation_hash = unhexlify('9019195eb75c07ec3e86a62c314dcf5ef2bbcc0d')
@@ -270,7 +270,7 @@ class TestCommunity(TestBase[AttestationCommunity]):
         Check if an attestation can be verified for id_metadata_big.
         """
         filename = os.path.join(os.path.dirname(__file__), 'attestation_big.txt')
-        with open(filename) as f:  # noqa: ASYNC101
+        with open(filename) as f:  # noqa: ASYNC230
             serialized = unhexlify(f.read().strip())
         attestation = BonehAttestation.unserialize(serialized, "id_metadata_big")
         attestation_hash = unhexlify('113d31c31b626268a16c198cbd58dd5aa8d1d81c')
@@ -298,7 +298,7 @@ class TestCommunity(TestBase[AttestationCommunity]):
         Check if an attestation can be verified for id_metadata_range_18plus.
         """
         filename = os.path.join(os.path.dirname(__file__), 'attestation_range.txt')
-        with open(filename) as f:  # noqa: ASYNC101
+        with open(filename) as f:  # noqa: ASYNC230
             serialized = unhexlify(f.read().strip())
         attestation = PengBaoAttestation.unserialize_private(self.private_key, serialized, "id_metadata_range_18plus")
         attestation_hash = unhexlify('b40c8734ba6c91a49670c1f0152c7f4dac2a8272')

@@ -3,7 +3,7 @@ from __future__ import annotations
 import random
 import time
 from collections import deque
-from typing import TYPE_CHECKING, List, cast
+from typing import TYPE_CHECKING, cast
 
 from ...community import Community, CommunitySettings
 from ...messaging.anonymization.tunnel import PEER_SOURCE_PEX, IntroductionPoint
@@ -92,7 +92,7 @@ class PexCommunity(Community):
         if not extra_bytes:
             return
 
-        for seeder_pk in cast(List[bytes], self.serializer.unpack('varlenH-list', extra_bytes)[0]):
+        for seeder_pk in cast(list[bytes], self.serializer.unpack('varlenH-list', extra_bytes)[0]):
             ip = IntroductionPoint(peer, seeder_pk, PEER_SOURCE_PEX)
             if ip in self.intro_points:
                 # Remove first to put introduction point at front of the deque.

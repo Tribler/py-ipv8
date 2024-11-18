@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import struct
-from typing import Any, List, cast
+from typing import Any, cast
 
 from ...messaging.serialization import DefaultStruct, PackError, Serializable, Serializer
 from ..base import TestBase
@@ -227,10 +227,10 @@ class TestSerializer(TestBase):
         for fmt in formats:
             packer = self.serializer.get_packer_for(fmt)
             pack_name = f"{packer.__class__.__name__}({fmt})"
-            self.assertTrue(hasattr(packer, 'pack'), msg='%s has no pack() method' % pack_name)
-            self.assertTrue(callable(packer.pack), msg='%s.pack is not a method' % pack_name)
-            self.assertTrue(hasattr(packer, 'unpack'), msg='%s has no unpack() method' % pack_name)
-            self.assertTrue(callable(packer.unpack), msg='%s.unpack is not a method' % pack_name)
+            self.assertTrue(hasattr(packer, 'pack'), msg=f'{pack_name} has no pack() method')
+            self.assertTrue(callable(packer.pack), msg=f'{pack_name}.pack is not a method')
+            self.assertTrue(hasattr(packer, 'unpack'), msg=f'{pack_name} has no unpack() method')
+            self.assertTrue(callable(packer.unpack), msg=f'{pack_name}.unpack is not a method')
 
     def test_add_packer(self) -> None:
         """
@@ -278,7 +278,7 @@ class TestSerializer(TestBase):
         instance2 = Short(456)
 
         data = self.serializer.pack_serializable_list([instance1, instance2])
-        deserialized = cast(List[Short], self.serializer.unpack_serializable_list([Short, Short], data))
+        deserialized = cast(list[Short], self.serializer.unpack_serializable_list([Short, Short], data))
 
         self.assertEqual(instance1.number, 123)
         self.assertEqual(instance1.number, deserialized[0].number)

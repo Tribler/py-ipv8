@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import functools
+import operator
 import time
 from binascii import hexlify
 from collections import defaultdict
-from typing import TYPE_CHECKING, Callable, List, cast
+from typing import TYPE_CHECKING, Callable, cast
 
 from ..lazy_community import lazy_wrapper, lazy_wrapper_wd
 from ..types import Address
@@ -87,7 +89,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
             return []
 
         try:
-            nodes = cast(List[Node], await self.find_nodes(key))
+            nodes = cast(list[Node], await self.find_nodes(key))
             return await self.send_store_peer_request(key, nodes[:TARGET_NODES])
         except DHTError:
             return []
@@ -136,7 +138,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
             else:
                 return [node]
 
-        nodes = cast(List[Node], await self.find_nodes(mid))
+        nodes = cast(list[Node], await self.find_nodes(mid))
         nodes = await self.send_connect_peer_request(mid, nodes[:TARGET_NODES])
         if not nodes:
             msg = "Failed to connect peer"
@@ -162,7 +164,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
             self.ez_send(node, ConnectPeerRequestPayload(cache.number, self.my_estimated_lan, key))
 
         node_lists = await gather_without_errors(*futures)
-        return list(set(sum(node_lists, [])))
+        return list(set(functools.reduce(operator.iadd, node_lists, [])))
 
     @lazy_wrapper(StorePeerRequestPayload)
     def on_store_peer_request(self, peer: Peer, payload: StorePeerRequestPayload) -> None:
@@ -200,7 +202,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
 
         cache = cast(Request, self.request_cache.pop('store-peer', payload.identifier))
 
-        key = cast(List[bytes], cache.params)[0]
+        key = cast(list[bytes], cache.params)[0]
         if cache.node not in self.store_for_me[key]:
             self.logger.debug('Peer %s storing us (key %s)', cache.node, hexlify(key))
             self.store_for_me[key].append(cache.node)

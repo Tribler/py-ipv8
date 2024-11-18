@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Awaitable, Callable, Generic, Iterable, TypeVar
+from collections.abc import Awaitable, Iterable
+from typing import Any, Callable, Generic, TypeVar
 
 from aiohttp import web
 from aiohttp.abc import Request, StreamResponse

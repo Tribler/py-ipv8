@@ -48,7 +48,6 @@ def is_prime(number: int, backend: Backend = default_backend()) -> bool:  # noqa
     hex_n = hex(number)[2:]
     if hex_n.endswith('L'):
         hex_n = hex_n[:-1]
-    # hex() outputs a unicode string in Python 3
     bhex_n = hex_n.encode()
     generated = backend._lib.BN_new()
     bn_pp = backend._ffi.new("BIGNUM **", generated)

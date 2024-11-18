@@ -4,7 +4,10 @@ import operator
 import signal
 import struct
 from asyncio import Event, Future, iscoroutine
-from typing import Any, Awaitable, Callable, Coroutine, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, TypeVar
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Coroutine
 
 maximum_integer = 2147483647
 

@@ -8,7 +8,7 @@ from __future__ import annotations
 import abc
 import logging
 import types
-from typing import TYPE_CHECKING, Any, Callable, Type, cast
+from typing import TYPE_CHECKING, Any, Callable, cast
 
 from .keyvault.crypto import default_eccrypto
 from .peer import Peer
@@ -176,7 +176,8 @@ class CommunityLoader:
                     remaining.append(launcher)
         if cycle < 0:
             launcher_names = [launcher.get_name() for launcher in remaining]
-            raise RuntimeError("Cycle detected in CommunityLauncher not_before(): %s" % (str(launcher_names)))
+            msg = f"Cycle detected in CommunityLauncher not_before(): {launcher_names!s}"
+            raise RuntimeError(msg)
         self._logger.info("Finished loading communities!")
 
     @abc.abstractmethod
@@ -300,7 +301,7 @@ def precondition(str_condition: str) -> Callable[[type[CommunityLauncher]], type
 
         def new_should_launch(self: CommunityLauncher, session: object) -> bool:
             return (old_should_launch(self, session)
-                    and eval(str_condition, globals(), locals()))  # noqa: PGH001, S307
+                    and eval(str_condition, globals(), locals()))  # noqa: S307
 
         instance.should_launch = new_should_launch  # type: ignore[method-assign]
         return instance
@@ -314,9 +315,9 @@ def _get_class(class_or_function: type[Community] | Callable[[Any], type[Communi
 
     :param class_or_function: the class, or the function that represents this class.
     """
-    return (cast(Type[Community], class_or_function())  # type: ignore[call-arg, method-assign]
+    return (cast(type[Community], class_or_function())  # type: ignore[call-arg, method-assign]
             if isinstance(class_or_function, types.FunctionType)
-            else cast(Type[Community], class_or_function))
+            else cast(type[Community], class_or_function))
 
 
 def overlay(str_module_or_class: str | type[Community] | Callable[[], type[Community]],
@@ -360,7 +361,7 @@ def overlay(str_module_or_class: str | type[Community] | Callable[[], type[Commu
                                cast(str, str_definition))
         else:
             def get_overlay_class(self: CommunityLauncher) -> type[Community]:
-                return _get_class(cast(Type[Community], str_module_or_class))
+                return _get_class(cast(type[Community], str_module_or_class))
 
         instance.get_overlay_class = get_overlay_class  # type: ignore[method-assign]
         return instance
@@ -416,7 +417,7 @@ def walk_strategy(str_module_or_class: str | type[DiscoveryStrategy] | Callable[
                                                 fromlist=[cast(str, str_definition)]),
                                      cast(str, str_definition))
         else:
-            strategy_class = _get_class(cast(Type[Community], str_module_or_class))
+            strategy_class = _get_class(cast(type[Community], str_module_or_class))
 
         def new_get_walk_strategies(self: CommunityLauncher) -> list[tuple[type[DiscoveryStrategy], dict, int]]:
             return [*old_get_walk_strategies(self), (strategy_class, kw_args or {}, target_peers)]
@@ -473,7 +474,7 @@ def bootstrapper(str_module_or_class: str | type[Bootstrapper] | Callable[[], ty
                                                     fromlist=[cast(str, str_definition)]),
                                          cast(str, str_definition))
         else:
-            bootstrapper_class = _get_class(cast(Type[Community], str_module_or_class))
+            bootstrapper_class = _get_class(cast(type[Community], str_module_or_class))
 
         def new_get_bootstrappers(self: CommunityLauncher, session: object) -> list[tuple[type[Bootstrapper], dict]]:
             return [*old_get_bootstrappers(self, session), (bootstrapper_class, kw_args or {})]
@@ -535,7 +536,7 @@ def kwargs(**kw_args) -> Callable[[type[CommunityLauncher]], type[CommunityLaunc
         def new_get_kwargs(self: CommunityLauncher, session: object) -> dict:
             out = old_get_kwargs(self, session)
             for kwarg in kw_args:
-                out[kwarg] = eval(kw_args[kwarg], globals(), locals())  # noqa: PGH001, S307
+                out[kwarg] = eval(kw_args[kwarg], globals(), locals())  # noqa: S307
             return out
 
         instance.get_kwargs = new_get_kwargs  # type: ignore[method-assign]

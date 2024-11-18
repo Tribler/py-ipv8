@@ -11,8 +11,9 @@ import sys
 from asyncio import ensure_future, iscoroutine, sleep
 from binascii import unhexlify
 from collections import defaultdict
+from collections.abc import Awaitable
 from traceback import format_exception
-from typing import TYPE_CHECKING, Awaitable, List, Optional, Set
+from typing import TYPE_CHECKING, Optional
 
 from ...community import Community, CommunitySettings
 from ...keyvault.private.libnaclkey import LibNaCLSK
@@ -103,7 +104,7 @@ class TunnelSettings(CommunitySettings):
     # to flow over the circuit (i.e. bandwidth payouts to intermediate nodes in a circuit).
     remove_tunnel_delay = 5
 
-    _peer_flags: Set[int] = {PEER_FLAG_RELAY, PEER_FLAG_SPEED_TEST}
+    _peer_flags: set[int] = {PEER_FLAG_RELAY, PEER_FLAG_SPEED_TEST}
 
     _max_relay_early = 8
 
@@ -126,14 +127,14 @@ class TunnelSettings(CommunitySettings):
             self.endpoint.set_max_relay_early(value)
 
     @property
-    def peer_flags(self) -> Set[int]:
+    def peer_flags(self) -> set[int]:
         """
         Return the peer flags.
         """
         return self._peer_flags
 
     @peer_flags.setter
-    def peer_flags(self, value: Set[int]) -> None:
+    def peer_flags(self, value: set[int]) -> None:
         """
         Set the peer flags.
         """
@@ -584,7 +585,7 @@ class TunnelCommunity(Community):
             candidates, _ = self.serializer.unpack('varlenH-list', candidates_bin)
 
             cache = self.request_cache.pop(RetryRequestCache, circuit.circuit_id)
-            self.send_extend(circuit, cast(List[bytes], candidates), cache.max_tries if cache else 1)
+            self.send_extend(circuit, cast(list[bytes], candidates), cache.max_tries if cache else 1)
 
         elif circuit.state == CIRCUIT_STATE_READY:
             self.request_cache.pop(RetryRequestCache, circuit.circuit_id)
