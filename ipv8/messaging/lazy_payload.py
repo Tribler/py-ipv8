@@ -230,22 +230,23 @@ def vp_compile(vp_definition: type[T]) -> type[T]:
     """
     # We use ``exec`` purposefully here, disable the pylint warning:
     # ruff: noqa: B010, S102
+    local_scope = locals()
 
     # Load the function definitions into the local scope.
     exec(_compile_init(vp_definition.names, {
         k: v.default
         for k, v in inspect.signature(vp_definition.__init__).parameters.items()
         if v.default is not inspect.Parameter.empty
-    }), globals(), locals())
-    exec(_compile_from_unpack_list(vp_definition, vp_definition.names), globals(), locals())
-    exec(_compile_to_pack_list(vp_definition, vp_definition.format_list, vp_definition.names), globals(), locals())
+    }), globals(), local_scope)
+    exec(_compile_from_unpack_list(vp_definition, vp_definition.names), globals(), local_scope)
+    exec(_compile_to_pack_list(vp_definition, vp_definition.format_list, vp_definition.names), globals(), local_scope)
 
     # Rewrite the class methods from the locally loaded overwrites.
     # from_unpack_list is a classmethod, so we need to scope it properly.
-    setattr(vp_definition, '__init__', locals()['__init__'])
+    setattr(vp_definition, '__init__', local_scope['__init__'])
     setattr(vp_definition, '__match_args__', tuple(vp_definition.names))
-    setattr(vp_definition, 'from_unpack_list', types.MethodType(locals()['from_unpack_list'], vp_definition))
-    setattr(vp_definition, 'to_pack_list', locals()['to_pack_list'])
+    setattr(vp_definition, 'from_unpack_list', types.MethodType(local_scope['from_unpack_list'], vp_definition))
+    setattr(vp_definition, 'to_pack_list', local_scope['to_pack_list'])
     return vp_definition
 
 

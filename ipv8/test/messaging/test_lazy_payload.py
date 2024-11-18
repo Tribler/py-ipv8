@@ -511,6 +511,7 @@ class TestVariablePayload(TestBase):
         If this test fails, you probably screwed up the class-level sub-pattern.
         """
         payload = BitsPayload(False, True, False, True, False, True, False, True)
+        local_scope = locals()
 
         # The following will crash all interpreters < 3.10 if not contained in a string.
         exec(  # noqa: S102
@@ -520,9 +521,9 @@ match payload:
         matched = True
     case _:
         matched = False
-""", '<string>', 'exec'), globals(), locals())
+""", '<string>', 'exec'), globals(), local_scope)
 
-        self.assertFalse(locals()["matched"])
+        self.assertFalse(local_scope["matched"])
 
     @skipUnlessPython310
     def test_compiled_mismatch_list(self) -> None:
@@ -533,6 +534,7 @@ match payload:
         If this test fails, you probably screwed up the class-level sub-pattern.
         """
         payload = CompiledBitsPayload(False, True, False, True, False, True, False, True)
+        local_scope = locals()
 
         # The following will crash all interpreters < 3.10 if not contained in a string.
         exec(  # noqa: S102
@@ -542,9 +544,9 @@ match payload:
         matched = True
     case _:
         matched = False
-""", '<string>', 'exec'), globals(), locals())
+""", '<string>', 'exec'), globals(), local_scope)
 
-        self.assertFalse(locals()["matched"])
+        self.assertFalse(local_scope["matched"])
 
     @skipUnlessPython310
     def test_plain_match_pattern(self) -> None:
@@ -552,6 +554,7 @@ match payload:
         Check if a VariablePayload instance matches its own pattern.
         """
         payload = BitsPayload(False, True, False, True, False, True, False, True)
+        local_scope = locals()
 
         # The following will crash all interpreters < 3.10 if not contained in a string.
         exec(  # noqa: S102
@@ -561,9 +564,9 @@ match payload:
         matched = True
     case _:
         matched = False
-""", '<string>', 'exec'), globals(), locals())
+""", '<string>', 'exec'), globals(), local_scope)
 
-        self.assertTrue(locals()["matched"])
+        self.assertTrue(local_scope["matched"])
 
     @skipUnlessPython310
     def test_compiled_match_pattern(self) -> None:
@@ -571,6 +574,7 @@ match payload:
         Check if a compiled VariablePayload instance matches its own pattern.
         """
         payload = CompiledBitsPayload(False, True, False, True, False, True, False, True)
+        local_scope = locals()
 
         # The following will crash all interpreters < 3.10 if not contained in a string.
         exec(  # noqa: S102
@@ -580,6 +584,6 @@ match payload:
         matched = True
     case _:
         matched = False
-""", '<string>', 'exec'), globals(), locals())
+""", '<string>', 'exec'), globals(), local_scope)
 
-        self.assertTrue(locals()["matched"])
+        self.assertTrue(local_scope["matched"])
