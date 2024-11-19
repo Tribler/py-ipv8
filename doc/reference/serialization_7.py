@@ -1,5 +1,7 @@
+from dataclasses import dataclass
+
 from ipv8.messaging.lazy_payload import VariablePayload
-from ipv8.messaging.payload_dataclass import dataclass
+from ipv8.messaging.payload_dataclass import DataClassPayload
 
 
 class A(VariablePayload):
@@ -12,8 +14,8 @@ class B(VariablePayload):
     names = ["a", "baz"]
 
 
-@dataclass(msg_id=1)
-class Message:
+@dataclass
+class Message(DataClassPayload[1]):
     @dataclass
     class Item:
         foo: int

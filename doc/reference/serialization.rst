@@ -38,14 +38,14 @@ If the ``dataclass`` had used normal ``int`` types, these would have been two si
 Each instance will have two fields: ``field1`` and ``field2`` corresponding to the integer and short.
 
 .. literalinclude:: serialization_1.py
-   :lines: 9-61
+   :lines: 11-63
 
 
 To show some of the differences, let's check out the output of the following script using these definitions:
 
 
 .. literalinclude:: serialization_1.py
-   :lines: 64-75
+   :lines: 66-77
 
 
 .. code-block:: bash
@@ -195,7 +195,7 @@ This method involves implementing the methods ``fix_pack_<your field name>`` and
 Check out the following example:
 
 .. literalinclude:: serialization_4.py
-   :lines: 11-36
+   :lines: 12-37
 
 In both classes we create a message with a single field ``dictionary``.
 To pack this field, we use ``json.dumps()`` to create a string representation of the dictionary.
@@ -250,9 +250,9 @@ You can specify them by using the ``"payload"`` datatype and setting the ``Paylo
 For a ``VariablePayload`` this looks like the following example.
 
 .. literalinclude:: serialization_7.py
-   :lines: 5-12
+   :lines: 7-14
 
 For dataclass payloads this nesting is supported by simply specifying nested classes as follows.
 
 .. literalinclude:: serialization_7.py
-   :lines: 15-24
+   :lines: 17-26

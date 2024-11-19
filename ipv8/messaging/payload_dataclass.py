@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
-from dataclasses import dataclass as ogdataclass
-from functools import partial
-from typing import Callable, TypeVar, cast, get_args, get_type_hints
+import dataclasses
+import sys
+from typing import Any, TypeVar, cast, get_args, get_type_hints
 
-from .lazy_payload import VariablePayload, vp_compile
+from typing_extensions import Self
+
+from .lazy_payload import VariablePayload, VariablePayloadWID, vp_compile
 from .serialization import FormatListType, Serializable
 
 
@@ -41,37 +42,60 @@ def type_map(t: type) -> FormatListType:  # noqa: PLR0911
     raise NotImplementedError(t, " unknown")
 
 
-def dataclass(cls: type | None = None, *,  # noqa: PLR0913
-              init: bool = True,
-              repr: bool = True,  # noqa: A002
-              eq: bool = True,
-              order: bool = False,
-              unsafe_hash: bool = False,
-              frozen: bool = False,
-              msg_id: int | None = None) -> partial[type[VariablePayload]] | type[VariablePayload]:
-    """
-    Equivalent to ``@dataclass``, but also makes the wrapped class a ``VariablePayload``.
-
-    See ``dataclasses.dataclass`` for argument descriptions.
-    """
-    if cls is None:
-        # Forward user parameters. Format: ``@dataclass(foo=bar)``.
-        return partial(cast(Callable[..., type[VariablePayload]], dataclass), init=init, repr=repr, eq=eq, order=order,
-                       unsafe_hash=unsafe_hash, frozen=frozen, msg_id=msg_id)
-
-    # Finally, we have the actual class. Format: ``@dataclass`` or forwarded from partial (see above).
-    origin: type = ogdataclass(cls, init=init, repr=repr, eq=eq, order=order,  # type: ignore[call-overload]
-                               unsafe_hash=unsafe_hash, frozen=frozen)
-
-    class DataClassPayload(origin, VariablePayload):
-        names = list(get_type_hints(cls).keys())
-        format_list = list(map(type_map, cast(Iterable[type], get_type_hints(cls).values())))
-
+def convert_to_payload(dataclass_type: type, msg_id: int | None = None) -> None:
     if msg_id is not None:
-        setattr(DataClassPayload, "msg_id", msg_id)  # noqa: B010
-    DataClassPayload.__name__ = cls.__name__
-    DataClassPayload.__qualname__ = cls.__qualname__
-    return vp_compile(DataClassPayload)
+        dataclass_type.msg_id = msg_id  # type: ignore[attr-defined]
+    dt_fields = dataclasses.fields(dataclass_type)
+    type_hints = get_type_hints(dataclass_type)
+    dataclass_type.names = [field.name for field in dt_fields]  # type: ignore[attr-defined]
+    dataclass_type.format_list = [type_map(type_hints[field.name]) for field in  # type: ignore[attr-defined]
+                                  dt_fields]
+    setattr(sys.modules[dataclass_type.__module__], dataclass_type.__name__, vp_compile(dataclass_type))
 
 
-__all__ = ['dataclass', 'type_from_format']
+class DataClassPayload(VariablePayload):
+    """
+    A Payload that is defined as a dataclass.
+    """
+
+    def __class_getitem__(cls, item: int) -> DataClassPayloadWID:
+        """
+        Syntactic sugar to add a msg_id attribute into the class inheritance structure.
+
+        |
+
+        .. code-block::
+
+            class MyPayload(DataClassPayload[12]):
+                pass
+
+            assert MyPayload().msg_id == 12
+
+        :param item: The item to get, i.e., the message id
+        """
+        return cast(DataClassPayloadWID, type(cls.__name__, (DataClassPayloadWID, ), {"msg_id": item}))
+
+    def __new__(cls, *args: Any, **kwargs) -> Self:  # noqa: ANN401, ARG003
+        """
+        Allocate memory for a new DataClassPayload class.
+        """
+        out = super().__new__(cls)
+        convert_to_payload(cls)
+        return out
+
+
+class DataClassPayloadWID(VariablePayloadWID):
+    """
+    A Payload that is defined as a dataclass and has a message id [0, 255].
+    """
+
+    def __new__(cls, *args: Any, **kwargs) -> Self:  # noqa: ANN401, ARG003
+        """
+        Allocate memory for a new DataClassPayloadWID class.
+        """
+        out = super().__new__(cls)
+        convert_to_payload(cls, msg_id=cls.msg_id)
+        return out
+
+
+__all__ = ['DataClassPayload', 'type_from_format']

@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass as ogdataclass
-from dataclasses import is_dataclass
+from dataclasses import dataclass, is_dataclass
 from typing import TypeVar
 
-from ...messaging.payload_dataclass import dataclass, type_from_format
+from ...messaging.payload_dataclass import DataClassPayload, type_from_format
 from ...messaging.serialization import default_serializer
 from ..base import TestBase
 
@@ -14,7 +13,7 @@ T = TypeVar("T")
 
 
 @dataclass
-class NativeBool:
+class NativeBool(DataClassPayload):
     """
     A single boolean payload.
     """
@@ -23,7 +22,7 @@ class NativeBool:
 
 
 @dataclass
-class NativeInt:
+class NativeInt(DataClassPayload):
     """
     A single integer payload.
     """
@@ -32,7 +31,7 @@ class NativeInt:
 
 
 @dataclass
-class NativeBytes:
+class NativeBytes(DataClassPayload):
     """
     A single bytes payload.
     """
@@ -41,7 +40,7 @@ class NativeBytes:
 
 
 @dataclass
-class NativeStr:
+class NativeStr(DataClassPayload):
     """
     A single string payload.
     """
@@ -50,7 +49,7 @@ class NativeStr:
 
 
 @dataclass
-class SerializerType:
+class SerializerType(DataClassPayload):
     """
     A ``Serializer`` format payload.
     """
@@ -59,7 +58,7 @@ class SerializerType:
 
 
 @dataclass
-class NestedType:
+class NestedType(DataClassPayload):
     """
     A single nested payload.
     """
@@ -68,31 +67,34 @@ class NestedType:
 
 
 @dataclass
-class NestedListType:
+class NestedListType(DataClassPayload):
     """
     A single list of nested payload.
     """
 
     a: list[NativeInt]
 
+
 @dataclass
-class ListIntType:
+class ListIntType(DataClassPayload):
     """
     A single list of integers.
     """
 
     a: list[int]
 
+
 @dataclass
-class ListBoolType:
+class ListBoolType(DataClassPayload):
     """
     A single list of booleans.
     """
 
     a: list[bool]
 
-@ogdataclass
-class Unknown:
+
+@dataclass
+class Unknown(DataClassPayload):
     """
     To whomever is reading this and wondering why dict is not supported: use a nested payload instead.
     """
@@ -101,7 +103,7 @@ class Unknown:
 
 
 @dataclass
-class A:
+class A(DataClassPayload):
     """
     A payload consisting of two integers.
     """
@@ -111,7 +113,7 @@ class A:
 
 
 @dataclass
-class B:
+class B(DataClassPayload):
     """
     A payload consisting of two integers, of which one has a default value.
     """
@@ -121,7 +123,7 @@ class B:
 
 
 @dataclass(eq=False)
-class FwdDataclass:
+class FwdDataclass(DataClassPayload):
     """
     A payload to test if the dataclass overwrite forwards its arguments to the "real" dataclass.
     """
@@ -130,7 +132,7 @@ class FwdDataclass:
 
 
 @dataclass
-class StripMsgId:
+class StripMsgId(DataClassPayload):
     """
     Payload to make sure that the message id is not seen as a field.
     """
@@ -142,20 +144,17 @@ class StripMsgId:
     format_list = []   # Expose secret VariablePayload list
 
 
-@dataclass(msg_id=1)
-class FwdMsgId:
+@dataclass
+class FwdMsgId(DataClassPayload[1]):
     """
     Payload that specfies the message id as an argument to the dataclass overwrite.
     """
 
     a: int
 
-    names = []  # Expose secret VariablePayload list
-    format_list = []  # Expose secret VariablePayload list
-
 
 @dataclass
-class EverythingItem:
+class EverythingItem(DataClassPayload):
     """
     An item for the following Everything payload.
     """
@@ -164,8 +163,7 @@ class EverythingItem:
 
 
 @dataclass
-@ogdataclass
-class Everything:
+class Everything(DataClassPayload):
     """
     Dataclass payload that includes all functionality.
     """
@@ -411,7 +409,8 @@ class TestDataclassPayload(TestBase):
         """
         Check if an unknown type raises an error.
         """
-        self.assertRaises(NotImplementedError, dataclass, Unknown)
+        self.assertRaises(NotImplementedError, Unknown, {"a": "b"})
+
 
     def test_fwd_args(self) -> None:
         """
@@ -424,7 +423,7 @@ class TestDataclassPayload(TestBase):
 
     def test_strip_msg_id(self) -> None:
         """
-        Check if the ``msg_id`` field is identifier and stripped.
+        Check if the ``msg_id`` field is identified and stripped.
         """
         payload = StripMsgId(42)
 
@@ -435,7 +434,7 @@ class TestDataclassPayload(TestBase):
 
     def test_fwd_msg_id(self) -> None:
         """
-        Check if the ``msg_id`` argument is sets the Payload ``msg_id``.
+        Check if the ``msg_id`` argument sets the Payload ``msg_id``.
         """
         payload = FwdMsgId(42)
 
