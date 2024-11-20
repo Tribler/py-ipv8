@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING
 
 from ...community import CommunitySettings
@@ -15,8 +16,20 @@ from .endpoint import AutoMockEndpoint
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Generator
 
+    from ...messaging.anonymization.community import TunnelCommunity
     from ...peerdiscovery.discovery import DiscoveryStrategy
     from ...types import Community, Overlay
+
+
+class MockTunnelEndpoint(AutoMockEndpoint):
+    """
+    An AutoMockEndpoint that serves the TunnelEndpoint API without doing anything.
+    """
+
+    def set_tunnel_community(self, tunnel_community: TunnelCommunity | None, hops: int = 1) -> None:
+        """
+        Pretend to adopt a TunnelCommunity.
+        """
 
 
 class MockIPv8:
@@ -111,3 +124,12 @@ class MockIPv8:
         await self.overlay.unload()
         if self.dht:
             await self.dht.unload()
+
+    async def produce_anonymized_endpoint(self) -> MockTunnelEndpoint:
+        """
+        Create a fake anonymized endpoint.
+        """
+        endpoint = MockTunnelEndpoint()
+        endpoint.open()
+        await asyncio.sleep(0)
+        return endpoint

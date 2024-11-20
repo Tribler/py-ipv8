@@ -5,13 +5,15 @@ from ...peerdiscovery.community import DiscoveryCommunity
 from ...peerdiscovery.network import Network
 from .endpoint import AutoMockEndpoint
 
+DEFAULT_COMMUNITY_SETTINGS = CommunitySettings()
+
 
 class MockCommunity(DiscoveryCommunity):
     """
     Semi-inert version of the DiscoveryCommunity for testing.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, settings: CommunitySettings = DEFAULT_COMMUNITY_SETTINGS) -> None:
         """
         Create a new MockCommunity.
         """
