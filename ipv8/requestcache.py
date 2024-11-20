@@ -7,11 +7,12 @@ from asyncio import CancelledError, Future, gather
 from contextlib import contextmanager, suppress
 from random import random
 from threading import Lock
-from typing import TYPE_CHECKING, TypeVar, overload
+from typing import TYPE_CHECKING, TypeVar, cast, overload
 
 from typing_extensions import Protocol
 
 from .taskmanager import TaskManager
+from .util import succeed
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable
@@ -156,6 +157,7 @@ class RequestCache(TaskManager):
         self._logger = logging.getLogger(self.__class__.__name__)
 
         self._identifiers: dict[str, NumberCache] = {}
+        self._waiters: dict[tuple[str, int], Future] = {}
         self.lock = Lock()
         self._shutdown = False
 
@@ -210,6 +212,9 @@ class RequestCache(TaskManager):
                 timeout_delay = self._timeout_override
 
             self.register_task(cache, self._on_timeout, cache, delay=timeout_delay)
+            waiter = self._waiters.pop((cache.prefix, cache.number), None)
+            if waiter is not None and not waiter.done():
+                waiter.set_result(cache)
             return cache
 
     @overload
@@ -227,6 +232,42 @@ class RequestCache(TaskManager):
         if isinstance(prefix, str):
             return self._create_identifier(number, prefix) in self._identifiers
         return self.has(prefix.name, number)
+
+    def _watch_future(self, key: tuple[str, int]) -> None:
+        """
+        Ensure that a given future is killed after some timeout.
+        """
+        future = self._waiters.pop(key, None)
+        if future is not None and not future.done():
+            future.cancel()
+
+    @overload
+    def wait_for(self, prefix: str, number: int, timeout: float | None = None) -> Future[NumberCache]:
+        pass
+
+    @overload
+    def wait_for(self, prefix: type[CacheTypeVar], number: int, timeout: float | None = None) -> Future[CacheTypeVar]:
+        pass
+
+    def wait_for(self, prefix: str | type[CacheTypeVar], number: int,
+                 timeout: float | None = None) -> Future[CacheTypeVar] | Future[NumberCache]:
+        """
+        Returns a future that fires if or when the given cache is registered.
+        """
+        result = self.get(prefix, number)
+        if result is not None:
+            # This is just to please ``Mypy``: ``return succeed(result)`` is functionally equivalent in this block.
+            if isinstance(prefix, str):
+                return succeed(cast(NumberCache, result))
+            return succeed(cast(CacheTypeVar, result))
+        if isinstance(prefix, str):
+            fut: Future[NumberCache] = Future()
+            self._waiters[(prefix, number)] = fut
+            if timeout is not None:
+                self.register_anonymous_task(f"Watch RequestCache Future {fut}", self._watch_future, (prefix, number),
+                                             delay=timeout)
+            return self.register_anonymous_task(f"RequestCache wait for {prefix}", fut)
+        return cast(Future[CacheTypeVar], self.wait_for(prefix.name, number))
 
     @overload
     def get(self, prefix: str, number: int) -> NumberCache | None:

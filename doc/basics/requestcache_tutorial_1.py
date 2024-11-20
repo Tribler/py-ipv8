@@ -1,4 +1,4 @@
-from asyncio import create_task, run, sleep
+from asyncio import run
 
 from ipv8.requestcache import NumberCacheWithName, RequestCache
 
@@ -29,12 +29,10 @@ async def bar() -> None:
     """
     # Normally, you would add this to a network overlay instance.
     request_cache = RequestCache()
+    request_cache.register_anonymous_task("Add later", foo, request_cache, delay=1.23)
 
-    _ = create_task(foo(request_cache))
+    cache = await request_cache.wait_for(MyState, 0)
 
-    while not request_cache.has(MyState, 0):
-        await sleep(0.1)
-    cache = request_cache.pop(MyState, 0)
     print("I found a cache with the state:", cache.state)
 
 
