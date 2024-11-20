@@ -3,10 +3,13 @@ import random
 
 from ...keyvault.crypto import default_eccrypto
 from ...peer import Peer
-from ..REST.rest_base import RESTTestBase
+from ...REST.network_endpoint import NetworkEndpoint
+from ..base import TestBase
+from ..mocking.community import MockCommunity
+from .rest_base import MockRequest, response_to_json
 
 
-class TestNetworkEndpoint(RESTTestBase):
+class TestNetworkEndpoint(TestBase[MockCommunity]):
     """
     Tests related to the network REST endpoint.
     """
@@ -20,14 +23,15 @@ class TestNetworkEndpoint(RESTTestBase):
         Create a single node.
         """
         super().setUp()
-        await self.initialize([], 1, [])
-        self.ipv8 = self.node(0)
+        self.initialize(MockCommunity, 1)
+        self.rest_ep = NetworkEndpoint()
+        self.rest_ep.session = self.node(0)
 
     async def test_no_peers(self) -> None:
         """
         Check if the network endpoint returns no peers if it has no peers.
         """
-        peer_response = await self.make_request(self.ipv8, "network", "GET")
+        peer_response = await response_to_json(await self.rest_ep.retrieve_peers(MockRequest("network")))
 
         self.assertIn("peers", peer_response)
         self.assertDictEqual({}, peer_response["peers"])
@@ -36,9 +40,9 @@ class TestNetworkEndpoint(RESTTestBase):
         """
         Check if the network endpoint returns its one known peer with no services.
         """
-        self.ipv8.network.add_verified_peer(self.mock_peer)
+        self.node(0).network.add_verified_peer(self.mock_peer)
 
-        peer_response = await self.make_request(self.ipv8, "network", "GET")
+        peer_response = await response_to_json(await self.rest_ep.retrieve_peers(MockRequest("network")))
 
         self.assertIn("peers", peer_response)
         self.assertIn(self.mock_b64mid, peer_response["peers"])
@@ -51,12 +55,12 @@ class TestNetworkEndpoint(RESTTestBase):
         """
         Check if the network endpoint returns its one known peer with one service.
         """
-        self.ipv8.network.add_verified_peer(self.mock_peer)
+        self.node(0).network.add_verified_peer(self.mock_peer)
         mock_service = bytes(list(range(20)))
         mock_b64service = base64.b64encode(mock_service).decode()
-        self.ipv8.network.discover_services(self.mock_peer, [mock_service])
+        self.node(0).network.discover_services(self.mock_peer, [mock_service])
 
-        peer_response = await self.make_request(self.ipv8, "network", "GET")
+        peer_response = await response_to_json(await self.rest_ep.retrieve_peers(MockRequest("network")))
 
         self.assertIn("peers", peer_response)
         self.assertIn(self.mock_b64mid, peer_response["peers"])
@@ -69,12 +73,12 @@ class TestNetworkEndpoint(RESTTestBase):
         """
         Check if the network endpoint returns its one known peer with multiple services.
         """
-        self.ipv8.network.add_verified_peer(self.mock_peer)
+        self.node(0).network.add_verified_peer(self.mock_peer)
         mock_services = [bytes([random.randint(0, 255) for _ in range(20)]) for __ in range(30)]
         mock_b64services = [base64.b64encode(mock_service).decode() for mock_service in mock_services]
-        self.ipv8.network.discover_services(self.mock_peer, mock_services)
+        self.node(0).network.discover_services(self.mock_peer, mock_services)
 
-        peer_response = await self.make_request(self.ipv8, "network", "GET")
+        peer_response = await response_to_json(await self.rest_ep.retrieve_peers(MockRequest("network")))
 
         self.assertIn("peers", peer_response)
         self.assertIn(self.mock_b64mid, peer_response["peers"])
@@ -91,12 +95,12 @@ class TestNetworkEndpoint(RESTTestBase):
         mock_b64services = {}
         for mock_peer in mock_peers:
             b64mid = base64.b64encode(mock_peer.mid).decode()
-            self.ipv8.network.add_verified_peer(mock_peer)
+            self.node(0).network.add_verified_peer(mock_peer)
             local_services = [bytes([random.randint(0, 255) for _ in range(20)]) for __ in range(30)]
             mock_b64services[b64mid] = [base64.b64encode(s).decode() for s in local_services]
-            self.ipv8.network.discover_services(mock_peer, local_services)
+            self.node(0).network.discover_services(mock_peer, local_services)
 
-        peer_response = await self.make_request(self.ipv8, "network", "GET")
+        peer_response = await response_to_json(await self.rest_ep.retrieve_peers(MockRequest("network")))
 
         self.assertIn("peers", peer_response)
         for b64mid, peer_descriptor in peer_response["peers"].items():

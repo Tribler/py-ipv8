@@ -5,8 +5,10 @@ import binascii
 from ...keyvault.crypto import default_eccrypto
 from ...messaging.interfaces.statistics_endpoint import StatisticsEndpoint
 from ...peer import Peer
+from ...REST.overlays_endpoint import OverlaysEndpoint
+from ..base import TestBase
 from ..mocking.community import MockCommunity
-from ..REST.rest_base import RESTTestBase
+from .rest_base import MockRequest, response_to_json
 
 
 def hexlify(value: str) -> str:
@@ -24,7 +26,7 @@ class MockCommunity2(MockCommunity):
     community_id = b'DifferentCommunityID'
 
 
-class TestOverlaysEndpoint(RESTTestBase):
+class TestOverlaysEndpoint(TestBase[MockCommunity]):
     """
     Tests for REST requests to the overlays endpoint.
     """
@@ -34,33 +36,34 @@ class TestOverlaysEndpoint(RESTTestBase):
         Set up a single node.
         """
         super().setUp()
-        await self.initialize([], 1, [])
-        self.ipv8 = self.node(0)
+        self.initialize(MockCommunity, 1)
+        self.rest_ep = OverlaysEndpoint()
+        self.rest_ep.session = self.node(0)
 
-    def mount_statistics(self, i: int, add_mock_community: bool = True) -> None:
+    def mount_statistics(self, add_mock_community: bool = True) -> None:
         """
-        Add a statistics endpoint to the given node id and possibly load a mock community.
+        Add a statistics endpoint to the node and possibly load a mock community.
         """
-        self.node(i).endpoint = StatisticsEndpoint(self.node(i).endpoint)
-        self.node(i).rest_manager.root_endpoint.endpoints['/overlays'].statistics_supported = True
+        self.node(0).endpoint = StatisticsEndpoint(self.node(0).endpoint)
+        self.rest_ep.statistics_supported = True
 
         if add_mock_community:
-            self.node(i).overlay = self.add_mock_community(i)
+            self.node(0).overlay = self.add_mock_community()
 
-    def add_mock_community(self, i: int, overlay_class: type[MockCommunity] = MockCommunity) -> MockCommunity:
+    def add_mock_community(self, overlay_class: type[MockCommunity] = MockCommunity) -> MockCommunity:
         """
-        Add a given overlay class to the given node id.
+        Add a given overlay class to the node.
         """
         mock_community = overlay_class()
-        mock_community.endpoint = self.node(i).endpoint
-        self.node(i).overlays.append(mock_community)
+        mock_community.endpoint = self.node(0).endpoint
+        self.node(0).overlays.append(mock_community)
         return mock_community
 
     async def test_no_overlays(self) -> None:
         """
         Check if the overlays endpoint returns no overlays if it has no overlays.
         """
-        response = await self.make_request(self.ipv8, "overlays", "GET")
+        response = await response_to_json(await self.rest_ep.get_overlays(MockRequest("overlays")))
 
         self.assertIn("overlays", response)
         self.assertListEqual([], response["overlays"])
@@ -73,9 +76,9 @@ class TestOverlaysEndpoint(RESTTestBase):
         expected_id = hexlify(mock_community.community_id)
         expected_peer = hexlify(mock_community.my_peer.public_key.key_to_bin())
         mock_community.update_global_time(1337)
-        self.ipv8.overlays.append(mock_community)
+        self.node(0).overlays.append(mock_community)
 
-        response = await self.make_request(self.ipv8, "overlays", "GET")
+        response = await response_to_json(await self.rest_ep.get_overlays(MockRequest("overlays")))
 
         self.assertIn("overlays", response)
         self.assertEqual(1, len(response["overlays"]))
@@ -94,9 +97,9 @@ class TestOverlaysEndpoint(RESTTestBase):
         expected_peer = Peer(default_eccrypto.generate_key("very-low"), ("1.2.3.4", 5))
         mock_community.network.add_verified_peer(expected_peer)
         mock_community.network.discover_services(expected_peer, [mock_community.community_id])
-        self.ipv8.overlays.append(mock_community)
+        self.node(0).overlays.append(mock_community)
 
-        response = await self.make_request(self.ipv8, "overlays", "GET")
+        response = await response_to_json(await self.rest_ep.get_overlays(MockRequest("overlays")))
 
         self.assertIn("overlays", response)
         self.assertEqual(1, len(response["overlays"]))
@@ -116,9 +119,9 @@ class TestOverlaysEndpoint(RESTTestBase):
             expected_peer = Peer(default_eccrypto.generate_key("very-low"), ("1.2.3.4", 5))
             mock_community.network.add_verified_peer(expected_peer)
             mock_community.network.discover_services(expected_peer, [mock_community.community_id])
-        self.ipv8.overlays.append(mock_community)
+        self.node(0).overlays.append(mock_community)
 
-        response = await self.make_request(self.ipv8, "overlays", "GET")
+        response = await response_to_json(await self.rest_ep.get_overlays(MockRequest("overlays")))
 
         self.assertIn("overlays", response)
         self.assertEqual(1, len(response["overlays"]))
@@ -136,7 +139,7 @@ class TestOverlaysEndpoint(RESTTestBase):
         """
         Check if the overlays endpoint returns overlay statistics correctly for one overlay.
         """
-        self.mount_statistics(0)
+        self.mount_statistics()
         self.node(0).endpoint.add_sent_stat(self.overlay(0).get_prefix(), 245, 1337)
 
         expected_stats = {
@@ -147,7 +150,7 @@ class TestOverlaysEndpoint(RESTTestBase):
             'num_up': 1
         }
 
-        response = await self.make_request(self.ipv8, "overlays", "GET")
+        response = await response_to_json(await self.rest_ep.get_overlays(MockRequest("overlays")))
 
         self.assertIn("overlays", response)
         self.assertEqual(1, len(response["overlays"]))
@@ -162,9 +165,9 @@ class TestOverlaysEndpoint(RESTTestBase):
         for i in range(overlay_count):
             mock_community = MockCommunity()
             mock_community.update_global_time(100 * i)
-            self.ipv8.overlays.append(mock_community)
+            self.node(0).overlays.append(mock_community)
 
-        response = await self.make_request(self.ipv8, "overlays", "GET")
+        response = await response_to_json(await self.rest_ep.get_overlays(MockRequest("overlays")))
 
         self.assertIn("overlays", response)
         self.assertEqual(3, len(response["overlays"]))
@@ -180,7 +183,7 @@ class TestOverlaysEndpoint(RESTTestBase):
         """
         Check if no statistics are returned if no overlays are loaded.
         """
-        response = await self.make_request(self.ipv8, "overlays/statistics", "GET")
+        response = await response_to_json(await self.rest_ep.get_statistics(MockRequest("overlays/statistics")))
 
         self.assertIn("statistics", response)
         self.assertListEqual([], response["statistics"])
@@ -189,22 +192,22 @@ class TestOverlaysEndpoint(RESTTestBase):
         """
         Check if statistics are returned for one loaded overlay.
         """
-        self.mount_statistics(0)
+        self.mount_statistics()
         self.node(0).endpoint.add_sent_stat(self.overlay(0).get_prefix(), 245, 1337, 42.0)
 
         expected_stats = {
-            'identifier': 245,
-            'bytes_down': 0,
-            'bytes_up': 1337,
-            'num_down': 0,
-            'num_up': 1,
-            'first_measured_up': 42.0,
-            'first_measured_down': 0,
-            'last_measured_up': 42.0,
-            'last_measured_down': 0
+            "identifier": 245,
+            "bytes_down": 0,
+            "bytes_up": 1337,
+            "num_down": 0,
+            "num_up": 1,
+            "first_measured_up": 42.0,
+            "first_measured_down": 0,
+            "last_measured_up": 42.0,
+            "last_measured_down": 0
         }
 
-        response = await self.make_request(self.ipv8, "overlays/statistics", "GET")
+        response = await response_to_json(await self.rest_ep.get_statistics(MockRequest("overlays/statistics")))
 
         self.assertIn("statistics", response)
         self.assertEqual(1, len(response["statistics"]))
@@ -218,13 +221,13 @@ class TestOverlaysEndpoint(RESTTestBase):
         """
         Check if statistics are returned for one loaded overlay, with an unknown message.
         """
-        self.mount_statistics(0)
+        self.mount_statistics()
         self.node(0).endpoint.add_sent_stat(self.overlay(0).get_prefix(), 245, 1337, 42.0)
         self.node(0).endpoint.add_sent_stat(self.overlay(0).get_prefix(), 69, 1492, 7.0)  # 69 does not exist!
 
         self.assertIsNone(self.overlay(0).decode_map[69])  # Test invariant, use a number that does not exist.
 
-        response = await self.make_request(self.ipv8, "overlays/statistics", "GET")
+        response = await response_to_json(await self.rest_ep.get_statistics(MockRequest("overlays/statistics")))
 
         self.assertIn("statistics", response)
         self.assertEqual(1, len(response["statistics"]))
@@ -237,41 +240,47 @@ class TestOverlaysEndpoint(RESTTestBase):
         """
         Check if stats cannot be enabled on an endpoint that is not a StatisticsEndpoint.
         """
-        response = await self.make_request(self.ipv8, "overlays/statistics", "POST", json={'enable': 'true'},
-                                           expected_status=412)
+        raw_response = await self.rest_ep.enable_statistics(MockRequest("overlays/statistics", "POST",
+                                                                        {"enable": "true"}))
+        response = await response_to_json(raw_response)
 
+        self.assertEqual(412, raw_response.status)
         self.assertFalse(response["success"])
 
     async def test_enable_stats_no_enable_param(self) -> None:
         """
         Check if stats cannot be enabled when the "enable" parameter is missing.
         """
-        self.mount_statistics(0)
+        self.mount_statistics()
 
-        response = await self.make_request(self.ipv8, "overlays/statistics", "POST", json={},
-                                           expected_status=400)
+        raw_response = await self.rest_ep.enable_statistics(MockRequest("overlays/statistics", "POST", {}))
+        response = await response_to_json(raw_response)
 
+        self.assertEqual(400, raw_response.status)
         self.assertFalse(response["success"])
 
     async def test_enable_stats_no_target(self) -> None:
         """
         Check if stats cannot be enabled without specifying what overlay(s) to use.
         """
-        self.mount_statistics(0)
+        self.mount_statistics()
 
-        response = await self.make_request(self.ipv8, "overlays/statistics", "POST", json={'enable': 'true'},
-                                           expected_status=412)
+        raw_response = await self.rest_ep.enable_statistics(MockRequest("overlays/statistics", "POST",
+                                                                        {"enable": "true"}))
+        response = await response_to_json(raw_response)
 
+        self.assertEqual(412, raw_response.status)
         self.assertFalse(response["success"])
 
     async def test_enable_stats_all(self) -> None:
         """
         Check if stats are correctly returned for one "all" overlays.
         """
-        self.mount_statistics(0)
+        self.mount_statistics()
 
-        response = await self.make_request(self.ipv8, "overlays/statistics", "POST",
-                                           json={'enable': 'true', 'all': 'true'})
+        response = await response_to_json(await self.rest_ep.enable_statistics(
+            MockRequest("overlays/statistics", "POST", {"enable": "true", "all": "true"})
+        ))
 
         self.assertTrue(response["success"])
         self.assertIn(self.overlay(0).get_prefix(), self.overlay(0).endpoint.statistics)
@@ -280,11 +289,12 @@ class TestOverlaysEndpoint(RESTTestBase):
         """
         Check if stats are correctly returned for all overlays.
         """
-        self.mount_statistics(0)
-        mock_community2 = self.add_mock_community(0, MockCommunity2)
+        self.mount_statistics()
+        mock_community2 = self.add_mock_community(MockCommunity2)
 
-        response = await self.make_request(self.ipv8, "overlays/statistics", "POST",
-                                           json={'enable': 'true', 'all': 'true'})
+        response = await response_to_json(await self.rest_ep.enable_statistics(
+            MockRequest("overlays/statistics", "POST", {"enable": "true", "all": "true"})
+        ))
 
         self.assertTrue(response["success"])
         self.assertIn(self.overlay(0).get_prefix(), self.overlay(0).endpoint.statistics)
@@ -294,11 +304,12 @@ class TestOverlaysEndpoint(RESTTestBase):
         """
         Check if stats are correctly returned for a specific overlay, excluding another.
         """
-        self.mount_statistics(0)
-        mock_community2 = self.add_mock_community(0, MockCommunity2)
+        self.mount_statistics()
+        mock_community2 = self.add_mock_community(MockCommunity2)
 
-        response = await self.make_request(self.ipv8, "overlays/statistics", "POST",
-                                           json={'enable': 'true', 'overlay_name': 'MockCommunity'})
+        response = await response_to_json(await self.rest_ep.enable_statistics(
+            MockRequest("overlays/statistics", "POST", {"enable": "true", "overlay_name": "MockCommunity"})
+        ))
 
         self.assertTrue(response["success"])
         self.assertIn(self.overlay(0).get_prefix(), self.overlay(0).endpoint.statistics)
@@ -308,13 +319,15 @@ class TestOverlaysEndpoint(RESTTestBase):
         """
         Check if stats are correctly returned for a specific overlay, including another.
         """
-        self.mount_statistics(0)
-        mock_community2 = self.add_mock_community(0, MockCommunity2)
+        self.mount_statistics()
+        mock_community2 = self.add_mock_community(MockCommunity2)
 
-        response = await self.make_request(self.ipv8, "overlays/statistics", "POST",
-                                           json={'enable': 'true', 'overlay_name': 'MockCommunity'})
-        response2 = await self.make_request(self.ipv8, "overlays/statistics", "POST",
-                                            json={'enable': 'true', 'overlay_name': 'MockCommunity2'})
+        response = await response_to_json(await self.rest_ep.enable_statistics(
+            MockRequest("overlays/statistics", "POST", {"enable": "true", "overlay_name": "MockCommunity"})
+        ))
+        response2 = await response_to_json(await self.rest_ep.enable_statistics(
+            MockRequest("overlays/statistics", "POST", {"enable": "true", "overlay_name": "MockCommunity2"})
+        ))
 
         self.assertTrue(response["success"])
         self.assertTrue(response2["success"])
