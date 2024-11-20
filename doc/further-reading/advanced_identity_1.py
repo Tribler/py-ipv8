@@ -1,9 +1,8 @@
-from asyncio import run
+from asyncio import run, sleep
 from base64 import b64encode
 
 from ipv8.configuration import get_default_configuration
 from ipv8.REST.rest_manager import RESTManager
-from ipv8.util import run_forever
 from ipv8_service import IPv8
 
 
@@ -25,7 +24,7 @@ async def start_community() -> None:
         # Print the peer for reference
         print("Starting peer", b64encode(ipv8.keys["anonymous id"].mid))
 
-    await run_forever()
+    await sleep(1.0)  # We run a 1 second test for this example
 
 
 run(start_community())
