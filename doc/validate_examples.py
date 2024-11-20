@@ -87,9 +87,9 @@ for path in os.listdir("."):
                 t_stderr = threading.Thread(target=empty_reader, daemon=True, args=(reader_stderr, output_stderr))
                 t_stderr.start()
 
-                p.join(30.0)
+                p.join(5.0)
                 if p.is_alive():
-                    print(f"Killed {subfile} after 30 seconds!")
+                    print(f"Killed {subfile} after 5 seconds!")
                     p.kill()
 
                 captured_stdout = "".join(output_stdout)

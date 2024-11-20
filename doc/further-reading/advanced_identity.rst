@@ -27,7 +27,7 @@ To enable anonymization of all traffic through the identity layer we need to loa
 This is done by editing the loaded overlays through ``configuration['overlays']``, as follows:
 
 .. literalinclude:: advanced_identity_1.py
-   :lines: 11-17
+   :lines: 10-16
    :dedent: 4
 
 Inclusion of the ``'HiddenTunnelCommunity'`` overlay automatically enables anonymization of identity traffic.
@@ -50,7 +50,7 @@ In the basic identity tutorial we started the REST API as follows:
 To set a REST API key, we will have to pass it to the ``RESTManager`` constructor, as follows (replacing ``"my secret key"`` with your key):
 
 .. literalinclude:: advanced_identity_1.py
-   :lines: 19-23
+   :lines: 18-22
    :dedent: 4
 
 All requests to the core will then have to use either:
@@ -74,7 +74,7 @@ In the basic identity tutorial we started the REST API as follows:
 To use a certificate file, we will have to pass it to the ``RESTManager`` constructor, as follows (replacing ``cert_file`` with the file path of your certificate file for the particular IPv8 instance):
 
 .. literalinclude:: advanced_identity_2.py
-   :lines: 26-32
+   :lines: 25-31
    :dedent: 4
 
 This can (and should) be combined with an API key.
