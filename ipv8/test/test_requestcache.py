@@ -103,6 +103,14 @@ class MockNamedCache(RandomNumberCacheWithName):
         """
 
 
+class MockNamedNumberCache(NumberCache):
+    """
+    A "normal" NumberCache that has a name.
+    """
+
+    name = "test"
+
+
 class TestRequestCache(TestBase):
     """
     Tests related to the request cache.
@@ -114,6 +122,13 @@ class TestRequestCache(TestBase):
         """
         super().setUp()
         self.request_cache = RequestCache()
+
+    async def tearDown(self) -> None:
+        """
+        Destroy the request cache.
+        """
+        await self.request_cache.shutdown()
+        await super().tearDown()
 
     async def test_shutdown(self) -> None:
         """
@@ -134,7 +149,6 @@ class TestRequestCache(TestBase):
         cache = MockCache(self.request_cache)
         self.request_cache.add(cache)
         await cache.timed_out
-        await self.request_cache.shutdown()
 
     async def test_add_duplicate(self) -> None:
         """
@@ -145,8 +159,6 @@ class TestRequestCache(TestBase):
 
         self.assertIsNone(self.request_cache.add(cache))
 
-        await self.request_cache.shutdown()
-
     async def test_timeout_future_default_value(self) -> None:
         """
         Test if a registered future gets set to None on timeout.
@@ -154,7 +166,6 @@ class TestRequestCache(TestBase):
         cache = MockRegisteredCache(self.request_cache)
         self.request_cache.add(cache)
         self.assertEqual(None, (await cache.timed_out))
-        await self.request_cache.shutdown()
 
     async def test_timeout_future_custom_value(self) -> None:
         """
@@ -166,8 +177,6 @@ class TestRequestCache(TestBase):
         cache.managed_futures[0] = (cache.managed_futures[0][0], 123)
         self.assertEqual(123, (await cache.timed_out))
 
-        await self.request_cache.shutdown()
-
     async def test_timeout_future_exception(self) -> None:
         """
         Test if a registered future raises an exception on timeout.
@@ -178,8 +187,6 @@ class TestRequestCache(TestBase):
         cache.managed_futures[0] = (cache.managed_futures[0][0], RuntimeError())
         with self.assertRaises(RuntimeError):
             await cache.timed_out
-
-        await self.request_cache.shutdown()
 
     async def test_cancel_future_after_shutdown(self) -> None:
         """
@@ -211,8 +218,6 @@ class TestRequestCache(TestBase):
 
         self.assertTrue(cache.timed_out)
 
-        await self.request_cache.shutdown()
-
     async def test_passthrough_timeout(self) -> None:
         """
         Test if passthrough respects the timeout value.
@@ -224,8 +229,6 @@ class TestRequestCache(TestBase):
             await sleep(0.0)
 
         self.assertFalse(cache.timed_out)
-
-        await self.request_cache.shutdown()
 
     async def test_passthrough_filter_one_match(self) -> None:
         """
@@ -239,8 +242,6 @@ class TestRequestCache(TestBase):
 
         self.assertTrue(cache.timed_out)
 
-        await self.request_cache.shutdown()
-
     async def test_passthrough_filter_one_mismatch(self) -> None:
         """
         Test if passthrough filters correctly with one filter, that doesn't match.
@@ -252,8 +253,6 @@ class TestRequestCache(TestBase):
             await sleep(0.0)
 
         self.assertFalse(cache.timed_out)
-
-        await self.request_cache.shutdown()
 
     async def test_passthrough_filter_many_match(self) -> None:
         """
@@ -267,8 +266,6 @@ class TestRequestCache(TestBase):
 
         self.assertTrue(cache.timed_out)
 
-        await self.request_cache.shutdown()
-
     async def test_passthrough_filter_some_match(self) -> None:
         """
         Test if passthrough filters correctly with many filters, for which some match.
@@ -280,8 +277,6 @@ class TestRequestCache(TestBase):
             await sleep(0.0)
 
         self.assertTrue(cache.timed_out)
-
-        await self.request_cache.shutdown()
 
     async def test_passthrough_filter_no_match(self) -> None:
         """
@@ -295,8 +290,6 @@ class TestRequestCache(TestBase):
 
         self.assertFalse(cache.timed_out)
 
-        await self.request_cache.shutdown()
-
     async def test_has_by_class(self) -> None:
         """
         Check if we can call ``.has()`` by cache class.
@@ -307,7 +300,52 @@ class TestRequestCache(TestBase):
 
         self.assertTrue(self.request_cache.has(MockNamedCache, added.number))
 
-        await self.request_cache.shutdown()
+    async def test_wait_for_by_name(self) -> None:
+        """
+        Check if we can call ``.wait_for()`` by cache name.
+        """
+        cache = MockNamedNumberCache(self.request_cache, MockNamedNumberCache.name, 1337)
+        fut = self.request_cache.wait_for(MockNamedNumberCache.name, 1337)
+
+        added = self.request_cache.add(cache)
+        result = await fut
+
+        self.assertEqual(added, result)
+
+    async def test_wait_for_by_class(self) -> None:
+        """
+        Check if we can call ``.wait_for()`` by cache class.
+        """
+        cache = MockNamedNumberCache(self.request_cache, MockNamedNumberCache.name, 1337)
+        fut = self.request_cache.wait_for(MockNamedNumberCache, 1337)
+
+        added = self.request_cache.add(cache)
+        result = await fut
+
+        self.assertEqual(added, result)
+
+    async def test_wait_for_already_added(self) -> None:
+        """
+        Check if we can ``.wait_for()`` returns when a cache is already available.
+        """
+        cache = MockNamedNumberCache(self.request_cache, MockNamedNumberCache.name, 1337)
+        added = self.request_cache.add(cache)
+        fut = self.request_cache.wait_for(MockNamedNumberCache.name, 1337)
+
+        result = await fut
+
+        self.assertEqual(added, result)
+
+    async def test_wait_for_timeout(self) -> None:
+        """
+        Check if ``.wait_for()`` cancels its future when a timeout occurs.
+        """
+        fut = self.request_cache.wait_for(MockNamedNumberCache.name, 1337, timeout=0.0)
+
+        await sleep(0)
+
+        self.assertTrue(fut.done())
+        self.assertTrue(fut.cancelled())
 
     async def test_get_by_class(self) -> None:
         """
@@ -318,8 +356,6 @@ class TestRequestCache(TestBase):
 
         self.assertEqual(added, self.request_cache.get(MockNamedCache, added.number))
 
-        await self.request_cache.shutdown()
-
     async def test_pop_by_class(self) -> None:
         """
         Check if we can call ``.pop()`` by cache class.
@@ -328,5 +364,3 @@ class TestRequestCache(TestBase):
         added = self.request_cache.add(cache)
 
         self.assertEqual(added, self.request_cache.pop(MockNamedCache, added.number))
-
-        await self.request_cache.shutdown()
