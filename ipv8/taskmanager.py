@@ -93,6 +93,7 @@ class TaskManager:
         Create a new TaskManager and start the introspection loop.
         """
         self._pending_tasks: WeakValueDictionary[Hashable, Future] = WeakValueDictionary()
+        self._shutdown_tasks: list[tuple[Callable | Coroutine, tuple[Any, ...], dict[str, Any]]] = []
         self._task_lock = RLock()
         self._shutdown = False
         self._counter = 0
@@ -186,7 +187,8 @@ class TaskManager:
             task.add_done_callback(done_cb)
             return task
 
-    def register_anonymous_task(self, basename: str, task: Callable | Coroutine | Future, *args: Any, **kwargs) -> Future:  # noqa: ANN401
+    def register_anonymous_task(self, basename: str, task: Callable | Coroutine | Future,
+                                *args: Any, **kwargs) -> Future:  # noqa: ANN401
         """
         Wrapper for register_task to derive a unique name from the basename.
         """
@@ -206,6 +208,12 @@ class TaskManager:
         if anon:
             return self.register_anonymous_task(name, future)
         return self.register_task(name, future)
+
+    def register_shutdown_task(self, task: Callable | Coroutine, *args: Any, **kwargs) -> None:  # noqa: ANN401
+        """
+        Register a task to be run when this manager is shut down.
+        """
+        self._shutdown_tasks.append((task, args, kwargs))
 
     def cancel_pending_task(self, name: Hashable) -> Future:
         """
@@ -273,6 +281,9 @@ class TaskManager:
         """
         Clear the task manager, cancel all pending tasks and disallow new tasks being added.
         """
+        if self._shutdown:
+            return
+
         with self._task_lock:
             self._shutdown = True
             tasks = self.cancel_all_pending_tasks()
@@ -280,6 +291,13 @@ class TaskManager:
         if tasks:
             with suppress(CancelledError):
                 await gather(*tasks)
+
+        for post_shutdown_task, args, kwargs in self._shutdown_tasks:
+            if iscoroutinefunction(post_shutdown_task):
+                await post_shutdown_task(*args, **kwargs)
+            elif callable(post_shutdown_task):  # This is not necessary, but Mypy wants it here
+                post_shutdown_task(*args, **kwargs)
+        self._shutdown_tasks = []
 
 
 __all__ = ["TaskManager", "task"]

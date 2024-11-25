@@ -291,6 +291,29 @@ class TestTaskManager(TestBase):
         _ = self.tm.register_executor_task("test", test, anon=True)
         self.assertEqual(2, len(self.tm.get_tasks()))
 
+    async def test_register_shutdown_task(self) -> None:
+        """
+        Check if registering a task on TaskManager shutdown works.
+        """
+        sub_manager = TaskManager()
+        sub_fut = sub_manager.register_task("sub test", Future())
+        self.tm.register_shutdown_task(sub_manager.shutdown_task_manager)
+
+        await self.tm.shutdown_task_manager()
+
+        self.assertTrue(sub_fut.cancelled())
+
+    async def test_register_shutdown_function(self) -> None:
+        """
+        Check if registering a plain function on TaskManager shutdown works.
+        """
+        checker = ["test"]
+        self.tm.register_shutdown_task(checker.pop)
+
+        await self.tm.shutdown_task_manager()
+
+        self.assertEqual(0, len(checker))
+
     async def test_get_task_existing_pending(self) -> None:
         """
         Check if an existing pending task can be retrieved.
