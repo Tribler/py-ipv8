@@ -22,7 +22,7 @@ from typing import cast
 
 from packaging.version import Version
 
-# ruff: noqa: S603,S607,T201
+# ruff: noqa: S602,S603,S607,T201
 
 
 def parse_setup() -> tuple[str, ast.Expr]:
@@ -220,36 +220,36 @@ username = input('Username: ')
 print(f"[4/8] Retrieving Tribler:py-ipv8 and {username}:py-ipv8.")
 
 # branchname or "HEAD"
-original_branch = subprocess.check_output("git rev-parse --abbrev-ref HEAD", encoding="utf-8").strip()
+original_branch = subprocess.check_output("git rev-parse --abbrev-ref HEAD", encoding="utf-8", shell=True).strip()
 if original_branch == "HEAD":
     # HEAD, origin/main, origin/HEAD
-    detached_details = subprocess.check_output("git show -s --pretty=%D HEAD", encoding="utf-8")
+    detached_details = subprocess.check_output("git show -s --pretty=%D HEAD", encoding="utf-8", shell=True)
     original_branch = detached_details.split(", ")[1].strip()
 
-print(subprocess.check_output(f"git remote add __{username} git@github.com:{username}/py-ipv8.git", encoding="utf-8"))
-print(subprocess.check_output("git remote add __Tribler git@github.com:Tribler/py-ipv8.git", encoding="utf-8"))
+print(subprocess.check_output(f"git remote add __{username} git@github.com:{username}/py-ipv8.git", encoding="utf-8", shell=True))
+print(subprocess.check_output("git remote add __Tribler git@github.com:Tribler/py-ipv8.git", encoding="utf-8", shell=True))
 
-print(subprocess.check_output("git fetch __Tribler master", encoding="utf-8"))
-print(subprocess.check_output("git checkout -b __automated_version_update __Tribler/master", encoding="utf-8"))
+print(subprocess.check_output("git fetch __Tribler master", encoding="utf-8", shell=True))
+print(subprocess.check_output("git checkout -b __automated_version_update __Tribler/master", encoding="utf-8", shell=True))
 
 # GET CHANGES
 print("[5/8] Calculating changes since last release.")
 
-known_tags = sorted(Version(t) for t in subprocess.check_output("git tag -l", encoding="utf-8").split())
-last_release_commit, = subprocess.check_output(f"git rev-list -n 1 {known_tags[-1]}", encoding="utf-8").split()
+known_tags = sorted(Version(t) for t in subprocess.check_output("git tag -l", encoding="utf-8", shell=True).split())
+last_release_commit, = subprocess.check_output(f"git rev-list -n 1 {known_tags[-1]}", encoding="utf-8", shell=True).split()
 
 git_log = subprocess.check_output(f'git log {last_release_commit}..HEAD --pretty=format:"%H"',
-                                  encoding="utf-8").split("\n")
+                                  encoding="utf-8", shell=True).split("\n")
 git_log = [
     (
-        subprocess.check_output(f"git log --format=%B -n 1  {sha_entry}", encoding="utf-8").split("\n")[0],
-        subprocess.check_output(f"git log --format=%b -n 1  {sha_entry}", encoding="utf-8").split("\n")[0]
+        subprocess.check_output(f"git log --format=%B -n 1  {sha_entry}", encoding="utf-8", shell=True).split("\n")[0],
+        subprocess.check_output(f"git log --format=%b -n 1  {sha_entry}", encoding="utf-8", shell=True).split("\n")[0]
     )
     for sha_entry in git_log
 ]
 commits_since_last = len(git_log) + 2
 
-total_commits_str = subprocess.check_output("git rev-list --count HEAD", encoding="utf-8")
+total_commits_str = subprocess.check_output("git rev-list --count HEAD", encoding="utf-8", shell=True)
 total_commits = int(total_commits_str) + 2
 
 # PERFORM FILE REWRITES
@@ -265,18 +265,18 @@ with open("ipv8/REST/rest_manager.py", "w") as f:
 # CREATE FEATURE BRANCH
 print("[7/8] Pushing changes to branch on fork.")
 
-print(subprocess.check_output("git add setup.py", encoding="utf-8"))
-print(subprocess.check_output("git add doc/conf.py", encoding="utf-8"))
-print(subprocess.check_output("git add ipv8/REST/rest_manager.py", encoding="utf-8"))
-print(subprocess.check_output('git commit -m "Automated version increment"', encoding="utf-8"))
+print(subprocess.check_output("git add setup.py", encoding="utf-8", shell=True))
+print(subprocess.check_output("git add doc/conf.py", encoding="utf-8", shell=True))
+print(subprocess.check_output("git add ipv8/REST/rest_manager.py", encoding="utf-8", shell=True))
+print(subprocess.check_output('git commit -m "Automated version increment"', encoding="utf-8", shell=True))
 print(subprocess.check_output(f"git push -f -u __{username} __automated_version_update:automated_version_update",
-                              encoding="utf-8"))
+                              encoding="utf-8", shell=True))
 
 # > Cleanup
-print(subprocess.check_output(f"git checkout {original_branch}", encoding="utf-8"))
-print(subprocess.check_output("git branch -D __automated_version_update", encoding="utf-8"))
-print(subprocess.check_output("git remote remove __Tribler", encoding="utf-8"))
-print(subprocess.check_output(f"git remote remove __{username}", encoding="utf-8"))
+print(subprocess.check_output(f"git checkout {original_branch}", encoding="utf-8", shell=True))
+print(subprocess.check_output("git branch -D __automated_version_update", encoding="utf-8", shell=True))
+print(subprocess.check_output("git remote remove __Tribler", encoding="utf-8", shell=True))
+print(subprocess.check_output(f"git remote remove __{username}", encoding="utf-8", shell=True))
 
 # CREATE PULL REQUEST
 print("[8/8] Formatting Pull Request message")
@@ -329,15 +329,15 @@ def commit_messages_to_names(commit_msg_list: list[str]) -> list[str]:
     for commit_msg in commit_msg_list:
         corrected = commit_msg
         # First, strip residual prefixes, e.g. "READY: Add some feature" -> "Add some feature".
-        for mistake in residual_prefixes:
+        for mistake, correction in residual_prefixes.items():
             if commit_msg.startswith(mistake):
-                corrected = residual_prefixes[mistake] + commit_msg[len(mistake):]
+                corrected = correction + commit_msg[len(mistake):]
         # Second, modify misspellings, e.g. "Add some feature" -> "Added some feature".
         # We do this after the first step to correct compound errors (both leaving the prefix AND not adhering to
         # the naming standard).
-        for mistake in misspellings:
+        for mistake, correction in misspellings.items():
             if corrected.startswith(mistake):
-                corrected = misspellings[mistake] + corrected[len(mistake):]
+                corrected = correction + corrected[len(mistake):]
         out.append(corrected)
     return sorted(out)
 
