@@ -82,13 +82,7 @@ Table of contents
    further-reading/advanced_identity.rst
    further-reading/advanced_peer_discovery.rst
    further-reading/anonymization.rst
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Deprecated/Archive:
-
-   deprecated/attestation_prototype.rst
-   deprecated/attestation_tutorial.rst
+   further-reading/dht.rst
 
 
 Search
