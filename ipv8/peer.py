@@ -233,4 +233,4 @@ class Peer:
         """
         Represent this peer as a human-readable string.
         """
-        return 'Peer<%s:%d, %s>' % (self.address[0], self.address[1], b64encode(self.mid).decode('utf-8'))
+        return f"Peer<{self.address[0]}:{self.address[1]}, {b64encode(self.mid).decode()}>"
