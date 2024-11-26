@@ -10,7 +10,7 @@ from binascii import hexlify, unhexlify
 from collections import defaultdict, deque
 from collections.abc import Coroutine, Iterator, Sequence
 from itertools import zip_longest
-from typing import TYPE_CHECKING, Any, Optional, cast
+from typing import TYPE_CHECKING, Any, Literal, Optional, TypeVar, cast, overload
 
 from ..community import Community, CommunitySettings
 from ..lazy_community import lazy_wrapper, lazy_wrapper_wd
@@ -81,6 +81,19 @@ async def gather_without_errors(*futures: Future) -> list:
     """
     results = await gather(*futures, return_exceptions=True)
     return [r for r in results if not isinstance(r, Exception)]
+
+
+FindResultType = TypeVar("FindResultType", Node, DHTValue)
+
+
+def merge_results(results: tuple[list[FindResultType], ...]) -> tuple[FindResultType, ...]:
+    """
+    Merge the results from a tuple of lists into a flat tuple.
+    """
+    out: list[FindResultType] = []
+    for result in results:
+        out.extend(result)
+    return tuple(out)
 
 
 class Request(RandomNumberCache):
@@ -624,36 +637,49 @@ class DHTCommunity(Community):
         # Unsigned data
         return [*results, *((data[1], None) for data in unpacked[None])]
 
+    @overload
     async def find(self, target: bytes, force_nodes: bool, offset: int,
-                   debug: bool) -> Sequence[DHTValue] | \
-                                   tuple[Sequence[DHTValue], list[Crawl]] | \
-                                   Sequence[Node]:
+                   debug: Literal[False]) -> tuple[DHTValue, ...] | tuple[Node, ...]:
+        ...
+
+    @overload
+    async def find(self, target: bytes, force_nodes: bool, offset: int,
+                   debug: Literal[True]) -> tuple[tuple[DHTValue, ...], list[Crawl]]:
+        ...
+
+    @overload
+    async def find(self, target: bytes, force_nodes: bool, offset: int,
+                   debug: bool) -> tuple[DHTValue, ...] | tuple[Node, ...] | tuple[tuple[DHTValue, ...], list[Crawl]]:
+        ...
+
+    async def find(self, target: bytes, force_nodes: bool, offset: int,
+                   debug: bool) -> tuple[DHTValue, ...] | tuple[Node, ...] | tuple[tuple[DHTValue, ...], list[Crawl]]:
         """
         Get the values belonging to the given target key.
         """
-        futures: list[Coroutine[Any, Any, list[Node] | \
-                                          list[DHTValue] | \
+        futures: list[Coroutine[Any, Any, list[Node] |
+                                          list[DHTValue] |
                                           tuple[list[DHTValue], Crawl]]] = []
         for routing_table in self.routing_tables.values():
             crawl = Crawl(target, routing_table, force_nodes=force_nodes, offset=offset)
             futures.append(self._find(crawl, debug=debug))
-        results: list[list[Any] |
-                      list[DHTValue] |
-                      tuple[list[DHTValue], Crawl]] = await gather(*futures)
+        results = await gather(*futures)
 
         if debug:
-            results_debug = cast(list[tuple[list[DHTValue], Crawl]], results)
-            return tuple(*[r[0] for r in results]), [r[1] for r in results_debug]
-        return tuple(*results)
+            results_debug = cast(tuple[tuple[list[DHTValue], Crawl], ...], results)
+            return tuple(*[r[0] for r in results_debug]), cast(list[Crawl], [r[1] for r in results_debug])
+        # ``results`` is of type ``tuple[list[Node] | list[DHTValue], ...]``
+        # However, mypy 1.13.0 is not yet powerful enough to infer the argument type from this.
+        return merge_results(results)  # type: ignore[arg-type]
 
     async def find_values(self, target: bytes, offset: int = 0,
-                          debug: bool = False) -> Sequence[DHTValue] | tuple[Sequence[DHTValue], list[Crawl]]:
+                          debug: bool = False) -> (tuple[DHTValue, ...]
+                                                   | tuple[Node, ...]
+                                                   | tuple[tuple[DHTValue, ...], list[Crawl]]):
         """
         Find the values belonging to the target key.
         """
-        values = await self.find(target, False, offset, debug)
-        return (cast(tuple[Sequence[tuple[bytes, Optional[bytes]]], list[Crawl]], values) if debug
-                else cast(Sequence[tuple[bytes, Optional[bytes]]], values))
+        return await self.find(target, False, offset, debug)
 
     async def find_nodes(self, target: bytes, debug: bool = False) -> Sequence[Node]:
         """
