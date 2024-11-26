@@ -82,6 +82,11 @@ class Peer:
         :param intro: is this peer suggested to us (otherwise it contacted us)
         """
         if not isinstance(key, Key):
+            if key.startswith((b"-----BEGIN EC PRIVATE KEY-----", b"LibNaCLSK:")):
+                msg = ("You attempted to initialize a Peer with PRIVATE key material."
+                       " This is normally ONLY done for your own Peer instance and internally handled by IPv8."
+                       " If this is truly what you want to do, initialize Peer with a PrivateKey subclass.")
+                raise ValueError(msg)
             self.key: Key = default_eccrypto.key_from_public_bin(key)
         else:
             self.key = cast(Key, key)
