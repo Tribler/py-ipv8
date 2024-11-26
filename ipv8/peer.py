@@ -97,6 +97,11 @@ class Peer:
         self.pings: deque = deque(maxlen=5)
         self.new_style_intro = False
 
+        self.address_frozen = False
+        """
+        Set this to True if you want to avoid this Peer's address being updated.
+        """
+
     @property
     def addresses(self) -> dict[type[Address], Address]:
         """
@@ -137,6 +142,8 @@ class Peer:
          - Adding instances A(1), B(2) leads to addresses {A: A(1), B: B(2)}
          - Adding instances A(1), B(2), A(3) leads to addresses {A: A(3), B: B(2)}
         """
+        if self.address_frozen:
+            return
         self._addresses[value.__class__] = value
         self._update_preferred_address()
 

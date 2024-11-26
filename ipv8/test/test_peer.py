@@ -159,6 +159,18 @@ class TestPeer(TestBase):
 
         self.assertEqual(peer.address, address)
 
+    def test_set_address_frozen(self) -> None:
+        """
+        Check if the add_address does not update frozen addresses.
+        """
+        old_address = ("6.7.8.9", 0)
+        peer = Peer(TestPeer.test_key, address=old_address)
+        peer.address_frozen = True
+
+        peer.add_address(UDPv4Address("1.2.3.4", 5))
+
+        self.assertEqual(peer.address, old_address)
+
     def test_address_order1(self) -> None:
         """
         Check if IPv6 is preferred over IPv4 (append out-of-order).
