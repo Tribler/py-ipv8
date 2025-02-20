@@ -203,7 +203,7 @@ class AsyncioEndpoint(BaseEndpoint[IPv8]):
             # Add info specific to tasks owner by TaskManager
             if hasattr(task, "start_time"):
                 # Only TaskManager tasks have a start_time attribute
-                cls, tsk = name.split(":")
+                cls, tsk = name.split(":", 1)
                 task_dict.update({"name": tsk, "taskmanager": cls, "start_time": task.start_time})
                 interval = getattr(task, "interval", None)
                 if interval is not None:
