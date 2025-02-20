@@ -258,6 +258,8 @@ class TunnelCommunity(Community):
         """
         for circuit_length, num_circuits in self.circuits_needed.items():
             num_to_build = max(0, num_circuits - len(self.find_circuits(state=None, hops=circuit_length)))
+            if not num_to_build:
+                continue
             self.logger.info("Want %d data circuits of length %d", num_to_build, circuit_length)
             for _ in range(num_to_build):
                 if not self.create_circuit(circuit_length):
