@@ -373,6 +373,10 @@ class DHTCommunity(Community):
         if isinstance(source_address, UDPv6Address) and UDPv6Address not in self.my_peer.addresses:
             return
 
+        # We need to know our own node ID before we can start adding nodes to the routing table
+        if self.my_estimated_wan in [("::1", 0), ("0.0.0.0", 0)]:
+            return
+
         # Filter out trackers
         if source_address not in self.network.blacklist:
             node = Node(public_key_bin, source_address)
