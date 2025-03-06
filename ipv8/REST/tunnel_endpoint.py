@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import asyncio
+import json
 from binascii import hexlify, unhexlify
 from typing import TYPE_CHECKING, cast
 
 from aiohttp import web
-from aiohttp_apispec import docs, json_schema
+from aiohttp_apispec import docs, querystring_schema
 from marshmallow.fields import Boolean, Float, Integer, List, String
 
 from ..dht.provider import DHTCommunityProvider, DHTIntroPointPayload
@@ -19,7 +21,6 @@ from ..messaging.anonymization.community import (
 )
 from ..messaging.anonymization.hidden_services import HiddenTunnelCommunity
 from ..messaging.anonymization.tunnel import FORWARD
-from ..messaging.anonymization.utils import run_speed_test
 from ..messaging.serialization import PackError
 from ..peer import Peer
 from ..types import IPv8
@@ -51,6 +52,7 @@ class TunnelEndpoint(BaseEndpoint[IPv8]):
         """
         super().__init__()
         self.tunnels: TunnelCommunity | None = None
+        self.loop = asyncio.get_running_loop()
 
     def setup_routes(self) -> None:
         """
@@ -58,8 +60,8 @@ class TunnelEndpoint(BaseEndpoint[IPv8]):
         """
         self.app.add_routes([web.get('/settings', self.get_settings),
                              web.get('/circuits', self.get_circuits),
-                             web.post('/circuits/test', self.speed_test_new_circuit),
-                             web.post('/circuits/{circuit_id}/test', self.speed_test_existing_circuit),
+                             web.get('/circuits/test', self.speed_test_new_circuit),
+                             web.get('/circuits/{circuit_id}/test', self.speed_test_existing_circuit),
                              web.get('/relays', self.get_relays),
                              web.get('/exits', self.get_exits),
                              web.get('/swarms', self.get_swarms),
@@ -164,29 +166,30 @@ class TunnelEndpoint(BaseEndpoint[IPv8]):
             200: {"schema": SpeedTestResponseSchema}
         }
     )
-    @json_schema(schema(SpeedTestExistingCircuitRequest={
-        'request_size*': (Integer, 'Size of the requests to send (0..2000)'),
-        'response_size*': (Integer, 'Size of the responses to send (0..2000)'),
-        'num_requests*': (Integer, 'Number of packets to send'),
+    @querystring_schema(schema(SpeedTestExistingCircuitRequest={
+        'request_size': (Integer, 'Size of the requests to send (0..2000)'),
+        'response_size': (Integer, 'Size of the responses to send (0..2000)'),
+        'test_time_ms': (Integer, 'Time that the test should take in ms (1..60000)'),
     }))
-    async def speed_test_existing_circuit(self, request: Request) -> Response:
+    async def speed_test_existing_circuit(self, request: Request) -> web.StreamResponse:
         """
         Test the upload or download speed of a circuit.
         """
-        if not request.match_info['circuit_id'].isdigit():
+        circuit_id = request.match_info.get('circuit_id')
+        if not circuit_id or not circuit_id.isdigit():
             return Response({"error": "circuit_id must be an integer"}, status=HTTP_BAD_REQUEST)
         if self.tunnels is None:
             return Response({"error": "TunnelCommunity is not initialized"}, status=HTTP_NOT_FOUND)
         self.tunnels = cast(TunnelCommunity, self.tunnels)
 
-        circuit = self.tunnels.circuits.get(int(request.match_info['circuit_id']))
+        circuit = self.tunnels.circuits.get(int(circuit_id))
         if not circuit:
             return Response({"error": "could not find requested circuit"}, status=HTTP_NOT_FOUND)
         if circuit.state != CIRCUIT_STATE_READY:
             return Response({"error": "the requested circuit is not ready to transfer data"}, status=HTTP_BAD_REQUEST)
         if circuit.ctype == CIRCUIT_TYPE_DATA and PEER_FLAG_SPEED_TEST not in circuit.exit_flags:
             return Response({"error": "the requested circuit does not support speed testing"}, status=HTTP_BAD_REQUEST)
-        return await self.run_speed_test(circuit, (await request.json()))
+        return await self.run_speed_test(request, circuit, dict(request.query))
 
     @docs(
         tags=["Tunnels"],
@@ -196,49 +199,90 @@ class TunnelEndpoint(BaseEndpoint[IPv8]):
             200: {"schema": SpeedTestResponseSchema}
         }
     )
-    @json_schema(schema(SpeedTestNewCircuitRequest={
+    @querystring_schema(schema(SpeedTestNewCircuitRequest={
         'goals_hops': (Integer, 'Number of hops that the newly created circuit should have'),
-        'request_size*': (Integer, 'Size of the requests to send (0..2000)'),
-        'response_size*': (Integer, 'Size of the responses to send (0..2000)'),
-        'num_requests*': (Integer, 'Number of packets to send'),
+        'request_size': (Integer, 'Size of the requests to send (0..2000)'),
+        'response_size': (Integer, 'Size of the responses to send (0..2000)'),
+        'test_time_ms': (Integer, 'Time that the test should take in ms (1..60000)'),
     }))
-    async def speed_test_new_circuit(self, request: Request) -> Response:
+    async def speed_test_new_circuit(self, request: Request) -> Response | web.StreamResponse:
         """
         Test the upload or download speed of a newly created circuit.
         The circuit is destroyed after the test has completed.
         """
+        params = dict(request.query)
         if self.tunnels is None:
             return Response({"error": "TunnelCommunity is not initialized"}, status=HTTP_NOT_FOUND)
         self.tunnels = cast(TunnelCommunity, self.tunnels)
 
-        params = await request.json()
-
-        goal_hops = params.get('goal_hops', 1)
-        if not 1 <= goal_hops <= 3:
+        goal_hops = params.get('goal_hops', "1")
+        if not goal_hops.isdigit() or not 1 <= int(goal_hops) <= 3:
             return Response({"error": "invalid number of hops specified"}, status=HTTP_BAD_REQUEST)
 
-        circuit = self.tunnels.create_circuit(goal_hops, ctype='SPEED_TEST', exit_flags=(PEER_FLAG_SPEED_TEST,))
+        circuit = self.tunnels.create_circuit(int(goal_hops), ctype='SPEED_TEST', exit_flags=(PEER_FLAG_SPEED_TEST,))
         if not circuit or not await circuit.ready:
             return Response({"error": "failed to create circuit"}, status=HTTP_INTERNAL_SERVER_ERROR)
 
-        result = await self.run_speed_test(circuit, params)
+        result = await self.run_speed_test(request, circuit, params)
         await self.tunnels.remove_circuit(circuit.circuit_id, additional_info='speed test finished')
         return result
 
-    async def run_speed_test(self, circuit: Circuit, params: dict) -> Response:
+    async def run_speed_test(self, request: Request, circuit: Circuit, params: dict) -> web.StreamResponse:
         """
         Run a speed test on the given circuit and form an HTTP response.
         """
-        if self.tunnels is None:
-            return Response({"error": "TunnelCommunity is not initialized"}, status=HTTP_NOT_FOUND)
         self.tunnels = cast(TunnelCommunity, self.tunnels)
 
-        if not 0 <= params.get('request_size', -1) <= 2000 or not 0 <= params.get('response_size', -1) <= 2000:
+        if not hasattr(self.tunnels.crypto_endpoint, "run_speedtest"):
+            return Response({"error": "endpoint does not support speed tests"}, status=HTTP_BAD_REQUEST)
+
+        request_size = params.get('request_size', 50)
+        response_size = params.get('response_size', 1024)
+        if not 0 <= request_size <= 2000 or not 0 <= response_size <= 2000:
             return Response({"error": "invalid request or response size specified"}, status=HTTP_BAD_REQUEST)
-        if 'num_requests' not in params:
-            return Response({"error": "number of requests is not specified"}, status=HTTP_BAD_REQUEST)
-        return Response(await run_speed_test(self.tunnels, circuit,
-                                             params['request_size'], params['response_size'], params['num_requests']))
+
+        test_time_ms = params.get('test_time_ms', "5000")
+        if not test_time_ms.isdigit() or not 0 < int(test_time_ms) <= 60000:
+            return Response({"error": "invalid test time specified"}, status=HTTP_BAD_REQUEST)
+
+        response = web.StreamResponse(status=200,
+                                      reason="OK",
+                                      headers={"Content-Type": "text/event-stream",
+                                               "Cache-Control": "no-cache",
+                                               "Connection": "keep-alive"})
+        await response.prepare(request)
+
+        is_completed: asyncio.Future = asyncio.Future()
+        rx_ids: set[int] = set()
+        tx_ids: set[int] = set()
+
+        def callback(stats: dict[int, list[int]], is_done: bool) -> None:
+            # Stats format: {request_id: [timestamp, bytes_sent, timestamp, bytes_received]}
+            send_times = sorted([[tid] + stat[:2] for tid, stat in stats.items()
+                                 if tid not in tx_ids], key=lambda x: x[1])
+            recv_times = sorted([[tid] + stat[2:] for tid, stat in stats.items()
+                                 if tid not in rx_ids and stat[2]], key=lambda x: x[1])
+            tx_ids.update({i[0] for i in send_times})
+            rx_ids.update({i[0] for i in recv_times})
+
+            up_time = (send_times[-1][1] - send_times[0][1]) / 1000
+            up = (sum([n for _, _, n in send_times]) / up_time) if up_time else 0
+            down_time = (recv_times[-1][1] - recv_times[0][1]) / 1000 if recv_times else 0
+            down = (sum([n for _, _, n in recv_times]) / down_time) if down_time else 0
+
+            speeds = {"up": up/1048576, "down": down/1048576}
+            task = asyncio.ensure_future(response.write(f"speed: {json.dumps(speeds)}\n".encode()))
+            if self.tunnels:
+                self.tunnels.register_anonymous_task("speedtest", task)
+            if is_done:
+                is_completed.set_result(None)
+
+        self.tunnels.crypto_endpoint.run_speedtest(circuit.circuit_id, int(test_time_ms),
+                                                   request_size, response_size, 100, callback, 500)
+
+        await is_completed
+        await response.write_eof()
+        return response
 
     @docs(
         tags=["Tunnels"],
