@@ -52,7 +52,6 @@ class TunnelEndpoint(BaseEndpoint[IPv8]):
         """
         super().__init__()
         self.tunnels: TunnelCommunity | None = None
-        self.loop = asyncio.get_running_loop()
 
     def setup_routes(self) -> None:
         """
