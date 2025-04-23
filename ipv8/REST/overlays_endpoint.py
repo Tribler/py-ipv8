@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 from binascii import hexlify
-from typing import TYPE_CHECKING, Any, Callable, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from aiohttp import web
 from aiohttp_apispec import docs, json_schema
-from marshmallow.base import SchemaABC
 from marshmallow.fields import Boolean, Dict, List, Nested, String
 
 from ..messaging.interfaces.statistics_endpoint import StatisticsEndpoint
@@ -14,7 +13,10 @@ from .base_endpoint import HTTP_BAD_REQUEST, HTTP_PRECONDITION_FAILED, BaseEndpo
 from .schema import DefaultResponseSchema, OverlaySchema, OverlayStatisticsSchema, schema
 
 if TYPE_CHECKING:
+    from typing import Callable
+
     from aiohttp.abc import Request
+    from marshmallow import Schema
 
     from ..messaging.interfaces.network_stats import NetworkStat
 
@@ -65,7 +67,7 @@ class OverlaysEndpoint(BaseEndpoint[IPv8]):
         overlay_stats: list[dict[str, Any]] = []
         if self.session is None:
             return Response({"overlays": overlay_stats})
-        self.session = cast(IPv8, self.session)
+        self.session = cast('IPv8', self.session)
         for overlay in self.session.overlays:
             peers = overlay.get_peers()
             statistics = self.session.endpoint.get_aggregate_statistics(overlay.get_prefix()) \
@@ -95,7 +97,7 @@ class OverlaysEndpoint(BaseEndpoint[IPv8]):
         responses={
             200: {
                 "schema": schema(StatisticsResponse={
-                    "statistics": List(Dict(keys=String, values=Nested(cast(SchemaABC, OverlayStatisticsSchema)))),
+                    "statistics": List(Dict(keys=String, values=Nested(cast('Schema', OverlayStatisticsSchema)))),
                 }),
                 "examples": {'Success': {"statistics": [{"DiscoveryCommunity": {'num_up': 0, 'num_down': 0,
                                                                                 'bytes_up': 0, 'bytes_down': 0,
@@ -110,7 +112,7 @@ class OverlaysEndpoint(BaseEndpoint[IPv8]):
         overlay_stats: list[dict[str, Any]] = []
         if self.session is None:
             return Response({"statistics": overlay_stats})
-        self.session = cast(IPv8, self.session)
+        self.session = cast('IPv8', self.session)
         for overlay in self.session.overlays:
             statistics = self.session.endpoint.get_statistics(overlay.get_prefix()) if self.statistics_supported else {}
             overlay_stats.append({
@@ -126,7 +128,7 @@ class OverlaysEndpoint(BaseEndpoint[IPv8]):
         named_statistics: dict[str, dict[str, int | float]] = {}
         for message_id, network_stats in statistics.items():
             if overlay.decode_map[message_id]:
-                mapped_name = str(message_id) + ":" + cast(Callable, overlay.decode_map[message_id]).__name__
+                mapped_name = str(message_id) + ":" + cast('Callable', overlay.decode_map[message_id]).__name__
             else:
                 mapped_name = str(message_id) + ":unknown"
             mapped_value = network_stats.to_dict()
@@ -183,7 +185,7 @@ class OverlaysEndpoint(BaseEndpoint[IPv8]):
         """
         Enable statistics for the specified overlays.
         """
-        self.session = cast(IPv8, self.session)
+        self.session = cast('IPv8', self.session)
         if all_overlays:
             for overlay in self.session.overlays:
                 self.session.endpoint.enable_community_statistics(overlay.get_prefix(), enable)

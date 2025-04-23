@@ -69,6 +69,8 @@ class MockRequest(Request):
         message = RawRequestMessage(method, path, HttpVersion(1, 0), CIMultiDictProxy(CIMultiDict({})),
                                     ((b'', b''),), True, None, False, False, URL(path))
         self._transport = MockRequest.Transport()
+        self.ssl_context = None
+        self.peername = None
         super().__init__(message=message, payload=StreamReader(), protocol=self,
                          payload_writer=payload_writer, task=None, loop=get_running_loop())
         self._query = query or {}

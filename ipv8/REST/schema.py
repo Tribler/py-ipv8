@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import cast
 
 from marshmallow import Schema
-from marshmallow.base import SchemaABC
 from marshmallow.fields import Boolean, Integer, List, Nested, String
 from marshmallow.schema import SchemaMeta
 
@@ -13,8 +12,9 @@ class DefaultResponseSchema(Schema):
     Every response contains its sucess status and optionally the error that occurred.
     """
 
-    success = Boolean(description='Indicator of success/failure', required=True)
-    error = String(description='Optional field describing any failures that may have occurred', required=False)
+    success = Boolean(metadata={"description": "Indicator of success/failure"}, required=True)
+    error = String(metadata={"description": "Optional field describing any failures that may have occurred"},
+                   required=False)
 
 
 class Address(Schema):
@@ -63,14 +63,14 @@ class OverlaySchema(Schema):
     id = String()
     my_peer = String()
     global_time = Integer()
-    peers = List(Nested(cast(SchemaABC, AddressWithPK)))
+    peers = List(Nested(cast("Schema", AddressWithPK)))
     overlay_name = String()
     max_peers = Integer()
     is_isolated = Boolean()
-    my_estimated_wan = Nested(cast(SchemaABC, Address))
-    my_estimated_lan = Nested(cast(SchemaABC, Address))
-    strategies = List(Nested(cast(SchemaABC, OverlayStrategySchema)))
-    statistics = Nested(cast(SchemaABC, OverlayStatisticsSchema))
+    my_estimated_wan = Nested(cast("Schema", Address))
+    my_estimated_lan = Nested(cast("Schema", Address))
+    strategies = List(Nested(cast("Schema", OverlayStrategySchema)))
+    statistics = Nested(cast("Schema", OverlayStatisticsSchema))
 
 
 class DHTValueSchema(Schema):
@@ -98,13 +98,13 @@ def schema(**kwargs) -> Schema:
         cls, description = value if isinstance(value, tuple) else (value, None)
         required = key.endswith('*')
         key = key.rstrip('*')  # noqa: PLW2901
-        kwargs = {'required': required, 'description': description}
+        kwargs = {'required': required, "metadata": {"description": description}}
 
         if isinstance(cls, SchemaMeta):
-            schema_dict[key] = Nested(cast(SchemaABC, cls), required=required)
+            schema_dict[key] = Nested(cast("Schema", cls), required=required)
         elif isinstance(cls, list) and len(cls) == 1:
             cls = cls[0]
-            schema_dict[key] = List(Nested(cast(SchemaABC, cls)), **kwargs) if isinstance(cls, SchemaMeta) else List(cls, **kwargs)
+            schema_dict[key] = List(Nested(cast("Schema", cls)), **kwargs) if isinstance(cls, SchemaMeta) else List(cls, **kwargs)
         else:
             schema_dict[key] = cls.__call__(**kwargs) if callable(cls) else cls
-    return cast(Schema, type(name, (Schema,), schema_dict))
+    return cast("Schema", type(name, (Schema,), schema_dict))
