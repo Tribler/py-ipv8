@@ -10,7 +10,7 @@ import random
 import sys
 from asyncio import ensure_future, iscoroutine, sleep
 from binascii import unhexlify
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Awaitable
 from traceback import format_exception
 from typing import TYPE_CHECKING, Optional
@@ -384,12 +384,17 @@ class TunnelCommunity(Community):
             self.logger.info("First hop is required exit")
             possible_first_hops = [required_exit]
         else:
-            self.logger.info("Look for a first hop that is not an exit node and is not used before")
+            self.logger.info("Look for a first hop that is not an exit node and is least frequently used")
             # First build a list of hops, then filter the list. Avoids issues when create_circuit is called
             # from a different thread (caused by circuit.peer being reset to None).
-            first_hops = {h for h in [c.hop.peer for c in self.circuits.values()] if h}
+            first_hops = [c.hop.peer for c in self.circuits.values() if c.ctype == ctype and c.hop.peer]
             relay_candidates = self.get_candidates(PEER_FLAG_RELAY)
-            possible_first_hops = [c for c in relay_candidates if c not in first_hops and c != required_exit]
+            candidates = first_hops + relay_candidates
+            random.shuffle(candidates)
+            # Build a list of possible first hops, with the least frequently used hops first.
+            counter = Counter(candidates)
+            possible_first_hops = [peer for (peer, freq) in counter.most_common() if peer != required_exit]
+            possible_first_hops.reverse()
 
         if not possible_first_hops:
             self.logger.info("Could not create circuit, no first hop available")
@@ -411,7 +416,7 @@ class TunnelCommunity(Community):
             self.request_cache.pop(RetryRequestCache, circuit.circuit_id)
             self.logger.info("Retrying first hop for circuit %d", circuit.circuit_id)
 
-        first_hop = random.choice(candidate_peers)
+        first_hop = candidate_peers[0]
         alt_first_hops = [c for c in candidate_peers if c != first_hop]
 
         circuit.unverified_hop = Hop(first_hop, flags=self.candidates.get(first_hop))
