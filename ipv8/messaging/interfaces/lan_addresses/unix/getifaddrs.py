@@ -110,7 +110,7 @@ class GetIfAddrs(AddressProvider):
         if_addresses = ifaddrs()
         p_if_adresses = pointer(if_addresses)
 
-        ret = libc.getifaddrs(p_if_adresses)
+        ret = libc.getifaddrs(pointer(p_if_adresses))
 
         if ret != 0:
             try:
@@ -121,28 +121,29 @@ class GetIfAddrs(AddressProvider):
                 self.on_exception()
             return set()
 
-        next = p_if_adresses  # noqa: A001
-        while next:
-            p_address = next.contents.ifa_addr
-            netmask_is_zero = False  # Check for netmask "0.0.0.0"
-            if next.contents.ifa_netmask:
-                family = next.contents.ifa_netmask.contents.sa_family
-                if family == 2:
-                    socket_desc = cast(next.contents.ifa_netmask, POINTER(sockaddr_in)).contents
-                    netmask_is_zero = string_at(socket_desc.sin_addr, 4) == NETMASK0_V4
-                elif family == 10:
-                    socket_desc6 = cast(next.contents.ifa_netmask, POINTER(sockaddr_in6)).contents
-                    netmask_is_zero = string_at(socket_desc6.sin6_addr, 16) == NETMASK0_V6
-            if p_address and not netmask_is_zero:
-                family = p_address.contents.sa_family
-                if family == 2:
-                    socket_desc = cast(p_address, POINTER(sockaddr_in)).contents
-                    out_addresses.append(socket.inet_ntop(socket.AF_INET, string_at(socket_desc.sin_addr, 4)))
-                elif family == 10:
-                    socket_desc6 = cast(p_address, POINTER(sockaddr_in6)).contents
-                    out_addresses.append(socket.inet_ntop(socket.AF_INET6, string_at(socket_desc6.sin6_addr, 16)))
-            next = next.contents.ifa_next  # noqa: A001
-
-        # ctypes takes care of free(), no need to call ``freeifaddrs()``
+        try:
+            next = p_if_adresses  # noqa: A001
+            while next:
+                p_address = next.contents.ifa_addr
+                netmask_is_zero = False  # Check for netmask "0.0.0.0"
+                if next.contents.ifa_netmask:
+                    family = next.contents.ifa_netmask.contents.sa_family
+                    if family == 2:
+                        socket_desc = cast(next.contents.ifa_netmask, POINTER(sockaddr_in)).contents
+                        netmask_is_zero = string_at(socket_desc.sin_addr, 4) == NETMASK0_V4
+                    elif family == 10:
+                        socket_desc6 = cast(next.contents.ifa_netmask, POINTER(sockaddr_in6)).contents
+                        netmask_is_zero = string_at(socket_desc6.sin6_addr, 16) == NETMASK0_V6
+                if p_address and not netmask_is_zero:
+                    family = p_address.contents.sa_family
+                    if family == 2:
+                        socket_desc = cast(p_address, POINTER(sockaddr_in)).contents
+                        out_addresses.append(socket.inet_ntop(socket.AF_INET, string_at(socket_desc.sin_addr, 4)))
+                    elif family == 10:
+                        socket_desc6 = cast(p_address, POINTER(sockaddr_in6)).contents
+                        out_addresses.append(socket.inet_ntop(socket.AF_INET6, string_at(socket_desc6.sin6_addr, 16)))
+                next = next.contents.ifa_next  # noqa: A001
+        finally:
+            libc.freeifaddrs(p_if_adresses)
 
         return set(out_addresses)
