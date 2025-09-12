@@ -4,11 +4,12 @@ from random import sample
 from time import time
 from typing import TYPE_CHECKING, cast
 
-from ..types import Overlay
+from ..overlay import Overlay
 from .discovery import DiscoveryStrategy
 
 if TYPE_CHECKING:
-    from ..types import Address, Peer
+    from ..messaging.interfaces.udp.endpoint import Address
+    from ..peer import Peer
 
 
 class RandomChurn(DiscoveryStrategy[Overlay]):
@@ -64,7 +65,7 @@ class RandomChurn(DiscoveryStrategy[Overlay]):
                     if self.should_drop(peer) and peer.address in self._pinged:
                         self.overlay.network.remove_peer(peer)
                         self._pinged.pop(peer.address)
-                    elif self.is_inactive(peer) or len(peer.pings) < cast(int, peer.pings.maxlen):
+                    elif self.is_inactive(peer) or len(peer.pings) < cast("int", peer.pings.maxlen):
                         if ((peer.address in self._pinged)
                                 and (time() > (self._pinged[peer.address] + self.ping_interval))):
                             self._pinged.pop(peer.address)

@@ -106,7 +106,7 @@ class TestBoneh(TestBase):
 
     def test_decoding_out_of_space(self) -> None:
         """
-        Check if decode return None if the message is outside of the allowed space.
+        Check if decode return None if the message is outside the allowed space.
         """
         pk = TestBoneh.private_key.public_key()
 

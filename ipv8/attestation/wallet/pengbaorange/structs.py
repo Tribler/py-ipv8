@@ -159,11 +159,9 @@ class PengBaoCommitmentPrivate:
         rem = s[1:]
         for _ in range(count):
             unpacked, rem = _unserialize_fp2value(SK.g.mod, rem)
-            hexed = hex(cast(int, decode(SK, cls.MSGSPACE, unpacked)))[2:]
-            if hexed.endswith('L'):
-                hexed = hexed[:-1]
+            hexed = f"{cast('int', decode(SK, cls.MSGSPACE, unpacked)):x}".removesuffix("L")
             if len(hexed) % 2 == 1:
-                hexed = '0' + hexed
+                hexed = "0" + hexed
             serialized += unhexlify(hexed)
         return cls.unserialize(serialized)[0]
 
@@ -244,7 +242,7 @@ class PengBaoPublicData:
         :rtype: PengBaoPublicData
         """
         rem = s
-        pk = cast(BonehPublicKey, BonehPublicKey.unserialize(rem))
+        pk = cast("BonehPublicKey", BonehPublicKey.unserialize(rem))
         rem = rem[len(pk.serialize()):]
         bitspace, rem = iunpack(rem)
         commitment, rem = PengBaoCommitment.unserialize(rem)

@@ -4,26 +4,30 @@ import functools
 import operator
 from base64 import b64encode
 from binascii import hexlify, unhexlify
-from collections.abc import Sequence
 from timeit import default_timer
-from typing import TYPE_CHECKING, Optional, cast
+from typing import TYPE_CHECKING, cast
 
 from aiohttp import web
 from aiohttp_apispec import docs, json_schema
 from marshmallow.fields import Integer, String
 
+from ipv8_service import IPv8
+
 from ..dht import DHTError
-from ..dht.community import Crawl, DHTCommunity
+from ..dht.community import DHTCommunity
 from ..dht.discovery import DHTDiscoveryCommunity
 from ..dht.routing import Node, calc_node_id
-from ..dht.storage import Storage
 from ..messaging.interfaces.dispatcher.endpoint import FAST_ADDR_TO_INTERFACE
-from ..types import IPv8
 from .base_endpoint import HTTP_BAD_REQUEST, HTTP_NOT_FOUND, BaseEndpoint, Response
 from .schema import DefaultResponseSchema, DHTValueSchema, schema
 
 if TYPE_CHECKING:
-    from aiohttp.abc import Request
+    from collections.abc import Sequence
+
+    from aiohttp.web_request import Request
+
+    from ..dht.community import Crawl
+    from ..dht.storage import Storage
 
 
 class DHTEndpoint(BaseEndpoint[IPv8]):
@@ -43,13 +47,13 @@ class DHTEndpoint(BaseEndpoint[IPv8]):
         """
         Register the names to make this endpoint callable.
         """
-        self.app.add_routes([web.get('/statistics', self.get_statistics),
-                             web.get('/values', self.get_stored_values),
-                             web.get('/values/{key}', self.get_values),
-                             web.put('/values/{key}', self.put_value),
-                             web.get('/peers/{mid}', self.get_peer),
-                             web.get('/buckets', self.get_buckets),
-                             web.get('/buckets/{prefix:\\w*}/refresh', self.refresh_bucket)])
+        self.app.add_routes([web.get("/statistics", self.get_statistics),
+                             web.get("/values", self.get_stored_values),
+                             web.get("/values/{key}", self.get_values),
+                             web.put("/values/{key}", self.put_value),
+                             web.get("/peers/{mid}", self.get_peer),
+                             web.get("/buckets", self.get_buckets),
+                             web.get("/buckets/{prefix:\\w*}/refresh", self.refresh_bucket)])
 
     def initialize(self, session: IPv8) -> None:
         """
@@ -78,7 +82,7 @@ class DHTEndpoint(BaseEndpoint[IPv8]):
             },
             400: {
                 "schema": DefaultResponseSchema,
-                "examples": {'DHT disabled': {"success": False, "error": "DHT community not found."}}
+                "examples": {"DHT disabled": {"success": False, "error": "DHT community not found."}}
             }
         }
     )
@@ -90,7 +94,7 @@ class DHTEndpoint(BaseEndpoint[IPv8]):
             return Response({"success": False, "error": "DHT community not found"}, status=HTTP_NOT_FOUND)
 
         stats = {
-            "peer_id": hexlify(self.dht.my_peer.mid).decode('utf-8'),
+            "peer_id": hexlify(self.dht.my_peer.mid).decode(),
             "num_tokens": len(self.dht.tokens),
             "endpoints": []
         }
@@ -98,22 +102,22 @@ class DHTEndpoint(BaseEndpoint[IPv8]):
         for address_cls, routing_table in self.dht.routing_tables.items():
             buckets = routing_table.trie.values()
             address = self.dht.my_peer.addresses.get(address_cls, self.dht.my_estimated_wan)
-            endpoints = cast(list, stats["endpoints"])
+            endpoints = cast("list", stats["endpoints"])
             endpoints.append({
                 "endpoint": FAST_ADDR_TO_INTERFACE[address_cls],
-                "node_id": hexlify(calc_node_id(address, self.dht.my_peer.mid)).decode('utf-8'),
+                "node_id": hexlify(calc_node_id(address, self.dht.my_peer.mid)).decode(),
                 "routing_table_size": sum([len(bucket.nodes) for bucket in buckets]),
                 "routing_table_buckets": len(buckets),
                 "num_keys_in_store":
-                    len(cast(Storage, self.dht.storages.get(address_cls)).items) if self.dht.storages.get(address_cls)
+                    len(cast("Storage", self.dht.storages.get(address_cls)).items) if self.dht.storages.get(address_cls)
                     else 0,
             })
 
         if isinstance(self.dht, DHTDiscoveryCommunity):
             stats.update({
-                "num_peers_in_store": {hexlify(key).decode('utf-8'): len(peers)
+                "num_peers_in_store": {hexlify(key).decode(): len(peers)
                                        for key, peers in self.dht.store.items()},
-                "num_store_for_me": {hexlify(key).decode('utf-8'): len(peers)
+                "num_store_for_me": {hexlify(key).decode(): len(peers)
                                      for key, peers in self.dht.store_for_me.items()}
             })
 
@@ -133,7 +137,7 @@ class DHTEndpoint(BaseEndpoint[IPv8]):
             },
             400: {
                 "schema": DefaultResponseSchema,
-                "examples": {'DHT disabled': {"success": False, "error": "DHT community not found."}}
+                "examples": {"DHT disabled": {"success": False, "error": "DHT community not found."}}
             }
         }
     )
@@ -144,10 +148,10 @@ class DHTEndpoint(BaseEndpoint[IPv8]):
         if self.dht is None or not isinstance(self.dht, DHTDiscoveryCommunity):
             return Response({"success": False, "error": "DHT community not found"}, status=HTTP_NOT_FOUND)
 
-        mid = unhexlify(request.match_info['mid'])
+        mid = unhexlify(request.match_info["mid"])
         nodes = await self.dht.connect_peer(mid)
-        return Response({"peers": [{'public_key': b64encode(node.public_key.key_to_bin()).decode('utf-8'),
-                                    'address': node.address} for node in nodes]})
+        return Response({"peers": [{"public_key": b64encode(node.public_key.key_to_bin()).decode(),
+                                    "address": node.address} for node in nodes]})
 
     @docs(
         tags=["DHT"],
@@ -160,7 +164,7 @@ class DHTEndpoint(BaseEndpoint[IPv8]):
             },
             400: {
                 "schema": DefaultResponseSchema,
-                "examples": {'DHT disabled': {"success": False, "error": "DHT community not found."}}
+                "examples": {"DHT disabled": {"success": False, "error": "DHT community not found."}}
             }
         }
     )
@@ -179,10 +183,10 @@ class DHTEndpoint(BaseEndpoint[IPv8]):
                 for value in values:
                     data, public_key = value
                     dicts.append({
-                        'endpoint': FAST_ADDR_TO_INTERFACE[address_cls],
-                        'public_key': b64encode(public_key).decode('utf-8') if public_key else None,
-                        'key': hexlify(key).decode('utf-8'),
-                        'value': hexlify(data).decode('utf-8')
+                        "endpoint": FAST_ADDR_TO_INTERFACE[address_cls],
+                        "public_key": b64encode(public_key).decode() if public_key else None,
+                        "key": hexlify(key).decode(),
+                        "value": hexlify(data).decode()
                     })
                 results[hexlify(key).decode()] = dicts
         return Response(results)
@@ -198,7 +202,7 @@ class DHTEndpoint(BaseEndpoint[IPv8]):
             },
             400: {
                 "schema": DefaultResponseSchema,
-                "examples": {'DHT disabled': {"success": False, "error": "DHT community not found."}}
+                "examples": {"DHT disabled": {"success": False, "error": "DHT community not found."}}
             }
         }
     )
@@ -209,24 +213,24 @@ class DHTEndpoint(BaseEndpoint[IPv8]):
         if self.dht is None:
             return Response({"success": False, "error": "DHT community not found"}, status=HTTP_NOT_FOUND)
 
-        key = unhexlify(request.match_info['key'])
+        key = unhexlify(request.match_info["key"])
 
         start = default_timer()
-        values, crawls = cast(tuple[Sequence[tuple[bytes, Optional[bytes]]], list[Crawl]],
+        values, crawls = cast("tuple[Sequence[tuple[bytes, bytes | None]], list[Crawl]]",
                               await self.dht.find_values(key, debug=True))
         nodes_tried = set().union(*[crawl.nodes_tried for crawl in crawls])
         responses: list[tuple[Node, dict]] = functools.reduce(operator.iadd, [crawl.responses for crawl in crawls], [])
         stop = default_timer()
 
         return Response({
-            "values": [{'public_key': b64encode(public_key).decode('utf-8') if public_key else None,
-                        'key': hexlify(key).decode('utf-8'),
-                        'value': hexlify(data).decode('utf-8')} for data, public_key in values],
+            "values": [{"public_key": b64encode(public_key).decode() if public_key else None,
+                        "key": hexlify(key).decode(),
+                        "value": hexlify(data).decode()} for data, public_key in values],
             "debug": {
                 "requests": len(nodes_tried),
                 "responses": len(responses),
-                "responses_with_nodes": len([r for s, r in responses if 'nodes' in r]),
-                "responses_with_values": len([r for s, r in responses if 'values' in r]),
+                "responses_with_nodes": len([r for s, r in responses if "nodes" in r]),
+                "responses_with_values": len([r for s, r in responses if "values" in r]),
                 "time": stop - start
             }
         })
@@ -235,22 +239,22 @@ class DHTEndpoint(BaseEndpoint[IPv8]):
         tags=["DHT"],
         summary="Store a key-value pair on the DHT.",
         parameters=[{
-            'in': 'path',
-            'name': 'key',
-            'description': 'The key under which to store the value',
-            'type': 'string',
-            'required': True
+            "in": "path",
+            "name": "key",
+            "description": "The key under which to store the value",
+            "type": "string",
+            "required": True
         }],
         responses={
             200: {"schema": DefaultResponseSchema},
             400: {
                 "schema": DefaultResponseSchema,
-                "examples": {'DHT disabled': {"success": False, "error": "DHT community not found."}}
+                "examples": {"DHT disabled": {"success": False, "error": "DHT community not found."}}
             }
         }
     )
     @json_schema(schema(DHTStoreRequest={
-        'value*': String
+        "value*": String
     }))
     async def put_value(self, request: Request) -> Response:
         """
@@ -260,11 +264,11 @@ class DHTEndpoint(BaseEndpoint[IPv8]):
             return Response({"success": False, "error": "DHT community not found"}, status=HTTP_NOT_FOUND)
 
         parameters = await request.json()
-        if 'value' not in parameters:
+        if "value" not in parameters:
             return Response({"success": False, "error": "incorrect parameters"}, status=HTTP_BAD_REQUEST)
 
-        key = unhexlify(request.match_info['key'])
-        await self.dht.store_value(key, unhexlify(parameters['value']), sign=True)
+        key = unhexlify(request.match_info["key"])
+        await self.dht.store_value(key, unhexlify(parameters["value"]), sign=True)
         return Response({"success": True})
 
     @docs(
@@ -296,7 +300,7 @@ class DHTEndpoint(BaseEndpoint[IPv8]):
         """
         if self.dht is None:
             return Response({"buckets": []})
-        self.dht = cast(DHTCommunity, self.dht)
+        self.dht = cast("DHTCommunity", self.dht)
 
         return Response({"buckets": [{
             "prefix": bucket.prefix_id,
@@ -305,8 +309,8 @@ class DHTEndpoint(BaseEndpoint[IPv8]):
             "peers": [{
                 "ip": peer.address[0],
                 "port": peer.address[1],
-                "mid": hexlify(peer.mid).decode('utf-8'),
-                "id": hexlify(peer.id).decode('utf-8'),
+                "mid": hexlify(peer.mid).decode("utf-8"),
+                "id": hexlify(peer.id).decode("utf-8"),
                 "failed": peer.failed,
                 "last_contact": peer.last_contact,
                 "distance": peer.distance(self.dht.get_my_node_id(peer)),
@@ -317,11 +321,11 @@ class DHTEndpoint(BaseEndpoint[IPv8]):
         tags=["DHT"],
         summary="Refresh a specific bucket in the DHT community.",
         parameters=[{
-            'in': 'path',
-            'name': 'prefix',
-            'description': 'Prefix of the bucket which to refresh.',
-            'type': 'string',
-            'required': True
+            "in": "path",
+            "name": "prefix",
+            "description": "Prefix of the bucket which to refresh.",
+            "type": "string",
+            "required": True
         }],
         responses={
             200: {
@@ -330,7 +334,7 @@ class DHTEndpoint(BaseEndpoint[IPv8]):
             },
             400: {
                 "schema": DefaultResponseSchema,
-                "examples": {'Unknown bucket': {"success": False, "error": "no such bucket"}}
+                "examples": {"Unknown bucket": {"success": False, "error": "no such bucket"}}
             }
         }
     )
@@ -340,9 +344,9 @@ class DHTEndpoint(BaseEndpoint[IPv8]):
         """
         if self.dht is None:
             return Response({"success": False, "error": "DHT community is not loaded"}, status=HTTP_BAD_REQUEST)
-        self.dht = cast(DHTCommunity, self.dht)
+        self.dht = cast("DHTCommunity", self.dht)
 
-        prefix = request.match_info['prefix']
+        prefix = request.match_info["prefix"]
         success = False
         error = None
         for routing_table in list(self.dht.routing_tables.values()):

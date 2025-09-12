@@ -8,7 +8,7 @@ from ...messaging.lazy_payload import VariablePayload, VariablePayloadWID, vp_co
 from ..serialization import Packer
 
 if TYPE_CHECKING:
-    from ...types import Address
+    from ..interfaces.udp.endpoint import Address
 
 
 class CellablePayload(VariablePayloadWID):
@@ -25,8 +25,8 @@ class ExtraIntroductionPayload(VariablePayload):
     Payload to piggyback onto introduction messages.
     """
 
-    names = ['flags']
-    format_list = ['flags']
+    names = ["flags"]
+    format_list = ["flags"]
 
     flags: list[int]
 
@@ -38,8 +38,8 @@ class DataPayload(CellablePayload):
     """
 
     msg_id = 1
-    names = ['circuit_id', 'dest_address', 'org_address', 'data']
-    format_list = ['I', 'address', 'address', 'raw']
+    names = ["circuit_id", "dest_address", "org_address", "data"]
+    format_list = ["I", "address", "address", "raw"]
 
     circuit_id: int
     dest_address: Address
@@ -54,8 +54,8 @@ class CreatePayload(CellablePayload):
     """
 
     msg_id = 2
-    names = ['circuit_id', 'identifier', 'node_public_key', 'key']
-    format_list = ['I', 'H', 'varlenH', 'varlenH']
+    names = ["circuit_id", "identifier", "node_public_key", "key"]
+    format_list = ["I", "H", "varlenH", "varlenH"]
 
     circuit_id: int
     identifier: int
@@ -70,8 +70,8 @@ class CreatedPayload(CellablePayload):
     """
 
     msg_id = 3
-    names = ['circuit_id', 'identifier', 'key', 'auth', 'candidates_enc']
-    format_list = ['I', 'H', 'varlenH', '32s', 'raw']
+    names = ["circuit_id", "identifier", "key", "auth", "candidates_enc"]
+    format_list = ["I", "H", "varlenH", "32s", "raw"]
 
     circuit_id: int
     identifier: int
@@ -87,8 +87,8 @@ class ExtendPayload(CellablePayload):
     """
 
     msg_id = 4
-    names = ['circuit_id', 'identifier', 'node_public_key', 'key', 'node_addr']
-    format_list = ['I', 'H', 'varlenH', 'varlenH', 'ip_address']
+    names = ["circuit_id", "identifier", "node_public_key", "key", "node_addr"]
+    format_list = ["I", "H", "varlenH", "varlenH", "ip_address"]
 
     circuit_id: int
     identifier: int
@@ -104,8 +104,8 @@ class ExtendedPayload(CellablePayload):
     """
 
     msg_id = 5
-    names = ['circuit_id', 'identifier', 'key', 'auth', 'candidates_enc']
-    format_list = ['I', 'H', 'varlenH', '32s', 'raw']
+    names = ["circuit_id", "identifier", "key", "auth", "candidates_enc"]
+    format_list = ["I", "H", "varlenH", "32s", "raw"]
 
     circuit_id: int
     identifier: int
@@ -121,8 +121,8 @@ class PingPayload(CellablePayload):
     """
 
     msg_id = 6
-    names = ['circuit_id', 'identifier']
-    format_list = ['I', 'H']
+    names = ["circuit_id", "identifier"]
+    format_list = ["I", "H"]
 
     circuit_id: int
     identifier: int
@@ -135,8 +135,8 @@ class PongPayload(CellablePayload):
     """
 
     msg_id = 7
-    names = ['circuit_id', 'identifier']
-    format_list = ['I', 'H']
+    names = ["circuit_id", "identifier"]
+    format_list = ["I", "H"]
 
     circuit_id: int
     identifier: int
@@ -149,8 +149,8 @@ class DestroyPayload(CellablePayload):
     """
 
     msg_id = 8
-    names = ['circuit_id', 'reason']
-    format_list = ['I', 'H']
+    names = ["circuit_id", "reason"]
+    format_list = ["I", "H"]
 
     circuit_id: int
     reason: int
@@ -163,8 +163,8 @@ class EstablishIntroPayload(CellablePayload):
     """
 
     msg_id = 9
-    names = ['circuit_id', 'identifier', 'info_hash', 'public_key']
-    format_list = ['I', 'H', '20s', 'varlenH']
+    names = ["circuit_id", "identifier", "info_hash", "public_key"]
+    format_list = ["I", "H", "20s", "varlenH"]
 
     circuit_id: int
     identifier: int
@@ -179,8 +179,8 @@ class IntroEstablishedPayload(CellablePayload):
     """
 
     msg_id = 10
-    names = ['circuit_id', 'identifier']
-    format_list = ['I', 'H']
+    names = ["circuit_id", "identifier"]
+    format_list = ["I", "H"]
 
     circuit_id: int
     identifier: int
@@ -193,8 +193,8 @@ class EstablishRendezvousPayload(CellablePayload):
     """
 
     msg_id = 11
-    names = ['circuit_id', 'identifier', 'cookie']
-    format_list = ['I', 'H', '20s']
+    names = ["circuit_id", "identifier", "cookie"]
+    format_list = ["I", "H", "20s"]
 
     circuit_id: int
     identifier: int
@@ -208,8 +208,8 @@ class RendezvousEstablishedPayload(CellablePayload):
     """
 
     msg_id = 12
-    names = ['circuit_id', 'identifier', 'rendezvous_point_addr']
-    format_list = ['I', 'H', 'ip_address']
+    names = ["circuit_id", "identifier", "rendezvous_point_addr"]
+    format_list = ["I", "H", "ip_address"]
 
     circuit_id: int
     identifier: int
@@ -223,8 +223,8 @@ class CreateE2EPayload(VariablePayloadWID):
     """
 
     msg_id = 13
-    names = ['identifier', 'info_hash', 'node_public_key', 'key']
-    format_list = ['H', '20s', 'varlenH', 'varlenH']
+    names = ["identifier", "info_hash", "node_public_key", "key"]
+    format_list = ["H", "20s", "varlenH", "varlenH"]
 
     identifier: int
     info_hash: bytes
@@ -239,8 +239,8 @@ class CreatedE2EPayload(VariablePayloadWID):
     """
 
     msg_id = 14
-    names = ['identifier', 'key', 'auth', 'rp_info_enc']
-    format_list = ['H', 'varlenH', '32s', 'raw']
+    names = ["identifier", "key", "auth", "rp_info_enc"]
+    format_list = ["H", "varlenH", "32s", "raw"]
 
     identifier: int
     key: bytes
@@ -255,8 +255,8 @@ class LinkE2EPayload(CellablePayload):
     """
 
     msg_id = 15
-    names = ['circuit_id', 'identifier', 'cookie']
-    format_list = ['I', 'H', '20s']
+    names = ["circuit_id", "identifier", "cookie"]
+    format_list = ["I", "H", "20s"]
 
     circuit_id: int
     identifier: int
@@ -270,8 +270,8 @@ class LinkedE2EPayload(CellablePayload):
     """
 
     msg_id = 16
-    names = ['circuit_id', 'identifier']
-    format_list = ['I', 'H']
+    names = ["circuit_id", "identifier"]
+    format_list = ["I", "H"]
 
     circuit_id: int
     identifier: int
@@ -284,8 +284,8 @@ class PeersRequestPayload(CellablePayload):
     """
 
     msg_id = 17
-    names = ['circuit_id', 'identifier', 'info_hash']
-    format_list = ['I', 'H', '20s']
+    names = ["circuit_id", "identifier", "info_hash"]
+    format_list = ["I", "H", "20s"]
 
     circuit_id: int
     identifier: int
@@ -298,8 +298,8 @@ class IntroductionInfo(VariablePayload):
     Payload for introduction info.
     """
 
-    names = ['address', 'key', 'seeder_pk', 'source']
-    format_list = ['ip_address', 'varlenH', 'varlenH', 'B']
+    names = ["address", "key", "seeder_pk", "source"]
+    format_list = ["ip_address", "varlenH", "varlenH", "B"]
 
     address: Address
     key: bytes
@@ -314,8 +314,8 @@ class PeersResponsePayload(CellablePayload):
     """
 
     msg_id = 18
-    names = ['circuit_id', 'identifier', 'info_hash', 'peers']
-    format_list = ['I', 'H', '20s', [IntroductionInfo]]
+    names = ["circuit_id", "identifier", "info_hash", "peers"]
+    format_list = ["I", "H", "20s", [IntroductionInfo]]
 
     circuit_id: int
     identifier: int
@@ -329,8 +329,8 @@ class RendezvousInfo(VariablePayload):
     Payload for rendezvous info.
     """
 
-    names = ['address', 'key', 'cookie']
-    format_list = ['ip_address', 'varlenH', '20s']
+    names = ["address", "key", "cookie"]
+    format_list = ["ip_address", "varlenH", "20s"]
 
     address: Address
     key: bytes
@@ -344,8 +344,8 @@ class TestRequestPayload(CellablePayload):
     """
 
     msg_id = 19
-    names = ['circuit_id', 'identifier', 'response_size', 'data']
-    format_list = ['I', 'H', 'H', 'raw']
+    names = ["circuit_id", "identifier", "response_size", "data"]
+    format_list = ["I", "H", "H", "raw"]
 
     circuit_id: int
     identifier: int
@@ -360,8 +360,8 @@ class TestResponsePayload(CellablePayload):
     """
 
     msg_id = 20
-    names = ['circuit_id', 'identifier', 'data']
-    format_list = ['I', 'H', 'raw']
+    names = ["circuit_id", "identifier", "data"]
+    format_list = ["I", "H", "raw"]
 
     circuit_id: int
     identifier: int
@@ -373,7 +373,7 @@ class Flags(Packer):
     Packer for flags (default: as a short).
     """
 
-    def __init__(self, fmt: str = '>H') -> None:
+    def __init__(self, fmt: str = ">H") -> None:
         """
         Allocate flags in the given ``struct`` format.
         """
@@ -415,25 +415,25 @@ class CellPayload:
         """
         Reorder the binary format of this cell, injecting its prefix and circuit id.
         """
-        return b''.join([prefix,
+        return b"".join([prefix,
                          self.message[0:1],
-                         pack('!I', self.circuit_id),
+                         pack("!I", self.circuit_id),
                          self.message[1:]])
 
     def to_bin(self, prefix: bytes) -> bytes:
         """
         Reorder the binary format of this cell, injecting its message id, circuit id and flags.
         """
-        return b''.join([prefix,
+        return b"".join([prefix,
                          bytes([self.msg_id]),
-                         pack('!I??', self.circuit_id, self.plaintext, self.relay_early) + self.message])
+                         pack("!I??", self.circuit_id, self.plaintext, self.relay_early) + self.message])
 
     @classmethod
     def from_bin(cls: type[CellPayload], packet: bytes) -> CellPayload:
         """
         Reconstruct a CellPayload from the given binary format, ordered using ``to_bin()``.
         """
-        circuit_id, plaintext, relay_early = unpack_from('!I??', packet, 23)
+        circuit_id, plaintext, relay_early = unpack_from("!I??", packet, 23)
         return cls(circuit_id, packet[29:], plaintext, relay_early)
 
 

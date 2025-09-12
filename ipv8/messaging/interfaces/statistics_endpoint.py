@@ -3,14 +3,16 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING, Any
 
-from ...messaging.interfaces.endpoint import EndpointListener
+from ...messaging.interfaces.endpoint import Endpoint, EndpointListener
 from .network_stats import NetworkStat
 
 if TYPE_CHECKING:
-    from ...types import Address, Endpoint
+    from collections.abc import Awaitable
+
+    from .udp.endpoint import Address
 
 
-class StatisticsEndpoint(EndpointListener):
+class StatisticsEndpoint(EndpointListener, Endpoint):
     """
     This class is responsible for keeping stats regarding community.
     The stats are basically of the messages that the community can handle.
@@ -33,15 +35,6 @@ class StatisticsEndpoint(EndpointListener):
         self.endpoint = endpoint
         self.endpoint.add_listener(self)
         self.statistics: dict[bytes, dict] = {}
-
-    def __getattribute__(self, item: str) -> Any:  # noqa: ANN401
-        """
-        Forward any non-intercepted call from this decorator directly to the underlying endpoint.
-        """
-        try:
-            return object.__getattribute__(self, item)
-        except AttributeError:
-            return object.__getattribute__(self.endpoint, item)
 
     # Endpoint methods
     def send(self, socket_address: Address, packet: bytes) -> None:
@@ -126,10 +119,10 @@ class StatisticsEndpoint(EndpointListener):
         if prefix in self.statistics:
             first_ts = last_ts = 0.0
             for network_stat in self.statistics[prefix].values():
-                aggregate_stats['num_up'] += network_stat.num_up
-                aggregate_stats['num_down'] += network_stat.num_down
-                aggregate_stats['bytes_up'] += network_stat.bytes_up
-                aggregate_stats['bytes_down'] += network_stat.bytes_down
+                aggregate_stats["num_up"] += network_stat.num_up
+                aggregate_stats["num_down"] += network_stat.num_down
+                aggregate_stats["bytes_up"] += network_stat.bytes_up
+                aggregate_stats["bytes_down"] += network_stat.bytes_down
 
                 first_ts = min_positive(first_ts, min_positive(network_stat.first_measured_up,
                                                                network_stat.first_measured_down))
@@ -191,6 +184,51 @@ class StatisticsEndpoint(EndpointListener):
         """
         Whether a given message identifier should be counted with the given filters.
         """
-        return (identifier in StatisticsEndpoint.IDS_DEPRECATED and not include_deprecated
-                or identifier in StatisticsEndpoint.IDS_INTRODUCTION and not include_introduction
-                or identifier in StatisticsEndpoint.IDS_PUNCTURE and not include_puncture)
+        return ((identifier in StatisticsEndpoint.IDS_DEPRECATED and not include_deprecated)
+                or (identifier in StatisticsEndpoint.IDS_INTRODUCTION and not include_introduction)
+                or (identifier in StatisticsEndpoint.IDS_PUNCTURE and not include_puncture))
+
+    def __getattribute__(self, item: str) -> Any:  # noqa: ANN401
+        """
+        Forward any non-intercepted call from this decorator directly to the underlying endpoint.
+        """
+        try:
+            return object.__getattribute__(self, item)
+        except AttributeError:
+            return object.__getattribute__(self.endpoint, item)
+
+    def assert_open(self) -> None:
+        """
+        Forward directly to the underlying endpoint.
+        """
+        self.endpoint.assert_open()
+
+    def is_open(self) -> bool:
+        """
+        Forward directly to the underlying endpoint.
+        """
+        return self.endpoint.is_open()
+
+    def get_address(self) -> Address:
+        """
+        Forward directly to the underlying endpoint.
+        """
+        return self.endpoint.get_address()
+
+    async def open(self) -> bool:
+        """
+        Forward directly to the underlying endpoint.
+        """
+        return await self.endpoint.open()
+
+    def close(self) -> None | Awaitable:
+        """
+        Forward directly to the underlying endpoint.
+        """
+        return self.endpoint.close()
+
+    def reset_byte_counters(self) -> None:
+        """
+        Forward directly to the underlying endpoint.
+        """
+        self.endpoint.reset_byte_counters()

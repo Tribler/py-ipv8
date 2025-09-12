@@ -1,18 +1,21 @@
 from __future__ import annotations
 
 import logging
+import traceback
 from typing import TYPE_CHECKING, cast
 
 from aiohttp import web
 from aiohttp_apispec import AiohttpApiSpec
+from apispec.core import VALID_METHODS_OPENAPI_V2
 
 from .base_endpoint import HTTP_INTERNAL_SERVER_ERROR, HTTP_UNAUTHORIZED, BaseEndpoint, Response
 from .root_endpoint import RootEndpoint
 
 if TYPE_CHECKING:
-    from aiohttp.abc import Request
-    from aiohttp.connector import SSLContext
+    from ssl import SSLContext
+
     from aiohttp.typedefs import Handler
+    from aiohttp.web_request import Request
     from aiohttp.web_response import StreamResponse
     from aiohttp.web_runner import BaseRunner
 
@@ -35,16 +38,16 @@ class ApiKeyMiddleware:
         """
         if self.authenticate(request):
             return await handler(request)
-        return Response({'error': 'Unauthorized access'}, status=HTTP_UNAUTHORIZED)
+        return Response({"error": "Unauthorized access"}, status=HTTP_UNAUTHORIZED)
 
     def authenticate(self, request: Request) -> bool:
         """
         Check if the given request is authorized.
         """
-        if request.path.startswith('/docs') or request.path.startswith('/static'):
+        if request.path.startswith("/docs") or request.path.startswith("/static"):
             return True
         # The api key can either be in the headers or as part of the url query
-        api_key = request.headers.get('X-Api-Key') or request.query.get('apikey')
+        api_key = request.headers.get("X-Api-Key") or request.query.get("apikey")
         return not self.api_key or self.api_key == api_key
 
 
@@ -53,16 +56,16 @@ async def cors_middleware(request: Request, handler: Handler) -> Response | Stre
     """
     Cross-origin resource sharing middleware.
     """
-    preflight_cors = request.method == "OPTIONS" and 'Access-Control-Request-Method' in request.headers
+    preflight_cors = request.method == "OPTIONS" and "Access-Control-Request-Method" in request.headers
     if not preflight_cors:
         return await handler(request)
 
     response = web.StreamResponse()
     # For now, just allow all methods
-    response.headers['Access-Control-Allow-Methods'] = "GET, PUT, POST, PATCH, DELETE, OPTIONS"
-    response.headers['Access-Control-Allow-Headers'] = '*'
-    response.headers['Access-Control-Allow-Origin'] = '*'
-    response.headers['Access-Control-Max-Age'] = str(86400)
+    response.headers["Access-Control-Allow-Methods"] = "GET, PUT, POST, PATCH, DELETE, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Max-Age"] = str(86400)
     return response
 
 
@@ -74,7 +77,6 @@ async def error_middleware(request: Request, handler: Handler) -> Response | Str
     try:
         response = await handler(request)
     except Exception as e:
-        import traceback
         traceback.print_exc()
         return Response({
             "success": False,
@@ -101,7 +103,7 @@ class RESTManager:
         self.root_endpoint: BaseEndpoint | None = None
         self._root_endpoint_class = root_endpoint_class or RootEndpoint
 
-    async def start(self, port: int = 8085, host: str = '127.0.0.1', api_key: str | None = None,
+    async def start(self, port: int = 8085, host: str = "127.0.0.1", api_key: str | None = None,
                     ssl_context: SSLContext | None = None) -> None:
         """
         Starts the HTTP API with the listen port as specified in the session configuration.
@@ -121,14 +123,13 @@ class RESTManager:
         )
         if api_key:
             # Set security scheme and apply to all endpoints
-            aiohttp_apispec.spec.options['security'] = [{'apiKey': []}]
-            aiohttp_apispec.spec.components.security_scheme('apiKey', {'type': 'apiKey',
-                                                                       'in': 'header',
-                                                                       'name': 'X-Api-Key'})
+            aiohttp_apispec.spec.options["security"] = [{"apiKey": []}]
+            aiohttp_apispec.spec.components.security_scheme("apiKey", {"type": "apiKey",
+                                                                       "in": "header",
+                                                                       "name": "X-Api-Key"})
 
-        from apispec.core import VALID_METHODS_OPENAPI_V2
-        if 'head' in VALID_METHODS_OPENAPI_V2:
-            VALID_METHODS_OPENAPI_V2.remove('head')
+        if "head" in VALID_METHODS_OPENAPI_V2:
+            VALID_METHODS_OPENAPI_V2.remove("head")
 
         runner = web.AppRunner(self.root_endpoint.app, access_log=None)
         await runner.setup()
@@ -149,5 +150,5 @@ class RESTManager:
         """
         if self.site is None:
             return
-        self.site = cast(web.TCPSite, self.site)
+        self.site = cast("web.TCPSite", self.site)
         await self.site.stop()

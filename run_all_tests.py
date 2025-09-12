@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from typing_extensions import Self
 
 DEFAULT_PROCESS_COUNT = multiprocessing.cpu_count() * 2
-if platform.system() == 'Windows':
+if platform.system() == "Windows":
     # Workaround for https://github.com/Tribler/py-ipv8/issues/1120
     DEFAULT_PROCESS_COUNT = min(60, DEFAULT_PROCESS_COUNT)
 
@@ -52,7 +52,7 @@ class ProgrammerDistractor(contextlib.AbstractContextManager):
         Start rotating.
         """
         distraction = str(int(time.time() - self.starttime))
-        print('\033[u\033[K' + distraction + " seconds and counting "  # noqa: T201
+        print("\033[u\033[K" + distraction + " seconds and counting "  # noqa: T201
               + ("x" if int(time.time() * 10) % 2 else "+"), end="", flush=True)
         self.timer = threading.Timer(0.1, self.programmer_distractor)
         self.timer.start()
@@ -124,7 +124,7 @@ class CustomTestResult(unittest.TextTestResult):
         if self.showAll:
             self.stream.write(f"ok [{round((time.time() - self.last_test) * 1000, 2)} ms]{os.linesep}")
         elif self.dots:
-            self.stream.write('.')
+            self.stream.write(".")
             self.stream.flush()
 
     def stopTestRun(self) -> None:  # noqa: N802
@@ -149,12 +149,12 @@ class CustomLinePrint(io.StringIO):
         self.delegated = delegated
         self.raw_lines = []
 
-    def write(self, __text: str) -> int:
+    def write(self, __text: str, /) -> int:
         """
         Write text that is not necessarily newline terminated.
         """
         wtime = time.time()
-        if self.raw_lines and not self.raw_lines[-1][2].endswith('\n'):
+        if self.raw_lines and not self.raw_lines[-1][2].endswith("\n"):
             self.raw_lines[-1] = (self.raw_lines[-1][0], self.raw_lines[-1][1], self.raw_lines[-1][2] + __text)
         else:
             self.raw_lines.append((wtime, self.prefix, __text))
@@ -165,13 +165,13 @@ def task_test(*test_names: str) -> tuple[bool, int, float, list[tuple[str, str, 
     """
     We're a subprocess that has been assigned some test names to execute.
     """
-    import logging
+    import logging  # noqa: PLC0415
 
     try:
         # If we made it here, there is only one option if the import fails and that is a local path dll.
-        import libnacl  # noqa: F401
+        import libnacl  # noqa: F401, PLC0415
     except:
-        os.add_dll_directory(os.path.dirname(__file__) or os.path.abspath('.'))
+        os.add_dll_directory(os.path.dirname(__file__) or os.path.abspath("."))
 
     print_stream = io.StringIO()
     output_stream = CustomLinePrint(print_stream, "OUT")
@@ -187,10 +187,8 @@ def task_test(*test_names: str) -> tuple[bool, int, float, list[tuple[str, str, 
     for test_name in test_names:
         suite.addTest(unittest.defaultTestLoader.loadTestsFromName(test_name))
     reporter = unittest.TextTestRunner(stream=output_stream, failfast=True, verbosity=2, resultclass=CustomTestResult)
-    test_result = None
 
     start_time = time.time()
-    end_time = start_time
     last_test = start_time
     tests_run_count = 0
     tests_failed = False
@@ -198,7 +196,7 @@ def task_test(*test_names: str) -> tuple[bool, int, float, list[tuple[str, str, 
     try:
         test_result = reporter.run(suite)
         tests_failed = len(test_result.errors) > 0 or len(test_result.failures) > 0
-        real_result = cast(CustomTestResult, test_result)
+        real_result = cast("CustomTestResult", test_result)
         start_time = real_result.start_time
         end_time = real_result.end_time
         last_test = real_result.last_test
@@ -219,38 +217,38 @@ def task_test(*test_names: str) -> tuple[bool, int, float, list[tuple[str, str, 
     return tests_failed, tests_run_count, end_time - start_time, combined_event_log, print_stream.getvalue()
 
 
-def scan_for_test_files(directory: pathlib.Path | str = pathlib.Path('./ipv8/test')) -> Generator[pathlib.Path]:
+def scan_for_test_files(directory: pathlib.Path | str = pathlib.Path("./ipv8/test")) -> Generator[pathlib.Path]:
     """
     Find Python files starting with ``test_`` in a given directory.
     """
     if not isinstance(directory, pathlib.Path):
         directory = pathlib.Path(directory)
-    return directory.glob('**/test_*.py')
+    return directory.glob("**/test_*.py")
 
 
 def derive_test_class_names(test_file_path: pathlib.Path) -> list[str]:
     """
     Derive the module names from the given test file path.
     """
-    module_name = '.'.join(test_file_path.relative_to(pathlib.Path('.')).parts)[:-3]
+    module_name = ".".join(test_file_path.relative_to(pathlib.Path(".")).parts)[:-3]
     module_instance = importlib.import_module(module_name)
-    test_class_names = []
+    t_class_names = []
     for obj_name, obj in inspect.getmembers(module_instance):
         if inspect.isclass(obj) and issubclass(obj, unittest.TestCase) and obj.__module__ == module_name:
-            test_class_names.append(f"{module_name}.{obj_name}")
-    return test_class_names
+            t_class_names.append(f"{module_name}.{obj_name}")
+    return t_class_names
 
 
-def find_all_test_class_names(directory: pathlib.Path | str = pathlib.Path('./ipv8/test')) -> list[str]:
+def find_all_test_class_names(directory: pathlib.Path | str = pathlib.Path("./ipv8/test")) -> list[str]:
     """
     Get all the modules for all the files that look like test files in a given path.
     """
     if not isinstance(directory, pathlib.Path):
         directory = pathlib.Path(directory)
-    test_class_names = []
+    t_class_names = []
     for found_test in scan_for_test_files(directory):
-        test_class_names.extend(derive_test_class_names(found_test))
-    return test_class_names
+        t_class_names.extend(derive_test_class_names(found_test))
+    return t_class_names
 
 
 def install_libsodium() -> None:
@@ -259,17 +257,17 @@ def install_libsodium() -> None:
     """
     # Ensure a libsodium.zip
     if not pathlib.Path("libsodium.zip").exists():
-        import json
-        from urllib import request
+        import json  # noqa: PLC0415
+        from urllib import request  # noqa: PLC0415
         response = request.urlopen("https://api.github.com/repos/jedisct1/libsodium/releases")
         release = json.loads(response.read())[0]
         response.close()
-        asset = next(asset for asset in release['assets'] if asset['name'].endswith("-msvc.zip"))
-        pathlib.Path("libsodium.zip").write_bytes(request.urlopen(asset['browser_download_url']).read())  # noqa: S310
+        asset = next(asset for asset in release["assets"] if asset["name"].endswith("-msvc.zip"))
+        pathlib.Path("libsodium.zip").write_bytes(request.urlopen(asset["browser_download_url"]).read())  # noqa: S310
 
     # Unpack just the libsodium.dll
     if not pathlib.Path("libsodium.dll").exists():
-        import zipfile
+        import zipfile  # noqa: PLC0415
         fr = zipfile.Path("libsodium.zip", "libsodium/x64/Release/")
         fr = sorted((d for d in fr.iterdir()), key=lambda x: str(x))[-1] / "dynamic" / "libsodium.dll"
         with open("libsodium.dll", "wb") as fw:
@@ -281,31 +279,31 @@ def windows_missing_libsodium() -> bool:
     Check if we can NOT find the libsodium backend.
     """
     with contextlib.suppress(OSError):
-        import libnacl
+        import libnacl  # noqa: PLC0415
         return False
 
     # Try to find it in the local directory. This is where we'll download it anyway.
-    os.add_dll_directory(os.path.abspath('.'))
+    os.add_dll_directory(os.path.abspath("."))
     try:
-        import libnacl  # noqa: F401
+        import libnacl  # noqa: F401, PLC0415
         return False
     except OSError:
         return True
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Run the IPv8 tests.')
-    parser.add_argument('-p', '--processes', type=int, default=DEFAULT_PROCESS_COUNT, required=False,
+    parser = argparse.ArgumentParser(description="Run the IPv8 tests.")
+    parser.add_argument("-p", "--processes", type=int, default=DEFAULT_PROCESS_COUNT, required=False,
                         help="The amount of processes to spawn.")
-    parser.add_argument('-q', '--quiet', action='store_true', required=False,
+    parser.add_argument("-q", "--quiet", action="store_true", required=False,
                         help="Don't show succeeded tests.")
-    parser.add_argument('-a', '--noanimation', action='store_true', required=False,
+    parser.add_argument("-a", "--noanimation", action="store_true", required=False,
                         help="Don't animate the terminal output.")
-    parser.add_argument('-d', '--nodownload', action='store_true', required=False,
+    parser.add_argument("-d", "--nodownload", action="store_true", required=False,
                         help="Don't attempt to download missing dependencies.")
     args = parser.parse_args()
 
-    if platform.system() == 'Windows' and windows_missing_libsodium() and not args.nodownload:
+    if platform.system() == "Windows" and windows_missing_libsodium() and not args.nodownload:
         print("Failed to locate libsodium (libnacl requirement), downloading latest dll!")  # noqa: T201
         install_libsodium()
 
@@ -318,7 +316,7 @@ if __name__ == "__main__":
     total_time_taken = 0
     total_tests_run = 0
     total_fail = False
-    print_output = ''
+    print_output = ""
 
     print(f"Launching in {process_count} processes ... awaiting results ... \033[s", end="", flush=True)  # noqa: T201
 
@@ -336,7 +334,7 @@ if __name__ == "__main__":
                     break
                 global_event_log.extend(event_log)
         total_end_time = time.time()
-    total_fail |= programmer_distractor.crashed  # This is not a unit test failure but we still fail the test suite.
+    total_fail |= programmer_distractor.crashed  # This is not a unit test failure, but we still fail the test suite.
 
     if programmer_distractor.crashed:
         # The printed test results won't show any errors. We need to give some more info.
@@ -348,9 +346,9 @@ if __name__ == "__main__":
         print(unittest.TextTestResult.separator1)  # noqa: T201
         global_event_log.sort(key=lambda x: x[0])
         for event in global_event_log:
-            print(('\033[91m' if event[1] == "ERR" else ('\033[94m' if event[1] == "LOG" else '\033[0m'))  # noqa: T201
-                  + event[2] + '\033[0m',
-                  end='')
+            print(("\033[91m" if event[1] == "ERR" else ("\033[94m" if event[1] == "LOG" else "\033[0m"))  # noqa: T201
+                  + event[2] + "\033[0m",
+                  end="")
         print("\r\n" + unittest.TextTestResult.separator1)  # noqa: T201
 
     print("Summary:")  # noqa: T201

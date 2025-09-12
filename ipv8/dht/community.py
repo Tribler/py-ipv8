@@ -8,13 +8,12 @@ import time
 from asyncio import FIRST_COMPLETED, Future, Task, gather, wait
 from binascii import hexlify, unhexlify
 from collections import defaultdict, deque
-from collections.abc import Coroutine, Iterator, Sequence
 from itertools import zip_longest
-from typing import TYPE_CHECKING, Any, Literal, Optional, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Any, Literal, TypeVar, cast, overload
 
 from ..community import Community, CommunitySettings
 from ..lazy_community import lazy_wrapper, lazy_wrapper_wd
-from ..messaging.interfaces.udp.endpoint import UDPv4Address, UDPv6Address
+from ..messaging.interfaces.udp.endpoint import Address, UDPv4Address, UDPv6Address
 from ..messaging.serialization import ListOf, Serializer
 from ..peerdiscovery.network import Network
 from ..requestcache import RandomNumberCache, RequestCache
@@ -36,6 +35,8 @@ from .routing import Bucket, Node, RoutingTable, calc_node_id, distance
 from .storage import Storage
 
 if TYPE_CHECKING:
+    from collections.abc import Coroutine, Iterator, Sequence
+
     from ..messaging.lazy_payload import VariablePayload
     from ..messaging.payload import (
         IntroductionRequestPayload,
@@ -44,10 +45,10 @@ if TYPE_CHECKING:
         NewIntroductionResponsePayload,
     )
     from ..messaging.payload_headers import GlobalTimeDistributionPayload
+    from ..peer import Peer
     from ..peerdiscovery.discovery import DiscoveryStrategy
-    from ..types import Address, Peer
 
-DHTValue = tuple[bytes, Optional[bytes]]
+DHTValue = tuple[bytes, bytes | None]
 
 PING_INTERVAL = 25
 
@@ -127,10 +128,10 @@ class Request(RandomNumberCache):
         Cancel our completion future, if it's not already done.
         """
         if not self.future.done():
-            self._logger.debug('Timeout for %s to %s', self.msg_type, self.node)
+            self._logger.debug("Timeout for %s to %s", self.msg_type, self.node)
             self.node.failed += 1
             if not self.consume_errors:
-                self.future.set_exception(DHTError(f'Timeout for {self.msg_type} to {self.node}'))
+                self.future.set_exception(DHTError(f"Timeout for {self.msg_type} to {self.node}"))
             else:
                 self.future.set_result(None)
 
@@ -190,7 +191,7 @@ class Crawl:
         """
         self.responses.append((sender, response))
 
-        for index, node in enumerate(cast(list[Node], response.get('nodes', []))):
+        for index, node in enumerate(cast("list[Node]", response.get("nodes", []))):
             if node in self.nodes_tried:
                 continue
 
@@ -210,7 +211,7 @@ class Crawl:
     @property
     def done(self) -> bool:
         """
-        Check if we exhausted our tries or we have no nodes left to query.
+        Check if we exhausted our tries, or we have no nodes left to query.
         """
         return len(self.nodes_tried) >= MAX_CRAWL_REQUESTS or not self.nodes_todo
 
@@ -219,7 +220,7 @@ class Crawl:
         """
         Return closest node to the target that did not respond with values.
         """
-        nodes_no_values = [sender for sender, response in self.responses if 'values' not in response]
+        nodes_no_values = [sender for sender, response in self.responses if "values" not in response]
         nodes_no_values.sort(key=lambda n: distance(n.id, self.target))
         return nodes_no_values[0] if nodes_no_values else None
 
@@ -229,8 +230,8 @@ class Crawl:
         Get the currently known values for our crawl.
         """
         # Merge all values received into one tuple. First pick the first value from each tuple, then the second, etc.
-        value_responses: list[list[bytes]] = [cast(list[bytes], response['values']) for _, response in self.responses
-                                              if 'values' in response]
+        value_responses: list[list[bytes]] = [cast("list[bytes]", response["values"]) for _, response in self.responses
+                                              if "values" in response]
         values = sum(zip_longest(*value_responses), ())
 
         # Filter out duplicates while preserving order
@@ -251,7 +252,7 @@ class DHTCommunity(Community):
     Community for storing/finding key-value pairs.
     """
 
-    community_id = unhexlify('8d0be1845d74d175f178197cad001591d04d73cc')
+    community_id = unhexlify("8d0be1845d74d175f178197cad001591d04d73cc")
 
     def __init__(self, settings: CommunitySettings) -> None:
         """
@@ -271,9 +272,9 @@ class DHTCommunity(Community):
         # First call to token_maintenance should happen immediately, in case we get requests before it gets executed
         self.token_maintenance()
 
-        self.register_task('token_maintenance', self.token_maintenance, interval=300)
-        self.register_task('node_maintenance', self.node_maintenance, interval=60)
-        self.register_task('value_maintenance', self.value_maintenance, interval=3600)
+        self.register_task("token_maintenance", self.token_maintenance, interval=300)
+        self.register_task("node_maintenance", self.node_maintenance, interval=60)
+        self.register_task("value_maintenance", self.value_maintenance, interval=3600)
 
         # Register messages
         self.add_message_handler(PingRequestPayload, self.on_ping_request)
@@ -283,21 +284,21 @@ class DHTCommunity(Community):
         self.add_message_handler(FindRequestPayload, self.on_find_request)
         self.add_message_handler(FindResponsePayload, self.on_find_response)
 
-        self.logger.info('DHT community initialized (peer mid %s)', hexlify(self.my_peer.mid))
+        self.logger.info("DHT community initialized (peer mid %s)", hexlify(self.my_peer.mid))
 
     def get_serializer(self) -> Serializer:
         """
         Extend our serializer with a node list packer.
         """
         serializer = super().get_serializer()
-        serializer.add_packer('node-list', ListOf(NodePacker(serializer)))
+        serializer.add_packer("node-list", ListOf(NodePacker(serializer)))
         return serializer
 
     def get_available_strategies(self) -> dict[str, type[DiscoveryStrategy]]:
         """
         Extend our available strategies with our maintenance strategy.
         """
-        return {'PingChurn': PingChurn}
+        return {"PingChurn": PingChurn}
 
     async def unload(self) -> None:
         """
@@ -344,8 +345,8 @@ class DHTCommunity(Community):
         """
         routing_table = self.get_routing_table(peer)
         node = Node(peer.key, peer.address)
-        if routing_table.has(node.id) and cast(Node, routing_table.get(node.id)).blocked:
-            self.logger.debug('Too many queries\'s, dropping packet')
+        if routing_table.has(node.id) and cast("Node", routing_table.get(node.id)).blocked:
+            self.logger.debug("Too many queries\"s, dropping packet")
             return None
 
         node = routing_table.add(node) or node
@@ -385,7 +386,7 @@ class DHTCommunity(Community):
             rt_node = routing_table.add(node)
 
             if not existed and rt_node:
-                self.logger.debug('Added node %s to the routing table', node)
+                self.logger.debug("Added node %s to the routing table", node)
                 # Ping the node in order to determine RTT
                 self.ping(rt_node)
 
@@ -393,8 +394,8 @@ class DHTCommunity(Community):
         """
         Send a ping to the given node.
         """
-        self.logger.debug('Pinging node %s', node)
-        cache = Request(self, 'ping', node, consume_errors=True)
+        self.logger.debug("Pinging node %s", node)
+        cache = Request(self, "ping", node, consume_errors=True)
         self.request_cache.add(cache)
         self.ez_send(node, PingRequestPayload(cache.number))
         node.last_ping_sent = time.time()
@@ -405,7 +406,7 @@ class DHTCommunity(Community):
         """
         When we receive a ping request through a valid node, send a response.
         """
-        self.logger.debug('Got ping-request from %s', peer.address)
+        self.logger.debug("Got ping-request from %s", peer.address)
 
         node = self.get_requesting_node(peer)
         if not node:
@@ -418,12 +419,12 @@ class DHTCommunity(Community):
         """
         When receive a response to our ping, update the node's metrics.
         """
-        if not self.request_cache.has('ping', payload.identifier):
-            self.logger.warning('Got ping-response with unknown identifier, dropping packet')
+        if not self.request_cache.has("ping", payload.identifier):
+            self.logger.warning("Got ping-response with unknown identifier, dropping packet")
             return
 
-        self.logger.debug('Got ping-response from %s', peer.address)
-        cache = cast(Request, self.request_cache.pop('ping', payload.identifier))
+        self.logger.debug("Got ping-response from %s", peer.address)
+        cache = cast("Request", self.request_cache.pop("ping", payload.identifier))
         cache.on_complete()
         if not cache.future.done():
             cache.future.set_result(cache.node)
@@ -435,9 +436,9 @@ class DHTCommunity(Community):
         if sign:
             payload: VariablePayload = SignedStrPayload(data, int(time.time()),
                                                         self.my_peer.public_key.key_to_bin())
-            return self._ez_pack(b'', DHT_ENTRY_STR_SIGNED, [payload], sig=True)
+            return self._ez_pack(b"", DHT_ENTRY_STR_SIGNED, [payload], sig=True)
         payload = StrPayload(data)
-        return self._ez_pack(b'', DHT_ENTRY_STR, [payload], sig=False)
+        return self._ez_pack(b"", DHT_ENTRY_STR, [payload], sig=False)
 
     def unserialize_value(self, value: bytes) -> tuple[bytes, bytes | None, int] | None:
         """
@@ -467,7 +468,7 @@ class DHTCommunity(Community):
             id_ = hashlib.sha1(public_key).digest() if public_key else None
             storage.put(key, value, id_=id_, version=version, max_age=max_age)
         else:
-            self.logger.warning('Failed to store value %s', hexlify(value))
+            self.logger.warning("Failed to store value %s", hexlify(value))
 
     async def store_value(self, key: bytes, data: bytes, sign: bool = False) -> list[Node]:
         """
@@ -484,8 +485,8 @@ class DHTCommunity(Community):
             msg = "Maximum length exceeded"
             raise DHTError(msg)
 
-        nodes = cast(list[Node], await self.find_nodes(key))
-        nodes = cast(list[Node], await self.store_on_nodes(key, [value], nodes[:TARGET_NODES]))
+        nodes = cast("list[Node]", await self.find_nodes(key))
+        nodes = cast("list[Node]", await self.store_on_nodes(key, [value], nodes[:TARGET_NODES]))
         if len(nodes) < 1:
             msg = "Failed to store value on DHT"
             raise DHTError(msg)
@@ -514,12 +515,12 @@ class DHTCommunity(Community):
         futures = []
         for node in nodes:
             if node.id in self.tokens and self.tokens[node.id][0] + TOKEN_EXPIRATION_TIME > now:
-                cache = Request(self, 'store', node)
+                cache = Request(self, "store", node)
                 self.request_cache.add(cache)
                 futures.append(cache.future)
                 self.ez_send(node, StoreRequestPayload(cache.number, self.tokens[node.id][1], key, values))
             else:
-                self.logger.debug('Not sending store-request to %s (no token available)', node)
+                self.logger.debug("Not sending store-request to %s (no token available)", node)
 
         if not futures:
             msg = "Value was not stored"
@@ -531,21 +532,21 @@ class DHTCommunity(Community):
         """
         Store or forward the given requested value.
         """
-        self.logger.debug('Got store-request from %s', peer.address)
+        self.logger.debug("Got store-request from %s", peer.address)
 
         node = self.get_requesting_node(peer)
         if not node:
             return
         if any(len(value) > MAX_ENTRY_SIZE for value in payload.values):
-            self.logger.warning('Maximum length of value exceeded, dropping packet.')
+            self.logger.warning("Maximum length of value exceeded, dropping packet.")
             return
         if len(payload.values) > MAX_VALUES_IN_STORE:
-            self.logger.warning('Too many values, dropping packet.')
+            self.logger.warning("Too many values, dropping packet.")
             return
         # Note that even though we are preventing spoofing of source_address (by checking the token),
         # the value that is to be stored isn't checked. This should be done at a higher level.
         if not self.check_token(node, payload.token):
-            self.logger.warning('Bad token, dropping packet.')
+            self.logger.warning("Bad token, dropping packet.")
             return
 
         # How many nodes (that we know of) are closer to this value?
@@ -555,7 +556,7 @@ class DHTCommunity(Community):
                 num_closer += 1
 
         # To prevent over-caching, the expiration time of an entry depends on the number
-        # of nodes that are closer than us.
+        # of nodes that are closer than we are.
         max_age = MAX_ENTRY_AGE // 2 ** max(0, num_closer - TARGET_NODES + 1)
         for value in payload.values:
             self.add_value(payload.target, value, self.get_storage(node), max_age)
@@ -567,18 +568,18 @@ class DHTCommunity(Community):
         """
         We got confirmation of storage.
         """
-        if not self.request_cache.has('store', payload.identifier):
-            self.logger.warning('Got store-response with unknown identifier, dropping packet')
+        if not self.request_cache.has("store", payload.identifier):
+            self.logger.warning("Got store-response with unknown identifier, dropping packet")
             return
 
-        self.logger.debug('Got store-response from %s', peer.address)
-        cache = cast(Request, self.request_cache.pop('store', payload.identifier))
+        self.logger.debug("Got store-response from %s", peer.address)
+        cache = cast("Request", self.request_cache.pop("store", payload.identifier))
         cache.on_complete()
         if not cache.future.done():
             cache.future.set_result(cache.node)
 
     def _send_find_request(self, node: Node, target: bytes, force_nodes: bool, offset: int = 0) -> Future:
-        cache = Request(self, 'find', node, [force_nodes], consume_errors=True, timeout=2.0)
+        cache = Request(self, "find", node, [force_nodes], consume_errors=True, timeout=2.0)
         self.request_cache.add(cache)
         self.ez_send(node, FindRequestPayload(cache.number, self.my_estimated_lan, target, offset, force_nodes))
         return cache.future
@@ -598,7 +599,7 @@ class DHTCommunity(Community):
             # Keep running tasks until work is done.
             while not crawl.done and len(tasks) < MAX_CRAWL_TASKS:
                 node, puncture_node = crawl.nodes_todo.pop(0)
-                tasks.add(self.register_anonymous_task('contact_node', self._contact_node, crawl, node, puncture_node))
+                tasks.add(self.register_anonymous_task("contact_node", self._contact_node, crawl, node, puncture_node))
                 # Add to nodes_tried immediately to prevent sending multiple find-requests to the same node.
                 crawl.nodes_tried.add(node)
             if not tasks:
@@ -670,8 +671,8 @@ class DHTCommunity(Community):
         results = await gather(*futures)
 
         if debug:
-            results_debug = cast(tuple[tuple[list[DHTValue], Crawl], ...], results)
-            return tuple(*[r[0] for r in results_debug]), cast(list[Crawl], [r[1] for r in results_debug])
+            results_debug = cast("tuple[tuple[list[DHTValue], Crawl], ...]", results)
+            return tuple(*[r[0] for r in results_debug]), cast("list[Crawl]", [r[1] for r in results_debug])
         # ``results`` is of type ``tuple[list[Node] | list[DHTValue], ...]``
         # However, mypy 1.13.0 is not yet powerful enough to infer the argument type from this.
         return merge_results(results)  # type: ignore[arg-type]
@@ -689,14 +690,14 @@ class DHTCommunity(Community):
         """
         Find the values belonging to the target key.
         """
-        return cast(Sequence[Node], await self.find(target, True, 0, debug))
+        return cast("Sequence[Node]", await self.find(target, True, 0, debug))
 
     @lazy_wrapper(FindRequestPayload)
     def on_find_request(self, peer: Peer, payload: FindRequestPayload) -> None:
         """
         Try to perform a search for the requested target.
         """
-        self.logger.debug('Got find-request for %s from %s', hexlify(payload.target), peer.address)
+        self.logger.debug("Got find-request for %s from %s", hexlify(payload.target), peer.address)
 
         node = self.get_requesting_node(peer)
         if not node:
@@ -722,12 +723,12 @@ class DHTCommunity(Community):
         """
         We got a response for our find requests.
         """
-        if not self.request_cache.has('find', payload.identifier):
-            self.logger.warning('Got find-response with unknown identifier, dropping packet')
+        if not self.request_cache.has("find", payload.identifier):
+            self.logger.warning("Got find-response with unknown identifier, dropping packet")
             return
 
-        self.logger.debug('Got find-response from %s', peer.address)
-        cache = cast(Request, self.request_cache.pop('find', payload.identifier))
+        self.logger.debug("Got find-response from %s", peer.address)
+        cache = cast("Request", self.request_cache.pop("find", payload.identifier))
         cache.on_complete()
 
         self.tokens[cache.node.id] = (time.time(), payload.token)
@@ -736,11 +737,11 @@ class DHTCommunity(Community):
             # The errback must already have been called (due to a timeout)
             return
 
-        if cast(list[bool], cache.params)[0]:
-            cache.future.set_result({'nodes': payload.nodes})
+        if cast("list[bool]", cache.params)[0]:
+            cache.future.set_result({"nodes": payload.nodes})
         else:
-            cache.future.set_result({'values': payload.values} if payload.values
-                                    else {'nodes': payload.nodes})
+            cache.future.set_result({"values": payload.values} if payload.values
+                                    else {"nodes": payload.nodes})
 
     async def node_maintenance(self) -> None:
         """

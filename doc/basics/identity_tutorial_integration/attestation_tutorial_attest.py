@@ -4,10 +4,10 @@ import shutil
 from attestation_tutorial_common import finish, http_get, http_post, start, urlstr, wait_for_list
 
 # Remove the output of previous experiments.
-if os.path.exists('./state_1'):
-    shutil.rmtree('./state_1')
-if os.path.exists('./state_2'):
-    shutil.rmtree('./state_2')
+if os.path.exists("./state_1"):
+    shutil.rmtree("./state_1")
+if os.path.exists("./state_2"):
+    shutil.rmtree("./state_2")
 
 start()
 print("Enrollment/Attestation flow")
@@ -48,7 +48,7 @@ peer1_attributes = http_get("http://localhost:14411/identity/pseudonym1/credenti
 print("Peer 1 attributes:", peer1_attributes)
 print("Peer 2 attributes:", http_get("http://localhost:14412/identity/pseudonym2/credentials"))
 
-assert len(peer1_attributes['names']) > 0
+assert len(peer1_attributes["names"]) > 0
 
 print("X. DONE!")
 finish()

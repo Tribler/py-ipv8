@@ -7,15 +7,16 @@ from asyncio import CancelledError, DatagramProtocol, DatagramTransport, Future,
 from collections import deque
 from struct import unpack_from
 from traceback import format_exception
-from typing import TYPE_CHECKING, Callable, cast
+from typing import TYPE_CHECKING, cast
 
 from ...taskmanager import TaskManager
-from ..interfaces.udp.endpoint import DomainAddress, UDPv4Address, UDPv6Address
+from ..interfaces.udp.endpoint import Address, DomainAddress, UDPv4Address, UDPv6Address
 from .tunnel import PEER_FLAG_EXIT_BT, PEER_FLAG_EXIT_IPV8, Hop, RoutingObject
 
 if TYPE_CHECKING:
-    from ipv8.messaging.anonymization.community import TunnelCommunity
-    from ipv8.types import Address
+    from collections.abc import Callable
+
+    from ...messaging.anonymization.community import TunnelCommunity
 
 
 class DataChecker:
@@ -47,7 +48,7 @@ class DataChecker:
         """
         if len(data) < 20:
             return False
-        byte1, byte2 = unpack_from('!BB', data)
+        byte1, byte2 = unpack_from("!BB", data)
         # Type and version
         if not (0 <= (byte1 >> 4) <= 4 and (byte1 & 15) == 1):
             return False
@@ -60,7 +61,8 @@ class DataChecker:
         Check if the data could be a UDP-based tracker.
         """
         # For the UDP tracker protocol the action field is either at position 0 or 8, and should be 0..3
-        return bool(len(data) >= 8 and 0 <= unpack_from('!I', data, 0)[0] <= 3 or len(data) >= 12 and 0 <= unpack_from('!I', data, 8)[0] <= 3)
+        return bool((len(data) >= 8 and 0 <= unpack_from("!I", data, 0)[0] <= 3)
+                    or (len(data) >= 12 and 0 <= unpack_from("!I", data, 8)[0] <= 3))
 
     @staticmethod
     def could_be_dht(data: bytes) -> bool:
@@ -68,7 +70,7 @@ class DataChecker:
         Check if the data contain a bencoded dictionary.
         """
         try:
-            if len(data) > 1 and data[0:1] == b'd' and data[-1:] == b'e':
+            if len(data) > 1 and data[0:1] == b"d" and data[-1:] == b"e":
                 return True
         except TypeError:
             pass
@@ -88,7 +90,7 @@ class DataChecker:
         """
         Check if the data is likely IPv8 overlay traffic.
         """
-        return len(data) >= 23 and data[0:1] == b'\x00' and data[1:2] in [b'\x01', b'\x02']
+        return len(data) >= 23 and data[0:1] == b"\x00" and data[1:2] in [b"\x01", b"\x02"]
 
 
 class TunnelProtocol(DatagramProtocol):
@@ -111,9 +113,9 @@ class TunnelProtocol(DatagramProtocol):
         transport, _ = await get_running_loop().create_datagram_endpoint(lambda: self,
                                                                          local_addr=self.local_addr)
 
-        listen_addr = transport.get_extra_info('socket').getsockname()[:2]
-        self.logger.info('Listening on %s:%s', *listen_addr)
-        return cast(DatagramTransport, transport)
+        listen_addr = transport.get_extra_info("socket").getsockname()[:2]
+        self.logger.info("Listening on %s:%s", *listen_addr)
+        return cast("DatagramTransport", transport)
 
     def datagram_received(self, data: bytes, addr: Address) -> None:
         """
@@ -150,8 +152,8 @@ class TunnelExitSocket(RoutingObject, TaskManager):
             self.enabled = True
 
             async def create_transports() -> None:
-                self.transport_ipv4 = await TunnelProtocol(self.datagram_received_ipv4, ('0.0.0.0', 0)).open()
-                self.transport_ipv6 = await TunnelProtocol(self.datagram_received_ipv6, ('::', 0)).open()
+                self.transport_ipv4 = await TunnelProtocol(self.datagram_received_ipv4, ("0.0.0.0", 0)).open()
+                self.transport_ipv6 = await TunnelProtocol(self.datagram_received_ipv6, ("::", 0)).open()
 
                 # Send any packets that have been waiting while the transports were being created
                 while self.queue:
@@ -161,7 +163,7 @@ class TunnelExitSocket(RoutingObject, TaskManager):
 
     def sendto(self, data: bytes, destination: Address) -> None:
         """
-        Send o message over our datagram transporter.
+        Send a message over our datagram transporter.
         """
         if not self.is_allowed(data):
             return
@@ -217,7 +219,7 @@ class TunnelExitSocket(RoutingObject, TaskManager):
         """
         Callback for when data is received by the IPv6 socket.
         """
-        if source[0][:7] == '::ffff:':
+        if source[0][:7] == "::ffff:":
             # We're not processing mapped IPv4, we have a separate endpoint for that.
             return
         self.datagram_received(data, UDPv6Address(*source[:2]))
@@ -232,7 +234,7 @@ class TunnelExitSocket(RoutingObject, TaskManager):
                 self.tunnel_data(source, data)
             except Exception:
                 self.logger.exception("Exception occurred while handling incoming exit node data!\n%s",
-                                      ''.join(format_exception(*sys.exc_info())))
+                                      "".join(format_exception(*sys.exc_info())))
         else:
             self.logger.warning("Dropping forbidden packets to exit socket with circuit_id %d", self.circuit_id)
 
@@ -254,8 +256,8 @@ class TunnelExitSocket(RoutingObject, TaskManager):
         """
         Send data back over the tunnel that we are exiting for.
         """
-        self.logger.debug("Tunnel data to origin %s for circuit %s", ('0.0.0.0', 0), self.circuit_id)
-        self.overlay.send_data(self.hop.address, self.circuit_id, ('0.0.0.0', 0), source, data)
+        self.logger.debug("Tunnel data to origin %s for circuit %s", ("0.0.0.0", 0), self.circuit_id)
+        self.overlay.send_data(self.hop.address, self.circuit_id, ("0.0.0.0", 0), source, data)
 
     async def close(self) -> None:
         """

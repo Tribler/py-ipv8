@@ -10,12 +10,12 @@ import os
 import random
 import socket
 import struct
-from asyncio import gather, iscoroutine
+import time
+from asyncio import Future, gather, iscoroutine
 from typing import TYPE_CHECKING, Any, cast
 
 from ...bootstrapping.dispersy.bootstrapper import DispersyBootstrapper
 from ...configuration import DISPERSY_BOOTSTRAPPER
-from ...keyvault.private.libnaclkey import LibNaCLSK
 from ...keyvault.public.libnaclkey import LibNaCLPK
 from ...messaging.anonymization.pex import PexCommunity, PexSettings
 from ...peer import Peer
@@ -24,10 +24,23 @@ from ...peerdiscovery.discovery import RandomWalk
 from ...peerdiscovery.network import Network
 from ...taskmanager import task
 from ...util import fail
-from .caches import *
+from .caches import E2ERequestCache, IPRequestCache, LinkRequestCache, PeersRequestCache, RPRequestCache
 from .community import TunnelCommunity, TunnelSettings, unpack_cell
 from .exit_socket import TunnelExitSocket
-from .payload import *
+from .payload import (
+    CreatedE2EPayload,
+    CreateE2EPayload,
+    EstablishIntroPayload,
+    EstablishRendezvousPayload,
+    IntroductionInfo,
+    IntroEstablishedPayload,
+    LinkE2EPayload,
+    LinkedE2EPayload,
+    PeersRequestPayload,
+    PeersResponsePayload,
+    RendezvousEstablishedPayload,
+    RendezvousInfo,
+)
 from .tunnel import (
     CIRCUIT_ID_PORT,
     CIRCUIT_STATE_READY,
@@ -38,6 +51,7 @@ from .tunnel import (
     FORWARD,
     PEER_SOURCE_DHT,
     PEER_SOURCE_PEX,
+    Circuit,
     Hop,
     IntroductionPoint,
     RelayRoute,
@@ -46,9 +60,13 @@ from .tunnel import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Coroutine
+    from collections.abc import Callable, Coroutine
 
-    from ...types import IPv8
+    from ipv8_service import IPv8
+
+    from ...keyvault.private.libnaclkey import LibNaCLSK
+    from ..interfaces.udp.endpoint import Address
+    from ..lazy_payload import VariablePayloadWID
 
 
 class HiddenTunnelSettings(TunnelSettings):
@@ -87,12 +105,9 @@ class HiddenTunnelCommunity(TunnelCommunity):
 
         # Messages that can arrive from the socket
         # The circuit id is optional, so we can safely cast these handlers.
-        self.add_message_handler(CreateE2EPayload, cast(Callable[[tuple[str, int], bytes], None],
-                                                        self.on_create_e2e))
-        self.add_message_handler(PeersRequestPayload, cast(Callable[[tuple[str, int], bytes], None],
-                                                           self.on_peers_request))
-        self.add_message_handler(PeersResponsePayload, cast(Callable[[tuple[str, int], bytes], None],
-                                                            self.on_peers_response))
+        self.add_message_handler(CreateE2EPayload, cast("Callable[[Address, bytes], None]", self.on_create_e2e))
+        self.add_message_handler(PeersRequestPayload, cast("Callable[[Address, bytes], None]", self.on_peers_request))
+        self.add_message_handler(PeersResponsePayload, cast("Callable[[Address, bytes], None]", self.on_peers_response))
 
         # Messages that can arrive from a circuit (i.e., they are wrapped in a cell)
         self.add_cell_handler(EstablishIntroPayload, self.on_establish_intro)
@@ -121,11 +136,11 @@ class HiddenTunnelCommunity(TunnelCommunity):
         :param seeding: whether the swarm should be joined as seeder
         """
         if info_hash in self.swarms:
-            self.logger.warning('Already part of hidden swarm %s, leaving existing', binascii.hexlify(info_hash))
+            self.logger.warning("Already part of hidden swarm %s, leaving existing", binascii.hexlify(info_hash))
             self.leave_swarm(info_hash)
 
         self.swarms[info_hash] = Swarm(info_hash, hops, self.send_peers_request,
-                                       cast(LibNaCLSK, self.crypto.generate_key("curve25519")) if seeding else None)
+                                       cast("LibNaCLSK", self.crypto.generate_key("curve25519")) if seeding else None)
         self.e2e_callbacks[info_hash] = callback
 
     def leave_swarm(self, info_hash: bytes) -> None:
@@ -139,7 +154,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
             if circuit.info_hash == info_hash and circuit.ctype in [CIRCUIT_TYPE_IP_SEEDER,
                                                                     CIRCUIT_TYPE_RP_SEEDER,
                                                                     CIRCUIT_TYPE_RP_DOWNLOADER]:
-                _ = self.remove_circuit(circuit.circuit_id, 'leaving hidden swarm', destroy=DESTROY_REASON_UNNEEDED)
+                _ = self.remove_circuit(circuit.circuit_id, "leaving hidden swarm", destroy=DESTROY_REASON_UNNEEDED)
         # Remove swarm and callback
         self.swarms.pop(info_hash, None)
         self.e2e_callbacks.pop(info_hash, None)
@@ -182,7 +197,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         """
         swarm = self.swarms.get(info_hash)
         if not swarm or not swarm.hops:
-            self.logger.info('Can\'t get hop count, download cancelled?')
+            self.logger.info("Can\"t get hop count, download cancelled?")
             return None
 
         return self.select_circuit(None, swarm.hops)
@@ -194,10 +209,10 @@ class HiddenTunnelCommunity(TunnelCommunity):
         """
         swarm = self.swarms.get(info_hash)
         if not swarm or not swarm.hops:
-            self.logger.info('Can\'t get hop count, download cancelled?')
+            self.logger.info("Can\"t get hop count, download cancelled?")
             return None
 
-        # Introduction point circuits need an additional hop, or we will talk directly to the the introduction point.
+        # Introduction point circuits need an additional hop, or we will talk directly to the introduction point.
         # Also, rendezvous circuits need an additional hop, since the seeder chooses the rendezvous_point.
         hops = swarm.hops
         if ctype in [CIRCUIT_TYPE_IP_SEEDER, CIRCUIT_TYPE_RP_DOWNLOADER]:
@@ -228,13 +243,13 @@ class HiddenTunnelCommunity(TunnelCommunity):
                 try:
                     ips = await swarm.lookup()
                 except (IndexError, RuntimeError):
-                    self.logger.info('Failed to do peer discovery for swarm %s', binascii.hexlify(info_hash))
+                    self.logger.info("Failed to do peer discovery for swarm %s", binascii.hexlify(info_hash))
                     continue
 
                 if ips is None:
-                    self.logger.info('Skipping peer discovery for swarm %s', binascii.hexlify(info_hash))
+                    self.logger.info("Skipping peer discovery for swarm %s", binascii.hexlify(info_hash))
                     continue
-                self.logger.info('Found %d/%d peer(s) for swarm %s',
+                self.logger.info("Found %d/%d peer(s) for swarm %s",
                                  len([ip for ip in ips if ip.source == PEER_SOURCE_DHT]),
                                  len([ip for ip in ips if ip.source == PEER_SOURCE_PEX]),
                                  binascii.hexlify(info_hash))
@@ -265,19 +280,19 @@ class HiddenTunnelCommunity(TunnelCommunity):
                     if (c.ctype == CIRCUIT_TYPE_RP_SEEDER) or (c.ctype == CIRCUIT_TYPE_RP_DOWNLOADER and not c.e2e)]
         super().do_ping(exclude=exclude)
 
-    def remove_circuit(self, circuit_id: int, additional_info: str = '', remove_now: bool = False,
+    def remove_circuit(self, circuit_id: int, additional_info: str = "", remove_now: bool = False,
                        destroy: bool | int = False) -> Coroutine[Any, Any, None]:
         """
         Remove the given circuit and update any swarms it may be part of.
         """
         circuit = self.circuits.get(circuit_id, None)
         if circuit and circuit.ctype == CIRCUIT_TYPE_RP_DOWNLOADER:
-            swarm = self.swarms.get(cast(bytes, circuit.info_hash))
+            swarm = self.swarms.get(cast("bytes", circuit.info_hash))
             if swarm:
                 swarm.remove_connection(circuit)
         return super().remove_circuit(circuit_id, additional_info, remove_now, destroy)
 
-    def remove_exit_socket(self, circuit_id: int, additional_info: str = '', remove_now: bool = False,
+    def remove_exit_socket(self, circuit_id: int, additional_info: str = "", remove_now: bool = False,
                            destroy: bool = False) -> Coroutine[Any, Any, TunnelExitSocket | None]:
         """
         Remove the given exit circuit, remove associated rendezvous points and update any PEX communities
@@ -298,7 +313,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
                         if self.ipv8 is not None:
                             self.ipv8.overlays.remove(pex)
                             self.ipv8.strategies = [t for t in self.ipv8.strategies if t[0].overlay != pex]
-                        self.register_anonymous_task('unload_pex', pex.unload)
+                        self.register_anonymous_task("unload_pex", pex.unload)
 
         for cookie, rendezvous_circuit in list(self.rendezvous_point_for.items()):
             if rendezvous_circuit.circuit_id == circuit_id:
@@ -322,8 +337,8 @@ class HiddenTunnelCommunity(TunnelCommunity):
         Send any serializable payload to the next hop in the circuit.
         """
         packet = self.ezr_pack(payload.msg_id, payload, sig=False)
-        pre = ('0.0.0.0', 0)
-        post = ('0.0.0.0', 0)
+        pre = ("0.0.0.0", 0)
+        post = ("0.0.0.0", 0)
         if isinstance(circuit, TunnelExitSocket):
             post = destination
         else:
@@ -416,13 +431,13 @@ class HiddenTunnelCommunity(TunnelCommunity):
         Callback for when someone performed a DHT lookup for us.
         """
         if not self.request_cache.has(PeersRequestCache, payload.identifier):
-            self.logger.warning('Got a peers-response with an unknown identifier')
+            self.logger.warning("Got a peers-response with an unknown identifier")
             return
         cache = self.request_cache.pop(PeersRequestCache, payload.identifier)
 
         self.logger.info("Received peers-response containing %d peers", len(payload.peers))
         ips = [IntroductionPoint(Peer(peer.key, address=peer.address), peer.seeder_pk, peer.source)
-               for peer in payload.peers if peer.address != ('0.0.0.0', 0)]
+               for peer in payload.peers if peer.address != ("0.0.0.0", 0)]
         cache.future.set_result(ips)
 
     def create_e2e(self, info_hash: bytes, intro_point: IntroductionPoint) -> None:
@@ -436,7 +451,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
 
         hop = Hop(Peer(LibNaCLPK(intro_point.seeder_pk[10:])))
         hop.dh_secret, hop.dh_first_part = self.crypto.generate_diffie_secret()
-        self.logger.info('Creating e2e circuit for introduction point %s', intro_point.peer)
+        self.logger.info("Creating e2e circuit for introduction point %s", intro_point.peer)
         cache = E2ERequestCache(self, info_hash, hop, intro_point)
         self.request_cache.add(cache)
         self.tunnel_data(circuit, intro_point.peer.address,
@@ -451,14 +466,14 @@ class HiddenTunnelCommunity(TunnelCommunity):
         # If we have received this message over a socket, we need to forward it
         if circuit_id is None:
             if payload.node_public_key in self.intro_point_for:
-                self.logger.info('On create-e2e: forwarding message because received over socket')
+                self.logger.info("On create-e2e: forwarding message because received over socket")
                 relay_circuit, _ = self.intro_point_for[payload.node_public_key]
                 self.tunnel_data(relay_circuit, source_address, payload)
             else:
-                self.logger.info('On create-e2e: dropping message for unknown seeder key %s',
+                self.logger.info("On create-e2e: dropping message for unknown seeder key %s",
                                  binascii.hexlify(payload.node_public_key))
         else:
-            self.logger.info('On create-e2e: creating rendezvous point')
+            self.logger.info("On create-e2e: creating rendezvous point")
             swarm = self.swarms.get(payload.info_hash)
             if swarm and swarm.seeding:
                 rp = await self.create_rendezvous_point(payload.info_hash)
@@ -472,14 +487,15 @@ class HiddenTunnelCommunity(TunnelCommunity):
         """
         key = self.swarms[payload.info_hash].seeder_sk
         shared_secret, y, auth = self.crypto.generate_diffie_shared_secret(payload.key, key)
-        rp.circuit.hs_session_keys = self.crypto.generate_session_keys(shared_secret)
+        sesskeys = self.crypto.generate_session_keys(shared_secret)
+        rp.circuit.hs_session_keys = sesskeys
 
         rp_info = RendezvousInfo(rp.address, rp.circuit.hops[-1].public_key.key_to_bin(), rp.cookie)
-        rp_info_bin = self.serializer.pack('payload', rp_info)
-        rp_info_enc = self.crypto.encrypt_str(rp_info_bin, rp.circuit.hs_session_keys, FORWARD)
+        rp_info_bin = self.serializer.pack("payload", rp_info)
+        rp_info_enc = self.crypto.encrypt_str(rp_info_bin, sesskeys, FORWARD)
 
         self.circuits.get(rp.circuit.circuit_id)  # Needed for notifying the RustEndpoint
-        circuit = self.circuits[cast(int, circuit_id)]
+        circuit = self.circuits[cast("int", circuit_id)]
         self.tunnel_data(circuit, source_address, CreatedE2EPayload(payload.identifier, y, auth, rp_info_enc))
 
     @unpack_cell(CreatedE2EPayload)
@@ -492,7 +508,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
             return
 
         cache = self.request_cache.pop(E2ERequestCache, payload.identifier)
-        shared_secret = self.crypto.verify_and_generate_shared_secret(cast(LibNaCLSK, cache.hop.dh_secret),
+        shared_secret = self.crypto.verify_and_generate_shared_secret(cast("LibNaCLSK", cache.hop.dh_secret),
                                                                       payload.key,
                                                                       payload.auth,
                                                                       cache.hop.public_key.key.pk)
@@ -500,7 +516,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
 
         rp_info_enc = payload.rp_info_enc
         rp_info_bin = self.crypto.decrypt_str(rp_info_enc, session_keys, FORWARD)
-        rp_info, _ = cast(tuple[RendezvousInfo, int], self.serializer.unpack(RendezvousInfo, rp_info_bin))
+        rp_info, _ = cast("tuple[RendezvousInfo, int]", self.serializer.unpack(RendezvousInfo, rp_info_bin))
 
         required_exit = Peer(rp_info.key, rp_info.address)
         circuit = self.create_circuit_for_infohash(cache.info_hash, CIRCUIT_TYPE_RP_DOWNLOADER,
@@ -537,8 +553,8 @@ class HiddenTunnelCommunity(TunnelCommunity):
             self.logger.warning("Exit socket for relay_circuit is enabled, cannot link")
             return
 
-        _ = self.remove_exit_socket(exit_socket.circuit_id, 'linking circuit')
-        _ = self.remove_exit_socket(exit_socket_rp.circuit_id, 'linking circuit')
+        _ = self.remove_exit_socket(exit_socket.circuit_id, "linking circuit")
+        _ = self.remove_exit_socket(exit_socket_rp.circuit_id, "linking circuit")
 
         self.relay_from_to[exit_socket.circuit_id] = RelayRoute(exit_socket_rp.circuit_id,
                                                                 Hop(exit_socket_rp.hop.peer, exit_socket.hop.keys),
@@ -568,9 +584,9 @@ class HiddenTunnelCommunity(TunnelCommunity):
         if callback:
             result = callback((self.circuit_id_to_ip(circuit.circuit_id), CIRCUIT_ID_PORT))
             if iscoroutine(result):
-                self.register_anonymous_task('e2e_callback', result)
+                self.register_anonymous_task("e2e_callback", result)
         else:
-            self.logger.error('On linked e2e: could not find download for %s!', cache.info_hash)
+            self.logger.error("On linked e2e: could not find download for %s!", cache.info_hash)
 
     async def create_introduction_point(self, info_hash: bytes, required_ip: Peer | None = None) -> None:
         """
@@ -579,17 +595,17 @@ class HiddenTunnelCommunity(TunnelCommunity):
         self.logger.info("Creating introduction point")
 
         if info_hash not in self.swarms:
-            self.logger.warning('Cannot create introduction point for unknown swarm')
+            self.logger.warning("Cannot create introduction point for unknown swarm")
             return
         if not self.swarms[info_hash].seeding:
-            self.logger.warning('Cannot create introduction point for swarm that is not seeding')
+            self.logger.warning("Cannot create introduction point for swarm that is not seeding")
             return
 
         circuit = self.create_circuit_for_infohash(info_hash, CIRCUIT_TYPE_IP_SEEDER, required_exit=required_ip)
 
         if circuit and await circuit.ready:
             # We got a circuit, now let's create an introduction point
-            seed_pk = cast(LibNaCLSK, self.swarms[info_hash].seeder_sk).pub().key_to_bin()
+            seed_pk = cast("LibNaCLSK", self.swarms[info_hash].seeder_sk).pub().key_to_bin()
             circuit_id = circuit.circuit_id
             cache = IPRequestCache(self, circuit)
             self.request_cache.add(cache)
@@ -603,24 +619,24 @@ class HiddenTunnelCommunity(TunnelCommunity):
         Callback for when we are asked to be an introduction point.
         """
         if payload.public_key in self.intro_point_for:
-            self.logger.warning('Already have an introduction point for %s', binascii.hexlify(payload.public_key))
+            self.logger.warning("Already have an introduction point for %s", binascii.hexlify(payload.public_key))
             return
 
         if circuit_id is None:
-            self.logger.warning('Trying to establish an introduction point without a circuit id')
+            self.logger.warning("Trying to establish an introduction point without a circuit id")
             return
 
-        self.logger.info('Established introduction point for %s', binascii.hexlify(payload.public_key))
+        self.logger.info("Established introduction point for %s", binascii.hexlify(payload.public_key))
 
         circuit = self.exit_sockets[circuit_id]
         self.intro_point_for[payload.public_key] = circuit, payload.info_hash
 
         if self.ipv8 is None:
-            self.logger.error('No IPv8 service object available, cannot start PEXCommunity')
+            self.logger.error("No IPv8 service object available, cannot start PEXCommunity")
         elif payload.info_hash not in self.pex:
             community = PexCommunity(PexSettings(my_peer=self.my_peer, endpoint=self.endpoint, network=Network(),
                                                  info_hash=payload.info_hash))
-            community.bootstrappers = [DispersyBootstrapper(**DISPERSY_BOOTSTRAPPER['init'])]
+            community.bootstrappers = [DispersyBootstrapper(**DISPERSY_BOOTSTRAPPER["init"])]
             # Since IPv8 takes a step every .5s until we have 10 peers, the PexCommunity will generate
             # a lot of traffic in case there are <10 peers in existence. Therefore, we slow the walk down to a 5s/step.
             self.ipv8.add_strategy(community, RandomWalk(community, target_interval=5), 10)
@@ -673,7 +689,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
         Callback for when we are requested to be a rendezvous point.
         """
         if circuit_id is None:
-            self.logger.warning('Trying to establish a rendezvous point without a circuit id')
+            self.logger.warning("Trying to establish a rendezvous point without a circuit id")
             return
 
         circuit = self.exit_sockets[circuit_id]

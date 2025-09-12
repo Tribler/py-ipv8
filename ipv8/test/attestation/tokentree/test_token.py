@@ -17,13 +17,13 @@ class TestToken(TestBase):
         """
         cls.test_data = b"1234567890abcdefghijklmnopqrstuvwxyz" * 69
         cls.test_data_hash = b"[B\xc79lC\x07\xc88T\xe4yVN0+\x9e}\xc1\x1e\xfc\x88'm\x8d7\xe1\xa4*5\x06$"
-        cls.test_public_key = ECCrypto().key_from_public_bin(b'LibNaCLPK:\xc8\xf38};U\xe4\xd5\xf7\xfd\xbc+J!\xbe\xba'
-                                                             b'\x81M\xda\xef\xb7\x8c\xacL\x1eZ\x9d\xaf\xaaX+&\xac\xe2'
-                                                             b'\xd2\xdd\x86\xa9\x97\xb8T\x9b\x82\xc1>\xa2\r\x11?\xef'
-                                                             b'\x137\xf1\xdc!\x7f\x9fW\xe7\x11.\xe2\xc8)')
-        cls.test_signature = (b'2\x05\xb3\xf24\xad\xc8)\xf5\x8bh+(0\x153\x01L\xfd-\x8e\x8bWr\xcbz\xd7\xbdEt\\\xd7\xe4'
-                              b',\x80g\xbe\x7fT\x9c8\xb0\xc5\x80\xe4\xfa\xec\xad\xceY\xb8\xcek\x8bp\x81\xb0,j7`\x0f'
-                              b'\xf8\x0f')
+        cls.test_public_key = ECCrypto().key_from_public_bin(b"LibNaCLPK:\xc8\xf38};U\xe4\xd5\xf7\xfd\xbc+J!\xbe\xba"
+                                                             b"\x81M\xda\xef\xb7\x8c\xacL\x1eZ\x9d\xaf\xaaX+&\xac\xe2"
+                                                             b"\xd2\xdd\x86\xa9\x97\xb8T\x9b\x82\xc1>\xa2\r\x11?\xef"
+                                                             b"\x137\xf1\xdc!\x7f\x9fW\xe7\x11.\xe2\xc8)")
+        cls.test_signature = (b"2\x05\xb3\xf24\xad\xc8)\xf5\x8bh+(0\x153\x01L\xfd-\x8e\x8bWr\xcbz\xd7\xbdEt\\\xd7\xe4"
+                              b",\x80g\xbe\x7fT\x9c8\xb0\xc5\x80\xe4\xfa\xec\xad\xceY\xb8\xcek\x8bp\x81\xb0,j7`\x0f"
+                              b"\xf8\x0f")
 
     def setUp(self) -> None:
         """

@@ -24,7 +24,7 @@ except ImportError:
 
 from ipv8.community import Community
 from ipv8.keyvault.crypto import default_eccrypto
-from ipv8.messaging.interfaces.udp.endpoint import UDPEndpoint, UDPv4LANAddress
+from ipv8.messaging.interfaces.udp.endpoint import Address, UDPEndpoint, UDPv4LANAddress
 from ipv8.messaging.payload import IntroductionRequestPayload, IntroductionResponsePayload
 from ipv8.peer import Peer
 from ipv8.peerdiscovery.churn import RandomChurn
@@ -36,7 +36,8 @@ from ipv8.REST.rest_manager import ApiKeyMiddleware
 if TYPE_CHECKING:
     from aiohttp.abc import Request
 
-    from ipv8.types import Address, Endpoint, Overlay
+    from ipv8.messaging.interfaces.endpoint import Endpoint
+    from ipv8.overlay import Overlay
 
 
 class TrackerChurn(RandomChurn):
@@ -142,7 +143,7 @@ class EndpointServer(Community):
         """
         Handle introduction requests without assuming a community id (prefix).
         """
-        auth, dist, payload = self._ez_unpack_auth(IntroductionRequestPayload, data)
+        auth, _, payload = self._ez_unpack_auth(IntroductionRequestPayload, data)
         peer = Peer(auth.public_key_bin, source_address)
         peer.address = UDPv4LANAddress(*payload.source_lan_address)
         peer.last_response = time.time()
@@ -166,7 +167,7 @@ class EndpointServer(Community):
         Send a ping to a peer to check if it is still live and looking for other peers.
         """
         service = random.choice(tuple(self.network.get_services_for_peer(peer)))
-        prefix = b'\x00' + self.version + service
+        prefix = b"\x00" + self.version + service
         packet = self.create_introduction_request(peer.address, prefix=prefix)
         cache = TrackerPing(self.request_cache, self.global_time, self.network, peer, service)
         self.request_cache.add(cache)
@@ -178,7 +179,7 @@ class EndpointServer(Community):
 
         If the peer IS responsive but flags that it already has too many peers, remove it.
         """
-        auth, dist, payload = self._ez_unpack_auth(IntroductionResponsePayload, data)
+        auth, _, payload = self._ez_unpack_auth(IntroductionResponsePayload, data)
         if not self.request_cache.has(TrackerPing, payload.identifier):
             return
 
@@ -258,10 +259,10 @@ class TrackerService:
             })
 
         app = web.Application(middlewares=[ApiKeyMiddleware(api_key)])
-        app.add_routes([web.get('/services', get_services)])
+        app.add_routes([web.get("/services", get_services)])
         runner = web.AppRunner(app, access_log=None)
         await runner.setup()
-        self.site = web.TCPSite(runner, '0.0.0.0', listen_port, ssl_context=ssl_context)
+        self.site = web.TCPSite(runner, "0.0.0.0", listen_port, ssl_context=ssl_context)
         await self.site.start()
 
         print("Started API server")  # noqa: T201

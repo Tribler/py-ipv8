@@ -44,7 +44,7 @@ class Trie(Generic[ValueType]):
         """
         node: Node[ValueType] | None = self.root
         for char in key:
-            node = cast(Node[ValueType], node).children.get(char)
+            node = cast("Node[ValueType]", node).children.get(char)
             if node is None:
                 break
         return node
@@ -81,16 +81,16 @@ class Trie(Generic[ValueType]):
         toremove: list[tuple[str, Node[ValueType]]] = []
 
         node: Node[ValueType] | None = self.root
-        toremove.append(('', cast(Node[ValueType], node)))
+        toremove.append(("", cast("Node[ValueType]", node)))
         for char in key:
-            toremove.append((char, cast(Node[ValueType], node)))
-            node = cast(Node, node).children.get(char)
+            toremove.append((char, cast("Node[ValueType]", node)))
+            node = cast("Node", node).children.get(char)
             if node is None:
                 break
 
-        if node is None or cast(Node[ValueType], node).value is None:
+        if node is None or cast("Node[ValueType]", node).value is None:
             raise KeyError
-        rm_node: Node[ValueType] = cast(Node[ValueType], node)
+        rm_node: Node[ValueType] = cast("Node[ValueType]", node)
 
         rm_node.value = None
         while rm_node.value is None and not rm_node.children and toremove:
@@ -116,16 +116,16 @@ class Trie(Generic[ValueType]):
 
     def longest_prefix_item(self, key: str, default: tuple[str, ValueType] | NullType = Null) -> tuple[str, ValueType]:
         """
-        Get longest matching prefix, for the given key, and its value.
+        Get the longest matching prefix, for the given key, and its value.
 
         Raises a KeyError if no node is found at all.
         """
-        prefix = ''
+        prefix = ""
         value = None
 
         node: Node[ValueType] | None = self.root
         for index, _ in enumerate(key):
-            node = cast(Node[ValueType], node).children.get(key[index])
+            node = cast("Node[ValueType]", node).children.get(key[index])
             if node is None:
                 break
             if node.value is not None:
@@ -135,17 +135,17 @@ class Trie(Generic[ValueType]):
         if value:
             return prefix, value
         if default is not Null:
-            return cast(tuple[str, ValueType], default)
+            return cast("tuple[str, ValueType]", default)
         raise KeyError
 
     def longest_prefix(self, key: str, default: str | NullType = Null) -> str:
         """
-        Get longest matching prefix, for the given key.
+        Get the longest matching prefix, for the given key.
 
         Raises a KeyError if no node is found at all.
         """
         result = self.longest_prefix_item(key, default=default)
-        return result[0] if result != default else cast(str, default)
+        return result[0] if result != default else cast("str", default)
 
     def longest_prefix_value(self, key: str, default: ValueType | NullType = Null) -> ValueType:
         """
@@ -154,7 +154,7 @@ class Trie(Generic[ValueType]):
         Raises a KeyError if no node is found at all.
         """
         result = self.longest_prefix_item(key, default=default)
-        return result[1] if result != default else cast(ValueType, default)
+        return result[1] if result != default else cast("ValueType", default)
 
     def suffixes(self, key: str) -> list[str]:
         """
@@ -166,7 +166,7 @@ class Trie(Generic[ValueType]):
         if node is None:
             return suffixes
         if node.value is not None:
-            suffixes.append('')
+            suffixes.append("")
 
         for char, node in node.children.items():  # noqa: B020
             if node.value:

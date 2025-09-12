@@ -8,7 +8,7 @@ class BinMemberAuthenticationPayload(Payload):
     Public key (bytes) storage payload.
     """
 
-    format_list = ['varlenH', ]
+    format_list = ["varlenH", ]
 
     def __init__(self, public_key_bin: bytes) -> None:
         """
@@ -21,7 +21,7 @@ class BinMemberAuthenticationPayload(Payload):
         """
         Convert this payload to a pack list.
         """
-        return [('varlenH', self.public_key_bin)]
+        return [("varlenH", self.public_key_bin)]
 
     @classmethod
     def from_unpack_list(cls: type[BinMemberAuthenticationPayload],
@@ -37,7 +37,7 @@ class GlobalTimeDistributionPayload(Payload):
     Payload to communicate (and synchronize) Lamport timestamps.
     """
 
-    format_list = ['Q', ]
+    format_list = ["Q", ]
 
     def __init__(self, global_time: int) -> None:
         """
@@ -50,7 +50,7 @@ class GlobalTimeDistributionPayload(Payload):
         """
         Convert this payload to a pack list.
         """
-        return [('Q', self.global_time)]
+        return [("Q", self.global_time)]
 
     @classmethod
     def from_unpack_list(cls: type[GlobalTimeDistributionPayload], global_time: int) -> GlobalTimeDistributionPayload:

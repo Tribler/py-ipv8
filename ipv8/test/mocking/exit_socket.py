@@ -7,7 +7,7 @@ from ...messaging.interfaces.endpoint import EndpointListener
 from ..mocking.endpoint import AutoMockEndpoint
 
 if TYPE_CHECKING:
-    from ...types import Address
+    from ...messaging.interfaces.udp.endpoint import Address
 
 
 class MockTunnelExitSocket(TunnelExitSocket, EndpointListener):
@@ -30,7 +30,7 @@ class MockTunnelExitSocket(TunnelExitSocket, EndpointListener):
 
     def enable(self) -> None:
         """
-        Set this exit node to enabled.
+        Set this exit node to be enabled.
         """
         self.enabled = True
 

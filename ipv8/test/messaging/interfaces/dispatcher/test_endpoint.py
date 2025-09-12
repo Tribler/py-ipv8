@@ -14,7 +14,7 @@ from .....messaging.interfaces.udp.endpoint import UDPv4Address
 from ....base import TestBase
 
 if TYPE_CHECKING:
-    from .....types import Address
+    from .....messaging.interfaces.udp.endpoint import Address
 
 
 class DummyEndpointListener(EndpointListener):
@@ -101,7 +101,7 @@ class DummyEndpoint(Endpoint):
         """
         Perform usual notification.
         """
-        socket_address, data = packet
+        _, data = packet
         self.bytes_down += len(data)
         super().notify_listeners(packet)
 
@@ -146,7 +146,7 @@ class TestDispatcherEndpoint(TestBase):
         """
         Check if packet reception is correctly propagated from children.
         """
-        endpoint, child_endpoint, listener = await self._produce_dummy()
+        _, child_endpoint, listener = await self._produce_dummy()
         packet = ("1.2.3.4", 5), TestDispatcherEndpoint.RANDOM_DATA
 
         child_endpoint.notify_listeners(packet)
@@ -158,7 +158,7 @@ class TestDispatcherEndpoint(TestBase):
         """
         Check if packet sending is correctly propagated to children.
         """
-        endpoint, child_endpoint, listener = await self._produce_dummy()
+        endpoint, child_endpoint, _ = await self._produce_dummy()
         packet = ("1.2.3.4", 5), TestDispatcherEndpoint.RANDOM_DATA
 
         endpoint.send(*packet)
@@ -170,7 +170,7 @@ class TestDispatcherEndpoint(TestBase):
         """
         Check if packet sending is correctly propagated to children, with specific interface.
         """
-        endpoint, child_endpoint, listener = await self._produce_dummy()
+        endpoint, child_endpoint, _ = await self._produce_dummy()
         packet = ("1.2.3.4", 5), TestDispatcherEndpoint.RANDOM_DATA
 
         endpoint.send(*packet, interface="Dummy")
@@ -182,7 +182,7 @@ class TestDispatcherEndpoint(TestBase):
         """
         Check if is_open is correctly propagated from children.
         """
-        endpoint, child_endpoint, listener = await self._produce_dummy()
+        endpoint, child_endpoint, _ = await self._produce_dummy()
 
         # The Child Endpoint is open and the Dispatcher Endpoint propagates the child's status.
         self.assertTrue(child_endpoint.is_open())
@@ -200,7 +200,7 @@ class TestDispatcherEndpoint(TestBase):
         """
         Check if remove_listener is correctly propagated to children.
         """
-        endpoint, child_endpoint, listener = await self._produce_dummy()
+        endpoint, _, listener = await self._produce_dummy()
         packet = ("1.2.3.4", 5), TestDispatcherEndpoint.RANDOM_DATA
 
         # Registered listeners receive data.
@@ -218,7 +218,7 @@ class TestDispatcherEndpoint(TestBase):
         """
         Check if byte counters are correctly propagated from children.
         """
-        endpoint, child_endpoint, listener = await self._produce_dummy()
+        endpoint, child_endpoint, _ = await self._produce_dummy()
         packet = ("1.2.3.4", 5), TestDispatcherEndpoint.RANDOM_DATA
 
         self.assertEqual(0, endpoint.bytes_up)
@@ -242,7 +242,7 @@ class TestDispatcherEndpoint(TestBase):
         """
         Check if get_address is correctly propagated from children.
         """
-        endpoint, child_endpoint, listener = await self._produce_dummy()
+        endpoint, _, __ = await self._produce_dummy()
 
         self.assertEqual(UDPv4Address("127.0.0.1", 1337), endpoint.get_address())
 
@@ -250,7 +250,7 @@ class TestDispatcherEndpoint(TestBase):
         """
         Check if get_address is correctly propagated from children, with specific interface.
         """
-        endpoint, child_endpoint, listener = await self._produce_dummy()
+        endpoint, _, __ = await self._produce_dummy()
 
         self.assertEqual(UDPv4Address("127.0.0.1", 1337), endpoint.get_address(interface="Dummy"))
 

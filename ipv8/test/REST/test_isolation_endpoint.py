@@ -14,7 +14,7 @@ from ..mocking.endpoint import AutoMockEndpoint, MockEndpoint, MockEndpointListe
 from .rest_base import MockRequest, response_to_json
 
 if TYPE_CHECKING:
-    from ...types import Address
+    from ...messaging.interfaces.udp.endpoint import Address
 
 
 class MockSettings:
@@ -44,7 +44,7 @@ class MockTunnelCommunity(TunnelCommunity, MockCommunity):
         self.relay_from_to = {}
         self.exit_sockets = {}
 
-        bootstrapper = DispersyBootstrapper(DISPERSY_BOOTSTRAPPER['init']['ip_addresses'], [])
+        bootstrapper = DispersyBootstrapper(DISPERSY_BOOTSTRAPPER["init"]["ip_addresses"], [])
         self.bootstrappers = [bootstrapper]
 
 
@@ -76,7 +76,7 @@ class TestIsolationEndpoint(TestBase[MockTunnelCommunity]):
         """
         Get the bootstrapper ip addresses.
         """
-        return cast(MockTunnelCommunity, self.node(0).overlay).bootstrappers[0].ip_addresses
+        return cast("MockTunnelCommunity", self.node(0).overlay).bootstrappers[0].ip_addresses
 
     async def test_no_ip(self) -> None:
         """
@@ -101,7 +101,7 @@ class TestIsolationEndpoint(TestBase[MockTunnelCommunity]):
 
     async def test_no_choice(self) -> None:
         """
-        Test if requests that do not specify a to add either an exit node or a bootstrap server.
+        Test if requests that do not specify adding either an exit node or a bootstrap server are rejected.
         """
         raw_response = await self.rest_ep.handle_post(MockRequest("isolation", "POST", {"ip": "127.0.0.1", "port": 5}))
         response = await response_to_json(raw_response)

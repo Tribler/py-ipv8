@@ -3,7 +3,7 @@ Message serialization
 
 IPv8 gives you as much control as possible over the messages you send over the Internet.
 The ``Overlay`` (or ``Community``) class lets you send arbitrary strings over the (UDP) ``endpoint``.
-However efficient this may be, having non-standardized string contruction for each message of your overlay can distract from the overal overlay design.
+However efficient this may be, having non-standardized string construction for each message of your overlay can distract from the overall overlay design.
 This is the age-old dichotomy of maintainable versus performant code.
 
 The basic class for serializing objects from and to strings/network packets is the ``Serializer`` (``ipv8/messaging/serialization.py``).
@@ -190,7 +190,7 @@ The three methods can be freely mixed.
 Custom serialization per message
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-If you only want to use custom seralization for (part of) a single overlay message, you can use ``VariablePayload`` field modification (this also works for dataclass payloads).
+If you only want to use custom serialization for (part of) a single overlay message, you can use ``VariablePayload`` field modification (this also works for dataclass payloads).
 This method involves implementing the methods ``fix_pack_<your field name>`` and ``fix_unpack_<your field name>`` for the fields of your message that use custom serialization.
 Check out the following example:
 
@@ -238,7 +238,7 @@ The following example shows how to use JSON serialization without any IPv8 seria
 Note that we need to do our own signature checks now.
 
 .. literalinclude:: serialization_6.py
-   :lines: 16-46
+   :lines: 18-48
 
 
 Nested Payloads

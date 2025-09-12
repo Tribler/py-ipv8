@@ -7,12 +7,13 @@ from typing import TYPE_CHECKING, Any, cast
 
 from ...identity_formats import IdentityAlgorithm
 from ..pengbaorange.attestation import create_attest_pair
-from ..pengbaorange.structs import PengBaoAttestation, PengBaoCommitmentPrivate
+from ..pengbaorange.structs import PengBaoAttestation
 from ..primitives.boneh import generate_keypair
 from ..primitives.structs import BonehPrivateKey, BonehPublicKey, pack_pair, unpack_pair
 
 if TYPE_CHECKING:
     from ..database import SecretKeyProtocol
+    from ..pengbaorange.structs import PengBaoCommitmentPrivate
 
 LARGE_INTEGER = 32765
 
@@ -123,10 +124,10 @@ class PengBaoRangeAlgorithm(IdentityAlgorithm):
         """
         in_range = len(aggregate) > 1
         for k, v in aggregate.items():
-            if k != 'attestation':
+            if k != "attestation":
                 in_range &= v
         match = 1.0 if in_range else 0.0
-        return match if struct.unpack('>?', value)[0] else 1.0 - match
+        return match if struct.unpack(">?", value)[0] else 1.0 - match
 
     def create_challenges(self, PK: BonehPublicKey, attestation: PengBaoAttestation) -> list[bytes]:
         """
@@ -160,7 +161,7 @@ class PengBaoRangeAlgorithm(IdentityAlgorithm):
         if s < LARGE_INTEGER or t < LARGE_INTEGER:
             return (pack_pair(_safe_rndint(self.key_size, SK.g.mod), _safe_rndint(self.key_size, SK.g.mod))
                     + pack_pair(_safe_rndint(self.key_size, SK.g.mod), _safe_rndint(self.key_size, SK.g.mod)))
-        x, y, u, v = cast(PengBaoCommitmentPrivate, attestation.privatedata).generate_response(s, t)
+        x, y, u, v = cast("PengBaoCommitmentPrivate", attestation.privatedata).generate_response(s, t)
         return pack_pair(x, y) + pack_pair(u, v)
 
     def create_certainty_aggregate(self, attestation: PengBaoAttestation | None) -> dict:
@@ -170,7 +171,7 @@ class PengBaoRangeAlgorithm(IdentityAlgorithm):
         :return: the aggregate object
         :rtype: dict
         """
-        return {'attestation': attestation}
+        return {"attestation": attestation}
 
     def create_honesty_challenge(self, PK: BonehPublicKey, value: int) -> bytes:
         """
@@ -214,7 +215,7 @@ class PengBaoRangeAlgorithm(IdentityAlgorithm):
         x, y, rem = unpack_pair(response)
         u, v, _ = unpack_pair(rem)
         s, t, _ = unpack_pair(challenge)
-        attestation = aggregate['attestation']
+        attestation = aggregate["attestation"]
         aggregate[challenge] = attestation.publicdata.check(self.a, self.b, s, t, x, y, u, v)
         return aggregate
 

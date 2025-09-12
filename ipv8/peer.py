@@ -8,12 +8,10 @@ from typing import TYPE_CHECKING, Any, cast
 
 from .keyvault.crypto import default_eccrypto
 from .keyvault.keys import Key
-from .messaging.interfaces.udp.endpoint import UDPv4Address, UDPv6Address
+from .messaging.interfaces.udp.endpoint import Address, UDPv4Address, UDPv6Address
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
-
-    from .types import Address
 
 
 class DirtyDict(dict):
@@ -89,7 +87,7 @@ class Peer:
                 raise ValueError(msg)
             self.key: Key = default_eccrypto.key_from_public_bin(key)
         else:
-            self.key = cast(Key, key)
+            self.key = cast("Key", key)
         self.public_key = self.key.pub()
         self.mid = self.public_key.key_to_hash()
         self._addresses = DirtyDict()

@@ -8,21 +8,18 @@ from .value import FP2Value
 if TYPE_CHECKING:
     from typing_extensions import Self
 
-__all__ = ['ipack', 'iunpack', 'pack_pair', 'unpack_pair', 'BonehPublicKey', 'BonehPrivateKey']
+__all__ = ["BonehPrivateKey", "BonehPublicKey", "ipack", "iunpack", "pack_pair", "unpack_pair"]
 
-# ruff: noqa: N803
 
 
 def _num_to_str(num: int) -> bytes:
     """
     Convert an integer to a str.
     """
-    out = b''
-    h = hex(num)[2:]
-    if h.endswith('L'):
-        h = h[:-1]
+    out = b""
+    h = f"{num:x}".removesuffix("L")
     if (len(h) % 2) == 1:
-        h = '0' + h
+        h = "0" + h
     for b in range(0, len(h), 2):
         out += struct.pack(">B", int(h[b] + h[b + 1], 16))
     return out

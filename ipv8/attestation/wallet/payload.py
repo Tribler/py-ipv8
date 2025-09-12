@@ -5,11 +5,11 @@ from ...messaging.payload import Payload
 
 class RequestAttestationPayload(Payload):
     """
-    Request an attestation based on some meta data.
+    Request an attestation based on some metadata.
     """
 
     msg_id = 5
-    format_list = ['raw']
+    format_list = ["raw"]
 
     def __init__(self, metadata: bytes) -> None:
         """
@@ -22,12 +22,12 @@ class RequestAttestationPayload(Payload):
         """
         Convert this payload to a serializable pack list.
         """
-        return [('raw', self.metadata)]
+        return [("raw", self.metadata)]
 
     @classmethod
     def from_unpack_list(cls: type[RequestAttestationPayload], metadata: bytes) -> RequestAttestationPayload:
         """
-        Unserialize this paylaod from received bytes.
+        Unserialize this payload from received bytes.
         """
         return cls(metadata)
 
@@ -38,28 +38,28 @@ class VerifyAttestationRequestPayload(Payload):
     """
 
     msg_id = 1
-    format_list = ['20s']
+    format_list = ["20s"]
 
-    def __init__(self, hash: bytes) -> None:  # noqa: A002
+    def __init__(self, attestation_hash: bytes) -> None:
         """
         Create a new payload to request verification of an attestation.
         """
         super().__init__()
-        self.hash = hash
+        self.attestation_hash = attestation_hash
 
     def to_pack_list(self) -> list[tuple]:
         """
         Convert this payload to a serializable pack list.
         """
-        return [('20s', self.hash)]
+        return [("20s", self.attestation_hash)]
 
     @classmethod
     def from_unpack_list(cls: type[VerifyAttestationRequestPayload],
-                         hash: bytes) -> VerifyAttestationRequestPayload:  # noqa: A002
+                         attestation_hash: bytes) -> VerifyAttestationRequestPayload:
         """
-        Unserialize this paylaod from received bytes.
+        Unserialize this payload from received bytes.
         """
-        return cls(hash)
+        return cls(attestation_hash)
 
 
 class AttestationChunkPayload(Payload):
@@ -68,14 +68,14 @@ class AttestationChunkPayload(Payload):
     """
 
     msg_id = 2
-    format_list = ['20s', 'H', 'raw']
+    format_list = ["20s", "H", "raw"]
 
-    def __init__(self, hash: bytes, sequence_number: int, data: bytes) -> None:  # noqa: A002
+    def __init__(self, attestation_hash: bytes, sequence_number: int, data: bytes) -> None:
         """
         Create a new payload to send an attestation.
         """
         super().__init__()
-        self.hash = hash
+        self.attestation_hash = attestation_hash
         self.sequence_number = sequence_number
         self.data = data
 
@@ -83,18 +83,18 @@ class AttestationChunkPayload(Payload):
         """
         Convert this payload to a serializable pack list.
         """
-        return [('20s', self.hash),
-                ('H', self.sequence_number),
-                ('raw', self.data)]
+        return [("20s", self.attestation_hash),
+                ("H", self.sequence_number),
+                ("raw", self.data)]
 
 
     @classmethod
-    def from_unpack_list(cls: type[AttestationChunkPayload], hash: bytes,  # noqa: A002
+    def from_unpack_list(cls: type[AttestationChunkPayload], attestation_hash: bytes,
                          sequence_number: int, data: bytes) -> AttestationChunkPayload:
         """
-        Unserialize this paylaod from received bytes.
+        Unserialize this payload from received bytes.
         """
-        return cls(hash, sequence_number, data)
+        return cls(attestation_hash, sequence_number, data)
 
 
 class ChallengePayload(Payload):
@@ -103,7 +103,7 @@ class ChallengePayload(Payload):
     """
 
     msg_id = 3
-    format_list = ['20s', 'raw']
+    format_list = ["20s", "raw"]
 
     def __init__(self, attestation_hash: bytes, challenge: bytes) -> None:
         """
@@ -116,13 +116,13 @@ class ChallengePayload(Payload):
         """
         Convert this payload to a serializable pack list.
         """
-        return [('20s', self.attestation_hash),
-                ('raw', self.challenge)]
+        return [("20s", self.attestation_hash),
+                ("raw", self.challenge)]
 
     @classmethod
     def from_unpack_list(cls: type[ChallengePayload], attestation_hash: bytes, challenge: bytes) -> ChallengePayload:
         """
-        Unserialize this paylaod from received bytes.
+        Unserialize this payload from received bytes.
         """
         return cls(attestation_hash, challenge)
 
@@ -133,7 +133,7 @@ class ChallengeResponsePayload(Payload):
     """
 
     msg_id = 4
-    format_list = ['20s', 'raw']
+    format_list = ["20s", "raw"]
 
     def __init__(self, challenge_hash: bytes, response: bytes) -> None:
         """
@@ -146,13 +146,13 @@ class ChallengeResponsePayload(Payload):
         """
         Convert this payload to a serializable pack list.
         """
-        return [('20s', self.challenge_hash),
-                ('raw', self.response)]
+        return [("20s", self.challenge_hash),
+                ("raw", self.response)]
 
     @classmethod
     def from_unpack_list(cls: type[ChallengeResponsePayload], challenge_hash: bytes,
                          response: bytes) -> ChallengeResponsePayload:
         """
-        Unserialize this paylaod from received bytes.
+        Unserialize this payload from received bytes.
         """
         return cls(challenge_hash, response)

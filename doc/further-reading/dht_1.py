@@ -39,7 +39,7 @@ async def main() -> None:
         await instances[i].get_overlay(DHTDiscoveryCommunity).store_peer()
         instances[i].get_overlay(DHTDiscoveryCommunity).ping_all()
 
-    dht_community = cast(DHTCommunity, instances[0].get_overlay(DHTCommunity))
+    dht_community = cast("DHTCommunity", instances[0].get_overlay(DHTCommunity))
     try:
         await dht_community.store_value(b"my key", b"my value", True)
         print(dht_community.my_peer.public_key.key_to_bin(), "published b'my value' under b'my key'!")
@@ -54,7 +54,7 @@ async def main() -> None:
     except DHTError as e:
         print("Failed to find key!", e)
 
-    dht_discovery_community = cast(DHTDiscoveryCommunity, instances[7].get_overlay(DHTDiscoveryCommunity))
+    dht_discovery_community = cast("DHTDiscoveryCommunity", instances[7].get_overlay(DHTDiscoveryCommunity))
     some_peer_mid = instances[2].keys["anonymous id"].mid
     while True:
         try:

@@ -8,7 +8,7 @@ from .....messaging.interfaces.udp.endpoint import UDPEndpoint
 from ....base import TestBase
 
 if TYPE_CHECKING:
-    from .....types import Address
+    from .....messaging.interfaces.udp.endpoint import Address
 
 
 class DummyEndpointListener(EndpointListener):
@@ -65,8 +65,8 @@ class TestUDPEndpoint(TestBase):
         Test sending a basic message through the UDP endpoint.
         """
         # Send the package
-        datum = b'a' * 10
-        self.endpoint1.send(self.ep2_address, b'a' * 10)
+        datum = b"a" * 10
+        self.endpoint1.send(self.ep2_address, b"a" * 10)
         await sleep(.05)
 
         self.assertTrue(self.endpoint2_listener.incoming)
@@ -79,7 +79,7 @@ class TestUDPEndpoint(TestBase):
         """
         # range must be in [1, 51), since Asyncio transports discard empty datagrams
         for ind in range(1, 51):
-            self.endpoint1.send(self.ep2_address, b'a' * ind)
+            self.endpoint1.send(self.ep2_address, b"a" * ind)
         while len(self.endpoint2_listener.incoming) < 50:  # noqa: ASYNC110
             await sleep(.02)
         self.assertEqual(len(self.endpoint2_listener.incoming), 50)
@@ -88,7 +88,7 @@ class TestUDPEndpoint(TestBase):
         """
         Test sending a too big message through the UDP endpoint.
         """
-        self.endpoint1.send(self.ep2_address, b'a' * (70000))
+        self.endpoint1.send(self.ep2_address, b"a" * 70000)
         await sleep(.05)
         self.assertFalse(self.endpoint2_listener.incoming)
 
@@ -96,4 +96,4 @@ class TestUDPEndpoint(TestBase):
         """
         Test sending a message with an invalid destination through the UDP endpoint.
         """
-        self.endpoint1.send(("0.0.0.0", 0), b'a' * 10)
+        self.endpoint1.send(("0.0.0.0", 0), b"a" * 10)

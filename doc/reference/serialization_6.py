@@ -5,7 +5,8 @@ from binascii import hexlify, unhexlify
 
 from ipv8.community import Community, CommunitySettings
 from ipv8.configuration import ConfigBuilder, Strategy, WalkerDefinition, default_bootstrap_defs
-from ipv8.types import Address, Peer
+from ipv8.messaging.interfaces.udp.endpoint import Address
+from ipv8.peer import Peer
 from ipv8_service import IPv8
 
 
@@ -30,7 +31,7 @@ class MyCommunity(Community):
                                      "public_key": public_key,
                                      "signature": signature}).encode()
         self.endpoint.send(peer.address,
-                           self.get_prefix() + b'\x01' + signed_message)
+                           self.get_prefix() + b"\x01" + signed_message)
 
     def on_message(self, source_address: Address, data: bytes) -> None:
         # Account for 1 byte message id
@@ -43,7 +44,7 @@ class MyCommunity(Community):
                                                received["message"].encode(),
                                                unhexlify(received["signature"]))
         self.logger.info("Received message %s from %s, the signature is %s!",
-                         received['message'], source_address, valid)
+                         received["message"], source_address, valid)
 
         if self.event:
             self.event.set()
@@ -65,9 +66,9 @@ async def start_communities() -> None:
     for i in [1, 2]:
         builder = ConfigBuilder().clear_keys().clear_overlays()
         builder.add_key("my peer", "medium", f"ec{i}.pem")
-        builder.add_overlay("MyCommunity", "my peer", [WalkerDefinition(Strategy.RandomWalk, 10, {'timeout': 3.0})],
+        builder.add_overlay("MyCommunity", "my peer", [WalkerDefinition(Strategy.RandomWalk, 10, {"timeout": 3.0})],
                             default_bootstrap_defs, {}, [("started", event, i)])
-        ipv8 = IPv8(builder.finalize(), extra_communities={'MyCommunity': MyCommunity})
+        ipv8 = IPv8(builder.finalize(), extra_communities={"MyCommunity": MyCommunity})
         await ipv8.start()
 
     await event.wait()

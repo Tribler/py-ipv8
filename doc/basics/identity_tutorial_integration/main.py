@@ -10,12 +10,12 @@ from ipv8_service import IPv8
 async def start_community() -> None:
     for peer_id in [1, 2]:
         configuration = get_default_configuration()
-        configuration['logger']['level'] = "ERROR"
-        configuration['keys'] = [{'alias': "anonymous id",
-                                  'generation': "curve25519",
-                                  'file': f"keyfile_{peer_id}.pem"}]
-        configuration['working_directory'] = f"state_{peer_id}"
-        configuration['overlays'] = []
+        configuration["logger"]["level"] = "ERROR"
+        configuration["keys"] = [{"alias": "anonymous id",
+                                  "generation": "curve25519",
+                                  "file": f"keyfile_{peer_id}.pem"}]
+        configuration["working_directory"] = f"state_{peer_id}"
+        configuration["overlays"] = []
 
         # Start the IPv8 service
         ipv8 = IPv8(configuration)

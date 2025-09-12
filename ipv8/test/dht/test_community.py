@@ -1,5 +1,6 @@
 import time
-from asyncio import TimeoutError, ensure_future, wait_for
+from asyncio import TimeoutError as AsyncTimeoutError
+from asyncio import ensure_future, wait_for
 from collections.abc import Iterable
 
 from ...dht import DHTError
@@ -22,14 +23,14 @@ class TestDHTCommunity(TestDHTBase[DHTCommunity]):
         super().setUp()
         self.initialize(DHTCommunity, 2)
 
-        self.key = b'\x00' * 20
-        self.value = b'test'
+        self.key = b"\x00" * 20
+        self.value = b"test"
         self.value_in_store = self.overlay(0).serialize_value(self.value, sign=False)
         self.signed_in_store = self.overlay(0).serialize_value(self.value, sign=True)
         self.is_called = False
 
         for node in self.nodes:
-            node.overlay.cancel_pending_task('store_my_peer')
+            node.overlay.cancel_pending_task("store_my_peer")
             node.overlay.token_maintenance()
 
     def create_node(self, *args, **kwargs) -> MockIPv8:  # noqa: ANN002
@@ -51,8 +52,8 @@ class TestDHTCommunity(TestDHTBase[DHTCommunity]):
         node0_bucket = self.routing_table(0).get_bucket(node1_id)
         node1_bucket = self.routing_table(1).get_bucket(node0_id)
 
-        self.assertTrue(node0_bucket and node0_bucket.prefix_id == '')
-        self.assertTrue(node1_bucket and node1_bucket.prefix_id == '')
+        self.assertTrue(node0_bucket and node0_bucket.prefix_id == "")
+        self.assertTrue(node1_bucket and node1_bucket.prefix_id == "")
 
         self.assertTrue(node1_bucket.get(node0_id))
         self.assertTrue(node0_bucket.get(node1_id))
@@ -67,11 +68,11 @@ class TestDHTCommunity(TestDHTBase[DHTCommunity]):
 
     async def test_ping_pong_fail(self) -> None:
         """
-        Test if pings can timeout.
+        Test if pings can time out.
         """
         await self.introduce_nodes()
         await self.nodes[1].stop()
-        with self.assertRaises(TimeoutError):
+        with self.assertRaises(AsyncTimeoutError):
             await wait_for(self.overlay(0).ping(Node(self.private_key(1), self.address(1))), 0.1)
 
     async def test_store_value(self) -> None:
@@ -149,7 +150,7 @@ class TestDHTCommunity(TestDHTBase[DHTCommunity]):
         bucket = self.routing_table(0).get_bucket(self.my_node_id(1))
         bucket.last_changed = 0
 
-        self.overlay(0).find_values = lambda *args: setattr(self, 'is_called', True) or succeed([])
+        self.overlay(0).find_values = lambda *args: setattr(self, "is_called", True) or succeed([])
         await self.overlay(0).node_maintenance()
         self.assertNotEqual(bucket.last_changed, 0)
         self.assertTrue(self.is_called)
@@ -185,11 +186,11 @@ class TestDHTCommunity(TestDHTBase[DHTCommunity]):
         await self.overlay(0).store_on_nodes(self.key, [self.value_in_store], [dht_node])
         self.assertEqual(self.storage(1).get(self.key), [self.value_in_store])
 
-        # With a bad token..
+        # With a bad token.
         for node in self.nodes:
             node.overlay.tokens.clear()
         self.storage(1).items.clear()
-        self.overlay(0).tokens[dht_node.id] = (0, b'faketoken')
+        self.overlay(0).tokens[dht_node.id] = (0, b"faketoken")
         await self.introduce_nodes()
         with self.assertRaises(DHTError):
             await self.overlay(0).store_on_nodes(self.key, [self.value_in_store], [dht_node])
@@ -213,7 +214,7 @@ class TestDHTCommunity(TestDHTBase[DHTCommunity]):
         # Node1 must have blocked node0
         self.assertTrue(self.routing_table(1).get(node0.id).blocked)
         # Additional pings should get dropped (i.e. timeout)
-        with self.assertRaises(TimeoutError):
+        with self.assertRaises(AsyncTimeoutError):
             await wait_for(self.overlay(0).ping(node1), 0.1)
 
     async def test_unload_while_contacting_node(self) -> None:
@@ -240,7 +241,7 @@ class TestDHTCommunityXL(TestDHTBase[DHTCommunity]):
         super().setUp()
         self.initialize(DHTCommunity, 15)
         for node in self.nodes:
-            node.overlay.cancel_pending_task('store_peer')
+            node.overlay.cancel_pending_task("store_peer")
             node.overlay.ping = lambda _: succeed(None)
 
     def create_node(self, *args, **kwargs) -> MockIPv8:  # noqa: ANN002
@@ -265,7 +266,7 @@ class TestDHTCommunityXL(TestDHTBase[DHTCommunity]):
         await self.deliver_messages(.5)
 
         # Store key value pair
-        kv_pair = (b'\x00' * 20, b'test1')
+        kv_pair = (b"\x00" * 20, b"test1")
         await self.overlay(0).store_value(*kv_pair)
 
         # Check if the closest nodes have now stored the key
@@ -273,9 +274,9 @@ class TestDHTCommunityXL(TestDHTBase[DHTCommunity]):
             self.assertTrue(node.overlay.get_storage(node.overlay.my_peer).get(kv_pair[0]), kv_pair[1])
 
         # Store another value under the same key
-        await self.overlay(1).store_value(b'\x00' * 20, b'test2', sign=True)
+        await self.overlay(1).store_value(b"\x00" * 20, b"test2", sign=True)
 
         # Check if we get both values
-        values = await self.nodes[-1].overlay.find_values(b'\x00' * 20)
-        self.assertIn((b'test1', None), values)
-        self.assertIn((b'test2', self.key_bin(1)), values)
+        values = await self.nodes[-1].overlay.find_values(b"\x00" * 20)
+        self.assertIn((b"test1", None), values)
+        self.assertIn((b"test2", self.key_bin(1)), values)

@@ -11,7 +11,7 @@ def _generate_peer() -> Peer:
     """
     Generate a Peer with a real private key and a fake address.
     """
-    key = default_eccrypto.generate_key('very-low')
+    key = default_eccrypto.generate_key("very-low")
     address = (".".join([str(random.randint(0, 255)) for _ in range(4)]), random.randint(0, 65535))
     return Peer(key, address)
 
@@ -151,9 +151,9 @@ class TestNetwork(TestBase):
 
         This is to avoid dead peers sticking around the cache for too long.
         """
-        intro1 = ('1.2.3.4', 5)
-        intro2 = ('6.7.8.9', 10)
-        intro3 = ('11.12.13.14', 15)
+        intro1 = ("1.2.3.4", 5)
+        intro2 = ("6.7.8.9", 10)
+        intro3 = ("11.12.13.14", 15)
         self.network.discover_address(self.peers[0], intro1)
         self.network.discover_address(self.peers[1], intro2)
 
@@ -228,19 +228,19 @@ class TestNetwork(TestBase):
         service2 = bytes(range(20, 40))
 
         pk = self.peers[0].public_key
-        peer = Peer(pk, ('1.1.1.1', 1))
+        peer = Peer(pk, ("1.1.1.1", 1))
         self.network.add_verified_peer(peer)
         self.network.discover_services(peer, [service1])
 
-        peer = Peer(pk, ('1.1.1.1', 1))
+        peer = Peer(pk, ("1.1.1.1", 1))
         self.network.add_verified_peer(peer)
         self.network.discover_services(peer, [service2])
 
-        peer = Peer(pk, ('1.1.1.1', 2))
+        peer = Peer(pk, ("1.1.1.1", 2))
         self.network.add_verified_peer(peer)
         self.network.discover_services(peer, [service1])
 
-        peer = Peer(pk, ('1.1.1.1', 2))
+        peer = Peer(pk, ("1.1.1.1", 2))
         self.network.add_verified_peer(peer)
         self.network.discover_services(peer, [service2])
 
@@ -446,7 +446,7 @@ class TestNetwork(TestBase):
 
     def test_snapshot_only_verified(self) -> None:
         """
-        Check if a snapshot poperly serializes verified peers.
+        Check if a snapshot properly serializes verified peers.
         """
         for peer in self.peers:
             self.network.add_verified_peer(peer)
@@ -456,7 +456,7 @@ class TestNetwork(TestBase):
 
     def test_snapshot_verified_and_unverified(self) -> None:
         """
-        Check if a snapshot poperly serializes only verified peers.
+        Check if a snapshot properly serializes only verified peers.
         """
         self.network.add_verified_peer(self.peers[0])
         self.network.discover_address(self.peers[0], self.peers[1].address)
@@ -488,10 +488,10 @@ class TestNetwork(TestBase):
         Check if peers can be properly loaded from a snapshot.
         """
         expected = {
-            ('54.226.56.113', 57674),
-            ('70.200.183.29', 60815),
-            ('194.116.42.174', 21882),
-            ('143.93.254.175', 41862)
+            ("54.226.56.113", 57674),
+            ("70.200.183.29", 60815),
+            ("194.116.42.174", 21882),
+            ("143.93.254.175", 41862)
         }
         snapshot = unhexlify("0136e23871e14a"
                              "0146c8b71ded8f"

@@ -78,7 +78,7 @@ class Nested(Serializable):
         """
         Serialize to a Serializer pack list.
         """
-        return [('payload-list', self.byte_list)]
+        return [("payload-list", self.byte_list)]
 
     @classmethod
     def from_unpack_list(cls: type[Nested], byte_list: list[Byte]) -> Nested:
@@ -132,7 +132,7 @@ class NestedWithRaw(Serializable):
         """
         Serialize to a Serializer pack list.
         """
-        return [('payload-list', self.raw_list)]
+        return [("payload-list", self.raw_list)]
 
     @classmethod
     def from_unpack_list(cls: type[NestedWithRaw], raw_list: list[list[Raw]]) -> NestedWithRaw:
@@ -172,51 +172,51 @@ class TestSerializer(TestBase):
 
     def test_pack_bool_true(self) -> None:
         """
-        Check if 'true' booleans can be correctly packed and unpacked.
+        Check if "true" booleans can be correctly packed and unpacked.
         """
-        self.check_pack_unpack('?', '?', True)
+        self.check_pack_unpack("?", "?", True)
 
     def test_pack_bool_false(self) -> None:
         """
-        Check if 'false' booleans can be correctly packed and unpacked.
+        Check if "false" booleans can be correctly packed and unpacked.
         """
-        self.check_pack_unpack('?', '?', False)
+        self.check_pack_unpack("?", "?", False)
 
     def test_pack_byte_0(self) -> None:
         """
         Check if a 0 (unsigned byte) can be correctly packed and unpacked.
         """
-        self.check_pack_unpack('B', 'B', 0)
+        self.check_pack_unpack("B", "B", 0)
 
     def test_pack_byte_1(self) -> None:
         """
         Check if a 1 (unsigned byte) can be correctly packed and unpacked.
         """
-        self.check_pack_unpack('B', 'B', 1)
+        self.check_pack_unpack("B", "B", 1)
 
     def test_pack_byte_255(self) -> None:
         """
         Check if a 255 (unsigned byte) can be correctly packed and unpacked.
         """
-        self.check_pack_unpack('B', 'B', 255)
+        self.check_pack_unpack("B", "B", 255)
 
     def test_pack_byte_256(self) -> None:
         """
         Check if a 256 (unsigned byte) throws a struct.error.
         """
-        self.assertRaises(struct.error, self.check_pack_unpack, 'B', 'B', 256)
+        self.assertRaises(struct.error, self.check_pack_unpack, "B", "B", 256)
 
     def test_unpack_short_truncated(self) -> None:
         """
         Check if 1 byte string cannot be unpacked as a short.
         """
-        self.assertRaises(struct.error, self.check_pack_unpack, 'B', 'H', 255)
+        self.assertRaises(struct.error, self.check_pack_unpack, "B", "H", 255)
 
     def test_pack_list(self) -> None:
         """
         Check if a list of shorts is correctly packed and unpacked.
         """
-        self.check_pack_unpack('HH', 'HH', (0, 1337))
+        self.check_pack_unpack("HH", "HH", (0, 1337))
 
     def test_get_formats(self) -> None:
         """
@@ -227,10 +227,10 @@ class TestSerializer(TestBase):
         for fmt in formats:
             packer = self.serializer.get_packer_for(fmt)
             pack_name = f"{packer.__class__.__name__}({fmt})"
-            self.assertTrue(hasattr(packer, 'pack'), msg=f'{pack_name} has no pack() method')
-            self.assertTrue(callable(packer.pack), msg=f'{pack_name}.pack is not a method')
-            self.assertTrue(hasattr(packer, 'unpack'), msg=f'{pack_name} has no unpack() method')
-            self.assertTrue(callable(packer.unpack), msg=f'{pack_name}.unpack is not a method')
+            self.assertTrue(hasattr(packer, "pack"), msg=f"{pack_name} has no pack() method")
+            self.assertTrue(callable(packer.pack), msg=f"{pack_name}.pack is not a method")
+            self.assertTrue(hasattr(packer, "unpack"), msg=f"{pack_name} has no unpack() method")
+            self.assertTrue(callable(packer.unpack), msg=f"{pack_name}.unpack is not a method")
 
     def test_add_packer(self) -> None:
         """
@@ -265,7 +265,7 @@ class TestSerializer(TestBase):
 
     def test_serializable_short_from_byte(self) -> None:
         """
-        Check if a unpack_serializable of a short from a byte raises a PackError.
+        Check if an unpack_serializable of a short from a byte raises a PackError.
         """
         serialized = self.serializer.pack_serializable(Byte(1))
         self.assertRaises(PackError, self.serializer.unpack_serializable, Short, serialized)
@@ -278,7 +278,7 @@ class TestSerializer(TestBase):
         instance2 = Short(456)
 
         data = self.serializer.pack_serializable_list([instance1, instance2])
-        deserialized = cast(list[Short], self.serializer.unpack_serializable_list([Short, Short], data))
+        deserialized = cast("list[Short]", self.serializer.unpack_serializable_list([Short, Short], data))
 
         self.assertEqual(instance1.number, 123)
         self.assertEqual(instance1.number, deserialized[0].number)
@@ -309,7 +309,7 @@ class TestSerializer(TestBase):
         """
         Check if we can unpack multiple nested serializables that end with raw.
         """
-        instance = NestedWithRaw([Raw(b'123'), Raw(b'456')])
+        instance = NestedWithRaw([Raw(b"123"), Raw(b"456")])
         data = self.serializer.pack_serializable(instance)
         output, _ = self.serializer.unpack_serializable(NestedWithRaw, data)
         self.assertEqual(instance.raw_list[0].raw, output.raw_list[0].raw)

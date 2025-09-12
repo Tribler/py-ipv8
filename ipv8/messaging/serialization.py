@@ -7,7 +7,7 @@ from array import array
 from binascii import hexlify
 from contextlib import suppress
 from struct import Struct, pack, unpack_from
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, TypeAlias, cast
 
 from .interfaces.udp.endpoint import DomainAddress, UDPv4Address, UDPv6Address
 
@@ -19,7 +19,7 @@ ADDRESS_TYPE_DOMAIN_NAME = 0x02
 ADDRESS_TYPE_IPV6 = 0x03
 
 
-FormatListType = typing.Union[str, type["Serializable"], list["FormatListType"]]
+FormatListType: TypeAlias = str | type["Serializable"] | list["FormatListType"]
 
 
 class PackError(RuntimeError):
@@ -28,8 +28,8 @@ class PackError(RuntimeError):
     """
 
 
-T = typing.TypeVar('T')
-A = typing.TypeVar('A')
+T = typing.TypeVar("T")
+A = typing.TypeVar("A")
 
 
 class Packer(typing.Generic[T, A], metaclass=abc.ABCMeta):
@@ -56,7 +56,7 @@ class NestedPayload(Packer):
 
     You can specify which serializable to use by specifying its class in the format_list of the parent Serializable.
 
-    For example, nesting a Serializable of class B in class A::
+    For example, nesting Serializable of class B in class A::
 
         class A(Serializable):
             format_list = [B]
@@ -76,7 +76,7 @@ class NestedPayload(Packer):
     def __init__(self, serializer: Serializer) -> None:
         """
         Initialize with a known serializer, so we do not keep creating Serializer instances.
-        As an added bonus, we also get all of the custom types defined in the given instance.
+        As an added bonus, we also get all the custom types defined in the given instance.
 
         :param serializer: the Serializer to inherit
         """
@@ -91,7 +91,7 @@ class NestedPayload(Packer):
         :return: the serialized data
         """
         data = self.serializer.pack_serializable(serializable)
-        return pack('>H', len(data)) + data
+        return pack(">H", len(data)) + data
 
     def unpack(self,
                data: bytes,
@@ -108,7 +108,7 @@ class NestedPayload(Packer):
         :param args: a list of one Serializable class to unpack to
         :return: the new offset
         """
-        size, = unpack_from('>H', data, offset)
+        size, = unpack_from(">H", data, offset)
         offset += 2
         serializable_class = args[0]
         unpacked, _ = self.serializer.unpack_serializable(serializable_class, data[offset:offset + size])
@@ -125,8 +125,8 @@ class Bits(Packer):
         """
         Pack multiple bits into a single byte.
 
-        :param *data: bit values
-        :type *data: list of 8 True or False values (or anything that maps to it in an if-statement)
+        :param data: bit values
+        :type data: list of 8 True or False values (or anything that maps to it in an if-statement)
         """
         byte = 0
         byte |= 0x80 if data[0] else 0x00
@@ -137,7 +137,7 @@ class Bits(Packer):
         byte |= 0x04 if data[5] else 0x00
         byte |= 0x02 if data[6] else 0x00
         byte |= 0x01 if data[7] else 0x00
-        return pack('>B', byte)
+        return pack(">B", byte)
 
     def unpack(self, data: bytes, offset: int, unpack_list: list, *args: object) -> int:
         """
@@ -145,7 +145,7 @@ class Bits(Packer):
 
         :returns: the new offset
         """
-        byte, = unpack_from('>B', data, offset)
+        byte, = unpack_from(">B", data, offset)
         bit_7 = 1 if 0x80 & byte else 0
         bit_6 = 1 if 0x40 & byte else 0
         bit_5 = 1 if 0x20 & byte else 0
@@ -235,13 +235,13 @@ class IPv4(Packer):
         """
         Pack an IPv4 address to bytes.
         """
-        return pack('>4sH', socket.inet_aton(data[0]), data[1])
+        return pack(">4sH", socket.inet_aton(data[0]), data[1])
 
     def unpack(self, data: bytes, offset: int, unpack_list: list, *args: object) -> int:
         """
         Unpack a packed IPv4 address.
         """
-        host_bytes, port = unpack_from('>4sH', data, offset)
+        host_bytes, port = unpack_from(">4sH", data, offset)
         unpack_list.append(UDPv4Address(socket.inet_ntoa(host_bytes), port))
         return offset + 6
 
@@ -262,14 +262,14 @@ class Address(Packer):
         Pack a generic address as bytes.
         """
         with suppress(OSError):
-            return pack('>B4sH', ADDRESS_TYPE_IPV4, socket.inet_pton(socket.AF_INET, address[0]), address[1])
+            return pack(">B4sH", ADDRESS_TYPE_IPV4, socket.inet_pton(socket.AF_INET, address[0]), address[1])
         with suppress(OSError):
-            return pack('>B16sH', ADDRESS_TYPE_IPV6,
+            return pack(">B16sH", ADDRESS_TYPE_IPV6,
                         socket.inet_pton(socket.AF_INET6, address[0]), address[1])
 
         if not self.ip_only:
             host_bytes = address[0].encode()
-            return pack(f'>BH{len(host_bytes)}sH', ADDRESS_TYPE_DOMAIN_NAME,
+            return pack(f">BH{len(host_bytes)}sH", ADDRESS_TYPE_DOMAIN_NAME,
                         len(host_bytes), host_bytes, address[1])
 
         msg = f"Unexpected address type {address}"
@@ -279,19 +279,19 @@ class Address(Packer):
         """
         Unpack a generic address from bytes.
         """
-        address_type, = unpack_from('>B', data, offset)
+        address_type, = unpack_from(">B", data, offset)
         if address_type == ADDRESS_TYPE_IPV4:
-            ip_bytes, port = unpack_from('>4sH', data, offset + 1)
+            ip_bytes, port = unpack_from(">4sH", data, offset + 1)
             unpack_list.append(UDPv4Address(socket.inet_ntop(socket.AF_INET, ip_bytes), port))
             return offset + 7
         if address_type == ADDRESS_TYPE_IPV6:
-            ip_bytes, port = unpack_from('>16sH', data, offset + 1)
+            ip_bytes, port = unpack_from(">16sH", data, offset + 1)
             unpack_list.append(UDPv6Address(socket.inet_ntop(socket.AF_INET6, ip_bytes), port))
             return offset + 19
         if not self.ip_only and address_type == ADDRESS_TYPE_DOMAIN_NAME:
-            length, = unpack_from('>H', data, offset + 1)
+            length, = unpack_from(">H", data, offset + 1)
             host = data[offset + 3: offset + 3 + length].decode()
-            unpack_list.append(DomainAddress(host, unpack_from('>H', data, offset + 3 + length)[0]))
+            unpack_list.append(DomainAddress(host, unpack_from(">H", data, offset + 3 + length)[0]))
             return offset + 5 + length
         msg = f"Cannot unpack address type {address_type}"
         raise PackError(msg)
@@ -316,7 +316,7 @@ class ListOf(Packer):
         """
         Feed a list of objects to the registered packer.
         """
-        return pack(self.length_format, len(data)) + b''.join([self.packer.pack(item) for item in data])
+        return pack(self.length_format, len(data)) + b"".join([self.packer.pack(item) for item in data])
 
     def unpack(self, data: bytes, offset: int, unpack_list: list, *args: object) -> int:
         """
@@ -334,9 +334,9 @@ class ListOf(Packer):
 
 class DefaultArray(Packer):
     """
-    A format known to the ``array`` module (like 'I', 'B', etc.).
+    A format known to the ``array`` module (like "I", "B", etc.).
 
-    Also adds support for '?'.
+    Also adds support for "?".
     """
 
     def __init__(self, format_str: str, length_format: str) -> None:
@@ -368,7 +368,7 @@ class DefaultArray(Packer):
 
 class DefaultStruct(Packer):
     """
-    A format known to the ``struct`` module (like 'I', '20s', etc.).
+    A format known to the ``struct`` module (like "I", "20s", etc.).
     """
 
     def __init__(self, format_str: str) -> None:
@@ -404,48 +404,48 @@ class Serializer:
         """
         super().__init__()
         self._packers: dict[str, Packer] = {
-            '?': DefaultStruct(">?"),
-            'B': DefaultStruct(">B"),
-            'BBH': DefaultStruct(">BBH"),
-            'BH': DefaultStruct(">BH"),
-            'c': DefaultStruct(">c"),
-            'f': DefaultStruct(">f"),
-            'd': DefaultStruct(">d"),
-            'H': DefaultStruct(">H"),
-            'HH': DefaultStruct(">HH"),
-            'I': DefaultStruct(">I"),
-            'l': DefaultStruct(">l"),
-            'LL': DefaultStruct(">LL"),
-            'q': DefaultStruct(">q"),
-            'Q': DefaultStruct(">Q"),
-            'QH': DefaultStruct(">QH"),
-            'QL': DefaultStruct(">QL"),
-            'QQHHBH': DefaultStruct(">QQHHBH"),
-            'ccB': DefaultStruct(">ccB"),
-            '4SH': DefaultStruct(">4sH"),
-            '20s': DefaultStruct(">20s"),
-            '32s': DefaultStruct(">32s"),
-            '64s': DefaultStruct(">64s"),
-            '74s': DefaultStruct(">74s"),
-            'c20s': DefaultStruct(">c20s"),
-            'bits': Bits(),
-            'ipv4': IPv4(),
-            'ip_address': Address(ip_only=True),
-            'address': Address(),
-            'raw': Raw(),
-            'varlenBx2': VarLen('>B', 2),
-            'varlenH': VarLen('>H'),
-            'varlenHutf8': VarLenUtf8('>H'),
-            'varlenIutf8': VarLenUtf8('>I'),
-            'varlenHx20': VarLen('>H', 20),
-            'varlenH-list': ListOf(VarLen('>H')),
-            'varlenI': VarLen('>I'),
-            'doublevarlenH': VarLen('>H'),
-            'payload': NestedPayload(self),
-            'payload-list': ListOf(NestedPayload(self)),
-            'arrayH-?': DefaultArray("?", "H"),
-            'arrayH-q': DefaultArray("q", "H"),
-            'arrayH-d': DefaultArray("d", "H"),
+            "?": DefaultStruct(">?"),
+            "B": DefaultStruct(">B"),
+            "BBH": DefaultStruct(">BBH"),
+            "BH": DefaultStruct(">BH"),
+            "c": DefaultStruct(">c"),
+            "f": DefaultStruct(">f"),
+            "d": DefaultStruct(">d"),
+            "H": DefaultStruct(">H"),
+            "HH": DefaultStruct(">HH"),
+            "I": DefaultStruct(">I"),
+            "l": DefaultStruct(">l"),
+            "LL": DefaultStruct(">LL"),
+            "q": DefaultStruct(">q"),
+            "Q": DefaultStruct(">Q"),
+            "QH": DefaultStruct(">QH"),
+            "QL": DefaultStruct(">QL"),
+            "QQHHBH": DefaultStruct(">QQHHBH"),
+            "ccB": DefaultStruct(">ccB"),
+            "4SH": DefaultStruct(">4sH"),
+            "20s": DefaultStruct(">20s"),
+            "32s": DefaultStruct(">32s"),
+            "64s": DefaultStruct(">64s"),
+            "74s": DefaultStruct(">74s"),
+            "c20s": DefaultStruct(">c20s"),
+            "bits": Bits(),
+            "ipv4": IPv4(),
+            "ip_address": Address(ip_only=True),
+            "address": Address(),
+            "raw": Raw(),
+            "varlenBx2": VarLen(">B", 2),
+            "varlenH": VarLen(">H"),
+            "varlenHutf8": VarLenUtf8(">H"),
+            "varlenIutf8": VarLenUtf8(">I"),
+            "varlenHx20": VarLen(">H", 20),
+            "varlenH-list": ListOf(VarLen(">H")),
+            "varlenI": VarLen(">I"),
+            "doublevarlenH": VarLen(">H"),
+            "payload": NestedPayload(self),
+            "payload-list": ListOf(NestedPayload(self)),
+            "arrayH-?": DefaultArray("?", "H"),
+            "arrayH-q": DefaultArray("q", "H"),
+            "arrayH-d": DefaultArray("d", "H"),
         }
 
     def get_available_formats(self) -> list[str]:
@@ -485,15 +485,16 @@ class Serializer:
 
         :param fmt: the name of the packer to use while unpacking
         :param data: bytes to unpack
+        :param offset: the pointer in the data to start reading from
         :return: the unpacked object
         """
         unpack_list: list = []
         if isinstance(fmt, str):
             offset = self._packers[fmt].unpack(data, offset, unpack_list)
         elif isinstance(fmt, list):
-            offset = self._packers['payload-list'].unpack(data, offset, unpack_list, fmt[0])
+            offset = self._packers["payload-list"].unpack(data, offset, unpack_list, fmt[0])
         else:
-            offset = self._packers['payload'].unpack(data, offset, unpack_list, fmt)
+            offset = self._packers["payload"].unpack(data, offset, unpack_list, fmt)
         return unpack_list[0], offset
 
     def pack_serializable(self, serializable: Serializable) -> bytes:
@@ -504,7 +505,7 @@ class Serializer:
         :type serializable: Serializable
         :return: the serialized object
         """
-        packed = b''
+        packed = b""
         for packable in serializable.to_pack_list():
             try:
                 packed += self._packers[packable[0]].pack(*packable[1:])
@@ -521,7 +522,7 @@ class Serializer:
         :type serializables: [Serializable]
         :return: the serialized list
         """
-        return b''.join(self.pack_serializable(serializable) for serializable in serializables)
+        return b"".join(self.pack_serializable(serializable) for serializable in serializables)
 
     def unpack_serializable(self,
                             serializable: type[S],
@@ -539,14 +540,14 @@ class Serializer:
             try:
                 offset = self._packers[fmt].unpack(data, offset, unpack_list)  # type: ignore[index]
             except KeyError:
-                fmt = cast(type, fmt)  # If this is not a type, we'll crash
+                fmt = cast("type", fmt)  # If this is not a type, we'll crash
                 if not issubclass(fmt, Serializable):
                     raise
-                offset = self._packers['payload'].unpack(data, offset, unpack_list, fmt)
+                offset = self._packers["payload"].unpack(data, offset, unpack_list, fmt)
             except TypeError:
                 if not isinstance(fmt, list):
                     raise
-                offset = self._packers['payload-list'].unpack(data, offset, unpack_list, fmt[0])
+                offset = self._packers["payload-list"].unpack(data, offset, unpack_list, fmt[0])
             except Exception as e:
                 msg = f"Could not unpack item: {fmt}\n{type(e).__name__}: {e}"
                 raise PackError(msg) from e
@@ -565,7 +566,7 @@ class Serializer:
         :param offset: position at which to start reading from data
         :param consume_all: if having a non-empty remainder should throw an error
         :except PackError: if the data could not be fit into the specified serializables
-        :except PackError: if consume_all is True and not all of the data was consumed when parsing the serializables
+        :except PackError: if consume_all is True and not all the data was consumed when parsing the serializables
         :return: the list of Serializable instances
         """
         unpacked: list[Serializable | bytes] = []
@@ -582,7 +583,7 @@ class Serializer:
         return unpacked
 
 
-SelfS = typing.TypeVar('SelfS', bound='Serializable')
+SelfS = typing.TypeVar("SelfS", bound="Serializable")
 
 
 class Serializable(metaclass=abc.ABCMeta):
@@ -609,7 +610,7 @@ class Serializable(metaclass=abc.ABCMeta):
         """
 
 
-S = typing.TypeVar('S', bound=Serializable)
+S = typing.TypeVar("S", bound=Serializable)
 
 
 class Payload(Serializable, abc.ABC):
@@ -623,13 +624,13 @@ class Payload(Serializable, abc.ABC):
         """
         out = self.__class__.__name__
         for attribute in dir(self):
-            if not (attribute.startswith('_') or callable(getattr(self, attribute))) \
-                    and attribute not in ['format_list', 'names']:
+            if not (attribute.startswith("_") or callable(getattr(self, attribute))) \
+                    and attribute not in ["format_list", "names"]:
                 out += f"\n| {attribute}: {getattr(self, attribute)!r}"
         return out
 
 
 # Serializers should be stateless.
-# Therefore we can expose a global singleton for efficiency.
+# Therefore, we can expose a global singleton for efficiency.
 # If you do need a Serializer with a state, be sure to use your own instance.
 default_serializer = Serializer()

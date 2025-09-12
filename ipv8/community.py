@@ -12,17 +12,18 @@ from __future__ import annotations
 import sys
 from asyncio import ensure_future, iscoroutine
 from binascii import hexlify
-from collections.abc import Awaitable
 from itertools import islice
 from random import choice, random
 from time import time
 from traceback import format_exception
-from typing import TYPE_CHECKING, Callable, cast
+from typing import TYPE_CHECKING, cast
+
+from typing_extensions import Self
 
 from .lazy_community import EZPackOverlay, lazy_wrapper, lazy_wrapper_unsigned
 from .messaging.anonymization.endpoint import TunnelEndpoint
-from .messaging.interfaces.dispatcher.endpoint import FAST_ADDR_TO_INTERFACE, INTERFACES, DispatcherEndpoint
-from .messaging.interfaces.udp.endpoint import UDPv4Address, UDPv4LANAddress, UDPv6Address
+from .messaging.interfaces.dispatcher.endpoint import FAST_ADDR_TO_INTERFACE, INTERFACES
+from .messaging.interfaces.udp.endpoint import Address, UDPv4Address, UDPv4LANAddress, UDPv6Address
 from .messaging.payload import (
     IntroductionRequestPayload,
     IntroductionResponsePayload,
@@ -35,16 +36,18 @@ from .messaging.payload import (
 )
 from .messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from .overlay import Settings
-from .types import Address, MessageHandlerFunction
 
 if TYPE_CHECKING:
-    from .bootstrapping.bootstrapper_interface import Bootstrapper
-    from .peer import Peer
-    from .types import Payload
+    from collections.abc import Awaitable, Callable, Coroutine
 
-_UNUSED_FLAGS_REQ = {'connection_type_0': 0, 'connection_type_1': 0, 'supports_new_style': 0, 'dflag1': 0, 'dflag2': 0,
-                     'tunnel': 0, 'sync': 0, 'advice': 0}
-_UNUSED_FLAGS_RESP = {'flag1': 0, 'flag2': 0, 'flag3': 0, 'flag4': 0, 'flag5': 0, 'flag6': 0, 'flag7': 0}
+    from .bootstrapping.bootstrapper_interface import Bootstrapper
+    from .messaging.interfaces.dispatcher.endpoint import DispatcherEndpoint
+    from .messaging.serialization import Payload
+    from .peer import Peer
+
+_UNUSED_FLAGS_REQ = {"connection_type_0": 0, "connection_type_1": 0, "supports_new_style": 0, "dflag1": 0, "dflag2": 0,
+                     "tunnel": 0, "sync": 0, "advice": 0}
+_UNUSED_FLAGS_RESP = {"flag1": 0, "flag2": 0, "flag3": 0, "flag4": 0, "flag5": 0, "flag6": 0, "flag7": 0}
 
 DEFAULT_MAX_PEERS = 30
 
@@ -68,7 +71,7 @@ class Community(EZPackOverlay):
     Inherit from this class if you want IPv8 to handle peer introduction logic for you.
     """
 
-    version = b'\x02'
+    version = b"\x02"
     community_id: bytes
     settings_class = CommunitySettings
 
@@ -87,7 +90,7 @@ class Community(EZPackOverlay):
         settings.community_id = self.community_id
         super().__init__(settings)
 
-        self._prefix = b'\x00' + self.version + self.community_id
+        self._prefix = b"\x00" + self.version + self.community_id
         self.endpoint.remove_listener(self)
         self.endpoint.add_prefix_listener(self, self._prefix)
         self.logger.debug("Launching %s with prefix %s.", self.__class__.__name__, hexlify(self._prefix).decode())
@@ -99,14 +102,16 @@ class Community(EZPackOverlay):
             if isinstance(self.endpoint, TunnelEndpoint):
                 self.endpoint.set_anonymity(self._prefix, True)
             else:
-                self.logger.warning('Cannot anonymize community traffic without TunnelEndpoint')
+                self.logger.warning("Cannot anonymize community traffic without TunnelEndpoint")
 
         self.network.register_service_provider(self.community_id, self)
         self.network.blacklist_mids.append(settings.my_peer.mid)
 
         self.bootstrappers: list[Bootstrapper] = []
 
-        self.decode_map: list[MessageHandlerFunction | None] = [None] * 256
+        self.decode_map: list[Callable[[Address, bytes], None]
+                              | Callable[[Address, bytes], Coroutine]
+                              | None] = [None] * 256
 
         self.add_message_handler(PunctureRequestPayload, self.on_old_puncture_request)
         self.add_message_handler(PuncturePayload, self.on_puncture)
@@ -177,7 +182,11 @@ class Community(EZPackOverlay):
             bootstrapper.unload()
         await super().unload()
 
-    def add_message_handler(self, msg_num: int | type[Payload], callback: MessageHandlerFunction) -> None:
+    def add_message_handler(self, msg_num: int | type[Payload],
+                            callback: Callable[[Self, Address, bytes], None]
+                                      | Callable[[Self, Address, bytes], Coroutine]
+                                      | Callable[[Address, bytes], None]
+                                      | Callable[[Address, bytes], Coroutine]) -> None:
         """
         Add a handler for a message identifier. Any messages coming in with this identifier will be delivered to
         the specified callback function.
@@ -185,12 +194,11 @@ class Community(EZPackOverlay):
         :param msg_num: the message id to listen for (or a Payload object with a msg_id field)
         :param callback: the callback function for this message id
         """
-        actual_msg_num: int = 256
         if not isinstance(msg_num, int):
             if not hasattr(msg_num, "msg_id"):
                 msg = f"Attempted to add a handler for Payload {msg_num}, which does not specify a msg_id!"
                 raise RuntimeError(msg)
-            actual_msg_num = cast(int, msg_num.msg_id)  # type: ignore[attr-defined]
+            actual_msg_num = cast("int", msg_num.msg_id)  # type: ignore[attr-defined]
         else:
             if msg_num < 0 or msg_num > 255:
                 msg = f"Attempted to add a handler for message number {msg_num}, which is not a byte!"
@@ -201,7 +209,8 @@ class Community(EZPackOverlay):
             msg = (f"Attempted to add a handler for message number {actual_msg_num}, "
                    f"already mapped to {self.decode_map[actual_msg_num]}!")
             raise RuntimeError(msg)
-        self.decode_map[actual_msg_num] = callback
+        # A method call implicitly puts ``self`` as the first arg. mypy doesn't understand this (yet).
+        self.decode_map[actual_msg_num] = callback  # type: ignore[assignment]
 
     def on_deprecated_message(self, source_address: Address, data: bytes) -> None:
         """
@@ -215,7 +224,7 @@ class Community(EZPackOverlay):
         Contact the bootstrappers for new peers, initialize the bootstrappers if necessary.
         """
         for bootstrapper in self.bootstrappers:
-            self.register_anonymous_task(f'bootstrap {bootstrapper!r}', self._bootstrap, bootstrapper)
+            self.register_anonymous_task(f"bootstrap {bootstrapper!r}", self._bootstrap, bootstrapper)
 
     async def _bootstrap(self, bootstrapper: Bootstrapper) -> None:
         """
@@ -263,8 +272,8 @@ class Community(EZPackOverlay):
                     self.my_peer.address = address
         return self.my_peer.address
 
-    def create_introduction_request(self, socket_address: Address, extra_bytes: bytes = b'', new_style: bool = False,
-                                    prefix: bytes | None = None) -> bytes:
+    def create_introduction_request(self, socket_address: Address, extra_bytes: bytes = b"",
+                                    new_style: bool = False, prefix: bytes | None = None) -> bytes:
         """
         Create a new introduction request message, without sending it.
 
@@ -293,9 +302,10 @@ class Community(EZPackOverlay):
 
         return self._ez_pack(prefix or self._prefix, payload.msg_id, [auth, dist, payload])
 
-    def create_introduction_response(self, lan_socket_address: Address, socket_address: Address,  # noqa: PLR0913
-                                     identifier: int, introduction: Peer | None = None, extra_bytes: bytes = b'',
-                                     prefix: bytes | None = None, new_style: bool = False) -> bytes:
+    def create_introduction_response(self, lan_socket_address: Address,  # noqa: PLR0913
+                                     socket_address: Address, identifier: int, introduction: Peer | None = None,
+                                     extra_bytes: bytes = b"", prefix: bytes | None = None,
+                                     new_style: bool = False) -> bytes:
         """
         Create a new introduction response message, without sending it.
 
@@ -398,9 +408,9 @@ class Community(EZPackOverlay):
         If you want to some action to trigger upon receipt of an introduction-request,
         this would be the place to do so.
 
-        :param peer the peer that sent us an introduction-request
-        :param dist the GlobalTimeDistributionPayload
-        :param payload the IntroductionRequestPayload
+        :param peer: the peer that sent us an introduction-request
+        :param dist: the GlobalTimeDistributionPayload
+        :param payload: the IntroductionRequestPayload
         """
 
     def introduction_response_callback(self, peer: Peer, dist: GlobalTimeDistributionPayload,
@@ -410,9 +420,9 @@ class Community(EZPackOverlay):
         If you want to some action to trigger upon receipt of an introduction-response,
         this would be the place to do so.
 
-        :param peer the peer that sent us an introduction-response
-        :param dist the GlobalTimeDistributionPayload
-        :param payload the IntroductionResponsePayload
+        :param peer: the peer that sent us an introduction-response
+        :param dist: the GlobalTimeDistributionPayload
+        :param payload: the IntroductionResponsePayload
         """
 
     @lazy_wrapper(GlobalTimeDistributionPayload, IntroductionRequestPayload)
@@ -502,7 +512,7 @@ class Community(EZPackOverlay):
             if (requested_interface != used_interface
                     and payload.source_wan_address != peer.address
                     and (FAST_ADDR_TO_INTERFACE[requested_interface]
-                         in cast(DispatcherEndpoint, self.endpoint).interfaces)):
+                         in cast("DispatcherEndpoint", self.endpoint).interfaces)):
                 self.network.discover_address(peer, payload.source_wan_address, self.community_id, True)
 
                 my_address = self.my_peer.addresses.get(requested_interface,
@@ -596,16 +606,16 @@ class Community(EZPackOverlay):
         if self._prefix != data[:22]:
             return
         msg_id = data[22]
-        if self.decode_map[msg_id]:
-            handler = self.decode_map[msg_id]
+        handler = self.decode_map[msg_id]
+        if handler is not None:
             try:
-                result = cast(Callable[[Address, bytes], None], handler)(source_address, data)
+                result: Coroutine | None = handler(source_address, data)
                 if iscoroutine(result):
-                    aw_result = cast(Awaitable, result)
-                    self.register_anonymous_task('on_packet', ensure_future(aw_result), ignore=(Exception,))
+                    aw_result = cast("Awaitable", result)
+                    self.register_anonymous_task("on_packet", ensure_future(aw_result), ignore=(Exception,))
             except Exception:
                 self.logger.exception("Exception occurred while handling packet!\n%s",
-                                      ''.join(format_exception(*sys.exc_info())))
+                                      "".join(format_exception(*sys.exc_info())))
         elif warn_unknown:
             self.logger.warning("Received unknown message: %d from (%s, %d)", msg_id, *source_address)
 

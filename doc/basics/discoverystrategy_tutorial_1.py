@@ -3,7 +3,7 @@ from random import choice
 
 from ipv8.community import Community
 from ipv8.peerdiscovery.discovery import DiscoveryStrategy
-from ipv8.types import IPv8
+from ipv8_service import IPv8
 
 
 class MyCommunity(Community):

@@ -16,15 +16,15 @@ from packaging.version import Version
 
 from run_all_tests import find_all_test_class_names, install_libsodium, windows_missing_libsodium
 
-if __name__ != '__main__':
+if __name__ != "__main__":
     print(__file__, "should be run stand-alone! Instead, it is being imported!", file=sys.stderr)  # noqa: T201
     sys.exit(1)
 
-if platform.system() == 'Windows' and windows_missing_libsodium():
+if platform.system() == "Windows" and windows_missing_libsodium():
     print("Failed to locate libsodium (libnacl requirement), downloading latest dll!")  # noqa: T201
     install_libsodium()
 
-data_file = os.path.join('coverage', 'raw', 'coverage_file')
+data_file = os.path.join("coverage", "raw", "coverage_file")
 logging.basicConfig(level=logging.CRITICAL)
 logging.disable(logging.CRITICAL)
 
@@ -49,12 +49,12 @@ test_paths = find_all_test_class_names()
 # We remove them again to get the correct coverage.
 # We also remove the singleton entries for the REST API to avoid double binding to names.
 for module_name in list(sys.modules.keys()):
-    if module_name.startswith(('ipv8', 'marshmallow', 'apispec', 'aiohttp')):
+    if module_name.startswith(("ipv8", "marshmallow", "apispec", "aiohttp")):
         del sys.modules[module_name]
 
 cov = coverage.Coverage(data_file=data_file, data_suffix=True, config_file=False,
-                        branch=True, source=['ipv8'], include=['*'], omit=["ipv8/test/*", "ipv8_service.py"])
-cov.exclude('pass')
+                        branch=True, source=["ipv8"], include=["*"], omit=["ipv8/test/*", "ipv8_service.py"])
+cov.exclude("pass")
 cov.start()
 
 for test_path in test_paths:
@@ -67,18 +67,18 @@ for test_path in test_paths:
     reporter = TextTestRunner(stream=output_stream, failfast=True)
     test_result = reporter.run(suite)
 
-    error_string = ''.join([repr(error) for error in test_result.errors])
+    error_string = "".join([repr(error) for error in test_result.errors])
     assert len(test_result.errors) == 0,\
         f"ERROR: UNIT TESTS FAILED, PLEASE FIX BEFORE RUNNING COVERAGE:\n{output_stream.getvalue()}\n{error_string}"
     output_stream.close()
 
 cov.stop()
 print("Generating HTML report")  # noqa: T201
-cov.html_report(directory='coverage')
+cov.html_report(directory="coverage")
 
 print("Generating markdown report")  # noqa: T201
-with open('coverage.md', 'w') as fp:
-   cov.report(output_format='markdown', file=fp, show_missing=True)
+with open("coverage.md", "w") as fp:
+   cov.report(output_format="markdown", file=fp, show_missing=True)
 
 print("Aggregating package stats")  # noqa: T201
 total_numbers = {}  # Package name -> (Numbers: package coverage stats, dict: files per coverage bin)
@@ -110,7 +110,7 @@ for filename in cov.get_data().measured_files():
         total_numbers[package] = (package_numbers + analysis.numbers, package_buckets)
 
 print("Generating R barplot script")  # noqa: T201
-with open(os.path.join('coverage', 'plotbars.R'), 'w') as barplot_script:
+with open(os.path.join("coverage", "plotbars.R"), "w") as barplot_script:
     package_count = len(total_numbers)
     barplot_script.write(f"""
 png(filename = "coverage_barplot.png", width = 500, height = {150 * package_count})

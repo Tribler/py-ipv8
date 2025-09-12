@@ -5,10 +5,9 @@ import operator
 import time
 from binascii import hexlify
 from collections import defaultdict
-from typing import TYPE_CHECKING, Callable, cast
+from typing import TYPE_CHECKING, cast
 
 from ..lazy_community import lazy_wrapper, lazy_wrapper_wd
-from ..types import Address
 from . import DHTError
 from .community import MAX_NODES_IN_FIND, PING_INTERVAL, TARGET_NODES, DHTCommunity, Request, gather_without_errors
 from .payload import (
@@ -23,7 +22,7 @@ from .routing import NODE_STATUS_BAD, Node
 
 if TYPE_CHECKING:
     from ..community import CommunitySettings
-    from ..types import Peer
+    from ..peer import Peer
 
 
 class DHTDiscoveryCommunity(DHTCommunity):
@@ -45,15 +44,15 @@ class DHTDiscoveryCommunity(DHTCommunity):
         self.add_message_handler(ConnectPeerRequestPayload, self.on_connect_peer_request)
         self.add_message_handler(ConnectPeerResponsePayload, self.on_connect_peer_response)
 
-        self.register_task('store_peer', self.store_peer, interval=30)
-        self.register_task('ping_all', self.ping_all, interval=10)
+        self.register_task("store_peer", self.store_peer, interval=30)
+        self.register_task("ping_all", self.ping_all, interval=10)
 
     @lazy_wrapper_wd(PingRequestPayload)
     def on_ping_request(self, peer: Peer, payload: PingRequestPayload, data: bytes) -> None:
         """
         When a ping comes in and we store it, update its metrics.
         """
-        cast(Callable[[Address, bytes], None], super().on_ping_request)(peer.address, data)
+        super().on_ping_request(peer.address, data)
         node = self.find_node_in_dict(peer.key.key_to_bin(), self.store)
         if node:
             node.last_queries.append(time.time())
@@ -63,7 +62,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
         """
         When a ping response comes in and we store it, update its metrics.
         """
-        cast(Callable[[Address, bytes], None], super().on_ping_response)(peer.address, data)
+        super().on_ping_response(peer.address, data)
         node = self.find_node_in_dict(peer.key.key_to_bin(), self.store_for_me)
         if node:
             node.last_response = time.time()
@@ -89,7 +88,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
             return []
 
         try:
-            nodes = cast(list[Node], await self.find_nodes(key))
+            nodes = cast("list[Node]", await self.find_nodes(key))
             return await self.send_store_peer_request(key, nodes[:TARGET_NODES])
         except DHTError:
             return []
@@ -108,12 +107,12 @@ class DHTDiscoveryCommunity(DHTCommunity):
         futures = []
         for node in nodes:
             if node.id in self.tokens:
-                cache = Request(self, 'store-peer', node, [key])
+                cache = Request(self, "store-peer", node, [key])
                 self.request_cache.add(cache)
                 futures.append(cache.future)
                 self.ez_send(node, StorePeerRequestPayload(cache.number, self.tokens[node.id][1], key))
             else:
-                self.logger.debug('Not sending store-peer-request to %s (no token available)', node)
+                self.logger.debug("Not sending store-peer-request to %s (no token available)", node)
 
         if not futures:
             msg = "Peer was not stored"
@@ -138,7 +137,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
             else:
                 return [node]
 
-        nodes = cast(list[Node], await self.find_nodes(mid))
+        nodes = cast("list[Node]", await self.find_nodes(mid))
         nodes = await self.send_connect_peer_request(mid, nodes[:TARGET_NODES])
         if not nodes:
             msg = "Failed to connect peer"
@@ -158,7 +157,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
 
         futures = []
         for node in nodes:
-            cache = Request(self, 'connect-peer', node)
+            cache = Request(self, "connect-peer", node)
             self.request_cache.add(cache)
             futures.append(cache.future)
             self.ez_send(node, ConnectPeerRequestPayload(cache.number, self.my_estimated_lan, key))
@@ -171,20 +170,20 @@ class DHTDiscoveryCommunity(DHTCommunity):
         """
         When we receive a request to store a peer, attempt to add it.
         """
-        self.logger.debug('Got store-peer-request from %s', peer.address)
+        self.logger.debug("Got store-peer-request from %s", peer.address)
 
         node = Node(peer.key, peer.address)
         node.last_queries.append(time.time())
 
         if not self.check_token(node, payload.token):
-            self.logger.warning('Bad token, dropping packet.')
+            self.logger.warning("Bad token, dropping packet.")
             return
         if payload.target != peer.mid:
-            self.logger.warning('Not allowed to store under key %s, dropping packet.', hexlify(payload.target))
+            self.logger.warning("Not allowed to store under key %s, dropping packet.", hexlify(payload.target))
             return
 
         if node not in self.store[payload.target]:
-            self.logger.debug('Storing peer %s (key %s)', node, hexlify(payload.target))
+            self.logger.debug("Storing peer %s (key %s)", node, hexlify(payload.target))
             self.store[payload.target].append(node)
 
         self.ez_send(node, StorePeerResponsePayload(payload.identifier))
@@ -194,17 +193,17 @@ class DHTDiscoveryCommunity(DHTCommunity):
         """
         When a peer signals storage is complete, pop it from our cache.
         """
-        if not self.request_cache.has('store-peer', payload.identifier):
-            self.logger.warning('Got store-peer-response with unknown identifier, dropping packet')
+        if not self.request_cache.has("store-peer", payload.identifier):
+            self.logger.warning("Got store-peer-response with unknown identifier, dropping packet")
             return
 
-        self.logger.debug('Got store-peer-response from %s', peer.address)
+        self.logger.debug("Got store-peer-response from %s", peer.address)
 
-        cache = cast(Request, self.request_cache.pop('store-peer', payload.identifier))
+        cache = cast("Request", self.request_cache.pop("store-peer", payload.identifier))
 
-        key = cast(list[bytes], cache.params)[0]
+        key = cast("list[bytes]", cache.params)[0]
         if cache.node not in self.store_for_me[key]:
-            self.logger.debug('Peer %s storing us (key %s)', cache.node, hexlify(key))
+            self.logger.debug("Peer %s storing us (key %s)", cache.node, hexlify(key))
             self.store_for_me[key].append(cache.node)
 
         cache.future.set_result(cache.node)
@@ -214,14 +213,14 @@ class DHTDiscoveryCommunity(DHTCommunity):
         """
         When a peer wants to connect to another peer, try to puncture the requested "other" peer.
         """
-        self.logger.debug('Got connect-peer-request from %s', peer.address)
+        self.logger.debug("Got connect-peer-request from %s", peer.address)
 
         nodes = self.store[payload.target][:MAX_NODES_IN_FIND]
         for node in nodes:
             packet = self.create_puncture_request(payload.lan_address, peer.address, payload.identifier)
             self.endpoint.send(node.address, packet)
 
-        self.logger.debug('Returning peers %s (key %s)', nodes, hexlify(payload.target))
+        self.logger.debug("Returning peers %s (key %s)", nodes, hexlify(payload.target))
         self.ez_send(peer, ConnectPeerResponsePayload(payload.identifier, nodes))
 
     @lazy_wrapper(ConnectPeerResponsePayload)
@@ -229,12 +228,12 @@ class DHTDiscoveryCommunity(DHTCommunity):
         """
         Handle responses of peers that performed punctures for us.
         """
-        if not self.request_cache.has('connect-peer', payload.identifier):
-            self.logger.warning('Got connect-peer-response with unknown identifier, dropping packet')
+        if not self.request_cache.has("connect-peer", payload.identifier):
+            self.logger.warning("Got connect-peer-response with unknown identifier, dropping packet")
             return
 
-        self.logger.debug('Got connect-peer-response from %s', peer.address)
-        cache = cast(Request, self.request_cache.pop('connect-peer', payload.identifier))
+        self.logger.debug("Got connect-peer-response from %s", peer.address)
+        cache = cast("Request", self.request_cache.pop("connect-peer", payload.identifier))
         cache.future.set_result(payload.nodes)
 
     def ping_all(self) -> None:
@@ -247,7 +246,7 @@ class DHTDiscoveryCommunity(DHTCommunity):
                 node = nodes[index]
                 if node.status == NODE_STATUS_BAD:
                     self.store_for_me[key].pop(index)
-                    self.logger.debug('Deleting peer %s that stored us (key %s)', node, hexlify(key))
+                    self.logger.debug("Deleting peer %s that stored us (key %s)", node, hexlify(key))
                 elif node.last_ping_sent + PING_INTERVAL <= now:
                     self.ping(node)
 
@@ -255,5 +254,5 @@ class DHTDiscoveryCommunity(DHTCommunity):
             for index in range(len(nodes) - 1, -1, -1):
                 node = nodes[index]
                 if now > node.last_query + 60:
-                    self.logger.debug('Deleting peer %s (key %s)', node, hexlify(key))
+                    self.logger.debug("Deleting peer %s (key %s)", node, hexlify(key))
                     self.store[key].pop(index)

@@ -43,7 +43,7 @@ class TestIdentityManager(TestBase):
         """
         Check if an empty identity disclosure is loaded and valid.
         """
-        valid, pseudonym = self.manager.substantiate(self.public_key, b'', b'', b'', b'')
+        valid, pseudonym = self.manager.substantiate(self.public_key, b"", b"", b"", b"")
 
         self.assertTrue(valid)
         self.assertEqual([], pseudonym.get_credentials())
@@ -53,11 +53,11 @@ class TestIdentityManager(TestBase):
         Test creating a credential without attestations.
         """
         pseudonym = self.manager.get_pseudonym(self.private_key)
-        pseudonym.create_credential(b'ab' * 16, {'some_key': 'some_value'})
+        pseudonym.create_credential(b"ab" * 16, {"some_key": "some_value"})
 
         self.assertEqual(1, len(pseudonym.get_credentials()))
         self.assertEqual(0, len(pseudonym.get_credentials()[0].attestations))
-        self.assertDictEqual({'some_key': 'some_value'},
+        self.assertDictEqual({"some_key": "some_value"},
                              json.loads(pseudonym.get_credentials()[0].metadata.serialized_json_dict))
 
     def test_substantiate_credential_update(self) -> None:
@@ -65,7 +65,7 @@ class TestIdentityManager(TestBase):
         Test substantiating a credential without attestations, with existing metadata.
         """
         pseudonym = self.manager.get_pseudonym(self.private_key)
-        pseudonym.create_credential(b'ab' * 16, {'some_key': 'some_value'})
+        pseudonym.create_credential(b"ab" * 16, {"some_key": "some_value"})
         metadata, tokens, attestations, authorities = pseudonym.disclose_credentials(pseudonym.get_credentials(), set())
 
         self.manager.pseudonyms.clear()
@@ -76,7 +76,7 @@ class TestIdentityManager(TestBase):
         self.assertTrue(valid)
         self.assertEqual(1, len(public_pseudonym.get_credentials()))
         self.assertEqual(0, len(public_pseudonym.get_credentials()[0].attestations))
-        self.assertDictEqual({'some_key': 'some_value'},
+        self.assertDictEqual({"some_key": "some_value"},
                              json.loads(public_pseudonym.get_credentials()[0].metadata.serialized_json_dict))
 
     def test_substantiate_credential_no_metadata(self) -> None:
@@ -85,15 +85,15 @@ class TestIdentityManager(TestBase):
 
         This situation is a bit tricky:
          - The path to the root from the one disclosed Token is valid.
-         - No Metadata is known for this Token and it therefore does not form a credential.
+         - No Metadata is known for this Token, and it therefore does not form a credential.
         """
         pseudonym = self.manager.get_pseudonym(self.private_key)
-        pseudonym.create_credential(b'ab' * 16, {'some_key': 'some_value'})
-        metadata, tokens, attestations, authorities = pseudonym.disclose_credentials(pseudonym.get_credentials(), set())
+        pseudonym.create_credential(b"ab" * 16, {"some_key": "some_value"})
+        _, tokens, attestations, authorities = pseudonym.disclose_credentials(pseudonym.get_credentials(), set())
 
         self.forget_identities()
 
-        valid, public_pseudonym = self.manager.substantiate(pseudonym.public_key, b'', tokens, attestations,
+        valid, public_pseudonym = self.manager.substantiate(pseudonym.public_key, b"", tokens, attestations,
                                                             authorities)
 
         self.assertTrue(valid)
@@ -105,7 +105,7 @@ class TestIdentityManager(TestBase):
         Test substantiating a credential without attestations.
         """
         pseudonym = self.manager.get_pseudonym(self.private_key)
-        pseudonym.create_credential(b'ab' * 16, {'some_key': 'some_value'})
+        pseudonym.create_credential(b"ab" * 16, {"some_key": "some_value"})
         metadata, tokens, attestations, authorities = pseudonym.disclose_credentials(pseudonym.get_credentials(), set())
 
         self.forget_identities()
@@ -116,7 +116,7 @@ class TestIdentityManager(TestBase):
         self.assertTrue(valid)
         self.assertEqual(1, len(public_pseudonym.get_credentials()))
         self.assertEqual(0, len(public_pseudonym.get_credentials()[0].attestations))
-        self.assertDictEqual({'some_key': 'some_value'},
+        self.assertDictEqual({"some_key": "some_value"},
                              json.loads(public_pseudonym.get_credentials()[0].metadata.serialized_json_dict))
 
     def test_substantiate_credential_full(self) -> None:
@@ -124,7 +124,7 @@ class TestIdentityManager(TestBase):
         Test substantiating a typical credential.
         """
         pseudonym = self.manager.get_pseudonym(self.private_key)
-        pseudonym.create_credential(b'ab' * 16, {'some_key': 'some_value'})
+        pseudonym.create_credential(b"ab" * 16, {"some_key": "some_value"})
 
         attestation = pseudonym.create_attestation(pseudonym.get_credentials()[0].metadata, self.authority_private_key)
         pseudonym.add_attestation(self.authority_public_key, attestation)
@@ -140,7 +140,7 @@ class TestIdentityManager(TestBase):
         self.assertTrue(valid)
         self.assertEqual(1, len(public_pseudonym.get_credentials()))
         self.assertEqual(1, len(public_pseudonym.get_credentials()[0].attestations))
-        self.assertDictEqual({'some_key': 'some_value'},
+        self.assertDictEqual({"some_key": "some_value"},
                              json.loads(public_pseudonym.get_credentials()[0].metadata.serialized_json_dict))
 
     def test_substantiate_credential_partial(self) -> None:
@@ -148,7 +148,7 @@ class TestIdentityManager(TestBase):
         Test substantiating a typical credential, with partial disclosure.
         """
         pseudonym = self.manager.get_pseudonym(self.private_key)
-        pseudonym.create_credential(b'ab' * 16, {'some_key': 'some_value'})
+        pseudonym.create_credential(b"ab" * 16, {"some_key": "some_value"})
 
         attestation = pseudonym.create_attestation(pseudonym.get_credentials()[0].metadata, self.authority_private_key)
         pseudonym.add_attestation(self.authority_public_key, attestation)
@@ -167,5 +167,5 @@ class TestIdentityManager(TestBase):
         self.assertTrue(valid)
         self.assertEqual(1, len(public_pseudonym.get_credentials()))
         self.assertEqual(1, len(public_pseudonym.get_credentials()[0].attestations))
-        self.assertDictEqual({'some_key': 'some_value'},
+        self.assertDictEqual({"some_key": "some_value"},
                              json.loads(public_pseudonym.get_credentials()[0].metadata.serialized_json_dict))

@@ -12,12 +12,15 @@ from ..bootstrapper_interface import Bootstrapper
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    from ...types import Address, Community
+    from ...community import Community
+    from ...messaging.interfaces.udp.endpoint import Address
 
-PROTOCOL_VERSION = b'\x00\x00'
-MAGIC = b'\x49\x50\x76\x38'
+PROTOCOL_VERSION = b"\x00\x00"
+MAGIC = b"\x49\x50\x76\x38"
 
-HDR_ANNOUNCE = PROTOCOL_VERSION + MAGIC + b'\x00'
+HDR_ANNOUNCE = PROTOCOL_VERSION + MAGIC + b"\x00"
+
+logger = logging.getLogger(__name__)
 
 
 class BroadcastBootstrapEndpoint(DatagramProtocol):
@@ -46,7 +49,7 @@ class BroadcastBootstrapEndpoint(DatagramProtocol):
             self._socket = socket(AF_INET, SOCK_DGRAM)
             self._socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
             self._socket.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
-            self._socket.bind(('', 0))
+            self._socket.bind(("", 0))
             self._transport, _ = await loop.create_datagram_endpoint(lambda: self, sock=self._socket)
         except (OSError, ValueError):
             return False
@@ -134,7 +137,7 @@ class UDPBroadcastBootstrapper(Bootstrapper):
         """
         if self.endpoint is not None:
             for p in range(65535):
-                self.endpoint.send(('255.255.255.255', p), HDR_ANNOUNCE + service_prefix)
+                self.endpoint.send(("255.255.255.255", p), HDR_ANNOUNCE + service_prefix)
 
     async def get_addresses(self, overlay: Community, timeout: float) -> Iterable[Address]:
         """
@@ -142,7 +145,7 @@ class UDPBroadcastBootstrapper(Bootstrapper):
         """
         if time() - self.last_bootstrap < self.bootstrap_timeout:
             return []
-        logging.debug("Bootstrapping %s, current peers %d", overlay.__class__.__name__,
+        logger.debug("Bootstrapping %s, current peers %d", overlay.__class__.__name__,
                       len(overlay.get_peers()))
         self.last_bootstrap = time()
         self.beacon(overlay.get_prefix())

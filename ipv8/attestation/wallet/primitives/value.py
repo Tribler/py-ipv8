@@ -16,13 +16,13 @@ def format_polynomial(a: int, b: int, c: int) -> str:
     :param c: x^2 coefficient
     :returns: pretty format of polynomial
     """
-    out = ''
-    for (v, s) in [(a, ''), (b, 'x'), (c, 'x^2')]:
+    out = ""
+    for (v, s) in [(a, ""), (b, "x"), (c, "x^2")]:
         if v:
-            fmt_v = '' if abs(v) == 1 and s != '' else str(abs(v))
-            out += (' + ' if out else '') + fmt_v + s
+            fmt_v = "" if abs(v) == 1 and s != "" else str(abs(v))
+            out += (" + " if out else "") + fmt_v + s
     if not out:
-        out = '0'
+        out = "0"
     return out
 
 
@@ -34,7 +34,7 @@ class FP2Value:
     def __init__(self, mod: int, a: int = 0, b: int = 0, c: int = 0,  # noqa: PLR0913
                  aC: int = 1, bC: int = 0, cC: int = 0) -> None:
         """
-        Intialize a value mod 'mod' of two quadratic polynomials divided by each other modulo (x^2 + x + 1).
+        Initialize a value mod 'mod' of two quadratic polynomials divided by each other modulo (x^2 + x + 1).
 
         :param mod: the modulus
         :param a: the coefficient of 1
@@ -53,7 +53,7 @@ class FP2Value:
         """
         numerator = format_polynomial(self.a, self.b, self.c)
         denominator = format_polynomial(self.aC, self.bC, self.cC)
-        if denominator == '1':
+        if denominator == "1":
             return numerator
         return f"({numerator})/({denominator})"
 

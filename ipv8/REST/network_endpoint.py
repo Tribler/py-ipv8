@@ -6,7 +6,8 @@ from aiohttp.abc import Request
 from aiohttp_apispec import docs
 from marshmallow.fields import Integer, List, String
 
-from ..types import IPv8
+from ipv8_service import IPv8
+
 from .base_endpoint import BaseEndpoint, Response
 from .schema import schema
 
@@ -20,7 +21,7 @@ class NetworkEndpoint(BaseEndpoint[IPv8]):
         """
         Register the names to make this endpoint callable.
         """
-        self.app.add_routes([web.get('', self.retrieve_peers)])
+        self.app.add_routes([web.get("", self.retrieve_peers)])
 
     @docs(
         tags=["Network"],
@@ -44,16 +45,16 @@ class NetworkEndpoint(BaseEndpoint[IPv8]):
         """
         if self.session is None:
             return Response({"peers": {}})
-        self.session = cast(IPv8, self.session)
+        self.session = cast("IPv8", self.session)
 
         network = self.session.network
         peer_list = network.verified_peers
         return Response({"peers": {
-            b64encode(peer.mid).decode('utf-8'): {
+            b64encode(peer.mid).decode(): {
                 "ip": peer.address[0],
                 "port": peer.address[1],
-                "public_key": b64encode(peer.public_key.key_to_bin()).decode('utf-8'),
-                "services": [b64encode(s).decode('utf-8') for s in network.get_services_for_peer(peer)]
+                "public_key": b64encode(peer.public_key.key_to_bin()).decode(),
+                "services": [b64encode(s).decode() for s in network.get_services_for_peer(peer)]
             }
             for peer in peer_list
         }})

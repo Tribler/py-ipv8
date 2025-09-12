@@ -9,9 +9,9 @@ from typing import Any
 from .keyvault.crypto import default_eccrypto
 
 DISPERSY_BOOTSTRAPPER: dict[Any, Any] = {
-    'class': "DispersyBootstrapper",
-    'init': {
-        'ip_addresses': [
+    "class": "DispersyBootstrapper",
+    "init": {
+        "ip_addresses": [
             ("130.161.119.206", 6421),
             ("130.161.119.206", 6422),
             ("131.180.27.155", 6423),
@@ -26,114 +26,114 @@ DISPERSY_BOOTSTRAPPER: dict[Any, Any] = {
             ("130.161.119.201", 6527),
             ("130.161.119.201", 6528)
         ],
-        'dns_addresses': [
+        "dns_addresses": [
             ("dispersy1.tribler.org", 6421), ("dispersy1.st.tudelft.nl", 6421),
             ("dispersy2.tribler.org", 6422), ("dispersy2.st.tudelft.nl", 6422),
             ("dispersy3.tribler.org", 6423), ("dispersy3.st.tudelft.nl", 6423),
             ("dispersy4.tribler.org", 6424)
         ],
-        'bootstrap_timeout': 30.0
+        "bootstrap_timeout": 30.0
     }
 }
 
 default: dict[Any, Any] = {
-    'interfaces': [
+    "interfaces": [
         {
-            'interface': "UDPIPv4",
-            'ip': "0.0.0.0",
-            'port': 8090
+            "interface": "UDPIPv4",
+            "ip": "0.0.0.0",
+            "port": 8090
         }
     ],
-    'keys': [
+    "keys": [
         {
-            'alias': "anonymous id",
-            'generation': "curve25519",
-            'file': "ec_multichain.pem"
+            "alias": "anonymous id",
+            "generation": "curve25519",
+            "file": "ec_multichain.pem"
         }
     ],
-    'logger': {
-        'level': "INFO"
+    "logger": {
+        "level": "INFO"
     },
-    'working_directory': ".",
-    'walker_interval': 0.5,
-    'overlays': [
+    "working_directory": ".",
+    "walker_interval": 0.5,
+    "overlays": [
         {
-            'class': 'DiscoveryCommunity',
-            'key': "anonymous id",
-            'walkers': [
+            "class": "DiscoveryCommunity",
+            "key": "anonymous id",
+            "walkers": [
                 {
-                    'strategy': "RandomWalk",
-                    'peers': 20,
-                    'init': {
-                        'timeout': 3.0
+                    "strategy": "RandomWalk",
+                    "peers": 20,
+                    "init": {
+                        "timeout": 3.0
                     }
                 },
                 {
-                    'strategy': "RandomChurn",
-                    'peers': -1,
-                    'init': {
-                        'sample_size': 8,
-                        'ping_interval': 10.0,
-                        'inactive_time': 27.5,
-                        'drop_time': 57.5
+                    "strategy": "RandomChurn",
+                    "peers": -1,
+                    "init": {
+                        "sample_size": 8,
+                        "ping_interval": 10.0,
+                        "inactive_time": 27.5,
+                        "drop_time": 57.5
                     }
                 },
                 {
-                    'strategy': "PeriodicSimilarity",
-                    'peers': -1,
-                    'init': {}
+                    "strategy": "PeriodicSimilarity",
+                    "peers": -1,
+                    "init": {}
                 }
             ],
-            'bootstrappers': [DISPERSY_BOOTSTRAPPER.copy()],
-            'initialize': {},
-            'on_start': []
+            "bootstrappers": [DISPERSY_BOOTSTRAPPER.copy()],
+            "initialize": {},
+            "on_start": []
         },
         {
-            'class': 'HiddenTunnelCommunity',
-            'key': "anonymous id",
-            'walkers': [
+            "class": "HiddenTunnelCommunity",
+            "key": "anonymous id",
+            "walkers": [
                 {
-                    'strategy': "RandomWalk",
-                    'peers': 20,
-                    'init': {
-                        'timeout': 3.0
+                    "strategy": "RandomWalk",
+                    "peers": 20,
+                    "init": {
+                        "timeout": 3.0
                     }
                 }
             ],
-            'bootstrappers': [DISPERSY_BOOTSTRAPPER.copy()],
-            'initialize': {
-                'min_circuits': 1,
-                'max_circuits': 1,
-                'max_joined_circuits': 100,
-                'max_time': 10 * 60,
-                'max_time_inactive': 20,
-                'max_traffic': 250 * 1024 * 1024,
-                'dht_lookup_interval': 30
+            "bootstrappers": [DISPERSY_BOOTSTRAPPER.copy()],
+            "initialize": {
+                "min_circuits": 1,
+                "max_circuits": 1,
+                "max_joined_circuits": 100,
+                "max_time": 10 * 60,
+                "max_time_inactive": 20,
+                "max_traffic": 250 * 1024 * 1024,
+                "dht_lookup_interval": 30
             },
-            'on_start': [
-                ('build_tunnels', 1)
+            "on_start": [
+                ("build_tunnels", 1)
             ]
         },
         {
-            'class': 'DHTDiscoveryCommunity',
-            'key': "anonymous id",
-            'walkers': [
+            "class": "DHTDiscoveryCommunity",
+            "key": "anonymous id",
+            "walkers": [
                 {
-                    'strategy': "RandomWalk",
-                    'peers': 20,
-                    'init': {
-                        'timeout': 3.0
+                    "strategy": "RandomWalk",
+                    "peers": 20,
+                    "init": {
+                        "timeout": 3.0
                     }
                 },
                 {
-                    'strategy': "PingChurn",
-                    'peers': -1,
-                    'init': {}
+                    "strategy": "PingChurn",
+                    "peers": -1,
+                    "init": {}
                 }
             ],
-            'bootstrappers': [DISPERSY_BOOTSTRAPPER.copy()],
-            'initialize': {},
-            'on_start': []
+            "bootstrappers": [DISPERSY_BOOTSTRAPPER.copy()],
+            "initialize": {},
+            "on_start": []
         }
     ]
 }
@@ -168,7 +168,7 @@ class Strategy(enum.Enum):
         """
         Get the known default DiscoveryStrategy names.
         """
-        return list(typing.cast(dict[str, Any], cls.__members__))
+        return list(typing.cast("dict[str, Any]", cls.__members__))
 
 
 class WalkerDefinition(typing.NamedTuple):
@@ -197,7 +197,7 @@ class Bootstrapper(enum.Enum):
         """
         Get the known default Bootstrapper names.
         """
-        return list(typing.cast(dict[str, Any], cls.__members__))
+        return list(typing.cast("dict[str, Any]", cls.__members__))
 
 
 class BootstrapperDefinition(typing.NamedTuple):
@@ -211,7 +211,7 @@ class BootstrapperDefinition(typing.NamedTuple):
     init: dict
 
 
-default_bootstrap_defs = [BootstrapperDefinition(Bootstrapper.DispersyBootstrapper, DISPERSY_BOOTSTRAPPER['init'])]
+default_bootstrap_defs = [BootstrapperDefinition(Bootstrapper.DispersyBootstrapper, DISPERSY_BOOTSTRAPPER["init"])]
 """
 Shortcut for the most common ConfigBuilder default bootstrapper settings.
 """
@@ -236,42 +236,42 @@ class ConfigBuilder:
         Essentially this only checks the `config` variable for errors, use that instead if you're confident you never
         make any errors.
         """
-        assert self.config.get('keys') is not None, "Missing keys in config!"
-        assert self.config.get('logger') is not None, "Missing logger in config!"
-        assert self.config.get('walker_interval') is not None, "Missing walker_interval in config!"
-        assert self.config.get('overlays') is not None, "Missing overlays in config!"
-        assert self.config.get('working_directory') is not None, "Missing working_directory in config!"
+        assert self.config.get("keys") is not None, "Missing keys in config!"
+        assert self.config.get("logger") is not None, "Missing logger in config!"
+        assert self.config.get("walker_interval") is not None, "Missing walker_interval in config!"
+        assert self.config.get("overlays") is not None, "Missing overlays in config!"
+        assert self.config.get("working_directory") is not None, "Missing working_directory in config!"
 
-        assert self.config['walker_interval'] >= 0
+        assert self.config["walker_interval"] >= 0
 
-        for overlay in self.config['overlays']:
-            assert overlay.get('class') is not None, "Missing class in overlay config!"
-            assert overlay.get('key') is not None, f"Missing key in overlay config of {overlay['class']}!"
-            assert overlay.get('walkers') is not None, f"Missing walkers in overlay config of {overlay['class']}!"
-            assert overlay.get('bootstrappers') is not None,\
+        for overlay in self.config["overlays"]:
+            assert overlay.get("class") is not None, "Missing class in overlay config!"
+            assert overlay.get("key") is not None, f"Missing key in overlay config of {overlay['class']}!"
+            assert overlay.get("walkers") is not None, f"Missing walkers in overlay config of {overlay['class']}!"
+            assert overlay.get("bootstrappers") is not None,\
                 f"Missing bootstrappers in overlay config of {overlay['class']}!"
-            assert overlay.get('initialize') is not None,\
+            assert overlay.get("initialize") is not None,\
                 f"Missing initialize in overlay config of {overlay['class']}!"
-            assert overlay.get('on_start') is not None, f"Missing on_start in overlay config of {overlay['class']}!"
-            assert any(key['alias'] == overlay['key'] for key in self.config['keys']),\
+            assert overlay.get("on_start") is not None, f"Missing on_start in overlay config of {overlay['class']}!"
+            assert any(key["alias"] == overlay["key"] for key in self.config["keys"]),\
                 f"Unknown key alias {overlay['key']} in overlay config of {overlay['class']}!"
-            assert all(isinstance(key, str) for key in overlay['initialize']),\
+            assert all(isinstance(key, str) for key in overlay["initialize"]),\
                 f"Keyword argument mapping keys must be strings in overlay config of {overlay['class']}!"
-            assert all(isinstance(entry[0], str) for entry in overlay['on_start']),\
+            assert all(isinstance(entry[0], str) for entry in overlay["on_start"]),\
                 f"Start methods must be strings in overlay config of {overlay['class']}!"
-            for walker in overlay['walkers']:
-                assert walker.get('strategy') is not None,\
+            for walker in overlay["walkers"]:
+                assert walker.get("strategy") is not None,\
                     f"Missing strategy class in strategy config of {overlay['class']}!"
-                assert walker.get('peers') is not None,\
+                assert walker.get("peers") is not None,\
                     f"Missing peers in {walker['strategy']} config of {overlay['class']}!"
-                assert walker.get('init') is not None,\
+                assert walker.get("init") is not None,\
                     f"Missing init in {walker['strategy']} config of {overlay['class']}!"
-            for bootstrapper in overlay['bootstrappers']:
-                assert bootstrapper.get('class') is not None,\
+            for bootstrapper in overlay["bootstrappers"]:
+                assert bootstrapper.get("class") is not None,\
                     f"Missing bootstrapper class in bootstrapper config of {overlay['class']}!"
-                assert bootstrapper.get('init') is not None,\
+                assert bootstrapper.get("init") is not None,\
                     f"Missing init in {bootstrapper['class']} config of {overlay['class']}!"
-                assert bootstrapper['class'] in Bootstrapper.values()
+                assert bootstrapper["class"] in Bootstrapper.values()
 
         return self.config
 
@@ -279,14 +279,14 @@ class ConfigBuilder:
         """
         Remove all keys in the current configuration.
         """
-        self.config['keys'] = []
+        self.config["keys"] = []
         return self
 
     def clear_overlays(self) -> ConfigBuilder:
         """
         Remove all overlays in the current configuration.
         """
-        self.config['overlays'] = []
+        self.config["overlays"] = []
         return self
 
     def set_address(self, address: str, interface: str = "UDPIPv4") -> ConfigBuilder:
@@ -301,15 +301,15 @@ class ConfigBuilder:
         :param address: the address to attempt to bind to.
         :param interface: the interface to use (currently "UDPIPv4" or "UDPIPv6").
         """
-        existing = ([spec for spec in self.config['interfaces'] if spec['interface'] == interface]
-                    if 'interfaces' in self.config else [])
-        destination = existing[0] if existing else {'interface': interface}
-        destination['ip'] = address
+        existing = ([spec for spec in self.config["interfaces"] if spec["interface"] == interface]
+                    if "interfaces" in self.config else [])
+        destination = existing[0] if existing else {"interface": interface}
+        destination["ip"] = address
         if not existing:
-            if 'interfaces' in self.config:
-                self.config['interfaces'].append(destination)
+            if "interfaces" in self.config:
+                self.config["interfaces"].append(destination)
             else:
-                self.config['interfaces'] = [destination]
+                self.config["interfaces"] = [destination]
         return self
 
     def set_port(self, port: int, interface: str = "UDPIPv4") -> ConfigBuilder:
@@ -320,24 +320,24 @@ class ConfigBuilder:
         :param port: the port to attempt to bind to.
         :param interface: the interface to use (currently "UDPIPv4" or "UDPIPv6").
         """
-        existing = ([spec for spec in self.config['interfaces'] if spec['interface'] == interface]
-                    if 'interfaces' in self.config else [])
-        destination = existing[0] if existing else {'interface': interface}
-        destination['port'] = port
+        existing = ([spec for spec in self.config["interfaces"] if spec["interface"] == interface]
+                    if "interfaces" in self.config else [])
+        destination = existing[0] if existing else {"interface": interface}
+        destination["port"] = port
         if not existing:
-            if 'interfaces' in self.config:
-                self.config['interfaces'].append(destination)
+            if "interfaces" in self.config:
+                self.config["interfaces"].append(destination)
             else:
-                self.config['interfaces'] = [destination]
+                self.config["interfaces"] = [destination]
         return self
 
     def set_log_level(self, log_level: str) -> ConfigBuilder:
         """
         Set the log level for all of IPv8's loggers.
-        Choose from 'CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG' or 'NOTSET'.
+        Choose from "CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG" or "NOTSET".
         """
-        assert log_level in ['CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG', 'NOTSET']
-        self.config['logger'] = {'level': log_level}
+        assert log_level in ["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG", "NOTSET"]
+        self.config["logger"] = {"level": log_level}
         return self
 
     def set_working_directory(self, folder_path: str) -> ConfigBuilder:
@@ -346,7 +346,7 @@ class ConfigBuilder:
 
         Individual settings may override this working directory, but it serves as the base working directory.
         """
-        self.config['working_directory'] = folder_path
+        self.config["working_directory"] = folder_path
         return self
 
     def set_walker_interval(self, interval: float) -> ConfigBuilder:
@@ -357,7 +357,7 @@ class ConfigBuilder:
         Setting this interval too low will choke the event thread and decrease the QoS of IPv8 overlays.
         Setting this interval too high will decrease the QoS of IPv8 overlays due to lack of content.
         """
-        self.config['walker_interval'] = interval
+        self.config["walker_interval"] = interval
         return self
 
     def add_key(self, alias: str, generation: str, file_path: str) -> ConfigBuilder:
@@ -366,15 +366,15 @@ class ConfigBuilder:
 
         If a key already exists at the given file path, that will be loaded instead of generating a new key.
         """
-        assert generation in ['curve25519', 'very-low', 'low', 'medium', 'high']
-        if 'keys' in self.config:
-            self.config['keys'] = [key for key in self.config['keys'] if key["alias"] != alias]
+        assert generation in ["curve25519", "very-low", "low", "medium", "high"]
+        if "keys" in self.config:
+            self.config["keys"] = [key for key in self.config["keys"] if key["alias"] != alias]
         else:
-            self.config['keys'] = []
-        self.config['keys'].append({
-            'alias': alias,
-            'generation': generation,
-            'file': file_path
+            self.config["keys"] = []
+        self.config["keys"].append({
+            "alias": alias,
+            "generation": generation,
+            "file": file_path
         })
         return self
 
@@ -388,16 +388,12 @@ class ConfigBuilder:
         :param key_bin_b64: the base64 encoded private key material
         :param file_path: the optional file path to save the key to
         """
-        if 'keys' in self.config:
-            self.config['keys'] = [key for key in self.config['keys'] if key['alias'] != alias]
+        if "keys" in self.config:
+            self.config["keys"] = [key for key in self.config["keys"] if key["alias"] != alias]
         else:
-            self.config['keys'] = []
-        key_config = {
-            'alias': alias,
-            'bin': key_bin_b64
-        }
-        key_config['file'] = file_path or ""
-        self.config['keys'].append(key_config)
+            self.config["keys"] = []
+        key_config = {"alias": alias, "bin": key_bin_b64, "file": file_path or ""}
+        self.config["keys"].append(key_config)
         return self
 
     def add_ephemeral_key(self, alias: str) -> ConfigBuilder:
@@ -424,12 +420,12 @@ class ConfigBuilder:
 
         The default communities include:
 
-         - 'AttestationCommunity'
-         - 'DiscoveryCommunity'
-         - 'HiddenTunnelCommunity'
-         - 'IdentityCommunity'
-         - 'TunnelCommunity'
-         - 'DHTDiscoveryCommunity'
+         - "AttestationCommunity"
+         - "DiscoveryCommunity"
+         - "HiddenTunnelCommunity"
+         - "IdentityCommunity"
+         - "TunnelCommunity"
+         - "DHTDiscoveryCommunity"
 
         The initialize argument is a key-value mapping passed to the constructor (__init__) of the overlay.
 
@@ -441,29 +437,37 @@ class ConfigBuilder:
         Lastly, IPv8 is capable of loading two distinct instances of the same overlay class. Set ``allow_duplicate``
         to explicitly allow this (usually this is programmer error).
         """
-        if 'overlays' in self.config:
+        if "overlays" in self.config:
             if not allow_duplicate:
-                self.config['overlays'] = [overlay for overlay in self.config['overlays']
+                self.config["overlays"] = [overlay for overlay in self.config["overlays"]
                                            if overlay["class"] != overlay_class]
         else:
-            self.config['overlays'] = []
-        self.config['overlays'].append({
-            'class': overlay_class,
-            'key': key_alias,
-            'walkers': [{
-                'strategy': walker.strategy.value,
-                'peers': walker.peers,
-                'init': walker.init
+            self.config["overlays"] = []
+        self.config["overlays"].append({
+            "class": overlay_class,
+            "key": key_alias,
+            "walkers": [{
+                "strategy": walker.strategy.value,
+                "peers": walker.peers,
+                "init": walker.init
             } for walker in walkers],
-            'bootstrappers': [{
-                'class': bootstrapper.bootstrapper.value,
-                'init': bootstrapper.init
+            "bootstrappers": [{
+                "class": bootstrapper.bootstrapper.value,
+                "init": bootstrapper.init
             } for bootstrapper in bootstrappers],
-            'initialize': initialize,
-            'on_start': on_start
+            "initialize": initialize,
+            "on_start": on_start
         })
         return self
 
 
-__all__ = ['Bootstrapper', 'BootstrapperDefinition', 'ConfigBuilder', 'DISPERSY_BOOTSTRAPPER', 'Strategy',
-           'WalkerDefinition', 'default_bootstrap_defs', 'get_default_configuration']
+__all__ = [
+    "DISPERSY_BOOTSTRAPPER",
+    "Bootstrapper",
+    "BootstrapperDefinition",
+    "ConfigBuilder",
+    "Strategy",
+    "WalkerDefinition",
+    "default_bootstrap_defs",
+    "get_default_configuration",
+]

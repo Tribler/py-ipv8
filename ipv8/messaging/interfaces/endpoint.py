@@ -13,7 +13,7 @@ from .lan_addresses.interfaces import get_lan_addresses
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Iterable
 
-    from ...types import Address
+    from .udp.endpoint import Address
 
 
 class Endpoint(metaclass=abc.ABCMeta):
@@ -54,9 +54,9 @@ class Endpoint(metaclass=abc.ABCMeta):
         """
         if not isinstance(listener, EndpointListener):
             raise IllegalEndpointListenerError(listener)
-        if not len(prefix) == self.prefixlen:
-            raise RuntimeError("Tried to register a prefix of length %d, required to be of length %d!"
-                               % (len(prefix), self.prefixlen))
+        if len(prefix) != self.prefixlen:
+            msg = f"Tried to register a prefix of length {len(prefix)}, required to be of length {self.prefixlen}!"
+            raise RuntimeError(msg)
         with self.listener_update_lock:
             self._prefix_map[prefix] = [*self._prefix_map.get(prefix, []), listener, *self._listeners]
 
@@ -150,7 +150,7 @@ class EndpointListener(metaclass=abc.ABCMeta):
 
         self.endpoint = endpoint
 
-        self._my_estimated_lan = None
+        self._my_estimated_lan: Address | None = None
         self.my_estimated_wan = self.my_estimated_lan
 
     @property
@@ -296,7 +296,7 @@ class DataTooBigException(Exception):
 
     def __init__(self, size: int, max_size: int) -> None:
         """
-        Create a a new exception for when the given size (in bytes) exceeds the given maximum size (in bytes).
+        Create a new exception for when the given size (in bytes) exceeds the given maximum size (in bytes).
         """
         super().__init__(f"Tried to send packet of size {size} > MAX_SIZE({max_size})")
 

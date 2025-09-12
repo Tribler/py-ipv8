@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from ..messaging.lazy_payload import VariablePayload, VariablePayloadWID, vp_compile
 from ..messaging.serialization import Packer, Serializer
-from ..types import Address
 from .routing import Node
+
+if TYPE_CHECKING:
+    from ..messaging.interfaces.udp.endpoint import Address
 
 
 @vp_compile
@@ -15,8 +17,8 @@ class PingRequestPayload(VariablePayloadWID):
     """
 
     msg_id = 1
-    names = ['identifier']
-    format_list = ['I']
+    names = ["identifier"]
+    format_list = ["I"]
 
     identifier: int
 
@@ -28,8 +30,8 @@ class PingResponsePayload(VariablePayloadWID):
     """
 
     msg_id = 2
-    names = ['identifier']
-    format_list = ['I']
+    names = ["identifier"]
+    format_list = ["I"]
 
     identifier: int
 
@@ -41,8 +43,8 @@ class StoreRequestPayload(VariablePayloadWID):
     """
 
     msg_id = 3
-    names = ['identifier', 'token', 'target', 'values']
-    format_list = ['I', '20s', '20s', 'varlenH-list']
+    names = ["identifier", "token", "target", "values"]
+    format_list = ["I", "20s", "20s", "varlenH-list"]
 
     identifier: int
     token: bytes
@@ -57,8 +59,8 @@ class StoreResponsePayload(VariablePayloadWID):
     """
 
     msg_id = 4
-    names = ['identifier']
-    format_list = ['I']
+    names = ["identifier"]
+    format_list = ["I"]
 
     identifier: int
 
@@ -71,8 +73,8 @@ class FindRequestPayload(VariablePayloadWID):
     """
 
     msg_id = 5
-    names = ['identifier', 'lan_address', 'target', 'offset', 'force_nodes']
-    format_list = ['I', 'ip_address', '20s', 'I', '?']
+    names = ["identifier", "lan_address", "target", "offset", "force_nodes"]
+    format_list = ["I", "ip_address", "20s", "I", "?"]
 
     identifier: int
     lan_address: Address
@@ -88,8 +90,8 @@ class FindResponsePayload(VariablePayloadWID):
     """
 
     msg_id = 6
-    names = ['identifier', 'token', 'values', 'nodes']
-    format_list = ['I', '20s', 'varlenH-list', 'node-list']
+    names = ["identifier", "token", "values", "nodes"]
+    format_list = ["I", "20s", "varlenH-list", "node-list"]
 
     identifier: int
     token: bytes
@@ -104,8 +106,8 @@ class StorePeerRequestPayload(VariablePayloadWID):
     """
 
     msg_id = 7
-    names = ['identifier', 'token', 'target']
-    format_list = ['I', '20s', '20s']
+    names = ["identifier", "token", "target"]
+    format_list = ["I", "20s", "20s"]
 
     identifier: int
     token: bytes
@@ -119,8 +121,8 @@ class StorePeerResponsePayload(VariablePayloadWID):
     """
 
     msg_id = 8
-    names = ['identifier']
-    format_list = ['I']
+    names = ["identifier"]
+    format_list = ["I"]
 
     identifier: int
 
@@ -132,8 +134,8 @@ class ConnectPeerRequestPayload(VariablePayloadWID):
     """
 
     msg_id = 9
-    names = ['identifier', 'lan_address', 'target']
-    format_list = ['I', 'ip_address', '20s']
+    names = ["identifier", "lan_address", "target"]
+    format_list = ["I", "ip_address", "20s"]
 
     identifier: int
     lan_address: Address
@@ -147,8 +149,8 @@ class ConnectPeerResponsePayload(VariablePayloadWID):
     """
 
     msg_id = 10
-    names = ['identifier', 'nodes']
-    format_list = ['I', 'node-list']
+    names = ["identifier", "nodes"]
+    format_list = ["I", "node-list"]
 
     identifier: int
     nodes: list[Node]
@@ -157,11 +159,11 @@ class ConnectPeerResponsePayload(VariablePayloadWID):
 @vp_compile
 class StrPayload(VariablePayload):
     """
-    Paylaod to pack bytes.
+    Payload to pack bytes.
     """
 
-    names = ['data']
-    format_list = ['raw']
+    names = ["data"]
+    format_list = ["raw"]
 
     data: bytes
 
@@ -172,8 +174,8 @@ class SignedStrPayload(VariablePayload):
     Payload to pack bytes with a version and a public key.
     """
 
-    names = ['data', 'version', 'public_key']
-    format_list = ['varlenH', 'I', 'varlenH']
+    names = ["data", "version", "public_key"]
+    format_list = ["varlenH", "I", "varlenH"]
 
     data: bytes
     version: int
@@ -195,14 +197,14 @@ class NodePacker(Packer):
         """
         Pack the given node to bytes.
         """
-        return self.serializer.pack('ip_address', node.address) + \
-            self.serializer.pack('varlenH', node.public_key.key_to_bin())
+        return self.serializer.pack("ip_address", node.address) + \
+            self.serializer.pack("varlenH", node.public_key.key_to_bin())
 
     def unpack(self, data: bytes, offset: int, unpack_list: list, *args: object) -> int:
         """
         Unpack the node format from the given offset in the data and add the unpacked object to the list.
         """
-        address, offset = self.serializer.unpack('ip_address', data, offset)
-        key, offset = self.serializer.unpack('varlenH', data, offset)
-        unpack_list.append(Node(cast(bytes, key), address=cast(Address, address)))
+        address, offset = self.serializer.unpack("ip_address", data, offset)
+        key, offset = self.serializer.unpack("varlenH", data, offset)
+        unpack_list.append(Node(cast("bytes", key), address=cast("Address", address)))
         return offset

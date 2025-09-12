@@ -1,11 +1,13 @@
 from base64 import decodebytes
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from ...keyvault.crypto import default_eccrypto
-from ...keyvault.private.libnaclkey import LibNaCLSK
 from ...keyvault.private.m2crypto import M2CryptoSK
 from ...keyvault.public.m2crypto import M2CryptoPK
 from ..base import TestBase
+
+if TYPE_CHECKING:
+    from ...keyvault.private.libnaclkey import LibNaCLSK
 
 
 class TestSerialization(TestBase):
@@ -19,8 +21,8 @@ class TestSerialization(TestBase):
         """
         super().setUp()
         self.ec = default_eccrypto
-        self.key = cast(M2CryptoSK, self.ec.generate_key("very-low"))
-        self.key_nacl = cast(LibNaCLSK, self.ec.generate_key("curve25519"))
+        self.key = cast("M2CryptoSK", self.ec.generate_key("very-low"))
+        self.key_nacl = cast("LibNaCLSK", self.ec.generate_key("curve25519"))
 
     def test_private_to_bin(self) -> None:
         """

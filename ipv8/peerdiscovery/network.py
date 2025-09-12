@@ -9,13 +9,15 @@ from threading import RLock
 from typing import TYPE_CHECKING, NamedTuple, cast
 
 from ..messaging.serialization import default_serializer
-from ..types import Address
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    from ..types import Overlay, Peer
+    from ..messaging.interfaces.udp.endpoint import Address
+    from ..overlay import Overlay
+    from ..peer import Peer
 
+logger = logging.getLogger(__name__)
 
 MID = bytes
 PublicKeyMat = bytes
@@ -112,7 +114,7 @@ class Network:
         :param address: the address to check for.
         :returns: True iff the address is both known and known to support new-style introductions.
         """
-        return (self._all_addresses.get(address) or WalkableAddress(b'', None, False)).new_style
+        return (self._all_addresses.get(address) or WalkableAddress(b"", None, False)).new_style
 
     def discover_address(self,
                          peer: Peer,
@@ -187,14 +189,14 @@ class Network:
             if any(address in self._all_addresses for address in peer.addresses.values()):
                 if peer not in self.verified_peers:
                     # This should always happen, unless someone edits the verified_peers dict directly.
-                    # This would be a programmer 'error', but we will allow it.
+                    # This would be a programmer "error", but we will allow it.
                     self.verified_peers.add(peer)
                     self.verified_by_public_key_bin[peer.public_key.key_to_bin()] = peer
                     list(map(methodcaller("on_peer_added", peer), self.peer_observers))
             elif all(address not in self.blacklist for address in peer.addresses.values()):
                 for address in peer.addresses.values():
                     if address not in self._all_addresses:
-                        self._all_addresses[address] = WalkableAddress(b'', None, False)
+                        self._all_addresses[address] = WalkableAddress(b"", None, False)
                 if peer not in self.verified_peers:
                     self.verified_peers.add(peer)
                     self.verified_by_public_key_bin[peer.public_key.key_to_bin()] = peer
@@ -365,8 +367,8 @@ class Network:
         with self.graph_lock:
             out = b""
             for peer in self.verified_peers:
-                if peer.address and peer.address != ('0.0.0.0', 0):
-                    out += default_serializer.pack('address', peer.address)
+                if peer.address and peer.address != ("0.0.0.0", 0):
+                    out += default_serializer.pack("address", peer.address)
             return out
 
     def load_snapshot(self, snapshot: bytes) -> None:
@@ -383,15 +385,15 @@ class Network:
             while offset < snaplen:
                 previous_offset = offset
                 try:
-                    address, offset = default_serializer.unpack('address', snapshot, offset)
-                    address = cast(Address, address)
-                    self._all_addresses[address] = WalkableAddress(b'', None, False)
+                    address, offset = default_serializer.unpack("address", snapshot, offset)
+                    address = cast("Address", address)
+                    self._all_addresses[address] = WalkableAddress(b"", None, False)
                 except Exception:
                     if offset <= previous_offset:
                         # We got stuck, or even went back in time.
-                        logging.exception("Snapshot loading got stuck! Aborting snapshot load.")
+                        logger.exception("Snapshot loading got stuck! Aborting snapshot load.")
                         break
-                    logging.warning("Snapshot failed on entry, skipping %s!", repr(address))
+                    logger.warning("Snapshot failed on entry, skipping %s!", repr(address))
 
     def add_peer_observer(self, observer: PeerObserver) -> None:
         """

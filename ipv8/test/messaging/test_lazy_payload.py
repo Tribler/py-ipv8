@@ -1,16 +1,9 @@
 from __future__ import annotations
 
-from sys import version_info
-from unittest import skipIf
-
 from ...messaging.lazy_payload import VariablePayload, vp_compile
 from ...messaging.payload import Payload
 from ...messaging.serialization import default_serializer
 from ..base import TestBase
-
-skipUnlessPython310 = skipIf(version_info[0] < 4  # noqa: N816
-                             and not (version_info[0] == 3 and version_info[1] >= 10),  # noqa: YTT201, YTT203
-                             reason="Test only available for Python 3.10 and later.")
 
 
 class A(VariablePayload):
@@ -18,14 +11,14 @@ class A(VariablePayload):
     A basic VariablePayload.
     """
 
-    format_list = ['I', 'H']
+    format_list = ["I", "H"]
     names = ["a", "b"]
 
 
 @vp_compile
 class CompiledA(A):
     """
-    Same as A but compiled.
+    Same as A, but compiled.
     """
 
 
@@ -34,8 +27,8 @@ class BitsPayload(VariablePayload):
     An unbalanced VariablePayload.
     """
 
-    format_list = ['bits']
-    names = ['flag0', 'flag1', 'flag2', 'flag3', 'flag4', 'flag5', 'flag6', 'flag7']
+    format_list = ["bits"]
+    names = ["flag0", "flag1", "flag2", "flag3", "flag4", "flag5", "flag6", "flag7"]
 
 
 @vp_compile
@@ -160,7 +153,7 @@ class NewC(VariablePayload, OldA):
     """
 
     format_list = [*OldA.format_list, "B"]
-    names = ['a', 'b', 'c']
+    names = ["a", "b", "c"]
 
 
 @vp_compile
@@ -184,7 +177,7 @@ class F(VariablePayload):
     A VariablePayload with a default value.
     """
 
-    format_list = ['I', 'H']
+    format_list = ["I", "H"]
     names = ["a", "b"]
 
     def __init__(self, a: int, b: int = 3, **kwargs) -> None:
@@ -200,7 +193,7 @@ class CompiledF(VariablePayload):
     A compiled VariablePayload with a default value.
     """
 
-    format_list = ['I', 'H']
+    format_list = ["I", "H"]
     names = ["a", "b"]
 
     def __init__(self, a: int, b: int = 3, **kwargs) -> None:
@@ -212,7 +205,7 @@ class CompiledF(VariablePayload):
 
 class TestVariablePayload(TestBase):
     """
-    Tests for VariablePaylods.
+    Tests for VariablePayloads.
     """
 
     def _pack_and_unpack(self, payload: type[Payload], instance: Payload) -> Payload:
@@ -438,7 +431,7 @@ class TestVariablePayload(TestBase):
 
         self.assertEqual(d.a, 0)
         self.assertEqual(deserialized.a, 0)
-        self.assertEqual(serialized, b'\x00\x00\x00\x01')
+        self.assertEqual(serialized, b"\x00\x00\x00\x01")
 
     def test_custom_pack_compiled(self) -> None:
         """
@@ -451,7 +444,7 @@ class TestVariablePayload(TestBase):
 
         self.assertEqual(d.a, 0)
         self.assertEqual(deserialized.a, 0)
-        self.assertEqual(serialized, b'\x00\x00\x00\x01')
+        self.assertEqual(serialized, b"\x00\x00\x00\x01")
 
     def test_payload_list(self) -> None:
         """
@@ -502,7 +495,6 @@ class TestVariablePayload(TestBase):
         self.assertEqual(1, payload.a)
         self.assertEqual(7, payload.b)
 
-    @skipUnlessPython310
     def test_plain_mismatch_list(self) -> None:
         """
         Check if a VariablePayload instance does not match anything but its own pattern.
@@ -513,19 +505,14 @@ class TestVariablePayload(TestBase):
         payload = BitsPayload(False, True, False, True, False, True, False, True)
         local_scope = locals()
 
-        # The following will crash all interpreters < 3.10 if not contained in a string.
-        exec(  # noqa: S102
-            compile("""
-match payload:
-    case [False, True, False, True, False, True, False, True]:
-        matched = True
-    case _:
-        matched = False
-""", '<string>', 'exec'), globals(), local_scope)
+        match payload:
+            case [False, True, False, True, False, True, False, True]:
+                matched = True
+            case _:
+                matched = False
 
-        self.assertFalse(local_scope["matched"])
+                self.assertFalse(matched)
 
-    @skipUnlessPython310
     def test_compiled_mismatch_list(self) -> None:
         """
         Check if a compiled VariablePayload instance does not match anything but its own pattern.
@@ -536,19 +523,14 @@ match payload:
         payload = CompiledBitsPayload(False, True, False, True, False, True, False, True)
         local_scope = locals()
 
-        # The following will crash all interpreters < 3.10 if not contained in a string.
-        exec(  # noqa: S102
-            compile("""
-match payload:
-    case [False, True, False, True, False, True, False, True]:
-        matched = True
-    case _:
-        matched = False
-""", '<string>', 'exec'), globals(), local_scope)
+        match payload:
+            case [False, True, False, True, False, True, False, True]:
+                matched = True
+            case _:
+                matched = False
 
-        self.assertFalse(local_scope["matched"])
+        self.assertFalse(matched)
 
-    @skipUnlessPython310
     def test_plain_match_pattern(self) -> None:
         """
         Check if a VariablePayload instance matches its own pattern.
@@ -556,19 +538,14 @@ match payload:
         payload = BitsPayload(False, True, False, True, False, True, False, True)
         local_scope = locals()
 
-        # The following will crash all interpreters < 3.10 if not contained in a string.
-        exec(  # noqa: S102
-            compile("""
-match payload:
-    case BitsPayload(False, True, False, True, False, True, False, True):
-        matched = True
-    case _:
-        matched = False
-""", '<string>', 'exec'), globals(), local_scope)
+        match payload:
+            case BitsPayload(False, True, False, True, False, True, False, True):
+                matched = True
+            case _:
+                matched = False
 
-        self.assertTrue(local_scope["matched"])
+        self.assertTrue(matched)
 
-    @skipUnlessPython310
     def test_compiled_match_pattern(self) -> None:
         """
         Check if a compiled VariablePayload instance matches its own pattern.
@@ -576,14 +553,10 @@ match payload:
         payload = CompiledBitsPayload(False, True, False, True, False, True, False, True)
         local_scope = locals()
 
-        # The following will crash all interpreters < 3.10 if not contained in a string.
-        exec(  # noqa: S102
-            compile("""
-match payload:
-    case CompiledBitsPayload(False, True, False, True, False, True, False, True):
-        matched = True
-    case _:
-        matched = False
-""", '<string>', 'exec'), globals(), local_scope)
+        match payload:
+            case CompiledBitsPayload(False, True, False, True, False, True, False, True):
+                matched = True
+            case _:
+                matched = False
 
-        self.assertTrue(local_scope["matched"])
+        self.assertTrue(matched)

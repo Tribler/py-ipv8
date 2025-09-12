@@ -21,7 +21,7 @@ class TestAttestation(TestBase):
     Tests related to boneh attestations.
     """
 
-    private_key = BonehPrivateKey.unserialize(unhexlify('01011d01011401011101011c01011c01010f010103'))
+    private_key = BonehPrivateKey.unserialize(unhexlify("01011d01011401011101011c01011c01010f010103"))
 
     def test_generate_minverse_group(self) -> None:
         """

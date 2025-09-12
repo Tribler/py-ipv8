@@ -16,9 +16,10 @@ from .endpoint import AutoMockEndpoint
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Generator
 
+    from ...community import Community
     from ...messaging.anonymization.community import TunnelCommunity
+    from ...overlay import Overlay
     from ...peerdiscovery.discovery import DiscoveryStrategy
-    from ...types import Community, Overlay
 
 
 class MockTunnelEndpoint(AutoMockEndpoint):

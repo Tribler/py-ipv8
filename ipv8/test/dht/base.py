@@ -1,8 +1,8 @@
 from typing import TypeVar
 
+from ...dht.community import DHTCommunity
 from ...dht.routing import Node, RoutingTable
 from ...dht.storage import Storage
-from ...types import DHTCommunity
 from ..base import TestBase
 
 OT = TypeVar("OT", bound=DHTCommunity)

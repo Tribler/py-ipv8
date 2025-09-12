@@ -13,8 +13,7 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDFExpand
 from libnacl.aead import AEAD
 
 from ...keyvault.crypto import ECCrypto, LibNaCLPK
-from ...keyvault.private.libnaclkey import LibNaCLSK
-from ..interfaces.endpoint import EndpointListener
+from ..interfaces.endpoint import Endpoint, EndpointListener
 from .payload import NO_CRYPTO_PACKETS, CellPayload
 from .tunnel import (
     BACKWARD,
@@ -27,9 +26,9 @@ from .tunnel import (
 )
 
 if TYPE_CHECKING:
-    from ipv8.types import Address, Endpoint
-
-    from ...types import PublicKey
+    from ...keyvault.keys import PublicKey
+    from ...keyvault.private.libnaclkey import LibNaCLSK
+    from ..interfaces.udp.endpoint import Address
     from .community import TunnelCommunity, TunnelSettings
     from .exit_socket import TunnelExitSocket
 
@@ -64,7 +63,7 @@ class CryptoEndpoint(metaclass=abc.ABCMeta):
         Create new crypto endpoint.
         """
         self.settings: TunnelSettings | None = None
-        self.prefix = b'\x00' * 22
+        self.prefix = b"\x00" * 22
         self.circuits: dict[int, Circuit] = {}
         self.relays: dict[int, RelayRoute] = {}
         self.exit_sockets: dict[int, TunnelExitSocket] = {}
@@ -173,10 +172,10 @@ class PythonCryptoEndpoint(CryptoEndpoint, EndpointListener):
         self.logger.debug("Got cell(%s) from circuit %d (sender %s)", cell.message[0], circuit_id, source_address)
 
         if (not cell.relay_early and cell.message[0] == 4) or self.max_relay_early <= 0:
-            self.logger.info('Dropping cell (missing or unexpected relay_early flag)')
+            self.logger.info("Dropping cell (missing or unexpected relay_early flag)")
             return
         if cell.plaintext and cell.message[0] not in NO_CRYPTO_PACKETS:
-            self.logger.warning('Dropping cell (only create/created can have plaintext flag set)')
+            self.logger.warning("Dropping cell (only create/created can have plaintext flag set)")
             return
 
         if not self.tunnel_community:
@@ -195,13 +194,13 @@ class PythonCryptoEndpoint(CryptoEndpoint, EndpointListener):
         Forward the given cell, which contains the information needed for its own relaying.
         """
         if cell.plaintext:
-            self.logger.warning('Dropping cell (cell not encrypted)')
+            self.logger.warning("Dropping cell (cell not encrypted)")
             return
 
         next_relay = self.relays[cell.circuit_id]
 
         if cell.relay_early and next_relay.relay_early_count >= self.max_relay_early:
-            self.logger.warning('Dropping cell (too many relay_early cells)')
+            self.logger.warning("Dropping cell (too many relay_early cells)")
             return
 
         try:
@@ -266,7 +265,7 @@ class PythonCryptoEndpoint(CryptoEndpoint, EndpointListener):
         exit_socket = self.exit_sockets.get(circuit_id, None)
 
         if not circuit and not exit_socket and not cell.plaintext:
-            self.logger.debug('Got encrypted cell from unknown circuit %d', circuit_id)
+            self.logger.debug("Got encrypted cell from unknown circuit %d", circuit_id)
             return None
 
         try:
@@ -293,13 +292,13 @@ class PythonCryptoEndpoint(CryptoEndpoint, EndpointListener):
 
         for layer, hop in enumerate(reversed(hops)):
             if not hop.keys:
-                msg = f'Missing keys for circuit {cell.circuit_id} (layer {layer + 1}/{len(hops)})'
+                msg = f"Missing keys for circuit {cell.circuit_id} (layer {layer + 1}/{len(hops)})"
                 raise CryptoException(msg)
 
             try:
                 cell.message = TunnelCrypto.encrypt_str(cell.message, hop.keys, direction)
             except ValueError as e:
-                msg = f'Failed to encrypt cell for {cell.circuit_id} (dir {direction}) (layer {layer + 1}/{len(hops)})'
+                msg = f"Failed to encrypt cell for {cell.circuit_id} (dir {direction}) (layer {layer + 1}/{len(hops)})"
                 raise CryptoException(msg) from e
 
     def decrypt_cell(self, cell: CellPayload, direction: int, *hops: Hop) -> None:
@@ -313,13 +312,13 @@ class PythonCryptoEndpoint(CryptoEndpoint, EndpointListener):
 
         for layer, hop in enumerate(hops):
             if hop.keys is None:
-                msg = f'Missing session keys for {cell.circuit_id} (layer {layer + 1}/{len(hops)})'
+                msg = f"Missing session keys for {cell.circuit_id} (layer {layer + 1}/{len(hops)})"
                 raise CryptoException(msg)
 
             try:
                 cell.message = TunnelCrypto.decrypt_str(cell.message, hop.keys, direction)
             except ValueError as e:
-                msg = f'Failed to decrypt cell for {cell.circuit_id} (dir {direction}) (layer {layer + 1}/{len(hops)})'
+                msg = f"Failed to decrypt cell for {cell.circuit_id} (dir {direction}) (layer {layer + 1}/{len(hops)})"
                 raise CryptoException(msg) from e
 
 
@@ -327,6 +326,13 @@ class TunnelCrypto(ECCrypto):
     """
     Add Diffie-Hellman key establishment logic to ECCrypto.
     """
+
+    def __init__(self) -> None:
+        """
+        Create a new handler for Tunnel encryption and decryption.
+        """
+        super().__init__()
+        self.key: LibNaCLPK | None = None
 
     def initialize(self, key: LibNaCLPK) -> None:
         """
@@ -345,7 +351,7 @@ class TunnelCrypto(ECCrypto):
         """
         Create a new private-public keypair.
         """
-        tmp_key = cast(LibNaCLSK, self.generate_key("curve25519"))
+        tmp_key = cast("LibNaCLSK", self.generate_key("curve25519"))
         x = tmp_key.key.pk
 
         return tmp_key, x
@@ -356,9 +362,9 @@ class TunnelCrypto(ECCrypto):
         Generate the shared secret from the received string and the given key.
         """
         if key is None:
-            key = self.key
+            key = cast("LibNaCLSK", self.key)
 
-        tmp_key = cast(LibNaCLSK, self.generate_key("curve25519"))
+        tmp_key = cast("LibNaCLSK", self.generate_key("curve25519"))
         shared_secret = (libnacl.crypto_box_beforenm(dh_received, tmp_key.key.sk)
                          + libnacl.crypto_box_beforenm(dh_received, key.key.sk))
 
@@ -408,10 +414,10 @@ class TunnelCrypto(ECCrypto):
 
         # Return the encrypted content prepended with salt_explicit
         aead = AEAD(key)
-        _, _, ciphertext = aead.encrypt(content, b'',
-                                        nonce=salt + struct.pack('!q', salt_explicit),
+        _, _, ciphertext = aead.encrypt(content, b"",
+                                        nonce=salt + struct.pack("!q", salt_explicit),
                                         pack_nonce_aad=False)
-        return struct.pack('!q', salt_explicit) + ciphertext
+        return struct.pack("!q", salt_explicit) + ciphertext
 
     @staticmethod
     def decrypt_str(content: bytes, keys: SessionKeys, direction: int) -> bytes:

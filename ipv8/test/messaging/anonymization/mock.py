@@ -7,7 +7,7 @@ from ....dht.provider import DHTCommunityProvider
 
 if TYPE_CHECKING:
     from ....messaging.anonymization.tunnel import IntroductionPoint
-    from ....types import Peer
+    from ....peer import Peer
 
 # Map of info_hash -> peer list
 global_dht_services = defaultdict(list)

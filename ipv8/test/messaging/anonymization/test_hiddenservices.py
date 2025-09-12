@@ -26,7 +26,7 @@ from .mock import global_dht_services
 from .test_community import MockDHTProvider
 
 if TYPE_CHECKING:
-    from ....types import Address
+    from ....messaging.interfaces.udp.endpoint import Address
 
 
 class TestHiddenServices(TestBase[HiddenTunnelCommunity]):
@@ -44,7 +44,7 @@ class TestHiddenServices(TestBase[HiddenTunnelCommunity]):
         self.initialize(HiddenTunnelCommunity, 3)
 
         self.private_nodes = []
-        self.service = b'0' * 20
+        self.service = b"0" * 20
         self.received_packets = []
 
     async def tearDown(self) -> None:
@@ -78,9 +78,9 @@ class TestHiddenServices(TestBase[HiddenTunnelCommunity]):
 
         def get_node_with_sock_addr(sock_addr: Address) -> MockIPv8 | None:
             # Utility method to quickly return a node with a specific socket address.
-            for node in self.nodes:
-                if node.overlay.my_peer.address == sock_addr:
-                    return node
+            for n in self.nodes:
+                if n.overlay.my_peer.address == sock_addr:
+                    return n
             return None
 
         # Add the first node to the path
@@ -204,10 +204,10 @@ class TestHiddenServices(TestBase[HiddenTunnelCommunity]):
         self.assertEqual(len(e2e_path), 4)
 
         # Check if data can be sent over the e2e circuit
-        data = b'PACKET'
+        data = b"PACKET"
         _, circuit = e2e_path[0]
         self.overlay(2).on_raw_data = lambda _, __, rdata: self.received_packets.append(rdata)
-        self.overlay(0).send_data(circuit.hop.address, circuit.circuit_id, ('0.0.0.0', 0), ('0.0.0.0', 0), data)
+        self.overlay(0).send_data(circuit.hop.address, circuit.circuit_id, ("0.0.0.0", 0), ("0.0.0.0", 0), data)
         await self.deliver_messages()
         self.assertEqual(len(self.received_packets), 1)
         self.assertEqual(self.received_packets[0], data)
@@ -246,14 +246,14 @@ class TestHiddenServices(TestBase[HiddenTunnelCommunity]):
         self.overlay(0).settings.swarm_lookup_interval = 0
         swarm = self.overlay(0).swarms[self.service]
 
-        swarm.lookup_func = lambda *_: fail(RuntimeError('unit testing'))
+        swarm.lookup_func = lambda *_: fail(RuntimeError("unit testing"))
         await self.overlay(0).do_peer_discovery()
         self.assertEqual(swarm.last_dht_response, 0)
 
         class FakeIP:
             def __init__(self) -> None:
                 self.source = PEER_SOURCE_DHT
-                self.seeder_pk = 'seeder_pk'
+                self.seeder_pk = "seeder_pk"
         swarm.lookup_func = lambda *_: succeed([FakeIP()])
         await self.overlay(0).do_peer_discovery()
         self.assertNotEqual(swarm.last_dht_response, 0)

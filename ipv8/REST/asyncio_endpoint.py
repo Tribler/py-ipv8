@@ -4,20 +4,23 @@ import collections
 import logging
 import time
 from asyncio import all_tasks, current_task, get_running_loop
-from collections.abc import Iterable
 from typing import TYPE_CHECKING, cast
 
 from aiohttp import web
 from aiohttp_apispec import docs, json_schema
 from marshmallow.fields import Boolean, Float, Integer, String
 
+from ipv8_service import IPv8
+
 from ..peerdiscovery.discovery import DiscoveryStrategy
-from ..types import IPv8
 from .base_endpoint import HTTP_BAD_REQUEST, HTTP_NOT_FOUND, BaseEndpoint, Response
 from .schema import DefaultResponseSchema, schema
 
 if TYPE_CHECKING:
-    from aiohttp.abc import Request
+    from collections.abc import Iterable
+
+    from aiohttp.web_request import Request
+
 
 
 class DequeLogHandler(logging.Handler):
@@ -80,11 +83,11 @@ class AsyncioEndpoint(BaseEndpoint[IPv8]):
         """
         Register the names to make this endpoint callable.
         """
-        self.app.add_routes([web.get('/drift', self.retrieve_drift),
-                             web.put('/drift', self.enable_measurements),
-                             web.get('/tasks', self.get_asyncio_tasks),
-                             web.put('/debug', self.set_asyncio_debug),
-                             web.get('/debug', self.get_asyncio_debug)])
+        self.app.add_routes([web.get("/drift", self.retrieve_drift),
+                             web.put("/drift", self.enable_measurements),
+                             web.get("/tasks", self.get_asyncio_tasks),
+                             web.put("/debug", self.set_asyncio_debug),
+                             web.get("/debug", self.get_asyncio_debug)])
 
     def enable(self) -> bool:
         """
@@ -149,22 +152,22 @@ class AsyncioEndpoint(BaseEndpoint[IPv8]):
             },
             400: {
                 "schema": DefaultResponseSchema,
-                "examples": {'Enable value not specified': {"success": False, "error": "incorrect parameters"}}
+                "examples": {"Enable value not specified": {"success": False, "error": "incorrect parameters"}}
             }
         }
     )
     @json_schema(schema(EnableDriftRequest={
-        'enable*': (Boolean, 'Whether to enable or disable measuring.'),
+        "enable*": (Boolean, "Whether to enable or disable measuring."),
     }))
     async def enable_measurements(self, request: Request) -> Response:
         """
         Enable or disable drift measurements.
         """
         parameters = await request.json()
-        if 'enable' not in parameters:
+        if "enable" not in parameters:
             return Response({"error": "incorrect parameters"}, status=HTTP_BAD_REQUEST)
 
-        status = self.enable() if parameters.get('enable') else self.disable()
+        status = self.enable() if parameters.get("enable") else self.disable()
         if status:
             return Response({"success": True})
         return Response({"success": False, "error": "Session not initialized."})
@@ -226,30 +229,30 @@ class AsyncioEndpoint(BaseEndpoint[IPv8]):
         }
     )
     @json_schema(schema(AsyncioDebugRequest={
-        'enable': (Boolean, 'Whether to enable or disable asyncio debug mode.'),
-        'slow_callback_duration': (Integer, 'Time threshold above which tasks will be logged.'),
+        "enable": (Boolean, "Whether to enable or disable asyncio debug mode."),
+        "slow_callback_duration": (Integer, "Time threshold above which tasks will be logged."),
     }))
     async def set_asyncio_debug(self, request: Request) -> Response:
         """
         Set asyncio debug options.
         """
         parameters = await request.json()
-        if 'enable' not in parameters and 'slow_callback_duration' not in parameters:
+        if "enable" not in parameters and "slow_callback_duration" not in parameters:
             return Response({"success": False, "error": "incorrect parameters"}, status=HTTP_BAD_REQUEST)
 
         loop = get_running_loop()
-        loop.slow_callback_duration = parameters.get('slow_callback_duration', loop.slow_callback_duration)
+        loop.slow_callback_duration = parameters.get("slow_callback_duration", loop.slow_callback_duration)
 
-        if 'enable' in parameters:
-            enable = bool(parameters['enable'])
+        if "enable" in parameters:
+            enable = bool(parameters["enable"])
             loop.set_debug(enable)
 
             # Add/remove asyncio log handler
             if enable and self.asyncio_log_handler is None:
                 self.asyncio_log_handler = DequeLogHandler()
-                logging.getLogger('asyncio').addHandler(self.asyncio_log_handler)
+                logging.getLogger("asyncio").addHandler(self.asyncio_log_handler)
             if not enable and self.asyncio_log_handler is not None:
-                logging.getLogger('asyncio').removeHandler(self.asyncio_log_handler)
+                logging.getLogger("asyncio").removeHandler(self.asyncio_log_handler)
                 self.asyncio_log_handler = None
 
         return Response({"success": True})
@@ -276,7 +279,7 @@ class AsyncioEndpoint(BaseEndpoint[IPv8]):
         Return Asyncio log messages.
         """
         loop = get_running_loop()
-        messages = cast(Iterable, self.asyncio_log_handler.deque) if self.asyncio_log_handler is not None else []
-        return Response({'messages': [{'message': r} for r in messages],
-                         'enable': loop.get_debug(),
-                         'slow_callback_duration': loop.slow_callback_duration})
+        messages = cast("Iterable", self.asyncio_log_handler.deque) if self.asyncio_log_handler is not None else []
+        return Response({"messages": [{"message": r} for r in messages],
+                         "enable": loop.get_debug(),
+                         "slow_callback_duration": loop.slow_callback_duration})

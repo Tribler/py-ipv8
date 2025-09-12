@@ -27,7 +27,7 @@ def secure_randint(nmin: int, nmax: int) -> int:
     Generate a secure random integer.
     """
     normalized_range = nmax - nmin
-    n = int(ceil(log2(normalized_range) / 8.0))
+    n = ceil(log2(normalized_range) / 8.0)
     rbytes_int = int(hexlify(urandom(n)), 16)
     return nmin + (rbytes_int % normalized_range)
 
@@ -41,7 +41,7 @@ def _sipack(*n: int) -> bytes:
         msg = "More than 8 values specified to _sipack"
         raise RuntimeError(msg)
     sign_byte = 0
-    packed = b''
+    packed = b""
     for i in n:
         sign_byte = sign_byte << 1
         sign_byte |= 1 if i < 0 else 0
@@ -97,8 +97,8 @@ class EL:
         cW1 = (W1.wp_nominator() * W1.wp_denom_inverse()).normalize()
         cW2 = (W2.wp_nominator() * W2.wp_denom_inverse()).normalize()
 
-        c = sha256_as_int(str(cW1.a).encode('utf-8') + str(cW1.b).encode('utf-8')
-                          + str(cW2.a).encode('utf-8') + str(cW2.b).encode('utf-8'))
+        c = sha256_as_int(str(cW1.a).encode() + str(cW1.b).encode()
+                          + str(cW2.a).encode() + str(cW2.b).encode())
         D = w + c * x
         D1 = n1 + c * r1
         D2 = n2 + c * r2
@@ -119,8 +119,8 @@ class EL:
         cW1 = (cW1.wp_nominator() * cW1.wp_denom_inverse()).normalize()
         cW2 = (cW2.wp_nominator() * cW2.wp_denom_inverse()).normalize()
 
-        return self.c == sha256_as_int(str(cW1.a).encode('utf-8') + str(cW1.b).encode('utf-8')
-                                       + str(cW2.a).encode('utf-8') + str(cW2.b).encode('utf-8'))
+        return self.c == sha256_as_int(str(cW1.a).encode() + str(cW1.b).encode()
+                                       + str(cW2.a).encode() + str(cW2.b).encode())
 
     def serialize(self) -> bytes:
         """
@@ -154,7 +154,7 @@ class EL:
         """
         Stringify this EL for printing.
         """
-        return 'EL<%d,%d,%d,%d>' % (self.c, self.D, self.D1, self.D2)
+        return f"EL<{self.c},{self.D},{self.D1},{self.D2}>"
 
 
 class SQR:
@@ -228,4 +228,4 @@ class SQR:
         """
         Stringify this EL for printing.
         """
-        return f'SQR<{self.F!s},{self.el!s}>'
+        return f"SQR<{self.F!s},{self.el!s}>"

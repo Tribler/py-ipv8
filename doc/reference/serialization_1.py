@@ -9,15 +9,15 @@ from ipv8.messaging.serialization import Serializable
 
 
 class MySerializable(Serializable):
-    format_list = ['I', 'H']
+    format_list = ["I", "H"]
 
     def __init__(self, field1: int, field2: int) -> None:
         self.field1 = field1
         self.field2 = field2
 
     def to_pack_list(self) -> list[tuple]:
-        return [('I', self.field1),
-                ('H', self.field2)]
+        return [("I", self.field1),
+                ("H", self.field2)]
 
     @classmethod
     def from_unpack_list(cls: type[MySerializable],
@@ -26,15 +26,15 @@ class MySerializable(Serializable):
 
 
 class MyPayload(Payload):
-    format_list = ['I', 'H']
+    format_list = ["I", "H"]
 
     def __init__(self, field1: int, field2: int) -> None:
         self.field1 = field1
         self.field2 = field2
 
     def to_pack_list(self) -> list[tuple]:
-        return [('I', self.field1),
-                ('H', self.field2)]
+        return [("I", self.field1),
+                ("H", self.field2)]
 
     @classmethod
     def from_unpack_list(cls: type[MyPayload],
@@ -43,18 +43,18 @@ class MyPayload(Payload):
 
 
 class MyVariablePayload(VariablePayload):
-    format_list = ['I', 'H']
-    names = ['field1', 'field2']
+    format_list = ["I", "H"]
+    names = ["field1", "field2"]
 
 
 @vp_compile
 class MyCVariablePayload(VariablePayload):
-    format_list = ['I', 'H']
-    names = ['field1', 'field2']
+    format_list = ["I", "H"]
+    names = ["field1", "field2"]
 
 
-I = type_from_format('I')
-H = type_from_format('H')
+I = type_from_format("I")
+H = type_from_format("H")
 
 
 @dataclass

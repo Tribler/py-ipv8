@@ -45,9 +45,7 @@ def is_prime(number: int, backend: Backend = default_backend()) -> bool:  # noqa
     :rtype: bool
     """
     # We cannot simply convert the output to int (too long), use the hex representation
-    hex_n = hex(number)[2:]
-    if hex_n.endswith('L'):
-        hex_n = hex_n[:-1]
+    hex_n = f"{number:x}".removesuffix("L")
     bhex_n = hex_n.encode()
     generated = backend._lib.BN_new()
     bn_pp = backend._ffi.new("BIGNUM **", generated)

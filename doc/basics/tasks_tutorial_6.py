@@ -28,6 +28,6 @@ class TestMyCommunity(TestBase):
         self.initialize(MyCommunity, 1)  # Will not run tasks
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import unittest
     unittest.main()

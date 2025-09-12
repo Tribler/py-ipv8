@@ -91,7 +91,7 @@ from ..addressprovider import AddressProvider
 
 # The default ctypes kernel32 doesn't have the heap functions we need.
 # We bind them (restype + argtypes) later.
-actual_kernel32 = WinDLL('kernel32')
+actual_kernel32 = WinDLL("kernel32")
 
 # C consts
 AF_UNSPEC = ULONG(0)
@@ -166,8 +166,8 @@ class SOCKET_ADDRESS(Structure):
     """
 
     _fields_ = [
-        ('lpSockaddr', LPSOCKADDR),
-        ('iSockaddrLength', INT)
+        ("lpSockaddr", LPSOCKADDR),
+        ("iSockaddrLength", INT)
     ]
 
 
@@ -331,8 +331,8 @@ class IP_ADAPTER_DNS_SUFFIX(Structure):
 
 
 IP_ADAPTER_DNS_SUFFIX._fields_ = [
-    ('Next', POINTER(IP_ADAPTER_DNS_SUFFIX)),
-    ('__c', WCHAR * MAX_DNS_SUFFIX_STRING_LENGTH)
+    ("Next", POINTER(IP_ADAPTER_DNS_SUFFIX)),
+    ("__c", WCHAR * MAX_DNS_SUFFIX_STRING_LENGTH)
 ]
 
 
@@ -342,8 +342,8 @@ class IF_LUID(Structure):
     """
 
     _fields_ = [
-        ('LowPart', DWORD),
-        ('HighPart', LONG)
+        ("LowPart", DWORD),
+        ("HighPart", LONG)
     ]
 
 
@@ -352,13 +352,44 @@ class IP_ADAPTER_ADDRESSES_LH(Structure):
     Struct for ``GetAdaptersAddresses`` return values.
     """
 
-    __slots__ = ["__u1", "Next", "AdapterName", "FirstUnicastAddress", "FirstAnycastAddress", "FirstMulticastAddress",
-                 "FirstDnsServerAddress", "DnsSuffix", "Description", "FriendlyName", "PhysicalAddress",
-                 "PhysicalAddressLength", "Flags", "Mtu", "IfType", "OperStatus", "Ipv6IfIndex", "ZoneIndices",
-                 "FirstPrefix", "TransmitLinkSpeed", "ReceiveLinkSpeed", "FirstWinsServerAddress",
-                 "FirstGatewayAddress", "Ipv4Metric", "Ipv6Metric", "Luid", "Dhcpv4Server", "CompartmentId",
-                 "NetworkGuid", "ConnectionType", "TunnelType", "Dhcpv6Server", "Dhcpv6ClientDuid",
-                 "Dhcpv6ClientDuidLength", "Dhcpv6Iaid", "FirstDnsSuffix"]
+    __slots__ = [
+        "AdapterName",
+        "CompartmentId",
+        "ConnectionType",
+        "Description",
+        "Dhcpv4Server",
+        "Dhcpv6ClientDuid",
+        "Dhcpv6ClientDuidLength",
+        "Dhcpv6Iaid",
+        "Dhcpv6Server",
+        "DnsSuffix",
+        "FirstAnycastAddress",
+        "FirstDnsServerAddress",
+        "FirstDnsSuffix",
+        "FirstGatewayAddress",
+        "FirstMulticastAddress",
+        "FirstPrefix",
+        "FirstUnicastAddress",
+        "FirstWinsServerAddress",
+        "Flags",
+        "FriendlyName",
+        "IfType",
+        "Ipv4Metric",
+        "Ipv6IfIndex",
+        "Ipv6Metric",
+        "Luid",
+        "Mtu",
+        "NetworkGuid",
+        "Next",
+        "OperStatus",
+        "PhysicalAddress",
+        "PhysicalAddressLength",
+        "ReceiveLinkSpeed",
+        "TransmitLinkSpeed",
+        "TunnelType",
+        "ZoneIndices",
+        "__u1",
+    ]
 
     class _u1(Union):
         class _s1(Structure):
@@ -369,8 +400,8 @@ class IP_ADAPTER_ADDRESSES_LH(Structure):
 
 
 IP_ADAPTER_ADDRESSES_LH._fields_ = [
-    ('__u1', IP_ADAPTER_ADDRESSES_LH._u1),
-    ('Next', POINTER(IP_ADAPTER_ADDRESSES_LH)),
+    ("__u1", IP_ADAPTER_ADDRESSES_LH._u1),
+    ("Next", POINTER(IP_ADAPTER_ADDRESSES_LH)),
     ("AdapterName", PCHAR),
     ("FirstUnicastAddress", POINTER(IP_ADAPTER_UNICAST_ADDRESS_LH)),
     ("FirstAnycastAddress", POINTER(IP_ADAPTER_ANYCAST_ADDRESS_XP)),
@@ -441,9 +472,9 @@ class GetAdaptersAddresses(AddressProvider):
                 HeapFree(proc_heap, DWORD(0), pAdapterAddresses)
             return set(out_addresses)
 
-        next = pAdapterAddresses  # noqa: A001
-        while next:
-            adapterAddresses: IP_ADAPTER_ADDRESSES_LH = next.contents
+        next_addr = pAdapterAddresses
+        while next_addr:
+            adapterAddresses: IP_ADAPTER_ADDRESSES_LH = next_addr.contents
 
             next_unicast = adapterAddresses.FirstUnicastAddress
             while next_unicast:
@@ -458,7 +489,7 @@ class GetAdaptersAddresses(AddressProvider):
                         out_addresses.append(socket.inet_ntop(socket.AF_INET6, string_at(socket_desc6.sin6_addr, 16)))
                 next_unicast = unicast_address.Next
 
-            next = adapterAddresses.Next  # noqa: A001
+            next_addr = adapterAddresses.Next
 
         # Free memory
         HeapFree(proc_heap, DWORD(0), pAdapterAddresses)

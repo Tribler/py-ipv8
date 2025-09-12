@@ -9,6 +9,10 @@ from asyncio import run
 
 from trackermetricsreporter import MetricsReporter
 
+from ipv8.messaging.interfaces.endpoint import Endpoint
+from ipv8.messaging.interfaces.udp.endpoint import Address
+from ipv8.peer import Peer
+
 # Check if we are running from the root directory
 # If not, modify our path so that we can import IPv8
 try:
@@ -19,7 +23,6 @@ except ImportError:
 
 from tracker_service import EndpointServer, TrackerService
 
-from ipv8.types import Address, Endpoint, Peer
 from ipv8.util import run_forever
 
 
@@ -63,16 +66,16 @@ class ReportingTrackerService(TrackerService):
 
 async def main() -> None:
     """
-    Start an reporting tracker service with some given commandline arguments.
+    Start a reporting tracker service with some given commandline arguments.
     """
     parser = argparse.ArgumentParser(
         add_help=False,
-        description='IPv8 tracker plugin which reports anonymized stats')
-    parser.add_argument('--help', '-h', action='help',
+        description="IPv8 tracker plugin which reports anonymized stats")
+    parser.add_argument("--help", "-h", action="help",
                         default=argparse.SUPPRESS,
-                        help='Show this help message and exit')
-    parser.add_argument('--listen_port', '-p', default=8090, type=int,
-                        help='Use an alternative port')
+                        help="Show this help message and exit")
+    parser.add_argument("--listen_port", "-p", default=8090, type=int,
+                        help="Use an alternative port")
 
     args = parser.parse_args(sys.argv[1:])
     listen_port = args.listen_port

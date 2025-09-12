@@ -1,10 +1,12 @@
 from time import time
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from ..peer import Peer
 from ..peerdiscovery.discovery import DiscoveryStrategy
-from ..types import DHTCommunity
 from .routing import Node
+
+if TYPE_CHECKING:
+    from .community import DHTCommunity
 
 
 class PingChurn(DiscoveryStrategy):
@@ -12,7 +14,7 @@ class PingChurn(DiscoveryStrategy):
     Strategy to maintain the data structures of the DHT community.
     """
 
-    def __init__(self, overlay: DHTCommunity, ping_interval: float = 25.0) -> None:
+    def __init__(self, overlay: "DHTCommunity", ping_interval: float = 25.0) -> None:
         """
         Create a new strategy that maintains the DHT Community and pings nodes at the given interval (in seconds).
         """
@@ -21,7 +23,7 @@ class PingChurn(DiscoveryStrategy):
 
     def take_step(self) -> None:  # noqa: C901, PLR0912
         """
-        Every tick (half-second by default), performs maintainence.
+        Every tick (half-second by default), performs maintenance.
 
         If routing tables are set up:
          - Remove all "bad" nodes from the routing table.
@@ -29,7 +31,7 @@ class PingChurn(DiscoveryStrategy):
          - Inspect the routing tables to register Network services for its peers.
          - Send pings to peers at our configured ping_interval.
         """
-        self.overlay = cast(DHTCommunity, self.overlay)
+        self.overlay = cast("DHTCommunity", self.overlay)
         with self.walk_lock:
             # Nothing is happening yet, skip this step
             if not self.overlay.routing_tables:

@@ -37,9 +37,9 @@ async def run_speed_test(tc: TunnelCommunity, circuit: Circuit, request_size: in
         num_ack += len(results)
         rtts.extend([rtt for _, rtt in results])
 
-    return {'speed_up': (num_ack * request_size / 1024) / (default_timer() - start),
-            'speed_down': (num_ack * response_size / 1024) / (default_timer() - start),
-            'messages_sent': num_ack + len(outstanding),
-            'messages_received': num_ack,
-            'rtt_mean': mean(rtts) if rtts else -1,
-            'rtt_median': median(rtts) if rtts else -1}
+    return {"speed_up": (num_ack * request_size / 1024) / (default_timer() - start),
+            "speed_down": (num_ack * response_size / 1024) / (default_timer() - start),
+            "messages_sent": num_ack + len(outstanding),
+            "messages_received": num_ack,
+            "rtt_mean": mean(rtts) if rtts else -1,
+            "rtt_median": median(rtts) if rtts else -1}

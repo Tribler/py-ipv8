@@ -44,7 +44,7 @@ class TestTaskManager(TestBase):
 
     def test_call_later(self) -> None:
         """
-        Check that tasks can be sheduled for the future.
+        Check that tasks can be scheduled for the future.
         """
         self.tm.register_task("test", lambda: None, delay=10)
         self.assertTrue(self.tm.is_pending_task_active("test"))
@@ -71,10 +71,10 @@ class TestTaskManager(TestBase):
         """
         Check that replacing without a running task with the same name simply registers the task.
         """
-        task = await self.tm.replace_task("test", lambda: None, delay=10)
+        user_task = await self.tm.replace_task("test", lambda: None, delay=10)
         await sleep(.1)
         self.assertTrue(self.tm.is_pending_task_active("test"))
-        self.assertFalse(task.done())
+        self.assertFalse(user_task.done())
 
     async def test_replace_with_error(self) -> None:
         """
@@ -147,9 +147,9 @@ class TestTaskManager(TestBase):
         """
         Tests that anonymous tasks allow the same base name to be reused.
         """
-        task = lambda: None
-        self.tm.register_anonymous_task("test", task)
-        self.tm.register_anonymous_task("test", task)
+        user_task = lambda: None
+        self.tm.register_anonymous_task("test", user_task)
+        self.tm.register_anonymous_task("test", user_task)
         self.assertEqual(2, len(self.tm.get_tasks()))
         self.tm.cancel_all_pending_tasks()
 
@@ -158,9 +158,9 @@ class TestTaskManager(TestBase):
         Check if the TaskManager does not allow new tasks after shutdown().
         """
         await self.tm.shutdown_task_manager()
-        task = self.tm.register_anonymous_task("test", lambda: None)
+        user_task = self.tm.register_anonymous_task("test", lambda: None)
         self.assertFalse(self.tm.is_pending_task_active("test"))
-        self.assertFalse(task.cancelled())
+        self.assertFalse(user_task.cancelled())
 
     async def test_cleanup(self) -> None:
         """
@@ -174,9 +174,9 @@ class TestTaskManager(TestBase):
         Check if tasks which have yet to complete are not cleaned.
         """
         await self.tm.register_anonymous_task("test", lambda: None)
-        task = self.tm.register_anonymous_task("test", sleep, 10)
+        user_task = self.tm.register_anonymous_task("test", sleep, 10)
         self.assertEqual(1, len(self.tm.get_tasks()))
-        self.assertFalse(task.cancelled())
+        self.assertFalse(user_task.cancelled())
 
     async def test_task_with_exception(self) -> None:
         """

@@ -46,18 +46,18 @@ class TestDiscoveryCommunity(TestBase):
         """
         global_time = self.overlays[0].claim_global_time()
         payload = DiscoveryIntroductionRequestPayload(b"a" * 20,
-                                                      cast(AutoMockEndpoint, self.overlays[1].endpoint).wan_address,
+                                                      cast("AutoMockEndpoint", self.overlays[1].endpoint).wan_address,
                                                       self.overlays[0].my_estimated_lan,
                                                       self.overlays[0].my_estimated_wan,
                                                       True,
                                                       "unknown",
                                                       global_time,
-                                                      b'')
+                                                      b"")
         auth = BinMemberAuthenticationPayload(self.overlays[0].my_peer.public_key.key_to_bin())
         dist = GlobalTimeDistributionPayload(global_time)
 
         packet = self.overlays[0]._ez_pack(self.overlays[0]._prefix, 246, [auth, dist, payload])  # noqa: SLF001
-        self.overlays[1].on_old_introduction_request(cast(AutoMockEndpoint, self.overlays[0].endpoint).wan_address,
+        self.overlays[1].on_old_introduction_request(cast("AutoMockEndpoint", self.overlays[0].endpoint).wan_address,
                                                      packet)
 
         await self.deliver_messages()
@@ -82,7 +82,7 @@ class TestDiscoveryCommunity(TestBase):
 
         for overlay in self.overlays:
             intros = overlay.network.get_introductions_from(self.tracker.my_peer)
-            # Over time we get more than one option per network interface.
+            # Over time, we get more than one option per network interface.
             # Usually deliver_messages will not deliver more than 1 option, but we could get more.
             self.assertGreaterEqual(len(intros), 1)
             self.assertNotIn(overlay.my_peer.mid, intros)

@@ -28,7 +28,6 @@ class TestNet1(AddressProvider):
             if s is not None:
                 try:
                     s.close()
-                    s = None
                 except OSError:
                     self.on_exception()
 
@@ -46,7 +45,6 @@ class TestNet1(AddressProvider):
             if s is not None:
                 try:
                     s.close()
-                    s = None
                 except OSError:
                     self.on_exception()
 

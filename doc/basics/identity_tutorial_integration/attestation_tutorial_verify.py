@@ -15,8 +15,8 @@ peer2_id = urlstr(peer1_neighborhood[0])
 print("Peer 1:", peer1_id)
 print("Peer 2:", peer2_id)
 
-peer1_attributes = http_get("http://localhost:14411/identity/pseudonym1/credentials")['names']
-peer2_attributes = http_get("http://localhost:14412/identity/pseudonym2/credentials")['names']
+peer1_attributes = http_get("http://localhost:14411/identity/pseudonym1/credentials")["names"]
+peer2_attributes = http_get("http://localhost:14412/identity/pseudonym2/credentials")["names"]
 
 print("Peer 1 attributes:", peer1_attributes)
 print("Peer 2 attributes:", peer2_attributes)
@@ -40,9 +40,9 @@ print("Peer 1 allow verification of outstanding request:",
                 b'{"name":"my_attribute"}'))
 
 print("3. CHECK")
-verification_output = wait_for_list("http://localhost:14412/identity/pseudonym2/verifications", 'outputs')
+verification_output = wait_for_list("http://localhost:14412/identity/pseudonym2/verifications", "outputs")
 print("Peer 2 verification output:", )
-assert verification_output[0]['match'] > 0.9
+assert verification_output[0]["match"] > 0.9
 
 print("X. DONE!")
 finish()

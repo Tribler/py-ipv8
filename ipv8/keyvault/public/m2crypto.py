@@ -55,7 +55,7 @@ class M2CryptoPK(PublicKey):
         """
         Get the EC from a public PEM.
         """
-        return cast(EllipticCurvePublicKey, serialization.load_pem_public_key(pem, backend=default_backend()))
+        return cast("EllipticCurvePublicKey", serialization.load_pem_public_key(pem, backend=default_backend()))
 
     def key_to_bin(self) -> bytes:
         """
@@ -67,7 +67,7 @@ class M2CryptoPK(PublicKey):
         """
         Returns the length, in bytes, of each signature made using EC.
         """
-        return int(ceil(self.ec.curve.key_size / 8.0)) * 2
+        return ceil(self.ec.curve.key_size / 8.0) * 2
 
     def verify(self, signature: bytes, msg: bytes) -> bool:
         """
@@ -91,8 +91,8 @@ class M2CryptoPK(PublicKey):
         si = int(hexlify(s), 16)
         # verify
         try:
-            pub = cast(M2CryptoPK, self.pub())
-            pub_ec = cast(EllipticCurvePublicKey, pub.ec)
+            pub = cast("M2CryptoPK", self.pub())
+            pub_ec = cast("EllipticCurvePublicKey", pub.ec)
             pub_ec.verify(encode_dss_signature(ri, si), msg, ec.ECDSA(hashes.SHA1()))
             return True
         except InvalidSignature:

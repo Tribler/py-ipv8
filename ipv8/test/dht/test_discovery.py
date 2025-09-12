@@ -13,7 +13,7 @@ from ..mocking.ipv8 import MockIPv8
 from .base import TestDHTBase
 
 if TYPE_CHECKING:
-    from ...types import Address
+    from ...messaging.interfaces.udp.endpoint import Address
 
 
 class TestDHTDiscoveryCommunity(TestDHTBase[DHTDiscoveryCommunity]):
@@ -31,7 +31,7 @@ class TestDHTDiscoveryCommunity(TestDHTBase[DHTDiscoveryCommunity]):
         self.puncture_to = None
 
         for node in self.nodes:
-            node.overlay.cancel_pending_task('store_peer')
+            node.overlay.cancel_pending_task("store_peer")
             node.overlay.token_maintenance()
 
     def create_node(self, *args: Any, **kwargs) -> MockIPv8:  # noqa: ANN401
@@ -50,21 +50,21 @@ class TestDHTDiscoveryCommunity(TestDHTBase[DHTDiscoveryCommunity]):
         dht_provider_1 = DHTCommunityProvider(self.overlay(0), 1337)
         dht_provider_2 = DHTCommunityProvider(self.overlay(1), 1338)
         dht_provider_3 = DHTCommunityProvider(self.overlay(2), 1338)
-        await dht_provider_1.announce(b'a' * 20, IntroductionPoint(self.my_peer(0), b'\x01' * 20))
-        await dht_provider_2.announce(b'a' * 20, IntroductionPoint(self.my_peer(1), b'\x02' * 20))
+        await dht_provider_1.announce(b"a" * 20, IntroductionPoint(self.my_peer(0), b"\x01" * 20))
+        await dht_provider_2.announce(b"a" * 20, IntroductionPoint(self.my_peer(1), b"\x02" * 20))
 
         await self.deliver_messages(.5)
 
-        peers = await dht_provider_3.lookup(b'a' * 20)
+        peers = await dht_provider_3.lookup(b"a" * 20)
         self.assertEqual(len(peers[1]), 2)
 
     async def test_provider_invalid_data(self) -> None:
         """
         Test the DHT provider when invalid data arrives.
         """
-        self.overlay(0).find_values = lambda _: succeed([('invalid_data', None)])
+        self.overlay(0).find_values = lambda _: succeed([("invalid_data", None)])
         dht_provider = DHTCommunityProvider(self.overlay(0), 1337)
-        peers = await dht_provider.lookup(b'a' * 20)
+        peers = await dht_provider.lookup(b"a" * 20)
         self.assertEqual(len(peers[1]), 0)
 
     async def test_store_peer(self) -> None:
@@ -145,7 +145,7 @@ class TestDHTDiscoveryCommunity(TestDHTBase[DHTDiscoveryCommunity]):
         """
         Check if pinging all nodes - when necessary - works.
         """
-        self.overlay(0).ping = lambda n: setattr(self, 'pinged', n) or succeed(None)
+        self.overlay(0).ping = lambda n: setattr(self, "pinged", n) or succeed(None)
 
         node1 = Node(self.private_key(1), self.address(1))
         node1.last_ping_sent = time.time()

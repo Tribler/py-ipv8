@@ -235,4 +235,4 @@ class IdentityAlgorithm(Generic[AT], metaclass=abc.ABCMeta):
         """
 
 
-__all__ = ["IdentityAlgorithm", "Attestation"]
+__all__ = ["Attestation", "IdentityAlgorithm"]

@@ -9,7 +9,7 @@ from marshmallow.schema import SchemaMeta
 
 class DefaultResponseSchema(Schema):
     """
-    Every response contains its sucess status and optionally the error that occurred.
+    Every response contains its success status and optionally the error that occurred.
     """
 
     success = Boolean(metadata={"description": "Indicator of success/failure"}, required=True)
@@ -96,9 +96,9 @@ def schema(**kwargs) -> Schema:
     schema_dict: dict[str, Nested | List] = {}
     for key, value in spec.items():
         cls, description = value if isinstance(value, tuple) else (value, None)
-        required = key.endswith('*')
-        key = key.rstrip('*')  # noqa: PLW2901
-        kwargs = {'required': required, "metadata": {"description": description}}
+        required = key.endswith("*")
+        key = key.rstrip("*")  # noqa: PLW2901
+        kwargs = {"required": required, "metadata": {"description": description}}
 
         if isinstance(cls, SchemaMeta):
             schema_dict[key] = Nested(cast("Schema", cls), required=required)

@@ -8,8 +8,7 @@ from typing import TYPE_CHECKING
 from ..signed_object import AbstractSignedObject
 
 if TYPE_CHECKING:
-    from ...keyvault.keys import PublicKey
-    from ...types import PrivateKey
+    from ...keyvault.keys import PrivateKey, PublicKey
 
 
 class Token(AbstractSignedObject):
@@ -85,7 +84,7 @@ class Token(AbstractSignedObject):
     @classmethod
     def create(cls: type[Token], previous_token: Token, content: bytes, private_key: PrivateKey) -> Token:
         """
-        Create an sign a token that exists in a token tree.
+        Create and sign a token that exists in a token tree.
         """
         return Token(previous_token.get_hash(), content, private_key=private_key)
 
