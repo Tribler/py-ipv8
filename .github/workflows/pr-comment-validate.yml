@@ -12,7 +12,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]  # macos-latest not tested due to crashing.
-        version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        version: ["3.10", "3.11", "3.12", "3.13"]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -113,10 +113,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: refs/pull/${{ github.event.issue.number }}/head
-      - name: Setup Python 3.9
+      - name: Setup Python 3.10
         uses: actions/setup-python@v5
         with:
-          python-version: 3.9
+          python-version: 3.10
       - name: Install dependencies
         run: |
           pip install --upgrade setuptools pip
@@ -137,10 +137,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: refs/pull/${{ github.event.issue.number }}/head
-      - name: Setup Python 3.9
+      - name: Setup Python 3.10
         uses: actions/setup-python@v5
         with:
-          python-version: 3.9
+          python-version: 3.10
       - name: Install dependencies
         run: |
           pip install --upgrade setuptools pip
