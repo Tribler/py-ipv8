@@ -10,7 +10,7 @@ def to_ascii(value: str | bytes) -> bytes:
     Convert any string type to bytes.
     """
     if isinstance(value, str):
-        return b''.join(int2byte(ord(c)) for c in value)
+        return b"".join(int2byte(ord(c)) for c in value)
     return value
 
 

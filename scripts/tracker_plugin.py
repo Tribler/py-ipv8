@@ -25,18 +25,18 @@ async def main() -> None:
     Start a tracker service with some given commandline arguments.
     """
     parser = argparse.ArgumentParser(add_help=False,
-                                     description='IPv8 tracker plugin')
-    parser.add_argument('--help', '-h', action='help',
+                                     description="IPv8 tracker plugin")
+    parser.add_argument("--help", "-h", action="help",
                         default=argparse.SUPPRESS,
-                        help='Show this help message and exit')
-    parser.add_argument('--listen_port', '-p', default=8090, type=int,
-                        help='Use an alternative IPv8 port')
-    parser.add_argument('--listen_port_api', '-a', default=-1, type=int,
-                        help='Use an alternative API port')
-    parser.add_argument('--api_key', '-k',
-                        help='API key to use. If not given API key protection is disabled.')
-    parser.add_argument('--cert_file', '-c',
-                        help='Path to combined certificate/key file. If not given HTTP is used.')
+                        help="Show this help message and exit")
+    parser.add_argument("--listen_port", "-p", default=8090, type=int,
+                        help="Use an alternative IPv8 port")
+    parser.add_argument("--listen_port_api", "-a", default=-1, type=int,
+                        help="Use an alternative API port")
+    parser.add_argument("--api_key", "-k",
+                        help="API key to use. If not given API key protection is disabled.")
+    parser.add_argument("--cert_file", "-c",
+                        help="Path to combined certificate/key file. If not given HTTP is used.")
 
     args = parser.parse_args(sys.argv[1:])
 

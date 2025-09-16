@@ -4,14 +4,15 @@ import abc
 from random import choice, randint
 from threading import Lock
 from time import time
-from typing import TYPE_CHECKING, Generic, Optional, TypeVar
+from typing import TYPE_CHECKING, Generic, TypeVar
 
-from ..types import Overlay
+from ..overlay import Overlay
 
 if TYPE_CHECKING:
-    from ..types import Address, Peer
+    from ..messaging.interfaces.udp.endpoint import Address
+    from ..peer import Peer
 
-_OT = TypeVar("_OT", bound=Optional[Overlay])
+_OT = TypeVar("_OT", bound=Overlay | None)
 
 
 class DiscoveryStrategy(Generic[_OT], metaclass=abc.ABCMeta):
@@ -82,7 +83,7 @@ class RandomWalk(DiscoveryStrategy[Overlay]):
             if self.target_interval > 0 and self.last_step + self.target_interval >= time():
                 return
             # If a valid window size (>0) is specified and we are waiting for (at least) this many pings: return
-            if self.window_size and self.window_size > 0 and len(self.intro_timeouts) >= self.window_size:
+            if self.window_size and 0 < self.window_size <= len(self.intro_timeouts):
                 return
             # Take step
             known = self.overlay.get_walkable_addresses()

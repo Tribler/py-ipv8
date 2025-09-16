@@ -7,7 +7,7 @@ from ...messaging.payload_dataclass import DataClassPayload, type_from_format
 from ...messaging.serialization import default_serializer
 from ..base import TestBase
 
-varlenH = type_from_format('varlenH')  # noqa: N816
+varlenH = type_from_format("varlenH")  # noqa: N816
 
 T = TypeVar("T")
 
@@ -147,7 +147,7 @@ class StripMsgId(DataClassPayload):
 @dataclass
 class FwdMsgId(DataClassPayload[1]):
     """
-    Payload that specfies the message id as an argument to the dataclass overwrite.
+    Payload that specifies the message id as an argument to the dataclass overwrite.
     """
 
     a: int
@@ -299,58 +299,58 @@ class TestDataclassPayload(TestBase):
 
     def test_nativebytes_empty_payload(self) -> None:
         """
-        Check if unpacked NativeBytes(b'') works correctly.
+        Check if unpacked NativeBytes(b"") works correctly.
         """
-        payload = NativeBytes(b'')
+        payload = NativeBytes(b"")
 
         deserialized = self._pack_and_unpack(NativeBytes, payload)
 
-        self.assertEqual(payload.a, b'')
-        self.assertEqual(deserialized.a, b'')
+        self.assertEqual(payload.a, b"")
+        self.assertEqual(deserialized.a, b"")
 
     def test_nativebytes_filled_payload(self) -> None:
         """
-        Check if unpacked NativeBytes(b'hi') works correctly.
+        Check if unpacked NativeBytes(b"hi") works correctly.
         """
-        payload = NativeBytes(b'hi')
+        payload = NativeBytes(b"hi")
 
         deserialized = self._pack_and_unpack(NativeBytes, payload)
 
-        self.assertEqual(payload.a, b'hi')
-        self.assertEqual(deserialized.a, b'hi')
+        self.assertEqual(payload.a, b"hi")
+        self.assertEqual(deserialized.a, b"hi")
 
     def test_nativestr_empty_payload(self) -> None:
         """
-        Check if unpacked NativeStr('') works correctly.
+        Check if unpacked NativeStr("") works correctly.
         """
-        payload = NativeStr('')
+        payload = NativeStr("")
 
         deserialized = self._pack_and_unpack(NativeStr, payload)
 
-        self.assertEqual(payload.a, '')
-        self.assertEqual(deserialized.a, '')
+        self.assertEqual(payload.a, "")
+        self.assertEqual(deserialized.a, "")
 
     def test_nativestr_filled_payload(self) -> None:
         """
-        Check if unpacked NativeStr('hi') works correctly.
+        Check if unpacked NativeStr("hi") works correctly.
         """
-        payload = NativeStr('hi')
+        payload = NativeStr("hi")
 
         deserialized = self._pack_and_unpack(NativeStr, payload)
 
-        self.assertEqual(payload.a, 'hi')
-        self.assertEqual(deserialized.a, 'hi')
+        self.assertEqual(payload.a, "hi")
+        self.assertEqual(deserialized.a, "hi")
 
     def test_serializertype_payload(self) -> None:
         """
         Check if a custom SerializerType ("varlenH") works correctly.
         """
-        payload = SerializerType(b'hi')
+        payload = SerializerType(b"hi")
 
         deserialized = self._pack_and_unpack(SerializerType, payload)
 
-        self.assertEqual(payload.a, b'hi')
-        self.assertEqual(deserialized.a, b'hi')
+        self.assertEqual(payload.a, b"hi")
+        self.assertEqual(deserialized.a, b"hi")
 
     def test_nested_payload(self) -> None:
         """
@@ -445,11 +445,11 @@ class TestDataclassPayload(TestBase):
 
     def test_everything(self) -> None:
         """
-        Check if the wrapper handles all of the different data types together.
+        Check if the wrapper handles all the different data types together.
         """
         a = Everything(42,
-                       b'1337',
-                       b'1337',
+                       b"1337",
+                       b"1337",
                        EverythingItem(True),
                        [EverythingItem(False), EverythingItem(True)],
                        "hi",
@@ -463,11 +463,11 @@ class TestDataclassPayload(TestBase):
         self.assertEqual(a.a, 42)
         self.assertEqual(r.a, 42)
 
-        self.assertEqual(a.b, b'1337')
-        self.assertEqual(r.b, b'1337')
+        self.assertEqual(a.b, b"1337")
+        self.assertEqual(r.b, b"1337")
 
-        self.assertEqual(a.c, b'1337')
-        self.assertEqual(r.c, b'1337')
+        self.assertEqual(a.c, b"1337")
+        self.assertEqual(r.c, b"1337")
 
         self.assertEqual(a.d, EverythingItem(True))
         self.assertEqual(r.d, EverythingItem(True))

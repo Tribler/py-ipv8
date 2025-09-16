@@ -7,17 +7,18 @@ from socket import gethostbyname
 from time import time
 from typing import TYPE_CHECKING
 
-from ...messaging.interfaces.udp.endpoint import UDPv4Address
+from ...messaging.interfaces.udp.endpoint import Address, UDPv4Address
 from ..bootstrapper_interface import Bootstrapper
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
     from ...community import Community
-    from ...types import Address
 
 # Workaround for unnecessarily failing gethostbyname from a worker thread (https://bugs.python.org/issue29288)
-''.encode('idna')
+"".encode("idna")
+
+logger = logging.getLogger(__name__)
 
 
 class DispersyBootstrapper(Bootstrapper):
@@ -54,7 +55,7 @@ class DispersyBootstrapper(Bootstrapper):
                 if address not in self.ip_addresses:
                     self.ip_addresses.append(address)
             except OSError:
-                logging.info("Unable to resolve bootstrap DNS address (%s, %d)", host, port)
+                logger.info("Unable to resolve bootstrap DNS address (%s, %d)", host, port)
 
         await asyncio.gather(*[resolve_address(*address) for address in self.dns_addresses])
 
@@ -76,7 +77,8 @@ class DispersyBootstrapper(Bootstrapper):
         """
         if time() - self.last_bootstrap < self.bootstrap_timeout:
             return []
-        logging.debug("Bootstrapping %s, current peers %d", overlay.__class__.__name__, len(overlay.get_peers()))
+        logger.debug("Bootstrapping %s, current peers %d", overlay.__class__.__name__,
+                      len(overlay.get_peers()))
         self.last_bootstrap = time()
         for socket_address in self.ip_addresses:
             overlay.ensure_blacklisted(socket_address)

@@ -18,7 +18,7 @@ class TestExitSocket(TestBase):
         """
         Check if the ExitSocket correctly detects forbidden packets.
         """
-        get_prefix = Mock(return_value=unhexlify('000281ded07332bdc775aa5a46f96de9f8f390bbc9f3'))
+        get_prefix = Mock(return_value=unhexlify("000281ded07332bdc775aa5a46f96de9f8f390bbc9f3"))
         overlay = Mock(get_prefix=get_prefix)
         exit_socket = TunnelExitSocket(0, Mock(peer=Peer(LibNaCLSK(b"\x00" * 64))), overlay)
 

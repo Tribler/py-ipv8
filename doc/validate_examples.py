@@ -13,7 +13,7 @@ import threading
 from multiprocessing import connection
 from typing import TextIO
 
-TOP_DIRECTORY = os.path.dirname(os.path.dirname(os.path.realpath('__file__')))
+TOP_DIRECTORY = os.path.dirname(os.path.dirname(os.path.realpath("__file__")))
 
 
 def validate_run(stdout: multiprocessing.Pipe, stderr: multiprocessing.Pipe, module_path: str) -> None:
@@ -70,11 +70,11 @@ for path in os.listdir("."):
 
                 # Open the stderr and stdio redirection Pipes.
                 r_stdout, w_stdout = multiprocessing.Pipe()
-                reader_stdout = os.fdopen(r_stdout.fileno(), 'r')
+                reader_stdout = os.fdopen(r_stdout.fileno(), "r")
                 output_stdout = []
 
                 r_stderr, w_stderr = multiprocessing.Pipe()
-                reader_stderr = os.fdopen(r_stderr.fileno(), 'r')
+                reader_stderr = os.fdopen(r_stderr.fileno(), "r")
                 output_stderr = []
 
                 # Run in isolation, so scripts don't inherit each other's mess.

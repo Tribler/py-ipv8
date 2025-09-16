@@ -22,7 +22,9 @@ from .base import TestBase
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    from ..types import Address, IPv8
+    from ipv8_service import IPv8
+
+    from ..messaging.interfaces.udp.endpoint import Address
 
 
 class MockCommunity(Community):
@@ -81,18 +83,18 @@ class MockBootstrapper(Bootstrapper):
         """
         self.some_attribute = some_attribute
 
-    async def initialize(self, overlay: Community) -> None:
+    async def initialize(self, user_overlay: Community) -> None:
         """
         Initialize nothing.
         """
 
-    async def get_addresses(self, overlay: Community, timeout: float) -> Iterable[Address]:
+    async def get_addresses(self, user_overlay: Community, timeout: float) -> Iterable[Address]:
         """
         Return no addresses.
         """
         return []
 
-    def keep_alive(self, overlay: Community) -> None:
+    def keep_alive(self, user_overlay: Community) -> None:
         """
         Ping nothing.
         """
@@ -114,18 +116,18 @@ class MockBootstrapper2(Bootstrapper):
     Empty bootstrapper.
     """
 
-    async def initialize(self, overlay: Community) -> None:
+    async def initialize(self, user_overlay: Community) -> None:
         """
         Initialize nothing.
         """
 
-    async def get_addresses(self, overlay: Community, timeout: float) -> Iterable[Address]:
+    async def get_addresses(self, user_overlay: Community, timeout: float) -> Iterable[Address]:
         """
         Return no addresses.
         """
         return []
 
-    def keep_alive(self, overlay: Community) -> None:
+    def keep_alive(self, user_overlay: Community) -> None:
         """
         Ping nothing.
         """
@@ -179,7 +181,7 @@ class StagedCommunityLauncher(CommunityLauncher):
         """
         Should wait for CommunityLauncher1 and CommunityLauncher2.
         """
-        return ['CommunityLauncher1', 'CommunityLauncher2']
+        return ["CommunityLauncher1", "CommunityLauncher2"]
 
     def should_launch(self, session: MockSession) -> bool:
         """
@@ -198,21 +200,21 @@ class StagedCommunityLauncher(CommunityLauncher):
         The keyword args to launch our community with.
         """
         return {
-            'kw1': session.some_attribute1,
-            'kw2': session.some_attribute2
+            "kw1": session.some_attribute1,
+            "kw2": session.some_attribute2
         }
 
     def get_walk_strategies(self) -> list[tuple[type[DiscoveryStrategy], dict, int]]:
         """
         Get our walkers.
         """
-        return [(MockWalk, {'some_attribute': 4}, 20)]
+        return [(MockWalk, {"some_attribute": 4}, 20)]
 
     def get_bootstrappers(self, session: MockSession) -> list[tuple[type[Bootstrapper], dict]]:
         """
         Get the bootstrappers for our community.
         """
-        return [(MockBootstrapper, {'some_attribute': 4})]
+        return [(MockBootstrapper, {"some_attribute": 4})]
 
     def finalize(self, ipv8: IPv8, session: MockSession, community: MockCommunity) -> None:
         """
@@ -238,7 +240,7 @@ class TestCommunityLauncher(TestBase):
         """
         Check that the not_before decorator with multiple arguments equals the not_before() definition.
         """
-        @after('CommunityLauncher1', 'CommunityLauncher2')
+        @after("CommunityLauncher1", "CommunityLauncher2")
         class DecoratedCommunityLauncher(CommunityLauncher):
             pass
 
@@ -248,8 +250,8 @@ class TestCommunityLauncher(TestBase):
         """
         Check that multiple not_before decorators with an argument equals the not_before() definition.
         """
-        @after('CommunityLauncher2')
-        @after('CommunityLauncher1')
+        @after("CommunityLauncher2")
+        @after("CommunityLauncher1")
         class DecoratedCommunityLauncher(CommunityLauncher):
             pass
 
@@ -259,7 +261,7 @@ class TestCommunityLauncher(TestBase):
         """
         Check that a validated single launch condition causes should_launch() to return True.
         """
-        @precondition('session.launch_condition1')
+        @precondition("session.launch_condition1")
         class DecoratedCommunityLauncher(CommunityLauncher):
             pass
 
@@ -269,7 +271,7 @@ class TestCommunityLauncher(TestBase):
         """
         Check that an invalid single launch condition causes should_launch() to return False.
         """
-        @precondition('session.launch_condition2')
+        @precondition("session.launch_condition2")
         class DecoratedCommunityLauncher(CommunityLauncher):
             pass
 
@@ -279,8 +281,8 @@ class TestCommunityLauncher(TestBase):
         """
         Check that a validated multiple launch conditions causes should_launch() to return True.
         """
-        @precondition('session.launch_condition1')
-        @precondition('not session.launch_condition2')
+        @precondition("session.launch_condition1")
+        @precondition("not session.launch_condition2")
         class DecoratedCommunityLauncher(CommunityLauncher):
             pass
 
@@ -291,8 +293,8 @@ class TestCommunityLauncher(TestBase):
         """
         Check that an invalid condition for multiple launch conditions causes should_launch() to return False.
         """
-        @precondition('session.launch_condition1')
-        @precondition('session.launch_condition2')
+        @precondition("session.launch_condition1")
+        @precondition("session.launch_condition2")
         class DecoratedCommunityLauncher(CommunityLauncher):
             pass
 
@@ -302,7 +304,7 @@ class TestCommunityLauncher(TestBase):
         """
         Check if a Community string specification can be lazy-loaded through the overlay_class decorator.
         """
-        @overlay(self.__class__.__module__, 'MockCommunity')
+        @overlay(self.__class__.__module__, "MockCommunity")
         class DecoratedCommunityLauncher(CommunityLauncher):
             pass
 
@@ -339,7 +341,7 @@ class TestCommunityLauncher(TestBase):
         """
         Check if adding a walk strategy string specification is successful.
         """
-        @walk_strategy(self.__class__.__module__, 'MockWalk', kw_args={'some_attribute': 4})
+        @walk_strategy(self.__class__.__module__, "MockWalk", kw_args={"some_attribute": 4})
         class DecoratedCommunityLauncher(CommunityLauncher):
             pass
 
@@ -351,7 +353,7 @@ class TestCommunityLauncher(TestBase):
         """
         Check if adding a walk strategy from a DiscoveryStrategy class is successful.
         """
-        @walk_strategy(MockWalk, kw_args={'some_attribute': 4})
+        @walk_strategy(MockWalk, kw_args={"some_attribute": 4})
         class DecoratedCommunityLauncher(CommunityLauncher):
             pass
 
@@ -366,7 +368,7 @@ class TestCommunityLauncher(TestBase):
         def mock_walk_function() -> type[DiscoveryStrategy]:
             return MockWalk
 
-        @walk_strategy(mock_walk_function, kw_args={'some_attribute': 4})
+        @walk_strategy(mock_walk_function, kw_args={"some_attribute": 4})
         class DecoratedCommunityLauncher(CommunityLauncher):
             pass
 
@@ -378,11 +380,11 @@ class TestCommunityLauncher(TestBase):
         Check if adding multiple walk strategies is successful.
         """
         @walk_strategy(MockWalk2, target_peers=-1)
-        @walk_strategy(self.__class__.__module__, 'MockWalk', kw_args={'some_attribute': 4})
+        @walk_strategy(self.__class__.__module__, "MockWalk", kw_args={"some_attribute": 4})
         class DecoratedCommunityLauncher(CommunityLauncher):
             pass
 
-        self.assertListEqual([(MockWalk, {'some_attribute': 4}, 20), (MockWalk2, {}, -1)],
+        self.assertListEqual([(MockWalk, {"some_attribute": 4}, 20), (MockWalk2, {}, -1)],
                              DecoratedCommunityLauncher().get_walk_strategies())
         self.assertSetEqual({self.__class__.__module__}, DecoratedCommunityLauncher.hiddenimports)
 
@@ -390,7 +392,7 @@ class TestCommunityLauncher(TestBase):
         """
         Check if adding a bootstrapper string specification is successful.
         """
-        @bootstrapper(self.__class__.__module__, 'MockBootstrapper', kw_args={'some_attribute': 4})
+        @bootstrapper(self.__class__.__module__, "MockBootstrapper", kw_args={"some_attribute": 4})
         class DecoratedCommunityLauncher(CommunityLauncher):
             pass
 
@@ -402,7 +404,7 @@ class TestCommunityLauncher(TestBase):
         """
         Check if adding a bootstrapper from a Bootstrapper class is successful.
         """
-        @bootstrapper(MockBootstrapper, kw_args={'some_attribute': 4})
+        @bootstrapper(MockBootstrapper, kw_args={"some_attribute": 4})
         class DecoratedCommunityLauncher(CommunityLauncher):
             pass
 
@@ -417,7 +419,7 @@ class TestCommunityLauncher(TestBase):
         def mock_bootstrapper() -> type[MockBootstrapper]:
             return MockBootstrapper
 
-        @bootstrapper(mock_bootstrapper, kw_args={'some_attribute': 4})
+        @bootstrapper(mock_bootstrapper, kw_args={"some_attribute": 4})
         class DecoratedCommunityLauncher(CommunityLauncher):
             pass
 
@@ -429,11 +431,11 @@ class TestCommunityLauncher(TestBase):
         Check if adding multiple bootstrappers is successful.
         """
         @bootstrapper(MockBootstrapper2)
-        @bootstrapper(self.__class__.__module__, 'MockBootstrapper', kw_args={'some_attribute': 4})
+        @bootstrapper(self.__class__.__module__, "MockBootstrapper", kw_args={"some_attribute": 4})
         class DecoratedCommunityLauncher(CommunityLauncher):
             pass
 
-        self.assertListEqual([(MockBootstrapper, {'some_attribute': 4}), (MockBootstrapper2, {})],
+        self.assertListEqual([(MockBootstrapper, {"some_attribute": 4}), (MockBootstrapper2, {})],
                              DecoratedCommunityLauncher().get_bootstrappers(MockSession()))
         self.assertSetEqual({self.__class__.__module__}, DecoratedCommunityLauncher.hiddenimports)
 
@@ -441,7 +443,7 @@ class TestCommunityLauncher(TestBase):
         """
         Check if set_in_session correctly sets the attribute of the session.
         """
-        @set_in_session('community')
+        @set_in_session("community")
         class DecoratedCommunityLauncher(CommunityLauncher):
             pass
 
@@ -455,7 +457,7 @@ class TestCommunityLauncher(TestBase):
         """
         Check if the kwargs decorator correctly passes keyword arguments.
         """
-        @kwargs(kw1='session.some_attribute1', kw2='session.some_attribute2')
+        @kwargs(kw1="session.some_attribute1", kw2="session.some_attribute2")
         class DecoratedCommunityLauncher(CommunityLauncher):
             pass
 
@@ -466,11 +468,11 @@ class TestCommunityLauncher(TestBase):
         """
         Check if the name of a launcher can be set, using the name decorator.
         """
-        @name('Some Name')
+        @name("Some Name")
         class DecoratedCommunityLauncher(CommunityLauncher):
             pass
 
-        self.assertEqual('Some Name', DecoratedCommunityLauncher().get_name())
+        self.assertEqual("Some Name", DecoratedCommunityLauncher().get_name())
 
     def test_no_name(self) -> None:
         """
@@ -480,7 +482,7 @@ class TestCommunityLauncher(TestBase):
         class DecoratedCommunityLauncher(CommunityLauncher):
             pass
 
-        self.assertEqual('DecoratedCommunityLauncher', DecoratedCommunityLauncher().get_name())
+        self.assertEqual("DecoratedCommunityLauncher", DecoratedCommunityLauncher().get_name())
 
 
 class TestCommunityLoader(TestBase):

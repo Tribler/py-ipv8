@@ -31,7 +31,7 @@ The dependencies for IPv8 are collected in the `requirements.txt` file and can b
 python3 -m pip install --upgrade -r requirements.txt
 ```
 
-On Windows or MacOS you will need to install `Libsodium` separately, as explained [here](https://github.com/Tribler/py-ipv8/blob/master/doc/preliminaries/install_libsodium.rst). 
+On Windows or macOS you will need to install `Libsodium` separately, as explained [here](https://github.com/Tribler/py-ipv8/blob/master/doc/preliminaries/install_libsodium.rst). 
 
 ### Tests
 Running tests can be done by running:

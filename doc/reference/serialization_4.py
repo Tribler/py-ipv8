@@ -12,7 +12,7 @@ from ipv8.messaging.serialization import default_serializer
 @vp_compile
 class VPMessageKeepDict(VariablePayload):
     msg_id = 1
-    format_list = ['varlenH']
+    format_list = ["varlenH"]
     names = ["dictionary"]
 
     def fix_pack_dictionary(self, the_dictionary: dict) -> bytes:
@@ -44,8 +44,8 @@ message2 = DCMessageKeepDict(data)
 
 assert message1.dictionary["1"] == 1
 assert message1.dictionary["key"] == "value"
-assert cast(dict, message2.dictionary)["1"] == 1
-assert cast(dict, message2.dictionary)["key"] == "value"
+assert cast("dict", message2.dictionary)["1"] == 1
+assert cast("dict", message2.dictionary)["key"] == "value"
 
 serialized1 = default_serializer.pack_serializable(message1)
 serialized2 = default_serializer.pack_serializable(message2)

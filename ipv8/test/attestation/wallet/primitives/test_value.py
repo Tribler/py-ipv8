@@ -291,25 +291,25 @@ class TestFP2Value(TestBase):
         """
         Check if (0x^2 + 0x + 0)/(0x^2 + 0x + 1) is formatted as "0".
         """
-        self.assertEqual(str(FP2Value(11, 0, 0, 0, 1, 0, 0)), '0')
+        self.assertEqual(str(FP2Value(11, 0, 0, 0, 1, 0, 0)), "0")
 
     def test_str_nozero(self) -> None:
         """
         Check if (0x^2 + x + 0)/(0x^2 + 0x + 1) is formatted as "x".
         """
-        self.assertEqual(str(FP2Value(11, 0, 1, 0, 1, 0, 0)), 'x')
+        self.assertEqual(str(FP2Value(11, 0, 1, 0, 1, 0, 0)), "x")
 
     def test_str_nozero_div(self) -> None:
         """
         Check if (0x^2 + x + 0)/(0x^2 + 0x + 2) is formatted as "(x)/(2)".
         """
-        self.assertEqual(str(FP2Value(11, 0, 1, 0, 2, 0, 0)), '(x)/(2)')
+        self.assertEqual(str(FP2Value(11, 0, 1, 0, 2, 0, 0)), "(x)/(2)")
 
     def test_str_positive_coefficient(self) -> None:
         """
         Check if (0x^2 + 2x + 0)/(0x^2 + 0x + 1) is formatted as "2x".
         """
-        self.assertEqual(str(FP2Value(11, 0, 2, 0, 1, 0, 0)), '2x')
+        self.assertEqual(str(FP2Value(11, 0, 2, 0, 1, 0, 0)), "2x")
 
     def test_eq_other(self) -> None:
         """

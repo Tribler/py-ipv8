@@ -4,12 +4,9 @@ import asyncio
 import logging
 import socket
 from asyncio import DatagramTransport
-from typing import TYPE_CHECKING, NamedTuple, cast
+from typing import NamedTuple, TypeAlias, cast
 
 from ..endpoint import Endpoint, EndpointClosedException
-
-if TYPE_CHECKING:
-    from ipv8.types import Address
 
 
 class UDPv4Address(NamedTuple):
@@ -48,6 +45,9 @@ class DomainAddress(NamedTuple):
     port: int
 
 
+Address: TypeAlias = tuple[str, int] | UDPv4Address | UDPv6Address | DomainAddress
+
+
 class UDPEndpoint(Endpoint, asyncio.DatagramProtocol):
     """
     Endpoint that binds UDP (over IPv4 by default).
@@ -74,7 +74,7 @@ class UDPEndpoint(Endpoint, asyncio.DatagramProtocol):
         self.bytes_up = 0
         self.bytes_down = 0
 
-    def datagram_received(self, datagram: bytes, addr: tuple[str, int]) -> None:
+    def datagram_received(self, datagram: bytes, addr: Address) -> None:
         """
         Process incoming data.
         """
@@ -88,10 +88,11 @@ class UDPEndpoint(Endpoint, asyncio.DatagramProtocol):
         Send a packet to a given address.
 
         :param socket_address: Tuple of (IP, port) which indicates the destination of the packet.
+        :param packet: the raw (binary) data to send.
         """
         self.assert_open()
         try:
-            cast(DatagramTransport, self._transport).sendto(packet, socket_address)
+            cast("DatagramTransport", self._transport).sendto(packet, socket_address)
             self.bytes_up += len(packet)
         except (TypeError, ValueError, AttributeError) as exc:
             self._logger.warning("Dropping packet due to message formatting error: %s", exc)
@@ -141,7 +142,7 @@ class UDPEndpoint(Endpoint, asyncio.DatagramProtocol):
         """
         Check if we are opened by the programmer and if the underlying transport is fully open.
         """
-        if not self._running and (not self._transport or not cast(DatagramTransport, self._transport).is_closing()):
+        if not self._running and (not self._transport or not cast("DatagramTransport", self._transport).is_closing()):
             raise EndpointClosedException(self)
 
     def close(self) -> None:
@@ -153,15 +154,15 @@ class UDPEndpoint(Endpoint, asyncio.DatagramProtocol):
 
         self._running = False
 
-        if not cast(DatagramTransport, self._transport).is_closing():
-            cast(DatagramTransport, self._transport).close()
+        if not cast("DatagramTransport", self._transport).is_closing():
+            cast("DatagramTransport", self._transport).close()
 
     def get_address(self) -> Address:
         """
         Get the address for this Endpoint.
         """
         self.assert_open()
-        return cast(DatagramTransport, self._transport).get_extra_info("socket").getsockname()
+        return cast("DatagramTransport", self._transport).get_extra_info("socket").getsockname()
 
     def is_open(self) -> bool:
         """
@@ -190,7 +191,7 @@ class UDPv6Endpoint(UDPEndpoint):
         """
         super().__init__(port, ip)
 
-    def datagram_received(self, datagram: bytes, addr: tuple[str, int]) -> None:
+    def datagram_received(self, datagram: bytes, addr: Address) -> None:
         """
         Process incoming data.
         """

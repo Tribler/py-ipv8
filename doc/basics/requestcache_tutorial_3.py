@@ -5,8 +5,8 @@ from ipv8.community import Community, CommunitySettings
 from ipv8.configuration import ConfigBuilder, Strategy, WalkerDefinition, default_bootstrap_defs
 from ipv8.lazy_community import lazy_wrapper, retrieve_cache
 from ipv8.messaging.lazy_payload import VariablePayload, vp_compile
+from ipv8.peer import Peer
 from ipv8.requestcache import RandomNumberCacheWithName, RequestCache
-from ipv8.types import Peer
 from ipv8_service import IPv8
 
 # We'll use this global variable to keep track of the IPv8 instances that finished.
@@ -16,14 +16,14 @@ DONE = []
 @vp_compile
 class MyRequest(VariablePayload):
     msg_id = 1
-    format_list = ['I', 'I']
+    format_list = ["I", "I"]
     names = ["value", "identifier"]
 
 
 @vp_compile
 class MyResponse(VariablePayload):
     msg_id = 2
-    format_list = ['I', 'I']
+    format_list = ["I", "I"]
     names = ["value", "identifier"]
 
 
@@ -55,7 +55,7 @@ class MyCommunity(Community):
         self.register_task("wait for peers and send a request", self.send)
 
     async def send(self) -> None:
-        # Wait for our local peers to connect to eachother.
+        # Wait for our local peers to connect to each other.
         while not self.get_peers():
             await sleep(0.1)
         # Then, create and register our cache.
@@ -84,20 +84,20 @@ class MyCommunity(Community):
         # Otherwise, do the same thing over again and ask for another increment.
         cache = self.request_cache.add(MyCache(self.request_cache, payload.value))
         if cache is not None:
-            for peer in self.get_peers():
-                self.ez_send(peer, MyRequest(payload.value, cache.number))
+            for p in self.get_peers():
+                self.ez_send(p, MyRequest(payload.value, cache.number))
                 # To spice things up, we'll perform a replay attack.
                 # The RequestCache causes this second duplicate message to be ignored.
-                self.ez_send(peer, MyRequest(payload.value, cache.number))
+                self.ez_send(p, MyRequest(payload.value, cache.number))
 
 
 async def start_communities() -> None:
     for i in [1, 2]:
         builder = ConfigBuilder().clear_keys().clear_overlays()
         builder.add_key("my peer", "medium", f"ec{i}.pem")
-        builder.add_overlay("MyCommunity", "my peer", [WalkerDefinition(Strategy.RandomWalk, 10, {'timeout': 3.0})],
-                            default_bootstrap_defs, {}, [('started',)])
-        await IPv8(builder.finalize(), extra_communities={'MyCommunity': MyCommunity}).start()
+        builder.add_overlay("MyCommunity", "my peer", [WalkerDefinition(Strategy.RandomWalk, 10, {"timeout": 3.0})],
+                            default_bootstrap_defs, {}, [("started",)])
+        await IPv8(builder.finalize(), extra_communities={"MyCommunity": MyCommunity}).start()
 
     while len(DONE) < 2:
         await sleep(1)

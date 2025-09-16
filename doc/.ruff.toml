@@ -1,10 +1,12 @@
 extend = "../.ruff.toml"
 
-extend-ignore = [
+lint.extend-ignore = [
     "ANN401",  # We want ``Any`` in some cases.
+    "ASYNC110",  # Used for demo-ing.
     "D",  # Documentation happens in the RST, not in the code.
+    "RUF006",  # Used for demo-ing.
     "T201"  # We print things for clarity: this is not production code.
 ]
 
-[pylint]
+[lint.pylint]
 max-args = 7

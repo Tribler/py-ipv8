@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING
 from ..signed_object import AbstractSignedObject
 
 if TYPE_CHECKING:
-    from ...keyvault.keys import PublicKey
-    from ...types import PrivateKey, Token
+    from ...keyvault.keys import PrivateKey, PublicKey
+    from ..tokentree.token import Token
 
 
 class Metadata(AbstractSignedObject):

@@ -12,8 +12,8 @@ class TestECCrypto(TestBase):
     Tests related to ECCrypto.
     """
 
-    m2crypto_key = cast(M2CryptoSK, ECCrypto().generate_key("very-low"))
-    libnacl_key = cast(LibNaCLSK, ECCrypto().generate_key("curve25519"))
+    m2crypto_key = cast("M2CryptoSK", ECCrypto().generate_key("very-low"))
+    libnacl_key = cast("LibNaCLSK", ECCrypto().generate_key("curve25519"))
 
     def setUp(self) -> None:
         """
@@ -144,12 +144,12 @@ class TestECCrypto(TestBase):
         """
         Check if ECCrypto is able to sign a verified message using a m2crypto key.
         """
-        sig = self.ecc.create_signature(TestECCrypto.m2crypto_key, b'test')
-        self.assertTrue(self.ecc.is_valid_signature(TestECCrypto.m2crypto_key, b'test', sig))
+        sig = self.ecc.create_signature(TestECCrypto.m2crypto_key, b"test")
+        self.assertTrue(self.ecc.is_valid_signature(TestECCrypto.m2crypto_key, b"test", sig))
 
     def test_sign_and_verify_libnacl(self) -> None:
         """
         Check if ECCrypto is able to sign a verified message using a libnacl key.
         """
-        sig = self.ecc.create_signature(TestECCrypto.libnacl_key, b'test')
-        self.assertTrue(self.ecc.is_valid_signature(TestECCrypto.libnacl_key, b'test', sig))
+        sig = self.ecc.create_signature(TestECCrypto.libnacl_key, b"test")
+        self.assertTrue(self.ecc.is_valid_signature(TestECCrypto.libnacl_key, b"test", sig))

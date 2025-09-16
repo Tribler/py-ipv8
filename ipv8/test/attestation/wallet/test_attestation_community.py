@@ -11,11 +11,12 @@ from ....attestation.wallet.database import AttestationsDB
 from ....attestation.wallet.pengbaorange.structs import PengBaoAttestation
 from ....attestation.wallet.primitives.structs import BonehPrivateKey
 from ....util import succeed
-from ...base import MockIPv8, TestBase
+from ...base import TestBase
+from ...mocking.ipv8 import MockIPv8
 
 if TYPE_CHECKING:
     from ....community import CommunitySettings
-    from ....types import Peer
+    from ....peer import Peer
 
 
 class TestCommunity(TestBase[AttestationCommunity]):
@@ -99,7 +100,7 @@ class TestCommunity(TestBase[AttestationCommunity]):
         def f(peer: Peer, attribute_name: str, metadata: dict) -> None:
             self.assertEqual(peer.address, self.address(1))
             self.assertEqual(attribute_name, "MyAttribute")
-            self.assertDictEqual(metadata, {'test': 123})
+            self.assertDictEqual(metadata, {"test": 123})
 
             f.called = True
 
@@ -109,7 +110,7 @@ class TestCommunity(TestBase[AttestationCommunity]):
 
         self.overlay(0).set_attestation_request_callback(f)
 
-        self.overlay(1).request_attestation(self.my_peer(0), "MyAttribute", TestCommunity.private_key, {'test': 123})
+        self.overlay(1).request_attestation(self.my_peer(0), "MyAttribute", TestCommunity.private_key, {"test": 123})
 
         await self.deliver_messages()
 
@@ -200,11 +201,11 @@ class TestCommunity(TestBase[AttestationCommunity]):
         Check if an attestation can be verified.
         """
         serialized = ""
-        filename = os.path.join(os.path.dirname(__file__), 'attestation.txt')
+        filename = os.path.join(os.path.dirname(__file__), "attestation.txt")
         with open(filename) as f:  # noqa: ASYNC230
             serialized = unhexlify(f.read().strip())
         attestation = BonehAttestation.unserialize(serialized, "id_metadata")
-        attestation_hash = unhexlify('9019195eb75c07ec3e86a62c314dcf5ef2bbcc0d')
+        attestation_hash = unhexlify("9019195eb75c07ec3e86a62c314dcf5ef2bbcc0d")
         self.overlay(0).database.insert_attestation(attestation, attestation_hash, TestCommunity.private_key,
                                                     "id_metadata")
         self.overlay(0).attestation_keys[attestation_hash] = (TestCommunity.private_key, "id_metadata")
@@ -269,11 +270,11 @@ class TestCommunity(TestBase[AttestationCommunity]):
         """
         Check if an attestation can be verified for id_metadata_big.
         """
-        filename = os.path.join(os.path.dirname(__file__), 'attestation_big.txt')
+        filename = os.path.join(os.path.dirname(__file__), "attestation_big.txt")
         with open(filename) as f:  # noqa: ASYNC230
             serialized = unhexlify(f.read().strip())
         attestation = BonehAttestation.unserialize(serialized, "id_metadata_big")
-        attestation_hash = unhexlify('113d31c31b626268a16c198cbd58dd5aa8d1d81c')
+        attestation_hash = unhexlify("113d31c31b626268a16c198cbd58dd5aa8d1d81c")
         self.overlay(0).database.insert_attestation(attestation, attestation_hash, TestCommunity.private_key,
                                                     "id_metadata_big")
         self.overlay(0).attestation_keys[attestation_hash] = (TestCommunity.private_key, "id_metadata_big")
@@ -297,11 +298,11 @@ class TestCommunity(TestBase[AttestationCommunity]):
         """
         Check if an attestation can be verified for id_metadata_range_18plus.
         """
-        filename = os.path.join(os.path.dirname(__file__), 'attestation_range.txt')
+        filename = os.path.join(os.path.dirname(__file__), "attestation_range.txt")
         with open(filename) as f:  # noqa: ASYNC230
             serialized = unhexlify(f.read().strip())
         attestation = PengBaoAttestation.unserialize_private(self.private_key, serialized, "id_metadata_range_18plus")
-        attestation_hash = unhexlify('b40c8734ba6c91a49670c1f0152c7f4dac2a8272')
+        attestation_hash = unhexlify("b40c8734ba6c91a49670c1f0152c7f4dac2a8272")
         self.overlay(0).database.insert_attestation(attestation, attestation_hash, TestCommunity.private_key,
                                                     "id_metadata_range_18plus")
         self.overlay(0).attestation_keys[attestation_hash] = (TestCommunity.private_key, "id_metadata_range_18plus")
@@ -333,7 +334,7 @@ class TestCommunity(TestBase[AttestationCommunity]):
         self.overlay(0).database.close(True)
 
         # Reload the community with the "same" (mocked) database.
-        with patch.object(AttestationsDB, 'get_all', return_value=reloaded):
+        with patch.object(AttestationsDB, "get_all", return_value=reloaded):
             self.overlay(0).__init__(AttestationSettings(my_peer=self.my_peer(0), endpoint=self.endpoint(0),
                                                          network=self.network(0), working_directory=":memory:",
                                                          db_name="test"))

@@ -93,8 +93,8 @@ def generate_primes(key_size: int = 128) -> tuple[int, int]:
     Generate some primes. Key size in bits.
     """
     if key_size >= 512:
-        from cryptography.hazmat.backends import default_backend
-        from cryptography.hazmat.primitives.asymmetric import rsa
+        from cryptography.hazmat.backends import default_backend  # noqa: PLC0415
+        from cryptography.hazmat.primitives.asymmetric import rsa  # noqa: PLC0415
         private_key = rsa.generate_private_key(public_exponent=65537, key_size=key_size, backend=default_backend())
         private_numbers = private_key.private_numbers()
         p, q = private_numbers.p, private_numbers.q

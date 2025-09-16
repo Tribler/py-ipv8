@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Iterator, Sequence
 from typing import TYPE_CHECKING, Any, cast
 
 from typing_extensions import Protocol
@@ -9,7 +8,7 @@ from typing_extensions import Protocol
 from ...database import Database
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Iterator, Mapping, Sequence
 
     from _typeshed import SupportsLenAndGetItem
 
@@ -45,7 +44,7 @@ class AttestationsDB(Database):
         """
         Sets up the persistence layer ready for use.
         :param working_directory: Path to the working directory
-        that will contain the the db at working directory/DATABASE_PATH
+        that will contain the db at working directory/DATABASE_PATH
         :param db_name: The name of the database.
         """
         if working_directory != ":memory:":
@@ -57,7 +56,7 @@ class AttestationsDB(Database):
         self.open()
 
     def _get(self, query: str, params: SupportsLenAndGetItem | Mapping[str, Any]) -> list[bytes]:
-        return list(cast(Iterator[bytes], self.execute(query, params, fetch_all=False)))
+        return list(cast("Iterator[bytes]", self.execute(query, params, fetch_all=False)))
 
     def get_attestation_by_hash(self, attestation_hash: bytes) -> list[bytes]:
         """
@@ -70,7 +69,7 @@ class AttestationsDB(Database):
         """
         Get all serialized attestations we know of.
         """
-        return list(cast(list[Sequence[bytes]], self.execute(f"SELECT * FROM {self.db_name}",  # noqa: S608
+        return list(cast("list[Sequence[bytes]]", self.execute(f"SELECT * FROM {self.db_name}",  # noqa: S608
                                                              (), fetch_all=True)))
 
     def insert_attestation(self, attestation: Attestation, attestation_hash: bytes, secret_key: SecretKeyProtocol,
@@ -82,7 +81,7 @@ class AttestationsDB(Database):
         self.execute(
             f"INSERT INTO {self.db_name} (hash, blob, key, id_format) VALUES(?,?,?,?)",
             (attestation_hash, blob, secret_key.serialize(),
-             id_format.encode('utf-8')))
+             id_format.encode()))
         self.commit()
 
     def get_schema(self, version: int) -> str:

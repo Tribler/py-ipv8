@@ -3,17 +3,16 @@ from __future__ import annotations
 from binascii import unhexlify
 from random import sample
 from time import time
-from typing import TYPE_CHECKING, Union, cast
+from typing import TYPE_CHECKING, cast
 
 from ..community import Community, CommunitySettings
 from ..keyvault.crypto import default_eccrypto
-from ..keyvault.keys import PrivateKey
 from ..lazy_community import PacketDecodingError, lazy_wrapper, lazy_wrapper_unsigned, retrieve_cache
 from ..messaging.payload import IntroductionRequestPayload, IntroductionResponsePayload, NewIntroductionResponsePayload
 from ..messaging.payload_headers import BinMemberAuthenticationPayload, GlobalTimeDistributionPayload
 from ..messaging.serialization import PackError, Serializable
 from ..peer import Peer
-from ..requestcache import NumberCache, RequestCache
+from ..requestcache import NumberCacheWithName, RequestCache
 from .churn import DiscoveryStrategy, RandomChurn
 from .payload import (
     DiscoveryIntroductionRequestPayload,
@@ -26,7 +25,8 @@ from .payload import (
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from ..types import Address
+    from ..keyvault.keys import PrivateKey
+    from ..messaging.interfaces.udp.endpoint import Address
 
 
 class PeriodicSimilarity(DiscoveryStrategy):
@@ -45,7 +45,7 @@ class PeriodicSimilarity(DiscoveryStrategy):
         """
         Select a random peer, at most every second, to send a similarity request to.
         """
-        self.overlay = cast(DiscoveryCommunity, self.overlay)
+        self.overlay = cast("DiscoveryCommunity", self.overlay)
         now = time()
         if (now - self.last_step < 1.0) or not self.overlay.network.verified_peers:
             return
@@ -54,7 +54,7 @@ class PeriodicSimilarity(DiscoveryStrategy):
             self.overlay.send_similarity_request(sample(list(self.overlay.network.verified_peers), 1)[0].address)
 
 
-class PingRequestCache(NumberCache):
+class PingRequestCache(NumberCacheWithName):
     """
     Cache for ping measurements to a peer.
     """
@@ -95,8 +95,8 @@ class DiscoveryCommunity(Community):
     Peers exchange the community ids they are part of with each other.
     """
 
-    version = b'\x02'
-    community_id = unhexlify('7e313685c1912a141279f8248fc8db5899c5df5a')
+    version = b"\x02"
+    community_id = unhexlify("7e313685c1912a141279f8248fc8db5899c5df5a")
 
     def __init__(self, settings: CommunitySettings) -> None:
         """
@@ -115,7 +115,7 @@ class DiscoveryCommunity(Community):
         """
         Expose strategies for periodically checking similarity and unreachable peer churn.
         """
-        return {'PeriodicSimilarity': PeriodicSimilarity, 'RandomChurn': RandomChurn}
+        return {"PeriodicSimilarity": PeriodicSimilarity, "RandomChurn": RandomChurn}
 
     async def unload(self) -> None:
         """
@@ -138,16 +138,16 @@ class DiscoveryCommunity(Community):
 
         payload: IntroductionRequestPayload | DiscoveryIntroductionRequestPayload
         try:
-            auth, dist, payload = self._ez_unpack_auth(DiscoveryIntroductionRequestPayload, data)
+            auth, _, payload = self._ez_unpack_auth(DiscoveryIntroductionRequestPayload, data)
         except (PacketDecodingError, PackError):
-            auth, dist, payload = self._ez_unpack_auth(IntroductionRequestPayload, data)
-        payload = cast(Union[IntroductionRequestPayload, DiscoveryIntroductionRequestPayload], payload)
+            auth, _, payload = self._ez_unpack_auth(IntroductionRequestPayload, data)
+        payload = cast("IntroductionRequestPayload | DiscoveryIntroductionRequestPayload", payload)
 
         peer = Peer(auth.public_key_bin, source_address)
         self.network.add_verified_peer(peer)
         self.network.discover_services(peer, [self.community_id, ])
 
-        introduce_to = getattr(payload, 'introduce_to', None)
+        introduce_to = getattr(payload, "introduce_to", None)
         introduction = None
         if introduce_to:
             peers = self.network.verified_peers
@@ -179,7 +179,7 @@ class DiscoveryCommunity(Community):
         """
         We received a request for similarity (overlap with another peer's communities).
 
-        We update the known community ids for this peer and we send a response that contains our own ids.
+        We update the known community ids for this peer, and we send a response that contains our own ids.
         """
         self.network.discover_services(node, payload.preference_list)
 
@@ -238,7 +238,7 @@ class DiscoveryCommunity(Community):
         """
         packet = self._prefix + bytes([msg_num])
         packet += self.serializer.pack_serializable_list(payloads)
-        packet += default_eccrypto.create_signature(cast(PrivateKey, peer.key), packet)
+        packet += default_eccrypto.create_signature(cast("PrivateKey", peer.key), packet)
         return packet
 
     def create_similarity_request(self, peer: Peer) -> bytes:

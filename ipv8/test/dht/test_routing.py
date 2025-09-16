@@ -15,10 +15,10 @@ class FakeNode(Node):
         """
         Create a fake node with a given prefix.
         """
-        id_binary = int(binary_prefix + '0' * (160 - len(binary_prefix)), 2)
-        super().__init__(LibNaCLSK(b'LibNaCLSK:' + id_binary.to_bytes(64, "big")), ('1.1.1.1', 1))
-        id_hex = f'{id_binary:x}'
-        id_hex = '0' + id_hex if len(id_hex) % 2 != 0 else id_hex
+        id_binary = int(binary_prefix + "0" * (160 - len(binary_prefix)), 2)
+        super().__init__(LibNaCLSK(b"LibNaCLSK:" + id_binary.to_bytes(64, "big")), ("1.1.1.1", 1))
+        id_hex = f"{id_binary:x}"
+        id_hex = "0" + id_hex if len(id_hex) % 2 != 0 else id_hex
 
         self._id = unhexlify(id_hex)
 
@@ -47,8 +47,8 @@ class TestNode(TestBase):
         Create a single node.
         """
         super().setUp()
-        self.key = LibNaCLSK(b'\x01' * 64)
-        self.node = Node(self.key, ('1.1.1.1', 1))
+        self.key = LibNaCLSK(b"\x01" * 64)
+        self.node = Node(self.key, ("1.1.1.1", 1))
 
     def test_init(self) -> None:
         """
@@ -58,7 +58,7 @@ class TestNode(TestBase):
         self.assertEqual(self.node.last_response, 0)
         self.assertEqual(self.node.last_query, 0)
         self.assertEqual(self.node.failed, 0)
-        self.assertEqual(self.node.id, unhexlify('f626d35b16b30807cdcb11f8214a5eb762c0dc19'))
+        self.assertEqual(self.node.id, unhexlify("f626d35b16b30807cdcb11f8214a5eb762c0dc19"))
 
     def test_status(self) -> None:
         """
@@ -98,23 +98,23 @@ class TestBucket(TestBase):
         Create a single bucket with a prefix id of ``01`` and maximum size of 8.
         """
         super().setUp()
-        self.bucket = Bucket('01', max_size=8)
+        self.bucket = Bucket("01", max_size=8)
 
     def test_owns(self) -> None:
         """
         Check if a Bucket correctly identifies that prefixes that it should "own".
         """
-        pad_and_convert = lambda b: unhexlify('{:<040X}'.format(int(b.ljust(160, '0'), 2)))
-        self.assertTrue(self.bucket.owns(pad_and_convert('01')))
-        self.assertTrue(self.bucket.owns(pad_and_convert('010')))
-        self.assertFalse(self.bucket.owns(pad_and_convert('00')))
-        self.assertFalse(self.bucket.owns(pad_and_convert('11')))
+        pad_and_convert = lambda b: unhexlify("{:<040X}".format(int(b.ljust(160, "0"), 2)))
+        self.assertTrue(self.bucket.owns(pad_and_convert("01")))
+        self.assertTrue(self.bucket.owns(pad_and_convert("010")))
+        self.assertFalse(self.bucket.owns(pad_and_convert("00")))
+        self.assertFalse(self.bucket.owns(pad_and_convert("11")))
 
     def test_get(self) -> None:
         """
         Check if nodes can be retrieved by their id.
         """
-        node = FakeNode('01')
+        node = FakeNode("01")
         self.bucket.nodes[bytes(1)] = node
         self.assertEqual(self.bucket.get(bytes(1)), node)
         self.assertEqual(self.bucket.get(bytes(2)), None)
@@ -123,7 +123,7 @@ class TestBucket(TestBase):
         """
         Check if adding a node to a bucket that it belongs to succeeds.
         """
-        node = FakeNode('01')
+        node = FakeNode("01")
         self.assertTrue(self.bucket.add(node))
         self.assertEqual(self.bucket.get(node.id), node)
 
@@ -131,7 +131,7 @@ class TestBucket(TestBase):
         """
         Check if adding a node to a bucket that it does not belong to fails.
         """
-        node = FakeNode('11')
+        node = FakeNode("11")
         self.assertFalse(self.bucket.add(node))
         self.assertEqual(self.bucket.get(node.id), None)
 
@@ -139,14 +139,14 @@ class TestBucket(TestBase):
         """
         Check if nodes are merged together with their most recent data.
         """
-        node1 = FakeNode('01')
-        node2 = FakeNode('01')
-        node2.address = ('1.2.3.4', 1)
+        node1 = FakeNode("01")
+        node2 = FakeNode("01")
+        node2.address = ("1.2.3.4", 1)
         self.assertEqual(self.bucket.last_changed, 0)
         self.bucket.add(node1)
         self.bucket.add(node2)
         self.assertEqual(self.bucket.get(node1.id), node1)
-        self.assertEqual(self.bucket.get(node1.id).address, ('1.2.3.4', 1))
+        self.assertEqual(self.bucket.get(node1.id).address, ("1.2.3.4", 1))
         self.assertNotEqual(self.bucket.last_changed, 0)
 
     def test_add_full(self) -> None:
@@ -154,8 +154,8 @@ class TestBucket(TestBase):
         Check if nodes are not added to an already-full bucket.
         """
         self.bucket.max_size = 1
-        node1 = FakeNode('011')
-        node2 = FakeNode('010')
+        node1 = FakeNode("011")
+        node2 = FakeNode("010")
         self.bucket.add(node1)
         self.bucket.add(node2)
         self.assertEqual(self.bucket.get(node1.id), node1)
@@ -166,8 +166,8 @@ class TestBucket(TestBase):
         Check if nodes are not added to an already-full bucket, even if the existing nodes should be cleaned.
         """
         self.bucket.max_size = 1
-        node1 = FakeNode('011')
-        node2 = FakeNode('010')
+        node1 = FakeNode("011")
+        node2 = FakeNode("010")
         self.bucket.add(node1)
         node1.failed += 3
         self.bucket.add(node2)
@@ -179,16 +179,16 @@ class TestBucket(TestBase):
         Check if buckets properly split into other buckets.
         """
         self.bucket.max_size = 1
-        node = FakeNode('011')
+        node = FakeNode("011")
         self.bucket.add(node)
 
         b010, b011 = self.bucket.split()
         self.assertIsInstance(b010, Bucket)
         self.assertIsInstance(b011, Bucket)
         self.assertEqual(b010.get(node.id), None)
-        self.assertEqual(b010.prefix_id, '010')
+        self.assertEqual(b010.prefix_id, "010")
         self.assertEqual(b011.get(node.id), node)
-        self.assertEqual(b011.prefix_id, '011')
+        self.assertEqual(b011.prefix_id, "011")
 
     def test_split_not_full(self) -> None:
         """
@@ -207,7 +207,7 @@ class TestRoutingTable(TestBase):
         Create a routing table for a fake node with prefix 1111111111111111111111111111111111111111.
         """
         super().setUp()
-        self.my_node = FakeNode('11' * 20)
+        self.my_node = FakeNode("11" * 20)
         self.routing_table = RoutingTable(self.my_node.id)
         self.trie = self.routing_table.trie
 
@@ -215,71 +215,71 @@ class TestRoutingTable(TestBase):
         """
         Check that adding a node to the routing table inserts it into the trie.
         """
-        node = FakeNode('0')
+        node = FakeNode("0")
         self.routing_table.add(node)
 
-        self.assertTrue(self.trie[''].get(node.id))
+        self.assertTrue(self.trie[""].get(node.id))
 
     def test_add_multiple_nodes(self) -> None:
         """
         Check that adding multiple nodes causes them to be inserted into the trie.
         """
-        node1 = FakeNode('00')
-        node2 = FakeNode('01')
+        node1 = FakeNode("00")
+        node2 = FakeNode("01")
 
         self.routing_table.add(node1)
         self.routing_table.add(node2)
 
-        self.assertTrue(self.trie[''].get(node1.id))
-        self.assertTrue(self.trie[''].get(node2.id))
+        self.assertTrue(self.trie[""].get(node1.id))
+        self.assertTrue(self.trie[""].get(node2.id))
 
     def test_add_node_with_bucket_split(self) -> None:
         """
         Check that overflowing the max size of a trie splits it.
         """
-        self.trie[''].max_size = 1
+        self.trie[""].max_size = 1
 
-        node1 = FakeNode('0')
-        node2 = FakeNode('1')
+        node1 = FakeNode("0")
+        node2 = FakeNode("1")
 
         self.routing_table.add(node1)
         self.routing_table.add(node2)
 
-        self.assertTrue(self.trie['0'].get(node1.id))
-        self.assertTrue(self.trie['1'].get(node2.id))
+        self.assertTrue(self.trie["0"].get(node1.id))
+        self.assertTrue(self.trie["1"].get(node2.id))
 
     def test_add_node_full(self) -> None:
         """
         Check that a node is dropped if another node already serves its (max size) prefix.
         """
-        self.trie[''].max_size = 1
+        self.trie[""].max_size = 1
 
-        node1 = FakeNode('1')
-        node2 = FakeNode('00')
-        node3 = FakeNode('01')
+        node1 = FakeNode("1")
+        node2 = FakeNode("00")
+        node3 = FakeNode("01")
 
         self.routing_table.add(node1)
         self.routing_table.add(node2)
-        # This time the bucket should not be split. Instead the node should be dropped.
+        # This time the bucket should not be split. Instead, the node should be dropped.
         self.routing_table.add(node3)
 
-        self.assertTrue(self.trie['1'].get(node1.id))
-        self.assertTrue(self.trie['0'].get(node2.id))
-        self.assertFalse(self.trie['0'].get(node3.id))
+        self.assertTrue(self.trie["1"].get(node1.id))
+        self.assertTrue(self.trie["0"].get(node2.id))
+        self.assertFalse(self.trie["0"].get(node3.id))
 
     def test_closest_nodes_single_bucket(self) -> None:
         """
         Check if we can retrieve the closest nodes, in order, to a given id.
         """
-        node1 = FakeNode('00')
-        node2 = FakeNode('10')
-        node3 = FakeNode('01')
+        node1 = FakeNode("00")
+        node2 = FakeNode("10")
+        node3 = FakeNode("01")
 
         self.routing_table.add(node1)
         self.routing_table.add(node2)
         self.routing_table.add(node3)
 
-        closest_nodes = self.routing_table.closest_nodes(b'\00' * 20)
+        closest_nodes = self.routing_table.closest_nodes(b"\00" * 20)
         self.assertEqual(closest_nodes[0], node1)
         self.assertEqual(closest_nodes[1], node3)
         self.assertEqual(closest_nodes[2], node2)
@@ -288,17 +288,17 @@ class TestRoutingTable(TestBase):
         """
         Check if we can retrieve the closest nodes, in order, to a given id after a trie split.
         """
-        self.trie[''].max_size = 1
+        self.trie[""].max_size = 1
 
-        node1 = FakeNode('11')
-        node2 = FakeNode('10')
-        node3 = FakeNode('01')
+        node1 = FakeNode("11")
+        node2 = FakeNode("10")
+        node3 = FakeNode("01")
 
         self.routing_table.add(node1)
         self.routing_table.add(node2)
         self.routing_table.add(node3)
 
-        closest_nodes = self.routing_table.closest_nodes(b'\00' * 20)
+        closest_nodes = self.routing_table.closest_nodes(b"\00" * 20)
         self.assertEqual(closest_nodes[0], node3)
         self.assertEqual(closest_nodes[1], node2)
         self.assertEqual(closest_nodes[2], node1)
@@ -307,4 +307,4 @@ class TestRoutingTable(TestBase):
         """
         Check if we return False if no nodes are available as closest nodes.
         """
-        self.assertFalse(self.routing_table.closest_nodes(b'\00' * 20))
+        self.assertFalse(self.routing_table.closest_nodes(b"\00" * 20))

@@ -11,7 +11,7 @@ from ..peer import Peer
 from . import DHTError
 
 if TYPE_CHECKING:
-    from ..types import Address
+    from ..messaging.interfaces.udp.endpoint import Address
     from .discovery import DHTDiscoveryCommunity
 
 
@@ -22,8 +22,8 @@ class DHTIntroPointPayload(VariablePayload):
     seeder public key.
     """
 
-    names = ['address', 'last_seen', 'intro_pk', 'seeder_pk']
-    format_list = ['ip_address', 'I', 'varlenH', 'varlenH']
+    names = ["address", "last_seen", "intro_pk", "seeder_pk"]
+    format_list = ["ip_address", "I", "varlenH", "varlenH"]
 
     address: Address
     last_seen: int
@@ -67,11 +67,11 @@ class DHTCommunityProvider:
             return None
 
         results = []
-        for value, _ in cast(tuple[list[bytes], list[bytes]], values):
+        for value, _ in cast("tuple[list[bytes], list[bytes]]", values):
             try:
                 payload, _ = default_serializer.unpack_serializable(DHTIntroPointPayload, value)
-                intro_peer = Peer(b'LibNaCLPK:' + payload.intro_pk, payload.address)
-                results.append(IntroductionPoint(intro_peer, b'LibNaCLPK:' + payload.seeder_pk,
+                intro_peer = Peer(b"LibNaCLPK:" + payload.intro_pk, payload.address)
+                results.append(IntroductionPoint(intro_peer, b"LibNaCLPK:" + payload.seeder_pk,
                                                  PEER_SOURCE_DHT, payload.last_seen))
             except Exception as e:
                 self.logger.info("Error during lookup %s on the DHTCommunity (error: %s)", hexlify(info_hash), e)
@@ -80,7 +80,7 @@ class DHTCommunityProvider:
 
     async def announce(self, info_hash: bytes, intro_point: IntroductionPoint) -> None:
         """
-        Annonce the given introduction point to server the given info hash (SHA-1).
+        Announce the given introduction point to server the given info hash (SHA-1).
         """
         # We strip away the LibNaCLPK part of the public key to avoid going over the DHT size limit.
         value = default_serializer.pack_serializable(DHTIntroPointPayload(intro_point.peer.address,

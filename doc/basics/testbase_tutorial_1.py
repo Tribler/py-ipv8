@@ -12,7 +12,7 @@ from ipv8.test.mocking.ipv8 import MockIPv8
 if TYPE_CHECKING:
     from ipv8.messaging.payload import IntroductionRequestPayload
     from ipv8.messaging.payload_headers import GlobalTimeDistributionPayload
-    from ipv8.types import Peer
+    from ipv8.peer import Peer
 
 
 class MyCache(NumberCache):
@@ -149,5 +149,5 @@ class MyTests(TestBase[MyCommunity]):
         self.assertTrue(self.overlay(0).timed_out)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

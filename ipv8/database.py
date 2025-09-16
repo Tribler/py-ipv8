@@ -1,5 +1,5 @@
 """
-This module provides basic database functionalty and simple version control.
+This module provides basic database functionality and simple version control.
 
 @author: Boudewijn Schoon
 @organization: Technical University Delft
@@ -12,18 +12,18 @@ import os
 import sqlite3
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
-from collections.abc import Iterable, Iterator, Mapping
 from sqlite3 import Connection, Cursor, OperationalError
 from threading import RLock
-from typing import TYPE_CHECKING, Any, Callable, Union, cast
+from typing import TYPE_CHECKING, Any, TypeAlias, cast
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable, Iterator, Mapping
     from types import TracebackType
 
     from _typeshed import SupportsLenAndGetItem
     from typing_extensions import Self
 
-DB_TYPES = Union[int, float, str, bytes, None]
+DB_TYPES: TypeAlias = int | float | str | bytes | None
 
 db_locks: dict[str, RLock] = defaultdict(RLock)
 
@@ -47,7 +47,7 @@ def _thread_safe_result_it(result: Cursor, fetch_all: bool = True) -> Iterator[D
 
 class IgnoreCommits(Exception):
     """
-    Ignore all commits made within the body of a 'with database:' clause.
+    Ignore all commits made within the body of a "with database:" clause.
 
     with database:
        # all commit statements are delayed until the database.__exit__
@@ -115,7 +115,7 @@ class Database(metaclass=ABCMeta):
         self._assert(self._connection is None, "Database.open() has already been called")
 
         self._logger.debug("open database [%s]", self._file_path)
-        if (not self._file_path.startswith(':')
+        if (not self._file_path.startswith(":")
                 and not os.path.isfile(self._file_path)
                 and not os.path.exists(os.path.dirname(self._file_path))):
             os.makedirs(os.path.dirname(self._file_path))
@@ -138,9 +138,9 @@ class Database(metaclass=ABCMeta):
         if commit:
             self.commit(exiting=True)
         self._logger.debug("close database [%s]", self._file_path)
-        cast(Cursor, self._cursor).close()
+        cast("Cursor", self._cursor).close()
         self._cursor = None
-        cast(Connection, self._connection).close()
+        cast("Connection", self._connection).close()
         self._connection = None
         return True
 
@@ -158,7 +158,7 @@ class Database(metaclass=ABCMeta):
                      "Database.close() has been called or Database.open() has not been called")
 
         # collect current database configuration
-        cursor = cast(Cursor, self._cursor)
+        cursor = cast("Cursor", self._cursor)
         page_size = int(next(cursor.execute("PRAGMA page_size"))[0])
         journal_mode = next(cursor.execute("PRAGMA journal_mode"))[0].decode().upper()
         synchronous = next(cursor.execute("PRAGMA synchronous"))[0]
@@ -212,9 +212,9 @@ class Database(metaclass=ABCMeta):
         self._assert(self._connection is not None,
                      "Database.close() has been called or Database.open() has not been called")
 
-        # check is the database contains an 'option' table
+        # check is the database contains an "option" table
         try:
-            count = next(cast(Iterator[int], self.execute("SELECT COUNT(*) FROM sqlite_master "
+            count = next(cast("Iterator[int]", self.execute("SELECT COUNT(*) FROM sqlite_master "
                                                           "WHERE type = 'table' AND name = 'option'")))
         except OperationalError as e:
             raise RuntimeError from e
@@ -222,14 +222,14 @@ class Database(metaclass=ABCMeta):
         if count:
             # get version from required 'option' table
             try:
-                version, = next(cast(Iterator[tuple[bytes]], self.execute("SELECT value FROM option "
+                version, = next(cast("Iterator[tuple[bytes]]", self.execute("SELECT value FROM option "
                                                                           "WHERE key == 'database_version' "
                                                                           "LIMIT 1")))
             except OperationalError:
-                # the 'database_version' key was not found
+                # the "database_version" key was not found
                 version = b"0"
         else:
-            # the 'option' table probably hasn't been created yet
+            # the "option" table probably hasn't been created yet
             version = b"0"
 
         self._database_version = self.check_database(version)
@@ -303,10 +303,10 @@ class Database(metaclass=ABCMeta):
         A SQL query must be presented in unicode format.  This is to ensure that no unicode
         exeptions occur when the bindings are merged into the statement.
 
-        Furthermore, the bindings may not contain any strings either.  For a 'string' the unicode
+        Furthermore, the bindings may not contain any strings either.  For a "string" the unicode
         type must be used.  For a binary string the buffer(...) type must be used.
 
-        The SQL query may contain placeholder entries defined with a '?'.  Each of these
+        The SQL query may contain placeholder entries defined with a "?".  Each of these
         placeholders will be used to store one value from bindings.  The placeholders are filled by
         sqlite and all proper escaping is done, making this the preferred way of adding variables to
         the SQL query.
@@ -321,7 +321,7 @@ class Database(metaclass=ABCMeta):
         @raise sqlite.Error: unknown
         """
         self._logger.log(logging.NOTSET, "%s <-- %s [%s]", statement, bindings, self._file_path)
-        cursor = cast(Cursor, self._cursor)
+        cursor = cast("Cursor", self._cursor)
         result = cursor.execute(statement, bindings)
         if get_lastrowid:
             return cursor.lastrowid
@@ -340,7 +340,7 @@ class Database(metaclass=ABCMeta):
 
         self._logger.log(logging.NOTSET, "%s [%s]", statements, self._file_path)
 
-        result = cast(Cursor, self._cursor).executescript(statements)
+        result = cast("Cursor", self._cursor).executescript(statements)
         return _thread_safe_result_it(result, fetch_all)
 
     @db_call
@@ -350,12 +350,12 @@ class Database(metaclass=ABCMeta):
         Execute one SQL statement several times.
 
         All SQL queries must be presented in unicode format.  This is to ensure that no unicode
-        exeptions occur when the bindings are merged into the statement.
+        exceptions occur when the bindings are merged into the statement.
 
-        Furthermore, the bindings may not contain any strings either.  For a 'string' the unicode
+        Furthermore, the bindings may not contain any strings either.  For a "string" the unicode
         type must be used.  For a binary string the buffer(...) type must be used.
 
-        The SQL query may contain placeholder entries defined with a '?'.  Each of these
+        The SQL query may contain placeholder entries defined with a "?".  Each of these
         placeholders will be used to store one value from bindings.  The placeholders are filled by
         sqlite and all proper escaping is done, making this the preferred way of adding variables to
         the SQL query.
@@ -378,7 +378,7 @@ class Database(metaclass=ABCMeta):
                      "Database.close() has been called or Database.open() has not been called")
 
         self._logger.log(logging.NOTSET, "%s [%s]", statement, self._file_path)
-        result = cast(Cursor, self._cursor).executemany(statement, sequenceofbindings)
+        result = cast("Cursor", self._cursor).executemany(statement, sequenceofbindings)
         return _thread_safe_result_it(result, fetch_all)
 
     @db_call
@@ -398,7 +398,7 @@ class Database(metaclass=ABCMeta):
             return False
 
         self._logger.debug("commit [%s]", self._file_path)
-        cast(Connection, self._connection).commit()
+        cast("Connection", self._connection).commit()
         return True
 
     @abstractmethod
@@ -412,9 +412,9 @@ class Database(metaclass=ABCMeta):
         version.
 
         >>> CREATE TABLE option(key TEXT PRIMARY KEY, value BLOB);
-        >>> INSERT INTO option(key, value) VALUES('database_version', '1');
+        >>> INSERT INTO option(key, value) VALUES("database_version", "1");
 
         @param database_version: the current database_version value from the option table. This
-         value reverts to u'0' when the table could not be accessed.
+         value reverts to "0" when the table could not be accessed.
         @type database_version: unicode
         """

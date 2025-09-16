@@ -2,7 +2,7 @@ from ...messaging.lazy_payload import VariablePayloadWID, vp_compile
 
 
 @vp_compile
-class DiclosePayload(VariablePayloadWID):
+class DisclosePayload(VariablePayloadWID):
     """
     A payload used for disclosure of identity meta information.
     """

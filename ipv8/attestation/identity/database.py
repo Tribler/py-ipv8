@@ -8,7 +8,7 @@ from .attestation import Attestation
 from .metadata import Metadata
 
 if typing.TYPE_CHECKING:
-    from ...types import PublicKey
+    from ...keyvault.keys import PublicKey
 
 
 class Credential:
@@ -125,7 +125,7 @@ class IdentityDatabase(Database):
         """
         Retrieve the authority that created a certain attestation.
         """
-        return next(typing.cast(typing.Iterator[bytes], self.execute("SELECT authority_key FROM Attestations "
+        return next(typing.cast("typing.Iterator[bytes]", self.execute("SELECT authority_key FROM Attestations "
                                                                      "WHERE signature = ?", (attestation.signature,),
                                                                      fetch_all=False)))
 
@@ -147,7 +147,7 @@ class IdentityDatabase(Database):
         List the public keys of all known identity owners.
         """
         # These are single item tuples
-        return [result[0] for result in typing.cast(typing.Iterator[list[bytes]],
+        return [result[0] for result in typing.cast("typing.Iterator[list[bytes]]",
                                                     self.execute("SELECT public_key FROM Tokens", fetch_all=True))]
 
     def get_schema(self, version: int) -> str:

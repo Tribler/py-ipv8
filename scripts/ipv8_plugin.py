@@ -14,7 +14,7 @@ try:
     import ipv8
     del ipv8
 except ImportError:
-    import __scriptpath__  # noqa: F401
+    import __scriptpath__  # type: ignore[import-not-found]  # noqa: F401
 
 
 from ipv8.configuration import get_default_configuration
@@ -32,8 +32,8 @@ class IPV8Service:
         """
         Initialize the variables of the IPV8Service.
         """
-        self.ipv8 = None
-        self.restapi = None
+        self.ipv8: IPv8 | None = None
+        self.restapi: RESTManager | None = None
 
     async def start_ipv8(self, statistics: bool, no_rest_api: bool, api_key: str | None, cert_file: str) -> None:
         """
@@ -75,11 +75,11 @@ async def main(argv: list[str]) -> None:
     """
     Create a service to run IPv8 and a REST API from some given commandline arguments.
     """
-    parser = argparse.ArgumentParser(description='Starts IPv8 as a service')
-    parser.add_argument('--statistics', '-s', action='store_true', help='Enable IPv8 overlay statistics')
-    parser.add_argument('--no-rest-api', '-a', action='store_true', help='Autonomous: disable the REST api')
-    parser.add_argument('--api-key', '-k', help='API key to use. If not given API key protection is disabled.')
-    parser.add_argument('--cert-file', '-c', help='Path to combined certificate/key file. If not given HTTP is used.')
+    parser = argparse.ArgumentParser(description="Starts IPv8 as a service")
+    parser.add_argument("--statistics", "-s", action="store_true", help="Enable IPv8 overlay statistics")
+    parser.add_argument("--no-rest-api", "-a", action="store_true", help="Autonomous: disable the REST api")
+    parser.add_argument("--api-key", "-k", help="API key to use. If not given API key protection is disabled.")
+    parser.add_argument("--cert-file", "-c", help="Path to combined certificate/key file. If not given HTTP is used.")
 
     args = parser.parse_args(sys.argv[1:])
     service = IPV8Service()

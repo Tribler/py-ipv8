@@ -22,7 +22,7 @@ from typing import cast
 
 from packaging.version import Version
 
-# ruff: noqa: S602,S603,S607,T201
+# ruff: noqa: S602, S607, T201
 
 
 def parse_setup() -> tuple[str, ast.Expr]:
@@ -33,14 +33,14 @@ def parse_setup() -> tuple[str, ast.Expr]:
     """
     print("[1/8] | Parsing setup.py file.")
 
-    with open('setup.py') as f:
+    with open("setup.py") as f:
         file_contents = f.read()
 
-    treeobj = ast.parse(file_contents, 'setup.py')
+    treeobj = ast.parse(file_contents, "setup.py")
 
     setup_expression = None
     for element in treeobj.body:
-        if isinstance(element, ast.Expr) and cast(ast.Name, cast(ast.Call, element.value).func).id == "setup":
+        if isinstance(element, ast.Expr) and cast("ast.Name", cast("ast.Call", element.value).func).id == "setup":
             setup_expression = element
 
     if not setup_expression:
@@ -57,21 +57,21 @@ def parse_doc_conf() -> tuple[str, tuple[ast.Constant, ast.Constant, ast.Constan
     """
     print("[1/8] | Parsing doc/conf.py file.")
 
-    with open('doc/conf.py') as f:
+    with open("doc/conf.py") as f:
         file_contents = f.read()
 
-    treeobj = ast.parse(file_contents, 'doc/conf.py')
+    treeobj = ast.parse(file_contents, "doc/conf.py")
 
     copyright_element = None
     version_element = None
     release_element = None
     for element in treeobj.body:
         if isinstance(element, ast.Assign) and isinstance(element.value, ast.Constant):
-            if cast(ast.Name, element.targets[0]).id == "copyright":
+            if cast("ast.Name", element.targets[0]).id == "copyright":
                 copyright_element = element.value
-            elif cast(ast.Name, element.targets[0]).id == "version":
+            elif cast("ast.Name", element.targets[0]).id == "version":
                 version_element = element.value
-            elif cast(ast.Name, element.targets[0]).id == "release":
+            elif cast("ast.Name", element.targets[0]).id == "release":
                 release_element = element.value
 
     if not copyright_element:
@@ -94,10 +94,10 @@ def parse_rest_manager() -> tuple[str, ast.Constant]:
     """
     print("[1/8] | Parsing ipv8/REST/rest_manager.py file.")
 
-    with open('ipv8/REST/rest_manager.py') as f:
+    with open("ipv8/REST/rest_manager.py") as f:
         file_contents = f.read()
 
-    treeobj = ast.parse(file_contents, 'ipv8/REST/rest_manager.py')
+    treeobj = ast.parse(file_contents, "ipv8/REST/rest_manager.py")
 
     version_element = None
     for element in treeobj.body:
@@ -108,7 +108,7 @@ def parse_rest_manager() -> tuple[str, ast.Constant]:
                         if (isinstance(f_statement, ast.Assign)
                                 and f_statement.targets
                                 and isinstance(f_statement.targets[0], ast.Name)
-                                and cast(ast.Name, f_statement.targets[0]).id == "aiohttp_apispec"
+                                and cast("ast.Name", f_statement.targets[0]).id == "aiohttp_apispec"
                                 and isinstance(f_statement.value, ast.Call)
                                 and isinstance(f_statement.value.func, ast.Name)
                                 and f_statement.value.func.id == "AiohttpApiSpec"):
@@ -120,7 +120,7 @@ def parse_rest_manager() -> tuple[str, ast.Constant]:
         print("No 'version' assignment found in ipv8/REST/rest_manager.py!")
         sys.exit(1)
 
-    return file_contents, cast(ast.Constant, version_element)
+    return file_contents, cast("ast.Constant", version_element)
 
 
 def modify_setup(file_contents: str, setup_expression: ast.Expr) -> tuple[str, str, str, str, str]:
@@ -133,18 +133,18 @@ def modify_setup(file_contents: str, setup_expression: ast.Expr) -> tuple[str, s
     old_version_tag = ""
     new_version = ""
     new_version_tag = ""
-    for keyword in cast(ast.Call, setup_expression.value).keywords:
+    for keyword in cast("ast.Call", setup_expression.value).keywords:
         if keyword.arg == "version":
             lineno = keyword.value.lineno
             coloffset = keyword.value.col_offset
-            old_version = cast(ast.Name, keyword.value).s
+            old_version = cast("ast.Name", keyword.value).s
             version = Version(old_version)
 
             new_vstring = [version.major, version.minor, version.micro]
-            old_version_tag = '.'.join(str(s) for s in new_vstring[:2])
+            old_version_tag = ".".join(str(s) for s in new_vstring[:2])
             new_vstring[1] += 1
-            new_version = '.'.join(str(s) for s in new_vstring)
-            new_version_tag = '.'.join(str(s) for s in new_vstring[:2])
+            new_version = ".".join(str(s) for s in new_vstring)
+            new_version_tag = ".".join(str(s) for s in new_vstring[:2])
 
             new_split_filecontents = file_contents.splitlines(True)
             source_line = new_split_filecontents[lineno - 1]
@@ -214,7 +214,7 @@ new_rest_manager_file = modify_rest_manager(old_rest_manager_file, rest_manager_
 # LOGIN
 print("[3/8] Requesting GitHub username.")
 
-username = input('Username: ')
+username = input("Username: ")
 
 # GET REPOSITORY REFERENCES
 print(f"[4/8] Retrieving Tribler:py-ipv8 and {username}:py-ipv8.")
@@ -348,4 +348,4 @@ print(f"Release title: IPv8 v{new_version_tag}.{total_commits} release")
 print(f"Body:\n"
       f"Includes the first {total_commits} commits (+{commits_since_last} since v{old_version_tag}) "
       "for IPv8, containing:\n\n - "
-      + ("\n - ".join(commit_messages_to_names([c[1] for c in git_log if c[0].startswith('Merge')]))))
+      + ("\n - ".join(commit_messages_to_names([c[1] for c in git_log if c[0].startswith("Merge")]))))

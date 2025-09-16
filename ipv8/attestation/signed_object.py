@@ -8,9 +8,9 @@ import typing
 from ..keyvault.crypto import ECCrypto
 
 if typing.TYPE_CHECKING:
-    from ..types import PrivateKey, PublicKey
+    from ..keyvault.keys import PrivateKey, PublicKey
 
-T = typing.TypeVar('T')
+T = typing.TypeVar("T")
 
 
 class AbstractSignedObject(metaclass=abc.ABCMeta):
@@ -28,7 +28,7 @@ class AbstractSignedObject(metaclass=abc.ABCMeta):
         Create a new object that can be serialized and signed.
         Call this after the data has been established for the `get_plaintext()` method.
         """
-        self._hash = b''
+        self._hash = b""
         self.crypto = ECCrypto()
         self._sign(private_key, signature)
 

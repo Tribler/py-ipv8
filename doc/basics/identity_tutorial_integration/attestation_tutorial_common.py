@@ -36,7 +36,7 @@ def urlstr(s: str) -> str:
     """
     Make the given string URL safe.
     """
-    return urllib.parse.quote(s, safe='')
+    return urllib.parse.quote(s, safe="")
 
 
 def wait_for_list(url: str, element: str | None = None) -> list:
@@ -57,7 +57,7 @@ def start() -> None:
     Run the main.py script and wait for it to finish initializing.
     """
     global PROCESS  # noqa: PLW0603
-    PROCESS = subprocess.Popen('python3 main.py', shell=True, preexec_fn=os.setsid)  # noqa: PLW1509,S602,S607
+    PROCESS = subprocess.Popen("python3 main.py", shell=True, preexec_fn=os.setsid)  # noqa: PLW1509,S602,S607
     os.waitpid(PROCESS.pid, os.P_NOWAITO)
     time.sleep(5.0)
 
@@ -66,6 +66,6 @@ def finish() -> None:
     """
     Kill our two IPv8 instances (running in the same process).
     """
-    process = cast(subprocess.Popen, PROCESS)
+    process = cast("subprocess.Popen", PROCESS)
     os.killpg(os.getpgid(process.pid), signal.SIGTERM)
     process.communicate()

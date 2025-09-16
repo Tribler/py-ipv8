@@ -1,17 +1,21 @@
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from aiohttp import web
-from aiohttp.abc import Request
+from aiohttp.web_request import Request
 from aiohttp_apispec import docs, json_schema
 from marshmallow.fields import Boolean, Integer, String
+
+from ipv8_service import IPv8
 
 from ..bootstrapping.dispersy.bootstrapper import DispersyBootstrapper
 from ..community import Community
 from ..messaging.anonymization.community import TunnelCommunity
-from ..messaging.interfaces.udp.endpoint import UDPv4Address
-from ..types import Address, IPv8
+from ..messaging.interfaces.udp.endpoint import Address
 from .base_endpoint import HTTP_BAD_REQUEST, BaseEndpoint, Response
 from .schema import DefaultResponseSchema, schema
+
+if TYPE_CHECKING:
+    from ..messaging.interfaces.udp.endpoint import UDPv4Address
 
 
 class IsolationEndpoint(BaseEndpoint[IPv8]):
@@ -23,13 +27,13 @@ class IsolationEndpoint(BaseEndpoint[IPv8]):
         """
         Register the names to make this endpoint callable.
         """
-        self.app.add_routes([web.post('', self.handle_post)])
+        self.app.add_routes([web.post("", self.handle_post)])
 
     def add_exit_node(self, address: Address) -> None:
         """
         Connect to the given exit node address.
         """
-        self.session = cast(IPv8, self.session)
+        self.session = cast("IPv8", self.session)
         for overlay in self.session.overlays:
             if isinstance(overlay, TunnelCommunity):
                 overlay.walk_to(address)
@@ -38,7 +42,7 @@ class IsolationEndpoint(BaseEndpoint[IPv8]):
         """
         Register the given bootstrap server.
         """
-        self.session = cast(IPv8, self.session)
+        self.session = cast("IPv8", self.session)
         self.session.network.blacklist.append(address)
         for overlay in self.session.overlays:
             overlay.network.blacklist.append(address)
@@ -46,7 +50,7 @@ class IsolationEndpoint(BaseEndpoint[IPv8]):
             if isinstance(overlay, Community):
                 for bootstrapper in overlay.bootstrappers:
                     if isinstance(bootstrapper, DispersyBootstrapper):
-                        bootstrapper.ip_addresses.append(cast(UDPv4Address, address))
+                        bootstrapper.ip_addresses.append(cast("UDPv4Address", address))
 
     @docs(
         tags=["Isolation"],
@@ -54,19 +58,19 @@ class IsolationEndpoint(BaseEndpoint[IPv8]):
         responses={
             200: {
                 "schema": DefaultResponseSchema,
-                "examples": {'Success': {"success": True}}
+                "examples": {"Success": {"success": True}}
             },
             HTTP_BAD_REQUEST: {
                 "schema": DefaultResponseSchema,
-                "examples": {'Bad IPv4 address': {"success": False, "error": "Traceback (most recent call last): ..."}}
+                "examples": {"Bad IPv4 address": {"success": False, "error": "Traceback (most recent call last): ..."}}
             }
         }
     )
     @json_schema(schema(IsolationRequest={
-        'ip*': String,
-        'port*': Integer,
-        'bootstrapnode': Boolean,
-        'exitnode': Boolean
+        "ip*": String,
+        "port*": Integer,
+        "bootstrapnode": Boolean,
+        "exitnode": Boolean
     }))
     async def handle_post(self, request: Request) -> Response:
         """
@@ -74,17 +78,17 @@ class IsolationEndpoint(BaseEndpoint[IPv8]):
         """
         # Check if we have arguments, containing an address and the type of address to add.
         args = await request.json()
-        if not args or 'ip' not in args or 'port' not in args:
-            return Response({"success": False, "error": "Parameters 'ip' and 'port' are required"},
+        if not args or "ip" not in args or "port" not in args:
+            return Response({"success": False, "error": 'Parameters "ip" and "port" are required'},
                             status=HTTP_BAD_REQUEST)
-        if 'exitnode' not in args and 'bootstrapnode' not in args:
-            return Response({"success": False, "error": "Parameter 'exitnode' or 'bootstrapnode' is required"},
+        if "exitnode" not in args and "bootstrapnode" not in args:
+            return Response({"success": False, "error": 'Parameter "exitnode" or "bootstrapnode" is required'},
                             status=HTTP_BAD_REQUEST)
-        address_str = args['ip']
-        port_num = args['port']
+        address_str = args["ip"]
+        port_num = args["port"]
         fmt_address = (address_str, port_num)
         # Actually add the address to the requested service
-        if 'exitnode' in args:
+        if "exitnode" in args:
             self.add_exit_node(fmt_address)
         else:
             self.add_bootstrap_server(fmt_address)

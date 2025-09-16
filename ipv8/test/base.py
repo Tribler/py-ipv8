@@ -9,24 +9,27 @@ import time
 import unittest
 import uuid
 from asyncio import AbstractEventLoop, Task, all_tasks, ensure_future, get_running_loop, iscoroutine, sleep
-from collections.abc import Awaitable, Coroutine
 from contextlib import contextmanager
 from functools import partial
-from typing import TYPE_CHECKING, Callable, Generic, TypeVar, cast
+from typing import TYPE_CHECKING, Generic, TypeVar, cast
 
 from ..lazy_community import PacketDecodingError, lazy_wrapper, lazy_wrapper_unsigned
 from ..messaging.interfaces.lan_addresses.interfaces import get_providers
 from ..messaging.serialization import PackError
 from ..overlay import Overlay
 from ..peer import Peer
-from ..types import Community, Payload
 from .mocking.endpoint import MockEndpointListener, internet
 from .mocking.ipv8 import MockIPv8
 
 if TYPE_CHECKING:
-    from ..community import CommunitySettings
+    from collections.abc import Awaitable, Callable, Coroutine
+
+    from ..community import Community, CommunitySettings
+    from ..keyvault.keys import PrivateKey, PublicKey
+    from ..messaging.interfaces.endpoint import Endpoint
+    from ..messaging.interfaces.udp.endpoint import Address
+    from ..messaging.payload import Payload
     from ..peerdiscovery.network import Network
-    from ..types import Address, Endpoint, PrivateKey, PublicKey
 
 
 def _on_packet_fragile_cb(self: Community, packet: tuple[Address, bytes], warn_unknown: bool = True) -> None:
@@ -40,8 +43,8 @@ def _on_packet_fragile_cb(self: Community, packet: tuple[Address, bytes], warn_u
     """
     result = self.decode_map[packet[1][22]](*packet)
     if iscoroutine(result):
-        aw_result = cast(Awaitable, result)
-        self.register_anonymous_task('on_packet', ensure_future(aw_result))
+        aw_result = cast("Awaitable", result)
+        self.register_anonymous_task("on_packet", ensure_future(aw_result))
 
 
 class TranslatedMockEndpointListener(MockEndpointListener):
@@ -130,7 +133,7 @@ class TestBase(unittest.IsolatedAsyncioTestCase, Generic[OT]):
     # The time after which the whole test suite is os.exited
     MAX_TEST_TIME = 10
 
-    def __init__(self, methodName: str = 'runTest') -> None:  # noqa: N803
+    def __init__(self, methodName: str = "runTest") -> None:  # noqa: N803
         """
         Create a new base test class to manage test nodes, connections, overlays and temporary files.
         """
@@ -148,7 +151,7 @@ class TestBase(unittest.IsolatedAsyncioTestCase, Generic[OT]):
         Return the asyncio event loop used for the test case.
         """
         if hasattr(self, "_asyncioTestLoop"):
-            # Python 3.9, and 3.10.
+            # Python 3.10.
             return self._asyncioTestLoop
         # Python 3.11 (and up?).
         return self._asyncioRunner.get_loop()
@@ -161,7 +164,7 @@ class TestBase(unittest.IsolatedAsyncioTestCase, Generic[OT]):
             # Python 3.11 (and up?).
             self._asyncioTestContext.run(func)
         else:
-            # Python 3.9, and 3.10.
+            # Python and 3.10.
             self._callTestMethod(func)
 
     def _callSetUp(self) -> None:  # noqa: N802
@@ -287,13 +290,13 @@ class TestBase(unittest.IsolatedAsyncioTestCase, Generic[OT]):
                         return
                 # If we made it here, there is a serious issue which we cannot recover from.
                 # Most likely the threadpool got into a deadlock while shutting down.
-                import traceback
+                import traceback  # noqa: PLC0415
                 print("The test-suite locked up! Force quitting! Thread dump:", file=sys.stderr)  # noqa: T201
                 for tid, stack in sys._current_frames().items():  # noqa: SLF001
                     if tid != threading.current_thread().ident:
-                        print("THREAD#%d" % tid, file=sys.stderr)  # noqa: T201
+                        print(f"THREAD#{tid}", file=sys.stderr)  # noqa: T201
                         for line in traceback.format_list(traceback.extract_stack(stack)):
-                            print("|", line[:-1].replace('\n', '\n|   '), file=sys.stderr)  # noqa: T201
+                            print("|", line[:-1].replace("\n", "\n|   "), file=sys.stderr)  # noqa: T201
 
                 try:
                     tasks = all_tasks(get_running_loop())
@@ -306,7 +309,7 @@ class TestBase(unittest.IsolatedAsyncioTestCase, Generic[OT]):
 
                 # Our test suite catches the SIGINT signal, this allows it to print information before force exiting.
                 # If we were to hard exit here (through os._exit) we would lose this additional information.
-                import signal
+                import signal  # noqa: PLC0415
                 os.kill(os.getpid(), signal.SIGINT)
                 # But sometimes it just flat out refuses to die (sys.exit will also not work in this case).
                 # So we double kill ourselves:
@@ -330,7 +333,7 @@ class TestBase(unittest.IsolatedAsyncioTestCase, Generic[OT]):
         """
         Create a new IPv8-like container to store node related information.
         """
-        return MockIPv8("low", cast(type[Community], self.overlay_class), settings, create_dht, enable_statistics)
+        return MockIPv8("low", cast("type[Community]", self.overlay_class), settings, create_dht, enable_statistics)
 
     def add_node_to_experiment(self, node: MockIPv8) -> None:
         """
@@ -348,7 +351,7 @@ class TestBase(unittest.IsolatedAsyncioTestCase, Generic[OT]):
         """
         Check if the given task is to be ignored.
         """
-        return task.get_name().endswith('_check_tasks')
+        return task.get_name().endswith("_check_tasks")
 
     async def deliver_messages(self, timeout: float = .1) -> None:
         """
@@ -390,7 +393,7 @@ class TestBase(unittest.IsolatedAsyncioTestCase, Generic[OT]):
 
         WARNING: If your test suite crashes, these files will be left behind (this is by design).
         """
-        rndstr = '_temp_' + uuid.uuid4().hex
+        rndstr = "_temp_" + uuid.uuid4().hex
         d = os.path.abspath(self.__class__.__name__ + rndstr)
         self._tempdirs.append(d)
         os.makedirs(d)
@@ -481,7 +484,7 @@ class TestBase(unittest.IsolatedAsyncioTestCase, Generic[OT]):
         :param ordered: whether the message classes are received ordered or unordered
         :param message_filter: what message classes to store (others are silently ignored)
         """
-        requested_overlay = cast(Community, self.overlay(i))
+        requested_overlay = cast("Community", self.overlay(i))
         requested_endpoint = self.endpoint(i)
 
         endpoint_listener = TranslatedMockEndpointListener(requested_overlay, message_classes, message_filter)

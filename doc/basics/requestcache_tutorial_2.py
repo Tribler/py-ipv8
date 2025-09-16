@@ -17,7 +17,7 @@ class MyState(NumberCacheWithName):
 
     @property
     def timeout_delay(self) -> float:
-        # We will timeout after 3 seconds (default is 10 seconds)
+        # We will time out after 3 seconds (default is 10 seconds)
         return 3.0
 
 

@@ -74,7 +74,7 @@ class TestDispersyBootstrapper(TestBase):
 
     async def test_keep_alive(self) -> None:
         """
-        Check if the keep_alive tries to walk to a bootstrap node to keepe the connection alive.
+        Check if the keep_alive tries to walk to a bootstrap node to keep the connection alive.
         """
         self.bootstrapper.keep_alive(self.overlay)
         await self.deliver_messages()

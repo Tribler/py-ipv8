@@ -40,6 +40,6 @@ class TestDatabase(TestBase):
         Check if an unloaded database returns None for queries.
         """
         self.database.open()
-        self.assertListEqual([(b'database_version', b'0')], list(self.database.execute("SELECT * FROM option")))
+        self.assertListEqual([(b"database_version", b"0")], list(self.database.execute("SELECT * FROM option")))
         self.database.close(True)
         self.assertIsNone(self.database.execute("SELECT * FROM option"))

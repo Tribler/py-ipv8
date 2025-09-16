@@ -8,16 +8,19 @@ from __future__ import annotations
 import abc
 import logging
 import types
-from typing import TYPE_CHECKING, Any, Callable, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from .keyvault.crypto import default_eccrypto
 from .peer import Peer
-from .types import Community
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from ipv8_service import IPv8
+
     from .bootstrapping.bootstrapper_interface import Bootstrapper
+    from .community import Community
     from .peerdiscovery.discovery import DiscoveryStrategy
-    from .types import IPv8
 
 
 class CommunityLauncher:
@@ -116,17 +119,17 @@ class CommunityLoader:
         self.community_launchers: dict[str, tuple[CommunityLauncher, bool]] = {}
         self._logger = logging.getLogger(self.__class__.__name__)
 
-    def get_launcher(self, name: str) -> CommunityLauncher:
+    def get_launcher(self, launcher_name: str) -> CommunityLauncher:
         """
         Get the launcher belonging to the given name.
         """
-        return self.community_launchers[name][0]
+        return self.community_launchers[launcher_name][0]
 
-    def has_launched(self, name: str) -> bool:
+    def has_launched(self, launcher_name: str) -> bool:
         """
         Check if the launcher with the given name has already been launched.
         """
-        return self.community_launchers[name][1]
+        return self.community_launchers[launcher_name][1]
 
     def set_launcher(self, launcher: CommunityLauncher) -> None:
         """
@@ -155,7 +158,7 @@ class CommunityLoader:
 
     def load(self, overlay_provider: IPv8, session: object) -> None:
         """
-        Load all of the communities specified by the registered launchers into IPv8.
+        Load all the communities specified by the registered launchers into IPv8.
         """
         remaining = [launcher for launcher, _ in self.community_launchers.values()]
         cycle = len(remaining) * len(remaining)
@@ -203,21 +206,21 @@ class IPv8CommunityLoader(CommunityLoader):
         self._logger.info("Loading overlay %s", overlay_class)
         walk_strategies = launcher.get_walk_strategies()
         peer = launcher.get_my_peer(ipv8, session)
-        kwargs = launcher.get_kwargs(session)
+        lkwargs = launcher.get_kwargs(session)
 
-        settings = overlay_class.settings_class(my_peer=peer, endpoint=ipv8.endpoint, network=ipv8.network, **kwargs)
-        overlay = overlay_class(settings)
+        settings = overlay_class.settings_class(my_peer=peer, endpoint=ipv8.endpoint, network=ipv8.network, **lkwargs)
+        loverlay = overlay_class(settings)
         bootstrappers = launcher.get_bootstrappers(session)
 
-        ipv8.overlays.append(overlay)
+        ipv8.overlays.append(loverlay)
         for strategy_class, strategy_kwargs, target_peers in walk_strategies:
-            ipv8.strategies.append((strategy_class(overlay, **strategy_kwargs), target_peers))
+            ipv8.strategies.append((strategy_class(loverlay, **strategy_kwargs), target_peers))
         for bootstrapper_class, bootstrapper_kwargs in bootstrappers:
-            overlay = cast(Community, overlay)
-            overlay.bootstrappers.append(bootstrapper_class(**bootstrapper_kwargs))
+            loverlay = cast("Community", loverlay)
+            loverlay.bootstrappers.append(bootstrapper_class(**bootstrapper_kwargs))
 
         # Cleanup
-        launcher.finalize(ipv8, session, overlay)
+        launcher.finalize(ipv8, session, loverlay)
         self.community_launchers[launcher.get_name()] = (launcher, True)
 
 
@@ -315,9 +318,9 @@ def _get_class(class_or_function: type[Community] | Callable[[Any], type[Communi
 
     :param class_or_function: the class, or the function that represents this class.
     """
-    return (cast(type[Community], class_or_function())  # type: ignore[call-arg, method-assign]
+    return (cast("type[Community]", class_or_function())  # type: ignore[call-arg, method-assign]
             if isinstance(class_or_function, types.FunctionType)
-            else cast(type[Community], class_or_function))
+            else cast("type[Community]", class_or_function))
 
 
 def overlay(str_module_or_class: str | type[Community] | Callable[[], type[Community]],
@@ -357,11 +360,11 @@ def overlay(str_module_or_class: str | type[Community] | Callable[[], type[Commu
             instance.hiddenimports.add(str_module_or_class)  # type: ignore[attr-defined]
 
             def get_overlay_class(self: CommunityLauncher) -> type[Community]:
-                return getattr(__import__(cast(str, str_module_or_class), fromlist=[cast(str, str_definition)]),
-                               cast(str, str_definition))
+                return getattr(__import__(cast("str", str_module_or_class), fromlist=[cast("str", str_definition)]),
+                               cast("str", str_definition))
         else:
             def get_overlay_class(self: CommunityLauncher) -> type[Community]:
-                return _get_class(cast(type[Community], str_module_or_class))
+                return _get_class(cast("type[Community]", str_module_or_class))
 
         instance.get_overlay_class = get_overlay_class  # type: ignore[method-assign]
         return instance
@@ -413,11 +416,11 @@ def walk_strategy(str_module_or_class: str | type[DiscoveryStrategy] | Callable[
             if not hasattr(instance, "hiddenimports"):
                 setattr(instance, "hiddenimports", set())  # noqa: B010
             instance.hiddenimports.add(str_module_or_class)  # type: ignore[attr-defined]
-            strategy_class = getattr(__import__(cast(str, str_module_or_class),
-                                                fromlist=[cast(str, str_definition)]),
-                                     cast(str, str_definition))
+            strategy_class = getattr(__import__(cast("str", str_module_or_class),
+                                                fromlist=[cast("str", str_definition)]),
+                                     cast("str", str_definition))
         else:
-            strategy_class = _get_class(cast(type[Community], str_module_or_class))
+            strategy_class = _get_class(cast("type[Community]", str_module_or_class))
 
         def new_get_walk_strategies(self: CommunityLauncher) -> list[tuple[type[DiscoveryStrategy], dict, int]]:
             return [*old_get_walk_strategies(self), (strategy_class, kw_args or {}, target_peers)]
@@ -470,11 +473,11 @@ def bootstrapper(str_module_or_class: str | type[Bootstrapper] | Callable[[], ty
             if not hasattr(instance, "hiddenimports"):
                 setattr(instance, "hiddenimports", set())  # noqa: B010
             instance.hiddenimports.add(str_module_or_class)  # type: ignore[attr-defined]
-            bootstrapper_class = getattr(__import__(cast(str, str_module_or_class),
-                                                    fromlist=[cast(str, str_definition)]),
-                                         cast(str, str_definition))
+            bootstrapper_class = getattr(__import__(cast("str", str_module_or_class),
+                                                    fromlist=[cast("str", str_definition)]),
+                                         cast("str", str_definition))
         else:
-            bootstrapper_class = _get_class(cast(type[Community], str_module_or_class))
+            bootstrapper_class = _get_class(cast("type[Community]", str_module_or_class))
 
         def new_get_bootstrappers(self: CommunityLauncher, session: object) -> list[tuple[type[Bootstrapper], dict]]:
             return [*old_get_bootstrappers(self, session), (bootstrapper_class, kw_args or {})]
@@ -535,8 +538,8 @@ def kwargs(**kw_args) -> Callable[[type[CommunityLauncher]], type[CommunityLaunc
 
         def new_get_kwargs(self: CommunityLauncher, session: object) -> dict:
             out = old_get_kwargs(self, session)
-            for kwarg in kw_args:
-                out[kwarg] = eval(kw_args[kwarg], globals(), locals())  # noqa: S307
+            for kwarg, val in kw_args.items():
+                out[kwarg] = eval(val, globals(), locals())  # noqa: S307
             return out
 
         instance.get_kwargs = new_get_kwargs  # type: ignore[method-assign]

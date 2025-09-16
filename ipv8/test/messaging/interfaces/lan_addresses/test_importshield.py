@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import contextlib
+import ctypes
 import io
 import sys
 from importlib.abc import MetaPathFinder
@@ -29,7 +30,6 @@ class SegfaultingImporter(MetaPathFinder):
         We cannot simply raise an ``AssertionError`` here, as the import protection SHOULD also serve as a general
         ``try: ... except Exception: ...`` handler.
         """
-        import ctypes
         return ctypes.cast(id(0), ctypes.POINTER(ctypes.c_char_p)).contents.value
 
 
@@ -49,7 +49,7 @@ class TestImportShield(TestBase):
         result = 42.0
 
         with conditional_import_shield(Platform.NONE, True):
-            from .killer_import import ctypes
+            from .killer_import import ctypes  # noqa: PLC0415
             result = ctypes.__version__  # We should've already segfaulted here, just in case: also change the result
 
         self.assertEqual(42.0, result)
@@ -61,7 +61,7 @@ class TestImportShield(TestBase):
         result = 0.0
 
         with conditional_import_shield(Platform.ANY, False):
-            import math
+            import math  # noqa: PLC0415
             result = sum(math.frexp(80) * 8) - 19.0  # Does not work without the ``math`` import.
 
         self.assertEqual(42.0, result)
@@ -72,7 +72,7 @@ class TestImportShield(TestBase):
         """
         log = io.StringIO()
         with contextlib.redirect_stderr(log), conditional_import_shield(Platform.ANY, True):
-            import math
+            import math  # noqa: PLC0415
             print(math.factorial(-1))  # This leads to an error that we should print.  # noqa: T201
 
         self.assertNotEqual("", log.getvalue())

@@ -6,7 +6,7 @@ from ipv8.community import Community, CommunitySettings
 from ipv8.configuration import ConfigBuilder, Strategy, WalkerDefinition, default_bootstrap_defs
 from ipv8.lazy_community import lazy_wrapper
 from ipv8.messaging.payload_dataclass import DataClassPayload
-from ipv8.types import Peer
+from ipv8.peer import Peer
 from ipv8.util import run_forever
 from ipv8_service import IPv8
 
@@ -39,7 +39,7 @@ class MyCommunity(Community):
 
         # We register an asyncio task with this overlay.
         # This makes sure that the task ends when this overlay is unloaded.
-        # We call the 'start_communication' function every 5.0 seconds, starting now.
+        # We call the "start_communication" function every 5.0 seconds, starting now.
         self.register_task("start_communication", start_communication, interval=5.0, delay=0)
 
     @lazy_wrapper(MyMessage)
@@ -57,10 +57,10 @@ async def start_communities() -> None:
         builder.add_key("my peer", "medium", f"ec{i}.pem")
         builder.add_overlay("MyCommunity", "my peer",
                             [WalkerDefinition(Strategy.RandomWalk,
-                                              10, {'timeout': 3.0})],
-                            default_bootstrap_defs, {}, [('started',)])
+                                              10, {"timeout": 3.0})],
+                            default_bootstrap_defs, {}, [("started",)])
         await IPv8(builder.finalize(),
-                   extra_communities={'MyCommunity': MyCommunity}).start()
+                   extra_communities={"MyCommunity": MyCommunity}).start()
     await run_forever()
 
 

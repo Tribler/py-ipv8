@@ -7,7 +7,8 @@ if TYPE_CHECKING:
     from asyncio import Future
     from collections.abc import Coroutine, Iterable
 
-    from ..types import Address, Community
+    from ..community import Community
+    from ..messaging.interfaces.udp.endpoint import Address
 
 
 class Bootstrapper(ABC):

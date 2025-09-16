@@ -23,7 +23,7 @@ class TestPingChurn(TestDHTBase[DHTCommunity]):
         Check if a failed node without a previous response is pinged and if it responds.
         """
         await self.introduce_nodes()
-        bucket = self.routing_table(0).trie['']
+        bucket = self.routing_table(0).trie[""]
 
         node1 = bucket.get(self.my_node_id(1))
         node1.failed = 1
@@ -40,7 +40,7 @@ class TestPingChurn(TestDHTBase[DHTCommunity]):
         Check if a failed node that recently responded is not spammed with a ping.
         """
         await self.introduce_nodes()
-        bucket = self.routing_table(0).trie['']
+        bucket = self.routing_table(0).trie[""]
         node1 = bucket.get(self.my_node_id(1))
         node1.failed = 1
         node1.last_response = time.time() + 5

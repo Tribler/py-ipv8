@@ -14,7 +14,10 @@ from .database import Credential, IdentityDatabase
 from .metadata import Metadata
 
 if typing.TYPE_CHECKING:
-    from ...types import PublicKey, Token
+    from ...keyvault.keys import PublicKey
+    from ..tokentree.token import Token
+
+logger = logging.getLogger(__name__)
 
 
 class PseudonymManager:
@@ -37,7 +40,7 @@ class PseudonymManager:
         self.tree = TokenTree(public_key=public_key, private_key=private_key)
         self.credentials = []
 
-        logging.info("Loading public key %s from database", binascii.hexlify(self.public_key.key_to_hash()).decode())
+        logger.info("Loading public key %s from database", binascii.hexlify(self.public_key.key_to_hash()).decode())
         for token in self.database.get_tokens_for(self.public_key):
             self.tree.elements[token.get_hash()] = token
         self.credentials = self.database.get_credentials_for(self.public_key)
@@ -102,7 +105,7 @@ class PseudonymManager:
 
     def create_attestation(self, metadata: Metadata, private_key: PrivateKey) -> Attestation:
         """
-        Create an attestation for a a metadata entry of this pseudonym.
+        Create an attestation for a metadata entry of this pseudonym.
 
         Attesting to your own attributes is allowed (but probably not of any added value).
         """

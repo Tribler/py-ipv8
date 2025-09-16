@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import json
 import logging
-from collections.abc import Awaitable, Iterable
-from typing import Any, Callable, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from aiohttp import web
-from aiohttp.abc import Request, StreamResponse
-from aiohttp.typedefs import Handler, LooseHeaders
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from aiohttp.typedefs import LooseHeaders, Middleware
 
 HTTP_BAD_REQUEST = 400
 HTTP_UNAUTHORIZED = 401
@@ -18,8 +20,7 @@ HTTP_INTERNAL_SERVER_ERROR = 500
 
 DEFAULT_HEADERS: dict[str, str] = {}
 
-T = TypeVar('T')
-MiddleWaresType = Iterable[Callable[[Request, Handler], Awaitable[StreamResponse]]]
+T = TypeVar("T")
 
 
 class BaseEndpoint(Generic[T]):
@@ -27,7 +28,7 @@ class BaseEndpoint(Generic[T]):
     Base class for all REST endpoints.
     """
 
-    def __init__(self, middlewares: MiddleWaresType = ()) -> None:
+    def __init__(self, middlewares: Iterable[Middleware] = ()) -> None:
         """
         Create new unregistered and uninitialized REST endpoint.
         """
@@ -70,6 +71,6 @@ class Response(web.Response):
         """
         if isinstance(body, (dict, list)):
             body = json.dumps(body)
-            content_type = 'application/json'
+            content_type = "application/json"
         super().__init__(body=body, headers=headers or DEFAULT_HEADERS, content_type=content_type, status=status,
                          **kwargs)

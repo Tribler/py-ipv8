@@ -32,13 +32,13 @@ def type_map(t: type) -> FormatListType:  # noqa: PLR0911
         return "varlenHutf8"
     if isinstance(t, TypeVar):
         return t.__name__
-    if getattr(t, '__origin__', None) in (tuple, list, set):
+    if getattr(t, "__origin__", None) in (tuple, list, set):
         fmt = get_args(t)[0]
         if issubclass(fmt, Serializable):
             return [fmt]
         return f"arrayH-{type_map(fmt)}"
     if isinstance(t, (tuple, list, set)) or Serializable in getattr(t, "mro", list)():
-        return cast(type[Serializable], t)
+        return cast("type[Serializable]", t)
     raise NotImplementedError(t, " unknown")
 
 
@@ -73,9 +73,9 @@ class DataClassPayload(VariablePayload):
 
         :param item: The item to get, i.e., the message id
         """
-        return cast(DataClassPayloadWID, type(cls.__name__, (DataClassPayloadWID, ), {"msg_id": item}))
+        return cast("DataClassPayloadWID", type(cls.__name__, (DataClassPayloadWID, ), {"msg_id": item}))
 
-    def __new__(cls, *args: Any, **kwargs) -> Self:  # noqa: ANN401, ARG003
+    def __new__(cls, *args: Any, **kwargs) -> Self:  # noqa: ANN401, ARG004
         """
         Allocate memory for a new DataClassPayload class.
         """
@@ -89,7 +89,7 @@ class DataClassPayloadWID(VariablePayloadWID):
     A Payload that is defined as a dataclass and has a message id [0, 255].
     """
 
-    def __new__(cls, *args: Any, **kwargs) -> Self:  # noqa: ANN401, ARG003
+    def __new__(cls, *args: Any, **kwargs) -> Self:  # noqa: ANN401, ARG004
         """
         Allocate memory for a new DataClassPayloadWID class.
         """
@@ -98,4 +98,4 @@ class DataClassPayloadWID(VariablePayloadWID):
         return out
 
 
-__all__ = ['DataClassPayload', 'type_from_format']
+__all__ = ["DataClassPayload", "type_from_format"]

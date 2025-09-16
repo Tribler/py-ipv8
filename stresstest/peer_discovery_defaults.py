@@ -5,6 +5,9 @@ from asyncio import Event, create_task, run, sleep
 from os import chdir, getcwd, mkdir, path
 from random import randint
 
+from ipv8.community import Community
+from ipv8.peer import Peer
+
 # Check if we are running from the root directory
 # If not, modify our path so that we can import IPv8
 try:
@@ -16,7 +19,6 @@ except ImportError:
 from ipv8.configuration import get_default_configuration  # noqa: I001
 from ipv8.messaging.payload import IntroductionResponsePayload
 from ipv8.messaging.payload_headers import GlobalTimeDistributionPayload
-from ipv8.types import Community, Peer
 from ipv8.util import create_event_with_signals
 
 from ipv8_service import IPv8, _COMMUNITIES, _WALKERS
@@ -38,7 +40,7 @@ def custom_intro_response_cb(self: Community,
     if (peer.address not in self.network.blacklist) and (self.__class__.__name__ not in RESULTS):
         RESULTS[self.__class__.__name__] = time.time() - START_TIME
         print(self.__class__.__name__, "found a peer!", file=sys.stderr)  # noqa: T201
-        if len(get_default_configuration()['overlays']) == len(RESULTS):
+        if len(get_default_configuration()["overlays"]) == len(RESULTS):
             event.set()
 
 
@@ -47,10 +49,10 @@ async def on_timeout(event: Event) -> None:
     If it takes longer than 30 seconds to find anything, abort the experiment and set the intro time to -1.0.
     """
     await sleep(30)
-    for definition in get_default_configuration()['overlays']:
-        if definition['class'] not in RESULTS:
-            RESULTS[definition['class']] = -1.0
-            print(definition['class'], "found no peers at all!", file=sys.stderr)  # noqa: T201
+    for definition in get_default_configuration()["overlays"]:
+        if definition["class"] not in RESULTS:
+            RESULTS[definition["class"]] = -1.0
+            print(definition["class"], "found no peers at all!", file=sys.stderr)  # noqa: T201
     event.set()
 
 
@@ -72,10 +74,10 @@ async def start_communities() -> None:
     previous_workdir = getcwd()
     for i in [1, 2]:
         configuration = get_default_configuration()
-        configuration['port'] = 12000 + randint(0, 10000)
-        configuration['logger']['level'] = "CRITICAL"
-        for overlay in configuration['overlays']:
-            overlay['walkers'] = [walker for walker in overlay['walkers'] if walker['strategy'] in _WALKERS]
+        configuration["port"] = 12000 + randint(0, 10000)
+        configuration["logger"]["level"] = "CRITICAL"
+        for overlay in configuration["overlays"]:
+            overlay["walkers"] = [walker for walker in overlay["walkers"] if walker["strategy"] in _WALKERS]
         workdir = path.abspath(path.join(path.dirname(__file__), str(i)))
         if not path.exists(workdir):
             mkdir(workdir)
@@ -96,4 +98,4 @@ async def start_communities() -> None:
 run(start_communities())
 
 # Print the introduction times for all default Communities, sorted alphabetically.
-print(','.join([f'{RESULTS[key]:.4f}' for key in sorted(RESULTS)]))  # noqa: T201
+print(",".join([f"{RESULTS[key]:.4f}" for key in sorted(RESULTS)]))  # noqa: T201

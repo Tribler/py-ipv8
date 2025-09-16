@@ -6,7 +6,8 @@ from typing import TYPE_CHECKING
 
 from ....attestation.identity.community import IdentityCommunity, IdentitySettings
 from ....attestation.identity.manager import IdentityManager
-from ...base import MockIPv8, TestBase
+from ...base import TestBase
+from ...mocking.ipv8 import MockIPv8
 
 if TYPE_CHECKING:
     from ....community import CommunitySettings
@@ -17,7 +18,7 @@ class TestIdentityCommunity(TestBase[IdentityCommunity]):
     Tests related to the identity community's behaviors.
     """
 
-    FAKE_HASH = b'a' * 32
+    FAKE_HASH = b"a" * 32
 
     def setUp(self) -> None:
         """
@@ -62,7 +63,7 @@ class TestIdentityCommunity(TestBase[IdentityCommunity]):
 
         await self.deliver_messages()
 
-        self.overlay(1).add_known_hash(self.FAKE_HASH[:-1] + b'b', "attribute", self.key_bin(0))
+        self.overlay(1).add_known_hash(self.FAKE_HASH[:-1] + b"b", "attribute", self.key_bin(0))
         self.overlay(0).request_attestation_advertisement(self.peer(1), self.FAKE_HASH, "attribute")
 
         await self.deliver_messages()

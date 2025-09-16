@@ -10,7 +10,7 @@ from ...messaging.interfaces.endpoint import Endpoint, EndpointListener
 from ...messaging.interfaces.udp.endpoint import UDPv4Address, UDPv6Address
 
 if TYPE_CHECKING:
-    from ...types import Address
+    from ...messaging.interfaces.udp.endpoint import Address
 
 internet = {}
 
@@ -144,7 +144,7 @@ class AutoMockEndpoint(MockEndpoint):
     Randomly generate LAN + WAN addresses that are globally unique and register them in the "internet" dictionary.
     """
 
-    IPV6_ADDRESSES = bool(int(os.environ.get("TEST_IPV8_WITH_IPV6", 0)))
+    IPV6_ADDRESSES = bool(int(os.environ.get("TEST_IPV8_WITH_IPV6", "0")))
 
     def __init__(self) -> None:
         """
@@ -162,7 +162,7 @@ class AutoMockEndpoint(MockEndpoint):
             b3 = random.randint(0, 255)
             port = random.randint(0, 65535)
 
-            return UDPv4Address('%d.%d.%d.%d' % (b0, b1, b2, b3), port)
+            return UDPv4Address(f"{b0}.{b1}.{b2}.{b3}", port)
 
         b0 = random.randint(0, 65535)
         b1 = random.randint(0, 65535)

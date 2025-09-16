@@ -7,7 +7,8 @@ from typing import TYPE_CHECKING
 from ..signed_object import AbstractSignedObject
 
 if TYPE_CHECKING:
-    from ...types import Metadata, PrivateKey, PublicKey
+    from ...keyvault.keys import PrivateKey, PublicKey
+    from .metadata import Metadata
 
 
 class Attestation(AbstractSignedObject):

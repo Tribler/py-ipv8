@@ -1,6 +1,6 @@
 from ....messaging.interfaces.network_stats import NetworkStat
 from ....messaging.interfaces.statistics_endpoint import StatisticsEndpoint
-from ....types import Address
+from ....messaging.interfaces.udp.endpoint import Address
 from ...base import TestBase
 from ...mocking.endpoint import AutoMockEndpoint
 
@@ -29,8 +29,8 @@ class TestStatisticsEndpoint(TestBase):
         self.raw_ep = NoSendEndpoint()
         self.stats_ep = StatisticsEndpoint(self.raw_ep)
 
-        self.prefix = b'0' * 22
-        self.msg_id = b'\x01'
+        self.prefix = b"0" * 22
+        self.msg_id = b"\x01"
         self.msg_num = self.msg_id[0]
         self.fake_addr = ("0.0.0.0", 0)
 
@@ -47,7 +47,7 @@ class TestStatisticsEndpoint(TestBase):
         Check if send calls are registered when the prefix is enabled.
         """
         self.stats_ep.enable_community_statistics(self.prefix, True)
-        self.stats_ep.send(self.fake_addr, self.prefix + self.msg_id + b'Hello World!')
+        self.stats_ep.send(self.fake_addr, self.prefix + self.msg_id + b"Hello World!")
 
         statistics = self.stats_ep.get_statistics(self.prefix)
 
@@ -61,7 +61,7 @@ class TestStatisticsEndpoint(TestBase):
         Check if send calls are not registered when the prefix is disabled.
         """
         self.stats_ep.enable_community_statistics(self.prefix, False)
-        self.stats_ep.send(self.fake_addr, self.prefix + self.msg_id + b'Hello World!')
+        self.stats_ep.send(self.fake_addr, self.prefix + self.msg_id + b"Hello World!")
 
         statistics = self.stats_ep.get_statistics(self.prefix)
 
@@ -73,7 +73,7 @@ class TestStatisticsEndpoint(TestBase):
         Check if receive calls are registered when the prefix is enabled.
         """
         self.stats_ep.enable_community_statistics(self.prefix, True)
-        self.stats_ep.on_packet((self.fake_addr, self.prefix + self.msg_id + b'Hello World!'))
+        self.stats_ep.on_packet((self.fake_addr, self.prefix + self.msg_id + b"Hello World!"))
 
         statistics = self.stats_ep.get_statistics(self.prefix)
 
@@ -87,7 +87,7 @@ class TestStatisticsEndpoint(TestBase):
         Check if receive calls are not registered when the prefix is disabled.
         """
         self.stats_ep.enable_community_statistics(self.prefix, False)
-        self.stats_ep.on_packet((self.fake_addr, self.prefix + self.msg_id + b'Hello World!'))
+        self.stats_ep.on_packet((self.fake_addr, self.prefix + self.msg_id + b"Hello World!"))
 
         statistics = self.stats_ep.get_statistics(self.prefix)
 
@@ -102,7 +102,7 @@ class TestStatisticsEndpoint(TestBase):
         stats.num_up = 2
         stats.bytes_up = 42
         self.stats_ep.statistics = {self.prefix: {self.msg_num: stats}}
-        unknown_prefix = b'some other prefix'
+        unknown_prefix = b"some other prefix"
 
         self.assertEqual(0, self.stats_ep.get_message_sent(unknown_prefix))
         self.assertEqual(2, self.stats_ep.get_message_sent(self.prefix))
@@ -117,7 +117,7 @@ class TestStatisticsEndpoint(TestBase):
         stats.num_down = 2
         stats.bytes_down = 42
         self.stats_ep.statistics = {self.prefix: {self.msg_num: stats}}
-        unknown_prefix = b'some other prefix'
+        unknown_prefix = b"some other prefix"
 
         self.assertEqual(0, self.stats_ep.get_message_received(unknown_prefix))
         self.assertEqual(2, self.stats_ep.get_message_received(self.prefix))
@@ -165,11 +165,11 @@ class TestStatisticsEndpoint(TestBase):
         statistics = self.stats_ep.get_aggregate_statistics(self.prefix)
 
         self.assertIsNotNone(statistics)
-        self.assertEqual(8, statistics['num_up'])
-        self.assertEqual(10, statistics['num_down'])
-        self.assertEqual(12, statistics['bytes_up'])
-        self.assertEqual(14, statistics['bytes_down'])
-        self.assertEqual(0, statistics['diff_time'])
+        self.assertEqual(8, statistics["num_up"])
+        self.assertEqual(10, statistics["num_down"])
+        self.assertEqual(12, statistics["bytes_up"])
+        self.assertEqual(14, statistics["bytes_down"])
+        self.assertEqual(0, statistics["diff_time"])
 
     async def test_aggregate_statistics_diff_one(self) -> None:
         """
@@ -186,7 +186,7 @@ class TestStatisticsEndpoint(TestBase):
         statistics = self.stats_ep.get_aggregate_statistics(self.prefix)
 
         self.assertIsNotNone(statistics)
-        self.assertEqual(4, statistics['diff_time'])
+        self.assertEqual(4, statistics["diff_time"])
 
     async def test_aggregate_statistics_diff_two(self) -> None:
         """
@@ -203,7 +203,7 @@ class TestStatisticsEndpoint(TestBase):
         statistics = self.stats_ep.get_aggregate_statistics(self.prefix)
 
         self.assertIsNotNone(statistics)
-        self.assertEqual(5, statistics['diff_time'])
+        self.assertEqual(5, statistics["diff_time"])
 
     async def test_aggregate_statistics_diff_many(self) -> None:
         """
@@ -220,4 +220,4 @@ class TestStatisticsEndpoint(TestBase):
         statistics = self.stats_ep.get_aggregate_statistics(self.prefix)
 
         self.assertIsNotNone(statistics)
-        self.assertEqual(6, statistics['diff_time'])
+        self.assertEqual(6, statistics["diff_time"])

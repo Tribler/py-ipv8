@@ -3,12 +3,12 @@ from binascii import unhexlify
 from ....messaging.anonymization.exit_socket import DataChecker
 from ...base import TestBase
 
-tracker_pkt = unhexlify('00000417271019800000000012345678')
-dht_pkt = b'd1:ad2:id20:abcdefghij01234567899:info_hash20:mnopqrstuvwxyz123456e1:q9:get_peers1:t2:aa1:y1:qe'
-utp_pkt = unhexlify('210086446ed69ec1ddbd9e6000100000f32e86be')
-utp_ext3_pkt = unhexlify('110309d69087c1e7b69c0980001000009868b984000400000008')
-ipv8_pkt = unhexlify('0002123456789abcdef123456789abcdef123456789a00000001')
-tunnel_pkt = unhexlify('000281ded07332bdc775aa5a46f96de9f8f390bbc9f300000001')
+tracker_pkt = unhexlify("00000417271019800000000012345678")
+dht_pkt = b"d1:ad2:id20:abcdefghij01234567899:info_hash20:mnopqrstuvwxyz123456e1:q9:get_peers1:t2:aa1:y1:qe"
+utp_pkt = unhexlify("210086446ed69ec1ddbd9e6000100000f32e86be")
+utp_ext3_pkt = unhexlify("110309d69087c1e7b69c0980001000009868b984000400000008")
+ipv8_pkt = unhexlify("0002123456789abcdef123456789abcdef123456789a00000001")
+tunnel_pkt = unhexlify("000281ded07332bdc775aa5a46f96de9f8f390bbc9f300000001")
 
 
 class TestDataChecker(TestBase):

@@ -5,7 +5,7 @@ import netifaces
 
 from ..addressprovider import AddressProvider
 
-NETMASK0_V6 = socket.inet_ntop(socket.AF_INET6, b'\x00' * 16)
+NETMASK0_V6 = socket.inet_ntop(socket.AF_INET6, b"\x00" * 16)
 
 
 class Netifaces(AddressProvider):

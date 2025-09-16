@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 from .token import Token
 
 if TYPE_CHECKING:
-    from ...types import PrivateKey, PublicKey
+    from ...keyvault.keys import PrivateKey, PublicKey
 
 
 class TokenTree:
@@ -176,7 +176,7 @@ class TokenTree:
                 next_token = token.previous_token_hash
             return out
         # Do the full tree dump.
-        return b''.join(token.get_plaintext_signed() for token in self.elements.values())
+        return b"".join(token.get_plaintext_signed() for token in self.elements.values())
 
     def unserialize_public(self, s: bytes) -> bool:
         """

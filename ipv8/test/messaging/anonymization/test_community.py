@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from asyncio import Future, ensure_future, iscoroutine
-from collections.abc import Awaitable
 from functools import partial
 from typing import TYPE_CHECKING, cast
 from unittest.mock import Mock
@@ -24,8 +23,11 @@ from ...mocking.ipv8 import MockIPv8
 from .mock import MockDHTProvider
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable
+
     from ....community import CommunitySettings
-    from ....types import Address, Overlay
+    from ....messaging.interfaces.udp.endpoint import Address
+    from ....overlay import Overlay
 
 
 def _on_packet_fragile_cb(self: TunnelCommunity, source_address: Address, data: bytes, circuit_id: int | None) -> None:
@@ -39,8 +41,8 @@ def _on_packet_fragile_cb(self: TunnelCommunity, source_address: Address, data: 
     """
     result = self.decode_map_private[data[22]](source_address, data, circuit_id)
     if iscoroutine(result):
-        aw_result = cast(Awaitable, result)
-        self.register_anonymous_task('on_packet_from_circuit', ensure_future(aw_result))
+        aw_result = cast("Awaitable", result)
+        self.register_anonymous_task("on_packet_from_circuit", ensure_future(aw_result))
 
 
 class TestTunnelCommunity(TestBase[TunnelCommunity]):
@@ -350,7 +352,7 @@ class TestTunnelCommunity(TestBase[TunnelCommunity]):
         await self.deliver_messages()
 
         # Construct a data packet
-        prefix = b'\x00' * 23
+        prefix = b"\x00" * 23
         data = prefix + bytes(range(256))
 
         self.public_endpoint.assert_open()
@@ -358,8 +360,8 @@ class TestTunnelCommunity(TestBase[TunnelCommunity]):
         # Tunnel the data to the endpoint
         circuit = next(iter(self.overlay(0).circuits.values()))
         self.overlay(0).send_data(circuit.hop.address, circuit.circuit_id,
-                                  DomainAddress('localhost', self.public_endpoint.get_address()[1]),
-                                  ('0.0.0.0', 0), data)
+                                  DomainAddress("localhost", self.public_endpoint.get_address()[1]),
+                                  ("0.0.0.0", 0), data)
 
         future = Future()
         ep_listener.on_packet = lambda packet: ep_listener.received_packets.append(packet) or future.set_result(None)
@@ -506,23 +508,23 @@ class TestTunnelCommunity(TestBase[TunnelCommunity]):
         send_data = Mock(wraps=self.overlay(0).send_data)
         self.overlay(0).send_data = send_data
 
-        prefix = b'\x00\x01' + b'\x00' * 20
+        prefix = b"\x00\x01" + b"\x00" * 20
         self.overlay(0).endpoint = endpoint = TunnelEndpoint(self.endpoint(0))
         endpoint.set_tunnel_community(self.overlay(0))
         endpoint.set_anonymity(prefix, True)
 
         ep_listener = MockEndpointListener(self.endpoint(1))
-        endpoint.send(self.overlay(1).my_estimated_wan, prefix + b'DATA')
+        endpoint.send(self.overlay(1).my_estimated_wan, prefix + b"DATA")
         await self.deliver_messages()
         self.assertEqual(len(ep_listener.received_packets), 1)
-        self.assertEqual(ep_listener.received_packets[0][1], prefix + b'DATA')
+        self.assertEqual(ep_listener.received_packets[0][1], prefix + b"DATA")
         send_data.assert_called_once()
 
         # When a circuit closes, sending data should fail
         send_data = Mock(wraps=send_data)
         circuit = self.overlay(0).find_circuits(exit_flags=[PEER_FLAG_EXIT_IPV8])[0]
         await self.overlay(0).remove_circuit(circuit.circuit_id)
-        endpoint.send(self.overlay(1).my_estimated_wan, prefix + b'DATA')
+        endpoint.send(self.overlay(1).my_estimated_wan, prefix + b"DATA")
         await self.deliver_messages()
         self.assertEqual(len(ep_listener.received_packets), 1)
         send_data.assert_not_called()
@@ -531,17 +533,17 @@ class TestTunnelCommunity(TestBase[TunnelCommunity]):
         """
         Check if the tunnel endpoint is routing traffic correctly with anonymity disabled.
         """
-        prefix = b'\x00' * 22
+        prefix = b"\x00" * 22
         self.overlay(0).endpoint = endpoint = TunnelEndpoint(self.endpoint(0))
         endpoint.set_tunnel_community(self.overlay(0))
         endpoint.set_anonymity(prefix, False)
 
         ep_listener = MockEndpointListener(self.endpoint(1))
-        endpoint.send(self.overlay(1).my_estimated_wan, prefix + b'DATA')
+        endpoint.send(self.overlay(1).my_estimated_wan, prefix + b"DATA")
         await self.deliver_messages()
 
         self.assertEqual(len(ep_listener.received_packets), 1)
-        self.assertEqual(ep_listener.received_packets[0][1], prefix + b'DATA')
+        self.assertEqual(ep_listener.received_packets[0][1], prefix + b"DATA")
 
     async def test_tunnel_unicode_destination(self) -> None:
         """
@@ -556,11 +558,11 @@ class TestTunnelCommunity(TestBase[TunnelCommunity]):
         mock_exit = self.overlay(1).exit_sockets[exit_socket.circuit_id] = MockTunnelExitSocket(exit_socket)
         mock_exit.sendto = Mock()
 
-        unicode_destination = DomainAddress('JP納豆.例.jp', 1234)
-        self.overlay(0).send_data(circuit.hop.address, circuit.circuit_id, unicode_destination, ('0.0.0.0', 0), b'')
+        unicode_destination = DomainAddress("JP納豆.例.jp", 1234)
+        self.overlay(0).send_data(circuit.hop.address, circuit.circuit_id, unicode_destination, ("0.0.0.0", 0), b"")
         await self.deliver_messages()
 
-        mock_exit.sendto.assert_called_with(b'', unicode_destination)
+        mock_exit.sendto.assert_called_with(b"", unicode_destination)
 
     async def test_test_request(self) -> None:
         """

@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from ..messaging.payload import IntroductionRequestPayload, Payload, decode_connection_type, encode_connection_type
 
 if TYPE_CHECKING:
-    from ..types import Address
+    from ..messaging.interfaces.udp.endpoint import Address
 
 
 class SimilarityRequestPayload(Payload):
@@ -15,7 +15,7 @@ class SimilarityRequestPayload(Payload):
     """
 
     msg_id = 1
-    format_list = ['H', 'ipv4', 'ipv4', 'bits', 'raw']
+    format_list = ["H", "ipv4", "ipv4", "bits", "raw"]
 
     def __init__(self, identifier: int, lan_address: Address, wan_address: Address,
                  connection_type: str, preference_list: list[bytes]) -> None:
@@ -34,11 +34,11 @@ class SimilarityRequestPayload(Payload):
         Pack our values.
         """
         encoded_connection_type = encode_connection_type(self.connection_type)
-        return [('H', self.identifier),
-                ('ipv4', self.lan_address),
-                ('ipv4', self.wan_address),
-                ('bits', encoded_connection_type[0], encoded_connection_type[1], 0, 0, 0, 0, 0, 0),
-                ('raw', b"".join(self.preference_list))]
+        return [("H", self.identifier),
+                ("ipv4", self.lan_address),
+                ("ipv4", self.wan_address),
+                ("bits", encoded_connection_type[0], encoded_connection_type[1], 0, 0, 0, 0, 0, 0),
+                ("raw", b"".join(self.preference_list))]
 
 
     @classmethod
@@ -63,7 +63,7 @@ class SimilarityResponsePayload(Payload):
     """
 
     msg_id = 2
-    format_list = ['H', 'varlenHx20', 'raw']
+    format_list = ["H", "varlenHx20", "raw"]
 
     def __init__(self, identifier: int, preference_list: list[bytes], tb_overlap: list[tuple[bytes, int]]) -> None:
         """
@@ -79,9 +79,9 @@ class SimilarityResponsePayload(Payload):
         Pack our values.
         """
         encoded_tb_overlap = [pack(">20sI", *tb) for tb in self.tb_overlap]
-        return [('H', self.identifier),
-                ('varlenHx20', b"".join(self.preference_list)),
-                ('raw', b"".join(encoded_tb_overlap))]
+        return [("H", self.identifier),
+                ("varlenHx20", b"".join(self.preference_list)),
+                ("raw", b"".join(encoded_tb_overlap))]
 
     @classmethod
     def from_unpack_list(cls: type[SimilarityResponsePayload], identifier: int,
@@ -101,7 +101,7 @@ class PingPayload(Payload):
     """
 
     msg_id = 3
-    format_list = ['H']
+    format_list = ["H"]
 
     def __init__(self, identifier: int) -> None:
         """
@@ -114,7 +114,7 @@ class PingPayload(Payload):
         """
         Pack our values.
         """
-        return [('H', self.identifier), ]
+        return [("H", self.identifier), ]
 
     @classmethod
     def from_unpack_list(cls: type[PingPayload], identifier: int) -> PingPayload:
@@ -137,7 +137,7 @@ class DiscoveryIntroductionRequestPayload(IntroductionRequestPayload):
     Custom introduction request override for Dispersy backward compatibility.
     """
 
-    format_list = ['c20s', 'ipv4', 'ipv4', 'ipv4', 'bits', 'H', 'raw']
+    format_list = ["c20s", "ipv4", "ipv4", "ipv4", "bits", "H", "raw"]
 
     def __init__(self, introduce_to: bytes, destination_address: Address, source_lan_address: Address,  # noqa: PLR0913
                  source_wan_address: Address, advice: bool, connection_type: str, identifier: int,
@@ -154,7 +154,7 @@ class DiscoveryIntroductionRequestPayload(IntroductionRequestPayload):
         Pack our values.
         """
         data = super().to_pack_list()
-        data.insert(0, ('c20s', b'Y', self.introduce_to))
+        data.insert(0, ("c20s", b"Y", self.introduce_to))
         return data
 
     @classmethod

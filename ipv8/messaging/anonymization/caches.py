@@ -4,13 +4,15 @@ import logging
 import secrets
 import time
 from asyncio import Future
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 from ...requestcache import NumberCacheWithName, RandomNumberCacheWithName
 from .tunnel import CIRCUIT_STATE_CLOSING
 
 if TYPE_CHECKING:
-    from ...types import Peer
+    from collections.abc import Callable
+
+    from ...peer import Peer
     from .community import TunnelCommunity
     from .crypto import SessionKeys
     from .hidden_services import HiddenTunnelCommunity
@@ -112,7 +114,7 @@ class RetryRequestCache(NumberCacheWithName):
         if self.circuit.state == CIRCUIT_STATE_CLOSING:
             return
         if not self.candidates or self.max_tries < 1:
-            reason = f'timeout, {self.max_tries} tries left'
+            reason = f"timeout, {self.max_tries} tries left"
             self.community.remove_circuit(self.circuit.circuit_id, reason)
             return
 
@@ -164,7 +166,7 @@ class IPRequestCache(RandomNumberCacheWithName):
         We remove the circuit if we can't establish an introduction point.
         """
         self.logger.info("IPRequestCache: no response on establish-intro (circuit %d)", self.circuit.circuit_id)
-        self.community.remove_circuit(self.circuit.circuit_id, 'establish-intro timeout')
+        self.community.remove_circuit(self.circuit.circuit_id, "establish-intro timeout")
 
 
 class RPRequestCache(RandomNumberCacheWithName):
@@ -190,7 +192,7 @@ class RPRequestCache(RandomNumberCacheWithName):
         self.logger.info("RPRequestCache: no response on establish-rendezvous (circuit %d)",
                          self.rp.circuit.circuit_id)
         self.rp.ready.set_result(None)
-        self.community.remove_circuit(self.rp.circuit.circuit_id, 'establish-rendezvous timeout')
+        self.community.remove_circuit(self.rp.circuit.circuit_id, "establish-rendezvous timeout")
 
 
 class PeersRequestCache(RandomNumberCacheWithName):

@@ -6,8 +6,12 @@ from typing import TYPE_CHECKING
 from .importshield import Platform, conditional_import_shield
 
 if TYPE_CHECKING:
+    from types import ModuleType
+
     from .addressprovider import AddressProvider
 
+
+netifaces: ModuleType | None
 try:
     import netifaces
 except ImportError:
@@ -25,24 +29,24 @@ def get_providers() -> list[AddressProvider]:
     if netifaces is not None:
         # Netifaces is faster but archived since 2021 and unsupported >= Python 3.11
         with conditional_import_shield(Platform.ANY, VERBOSE):
-            from .any_os.netifaces import Netifaces
+            from .any_os.netifaces import Netifaces  # noqa: PLC0415
             providers.append(Netifaces(VERBOSE))
     else:
         # Attempt to mimic netifaces with (slower) ctypes and other OS calls.
         with conditional_import_shield(Platform.ANY, VERBOSE):
-            from .any_os.getaddrinfo import SocketGetAddrInfo
+            from .any_os.getaddrinfo import SocketGetAddrInfo  # noqa: PLC0415
             providers.append(SocketGetAddrInfo(VERBOSE))
         with conditional_import_shield(Platform.ANY, VERBOSE):
-            from .any_os.testnet1 import TestNet1
+            from .any_os.testnet1 import TestNet1  # noqa: PLC0415
             providers.append(TestNet1(VERBOSE))
         with conditional_import_shield(Platform.WINDOWS, VERBOSE):
-            from .windows.GetAdaptersAddresses import GetAdaptersAddresses
+            from .windows.GetAdaptersAddresses import GetAdaptersAddresses  # noqa: PLC0415
             providers.append(GetAdaptersAddresses(VERBOSE))
         with conditional_import_shield(Platform.LINUX, VERBOSE):
-            from .unix.getifaddrs import GetIfAddrs
+            from .unix.getifaddrs import GetIfAddrs  # noqa: PLC0415
             providers.append(GetIfAddrs(VERBOSE))
         with conditional_import_shield(Platform.LINUX, VERBOSE):
-            from .unix.ioctl import Ioctl
+            from .unix.ioctl import Ioctl  # noqa: PLC0415
             providers.append(Ioctl(VERBOSE))
     return providers
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 import typing
 
 if typing.TYPE_CHECKING:
-    from ...types import IdentityAlgorithm
+    from ..identity_formats import IdentityAlgorithm
 
 
 class SchemaManager:
@@ -36,10 +36,10 @@ class SchemaManager:
             return self.algorithms[algorithm_name]
         # Lazy load
         if algorithm_name == "bonehexact":
-            from ..wallet.bonehexact.algorithm import BonehExactAlgorithm
+            from ..wallet.bonehexact.algorithm import BonehExactAlgorithm  # noqa: PLC0415
             algorithm: type[IdentityAlgorithm] = BonehExactAlgorithm
         elif algorithm_name == "pengbaorange":
-            from ..wallet.pengbaorange.algorithm import PengBaoRangeAlgorithm
+            from ..wallet.pengbaorange.algorithm import PengBaoRangeAlgorithm  # noqa: PLC0415
             algorithm = PengBaoRangeAlgorithm
         else:
             msg = f"Attempted to load unknown proof algorithm {algorithm_name}!"
@@ -71,9 +71,9 @@ class SchemaManager:
             - id_metadata_huge: 9216 bit space "exact" value match
             - id_metadata_range_18plus: NIZKP over a commitment, showing it lies within [0, 18]
         """
-        from ..default_identity_formats import FORMATS
+        from ..default_identity_formats import FORMATS  # noqa: PLC0415
         for schema in FORMATS:
-            self.register_schema(schema, typing.cast(str, FORMATS[schema]["algorithm"]), FORMATS[schema])
+            self.register_schema(schema, typing.cast("str", FORMATS[schema]["algorithm"]), FORMATS[schema])
 
     def get_algorithm_instance(self, schema_name: str) -> IdentityAlgorithm:
         """

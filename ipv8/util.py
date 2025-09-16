@@ -4,10 +4,10 @@ import operator
 import signal
 import struct
 from asyncio import Event, Future, iscoroutine
-from typing import TYPE_CHECKING, Any, Callable, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Coroutine
+    from collections.abc import Awaitable, Callable, Coroutine
 
 maximum_integer = 2147483647
 
@@ -61,7 +61,7 @@ def strip_sha1_padding(s: bytes) -> bytes:
     """
     Strip the artificial SHA-1 prefix to make it the same byte space as SHA3-256.
     """
-    return s[12:] if s.startswith(b'SHA-1\x00\x00\x00\x00\x00\x00\x00') else s
+    return s[12:] if s.startswith(b"SHA-1\x00\x00\x00\x00\x00\x00\x00") else s
 
 
 def create_event_with_signals(*args: int) -> Event:

@@ -12,20 +12,20 @@ from .tunnel_endpoint import TunnelEndpoint
 class RootEndpoint(BaseEndpoint):
     """
     The root endpoint of the HTTP API is the root resource in the request tree.
-    It will dispatch requests regarding torrents, channels, settings etc to the right child endpoint.
+    It will dispatch requests regarding torrents, channels, settings etc. to the right child endpoint.
     """
 
     def setup_routes(self) -> None:
         """
         Register the names to make this endpoint callable.
         """
-        endpoints = {'/asyncio': AsyncioEndpoint,
-                     '/dht': DHTEndpoint,
-                     '/identity': IdentityEndpoint,
-                     '/isolation': IsolationEndpoint,
-                     '/network': NetworkEndpoint,
-                     '/noblockdht': NoBlockDHTEndpoint,
-                     '/overlays': OverlaysEndpoint,
-                     '/tunnel': TunnelEndpoint}
+        endpoints = {"/asyncio": AsyncioEndpoint,
+                     "/dht": DHTEndpoint,
+                     "/identity": IdentityEndpoint,
+                     "/isolation": IsolationEndpoint,
+                     "/network": NetworkEndpoint,
+                     "/noblockdht": NoBlockDHTEndpoint,
+                     "/overlays": OverlaysEndpoint,
+                     "/tunnel": TunnelEndpoint}
         for path, ep_cls in endpoints.items():
             self.add_endpoint(path, ep_cls())

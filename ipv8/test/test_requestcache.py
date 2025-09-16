@@ -39,7 +39,7 @@ class MockRegisteredCache(RandomNumberCache):
 
     def __init__(self, request_cache: RequestCache) -> None:
         """
-        Create a ``timed_out`` futre and register it.
+        Create a ``timed_out`` future and register it.
         """
         super().__init__(request_cache, "mock")
         self.timed_out = Future()

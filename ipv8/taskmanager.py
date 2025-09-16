@@ -8,35 +8,35 @@ from asyncio import CancelledError, Future, Task, ensure_future, gather, get_run
 from contextlib import suppress
 from functools import wraps
 from threading import RLock
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 from weakref import WeakValueDictionary
 
 from .util import coroutine, succeed
 
 if TYPE_CHECKING:
-    from collections.abc import Coroutine, Hashable, Sequence
+    from collections.abc import Callable, Coroutine, Hashable, Sequence
     from concurrent.futures import ThreadPoolExecutor
 
 MAX_TASK_AGE = 600
 
 
-async def interval_runner(delay: float, interval: float, task: Callable,
+async def interval_runner(delay: float, interval: float, interval_task: Callable,
                           *args: Any) -> None:  # noqa: ANN401
     """
     Low-level scheduler for tasks that are supposed to run at a given interval.
     """
     await sleep(delay)
     while True:
-        await task(*args)
+        await interval_task(*args)
         await sleep(interval)
 
 
-async def delay_runner(delay: float, task: Callable, *args: Any) -> None:  # noqa: ANN401
+async def delay_runner(delay: float, delayed_task: Callable, *args: Any) -> None:  # noqa: ANN401
     """
     Low-level scheduler for tasks that are supposed to run after a given interval.
     """
     await sleep(delay)
-    await task(*args)
+    await delayed_task(*args)
 
 
 def task(func: Callable) -> Callable:
@@ -104,10 +104,10 @@ class TaskManager:
 
     def _check_tasks(self) -> None:
         now = time.time()
-        for name, task in self._pending_tasks.items():
-            if not task.interval and now - task.start_time > MAX_TASK_AGE:  # type: ignore[attr-defined]
+        for name, pending_task in self._pending_tasks.items():
+            if not pending_task.interval and now - pending_task.start_time > MAX_TASK_AGE:  # type: ignore[attr-defined]
                 self._logger.warning('Non-interval task "%s" has been running for %.2f!',
-                                     name, now - task.start_time)  # type: ignore[attr-defined]
+                                     name, now - pending_task.start_time)  # type: ignore[attr-defined]
 
     def replace_task(self, name: Hashable, *args: Any, **kwargs) -> Future:  # noqa: ANN401
         """
@@ -125,16 +125,16 @@ class TaskManager:
         old_task.add_done_callback(cancel_cb)
         return new_task
 
-    def register_task(self, name: Hashable, task: Callable | Coroutine | Future,  # noqa: C901
+    def register_task(self, name: Hashable, user_task: Callable | Coroutine | Future,  # noqa: C901
                       *args: Any, delay: float | None = None,  # noqa: ANN401
                       interval: float | None = None, ignore: Sequence[type | BaseException] = ()) -> Future:
         """
         Register a Task/(coroutine)function so it can be canceled at shutdown time or by name.
         """
-        if not isinstance(task, Task) and not callable(task) and not isinstance(task, Future):
+        if not isinstance(user_task, Task) and not callable(user_task) and not isinstance(user_task, Future):
             msg = "Register_task takes a Task/(coroutine)function/Future as a parameter"
             raise TypeError(msg)
-        if (interval or delay) and not callable(task):
+        if (interval or delay) and not callable(user_task):
             msg = "Cannot run non-callable at an interval or with a delay"
             raise ValueError(msg)
         if not isinstance(ignore, tuple) or not all(issubclass(e, Exception) for e in ignore):
@@ -143,9 +143,9 @@ class TaskManager:
 
         with self._task_lock:
             if self._shutdown:
-                self._logger.warning("Not adding task %s due to shutdown!", str(task))
-                if isinstance(task, (Task, Future)) and not task.done():
-                    task.cancel()
+                self._logger.warning("Not adding task %s due to shutdown!", str(user_task))
+                if isinstance(user_task, (Task, Future)) and not user_task.done():
+                    user_task.cancel()
                 # We need to return an awaitable in case the caller awaits the output of register_task.
                 return succeed(None)
 
@@ -153,26 +153,26 @@ class TaskManager:
                 msg = f"Task already exists: '{name}'"
                 raise RuntimeError(msg)
 
-            if callable(task):
-                task = task if iscoroutinefunction(task) else coroutine(task)
+            if callable(user_task):
+                user_task = user_task if iscoroutinefunction(user_task) else coroutine(user_task)
                 if interval:
                     # The default delay for looping calls is the same as the interval
                     delay = interval if delay is None else delay
-                    task = ensure_future(interval_runner(delay, interval, task, *args))
+                    user_task = ensure_future(interval_runner(delay, interval, user_task, *args))
                 elif delay:
-                    task = ensure_future(delay_runner(delay, task, *args))
+                    user_task = ensure_future(delay_runner(delay, user_task, *args))
                 else:
-                    task = ensure_future(task(*args))
+                    user_task = ensure_future(user_task(*args))
             # Since weak references to list/tuple are not allowed, we're not storing start_time/interval
             # in _pending_tasks. Instead, we add them as attributes to the task.
-            task.start_time = time.time()  # type: ignore[attr-defined]
-            task.interval = interval  # type: ignore[attr-defined]
-            if not hasattr(task, "set_name"):
-                task.set_name = types.MethodType(set_name, task)  # type: ignore[attr-defined]
-                task.get_name = types.MethodType(get_name, task)  # type: ignore[attr-defined]
-            task.set_name(f"{self.__class__.__name__}:{name}")  # type: ignore[attr-defined]
+            user_task.start_time = time.time()  # type: ignore[attr-defined]
+            user_task.interval = interval  # type: ignore[attr-defined]
+            if not hasattr(user_task, "set_name"):
+                user_task.set_name = types.MethodType(set_name, user_task)  # type: ignore[attr-defined]
+                user_task.get_name = types.MethodType(get_name, user_task)  # type: ignore[attr-defined]
+            user_task.set_name(f"{self.__class__.__name__}:{name}")  # type: ignore[attr-defined]
 
-            assert isinstance(task, (Task, Future))
+            assert isinstance(user_task, (Task, Future))
 
             def done_cb(future: Future) -> None:
                 self._pending_tasks.pop(name, None)
@@ -183,17 +183,17 @@ class TaskManager:
                 except ignore as e:  # type: ignore[misc]
                     self._logger.exception("Task resulted in error: %s\n%s", e, "".join(traceback.format_exc()))
 
-            self._pending_tasks[name] = task
-            task.add_done_callback(done_cb)
-            return task
+            self._pending_tasks[name] = user_task
+            user_task.add_done_callback(done_cb)
+            return user_task
 
-    def register_anonymous_task(self, basename: str, task: Callable | Coroutine | Future,
+    def register_anonymous_task(self, basename: str, user_task: Callable | Coroutine | Future,
                                 *args: Any, **kwargs) -> Future:  # noqa: ANN401
         """
         Wrapper for register_task to derive a unique name from the basename.
         """
         self._counter += 1
-        return self.register_task(basename + " " + str(self._counter), task, *args, **kwargs)
+        return self.register_task(basename + " " + str(self._counter), user_task, *args, **kwargs)
 
     def register_executor_task(self, name: str, func: Callable, *args: Any,  # noqa: ANN401
                                executor: ThreadPoolExecutor | None = None, anon: bool = False, **kwargs) -> Future:
@@ -209,25 +209,25 @@ class TaskManager:
             return self.register_anonymous_task(name, future)
         return self.register_task(name, future)
 
-    def register_shutdown_task(self, task: Callable | Coroutine, *args: Any, **kwargs) -> None:  # noqa: ANN401
+    def register_shutdown_task(self, user_task: Callable | Coroutine, *args: Any, **kwargs) -> None:  # noqa: ANN401
         """
         Register a task to be run when this manager is shut down.
         """
-        self._shutdown_tasks.append((task, args, kwargs))
+        self._shutdown_tasks.append((user_task, args, kwargs))
 
     def cancel_pending_task(self, name: Hashable) -> Future:
         """
         Cancels the named task.
         """
         with self._task_lock:
-            task = self._pending_tasks.get(name, None)
-            if not task:
+            pending_task = self._pending_tasks.get(name, None)
+            if not pending_task:
                 return succeed(None)
 
-            if not task.done():
-                task.cancel()
+            if not pending_task.done():
+                pending_task.cancel()
                 self._pending_tasks.pop(name, None)
-            return task
+            return pending_task
 
     def cancel_all_pending_tasks(self) -> list[Future]:
         """
@@ -243,8 +243,8 @@ class TaskManager:
         Return a boolean determining if a task is active.
         """
         with self._task_lock:
-            task = self._pending_tasks.get(name, None)
-            return not task.done() if task else False
+            pending_task = self._pending_tasks.get(name, None)
+            return not pending_task.done() if pending_task else False
 
     def get_task(self, name: Hashable) -> Future | None:
         """
@@ -255,7 +255,7 @@ class TaskManager:
 
     def get_tasks(self) -> list[Future]:
         """
-        Returns a list of all registered tasks, excluding tasks the are created by the TaskManager itself.
+        Returns a list of all registered tasks, excluding tasks that are created by the TaskManager itself.
         """
         with self._task_lock:
             return [t for t in self._pending_tasks.values() if t != self._checker]

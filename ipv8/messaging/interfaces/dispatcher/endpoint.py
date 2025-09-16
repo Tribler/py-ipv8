@@ -4,13 +4,9 @@ import ipaddress
 import logging
 import typing
 
-from ipv8.util import maybe_coroutine
-
+from ....util import maybe_coroutine
 from ..endpoint import Endpoint, EndpointListener
-from ..udp.endpoint import UDPEndpoint, UDPv4Address, UDPv6Address, UDPv6Endpoint
-
-if typing.TYPE_CHECKING:
-    from ipv8.types import Address
+from ..udp.endpoint import Address, UDPEndpoint, UDPv4Address, UDPv6Address, UDPv6Endpoint
 
 INTERFACES = {
     "UDPIPv4": UDPEndpoint,
@@ -39,6 +35,8 @@ The FAST_ADDR_TO_INTERFACE is an internal DispatcherEndpoint mapping, to quickly
 For addresses which do not use these classes the slower ``guess_interface`` will be used.
 """
 
+logger = logging.getLogger(__name__)
+
 
 def guess_interface(socket_address: typing.Any) -> str | None:  # noqa: ANN401
     """
@@ -55,7 +53,7 @@ def guess_interface(socket_address: typing.Any) -> str | None:  # noqa: ANN401
                 return "UDPIPv4"
             return "UDPIPv6"
     except Exception:
-        logging.exception("Exception occurred while guessing interface for %s", repr(socket_address))
+        logger.exception("Exception occurred while guessing interface for %s", repr(socket_address))
     return None
 
 
@@ -164,7 +162,7 @@ class DispatcherEndpoint(Endpoint):
         if interface is not None:
             self.interfaces[interface].send(socket_address, packet)
         else:
-            ep = self.interfaces.get(typing.cast(str, FAST_ADDR_TO_INTERFACE.get(socket_address.__class__)
+            ep = self.interfaces.get(typing.cast("str", FAST_ADDR_TO_INTERFACE.get(socket_address.__class__)
                                                       or guess_interface(socket_address)))
             if ep is not None:
                 ep.send(socket_address, packet)

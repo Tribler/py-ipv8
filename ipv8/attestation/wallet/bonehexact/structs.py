@@ -9,7 +9,7 @@ from ..primitives.value import FP2Value
 if TYPE_CHECKING:
     from typing_extensions import Self
 
-__all__ = ['BitPairAttestation', 'BonehAttestation']
+__all__ = ["BitPairAttestation", "BonehAttestation"]
 
 # ruff: noqa: N803
 
@@ -75,7 +75,7 @@ class BonehAttestation(Attestation):
         """
         Serialize this attestation to bytes.
         """
-        out = b''
+        out = b""
         out += self.PK.serialize()
         for bitpair in self.bitpairs:
             out += bitpair.serialize()
@@ -92,7 +92,7 @@ class BonehAttestation(Attestation):
         """
         Unserialize the public format of this attestation.
         """
-        pk = cast(BonehPublicKey, BonehPublicKey.unserialize(s))
+        pk = cast("BonehPublicKey", BonehPublicKey.unserialize(s))
         bitpairs = []
         rem = s[len(pk.serialize()):]
         while rem:

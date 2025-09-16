@@ -19,7 +19,7 @@ class VariablePayload(Payload):
     For instance:
 
         class MyPayload(VariablePayload):
-            format_list = ['?']
+            format_list = ["?"]
             names = ["is_this_a_boolean"]
 
     If you require field-specific pack/unpack operations you can specify them using the `fix_pack_*` and
@@ -57,7 +57,7 @@ class VariablePayload(Payload):
         for i in range(len(self.format_list) - index):
             # Run out all anonymous arguments, then start popping from the keyword arguments.
             # This will raise a KeyError if we provide more arguments than we can handle.
-            for _ in range(8 if self.format_list[i + base] == 'bits' else 1):
+            for _ in range(8 if self.format_list[i + base] == "bits" else 1):
                 value = args[index] if index < len(args) else kwargs.pop(self.names[index])
                 setattr(self, self.names[index], value)
                 index += 1
@@ -88,8 +88,8 @@ class VariablePayload(Payload):
         if isinstance(fmt, str):
             return fmt
         if isinstance(fmt, list):
-            return 'payload-list'
-        return 'payload'
+            return "payload-list"
+        return "payload"
 
     def _fix_pack(self, name: str) -> Any:  # noqa: ANN401
         """
@@ -112,7 +112,7 @@ class VariablePayload(Payload):
         index = 0
         for i in range(len(self.format_list)):
             args = []
-            for _ in range(8 if self.format_list[i] == 'bits' else 1):
+            for _ in range(8 if self.format_list[i] == "bits" else 1):
                 args.append(self._fix_pack(self.names[index]))
                 index += 1
             out.append((self._to_packlist_fmt(self.format_list[i]), *args))
@@ -120,6 +120,10 @@ class VariablePayload(Payload):
 
 
 class VariablePayloadWID(VariablePayload):
+    """
+    A variable payload with an attached message id.
+    """
+
     msg_id: int
 
 
@@ -135,19 +139,19 @@ def _compile_init(names: list[str], defaults: dict[str, Any]) -> types.CodeType:
             self.a = a
             self.b = b
 
-    :param names: the format list's names
+    :param names: the format list"s names
     :type names: [str]
     :return: the compiled code object
     :rtype: code
     """
-    arg_list = ', '.join((f"{name}={defaults.get(name)}" if name in defaults else name) for name in names)
-    setters = '\n    '.join([f"self.{name} = {name}" for name in names])
+    arg_list = ", ".join((f"{name}={defaults.get(name)}" if name in defaults else name) for name in names)
+    setters = "\n    ".join([f"self.{name} = {name}" for name in names])
     f_code = f"""
 def __init__(self, {arg_list}):
     Payload.__init__(self)
     {setters}
     """
-    return compile(f_code, f_code, 'exec')
+    return compile(f_code, f_code, "exec")
 
 
 def _compile_from_unpack_list(src_cls: type[VariablePayload], names: list[str]) -> types.CodeType:
@@ -168,15 +172,15 @@ def _compile_from_unpack_list(src_cls: type[VariablePayload], names: list[str]) 
     :return: the compiled code object
     :rtype: code
     """
-    arg_list = ', '.join(names)
-    args = ', '.join([f"None if {name} is None else cls.fix_unpack_{name}({name})"
+    arg_list = ", ".join(names)
+    args = ", ".join([f"None if {name} is None else cls.fix_unpack_{name}({name})"
                       if hasattr(src_cls, "fix_unpack_" + name)
                       else name for name in names])
     f_code = f"""
 def from_unpack_list(cls, {arg_list}):
     return cls({args})
     """
-    return compile(f_code, f_code, 'exec')
+    return compile(f_code, f_code, "exec")
 
 
 def _compile_to_pack_list(src_cls: type[VariablePayload],
@@ -190,13 +194,13 @@ def _compile_to_pack_list(src_cls: type[VariablePayload],
     .. code-block :: Python
 
         def to_pack_list(self):
-            return [("I", self.a), ("H", fix_pack_b(self.b)))]
+            return [("I", self.a), ("H", fix_pack_b(self.b))]
 
     :param src_cls: the source class to use
     :param src_cls: VariablePayload
     :param format_list: the format_list
     :type format_list: [FormatListType]
-    :param names: the format list's names
+    :param names: the format list"s names
     :type names: [str]
     :return: the compiled code object
     :rtype: code
@@ -205,7 +209,7 @@ def _compile_to_pack_list(src_cls: type[VariablePayload],
     index = 0
     for fmt in format_list:
         args = []
-        for _ in range(8 if fmt == 'bits' else 1):
+        for _ in range(8 if fmt == "bits" else 1):
             name = names[index]
             if hasattr(src_cls, "fix_pack_" + name):
                 args.append(f"self.fix_pack_{name}(self.{name})")
@@ -216,9 +220,9 @@ def _compile_to_pack_list(src_cls: type[VariablePayload],
         fmts.append('("{}", {})'.format(derived_fmt, ", ".join(args)))
     f_code = f"""
 def to_pack_list(self):
-    return [{', '.join(fmts)}]
+    return [{", ".join(fmts)}]
 """
-    return compile(f_code, f_code, 'exec')
+    return compile(f_code, f_code, "exec")
 
 
 T = TypeVar("T", bound=VariablePayload)
@@ -243,11 +247,11 @@ def vp_compile(vp_definition: type[T]) -> type[T]:
 
     # Rewrite the class methods from the locally loaded overwrites.
     # from_unpack_list is a classmethod, so we need to scope it properly.
-    setattr(vp_definition, '__init__', local_scope['__init__'])
-    setattr(vp_definition, '__match_args__', tuple(vp_definition.names))
-    setattr(vp_definition, 'from_unpack_list', types.MethodType(local_scope['from_unpack_list'], vp_definition))
-    setattr(vp_definition, 'to_pack_list', local_scope['to_pack_list'])
+    setattr(vp_definition, "__init__", local_scope["__init__"])
+    setattr(vp_definition, "__match_args__", tuple(vp_definition.names))
+    setattr(vp_definition, "from_unpack_list", types.MethodType(local_scope["from_unpack_list"], vp_definition))
+    setattr(vp_definition, "to_pack_list", local_scope["to_pack_list"])
     return vp_definition
 
 
-__all__ = ['VariablePayload', 'vp_compile']
+__all__ = ["VariablePayload", "VariablePayloadWID", "vp_compile"]

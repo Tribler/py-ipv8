@@ -9,14 +9,14 @@ from ipv8.configuration import ConfigBuilder, Strategy, WalkerDefinition, defaul
 from ipv8.lazy_community import lazy_wrapper
 from ipv8.messaging.lazy_payload import VariablePayload, vp_compile
 from ipv8.messaging.serialization import Packer, Serializer
-from ipv8.types import Peer
+from ipv8.peer import Peer
 from ipv8_service import IPv8
 
 
 @vp_compile
 class Message(VariablePayload):
     msg_id = 1
-    format_list = ['json', 'json', 'json', 'json']
+    format_list = ["json", "json", "json", "json"]
     names = ["d1", "d2", "d3", "d4"]
 
 
@@ -44,7 +44,7 @@ class MyCommunity(Community):
 
     def get_serializer(self) -> Serializer:
         serializer = super().get_serializer()
-        serializer.add_packer('json', PackerJSON())
+        serializer.add_packer("json", PackerJSON())
         return serializer
 
     community_id = os.urandom(20)
@@ -88,9 +88,9 @@ async def start_communities() -> None:
     for i in [1, 2]:
         builder = ConfigBuilder().clear_keys().clear_overlays()
         builder.add_key("my peer", "medium", f"ec{i}.pem")
-        builder.add_overlay("MyCommunity", "my peer", [WalkerDefinition(Strategy.RandomWalk, 10, {'timeout': 3.0})],
+        builder.add_overlay("MyCommunity", "my peer", [WalkerDefinition(Strategy.RandomWalk, 10, {"timeout": 3.0})],
                             default_bootstrap_defs, {}, [("started", event, i)])
-        ipv8 = IPv8(builder.finalize(), extra_communities={'MyCommunity': MyCommunity})
+        ipv8 = IPv8(builder.finalize(), extra_communities={"MyCommunity": MyCommunity})
         await ipv8.start()
 
     await event.wait()

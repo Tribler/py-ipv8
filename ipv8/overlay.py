@@ -7,15 +7,16 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING, Generic, TypeVar
 
 from .keyvault.crypto import default_eccrypto
-from .messaging.interfaces.endpoint import EndpointListener
+from .messaging.interfaces.endpoint import Endpoint, EndpointListener
 from .messaging.interfaces.lan_addresses.interfaces import get_providers
 from .messaging.serialization import Serializer
 from .taskmanager import TaskManager
 
 if TYPE_CHECKING:
+    from .messaging.interfaces.udp.endpoint import Address
+    from .peer import Peer
     from .peerdiscovery.discovery import DiscoveryStrategy
     from .peerdiscovery.network import Network
-    from .types import Address, Endpoint, Peer
 
 
 class Settings(SimpleNamespace):
@@ -64,7 +65,7 @@ class Overlay(EndpointListener, TaskManager, Generic[SettingsClass], metaclass=a
 
         self.network = settings.network
 
-        self.register_task('discover_lan_addresses', self.discover_lan_addresses, interval=10, delay=0)
+        self.register_task("discover_lan_addresses", self.discover_lan_addresses, interval=10, delay=0)
 
     async def discover_lan_addresses(self) -> None:
         """

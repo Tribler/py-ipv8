@@ -6,16 +6,16 @@ from ..messaging.lazy_payload import VariablePayloadWID, vp_compile
 from ..messaging.serialization import Payload
 
 if TYPE_CHECKING:
-    from ..types import Address
+    from .interfaces.udp.endpoint import Address
 
 
-def encode_connection_type(type: str) -> tuple[int, int]:  # noqa: A002
+def encode_connection_type(conn_type: str) -> tuple[int, int]:
     """
     Convert a type string to a tuple.
     """
-    if type == "public":
+    if conn_type == "public":
         return 1, 0
-    if type == "symmetric-NAT":
+    if conn_type == "symmetric-NAT":
         return 1, 1
     return 0, 0
 
@@ -40,7 +40,7 @@ class IntroductionRequestPayload(Payload):
     """
 
     msg_id = 246
-    format_list = ['ipv4', 'ipv4', 'ipv4', 'bits', 'H', 'raw']
+    format_list = ["ipv4", "ipv4", "ipv4", "bits", "H", "raw"]
 
     def __init__(self, destination_address: Address, source_lan_address: Address,  # noqa: PLR0913
                  source_wan_address: Address, advice: bool, connection_type: str, identifier: int, extra_bytes: bytes,
@@ -62,7 +62,7 @@ class IntroductionRequestPayload(Payload):
         to the new node.
 
         CONNECTION_TYPE is a unicode string indicating the connection type that the message
-        creator has. Currently, the following values are supported: u"unknown", u"public", and
+        creator has. Currently, the following values are supported: "unknown", "public", and
         u"symmetric-NAT".
 
         IDENTIFIER is a number that must be given in the associated introduction-response.  This
@@ -85,13 +85,13 @@ class IntroductionRequestPayload(Payload):
         Convert this payload to a pack list.
         """
         encoded_connection_type = encode_connection_type(self.connection_type)
-        return [('ipv4', self.destination_address),
-                ('ipv4', self.source_lan_address),
-                ('ipv4', self.source_wan_address),
-                ('bits', encoded_connection_type[0], encoded_connection_type[1], self.supports_new_style, 0, 0, 0, 0,
+        return [("ipv4", self.destination_address),
+                ("ipv4", self.source_lan_address),
+                ("ipv4", self.source_wan_address),
+                ("bits", encoded_connection_type[0], encoded_connection_type[1], self.supports_new_style, 0, 0, 0, 0,
                  self.advice),
-                ('H', self.identifier),
-                ('raw', self.extra_bytes)]
+                ("H", self.identifier),
+                ("raw", self.extra_bytes)]
 
     @classmethod
     def from_unpack_list(cls: type[IntroductionRequestPayload], destination_address: Address,  # noqa: PLR0913
@@ -119,7 +119,7 @@ class NewIntroductionRequestPayload(VariablePayloadWID):
     """
 
     msg_id = 234
-    format_list = ['ip_address', 'ip_address', 'ip_address', 'H', 'bits', 'raw']
+    format_list = ["ip_address", "ip_address", "ip_address", "H", "bits", "raw"]
     names = ["destination_address", "source_lan_address", "source_wan_address", "identifier", "connection_type_0",
              "connection_type_1", "supports_new_style", "dflag1", "dflag2", "tunnel", "sync", "advice", "extra_bytes"]
 
@@ -144,7 +144,7 @@ class IntroductionResponsePayload(Payload):
     """
 
     msg_id = 245
-    format_list = ['ipv4', 'ipv4', 'ipv4', 'ipv4', 'ipv4', 'bits', 'H', 'raw']
+    format_list = ["ipv4", "ipv4", "ipv4", "ipv4", "ipv4", "bits", "H", "raw"]
 
     def __init__(self, destination_address: Address, source_lan_address: Address,  # noqa: PLR0913
                  source_wan_address: Address, lan_introduction_address: Address,
@@ -172,7 +172,7 @@ class IntroductionResponsePayload(Payload):
         not want advice.
 
         CONNECTION_TYPE is a unicode string indicating the connection type that the message
-        creator has. Currently, the following values are supported: u"unknown", u"public", and
+        creator has. Currently, the following values are supported: "unknown", "public", and
         u"symmetric-NAT".
 
         IDENTIFIER is a number that was given in the associated introduction-request.  This
@@ -180,9 +180,9 @@ class IntroductionResponsePayload(Payload):
 
         EXTRA_BYTES is a string that can be used to piggyback extra information.
 
-        When the associated request wanted advice the sender will also sent a puncture-request
+        When the associated request wanted advice the sender will also send a puncture-request
         message to either the lan_introduction_address or the wan_introduction_address
-        (depending on their positions).  The introduced node must sent a puncture message to the
+        (depending on their positions).  The introduced node must send a puncture message to the
         receiver to punch a hole in its NAT.
         """
         super().__init__()
@@ -203,15 +203,15 @@ class IntroductionResponsePayload(Payload):
         Convert this payload to a pack list.
         """
         encoded_connection_type = encode_connection_type(self.connection_type)
-        return [('ipv4', self.destination_address),
-                ('ipv4', self.source_lan_address),
-                ('ipv4', self.source_wan_address),
-                ('ipv4', self.lan_introduction_address),
-                ('ipv4', self.wan_introduction_address),
-                ('bits', encoded_connection_type[0], encoded_connection_type[1], 0, self.supports_new_style,
+        return [("ipv4", self.destination_address),
+                ("ipv4", self.source_lan_address),
+                ("ipv4", self.source_wan_address),
+                ("ipv4", self.lan_introduction_address),
+                ("ipv4", self.wan_introduction_address),
+                ("bits", encoded_connection_type[0], encoded_connection_type[1], 0, self.supports_new_style,
                  self.intro_supports_new_style, self.peer_limit_reached, 0, 0),
-                ('H', self.identifier),
-                ('raw', self.extra_bytes)]
+                ("H", self.identifier),
+                ("raw", self.extra_bytes)]
 
     @classmethod
     def from_unpack_list(cls: type[IntroductionResponsePayload], destination_address: Address,  # noqa: PLR0913
@@ -243,7 +243,7 @@ class NewIntroductionResponsePayload(VariablePayloadWID):
     """
 
     msg_id = 233
-    format_list = ['ip_address', 'ip_address', 'ip_address', 'ip_address', 'ip_address', 'H', 'bits', 'raw']
+    format_list = ["ip_address", "ip_address", "ip_address", "ip_address", "ip_address", "H", "bits", "raw"]
     names = ["destination_address", "source_lan_address", "source_wan_address", "lan_introduction_address",
              "wan_introduction_address", "identifier", "intro_supports_new_style", "flag1", "flag2", "flag3",
              "flag4", "flag5", "flag6", "flag7", "extra_bytes"]
@@ -271,7 +271,7 @@ class PunctureRequestPayload(Payload):
     """
 
     msg_id = 250
-    format_list = ['ipv4', 'ipv4', 'H']
+    format_list = ["ipv4", "ipv4", "H"]
 
     def __init__(self, lan_walker_address: Address, wan_walker_address: Address, identifier: int) -> None:
         """
@@ -297,9 +297,9 @@ class PunctureRequestPayload(Payload):
         """
         Convert this payload to a pack list.
         """
-        return [('ipv4', self.lan_walker_address),
-                ('ipv4', self.wan_walker_address),
-                ('H', self.identifier)]
+        return [("ipv4", self.lan_walker_address),
+                ("ipv4", self.wan_walker_address),
+                ("H", self.identifier)]
 
     @classmethod
     def from_unpack_list(cls: type[PunctureRequestPayload], lan_walker_address: Address, wan_walker_address: Address,
@@ -317,7 +317,7 @@ class NewPunctureRequestPayload(VariablePayloadWID):
     """
 
     msg_id = 232
-    format_list = ['ip_address', 'ip_address', 'H']
+    format_list = ["ip_address", "ip_address", "H"]
     names = ["lan_walker_address", "wan_walker_address", "identifier"]
 
     lan_walker_address: Address
@@ -331,7 +331,7 @@ class PuncturePayload(Payload):
     """
 
     msg_id = 249
-    format_list = ['ipv4', 'ipv4', 'H']
+    format_list = ["ipv4", "ipv4", "H"]
 
     def __init__(self, source_lan_address: Address, source_wan_address: Address, identifier :int) -> None:
         """
@@ -355,9 +355,9 @@ class PuncturePayload(Payload):
         """
         Convert this payload to a pack list.
         """
-        return [('ipv4', self.source_lan_address),
-                ('ipv4', self.source_wan_address),
-                ('H', self.identifier)]
+        return [("ipv4", self.source_lan_address),
+                ("ipv4", self.source_wan_address),
+                ("H", self.identifier)]
 
 
     @classmethod
@@ -376,7 +376,7 @@ class NewPuncturePayload(VariablePayloadWID):
     """
 
     msg_id = 231
-    format_list = ['ip_address', 'ip_address', 'H']
+    format_list = ["ip_address", "ip_address", "H"]
     names = ["source_lan_address", "source_wan_address", "identifier"]
 
     source_lan_address: Address

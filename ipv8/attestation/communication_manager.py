@@ -4,16 +4,21 @@ import asyncio
 import base64
 import json
 import os
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from ..keyvault.crypto import ECCrypto
-from ..messaging.anonymization.endpoint import TunnelEndpoint
 from ..messaging.anonymization.hidden_services import HiddenTunnelCommunity
-from ..types import IPv8, Peer, PrivateKey
+from ..peer import Peer
 from ..util import succeed
 from .identity.community import IdentityCommunity, create_community
 from .identity.manager import IdentityManager
 from .wallet.community import AttestationCommunity, AttestationSettings
+
+if TYPE_CHECKING:
+    from ipv8_service import IPv8
+
+    from ..keyvault.keys import PrivateKey
+    from ..messaging.anonymization.endpoint import TunnelEndpoint
 
 AttributePointer = tuple[Peer, str]
 MetadataDict = dict[str, str]
@@ -83,7 +88,7 @@ class CommunicationChannel:
             if from_peer == self.identity_overlay.my_peer:
                 self.identity_overlay.self_advertise(attribute_hash, attribute_name, id_format, metadata)
             else:
-                self.identity_overlay.request_attestation_advertisement(cast(Peer, from_peer),
+                self.identity_overlay.request_attestation_advertisement(cast("Peer", from_peer),
                                                                         attribute_hash, attribute_name,
                                                                         id_format, metadata)
         else:
@@ -247,11 +252,11 @@ class PseudonymFolderManager:
         os.makedirs(self.pseudonym_folder, exist_ok=True)
         pseudonym_file = os.path.join(self.pseudonym_folder, name)
         if os.path.exists(pseudonym_file):
-            with open(pseudonym_file, 'rb') as file_handle:
+            with open(pseudonym_file, "rb") as file_handle:
                 private_key = self.crypto.key_from_private_bin(file_handle.read())
         else:
             private_key = self.crypto.generate_key("curve25519")
-            with open(pseudonym_file, 'wb') as file_handle:
+            with open(pseudonym_file, "wb") as file_handle:
                 file_handle.write(private_key.key_to_bin())
         return private_key
 
@@ -298,7 +303,7 @@ class CommunicationManager:
 
         loaded_community = ipv8_instance.get_overlay(IdentityCommunity)
         self.identity_manager = (None if loaded_community is None
-                                 else cast(IdentityCommunity, loaded_community).identity_manager)
+                                 else cast("IdentityCommunity", loaded_community).identity_manager)
 
         if working_directory is None:
             working_directory = ipv8_instance.configuration.get("working_directory", ".")
@@ -337,7 +342,7 @@ class CommunicationManager:
                                            network=identity_overlay.network, working_directory=self.working_directory,
                                            anonymize=tunnel_community is not None)
             attestation_overlay = AttestationCommunity(settings)
-            cast(TunnelEndpoint, identity_overlay.endpoint).set_tunnel_community(tunnel_community)
+            cast("TunnelEndpoint", identity_overlay.endpoint).set_tunnel_community(tunnel_community)
             self.channels[public_key] = CommunicationChannel(attestation_overlay, identity_overlay)
             self.name_to_channel[name] = self.channels[public_key]
 

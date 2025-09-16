@@ -87,10 +87,10 @@ class NumberCache:
         """
         Convert this cache to a printable string.
         """
-        return "<%s %s-%d>" % (self.__class__.__name__, self.prefix, self.number)
+        return f"<{self.__class__.__name__} {self.prefix}-{self.number}>"
 
 
-class RandomNumberCache(NumberCache):
+class RandomNumberCache(NumberCache, metaclass=abc.ABCMeta):
     """
     A cache with a randomly generated number.
     """
@@ -258,8 +258,8 @@ class RequestCache(TaskManager):
         if result is not None:
             # This is just to please ``Mypy``: ``return succeed(result)`` is functionally equivalent in this block.
             if isinstance(prefix, str):
-                return succeed(cast(NumberCache, result))
-            return succeed(cast(CacheTypeVar, result))
+                return succeed(cast("NumberCache", result))
+            return succeed(cast("CacheTypeVar", result))
         if isinstance(prefix, str):
             fut: Future[NumberCache] = Future()
             self._waiters[(prefix, number)] = fut
@@ -267,7 +267,7 @@ class RequestCache(TaskManager):
                 self.register_anonymous_task(f"Watch RequestCache Future {fut}", self._watch_future, (prefix, number),
                                              delay=timeout)
             return self.register_anonymous_task(f"RequestCache wait for {prefix}", fut)
-        return cast(Future[CacheTypeVar], self.wait_for(prefix.name, number))
+        return cast("Future[CacheTypeVar]", self.wait_for(prefix.name, number))
 
     @overload
     def get(self, prefix: str, number: int) -> NumberCache | None:
@@ -320,7 +320,7 @@ class RequestCache(TaskManager):
          .. code-block :: Python
 
             with request_cache.passthrough():
-                request_cache.add(cache)  # This will instantly timeout (once the main thread is yielded).
+                request_cache.add(cache)  # This will instantly time out (once the main thread is yielded).
 
             with request_cache.passthrough():
                 # Any internal call to request_cache.add() will also be instantly timed out.
@@ -333,7 +333,7 @@ class RequestCache(TaskManager):
          .. code-block :: Python
 
             with request_cache.passthrough(timeout=0.1):
-                request_cache.add(cache)  # This will timeout after 0.1 seconds.
+                request_cache.add(cache)  # This will time out after 0.1 seconds.
 
         ---
         Example 3: Filtering for specific classes

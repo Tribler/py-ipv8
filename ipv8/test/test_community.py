@@ -12,7 +12,7 @@ from .mocking.endpoint import AutoMockEndpoint, MockEndpointListener
 from .mocking.ipv8 import MockIPv8
 
 if TYPE_CHECKING:
-    from ..types import Address
+    from ..messaging.interfaces.udp.endpoint import Address
 
 
 class OldCommunity(Community):
@@ -20,9 +20,9 @@ class OldCommunity(Community):
     Old-style community that does not support new-style introduction requests.
     """
 
-    community_id = b'\x00' * 20
+    community_id = b"\x00" * 20
 
-    def create_introduction_request(self, socket_address: Address, extra_bytes: bytes = b'',
+    def create_introduction_request(self, socket_address: Address, extra_bytes: bytes = b"",
                                     new_style: bool = False, prefix: bytes | None = None) -> bytes:
         """
         Make sure all sent introduction requests are flagged as old style.
@@ -30,7 +30,7 @@ class OldCommunity(Community):
         return super().create_introduction_request(socket_address)
 
     def create_introduction_response(self, lan_socket_address: Address, socket_address: Address,  # noqa: PLR0913
-                                     identifier: int, introduction: Peer | None = None, extra_bytes: bytes = b'',
+                                     identifier: int, introduction: Peer | None = None, extra_bytes: bytes = b"",
                                      prefix: bytes | None = None, new_style: bool = False) -> bytes:
         """
         Make sure all sent introduction responses are flagged as old style.
@@ -57,7 +57,7 @@ class NewCommunity(Community):
     A new-style supporting community.
     """
 
-    community_id = b'\x00' * 20
+    community_id = b"\x00" * 20
 
 
 class TestCommunityCompatibility(TestBase):
@@ -130,7 +130,7 @@ class StrangeIDCommunity(Community):
     Faulty community that has a wrong community id type.
     """
 
-    community_id = '\x00' * 20  # This is not ``bytes`` but ``str``: error!
+    community_id = "\x00" * 20  # This is not ``bytes`` but ``str``: error!
 
 
 class TestCommunityInit(TestBase):
@@ -144,7 +144,7 @@ class TestCommunityInit(TestBase):
         """
         Check that attempting to create a Community without an id raises an error.
         """
-        settings = CommunitySettings(my_peer=Peer(b'LibNaCLPK:' + b'0' * 32), endpoint=AutoMockEndpoint(),
+        settings = CommunitySettings(my_peer=Peer(b"LibNaCLPK:" + b"0" * 32), endpoint=AutoMockEndpoint(),
                                      network=Network())
         self.assertRaises(RuntimeError, NoIDCommunity, settings)
 
@@ -152,7 +152,7 @@ class TestCommunityInit(TestBase):
         """
         Check that attempting to create a Community with an id that is not ```bytes`` raises an error.
         """
-        settings = CommunitySettings(my_peer=Peer(b'LibNaCLPK:' + b'0' * 32), endpoint=AutoMockEndpoint(),
+        settings = CommunitySettings(my_peer=Peer(b"LibNaCLPK:" + b"0" * 32), endpoint=AutoMockEndpoint(),
                                      network=Network())
         self.assertRaises(RuntimeError, StrangeIDCommunity, settings)
 
@@ -168,7 +168,7 @@ class TestCommunityBootstrapping(TestBase):
         """
         Check if unloading a Community after waiting for bootstrapping results exits cleanly.
         """
-        settings = CommunitySettings(my_peer=Peer(b'LibNaCLPK:' + b'0' * 32), endpoint=AutoMockEndpoint(),
+        settings = CommunitySettings(my_peer=Peer(b"LibNaCLPK:" + b"0" * 32), endpoint=AutoMockEndpoint(),
                                      network=Network())
         community = NewCommunity(settings)
         community.bootstrappers = [DispersyBootstrapper([], [])]
@@ -189,7 +189,7 @@ class TestCommunityBootstrapping(TestBase):
         """
         Check if unloading a Community while waiting for bootstrapping results exits cleanly.
         """
-        settings = CommunitySettings(my_peer=Peer(b'LibNaCLPK:' + b'0' * 32), endpoint=AutoMockEndpoint(),
+        settings = CommunitySettings(my_peer=Peer(b"LibNaCLPK:" + b"0" * 32), endpoint=AutoMockEndpoint(),
                                      network=Network())
         community = NewCommunity(settings)
         community.bootstrappers = [DispersyBootstrapper([], [])]

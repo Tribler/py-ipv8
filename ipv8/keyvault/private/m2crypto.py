@@ -7,14 +7,13 @@ from typing import TYPE_CHECKING, cast
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
-from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurvePrivateKey
 from cryptography.hazmat.primitives.asymmetric.utils import decode_dss_signature
 
 from ...keyvault.keys import PrivateKey
 from ...keyvault.public.m2crypto import M2CryptoPK
 
 if TYPE_CHECKING:
-    from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
+    from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve, EllipticCurvePrivateKey
 
 
 class M2CryptoSK(PrivateKey, M2CryptoPK):
@@ -41,14 +40,14 @@ class M2CryptoSK(PrivateKey, M2CryptoPK):
                                                       + b"-----END EC PRIVATE KEY-----\n"))
 
         elif filename:
-            with open(filename, 'rb') as keyfile:
+            with open(filename, "rb") as keyfile:
                 super().__init__(self.key_from_pem(keyfile.read()))
 
     def pub(self) -> M2CryptoPK:
         """
         Get the public key for this secret key.
         """
-        return M2CryptoPK(ec_pub=cast(EllipticCurvePrivateKey, self.ec).public_key())
+        return M2CryptoPK(ec_pub=cast("EllipticCurvePrivateKey", self.ec).public_key())
 
     def has_secret_key(self) -> bool:
         """
@@ -60,7 +59,7 @@ class M2CryptoSK(PrivateKey, M2CryptoPK):
         """
         Convert a key to the PEM format.
         """
-        return cast(EllipticCurvePrivateKey, self.ec).private_bytes(serialization.Encoding.PEM,
+        return cast("EllipticCurvePrivateKey", self.ec).private_bytes(serialization.Encoding.PEM,
                                                                     serialization.PrivateFormat.TraditionalOpenSSL,
                                                                     serialization.NoEncryption())
 
@@ -70,7 +69,7 @@ class M2CryptoSK(PrivateKey, M2CryptoPK):
 
         :param pem: the PEM formatted private key
         """
-        return cast(EllipticCurvePrivateKey,
+        return cast("EllipticCurvePrivateKey",
                     serialization.load_pem_private_key(pem, password=None, backend=default_backend()))
 
     def signature(self, msg: bytes) -> bytes:
@@ -79,7 +78,7 @@ class M2CryptoSK(PrivateKey, M2CryptoPK):
 
         :param msg: the message to sign
         """
-        signature = cast(EllipticCurvePrivateKey, self.ec).sign(msg, ec.ECDSA(hashes.SHA1()))
+        signature = cast("EllipticCurvePrivateKey", self.ec).sign(msg, ec.ECDSA(hashes.SHA1()))
         # Decode the DSS r and s variables from the pyca signature
         # We are going to turn these longs into (binary) string format
         r, s = decode_dss_signature(signature)

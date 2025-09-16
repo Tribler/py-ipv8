@@ -31,7 +31,7 @@ class IPv8ConfigurationSchema(marshmallow.Schema):
 
     class InterfaceSchema(marshmallow.Schema):
         """
-        The expected JSON schema for the interfaces configuration.
+        The expected JSON schema for the interfaces' configuration.
         """
 
         interface = marshmallow.fields.Str()
@@ -40,7 +40,7 @@ class IPv8ConfigurationSchema(marshmallow.Schema):
 
     class KeySchema(marshmallow.Schema):
         """
-        The expected JSON schema for the keys configuration.
+        The expected JSON schema for the keys' configuration.
         """
 
         alias = marshmallow.fields.Str()
@@ -96,7 +96,7 @@ class TestConfiguration(TestBase):
         """
         builder = ConfigBuilder().clear_keys()
 
-        self.assertEqual(0, len(builder.config['keys']))
+        self.assertEqual(0, len(builder.config["keys"]))
 
     def test_clear_overlays(self) -> None:
         """
@@ -104,7 +104,7 @@ class TestConfiguration(TestBase):
         """
         builder = ConfigBuilder().clear_overlays()
 
-        self.assertEqual(0, len(builder.finalize()['overlays']))
+        self.assertEqual(0, len(builder.finalize()["overlays"]))
 
     def test_change_port(self) -> None:
         """
@@ -112,7 +112,7 @@ class TestConfiguration(TestBase):
         """
         builder = ConfigBuilder().set_port(1000)
 
-        self.assertEqual(1000, builder.finalize()['interfaces'][0]['port'])
+        self.assertEqual(1000, builder.finalize()["interfaces"][0]["port"])
 
     def test_change_address(self) -> None:
         """
@@ -120,7 +120,7 @@ class TestConfiguration(TestBase):
         """
         builder = ConfigBuilder().set_address("1.1.1.1")
 
-        self.assertEqual("1.1.1.1", builder.finalize()['interfaces'][0]['ip'])
+        self.assertEqual("1.1.1.1", builder.finalize()["interfaces"][0]["ip"])
 
     def test_set_illegal_log_level(self) -> None:
         """
@@ -136,7 +136,7 @@ class TestConfiguration(TestBase):
         """
         builder = ConfigBuilder().set_log_level("CRITICAL")
 
-        self.assertEqual("CRITICAL", builder.finalize()['logger']['level'])
+        self.assertEqual("CRITICAL", builder.finalize()["logger"]["level"])
 
     def test_set_illegal_walk_interval(self) -> None:
         """
@@ -152,7 +152,7 @@ class TestConfiguration(TestBase):
         """
         builder = ConfigBuilder().set_walker_interval(3.14)
 
-        self.assertEqual(3.14, builder.finalize()['walker_interval'])
+        self.assertEqual(3.14, builder.finalize()["walker_interval"])
 
     def test_add_key_illegal_curve(self) -> None:
         """
@@ -169,13 +169,13 @@ class TestConfiguration(TestBase):
         builder = ConfigBuilder().add_key("my new key", "very-low", "some file")
 
         expected = {
-            'alias': "my new key",
-            'generation': "very-low",
-            'file': "some file"
+            "alias": "my new key",
+            "generation": "very-low",
+            "file": "some file"
         }
-        keys = builder.finalize()['keys']
+        keys = builder.finalize()["keys"]
 
-        self.assertEqual(1 + len(get_default_configuration()['keys']), len(keys))
+        self.assertEqual(1 + len(get_default_configuration()["keys"]), len(keys))
         self.assertTrue(any(set(entry.items()) == set(expected.items()) for entry in keys))
 
     def test_add_key_from_bin(self) -> None:
@@ -187,13 +187,13 @@ class TestConfiguration(TestBase):
         builder = ConfigBuilder().add_key_from_bin("my new key", key_material)
 
         expected = {
-            'alias': "my new key",
-            'bin': key_material,
-            'file': ""
+            "alias": "my new key",
+            "bin": key_material,
+            "file": ""
         }
-        keys = builder.finalize()['keys']
+        keys = builder.finalize()["keys"]
 
-        self.assertEqual(1 + len(get_default_configuration()['keys']), len(keys))
+        self.assertEqual(1 + len(get_default_configuration()["keys"]), len(keys))
         self.assertTrue(any(set(entry.items()) == set(expected.items()) for entry in keys))
 
     def test_add_key_from_bin_file(self) -> None:
@@ -205,13 +205,13 @@ class TestConfiguration(TestBase):
         builder = ConfigBuilder().add_key_from_bin("my new key", key_material, "some file")
 
         expected = {
-            'alias': "my new key",
-            'bin': key_material,
-            'file': "some file"
+            "alias": "my new key",
+            "bin": key_material,
+            "file": "some file"
         }
-        keys = builder.finalize()['keys']
+        keys = builder.finalize()["keys"]
 
-        self.assertEqual(1 + len(get_default_configuration()['keys']), len(keys))
+        self.assertEqual(1 + len(get_default_configuration()["keys"]), len(keys))
         self.assertTrue(any(set(entry.items()) == set(expected.items()) for entry in keys))
 
     def test_add_ephemeral_key(self) -> None:
@@ -220,10 +220,10 @@ class TestConfiguration(TestBase):
         """
         builder = ConfigBuilder().add_ephemeral_key("my new key")
 
-        expected_keys = {'alias', 'bin', 'file'}
-        keys = builder.finalize()['keys']
+        expected_keys = {"alias", "bin", "file"}
+        keys = builder.finalize()["keys"]
 
-        self.assertEqual(1 + len(get_default_configuration()['keys']), len(keys))
+        self.assertEqual(1 + len(get_default_configuration()["keys"]), len(keys))
         self.assertTrue(any(entry.keys() == expected_keys for entry in keys))
         self.assertEqual("my new key", keys[-1]["alias"])
         self.assertEqual("", keys[-1]["file"])
@@ -237,16 +237,16 @@ class TestConfiguration(TestBase):
                                               allow_duplicate=False)
 
         expected = {
-            'class': "DiscoveryCommunity",
-            'key': "anonymous id",
-            'walkers': [],
-            'bootstrappers': [],
-            'initialize': {},
-            'on_start': []
+            "class": "DiscoveryCommunity",
+            "key": "anonymous id",
+            "walkers": [],
+            "bootstrappers": [],
+            "initialize": {},
+            "on_start": []
         }
 
-        self.assertEqual(len(get_default_configuration()['overlays']), len(builder.finalize()['overlays']))
-        self.assertDictInDict(expected, builder.finalize()['overlays'])
+        self.assertEqual(len(get_default_configuration()["overlays"]), len(builder.finalize()["overlays"]))
+        self.assertDictInDict(expected, builder.finalize()["overlays"])
 
     def test_add_overlay_append(self) -> None:
         """
@@ -256,16 +256,16 @@ class TestConfiguration(TestBase):
                                               allow_duplicate=True)
 
         expected = {
-            'class': "DiscoveryCommunity",
-            'key': "anonymous id",
-            'walkers': [],
-            'bootstrappers': [],
-            'initialize': {},
-            'on_start': []
+            "class": "DiscoveryCommunity",
+            "key": "anonymous id",
+            "walkers": [],
+            "bootstrappers": [],
+            "initialize": {},
+            "on_start": []
         }
 
-        self.assertEqual(1 + len(get_default_configuration()['overlays']), len(builder.finalize()['overlays']))
-        self.assertDictInDict(expected, builder.finalize()['overlays'])
+        self.assertEqual(1 + len(get_default_configuration()["overlays"]), len(builder.finalize()["overlays"]))
+        self.assertDictInDict(expected, builder.finalize()["overlays"])
 
     def test_add_overlay_complex(self) -> None:
         """
@@ -273,35 +273,35 @@ class TestConfiguration(TestBase):
         """
         builder = ConfigBuilder().add_overlay("MyCommunity",
                                               "anonymous id",
-                                              [WalkerDefinition(Strategy.RandomWalk, 42, {'timeout': 3.0})],
+                                              [WalkerDefinition(Strategy.RandomWalk, 42, {"timeout": 3.0})],
                                               [BootstrapperDefinition(Bootstrapper.DispersyBootstrapper,
-                                                                      {'ip_addresses': [('1.2.3.4', 5)],
-                                                                       'dns_addresses': [('tribler.org', 5)]})],
-                                              {'settings': {"my_key": "my_value"}},
-                                              [('do_a_thing', 42), ('do_another_thing', )])
+                                                                      {"ip_addresses": [("1.2.3.4", 5)],
+                                                                       "dns_addresses": [("tribler.org", 5)]})],
+                                              {"settings": {"my_key": "my_value"}},
+                                              [("do_a_thing", 42), ("do_another_thing", )])
 
         expected = {
-            'class': "MyCommunity",
-            'key': "anonymous id",
-            'walkers': [{
-                'strategy': "RandomWalk",
-                'peers': 42,
-                'init': {
-                    'timeout': 3.0
+            "class": "MyCommunity",
+            "key": "anonymous id",
+            "walkers": [{
+                "strategy": "RandomWalk",
+                "peers": 42,
+                "init": {
+                    "timeout": 3.0
                 }
             }],
-            'bootstrappers': [{
-                'class': "DispersyBootstrapper",
-                'init': {
-                    'ip_addresses': [('1.2.3.4', 5)],
-                    'dns_addresses': [('tribler.org', 5)]
+            "bootstrappers": [{
+                "class": "DispersyBootstrapper",
+                "init": {
+                    "ip_addresses": [("1.2.3.4", 5)],
+                    "dns_addresses": [("tribler.org", 5)]
                 }
             }],
-            'initialize': {'settings': {"my_key": "my_value"}},
-            'on_start': [('do_a_thing', 42), ('do_another_thing', )]
+            "initialize": {"settings": {"my_key": "my_value"}},
+            "on_start": [("do_a_thing", 42), ("do_another_thing", )]
         }
 
-        self.assertDictInDict(expected, builder.finalize()['overlays'])
+        self.assertDictInDict(expected, builder.finalize()["overlays"])
 
     def test_correct_random_churn_strategy(self) -> None:
         """
@@ -315,20 +315,20 @@ class TestConfiguration(TestBase):
                                               [])
 
         expected = {
-            'class': "DiscoveryCommunity",
-            'key': "anonymous id",
-            'walkers': [{
-                'strategy': "RandomChurn",
-                'peers': 20,
-                'init': {}
+            "class": "DiscoveryCommunity",
+            "key": "anonymous id",
+            "walkers": [{
+                "strategy": "RandomChurn",
+                "peers": 20,
+                "init": {}
             }],
-            'bootstrappers': [],
-            'initialize': {},
-            'on_start': []
+            "bootstrappers": [],
+            "initialize": {},
+            "on_start": []
         }
 
-        self.assertEqual(len(get_default_configuration()['overlays']), len(builder.finalize()['overlays']))
-        self.assertDictInDict(expected, builder.finalize()['overlays'])
+        self.assertEqual(len(get_default_configuration()["overlays"]), len(builder.finalize()["overlays"]))
+        self.assertDictInDict(expected, builder.finalize()["overlays"])
 
     def test_correct_periodic_similarity_strategy(self) -> None:
         """
@@ -342,20 +342,20 @@ class TestConfiguration(TestBase):
                                               [])
 
         expected = {
-            'class': "DiscoveryCommunity",
-            'key': "anonymous id",
-            'walkers': [{
-                'strategy': "PeriodicSimilarity",
-                'peers': 20,
-                'init': {}
+            "class": "DiscoveryCommunity",
+            "key": "anonymous id",
+            "walkers": [{
+                "strategy": "PeriodicSimilarity",
+                "peers": 20,
+                "init": {}
             }],
-            'bootstrappers': [],
-            'initialize': {},
-            'on_start': []
+            "bootstrappers": [],
+            "initialize": {},
+            "on_start": []
         }
 
-        self.assertEqual(len(get_default_configuration()['overlays']), len(builder.finalize()['overlays']))
-        self.assertDictInDict(expected, builder.finalize()['overlays'])
+        self.assertEqual(len(get_default_configuration()["overlays"]), len(builder.finalize()["overlays"]))
+        self.assertDictInDict(expected, builder.finalize()["overlays"])
 
     def test_default_configuration(self) -> None:
         """
@@ -369,39 +369,39 @@ class TestConfiguration(TestBase):
                                      .set_walker_interval(0.5) \
                                      .add_overlay("DiscoveryCommunity",
                                                   "anonymous id",
-                                                  [WalkerDefinition(Strategy.RandomWalk, 20, {'timeout': 3.0}),
+                                                  [WalkerDefinition(Strategy.RandomWalk, 20, {"timeout": 3.0}),
                                                    WalkerDefinition(Strategy.RandomChurn, -1, {
-                                                       'sample_size': 8,
-                                                       'ping_interval': 10.0,
-                                                       'inactive_time': 27.5,
-                                                       'drop_time': 57.5
+                                                       "sample_size": 8,
+                                                       "ping_interval": 10.0,
+                                                       "inactive_time": 27.5,
+                                                       "drop_time": 57.5
                                                    }),
                                                    WalkerDefinition(Strategy.PeriodicSimilarity, -1, {})],
                                                   [BootstrapperDefinition(Bootstrapper.DispersyBootstrapper,
-                                                                          DISPERSY_BOOTSTRAPPER['init'])],
+                                                                          DISPERSY_BOOTSTRAPPER["init"])],
                                                   {},
                                                   []) \
                                      .add_overlay("HiddenTunnelCommunity",
                                                   "anonymous id",
-                                                  [WalkerDefinition(Strategy.RandomWalk, 20, {'timeout': 3.0})],
+                                                  [WalkerDefinition(Strategy.RandomWalk, 20, {"timeout": 3.0})],
                                                   [BootstrapperDefinition(Bootstrapper.DispersyBootstrapper,
-                                                                          DISPERSY_BOOTSTRAPPER['init'])],
+                                                                          DISPERSY_BOOTSTRAPPER["init"])],
                                                   {
-                                                      'min_circuits': 1,
-                                                      'max_circuits': 1,
-                                                      'max_joined_circuits': 100,
-                                                      'max_time': 10 * 60,
-                                                      'max_time_inactive': 20,
-                                                      'max_traffic': 250 * 1024 * 1024,
-                                                      'dht_lookup_interval': 30
+                                                      "min_circuits": 1,
+                                                      "max_circuits": 1,
+                                                      "max_joined_circuits": 100,
+                                                      "max_time": 10 * 60,
+                                                      "max_time_inactive": 20,
+                                                      "max_traffic": 250 * 1024 * 1024,
+                                                      "dht_lookup_interval": 30
                                                   },
-                                                  [('build_tunnels', 1)]) \
+                                                  [("build_tunnels", 1)]) \
                                      .add_overlay("DHTDiscoveryCommunity",
                                                   "anonymous id",
-                                                  [WalkerDefinition(Strategy.RandomWalk, 20, {'timeout': 3.0}),
+                                                  [WalkerDefinition(Strategy.RandomWalk, 20, {"timeout": 3.0}),
                                                    WalkerDefinition(Strategy.PingChurn, -1, {})],
                                                   [BootstrapperDefinition(Bootstrapper.DispersyBootstrapper,
-                                                                          DISPERSY_BOOTSTRAPPER['init'])],
+                                                                          DISPERSY_BOOTSTRAPPER["init"])],
                                                   {},
                                                   [])
 

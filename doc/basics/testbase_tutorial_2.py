@@ -6,8 +6,8 @@ from random import random, shuffle
 from ipv8.community import Community, CommunitySettings
 from ipv8.lazy_community import lazy_wrapper, lazy_wrapper_unsigned
 from ipv8.messaging.payload_dataclass import DataClassPayload
+from ipv8.peer import Peer
 from ipv8.test.base import TestBase
-from ipv8.types import Peer
 
 
 @dataclass
@@ -96,5 +96,5 @@ class TestMyCommunity(TestBase):
         self.assertEqual(2, message2.value)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

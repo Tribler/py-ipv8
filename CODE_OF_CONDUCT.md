@@ -39,7 +39,7 @@ Examples of violations include:
 
  - Changing code without fixing a bug or implementing a feature (e.g. including a new dependency because "everyone else is using it"). This leads to edit wars, see also https://en.wikipedia.org/wiki/Wikipedia:Lamest_edit_wars.
  - Gaming GitHub metrics (e.g. insisting on being the one to merge  a Pull Request to get a larger amount of line changes).
- - Being pedantic or belittling when giving feedback (e.g. insulting someones education when pointing out a flaw).
+ - Being pedantic or belittling when giving feedback (e.g. insulting someone's education when pointing out a flaw).
  - Ungracefully receiving feedback (e.g. closing an unrelated Pull Request if your changes did not get accepted).
  - Administrator rights abuse (e.g. not adhering to the contributing guidelines "because you're an administrator").
 

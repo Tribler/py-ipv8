@@ -26,7 +26,7 @@ The following snippet retrieves the value that was stored in the previous snippe
 .. literalinclude:: dht_1.py
    :lines: 49-55
 
-Note that multiple peers may respond with answers and if (a) the orginal value is not signed or (b) multiple values are published under the same key, the reported values may be different.
+Note that multiple peers may respond with answers and if (a) the original value is not signed or (b) multiple values are published under the same key, the reported values may be different.
 In this example, only one value is published and it is signed so only a single value is ever returned.
 
 Finding peers

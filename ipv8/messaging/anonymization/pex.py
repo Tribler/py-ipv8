@@ -10,7 +10,7 @@ from ...messaging.anonymization.tunnel import PEER_SOURCE_PEX, IntroductionPoint
 from ...peer import Peer
 
 if TYPE_CHECKING:
-    from ...types import Address
+    from ..interfaces.udp.endpoint import Address
     from ..payload import (
         IntroductionRequestPayload,
         IntroductionResponsePayload,
@@ -40,8 +40,8 @@ class PexCommunity(Community):
         Create a new PEX community by deriving the community id from the given SHA-1 hash.
         """
         infohash = settings.info_hash
-        self.community_id = (int.from_bytes(infohash, 'big') + PEX_VERSION).to_bytes(20, 'big')
-        self._prefix = b'\x00' + self.version + self.community_id
+        self.community_id = (int.from_bytes(infohash, "big") + PEX_VERSION).to_bytes(20, "big")
+        self._prefix = b"\x00" + self.version + self.community_id
         super().__init__(settings)
 
         self.intro_points: deque[IntroductionPoint] = deque(maxlen=20)
@@ -92,7 +92,7 @@ class PexCommunity(Community):
         if not extra_bytes:
             return
 
-        for seeder_pk in cast(list[bytes], self.serializer.unpack('varlenH-list', extra_bytes)[0]):
+        for seeder_pk in cast("list[bytes]", self.serializer.unpack("varlenH-list", extra_bytes)[0]):
             ip = IntroductionPoint(peer, seeder_pk, PEER_SOURCE_PEX)
             if ip in self.intro_points:
                 # Remove first to put introduction point at front of the deque.
@@ -114,7 +114,7 @@ class PexCommunity(Community):
         """
         self.process_extra_bytes(peer, payload.extra_bytes)
 
-    def create_introduction_request(self, socket_address: Address, extra_bytes: bytes = b'', new_style: bool = False,
+    def create_introduction_request(self, socket_address: Address, extra_bytes: bytes = b"", new_style: bool = False,
                                     prefix: bytes | None = None) -> bytes:
         """
         Piggyback introduction points onto introduction requests.
@@ -122,7 +122,7 @@ class PexCommunity(Community):
         return super().create_introduction_request(socket_address, self.get_seeder_pks(), new_style)
 
     def create_introduction_response(self, lan_socket_address: Address, socket_address: Address,  # noqa: PLR0913
-                                     identifier: int, introduction: Peer | None = None, extra_bytes: bytes = b'',
+                                     identifier: int, introduction: Peer | None = None, extra_bytes: bytes = b"",
                                      prefix: bytes | None = None,
                                      new_style: bool = False) -> bytes:
         """
@@ -142,4 +142,4 @@ class PexCommunity(Community):
         Pack the known seeder public keys (up to 10) as bytes.
         """
         pks = random.sample(self.intro_points_for, min(len(self.intro_points_for), 10))
-        return self.serializer.pack('varlenH-list', pks)
+        return self.serializer.pack("varlenH-list", pks)

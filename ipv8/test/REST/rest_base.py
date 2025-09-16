@@ -39,12 +39,12 @@ class MockRequest(Request):
 
     class Transport:
         """
-        A fake transport that does nothing.
+        Fake transport that does nothing.
         """
 
         def __init__(self) -> None:
             """
-            Create a new fake Transport.
+            Create new fake Transport.
             """
             super().__init__()
             self.closing = False
@@ -67,7 +67,7 @@ class MockRequest(Request):
         Create a new MockRequest, just like if it were returned from aiohttp.
         """
         message = RawRequestMessage(method, path, HttpVersion(1, 0), CIMultiDictProxy(CIMultiDict({})),
-                                    ((b'', b''),), True, None, False, False, URL(path))
+                                    ((b"", b""),), True, None, False, False, URL(path))
         self._transport = MockRequest.Transport()
         self.ssl_context = None
         self.peername = None

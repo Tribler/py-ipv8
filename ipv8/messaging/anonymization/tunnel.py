@@ -6,16 +6,15 @@ import time
 from asyncio import Future, gather
 from binascii import hexlify
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Callable, cast
-
-from ...keyvault.public.libnaclkey import LibNaCLPK
+from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
 
     from ...keyvault.private.libnaclkey import LibNaCLSK
+    from ...keyvault.public.libnaclkey import LibNaCLPK
     from ...peer import Peer
-    from ...types import Address
+    from ..interfaces.udp.endpoint import Address
     from .crypto import SessionKeys
 
 FORWARD = 0
@@ -31,17 +30,17 @@ PEER_FLAG_EXIT_IPV8 = 4
 PEER_FLAG_SPEED_TEST = 8
 
 # Data circuits are general purpose circuits for exiting data
-CIRCUIT_TYPE_DATA = 'DATA'
+CIRCUIT_TYPE_DATA = "DATA"
 
 # The other circuits are supposed to end in a connectable node, not allowed to exit
 # anything else than IPv8 messages, used for setting up end-to-end circuits
-CIRCUIT_TYPE_IP_SEEDER = 'IP_SEEDER'
-CIRCUIT_TYPE_RP_SEEDER = 'RP_SEEDER'
-CIRCUIT_TYPE_RP_DOWNLOADER = 'RP_DOWNLOADER'
+CIRCUIT_TYPE_IP_SEEDER = "IP_SEEDER"
+CIRCUIT_TYPE_RP_SEEDER = "RP_SEEDER"
+CIRCUIT_TYPE_RP_DOWNLOADER = "RP_DOWNLOADER"
 
-CIRCUIT_STATE_READY = 'READY'
-CIRCUIT_STATE_EXTENDING = 'EXTENDING'
-CIRCUIT_STATE_CLOSING = 'CLOSING'
+CIRCUIT_STATE_READY = "READY"
+CIRCUIT_STATE_EXTENDING = "EXTENDING"
+CIRCUIT_STATE_CLOSING = "CLOSING"
 
 CIRCUIT_ID_PORT = 1024
 PING_INTERVAL = 7.5
@@ -77,7 +76,7 @@ class Hop:
         """
         Get the public key instance of the hop.
         """
-        return cast(LibNaCLPK, self.peer.public_key)
+        return cast("LibNaCLPK", self.peer.public_key)
 
     @property
     def public_key_bin(self) -> bytes:
@@ -133,7 +132,7 @@ class Circuit(RoutingObject):
         self.info_hash = info_hash
 
         self.ready: Future[Circuit | None] = Future()
-        self.closing_info = ''
+        self.closing_info = ""
         self._closing = False
         self._hops: list[Hop] = []
         self.unverified_hop: Hop | None = None
@@ -172,7 +171,7 @@ class Circuit(RoutingObject):
         """
         Return the first hop of the circuit.
         """
-        return cast(Hop, self._hops[0] if self._hops else self.unverified_hop)
+        return cast("Hop", self._hops[0] if self._hops else self.unverified_hop)
 
     @property
     def hops(self) -> Sequence[Hop]:
@@ -208,7 +207,7 @@ class Circuit(RoutingObject):
 
         return CIRCUIT_STATE_READY
 
-    def close(self, closing_info: str = '') -> None:
+    def close(self, closing_info: str = "") -> None:
         """
         Sets the state of the circuit to CIRCUIT_STATE_CLOSING. This ensures that this circuit
         will not be used to contact new peers.
@@ -285,11 +284,11 @@ class IntroductionPoint:
         """
         Convert this intro point to a flat dict.
         """
-        return{'address': {'ip': self.peer.address[0],
-                           'port': self.peer.address[1],
-                           'public_key': hexlify(self.peer.public_key.key_to_bin()).decode()},
-               'seeder_pk': hexlify(self.seeder_pk).decode(),
-               'source': self.source}
+        return{"address": {"ip": self.peer.address[0],
+                           "port": self.peer.address[1],
+                           "public_key": hexlify(self.peer.public_key.key_to_bin()).decode()},
+               "seeder_pk": hexlify(self.seeder_pk).decode(),
+               "source": self.source}
 
 
 class Swarm:

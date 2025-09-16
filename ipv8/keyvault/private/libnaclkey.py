@@ -14,7 +14,7 @@ class LibNaCLSK(PrivateKey, LibNaCLPK):
     def __init__(self, binarykey: bytes = b"") -> None:
         """
         Create a new LibNaCL secret key. Optionally load it from a string representation.
-        Otherwise generate it from the 25519 curve.
+        Otherwise, generate it from the 25519 curve.
 
         :param binarykey: load the sk from this string (see key_to_bin())
         """

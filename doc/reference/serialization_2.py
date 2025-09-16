@@ -3,7 +3,7 @@ import os
 from ipv8.community import Community, CommunitySettings
 from ipv8.lazy_community import lazy_wrapper
 from ipv8.messaging.lazy_payload import VariablePayload, vp_compile
-from ipv8.types import Peer
+from ipv8.peer import Peer
 
 
 @vp_compile

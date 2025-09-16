@@ -1,17 +1,19 @@
 from __future__ import annotations
 
 from collections import deque
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING
 
+from ..interfaces.endpoint import Endpoint, EndpointListener
 from .tunnel import CIRCUIT_STATE_READY, PEER_FLAG_EXIT_IPV8
 
 if TYPE_CHECKING:
-    from ...types import Address
-    from ..interfaces.endpoint import Endpoint
+    from collections.abc import Awaitable
+
+    from ..interfaces.udp.endpoint import Address
     from .community import TunnelCommunity
 
 
-class TunnelEndpoint:
+class TunnelEndpoint(Endpoint):
     """
     Endpoint implementation that routes all data through a TunnelCommunity.
     """
@@ -62,32 +64,68 @@ class TunnelEndpoint:
                 return
 
             circuit_id = circuit.circuit_id
-            tunnel_community.send_data(circuit.hop.address, circuit_id, address, ('0.0.0.0', 0), packet)
+            tunnel_community.send_data(circuit.hop.address, circuit_id, address, ("0.0.0.0", 0), packet)
 
             # Any packets still need sending?
             while self.send_queue:
                 address, packet = self.send_queue.popleft()
-                tunnel_community.send_data(circuit.hop.address, circuit_id, address, ('0.0.0.0', 0), packet)
+                tunnel_community.send_data(circuit.hop.address, circuit_id, address, ("0.0.0.0", 0), packet)
 
     def notify_listeners(self, packet: tuple[Address, bytes], from_tunnel: bool = False) -> None:
         """
         Ensure packets are only delivered if they follow they are properly encrypted.
         """
-        for listener in self._listeners:
+        for listener in self.endpoint._listeners:  # noqa: SLF001
             # Anonymized communities should ignore traffic received from the socket
             # Non-anonymized communities should ignore traffic received from the TunnelCommunity
-            if getattr(listener, 'anonymize', False) != from_tunnel:
+            if getattr(listener, "anonymize", False) != from_tunnel:
                 continue
-            self._deliver_later(listener, packet)
+            self.endpoint._deliver_later(listener, packet)  # noqa: SLF001
 
-    def __getattribute__(self, item: str) -> Any:  # noqa: ANN401
+    def add_listener(self, listener: EndpointListener) -> None:
         """
-        Forward anything that is not inside of this class to our wrapped endpoint.
+        Forward directly to the underlying endpoint.
         """
-        try:
-            return object.__getattribute__(self, item)
-        except AttributeError:
-            try:
-                return object.__getattribute__(self.endpoint, item)
-            except AttributeError:
-                return object.__getattribute__(cast(TunnelEndpoint, self.endpoint).endpoint, item)
+        self.endpoint.add_listener(listener)
+
+    def add_prefix_listener(self, listener: EndpointListener, prefix: bytes) -> None:
+        """
+        Forward directly to the underlying endpoint.
+        """
+        self.endpoint.add_prefix_listener(listener, prefix)
+
+    def assert_open(self) -> None:
+        """
+        Forward directly to the underlying endpoint.
+        """
+        self.endpoint.assert_open()
+
+    def is_open(self) -> bool:
+        """
+        Forward directly to the underlying endpoint.
+        """
+        return self.endpoint.is_open()
+
+    def get_address(self) -> Address:
+        """
+        Forward directly to the underlying endpoint.
+        """
+        return self.endpoint.get_address()
+
+    async def open(self) -> bool:
+        """
+        Forward directly to the underlying endpoint.
+        """
+        return await self.endpoint.open()
+
+    def close(self) -> None | Awaitable:
+        """
+        Forward directly to the underlying endpoint.
+        """
+        return self.endpoint.close()
+
+    def reset_byte_counters(self) -> None:
+        """
+        Forward directly to the underlying endpoint.
+        """
+        self.endpoint.reset_byte_counters()

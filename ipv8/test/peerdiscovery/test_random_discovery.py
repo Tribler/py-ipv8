@@ -1,9 +1,11 @@
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from ...peerdiscovery.discovery import RandomWalk
 from ..base import TestBase
 from ..mocking.community import MockCommunity
-from ..mocking.endpoint import AutoMockEndpoint
+
+if TYPE_CHECKING:
+    from ..mocking.endpoint import AutoMockEndpoint
 
 
 class TestRandomWalk(TestBase):
@@ -58,7 +60,7 @@ class TestRandomWalk(TestBase):
         """
         self.overlays[0].network.add_verified_peer(self.overlays[1].my_peer)
         self.overlays[0].network.discover_address(self.overlays[1].my_peer,
-                                                  cast(AutoMockEndpoint, self.overlays[2].endpoint).wan_address,
+                                                  cast("AutoMockEndpoint", self.overlays[2].endpoint).wan_address,
                                                   MockCommunity.community_id)
         self.overlays[0].network.discover_services(self.overlays[1].my_peer, [self.overlays[1].community_id, ])
         # We expect NODE0 to visit NODE2
@@ -79,7 +81,7 @@ class TestRandomWalk(TestBase):
         """
         self.overlays[0].network.add_verified_peer(self.overlays[1].my_peer)
         self.overlays[0].network.discover_address(self.overlays[1].my_peer,
-                                                  cast(AutoMockEndpoint, self.overlays[2].endpoint).wan_address,
+                                                  cast("AutoMockEndpoint", self.overlays[2].endpoint).wan_address,
                                                   MockCommunity.community_id)
         self.overlays[0].network.discover_services(self.overlays[1].my_peer, [self.overlays[1].community_id, ])
         # Fail immediately when unreachable
@@ -109,7 +111,7 @@ class TestRandomWalk(TestBase):
         """
         self.overlays[0].network.add_verified_peer(self.overlays[1].my_peer)
         self.overlays[0].network.discover_address(self.overlays[1].my_peer,
-                                                  cast(AutoMockEndpoint, self.overlays[2].endpoint).wan_address,
+                                                  cast("AutoMockEndpoint", self.overlays[2].endpoint).wan_address,
                                                   MockCommunity.community_id)
         self.overlays[0].network.discover_services(self.overlays[1].my_peer, [self.overlays[1].community_id, ])
         self.strategies[0].node_timeout = 100000.0

@@ -12,12 +12,12 @@ from ...attestation.identity.manager import IdentityManager
 from ...attestation.wallet.community import AttestationCommunity, AttestationSettings
 from ...REST.identity_endpoint import IdentityEndpoint
 from ..base import TestBase
-from ..mocking.endpoint import AutoMockEndpoint
 from .rest_base import MockRequest, response_to_json
 
 if TYPE_CHECKING:
     from ...community import CommunitySettings
-    from ...types import PrivateKey
+    from ...keyvault.keys import PrivateKey
+    from ..mocking.endpoint import AutoMockEndpoint
     from ..mocking.ipv8 import MockIPv8
 
 
@@ -88,7 +88,7 @@ class TestIdentityEndpoint(TestBase[IdentityCommunity]):
         communication_manager.pseudonym_folder_manager = MockPseudonymFolderManager()
         communication_manager.pseudonym_folder_manager.get_or_create_private_key(key_file_name)
 
-        identity_overlay = cast(IdentityCommunity, ipv8.get_overlay(IdentityCommunity))
+        identity_overlay = cast("IdentityCommunity", ipv8.get_overlay(IdentityCommunity))
         attestation_overlay = AttestationCommunity(AttestationSettings(my_peer=identity_overlay.my_peer,
                                                                        endpoint=identity_overlay.endpoint,
                                                                        network=identity_overlay.network,
@@ -127,7 +127,7 @@ class TestIdentityEndpoint(TestBase[IdentityCommunity]):
         """
         Figure out the ephemeral communities of each node and introduce them to each other.
         """
-        all_interfaces = [[cast(AutoMockEndpoint, overlay.endpoint).wan_address for overlay in node.overlays
+        all_interfaces = [[cast("AutoMockEndpoint", overlay.endpoint).wan_address for overlay in node.overlays
                            if isinstance(overlay, IdentityCommunity)] for node in self.nodes]
         for i in range(len(self.nodes)):
             other_addresses = list(range(len(self.nodes)))
@@ -348,7 +348,7 @@ class TestIdentityEndpoint(TestBase[IdentityCommunity]):
         result = await response_to_json(await self.rest_ep(1).attest_pseudonym_credential(
             MockRequest(f"identity/my_peer1/attest/{urllib.parse.quote(b64_subject_key, safe='')}", "PUT", {
                                              "name": "My attribute",
-                                             "value": base64.b64encode(b'Some value').decode()
+                                             "value": base64.b64encode(b"Some value").decode()
                         }, {"pseudonym_name": "my_peer1", "subject_key": b64_subject_key})
         ))
         self.assertTrue(result["success"])
@@ -468,7 +468,7 @@ class TestIdentityEndpoint(TestBase[IdentityCommunity]):
 
         metadata = {"Some key": "Some value"}
         request = {"name": "My attribute", "schema": "id_metadata", "metadata": metadata}
-        attest = {"name": "My attribute", "value": base64.b64encode(b'Some value').decode()}
+        attest = {"name": "My attribute", "value": base64.b64encode(b"Some value").decode()}
 
         await self.rest_ep(0).create_pseudonym_credential(
             MockRequest(f"identity/my_peer0/request/{urllib.parse.quote(b64_authority_key, safe='')}", "PUT", request,

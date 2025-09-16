@@ -3,21 +3,21 @@ import os
 from ipv8.community import Community, CommunitySettings
 from ipv8.lazy_community import lazy_wrapper
 from ipv8.messaging.lazy_payload import VariablePayload, vp_compile
-from ipv8.types import Peer
+from ipv8.peer import Peer
 
 
 @vp_compile
 class MyMessage1(VariablePayload):
     msg_id = 1
-    format_list = ['I']
-    names = ['unsigned_integer_field']
+    format_list = ["I"]
+    names = ["unsigned_integer_field"]
 
 
 @vp_compile
 class MyMessage2(VariablePayload):
     msg_id = 2
-    format_list = ['I']
-    names = ['unsigned_integer_field']
+    format_list = ["I"]
+    names = ["unsigned_integer_field"]
 
 
 COMMUNITY_ID = os.urandom(20)

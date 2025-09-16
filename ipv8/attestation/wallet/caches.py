@@ -1,19 +1,23 @@
 from __future__ import annotations
 
 import logging
+from abc import ABCMeta
 from struct import unpack
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from ...requestcache import NumberCache, RequestCache
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from typing_extensions import Self
 
-    from ...types import AttestationCommunity
+    from .community import AttestationCommunity
+
+logger = logging.getLogger(__name__)
 
 
-
-class HashCache(NumberCache):
+class HashCache(NumberCache, metaclass=ABCMeta):
     """
     Cache tied to a hash.
     """
@@ -33,13 +37,13 @@ class HashCache(NumberCache):
         """
         number = 0
         for i in range(len(cache_hash)):
-            b, = unpack('>B', cache_hash[i:i + 1])
+            b, = unpack(">B", cache_hash[i:i + 1])
             number <<= 8
             number |= b
         return prefix, number
 
 
-class PeerCache(NumberCache):
+class PeerCache(NumberCache, metaclass=ABCMeta):
     """
     Cache tied to a peer (mid).
     """
@@ -83,7 +87,7 @@ class ReceiveAttestationVerifyCache(HashCache):
         """
         Too bad, nothing gained and nothing lost: log and drop the cache.
         """
-        logging.warning("ReceiveAttestationVerify timed out!")
+        logger.warning("ReceiveAttestationVerify timed out!")
 
     @property
     def timeout_delay(self) -> float:
@@ -113,7 +117,7 @@ class ReceiveAttestationRequestCache(PeerCache):
         """
         Too bad, nothing gained and nothing lost: log and drop the cache.
         """
-        logging.warning("ReceiveAttestation timed out!")
+        logger.warning("ReceiveAttestation timed out!")
 
 
 class ProvingAttestationCache(HashCache):
@@ -139,7 +143,7 @@ class ProvingAttestationCache(HashCache):
         """
         Too bad, nothing gained and nothing lost: log and drop the cache.
         """
-        logging.warning("ProvingAttestation timed out!")
+        logger.warning("ProvingAttestation timed out!")
 
     @property
     def timeout_delay(self) -> float:
@@ -167,4 +171,4 @@ class PendingChallengeCache(HashCache):
         """
         Too bad, nothing gained and nothing lost: log and drop the cache.
         """
-        logging.warning("PendingChallenge timed out!")
+        logger.warning("PendingChallenge timed out!")

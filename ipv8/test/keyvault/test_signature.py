@@ -77,7 +77,7 @@ class TestSignatures(TestBase):
 
     def test_invalid_nacl(self) -> None:
         """
-        Check if an libnacl key detects an invalid signature.
+        Check if a libnacl key detects an invalid signature.
         """
         key = self.ec.generate_key("curve25519")
 

@@ -23,7 +23,7 @@ class MockCommunity2(MockCommunity):
     Empty Community for testing.
     """
 
-    community_id = b'DifferentCommunityID'
+    community_id = b"DifferentCommunityID"
 
 
 class TestOverlaysEndpoint(TestBase[MockCommunity]):
@@ -143,11 +143,11 @@ class TestOverlaysEndpoint(TestBase[MockCommunity]):
         self.node(0).endpoint.add_sent_stat(self.overlay(0).get_prefix(), 245, 1337)
 
         expected_stats = {
-            'bytes_down': 0,
-            'bytes_up': 1337,
-            'diff_time': 0.0,
-            'num_down': 0,
-            'num_up': 1
+            "bytes_down": 0,
+            "bytes_up": 1337,
+            "diff_time": 0.0,
+            "num_down": 0,
+            "num_up": 1
         }
 
         response = await response_to_json(await self.rest_ep.get_overlays(MockRequest("overlays")))

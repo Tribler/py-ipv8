@@ -5,12 +5,12 @@ from ipv8.messaging.payload_dataclass import DataClassPayload
 
 
 class A(VariablePayload):
-    format_list = ['I', 'H']
+    format_list = ["I", "H"]
     names = ["foo", "bar"]
 
 
 class B(VariablePayload):
-    format_list = [A, 'H']  # Note that we pass the class A
+    format_list = [A, "H"]  # Note that we pass the class A
     names = ["a", "baz"]
 
 

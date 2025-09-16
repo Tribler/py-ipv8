@@ -35,7 +35,7 @@ def attest(PK: BonehPublicKey, value: int, bitspace: int) -> BonehAttestation:
     while len(A) < bitspace:
         A.insert(0, 0)
     R = generate_modular_additive_inverse(PK.p, bitspace)
-    t_out_public_v = [encode(PK, a + b) for (a, b) in zip(A, R)]
+    t_out_public_v = [encode(PK, a + b) for (a, b) in zip(A, R, strict=False)]
     t_out_private = [(i, encode(PK, PK.p - ((R[i] + R[i + 1]) % (PK.p + 1)) + 1)) for i in range(0, len(A) - 1, 2)]
     # Shuffle:
     t_out_public = [(i, t_out_public_v[i], t_out_public_v[i + 1]) for i in range(0, len(t_out_public_v), 2)]
@@ -126,12 +126,12 @@ def binary_relativity_match(expected: dict[int, int], value: dict[int, int]) -> 
     Mismatches result in 0.0.
     """
     match = 1.0
-    for k in expected:
-        if expected[k] < value[k]:
+    for k, v in expected.items():
+        if v < value[k]:
             return 0.0
-        if not expected[k] or not value[k]:
+        if not v or not value[k]:
             continue
-        match *= float(value[k]) / float(expected[k])
+        match *= float(value[k]) / float(v)
     return match
 
 

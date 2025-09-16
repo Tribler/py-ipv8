@@ -118,7 +118,7 @@ class TestPeer(TestBase):
         """
         Check if the __str__ method functions properly.
         """
-        self.assertEqual(str(self.peer), "Peer<1.2.3.4:5, {}>".format(b64encode(self.peer.mid).decode('utf-8')))
+        self.assertEqual(str(self.peer), f"Peer<1.2.3.4:5, {b64encode(self.peer.mid).decode()}>")
 
     def test_set_address_init(self) -> None:
         """

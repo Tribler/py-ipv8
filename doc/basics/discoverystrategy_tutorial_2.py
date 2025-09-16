@@ -21,17 +21,17 @@ class MyCommunity(Community):
 
 
 definition = {
-    'strategy': "MyDiscoveryStrategy",
-    'peers': -1,
-    'init': {}
+    "strategy": "MyDiscoveryStrategy",
+    "peers": -1,
+    "init": {}
 }
 
 config = get_default_configuration()
-config['overlays'] = [{
-    'class': 'MyCommunity',
-    'key': "anonymous id",
-    'walkers': [definition],
-    'bootstrappers': [DISPERSY_BOOTSTRAPPER.copy()],
-    'initialize': {},
-    'on_start': []
+config["overlays"] = [{
+    "class": "MyCommunity",
+    "key": "anonymous id",
+    "walkers": [definition],
+    "bootstrappers": [DISPERSY_BOOTSTRAPPER.copy()],
+    "initialize": {},
+    "on_start": []
 }]
