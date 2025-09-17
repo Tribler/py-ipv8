@@ -8,7 +8,7 @@ from __future__ import annotations
 import abc
 import logging
 import types
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast
 
 from .keyvault.crypto import default_eccrypto
 from .peer import Peer
@@ -22,8 +22,11 @@ if TYPE_CHECKING:
     from .community import Community
     from .peerdiscovery.discovery import DiscoveryStrategy
 
+SessionT = TypeVar("SessionT")
+CommunityT = TypeVar("CommunityT")
 
-class CommunityLauncher:
+
+class CommunityLauncher(Generic[SessionT, CommunityT]):
     """
     Object in charge of preparing a Community for loading in IPv8.
     """
@@ -50,7 +53,7 @@ class CommunityLauncher:
         """
         return []
 
-    def should_launch(self, session: object) -> bool:
+    def should_launch(self, session: SessionT) -> bool:
         """
         Check whether this launcher should launch.
 
@@ -60,17 +63,17 @@ class CommunityLauncher:
         """
         return True
 
-    def prepare(self, overlay_provider: IPv8, session: object) -> None:
+    def prepare(self, overlay_provider: IPv8, session: SessionT) -> None:
         """
         Perform setup tasks before the community is loaded.
         """
 
-    def finalize(self, ipv8: IPv8, session: object, community: Community) -> None:
+    def finalize(self, ipv8: IPv8, session: SessionT, community: CommunityT) -> None:
         """
         Perform cleanup tasks after the community has been loaded.
         """
 
-    def get_kwargs(self, session: object) -> dict:
+    def get_kwargs(self, session: SessionT) -> dict:
         """
         Get the kwargs to load the community with.
         """
@@ -79,7 +82,7 @@ class CommunityLauncher:
         return ret
 
     @abc.abstractmethod
-    def get_overlay_class(self) -> type[Community]:
+    def get_overlay_class(self) -> type[CommunityT]:
         """
         Get the overlay class this launcher wants to load.
 
@@ -93,14 +96,14 @@ class CommunityLauncher:
         """
         return []
 
-    def get_bootstrappers(self, session: object) -> list[tuple[type[Bootstrapper], dict]]:
+    def get_bootstrappers(self, session: SessionT) -> list[tuple[type[Bootstrapper], dict]]:
         """
         Get the bootstrappers for this class.
         It should be provided as a list of tuples with the class and kwargs.
         """
         return []
 
-    def get_my_peer(self, ipv8: IPv8, session: object) -> Peer:
+    def get_my_peer(self, ipv8: IPv8, session: SessionT) -> Peer:
         """
         Create a new Peer object that represents our own peer for the overlay.
         """
@@ -224,7 +227,10 @@ class IPv8CommunityLoader(CommunityLoader):
         self.community_launchers[launcher.get_name()] = (launcher, True)
 
 
-def name(str_name: str) -> Callable[[type[CommunityLauncher]], type[CommunityLauncher]]:
+CommunityLauncherT = TypeVar("CommunityLauncherT", bound=CommunityLauncher)
+
+
+def name(str_name: str) -> Callable[[type[CommunityLauncherT]], type[CommunityLauncherT]]:
     """
     Specify a custom name for this launcher.
 
@@ -238,7 +244,7 @@ def name(str_name: str) -> Callable[[type[CommunityLauncher]], type[CommunityLau
 
     :param str_name: the new name to give this launcher.
     """
-    def decorator(instance: type[CommunityLauncher]) -> type[CommunityLauncher]:
+    def decorator(instance: type[CommunityLauncherT]) -> type[CommunityLauncherT]:
         def new_get_name(self: CommunityLauncher) -> str:
             return str_name
 
@@ -247,7 +253,7 @@ def name(str_name: str) -> Callable[[type[CommunityLauncher]], type[CommunityLau
     return decorator
 
 
-def after(*launcher_name: str) -> Callable[[type[CommunityLauncher]], type[CommunityLauncher]]:
+def after(*launcher_name: str) -> Callable[[type[CommunityLauncherT]], type[CommunityLauncherT]]:
     """
     Specify one or more Community classes which should be loaded before the CommunityLauncher is invoked.
     You may call this multiple times and/or with multiple arguments.
@@ -267,7 +273,7 @@ def after(*launcher_name: str) -> Callable[[type[CommunityLauncher]], type[Commu
 
     :param launcher_name: the launcher name(s) that need to be loaded beforehand.
     """
-    def decorator(instance: type[CommunityLauncher]) -> type[CommunityLauncher]:
+    def decorator(instance: type[CommunityLauncherT]) -> type[CommunityLauncherT]:
         old_not_before = instance.not_before
 
         def new_not_before(self: CommunityLauncher) -> list[str]:
@@ -278,7 +284,7 @@ def after(*launcher_name: str) -> Callable[[type[CommunityLauncher]], type[Commu
     return decorator
 
 
-def precondition(str_condition: str) -> Callable[[type[CommunityLauncher]], type[CommunityLauncher]]:
+def precondition(str_condition: str) -> Callable[[type[CommunityLauncherT]], type[CommunityLauncherT]]:
     """
     Specify a string to be evaluated and interpreted as a condition for this CommunityLauncher to start.
     A ``session`` object is provided to pull a state from.
@@ -299,7 +305,7 @@ def precondition(str_condition: str) -> Callable[[type[CommunityLauncher]], type
 
     :param str_condition: the string to be evaluated as a launch condition.
     """
-    def decorator(instance: type[CommunityLauncher]) -> type[CommunityLauncher]:
+    def decorator(instance: type[CommunityLauncherT]) -> type[CommunityLauncherT]:
         old_should_launch = instance.should_launch
 
         def new_should_launch(self: CommunityLauncher, session: object) -> bool:
@@ -324,7 +330,7 @@ def _get_class(class_or_function: type[Community] | Callable[[Any], type[Communi
 
 
 def overlay(str_module_or_class: str | type[Community] | Callable[[], type[Community]],
-            str_definition: str | None = None) -> Callable[[type[CommunityLauncher]], type[CommunityLauncher]]:
+            str_definition: str | None = None) -> Callable[[type[CommunityLauncherT]], type[CommunityLauncherT]]:
     """
     Specify, as strings, a module and Community class object defined therein to lazy-load.
     Otherwise, give an actual Community class to load.
@@ -353,7 +359,7 @@ def overlay(str_module_or_class: str | type[Community] | Callable[[], type[Commu
     :param str_module_or_class: either the module to load or a Community class.
     :param str_definition: either the class definition to load or None if str_module_or_class is not a string.
     """
-    def decorator(instance: type[CommunityLauncher]) -> type[CommunityLauncher]:
+    def decorator(instance: type[CommunityLauncherT]) -> type[CommunityLauncherT]:
         if isinstance(str_module_or_class, str):
             if not hasattr(instance, "hiddenimports"):
                 setattr(instance, "hiddenimports", set())  # noqa: B010
@@ -374,7 +380,7 @@ def overlay(str_module_or_class: str | type[Community] | Callable[[], type[Commu
 def walk_strategy(str_module_or_class: str | type[DiscoveryStrategy] | Callable[[], type[DiscoveryStrategy]],
                   str_definition: str | None = None,
                   target_peers: int = 20,
-                  kw_args: dict | None = None) -> Callable[[type[CommunityLauncher]], type[CommunityLauncher]]:
+                  kw_args: dict | None = None) -> Callable[[type[CommunityLauncherT]], type[CommunityLauncherT]]:
     """
     Specify, as strings, a module and DiscoveryStrategy class object defined therein to lazy-load.
     Otherwise, give an actual DiscoveryStrategy class to load.
@@ -409,7 +415,7 @@ def walk_strategy(str_module_or_class: str | type[DiscoveryStrategy] | Callable[
     :param target_peers: the target_peers for the strategy.
     :param kw_args: the keyword arguments to initialize the DiscoveryStrategy instance with.
     """
-    def decorator(instance: type[CommunityLauncher]) -> type[CommunityLauncher]:
+    def decorator(instance: type[CommunityLauncherT]) -> type[CommunityLauncherT]:
         old_get_walk_strategies = instance.get_walk_strategies
 
         if isinstance(str_module_or_class, str):
@@ -432,7 +438,7 @@ def walk_strategy(str_module_or_class: str | type[DiscoveryStrategy] | Callable[
 
 def bootstrapper(str_module_or_class: str | type[Bootstrapper] | Callable[[], type[Bootstrapper]],
                  str_definition: str | None = None,
-                 kw_args: dict | None  = None) -> Callable[[type[CommunityLauncher]], type[CommunityLauncher]]:
+                 kw_args: dict | None  = None) -> Callable[[type[CommunityLauncherT]], type[CommunityLauncherT]]:
     """
     Specify, as strings, a module and Bootstrapper class object defined therein to lazy-load.
     Otherwise, give an actual Bootstrapper class to load.
@@ -466,7 +472,7 @@ def bootstrapper(str_module_or_class: str | type[Bootstrapper] | Callable[[], ty
     :param str_definition: either the class definition to load or None if str_module_or_class is not a string.
     :param kw_args: the keyword arguments to initialize the Bootstrapper instance with.
     """
-    def decorator(instance: type[CommunityLauncher]) -> type[CommunityLauncher]:
+    def decorator(instance: type[CommunityLauncherT]) -> type[CommunityLauncherT]:
         old_get_bootstrappers = instance.get_bootstrappers
 
         if isinstance(str_module_or_class, str):
@@ -487,7 +493,7 @@ def bootstrapper(str_module_or_class: str | type[Bootstrapper] | Callable[[], ty
     return decorator
 
 
-def set_in_session(attribute_name: str) -> Callable[[type[CommunityLauncher]], type[CommunityLauncher]]:
+def set_in_session(attribute_name: str) -> Callable[[type[CommunityLauncherT]], type[CommunityLauncherT]]:
     """
     Specify an attribute to set on the session, once the CommunityLauncher has finished initializing its Community.
 
@@ -501,7 +507,7 @@ def set_in_session(attribute_name: str) -> Callable[[type[CommunityLauncher]], t
 
     :param attribute_name: the attribute name (string) to set on the session, once the Community is loaded.
     """
-    def decorator(instance: type[CommunityLauncher]) -> type[CommunityLauncher]:
+    def decorator(instance: type[CommunityLauncherT]) -> type[CommunityLauncherT]:
         old_finalize = instance.finalize
 
         def new_finalize(self: CommunityLauncher, ipv8: IPv8, session: object, community: Community) -> None:
@@ -514,7 +520,7 @@ def set_in_session(attribute_name: str) -> Callable[[type[CommunityLauncher]], t
     return decorator
 
 
-def kwargs(**kw_args) -> Callable[[type[CommunityLauncher]], type[CommunityLauncher]]:
+def kwargs(**kw_args) -> Callable[[type[CommunityLauncherT]], type[CommunityLauncherT]]:
     """
     Specify keyword arguments as evaluated strings, to initialize the Community with.
     A ``session`` object is provided to pull a state from.
@@ -533,7 +539,7 @@ def kwargs(**kw_args) -> Callable[[type[CommunityLauncher]], type[CommunityLaunc
 
     :param kw_args: the mapping of keyword arguments to statements to be evaluated.
     """
-    def decorator(instance: type[CommunityLauncher]) -> type[CommunityLauncher]:
+    def decorator(instance: type[CommunityLauncherT]) -> type[CommunityLauncherT]:
         old_get_kwargs = instance.get_kwargs
 
         def new_get_kwargs(self: CommunityLauncher, session: object) -> dict:

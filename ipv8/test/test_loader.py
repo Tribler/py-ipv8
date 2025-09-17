@@ -172,7 +172,7 @@ class MockOverlayProvider:
         self.strategies = []
 
 
-class StagedCommunityLauncher(CommunityLauncher):
+class StagedCommunityLauncher(CommunityLauncher[MockSession, MockCommunity]):
     """
     Community launcher with some fake data.
     """
