@@ -143,7 +143,7 @@ class TestHiddenServices(TestBase[HiddenTunnelCommunity]):
         public_peer = Peer(exit_node.my_peer.public_key, exit_node.my_peer.address)
         self.network(node_nr).add_verified_peer(public_peer)
         self.network(node_nr).discover_services(public_peer, exit_node.overlay.community_id)
-        self.overlay(node_nr).candidates[public_peer] = exit_node.overlay.settings.peer_flags
+        self.overlay(node_nr).candidates[public_peer] = list(exit_node.overlay.settings.peer_flags)
         self.overlay(node_nr).build_tunnels(1)
         await self.deliver_messages()
         exit_sockets = exit_node.overlay.exit_sockets
