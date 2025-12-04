@@ -393,6 +393,8 @@ class TunnelCommunity(Community):
 
         if ctype == CIRCUIT_TYPE_IP_SEEDER and not required_exit:
             required_exit = self.select_exit(ctype=ctype)
+        elif exit_flags is not None:
+            required_exit = self.select_exit(exit_flags=exit_flags)
 
         # Determine the first hop
         if goal_hops == 1:
@@ -673,7 +675,7 @@ class TunnelCommunity(Community):
                 # By default, nodes will give a number of candidates to which we can extend the circuit (i.e., peers
                 # that have already been punctured). However, it could be that there simply aren't enough candidates
                 # available. When this happens, we try to extend to exit nodes (which we assume are connectable).
-                choices = [peer for peer in self.get_candidates(*circuit.exit_flags)
+                choices = [peer for peer in self.get_candidates(PEER_FLAG_EXIT_BT, PEER_FLAG_RELAY)
                            if peer.public_key.key_to_bin() not in exclude]
                 if choices:
                     peer = random.choice(choices)
