@@ -166,8 +166,8 @@ It is recommended (but not obligatory) to have single payload messages store the
    :lines: 32,33,54,57
    :dedent: 4
 
-If you are using the ``@dataclass`` wrapper you can specify the message identifier through an argument instead.
-For example, ``@dataclass(msg_id=42)`` would set the message identifier to ``42``.
+If you are using the ``@dataclass`` wrapper you can specify the message identifier through parameterization of the ``DataClassPayload`` base class instead.
+For example, ``class MyPayload(DataClassPayload[42]):`` would set the message identifier to ``42``.
 
 Of course, IPv8 also ships with various ``Community`` subclasses of its own, if you need inspiration.
 
