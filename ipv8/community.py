@@ -12,6 +12,7 @@ from __future__ import annotations
 import sys
 from asyncio import ensure_future, iscoroutine
 from binascii import hexlify
+from ipaddress import IPv4Address, IPv6Address, ip_address
 from itertools import islice
 from random import choice, random
 from time import time
@@ -252,9 +253,9 @@ class Community(EZPackOverlay):
         There is no way to be sure this address is "correct". There may not even BE a consistent address that other
         peers can contact us by.
         """
-        if interface == "UDPIPv4":
+        if interface == "UDPIPv4" and isinstance(ip_address(self._get_lan_address()[0]), IPv4Address):
             return UDPv4Address(*self._get_lan_address())
-        if interface == "UDPIPv6":
+        if interface == "UDPIPv6" and isinstance(ip_address(self.get_ipv6_address()[0]), IPv6Address):
             return UDPv6Address(*self.get_ipv6_address())
         return None
 
