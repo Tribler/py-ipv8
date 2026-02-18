@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.asymmetric.ec import EllipticCurve
 
 from ..keyvault.keys import Key
 from .private.libnaclkey import LibNaCLSK
@@ -14,13 +14,54 @@ from .public.m2crypto import M2CryptoPK
 if TYPE_CHECKING:
     from ..keyvault.keys import PrivateKey, PublicKey
 
+
+class SECT163K1(EllipticCurve):
+    """
+    Deprecated SECT163K1 curve.
+    """
+
+    name = "sect163k1"
+    key_size = 163
+    group_order = 0x4000000000000000000020108A2E0CC0D99F8A5EF
+
+
+class SECT233K1(EllipticCurve):
+    """
+    Deprecated SECT233K1 curve.
+    """
+
+    name = "sect233k1"
+    key_size = 233
+    group_order = 0x8000000000000000000000000000069D5BB915BCD46EFB1AD5F173ABDF
+
+
+class SECT409K1(EllipticCurve):
+    """
+    Deprecated SECT409K1 curve.
+    """
+
+    name = "sect409k1"
+    key_size = 409
+    group_order = 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFE5F83B2D4EA20400EC4557D5ED3E3E7CA5B4B5C83B8E01E5FCF
+
+
+class SECT571R1(EllipticCurve):
+    """
+    Deprecated SECT571R1 curve.
+    """
+
+    name = "sect571r1"
+    key_size = 570
+    group_order = 0x3FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFE661CE18FF55987308059B186823851EC7DD9CA1161DE93D5174D66E8382E9BB2FE84E47
+
+
 # We want to provide a few default curves.  We will change these curves as new become available and
 # old ones to small to provide sufficient security.
-_CURVES: dict[str, tuple[ec.EllipticCurve | None, str]] = {
-    "very-low": (ec.SECT163K1(), "M2Crypto"),
-    "low": (ec.SECT233K1(), "M2Crypto"),
-    "medium": (ec.SECT409K1(), "M2Crypto"),
-    "high": (ec.SECT571R1(), "M2Crypto"),
+_CURVES: dict[str, tuple[EllipticCurve | None, str]] = {
+    "very-low": (SECT163K1(), "M2Crypto"),
+    "low": (SECT233K1(), "M2Crypto"),
+    "medium": (SECT409K1(), "M2Crypto"),
+    "high": (SECT571R1(), "M2Crypto"),
     "curve25519": (None, "libnacl")
 }
 
