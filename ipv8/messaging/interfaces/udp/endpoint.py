@@ -46,6 +46,7 @@ class DomainAddress(NamedTuple):
 
 
 Address: TypeAlias = tuple[str, int] | UDPv4Address | UDPv6Address | DomainAddress
+SocketOption = tuple[int, int, int]
 
 
 class UDPEndpoint(Endpoint, asyncio.DatagramProtocol):
@@ -55,7 +56,7 @@ class UDPEndpoint(Endpoint, asyncio.DatagramProtocol):
 
     SOCKET_FAMILY = socket.AF_INET
 
-    def __init__(self, port: int = 0, ip: str = "0.0.0.0") -> None:
+    def __init__(self, port: int = 0, ip: str = "0.0.0.0", sockopts: list[SocketOption] | None = None) -> None:
         """
         Create a new UDP endpoint that will attempt to bind on the given ip and ATTEMPT to claim the given port.
 
@@ -66,6 +67,7 @@ class UDPEndpoint(Endpoint, asyncio.DatagramProtocol):
         self._port = port
         self._ip = ip
         self._running = False
+        self._sockopts = [(socket.SOL_SOCKET, socket.SO_RCVBUF, 870400)] if sockopts is None else sockopts
 
         # The transport object passed on by Asyncio
         self._transport: DatagramTransport | None = None
@@ -121,7 +123,8 @@ class UDPEndpoint(Endpoint, asyncio.DatagramProtocol):
                 # It is recommended that this endpoint is opened at port = 0,
                 # such that the OS handles the port assignment
                 s = socket.socket(self.SOCKET_FAMILY, socket.SOCK_DGRAM)
-                s.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 870400)
+                for level, optname, value in self._sockopts:
+                    s.setsockopt(level, optname, value)
                 s.bind((self._ip, self._port))
                 s.setblocking(False)
                 self._port = s.getsockname()[1]
@@ -189,7 +192,8 @@ class UDPv6Endpoint(UDPEndpoint):
         """
         Create new UDP endpoint over IPv6.
         """
-        super().__init__(port, ip)
+        super().__init__(port, ip, [(socket.SOL_SOCKET, socket.SO_RCVBUF, 870400),
+                                    (socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 1)])
 
     def datagram_received(self, datagram: bytes, addr: Address) -> None:
         """
