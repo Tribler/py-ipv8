@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import threading
+import time
 from asyncio import AbstractEventLoop, CancelledError, Future, ensure_future, get_running_loop, sleep
 from contextlib import suppress
 from typing import Any
@@ -282,7 +283,7 @@ class TestTaskManager(TestBase):
         """
         test = lambda: None
 
-        _ = self.tm.register_executor_task("test", test)
+        _ = self.tm.register_executor_task("test", time.sleep, 0.1)
         self.assertEqual(1, len(self.tm.get_tasks()))
 
         with self.assertRaises(RuntimeError):
