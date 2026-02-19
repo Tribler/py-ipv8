@@ -9,7 +9,7 @@ setup(
     description="The Python implementation of the IPV8 library",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    version="3.1.0",  # Do not change manually! Handled by github_increment_version.py
+    version="3.2.0",  # Do not change manually! Handled by github_increment_version.py
     url="https://github.com/Tribler/py-ipv8",
     package_data={"": ["*.*"]},
     packages=find_packages(),
