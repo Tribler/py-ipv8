@@ -1,7 +1,7 @@
 from binascii import unhexlify
 from unittest.mock import Mock
 
-from ....keyvault.private.libnaclkey import LibNaCLSK
+from ....keyvault.private.openssl import OpenSSLSK
 from ....messaging.anonymization.exit_socket import TunnelExitSocket
 from ....messaging.anonymization.tunnel import PEER_FLAG_EXIT_BT, PEER_FLAG_EXIT_IPV8
 from ....peer import Peer
@@ -20,7 +20,7 @@ class TestExitSocket(TestBase):
         """
         get_prefix = Mock(return_value=unhexlify("000281ded07332bdc775aa5a46f96de9f8f390bbc9f3"))
         overlay = Mock(get_prefix=get_prefix)
-        exit_socket = TunnelExitSocket(0, Mock(peer=Peer(LibNaCLSK(b"\x00" * 64))), overlay)
+        exit_socket = TunnelExitSocket(0, Mock(peer=Peer(OpenSSLSK(b"LibNaCLSK: " + b"\x00" * 64))), overlay)
 
         overlay.settings.peer_flags = {}
         self.assertFalse(exit_socket.is_allowed(tracker_pkt))

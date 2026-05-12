@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from ...bootstrapping.dispersy.bootstrapper import DispersyBootstrapper
 from ...configuration import DISPERSY_BOOTSTRAPPER
-from ...keyvault.public.libnaclkey import LibNaCLPK
+from ...keyvault.public.openssl import OpenSSLPK
 from ...messaging.anonymization.pex import PexCommunity, PexSettings
 from ...peer import Peer
 from ...peerdiscovery.churn import RandomChurn
@@ -64,7 +64,7 @@ if TYPE_CHECKING:
 
     from ipv8_service import IPv8
 
-    from ...keyvault.private.libnaclkey import LibNaCLSK
+    from ...keyvault.keys import PrivateKey
     from ..interfaces.udp.endpoint import Address
     from ..lazy_payload import VariablePayloadWID
 
@@ -140,7 +140,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
             self.leave_swarm(info_hash)
 
         self.swarms[info_hash] = Swarm(info_hash, hops, self.send_peers_request,
-                                       cast("LibNaCLSK", self.crypto.generate_key("curve25519")) if seeding else None)
+                                       self.crypto.generate_key("curve25519") if seeding else None)
         self.e2e_callbacks[info_hash] = callback
 
     def leave_swarm(self, info_hash: bytes) -> None:
@@ -449,7 +449,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
             self.logger.error("No circuit for contacting the introduction point")
             return
 
-        hop = Hop(Peer(LibNaCLPK(intro_point.seeder_pk[10:])))
+        hop = Hop(Peer(OpenSSLPK(intro_point.seeder_pk)))
         hop.dh_secret, hop.dh_first_part = self.crypto.generate_diffie_secret()
         self.logger.info("Creating e2e circuit for introduction point %s", intro_point.peer)
         cache = E2ERequestCache(self, info_hash, hop, intro_point)
@@ -492,9 +492,9 @@ class HiddenTunnelCommunity(TunnelCommunity):
 
         rp_info = RendezvousInfo(rp.address, rp.circuit.hops[-1].public_key.key_to_bin(), rp.cookie)
         rp_info_bin = self.serializer.pack("payload", rp_info)
-        rp_info_enc = self.crypto.encrypt_str(rp_info_bin, sesskeys, FORWARD)
+        rp_info_enc = sesskeys.encrypt_str(rp_info_bin, FORWARD)
 
-        self.circuits.get(rp.circuit.circuit_id)  # Needed for notifying the RustEndpoint
+        self.circuits.get(rp.circuit.circuit_id)  # Needed for notifying the Rust Endpoint
         circuit = self.circuits[cast("int", circuit_id)]
         self.tunnel_data(circuit, source_address, CreatedE2EPayload(payload.identifier, y, auth, rp_info_enc))
 
@@ -508,14 +508,14 @@ class HiddenTunnelCommunity(TunnelCommunity):
             return
 
         cache = self.request_cache.pop(E2ERequestCache, payload.identifier)
-        shared_secret = self.crypto.verify_and_generate_shared_secret(cast("LibNaCLSK", cache.hop.dh_secret),
+        shared_secret = self.crypto.verify_and_generate_shared_secret(cast("PrivateKey", cache.hop.dh_secret),
                                                                       payload.key,
                                                                       payload.auth,
-                                                                      cache.hop.public_key.key.pk)
+                                                                      cache.hop.public_key.get_crypt_pk())
         session_keys = self.crypto.generate_session_keys(shared_secret)
 
         rp_info_enc = payload.rp_info_enc
-        rp_info_bin = self.crypto.decrypt_str(rp_info_enc, session_keys, FORWARD)
+        rp_info_bin = session_keys.decrypt_str(rp_info_enc, FORWARD)
         rp_info, _ = cast("tuple[RendezvousInfo, int]", self.serializer.unpack(RendezvousInfo, rp_info_bin))
 
         required_exit = Peer(rp_info.key, rp_info.address)
@@ -605,7 +605,7 @@ class HiddenTunnelCommunity(TunnelCommunity):
 
         if circuit and await circuit.ready:
             # We got a circuit, now let's create an introduction point
-            seed_pk = cast("LibNaCLSK", self.swarms[info_hash].seeder_sk).pub().key_to_bin()
+            seed_pk = cast("PrivateKey", self.swarms[info_hash].seeder_sk).pub().key_to_bin()
             circuit_id = circuit.circuit_id
             cache = IPRequestCache(self, circuit)
             self.request_cache.add(cache)

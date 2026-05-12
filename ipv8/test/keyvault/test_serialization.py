@@ -1,13 +1,9 @@
 from base64 import decodebytes
-from typing import TYPE_CHECKING, cast
 
 from ...keyvault.crypto import default_eccrypto
-from ...keyvault.private.m2crypto import M2CryptoSK
-from ...keyvault.public.m2crypto import M2CryptoPK
+from ...keyvault.private.openssl import OpenSSLSK
+from ...keyvault.public.openssl import OpenSSLPK
 from ..base import TestBase
-
-if TYPE_CHECKING:
-    from ...keyvault.private.libnaclkey import LibNaCLSK
 
 
 class TestSerialization(TestBase):
@@ -21,8 +17,8 @@ class TestSerialization(TestBase):
         """
         super().setUp()
         self.ec = default_eccrypto
-        self.key = cast("M2CryptoSK", self.ec.generate_key("very-low"))
-        self.key_nacl = cast("LibNaCLSK", self.ec.generate_key("curve25519"))
+        self.key = self.ec.generate_key("very-low")
+        self.key_nacl = self.ec.generate_key("curve25519")
 
     def test_private_to_bin(self) -> None:
         """
@@ -52,7 +48,7 @@ class TestSerialization(TestBase):
         keystring = decodebytes(private_pem[len(prefix):-len(postfix)])
 
         # Reconstruct a key with this keystring
-        key = M2CryptoSK(keystring=keystring)
+        key = OpenSSLSK(keystring=keystring)
 
         self.assertEqual(private_pem, key.key_to_pem())
 
@@ -84,6 +80,6 @@ class TestSerialization(TestBase):
         keystring = decodebytes(public_pem[len(prefix):-len(postfix)])
 
         # Reconstruct a key with this keystring
-        key = M2CryptoPK(keystring=keystring)
+        key = OpenSSLPK(keystring=keystring)
 
         self.assertEqual(public_pem, key.key_to_pem())

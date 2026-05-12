@@ -11,11 +11,11 @@ from typing import TYPE_CHECKING, cast
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
-    from ...keyvault.private.libnaclkey import LibNaCLSK
-    from ...keyvault.public.libnaclkey import LibNaCLPK
+    from ipv8_rust_tunnels import SessionKeys
+
+    from ...keyvault.keys import PrivateKey, PublicKey
     from ...peer import Peer
     from ..interfaces.udp.endpoint import Address
-    from .crypto import SessionKeys
 
 FORWARD = 0
 BACKWARD = 1
@@ -61,8 +61,8 @@ class Hop:
     peer: Peer
     keys: SessionKeys | None = None
     flags: list[int] | None = None
-    dh_first_part: LibNaCLPK | None = None
-    dh_secret: LibNaCLSK | None = None
+    dh_first_part: bytes | None = None
+    dh_secret: PrivateKey | None = None
 
     @property
     def address(self) -> Address:
@@ -72,11 +72,11 @@ class Hop:
         return self.peer.address
 
     @property
-    def public_key(self) -> LibNaCLPK:
+    def public_key(self) -> PublicKey:
         """
         Get the public key instance of the hop.
         """
-        return cast("LibNaCLPK", self.peer.public_key)
+        return self.peer.public_key
 
     @property
     def public_key_bin(self) -> bytes:
@@ -298,7 +298,7 @@ class Swarm:
 
     def __init__(self, info_hash: bytes, hops: int,  # noqa: PLR0913
                  lookup_func: Callable[[bytes, IntroductionPoint | None, int], Future[list[IntroductionPoint]]],
-                 seeder_sk: LibNaCLSK | None = None, max_ip_age: float = 180.0, min_dht_lookup_interval: float = 300.0,
+                 seeder_sk: PrivateKey | None = None, max_ip_age: float = 180.0, min_dht_lookup_interval: float = 300.0,
                  max_dht_lookup_interval: float = 120.0) -> None:
         """
         Create a new swarm instance.

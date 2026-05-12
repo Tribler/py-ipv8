@@ -13,7 +13,7 @@ from ..configuration import (
     get_default_configuration,
 )
 from ..keyvault.crypto import default_eccrypto
-from ..keyvault.private.libnaclkey import LibNaCLSK
+from ..keyvault.private.openssl import OpenSSLSK
 from .base import TestBase
 
 
@@ -227,7 +227,7 @@ class TestConfiguration(TestBase):
         self.assertTrue(any(entry.keys() == expected_keys for entry in keys))
         self.assertEqual("my new key", keys[-1]["alias"])
         self.assertEqual("", keys[-1]["file"])
-        self.assertIsInstance(default_eccrypto.key_from_private_bin(base64.b64decode(keys[-1]["bin"])), LibNaCLSK)
+        self.assertIsInstance(default_eccrypto.key_from_private_bin(base64.b64decode(keys[-1]["bin"])), OpenSSLSK)
 
     def test_add_overlay_overwrite(self) -> None:
         """

@@ -144,7 +144,7 @@ class TestCommunityInit(TestBase):
         """
         Check that attempting to create a Community without an id raises an error.
         """
-        settings = CommunitySettings(my_peer=Peer(b"LibNaCLPK:" + b"0" * 32), endpoint=AutoMockEndpoint(),
+        settings = CommunitySettings(my_peer=Peer(b"LibNaCLPK:" + b"0" * 64), endpoint=AutoMockEndpoint(),
                                      network=Network())
         self.assertRaises(RuntimeError, NoIDCommunity, settings)
 
@@ -152,7 +152,7 @@ class TestCommunityInit(TestBase):
         """
         Check that attempting to create a Community with an id that is not ```bytes`` raises an error.
         """
-        settings = CommunitySettings(my_peer=Peer(b"LibNaCLPK:" + b"0" * 32), endpoint=AutoMockEndpoint(),
+        settings = CommunitySettings(my_peer=Peer(b"LibNaCLPK:" + b"0" * 64), endpoint=AutoMockEndpoint(),
                                      network=Network())
         self.assertRaises(RuntimeError, StrangeIDCommunity, settings)
 
@@ -168,7 +168,7 @@ class TestCommunityBootstrapping(TestBase):
         """
         Check if unloading a Community after waiting for bootstrapping results exits cleanly.
         """
-        settings = CommunitySettings(my_peer=Peer(b"LibNaCLPK:" + b"0" * 32), endpoint=AutoMockEndpoint(),
+        settings = CommunitySettings(my_peer=Peer(b"LibNaCLPK:" + b"0" * 64), endpoint=AutoMockEndpoint(),
                                      network=Network())
         community = NewCommunity(settings)
         community.bootstrappers = [DispersyBootstrapper([], [])]
@@ -189,7 +189,7 @@ class TestCommunityBootstrapping(TestBase):
         """
         Check if unloading a Community while waiting for bootstrapping results exits cleanly.
         """
-        settings = CommunitySettings(my_peer=Peer(b"LibNaCLPK:" + b"0" * 32), endpoint=AutoMockEndpoint(),
+        settings = CommunitySettings(my_peer=Peer(b"LibNaCLPK:" + b"0" * 64), endpoint=AutoMockEndpoint(),
                                      network=Network())
         community = NewCommunity(settings)
         community.bootstrappers = [DispersyBootstrapper([], [])]
