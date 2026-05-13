@@ -67,8 +67,7 @@ if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable, Collection
 
     from ...dht.provider import DHTCommunityProvider
-    from ...keyvault.private.libnaclkey import LibNaCLSK
-    from ...keyvault.public.libnaclkey import LibNaCLPK
+    from ...keyvault.keys import PrivateKey
     from ...messaging.payload_headers import GlobalTimeDistributionPayload
     from ..interfaces.endpoint import Endpoint
     from ..interfaces.udp.endpoint import Address
@@ -223,7 +222,7 @@ class TunnelCommunity(Community):
                          PEER_FLAG_EXIT_IPV8 in self.settings.peer_flags)
 
         self.crypto: TunnelCrypto = TunnelCrypto()
-        self.crypto.initialize(cast("LibNaCLSK", self.my_peer.key))
+        self.crypto.initialize(cast("PrivateKey", self.my_peer.key))
 
         # For now, the TunnelCommunity only supports IPv4 for control messages.
         # Data packets can still be sent to IPv6 destinations.
@@ -615,7 +614,7 @@ class TunnelCommunity(Community):
 
         try:
             shared_secret = self.crypto.verify_and_generate_shared_secret(hop.dh_secret, payload.key, payload.auth,
-                                                                          cast("LibNaCLPK", hop.peer.public_key).key.pk)
+                                                                          hop.peer.public_key.get_crypt_pk())
             session_keys = self.crypto.generate_session_keys(shared_secret)
             hop.keys = session_keys
 
@@ -625,12 +624,12 @@ class TunnelCommunity(Community):
 
         circuit.unverified_hop = None
         circuit.add_hop(hop)
-        self.circuits.get(circuit_id)  # Needed for notifying the RustEndpoint
+        self.circuits.get(circuit_id)  # Needed for notifying the Rust Endpoint
         self.logger.info("Added hop %d (%s) to circuit %d", len(circuit.hops), hop.peer, circuit.circuit_id)
 
         if circuit.state == CIRCUIT_STATE_EXTENDING:
             candidates_enc = payload.candidates_enc
-            candidates_bin = self.crypto.decrypt_str(candidates_enc, session_keys, FORWARD)
+            candidates_bin = session_keys.decrypt_str(candidates_enc, FORWARD)
             candidates, _ = self.serializer.unpack("varlenH-list", candidates_bin)
             candidates = cast("list[object]", candidates)
 
@@ -827,7 +826,7 @@ class TunnelCommunity(Community):
         self.request_cache.add(CreatedRequestCache(self, circuit_id, peer, peers_dict, self.settings.unstable_timeout))
 
         candidates_bin = self.serializer.pack("varlenH-list", peers_keys)
-        candidates_enc = self.crypto.encrypt_str(candidates_bin, session_keys, FORWARD)
+        candidates_enc = session_keys.encrypt_str(candidates_bin, FORWARD)
         self.exit_sockets[circuit_id] = TunnelExitSocket(circuit_id, Hop(peer, session_keys), self)
         self.send_cell(previous_node_address,
                        CreatedPayload(circuit_id, create_payload.identifier, key, auth, candidates_enc))

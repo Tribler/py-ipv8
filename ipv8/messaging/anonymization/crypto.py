@@ -2,17 +2,14 @@ from __future__ import annotations
 
 import abc
 import logging
-import struct
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
-import libnacl
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.hkdf import HKDFExpand
-from libnacl.aead import AEAD
+from ipv8_rust_tunnels import SessionKeys, crypto_auth, crypto_auth_verify
+from ipv8_rust_tunnels import generate_session_keys as _generate_session_keys
 
-from ...keyvault.crypto import ECCrypto, LibNaCLPK
+from ...keyvault.crypto import ECCrypto
+from ...keyvault.keys import PrivateKey, PublicKey
+from ...keyvault.private.openssl import OpenSSLSK
 from ..interfaces.endpoint import Endpoint, EndpointListener
 from .payload import NO_CRYPTO_PACKETS, CellPayload
 from .tunnel import (
@@ -26,25 +23,9 @@ from .tunnel import (
 )
 
 if TYPE_CHECKING:
-    from ...keyvault.keys import PublicKey
-    from ...keyvault.private.libnaclkey import LibNaCLSK
     from ..interfaces.udp.endpoint import Address
     from .community import TunnelCommunity, TunnelSettings
     from .exit_socket import TunnelExitSocket
-
-
-@dataclass
-class SessionKeys:
-    """
-    Session keys to communicate between hops.
-    """
-
-    key_forward: bytes
-    key_backward: bytes
-    salt_forward: bytes
-    salt_backward: bytes
-    salt_explicit_forward: int
-    salt_explicit_backward: int
 
 
 class CryptoException(Exception):
@@ -296,7 +277,7 @@ class PythonCryptoEndpoint(CryptoEndpoint, EndpointListener):
                 raise CryptoException(msg)
 
             try:
-                cell.message = TunnelCrypto.encrypt_str(cell.message, hop.keys, direction)
+                cell.message = hop.keys.encrypt_str(cell.message, direction)
             except ValueError as e:
                 msg = f"Failed to encrypt cell for {cell.circuit_id} (dir {direction}) (layer {layer + 1}/{len(hops)})"
                 raise CryptoException(msg) from e
@@ -316,7 +297,7 @@ class PythonCryptoEndpoint(CryptoEndpoint, EndpointListener):
                 raise CryptoException(msg)
 
             try:
-                cell.message = TunnelCrypto.decrypt_str(cell.message, hop.keys, direction)
+                cell.message = hop.keys.decrypt_str(cell.message, direction)
             except ValueError as e:
                 msg = f"Failed to decrypt cell for {cell.circuit_id} (dir {direction}) (layer {layer + 1}/{len(hops)})"
                 raise CryptoException(msg) from e
@@ -332,105 +313,64 @@ class TunnelCrypto(ECCrypto):
         Create a new handler for Tunnel encryption and decryption.
         """
         super().__init__()
-        self.key: LibNaCLPK | None = None
+        self.key: PrivateKey | None = None
 
-    def initialize(self, key: LibNaCLPK) -> None:
+    def initialize(self, key: PrivateKey) -> None:
         """
         Make this ECCrypto fit for key establishment based on the given public key.
         """
         self.key = key
-        assert isinstance(self.key, LibNaCLPK), type(self.key)
+        assert isinstance(self.key, PrivateKey), type(self.key)
 
     def is_key_compatible(self, key: PublicKey) -> bool:
         """
-        Whether the given key is a ``LibNaCLPK`` instance.
+        Whether the given key is a ``PublicKey`` instance.
         """
-        return isinstance(key, LibNaCLPK)
+        return key.curve_name() == "curve25519"
 
-    def generate_diffie_secret(self) -> tuple[LibNaCLSK, LibNaCLPK]:
+    def generate_diffie_secret(self) -> tuple[PrivateKey, bytes]:
         """
         Create a new private-public keypair.
         """
-        tmp_key = cast("LibNaCLSK", self.generate_key("curve25519"))
-        x = tmp_key.key.pk
+        tmp_key = self.generate_key("curve25519")
+        return tmp_key, tmp_key.get_crypt_pk()
 
-        return tmp_key, x
-
-    def generate_diffie_shared_secret(self, dh_received: bytes,
-                                      key: LibNaCLPK | None = None) -> tuple[bytes, LibNaCLPK, bytes]:
+    def generate_diffie_shared_secret(self, dh_received: bytes, key: PrivateKey | None = None) -> tuple[bytes, bytes, bytes]:
         """
         Generate the shared secret from the received string and the given key.
         """
         if key is None:
-            key = cast("LibNaCLSK", self.key)
+            key = self.key
+        if key is None:
+            raise CryptoException
 
-        tmp_key = cast("LibNaCLSK", self.generate_key("curve25519"))
-        shared_secret = (libnacl.crypto_box_beforenm(dh_received, tmp_key.key.sk)
-                         + libnacl.crypto_box_beforenm(dh_received, key.key.sk))
+        tmp_key = OpenSSLSK.generate("curve25519")
+        shared_secret = (tmp_key.diffie_hellman(dh_received) +
+                         key.diffie_hellman(dh_received))
 
-        auth = libnacl.crypto_auth(tmp_key.key.pk, shared_secret[:32])
-        return shared_secret, tmp_key.key.pk, auth
+        crypt_pk = tmp_key.get_crypt_pk()
+        auth = crypto_auth(shared_secret[:32], crypt_pk)
 
-    def verify_and_generate_shared_secret(self, dh_secret: LibNaCLSK, dh_received: bytes, auth: bytes,
+        return shared_secret, crypt_pk, auth
+
+    @staticmethod
+    def verify_and_generate_shared_secret(dh_secret: PrivateKey, dh_received: bytes, auth: bytes,
                                           b: bytes) -> bytes:
         """
         Generate the shared secret based on the response to the shared string and our own key.
         """
-        shared_secret = (libnacl.crypto_box_beforenm(dh_received, dh_secret.key.sk)
-                         + libnacl.crypto_box_beforenm(b, dh_secret.key.sk))
-        libnacl.crypto_auth_verify(auth, dh_received, shared_secret[:32])
+        s1 = dh_secret.diffie_hellman(dh_received)
+        s2 = dh_secret.diffie_hellman(b)
+        shared_secret = s1 + s2
+
+        if not crypto_auth_verify(auth, shared_secret[:32], dh_received):
+            raise CryptoException
 
         return shared_secret
 
-    def generate_session_keys(self, shared_secret: bytes) -> SessionKeys:
-        """
-        Generate new session keys based on the shared secret.
-        """
-        hkdf = HKDFExpand(algorithm=hashes.SHA256(), backend=default_backend(), length=72, info=b"key_generation")
-        key = hkdf.derive(shared_secret)
-
-        kb = key[:32]
-        kf = key[32:64]
-        sb = key[64:68]
-        sf = key[68:72]
-
-        return SessionKeys(kf, kb, sf, sb, 1, 1)
-
     @staticmethod
-    def encrypt_str(content: bytes, keys: SessionKeys, direction: int) -> bytes:
+    def generate_session_keys(shared_secret: bytes) -> SessionKeys:
         """
-        Encrypt content using the given key, salt, and incremental session salt.
+        Expand a shared secret into session keys using HKDF-SHA256.
         """
-        if direction == FORWARD:
-            keys.salt_explicit_forward += 1
-            key = keys.key_forward
-            salt = keys.salt_forward
-            salt_explicit = keys.salt_explicit_forward
-        else:
-            keys.salt_explicit_backward += 1
-            key = keys.key_backward
-            salt = keys.salt_backward
-            salt_explicit = keys.salt_explicit_backward
-
-        # Return the encrypted content prepended with salt_explicit
-        aead = AEAD(key)
-        _, _, ciphertext = aead.encrypt(content, b"",
-                                        nonce=salt + struct.pack("!q", salt_explicit),
-                                        pack_nonce_aad=False)
-        return struct.pack("!q", salt_explicit) + ciphertext
-
-    @staticmethod
-    def decrypt_str(content: bytes, keys: SessionKeys, direction: int) -> bytes:
-        """
-        Decrypt the given content using a key and salt.
-        """
-        # Content contains the tag and salt_explicit in plaintext
-        key = keys.key_forward if direction == FORWARD else keys.key_backward
-        salt = keys.salt_forward if direction == FORWARD else keys.salt_backward
-
-        if len(content) < 24:
-            msg = "truncated content"
-            raise CryptoException(msg)
-
-        aead = AEAD(key)
-        return aead.decrypt(salt + content, 0)
+        return _generate_session_keys(shared_secret)

@@ -15,15 +15,14 @@ setup(
     packages=find_packages(),
     py_modules=["ipv8_service"],
     install_requires=[
-        "cryptography",
-        "libnacl",
         "aiohttp",
         "aiohttp_apispec",
         "pyOpenSSL",
         "pyasn1",
         "marshmallow",
         "typing-extensions",
-        "packaging"
+        "packaging",
+        "ipv8_rust_tunnels"
     ],
     extras_require={
         "all": ["coverage"],

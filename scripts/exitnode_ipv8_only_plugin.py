@@ -79,7 +79,7 @@ class ExitnodeIPv8Service:
                 overlay["initialize"]["peer_flags"] = {PEER_FLAG_EXIT_IPV8}
 
         try:
-            from ipv8_rust_tunnels.endpoint import RustEndpoint as UDPEndpoint
+            from ipv8_rust_tunnels import Endpoint as UDPEndpoint
         except ImportError:
             from ipv8.messaging.interfaces.udp.endpoint import UDPEndpoint
 

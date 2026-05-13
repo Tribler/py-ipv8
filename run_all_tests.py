@@ -167,12 +167,6 @@ def task_test(*test_names: str) -> tuple[bool, int, float, list[tuple[str, str, 
     """
     import logging  # noqa: PLC0415
 
-    try:
-        # If we made it here, there is only one option if the import fails and that is a local path dll.
-        import libnacl  # noqa: F401, PLC0415
-    except:
-        os.add_dll_directory(os.path.dirname(__file__) or os.path.abspath("."))
-
     print_stream = io.StringIO()
     output_stream = CustomLinePrint(print_stream, "OUT")
     stdio_replacement = CustomLinePrint(print_stream, "OUT")
@@ -251,46 +245,6 @@ def find_all_test_class_names(directory: pathlib.Path | str = pathlib.Path("./ip
     return t_class_names
 
 
-def install_libsodium() -> None:
-    """
-    Attempt to install the latest libsodium backend.
-    """
-    # Ensure a libsodium.zip
-    if not pathlib.Path("libsodium.zip").exists():
-        import json  # noqa: PLC0415
-        from urllib import request  # noqa: PLC0415
-        response = request.urlopen("https://api.github.com/repos/jedisct1/libsodium/releases")
-        release = json.loads(response.read())[0]
-        response.close()
-        asset = next(asset for asset in release["assets"] if asset["name"].endswith("-msvc.zip"))
-        pathlib.Path("libsodium.zip").write_bytes(request.urlopen(asset["browser_download_url"]).read())  # noqa: S310
-
-    # Unpack just the libsodium.dll
-    if not pathlib.Path("libsodium.dll").exists():
-        import zipfile  # noqa: PLC0415
-        fr = zipfile.Path("libsodium.zip", "libsodium/x64/Release/")
-        fr = sorted((d for d in fr.iterdir()), key=lambda x: str(x))[-1] / "dynamic" / "libsodium.dll"
-        with open("libsodium.dll", "wb") as fw:
-            fw.write(fr.read_bytes())
-
-
-def windows_missing_libsodium() -> bool:
-    """
-    Check if we can NOT find the libsodium backend.
-    """
-    with contextlib.suppress(OSError):
-        import libnacl  # noqa: PLC0415
-        return False
-
-    # Try to find it in the local directory. This is where we'll download it anyway.
-    os.add_dll_directory(os.path.abspath("."))
-    try:
-        import libnacl  # noqa: F401, PLC0415
-        return False
-    except OSError:
-        return True
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the IPv8 tests.")
     parser.add_argument("-p", "--processes", type=int, default=DEFAULT_PROCESS_COUNT, required=False,
@@ -302,10 +256,6 @@ if __name__ == "__main__":
     parser.add_argument("-d", "--nodownload", action="store_true", required=False,
                         help="Don't attempt to download missing dependencies.")
     args = parser.parse_args()
-
-    if platform.system() == "Windows" and windows_missing_libsodium() and not args.nodownload:
-        print("Failed to locate libsodium (libnacl requirement), downloading latest dll!")  # noqa: T201
-        install_libsodium()
 
     process_count = args.processes
     test_class_names = find_all_test_class_names()

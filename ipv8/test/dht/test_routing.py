@@ -2,7 +2,7 @@ import time
 from binascii import unhexlify
 
 from ...dht.routing import NODE_STATUS_BAD, NODE_STATUS_GOOD, NODE_STATUS_UNKNOWN, Bucket, Node, RoutingTable
-from ...keyvault.private.libnaclkey import LibNaCLSK
+from ...keyvault.private.openssl import OpenSSLSK
 from ..base import TestBase
 
 
@@ -16,7 +16,7 @@ class FakeNode(Node):
         Create a fake node with a given prefix.
         """
         id_binary = int(binary_prefix + "0" * (160 - len(binary_prefix)), 2)
-        super().__init__(LibNaCLSK(b"LibNaCLSK:" + id_binary.to_bytes(64, "big")), ("1.1.1.1", 1))
+        super().__init__(OpenSSLSK(b"LibNaCLSK:" + id_binary.to_bytes(64, "big")), ("1.1.1.1", 1))
         id_hex = f"{id_binary:x}"
         id_hex = "0" + id_hex if len(id_hex) % 2 != 0 else id_hex
 
@@ -47,7 +47,7 @@ class TestNode(TestBase):
         Create a single node.
         """
         super().setUp()
-        self.key = LibNaCLSK(b"\x01" * 64)
+        self.key = OpenSSLSK(b"LibNaCLSK:" + b"\x01" * 64)
         self.node = Node(self.key, ("1.1.1.1", 1))
 
     def test_init(self) -> None:

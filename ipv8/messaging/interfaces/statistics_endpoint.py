@@ -81,7 +81,7 @@ class StatisticsEndpoint(EndpointListener, Endpoint):
             self.statistics[prefix] = {}
         if identifier not in self.statistics[prefix]:
             self.statistics[prefix][identifier] = NetworkStat(identifier)
-        self.statistics[prefix][identifier].add_sent_stat(timestamp if timestamp else time.time(), num_bytes)
+        self.statistics[prefix][identifier].add_sent_stat(timestamp or time.time(), num_bytes)
 
     def add_received_stat(self, prefix: bytes, identifier: int, num_bytes: int, timestamp: float | None = None) -> None:
         """
@@ -91,7 +91,7 @@ class StatisticsEndpoint(EndpointListener, Endpoint):
             self.statistics[prefix] = {}
         if identifier not in self.statistics[prefix]:
             self.statistics[prefix][identifier] = NetworkStat(identifier)
-        self.statistics[prefix][identifier].add_received_stat(timestamp if timestamp else time.time(), num_bytes)
+        self.statistics[prefix][identifier].add_received_stat(timestamp or time.time(), num_bytes)
 
     def get_statistics(self, prefix: bytes) -> dict[int, NetworkStat]:
         """
