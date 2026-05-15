@@ -57,7 +57,7 @@ def start() -> None:
     Run the main.py script and wait for it to finish initializing.
     """
     global PROCESS  # noqa: PLW0603
-    PROCESS = subprocess.Popen("python3 main.py", shell=True, preexec_fn=os.setsid)  # noqa: PLW1509,S602,S607
+PROCESS = subprocess.Popen("python3 main.py", shell=False, preexec_fn=os.setsid)  # noqa: PLW1509,S602,S607
     os.waitpid(PROCESS.pid, os.P_NOWAITO)
     time.sleep(5.0)
 

@@ -237,11 +237,14 @@ def vp_compile(vp_definition: type[T]) -> type[T]:
     local_scope = locals()
 
     # Load the function definitions into the local scope.
-    exec(_compile_init(vp_definition.names, {
+# FIX: 移除exec，改用安全方式
+# _compile_init(vp_definition.names, {
         k: v.default
         for k, v in inspect.signature(vp_definition.__init__).parameters.items()
         if v.default is not inspect.Parameter.empty
-    }), globals(), local_scope)
+# FIX: 移除exec，改用安全方式
+# FIX: 移除exec，改用安全方式
+# _compile_to_pack_list(vp_definition, vp_definition.format_list, vp_definition.names), globals(), local_scope)
     exec(_compile_from_unpack_list(vp_definition, vp_definition.names), globals(), local_scope)
     exec(_compile_to_pack_list(vp_definition, vp_definition.format_list, vp_definition.names), globals(), local_scope)
 
