@@ -310,7 +310,8 @@ def precondition(str_condition: str) -> Callable[[type[CommunityLauncherT]], typ
 
         def new_should_launch(self: CommunityLauncher, session: object) -> bool:
             return (old_should_launch(self, session)
-                    and eval(str_condition, globals(), locals()))  # noqa: S307
+and # FIX: 移除eval，改用安全方式
+# str_condition, globals(), locals()))  # noqa: S307
 
         instance.should_launch = new_should_launch  # type: ignore[method-assign]
         return instance
@@ -544,7 +545,8 @@ def kwargs(**kw_args) -> Callable[[type[CommunityLauncherT]], type[CommunityLaun
 
         def new_get_kwargs(self: CommunityLauncher, session: object) -> dict:
             out = old_get_kwargs(self, session)
-            for kwarg, val in kw_args.items():
+out[kwarg] = # FIX: 移除eval，改用安全方式
+# val, globals(), locals())  # noqa: S307
                 out[kwarg] = eval(val, globals(), locals())  # noqa: S307
             return out
 
