@@ -17,8 +17,6 @@ setup(
     install_requires=[
         "aiohttp",
         "aiohttp_apispec",
-        "pyOpenSSL",
-        "pyasn1",
         "marshmallow",
         "typing-extensions",
         "packaging",
