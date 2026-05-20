@@ -27,7 +27,7 @@ author = "Tribler"
 # The short X.Y version
 version = "3.2"  # Do not change manually! Handled by github_increment_version.py
 # The full version, including alpha/beta/rc tags
-release = "3.2.0"  # Do not change manually! Handled by github_increment_version.py
+release = "3.2.1"  # Do not change manually! Handled by github_increment_version.py
 
 
 # -- General configuration ---------------------------------------------------
