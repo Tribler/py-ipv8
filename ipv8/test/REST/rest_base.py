@@ -103,6 +103,13 @@ class MockRequest(Request):
         """
         return self._transport
 
+    @property
+    def sockname(self) -> None:
+        """
+        Return an empty sockname.
+        """
+        return None
+
 
 async def response_to_bytes(response: Response) -> bytes:
     """
