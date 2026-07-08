@@ -204,6 +204,9 @@ class TunnelExitSocket(RoutingObject, TaskManager):
         # For the time being we prefer dealing with IPv4 addresses.
         info_list.sort(key=lambda x: x[0])
         ip = info_list[0][-1][0]
+        if isinstance(ip, int):
+            msg = "Attempted to resolve IPv6 address with disable-ipv6 enabled"
+            raise TypeError(msg)
         family = info_list[0][0]
         if family == socket.AF_INET6:
             return UDPv6Address(ip, address[1])
