@@ -33,8 +33,6 @@ else:
         from ipv8.community import Community
         from ipv8.keyvault.crypto import default_eccrypto as crypto
         from ipv8.messaging.anonymization.community import TunnelCommunity
-        from ipv8.messaging.anonymization.endpoint import TunnelEndpoint
-        from ipv8.messaging.anonymization.hidden_services import HiddenTunnelCommunity
         from ipv8.messaging.interfaces.dispatcher.endpoint import DispatcherEndpoint
         from ipv8.messaging.interfaces.udp.endpoint import UDPEndpoint
         from ipv8.overlay import Overlay
@@ -53,8 +51,6 @@ else:
         from .ipv8.community import Community  # type: ignore[import-not-found, no-redef]
         from .ipv8.keyvault.crypto import default_eccrypto as crypto  # type: ignore[import-not-found, no-redef]
         from .ipv8.messaging.anonymization.community import TunnelCommunity  # type: ignore[import-not-found, no-redef]
-        from .ipv8.messaging.anonymization.endpoint import TunnelEndpoint  # type: ignore[import-not-found, no-redef]
-        from .ipv8.messaging.anonymization.hidden_services import HiddenTunnelCommunity  # type: ignore[import-not-found, no-redef]
         from .ipv8.messaging.interfaces.dispatcher.endpoint import DispatcherEndpoint  # type: ignore[import-not-found, no-redef]
         from .ipv8.messaging.interfaces.udp.endpoint import UDPEndpoint  # type: ignore[import-not-found, no-redef]
         from .ipv8.overlay import Overlay  # type: ignore[import-not-found, no-redef]
@@ -70,7 +66,6 @@ else:
     _COMMUNITIES: dict[str, type[Community]] = {
         "AttestationCommunity": AttestationCommunity,
         "DiscoveryCommunity": DiscoveryCommunity,
-        "HiddenTunnelCommunity": HiddenTunnelCommunity,
         "IdentityCommunity": IdentityCommunity,
         "TunnelCommunity": TunnelCommunity,
         "DHTDiscoveryCommunity": DHTDiscoveryCommunity,
@@ -123,8 +118,6 @@ else:
 
             if enable_statistics:
                 self.endpoint = StatisticsEndpoint(self.endpoint)
-            if any(overlay.get("initialize", {}).get("anonymize") for overlay in configuration["overlays"]):
-                self.endpoint = TunnelEndpoint(self.endpoint)
 
             self.network = Network()
 
@@ -255,18 +248,19 @@ else:
             """
             return (o for o in self.overlays if isinstance(o, overlay_cls))
 
-        async def produce_anonymized_endpoint(self) -> TunnelEndpoint:
+        async def produce_anonymized_endpoint(self) -> Endpoint:
             """
             Create an endpoint that CAN pass data through a ``TunnelCommunity``.
             Note that a ``TunnelCommunity`` must still be registered with this endpoint.
             """
+            logger.warning("Anonymized endpoints are not yet supported; falling back to a plain UDPEndpoint.")
             address = self.configuration.get("address", "0.0.0.0")
             for spec in self.configuration.get("interfaces", []):
                 if spec["interface"] == "UDPIPv4":
                     address = spec["ip"]
-            base_endpoint = UDPEndpoint(port=0, ip=address)
-            await base_endpoint.open()
-            return TunnelEndpoint(base_endpoint)
+            endpoint = UDPEndpoint(port=0, ip=address)
+            await endpoint.open()
+            return endpoint
 
         async def stop(self) -> None:
             """

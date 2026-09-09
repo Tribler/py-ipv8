@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import logging
+import time
 from binascii import hexlify
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, TypedDict, cast
 
-from ..messaging.anonymization.tunnel import PEER_SOURCE_DHT, IntroductionPoint
 from ..messaging.lazy_payload import VariablePayload, vp_compile
 from ..messaging.serialization import default_serializer
 from ..peer import Peer
@@ -13,6 +13,68 @@ from . import DHTError
 if TYPE_CHECKING:
     from ..messaging.interfaces.udp.endpoint import Address
     from .discovery import DHTDiscoveryCommunity
+
+PEER_SOURCE_DHT = 1
+
+
+class AddressDict(TypedDict):
+    """
+    Serialized peer address and public key dictionary.
+    """
+
+    ip: str
+    port: int
+    public_key: str
+
+
+class IntroPointDict(TypedDict):
+    """
+    Serialized dictionary representation of an IntroductionPoint.
+    """
+
+    address: AddressDict
+    seeder_pk: str
+    source: int
+
+
+class IntroductionPoint:
+    """
+    A point of introduction, available for linking up.
+    """
+
+    def __init__(self, peer: Peer, seeder_pk: bytes, source: int = PEER_SOURCE_DHT,
+                 last_seen: float | None = None) -> None:
+        """
+        Creates a new introduction point.
+        """
+        self.peer = peer
+        self.seeder_pk = seeder_pk
+        self.source = source
+        self.last_seen = int(time.time()) if last_seen is None else last_seen
+
+    def __eq__(self, other: object) -> bool:
+        """
+        Check if another object is equal to this intro point.
+        """
+        if not isinstance(other, IntroductionPoint):
+            return False
+        return self.peer == other.peer and self.seeder_pk == other.seeder_pk
+
+    def __hash__(self) -> int:
+        """
+        Each intro point is unique to its peer and seeder's public key.
+        """
+        return hash((self.peer, self.seeder_pk))
+
+    def to_dict(self) -> IntroPointDict:
+        """
+        Convert this intro point to a flat dict.
+        """
+        return{"address": {"ip": self.peer.address[0],
+                           "port": int(self.peer.address[1]),
+                           "public_key": hexlify(self.peer.public_key.key_to_bin()).decode()},
+               "seeder_pk": hexlify(self.seeder_pk).decode(),
+               "source": self.source}
 
 
 @vp_compile

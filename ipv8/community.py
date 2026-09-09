@@ -22,7 +22,6 @@ from typing import TYPE_CHECKING, cast
 from typing_extensions import Self
 
 from .lazy_community import EZPackOverlay, lazy_wrapper, lazy_wrapper_unsigned
-from .messaging.anonymization.endpoint import TunnelEndpoint
 from .messaging.interfaces.dispatcher.endpoint import FAST_ADDR_TO_INTERFACE, INTERFACES
 from .messaging.interfaces.udp.endpoint import Address, UDPv4Address, UDPv4LANAddress, UDPv6Address
 from .messaging.payload import (
@@ -62,7 +61,7 @@ class CommunitySettings(Settings):
     """The number of peers we will grow to before we start rejecting new connections."""
 
     anonymize: bool = False
-    """Request use of a ``TunnelEndpoint`` to anonymize all our traffic."""
+    """Request the anonymization of all our traffic."""
 
 
 class Community(EZPackOverlay):
@@ -100,10 +99,10 @@ class Community(EZPackOverlay):
         self.anonymize = settings.anonymize
 
         if settings.anonymize:
-            if isinstance(self.endpoint, TunnelEndpoint):
+            if hasattr(self.endpoint, "set_anonymity"):
                 self.endpoint.set_anonymity(self._prefix, True)
             else:
-                self.logger.warning("Cannot anonymize community traffic without TunnelEndpoint")
+                self.logger.warning("Endpoint is not capable of anonymizing community traffic")
 
         self.network.register_service_provider(self.community_id, self)
         self.network.blacklist_mids.append(settings.my_peer.mid)
@@ -300,10 +299,9 @@ class Community(EZPackOverlay):
                                                  supports_new_style=new_style)
         auth = BinMemberAuthenticationPayload(self.my_peer.public_key.key_to_bin())
         dist = GlobalTimeDistributionPayload(global_time)
-
         return self._ez_pack(prefix or self._prefix, payload.msg_id, [auth, dist, payload])
 
-    def create_introduction_response(self, lan_socket_address: Address,  # noqa: PLR0913
+    def create_introduction_response(self, lan_socket_address: Address,  # noqa: PLR0913, PLR0917
                                      socket_address: Address, identifier: int, introduction: Peer | None = None,
                                      extra_bytes: bytes = b"", prefix: bytes | None = None,
                                      new_style: bool = False) -> bytes:

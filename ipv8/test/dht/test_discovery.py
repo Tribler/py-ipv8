@@ -5,9 +5,8 @@ from typing import TYPE_CHECKING, Any
 
 from ...dht import DHTError
 from ...dht.discovery import DHTDiscoveryCommunity
-from ...dht.provider import DHTCommunityProvider
+from ...dht.provider import DHTCommunityProvider, IntroductionPoint
 from ...dht.routing import Node, RoutingTable
-from ...messaging.anonymization.tunnel import IntroductionPoint
 from ...util import succeed
 from ..mocking.ipv8 import MockIPv8
 from .base import TestDHTBase
