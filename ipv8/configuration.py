@@ -89,7 +89,7 @@ default: dict[Any, Any] = {
             "on_start": []
         },
         {
-            "class": "HiddenTunnelCommunity",
+            "class": "TunnelCommunity",
             "key": "anonymous id",
             "walkers": [
                 {
@@ -110,9 +110,7 @@ default: dict[Any, Any] = {
                 "max_traffic": 250 * 1024 * 1024,
                 "dht_lookup_interval": 30
             },
-            "on_start": [
-                ("build_tunnels", 1)
-            ]
+            "on_start": []
         },
         {
             "class": "DHTDiscoveryCommunity",
@@ -405,7 +403,7 @@ class ConfigBuilder:
         eph_key = default_eccrypto.generate_key("curve25519").key_to_bin()
         return self.add_key_from_bin(alias, base64.b64encode(eph_key).decode(), "")
 
-    def add_overlay(self,  # noqa: PLR0913
+    def add_overlay(self,  # noqa: PLR0913, PLR0917
                     overlay_class: str,
                     key_alias: str,
                     walkers: list[WalkerDefinition],
@@ -422,7 +420,7 @@ class ConfigBuilder:
 
          - "AttestationCommunity"
          - "DiscoveryCommunity"
-         - "HiddenTunnelCommunity"
+         - "TunnelCommunity"
          - "IdentityCommunity"
          - "TunnelCommunity"
          - "DHTDiscoveryCommunity"

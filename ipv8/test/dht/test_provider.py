@@ -1,9 +1,8 @@
 from typing import cast
 from unittest.mock import Mock
 
-from ...dht.provider import DHTCommunityProvider
+from ...dht.provider import DHTCommunityProvider, IntroductionPoint
 from ...keyvault.crypto import ECCrypto
-from ...messaging.anonymization.tunnel import IntroductionPoint
 from ...peer import Peer
 from ...util import succeed
 from ..base import TestBase

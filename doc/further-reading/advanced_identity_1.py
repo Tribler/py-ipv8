@@ -13,7 +13,7 @@ async def start_community() -> None:
             {"alias": "anonymous id", "generation": "curve25519", "file": f"keyfile_{peer_id}.pem"}]
         configuration["working_directory"] = f"state_{peer_id}"
         configuration["overlays"] = [overlay for overlay in configuration["overlays"]
-                                     if overlay["class"] == "HiddenTunnelCommunity"]
+                                     if overlay["class"] == "TunnelCommunity"]
 
         # Start the IPv8 service
         ipv8 = IPv8(configuration)

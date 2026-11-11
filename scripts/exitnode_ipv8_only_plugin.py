@@ -33,9 +33,10 @@ try:
 except ImportError:
     import __scriptpath__  # noqa: F401
 
+from ipv8_rust_tunnels import PEER_FLAG_EXIT_IPV8
+
 # ruff: noqa: PLC0415
 from ipv8.configuration import get_default_configuration
-from ipv8.messaging.anonymization.tunnel import PEER_FLAG_EXIT_IPV8
 from ipv8.messaging.interfaces.dispatcher.endpoint import INTERFACES
 from ipv8.REST.rest_manager import RESTManager
 from ipv8.util import run_forever
@@ -67,16 +68,16 @@ class ExitnodeIPv8Service:
             for key in configuration["keys"]:
                 key["file"] = os.path.join(statedir, key["file"])
 
-        allowed_overlays = ["DHTDiscoveryCommunity", "DiscoveryCommunity", "HiddenTunnelCommunity"]
+        allowed_overlays = ["DHTDiscoveryCommunity", "DiscoveryCommunity", "TunnelCommunity"]
         configuration["overlays"] = [overlay for overlay in configuration["overlays"]
                                      if overlay["class"] in allowed_overlays]
 
         for overlay in configuration["overlays"]:
-            if overlay["class"] == "HiddenTunnelCommunity":
+            if overlay["class"] == "TunnelCommunity":
                 overlay["initialize"]["min_circuits"] = 0
                 overlay["initialize"]["max_circuits"] = 0
                 overlay["initialize"]["max_joined_circuits"] = 1000
-                overlay["initialize"]["peer_flags"] = {PEER_FLAG_EXIT_IPV8}
+                overlay["initialize"]["peer_flags"] = PEER_FLAG_EXIT_IPV8
 
         try:
             from ipv8_rust_tunnels import Endpoint as UDPEndpoint

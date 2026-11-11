@@ -28,13 +28,6 @@ class OverlaysEndpoint(BaseEndpoint[IPv8]):
     This endpoint is responsible for handing all requests regarding the status of overlays.
     """
 
-    def __init__(self) -> None:
-        """
-        Create new unregistered and uninitialized REST endpoint.
-        """
-        super().__init__()
-        self.statistics_supported: bool = False
-
     def setup_routes(self) -> None:
         """
         Register the names to make this endpoint callable.
@@ -42,14 +35,6 @@ class OverlaysEndpoint(BaseEndpoint[IPv8]):
         self.app.add_routes([web.get("", self.get_overlays),
                              web.get("/statistics", self.get_statistics),
                              web.post("/statistics", self.enable_statistics)])
-
-    def initialize(self, session: IPv8) -> None:
-        """
-        Initialize this endpoint for the given session instance.
-        """
-        super().initialize(session)
-        self.statistics_supported = isinstance(session.endpoint, StatisticsEndpoint) \
-            or isinstance(getattr(session.endpoint, "endpoint", None), StatisticsEndpoint)
 
     def get_communities(self) -> Generator[Community]:
         """
@@ -127,11 +112,11 @@ class OverlaysEndpoint(BaseEndpoint[IPv8]):
         return Response({"statistics": [{
             overlay.__class__.__name__: self.statistics_by_name(
                 self.session.endpoint.get_statistics(overlay.get_prefix())
-                if self.statistics_supported
+                if hasattr(self.session.endpoint, "get_statistics")
                 else {},
                 overlay,
             )
-        } for overlay in self.get_communities() if isinstance(self.session.endpoint, StatisticsEndpoint)]})
+        } for overlay in self.get_communities()]})
 
     def statistics_by_name(self, statistics: dict[int, NetworkStat],
                            overlay: Community) -> dict[str, dict[str, int | float]]:
@@ -177,7 +162,7 @@ class OverlaysEndpoint(BaseEndpoint[IPv8]):
         """
         if self.session is None:
             return Response({"success": False, "error": "IPv8 is not running"}, status=HTTP_PRECONDITION_FAILED)
-        if not self.statistics_supported:
+        if not hasattr(self.session.endpoint, "get_statistics"):
             return Response({"success": False, "error": "StatisticsEndpoint is not enabled."},
                             status=HTTP_PRECONDITION_FAILED)
 
