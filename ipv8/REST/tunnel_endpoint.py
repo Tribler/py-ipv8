@@ -332,13 +332,13 @@ class TunnelEndpoint(BaseEndpoint[IPv8]):
 
         return Response({"swarms": [{
             "info_hash": hexlify(swarm.info_hash).decode(),
-            "num_seeders": swarm.get_num_seeders(),
-            "num_connections": swarm.get_num_connections(),
-            "num_connections_incomplete": swarm.get_num_connections_incomplete(),
+            "num_seeders": swarm.num_seeders,
+            "num_connections": swarm.num_connections,
+            "num_connections_incomplete": swarm.num_connections_incomplete,
             "seeding": swarm.seeding,
             "last_lookup": swarm.last_lookup,
-            "bytes_up": swarm.get_total_up(),
-            "bytes_down": swarm.get_total_down()
+            "bytes_up": swarm.bytes_up,
+            "bytes_down": swarm.bytes_down
         } for swarm in engine.get_tunnel_statistics()['swarms']]})
 
     @docs(
