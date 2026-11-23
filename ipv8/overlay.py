@@ -96,6 +96,11 @@ class Overlay(EndpointListener, TaskManager, Generic[SettingsClass], metaclass=a
         :param packet: the received packet, in (source, binary string) format.
         """
 
+    def on_endpoint_open(self) -> None:
+        """
+        Called once the IPv8 endpoint has been opened.
+        """
+
     @property
     def global_time(self) -> int:
         """
