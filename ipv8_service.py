@@ -179,6 +179,9 @@ else:
             """
             await self.endpoint.open()
 
+            for overlay in self.overlays:
+                await maybe_coroutine(overlay.on_endpoint_open)
+
             await gather(*(ensure_future(maybe_coroutine(func, *args)) for func, args in self.on_start))
 
             async def ticker() -> None:

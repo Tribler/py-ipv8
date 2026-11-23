@@ -63,8 +63,12 @@ class TunnelCommunity(Community):
         # Keeps track of the candidates that want to be a relay/exit node
         self.candidates: dict[Peer, list[int]] = {}
         self.settings = settings
-        self.engine = None
+        self.engine: TunnelEngine | None = None
 
+    def on_endpoint_open(self) -> None:
+        """
+        Create the TunnelEngine once the RustEndpoint has been opened.
+        """
         if isinstance(self.endpoint, DispatcherEndpoint):
             endpoint = cast("Endpoint", self.endpoint.interfaces["UDPIPv4"])
         else:
@@ -83,7 +87,7 @@ class TunnelCommunity(Community):
         self.engine = TunnelEngine()
         tunnel_settings = EngineSettings()
         tunnel_settings.prefix = self.get_prefix()
-        tunnel_settings.peer_flags = settings.peer_flags
+        tunnel_settings.peer_flags = self.settings.peer_flags
         self.engine.start(endpoint, tunnel_key.ec, tunnel_settings)
         self.register_task("set_tunnel_peers", self.set_tunnel_peers, delay=1, interval=5.0)
 
